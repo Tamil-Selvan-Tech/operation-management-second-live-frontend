@@ -9,36 +9,52 @@ import { roleLabels, dashboardPathByRole } from '../data/authData'
 
 const fixedAccounts = [
   {
-    email: 'businessowner@gmail.com',
-    password: 'Owner@123',
+    email: 'business.owner@cispro.local',
+    password: 'ChangeMe123!',
     role: 'business-owner',
     name: 'Business Owner',
   },
   {
-    email: 'operationmanager@gmail.com',
-    password: 'OpsMgr@123',
+    email: 'operation.manager@cispro.local',
+    password: 'ChangeMe123!',
     role: 'operation-manager',
     name: 'Operation Manager',
   },
   {
-    email: 'hr@gmail.com',
-    password: 'HR@123',
+    email: 'hr@cispro.local',
+    password: 'ChangeMe123!',
     role: 'hr',
     name: 'HR',
   },
   {
-    email: 'faculty@gmail.com',
-    password: 'Faculty@123',
+    email: 'faculty@cispro.local',
+    password: 'ChangeMe123!',
     role: 'faculty',
     name: 'Faculty',
   },
   {
-    email: 'student@gmail.com',
-    password: 'Student@123',
+    email: 'student@cispro.local',
+    password: 'ChangeMe123!',
     role: 'student',
     name: 'Student',
   },
 ]
+
+const roleFromBackend = (role) => {
+  const normalized = String(role || '').trim().toUpperCase()
+  const roleMap = {
+    BUSINESS_OWNER: 'business-owner',
+    OPERATION_MANAGER: 'operation-manager',
+    HR: 'hr',
+    FACULTY: 'faculty',
+    STUDENT: 'student',
+  }
+
+  return roleMap[normalized] || String(role || '').trim().toLowerCase()
+}
+
+const loginIdentifier = (credentials) =>
+  credentials.identifier || credentials.email || credentials.userCode || ''
 
 export function findFixedAccount({ email, password }) {
   return fixedAccounts.find(
@@ -63,8 +79,18 @@ export function createMockSession(account) {
 export function normalizeAuthSession(response, fallbackSession) {
   if (!response) return fallbackSession
 
-  const token = response.accessToken || response.token || fallbackSession.token
-  const refreshToken = response.refreshToken || response.refresh_token || null
+  const token =
+    response.accessToken ||
+    response.data?.accessToken ||
+    response.token ||
+    response.data?.token ||
+    fallbackSession.token
+  const refreshToken =
+    response.refreshToken ||
+    response.data?.refreshToken ||
+    response.refresh_token ||
+    response.data?.refresh_token ||
+    null
   const user = response.user || response.data?.user || fallbackSession.user
 
   return {
@@ -74,21 +100,19 @@ export function normalizeAuthSession(response, fallbackSession) {
       id: user?.id ?? fallbackSession.user.id,
       name: user?.name ?? fallbackSession.user.name,
       email: user?.email ?? fallbackSession.user.email,
-      role: user?.role ?? fallbackSession.user.role,
+      role: roleFromBackend(user?.role ?? fallbackSession.user.role),
     },
   }
 }
 
 export async function signInWithFallback(credentials) {
-  const matchedAccount = findFixedAccount(credentials)
-
-  if (!matchedAccount) {
-    throw new Error('Invalid email or password')
-  }
-
-  const fallbackSession = createMockSession(matchedAccount)
-
   if (!API_BASE_URL) {
+    const matchedAccount = findFixedAccount(credentials)
+    if (!matchedAccount) {
+      throw new Error('Invalid email or password')
+    }
+
+    const fallbackSession = createMockSession(matchedAccount)
     return {
       session: fallbackSession,
       redirectTo: dashboardPathByRole[matchedAccount.role],
@@ -97,11 +121,19 @@ export async function signInWithFallback(credentials) {
   }
 
   try {
-    const response = await loginRequest(credentials)
+    const response = await loginRequest({
+      identifier: loginIdentifier(credentials),
+      password: credentials.password,
+    })
+    const fallbackSession = createMockSession({
+      email: credentials.email || credentials.identifier || '',
+      role: 'student',
+      name: 'User',
+    })
     const session = normalizeAuthSession(response, fallbackSession)
     return {
       session,
-      redirectTo: dashboardPathByRole[session.user.role] || dashboardPathByRole[credentials.role],
+      redirectTo: dashboardPathByRole[session.user.role] || '/dashboard',
       source: 'api',
     }
   } catch (error) {
@@ -110,9 +142,15 @@ export async function signInWithFallback(credentials) {
       throw error
     }
 
+    const matchedAccount = findFixedAccount(credentials)
+    if (!matchedAccount) {
+      throw error
+    }
+
+    const fallbackSession = createMockSession(matchedAccount)
     return {
       session: fallbackSession,
-      redirectTo: dashboardPathByRole[credentials.role],
+      redirectTo: dashboardPathByRole[matchedAccount.role],
       source: 'mock',
     }
   }
