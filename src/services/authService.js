@@ -9,31 +9,31 @@ import { roleLabels, dashboardPathByRole } from '../data/authData'
 
 const fixedAccounts = [
   {
-    email: 'business.owner@cispro.local',
+    email: 'businessowner@gmail.com',
     password: 'Owner@123',
     role: 'business-owner',
     name: 'Business Owner',
   },
   {
-    email: 'operations.manager@cispro.local',
+    email: 'operationmanager@gmail.com',
     password: 'OpsMgr@123',
     role: 'operation-manager',
     name: 'Operation Manager',
   },
   {
-    email: 'hr@cispro.local',
+    email: 'hr@gmail.com',
     password: 'HR@123',
     role: 'hr',
     name: 'HR',
   },
   {
-    email: 'faculty@cispro.local',
+    email: 'faculty@gmail.com',
     password: 'Faculty@123',
     role: 'faculty',
     name: 'Faculty',
   },
   {
-    email: 'student@cispro.local',
+    email: 'student@gmail.com',
     password: 'Student@123',
     role: 'student',
     name: 'Student',
