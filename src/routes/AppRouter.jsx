@@ -1,0 +1,170 @@
+import { useState } from 'react'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { AuthShell } from '../layouts/AuthShell'
+import { AppShell } from '../layouts/AppShell'
+import { useAuth } from '../auth/useAuth'
+import { roleDashboards, roleLabels, dashboardPathByRole } from '../data/authData'
+import { DashboardPage } from '../pages/DashboardPage'
+import { ForgotPasswordPage } from '../pages/ForgotPasswordPage'
+import { LoginPage } from '../pages/LoginPage'
+import { NotFoundPage } from '../pages/NotFoundPage'
+import { LoadingPage } from '../pages/LoadingPage'
+import { ProfilePage } from '../pages/ProfilePage'
+import { ResetPasswordPage } from '../pages/ResetPasswordPage'
+import { SessionExpiredPage } from '../pages/SessionExpiredPage'
+import { UnauthorizedPage } from '../pages/UnauthorizedPage'
+import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
+import { PublicRoute } from './PublicRoute'
+
+function LoginScreen() {
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+  })
+  const { signIn } = useAuth()
+  const navigate = useNavigate()
+
+  const onSubmit = async (event) => {
+    event.preventDefault()
+    const target = await signIn(form)
+    navigate(target)
+  }
+
+  return <LoginPage form={form} setForm={setForm} onSubmit={onSubmit} />
+}
+
+function AuthLayout() {
+  return (
+    <AuthShell>
+      <Outlet />
+    </AuthShell>
+  )
+}
+
+function AppLayout() {
+  const { role, user, signOut } = useAuth()
+  const navigate = useNavigate()
+  const dashboard = role ? roleDashboards[role] : null
+  const roleLabel = role ? roleLabels[role] : 'Guest'
+
+  return (
+    <AppShell
+      currentRole={role}
+      email={user?.email}
+      roleLabel={roleLabel}
+      dashboard={dashboard}
+      onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
+      onNavigateProfile={() => navigate('/profile')}
+      onLogout={() => {
+        signOut()
+        navigate('/login')
+      }}
+    >
+      <Outlet />
+    </AppShell>
+  )
+}
+
+function ProfileRoute() {
+  const { session, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  return (
+    <ProfilePage
+      session={session}
+      onLogout={() => {
+        signOut()
+        navigate('/login')
+      }}
+    />
+  )
+}
+
+function LoginResetRoute({ title }) {
+  const navigate = useNavigate()
+  const returnToLogin = async (event) => {
+    event.preventDefault()
+    navigate('/login')
+  }
+
+  if (title === 'forgot') {
+    return <ForgotPasswordPage onSubmit={returnToLogin} />
+  }
+
+  return <ResetPasswordPage onSubmit={returnToLogin} />
+}
+
+function RootRoute() {
+  const { isReady, isAuthenticated, role } = useAuth()
+
+  if (!isReady) {
+    return <LoadingPage />
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={dashboardPathByRole[role] || '/dashboard'} replace />
+  }
+
+  return <Navigate to="/login" replace />
+}
+
+function StatusRoute({ kind }) {
+  const navigate = useNavigate()
+
+  if (kind === 'unauthorized') {
+    return <UnauthorizedPage onGoLogin={() => navigate('/login')} />
+  }
+
+  if (kind === 'session-expired') {
+    return <SessionExpiredPage onGoLogin={() => navigate('/login')} />
+  }
+
+  return null
+}
+
+function NotFoundRoute() {
+  const navigate = useNavigate()
+  const { role } = useAuth()
+
+  return (
+    <NotFoundPage
+      onGoLogin={() => navigate('/login')}
+      onGoDashboard={() => navigate(dashboardPathByRole[role] || '/login')}
+    />
+  )
+}
+
+export function AppRouter() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<RootRoute />} />
+        <Route path="/loading" element={<LoadingPage />} />
+        <Route element={<PublicRoute />}>
+          <Route element={<AuthLayout />}>
+            <Route path="/login" element={<LoginScreen />} />
+            <Route path="/forgot-password" element={<LoginResetRoute title="forgot" />} />
+            <Route path="/reset-password" element={<LoginResetRoute title="reset" />} />
+          </Route>
+        </Route>
+
+        <Route path="/unauthorized" element={<StatusRoute kind="unauthorized" />} />
+        <Route path="/session-expired" element={<StatusRoute kind="session-expired" />} />
+
+        <Route element={<ProtectedRoute allowedRoles={['business-owner', 'operation-manager', 'hr', 'faculty', 'student']} />}>
+          <Route element={<AppLayout />}>
+            <Route path="/dashboard" element={<RoleDashboardRedirect />} />
+            <Route path="/dashboard/business-owner" element={<DashboardPage role="business-owner" />} />
+            <Route path="/dashboard/operation-manager" element={<DashboardPage role="operation-manager" />} />
+            <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
+            <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
+            <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
+            <Route path="/profile" element={<ProfileRoute />} />
+          </Route>
+        </Route>
+
+        <Route path="*" element={<NotFoundRoute />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
