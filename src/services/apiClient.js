@@ -19,18 +19,20 @@ export function setSessionExpiredHandler(handler) {
 }
 
 async function request(path, options = {}, retryCount = 0) {
-  const headers = new Headers(options.headers || {})
+  const { skipAuth, headers: optionHeaders, body, ...fetchOptions } = options
+  const headers = new Headers(optionHeaders || {})
 
-  if (accessToken) {
+  if (skipAuth !== true && accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`)
   }
 
-  if (options.body && !headers.has('Content-Type')) {
+  if (body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
+    ...fetchOptions,
+    body,
     headers,
   })
 
@@ -109,8 +111,12 @@ export async function refreshSession() {
 
 export async function logoutSession() {
   try {
+    if (!refreshToken) return
+
     await request('/auth/logout', {
       method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({ refreshToken }),
     })
   } finally {
     clearAuthTokens()
