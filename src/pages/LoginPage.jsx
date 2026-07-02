@@ -3,28 +3,7 @@ import { useState } from 'react'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
-
-function LoginShieldIcon() {
-  return (
-    <svg viewBox="0 0 96 96" aria-hidden="true" focusable="false">
-      <path
-        d="M48 9l26 8.5c4 1.3 6.7 5.1 6.7 9.3v20.4c0 19.1-11.6 29.5-32.7 39.1C27.9 76.2 16.3 65.8 16.3 46.7V26.8c0-4.2 2.7-8 6.7-9.3L48 9z"
-        fill="#ffffff"
-        stroke="#0078d4"
-        strokeWidth="4"
-        strokeLinejoin="round"
-      />
-      <circle cx="48" cy="39" r="10" fill="#0078d4" />
-      <path
-        d="M30 67.5c4.4-9.2 11-13.7 18-13.7s13.6 4.5 18 13.7"
-        fill="none"
-        stroke="#0078d4"
-        strokeWidth="5"
-        strokeLinecap="round"
-      />
-    </svg>
-  )
-}
+import "../styles/LoginPage.css";
 
 function EmailIcon() {
   return (
@@ -125,9 +104,7 @@ export function LoginPage({ form, setForm, onSubmit }) {
       <aside className="login-hero">
         <div className="login-brand">
           <div className="login-brand-mark">
-            <span>
-              <LoginShieldIcon />
-            </span>
+            <img className="login-logo-image" src="/logo.png" alt="CISPRO logo" />
           </div>
           <div>
             <strong>CISPRO</strong>
@@ -160,14 +137,14 @@ export function LoginPage({ form, setForm, onSubmit }) {
       <section className="login-panel">
         <div className="login-panel-top">
           <div className="login-shield" aria-hidden="true">
-            <LoginShieldIcon />
+            <img className="login-logo-image login-logo-image-small" src="/logo.png" alt="" />
           </div>
           <h2>Welcome Back!</h2>
-          <p>Sign in to continue to your account</p>
+          <p>Log in to continue to your account</p>
         </div>
 
         <form className="form login-form" onSubmit={onSubmit}>
-          <FormField label="Email">
+          <FormField label="Email / Employee ID">
             <div className="field-with-icon">
               <span className="field-icon" aria-hidden="true">
                 <EmailIcon />
@@ -209,24 +186,17 @@ export function LoginPage({ form, setForm, onSubmit }) {
             </div>
           </FormField>
 
-        <div className="login-meta">
-  <label className="remember-me">
-    <input
-      type="checkbox"
-      defaultChecked
-      style={{
-        width: "14px",
-        height: "14px",
-        cursor: "pointer",
-      }}
-    />
-    <span>Remember me</span>
-  </label>
+          <div className="login-meta">
+            <label className="remember-me">
+  <input type="checkbox" defaultChecked />
+  <span className="checkmark"></span>
+  <span className="remember-text">Remember me</span>
+</label>
 
-  <a href="/forgot-password" className="text-link">
-    Forgot Password?
-  </a>
-</div>
+            <a href="/forgot-password" className="text-link">
+              Forgot Password?
+            </a>
+          </div>
 
           <Button type="submit" className="login-primary">
             Login
