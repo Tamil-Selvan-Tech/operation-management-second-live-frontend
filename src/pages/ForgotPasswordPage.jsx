@@ -41,7 +41,7 @@ export function ForgotPasswordPage({ onSubmit }) {
         <div className="login-hero-copy">
           <p className="hero-rule" />
           <h2>Streamline.</h2>
-          <h2 className="accent">Manage.</h2>
+          <h2 >Manage.</h2>
           <h2>Succeed.</h2>
           <p>
             A complete management solution for Business Owner, Operation Manager, HR, Faculty,

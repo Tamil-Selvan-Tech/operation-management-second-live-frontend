@@ -21,16 +21,47 @@ function LoginScreen() {
     email: '',
     password: '',
   })
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { signIn } = useAuth()
   const navigate = useNavigate()
+  const updateForm = (updater) => {
+    setErrorMessage('')
+    setForm(updater)
+  }
 
   const onSubmit = async (event) => {
     event.preventDefault()
-    const target = await signIn(form)
-    navigate(target)
+    setErrorMessage('')
+    setIsSubmitting(true)
+
+    try {
+      const target = await signIn(form)
+      navigate(target)
+    } catch (error) {
+      const status = error?.status
+      const message =
+        status === 400 || status === 401 || status === 403 || status === 422
+          ? 'Invalid Email / Employee ID or Password'
+          : typeof error?.message === 'string' && /invalid/i.test(error.message)
+            ? 'Invalid Email / Employee ID or Password'
+            : error?.message || 'Unable to sign in right now. Please try again.'
+
+      setErrorMessage(message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
-  return <LoginPage form={form} setForm={setForm} onSubmit={onSubmit} />
+  return (
+    <LoginPage
+      form={form}
+      setForm={updateForm}
+      onSubmit={onSubmit}
+      errorMessage={errorMessage}
+      isSubmitting={isSubmitting}
+    />
+  )
 }
 
 function AuthLayout() {
