@@ -96,49 +96,6 @@ function EyeIcon({ hidden = false }) {
   )
 }
 
-function LoginHeroArt() {
-  return (
-    <svg className="login-hero-image" viewBox="0 0 900 380" aria-hidden="true" focusable="false">
-      <defs>
-        <linearGradient id="heroGlow" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="screenFill" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0%" stopColor="#f9fbff" />
-          <stop offset="100%" stopColor="#dfeafb" />
-        </linearGradient>
-        <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="18" stdDeviation="18" floodColor="#04244e" floodOpacity="0.22" />
-        </filter>
-      </defs>
-
-      <circle cx="146" cy="314" r="122" fill="none" stroke="#ffffff" strokeOpacity="0.08" strokeWidth="2" />
-      <circle cx="112" cy="301" r="178" fill="none" stroke="#ffffff" strokeOpacity="0.06" strokeWidth="2" />
-      <circle cx="698" cy="74" r="150" fill="none" stroke="#ffffff" strokeOpacity="0.1" strokeWidth="2" />
-
-      <rect x="18" y="235" width="132" height="98" rx="18" transform="rotate(-11 18 235)" fill="#1f93f3" opacity="0.9" filter="url(#softShadow)" />
-      <rect
-        x="556"
-        y="84"
-        width="274"
-        height="288"
-        rx="28"
-        transform="rotate(-15 556 84)"
-        fill="#ffffff"
-        fillOpacity="0.1"
-        stroke="#ffffff"
-        strokeOpacity="0.16"
-      />
-      <rect x="584" y="118" width="214" height="148" rx="22" transform="rotate(-15 584 118)" fill="url(#screenFill)" filter="url(#softShadow)" />
-      <rect x="588" y="267" width="54" height="44" rx="14" transform="rotate(-15 588 267)" fill="#ffffff" opacity="0.82" />
-      <rect x="744" y="278" width="126" height="78" rx="18" transform="rotate(14 744 278)" fill="#ffffff" filter="url(#softShadow)" />
-      <rect x="64" y="70" width="172" height="108" rx="22" transform="rotate(-10 64 70)" fill="url(#heroGlow)" opacity="0.5" />
-      <rect x="66" y="70" width="126" height="84" rx="18" fill="#ffffff" opacity="0.06" />
-    </svg>
-  )
-}
-
 export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting = false }) {
   const [showPassword, setShowPassword] = useState(false)
 
@@ -158,7 +115,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
         <div className="login-hero-copy">
           <p className="hero-rule" />
           <h2>Streamline.</h2>
-          <h2 >Manage.</h2>
+          <h2 className="accent">Manage.</h2>
           <h2>Succeed.</h2>
           <p>
             A complete management solution for Business Owner, Operation Manager, HR, Faculty,
@@ -167,21 +124,21 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
         </div>
 
         <div className="login-hero-art" aria-hidden="true">
-          <LoginHeroArt />
+          <img className="login-hero-image" src="/login.png" alt="" />
         </div>
       </aside>
 
       <section className="login-panel">
         <div className="login-panel-top">
-          <div className="login-shield" aria-hidden="true">
+          {/* <div className="login-shield" aria-hidden="true">
             <img className="login-logo-image login-logo-image-small" src="/logo.png" alt="" />
-          </div>
+          </div> */}
           <h2>Welcome Back!</h2>
           <p>Log in to continue to your account</p>
         </div>
 
         <form className="form login-form" onSubmit={onSubmit}>
-          <FormField label="Email ">
+          <FormField label="Email">
             <div className="field-with-icon">
               <span className="field-icon" aria-hidden="true">
                 <EmailIcon />

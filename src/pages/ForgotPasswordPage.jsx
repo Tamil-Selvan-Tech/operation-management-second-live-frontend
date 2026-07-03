@@ -41,7 +41,7 @@ export function ForgotPasswordPage({ onSubmit }) {
         <div className="login-hero-copy">
           <p className="hero-rule" />
           <h2>Streamline.</h2>
-          <h2 >Manage.</h2>
+          <h2 className="accent">Manage.</h2>
           <h2>Succeed.</h2>
           <p>
             A complete management solution for Business Owner, Operation Manager, HR, Faculty,
@@ -50,21 +50,15 @@ export function ForgotPasswordPage({ onSubmit }) {
         </div>
 
         <div className="login-hero-art" aria-hidden="true">
-          <div className="art-screen">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="art-book" />
-          <div className="art-card" />
+          <img className="login-hero-image" src="/login.png" alt="" />
         </div>
       </aside>
 
       <section className="login-panel forgot-panel">
         <div className="forgot-panel-top">
-          <div className="login-shield" aria-hidden="true">
+          {/* <div className="login-shield" aria-hidden="true">
             <img className="login-logo-image login-logo-image-small" src="/logo.png" alt="" />
-          </div>
+          </div> */}
           <p className="eyebrow">Recovery</p>
           <h2>Forgot password</h2>
           <p>

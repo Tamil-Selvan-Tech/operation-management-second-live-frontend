@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { AuthShell } from '../layouts/AuthShell'
 import { AppShell } from '../layouts/AppShell'
 import { useAuth } from '../auth/useAuth'
@@ -42,9 +42,9 @@ function LoginScreen() {
       const status = error?.status
       const message =
         status === 400 || status === 401 || status === 403 || status === 422
-          ? 'Invalid Email / Employee ID or Password'
+          ? 'Invalid Email or Password'
           : typeof error?.message === 'string' && /invalid/i.test(error.message)
-            ? 'Invalid Email / Employee ID or Password'
+            ? 'Invalid Email or Password'
             : error?.message || 'Unable to sign in right now. Please try again.'
 
       setErrorMessage(message)
@@ -75,8 +75,10 @@ function AuthLayout() {
 function AppLayout() {
   const { role, user, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const dashboard = role ? roleDashboards[role] : null
   const roleLabel = role ? roleLabels[role] : 'Guest'
+  const showChrome = location.pathname !== '/dashboard/business-owner'
 
   return (
     <AppShell
@@ -90,6 +92,7 @@ function AppLayout() {
         signOut()
         navigate('/login')
       }}
+      showChrome={showChrome}
     >
       <Outlet />
     </AppShell>

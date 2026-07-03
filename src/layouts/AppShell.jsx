@@ -10,6 +10,7 @@ export function AppShell({
   onNavigateDashboard,
   onNavigateProfile,
   onLogout,
+  showChrome = true,
   children,
 }) {
   return (
@@ -23,10 +24,13 @@ export function AppShell({
         onLogout={onLogout}
       />
 
-      <div className="main-area">
-        <AppHeader title={dashboard?.title || 'Operations Dashboard'} accent={dashboard?.accent || 'Ready'} />
-
-        <AppBreadcrumbs crumbs={['Home', dashboard?.title || 'Workspace']} />
+      <div className={`main-area ${showChrome ? '' : 'main-area-compact'}`}>
+        {showChrome ? (
+          <>
+            <AppHeader title={dashboard?.title || 'Operations Dashboard'} accent={dashboard?.accent || 'Ready'} />
+            <AppBreadcrumbs crumbs={['Home', dashboard?.title || 'Workspace']} />
+          </>
+        ) : null}
 
         <main className="content">{children}</main>
       </div>
