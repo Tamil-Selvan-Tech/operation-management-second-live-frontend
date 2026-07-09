@@ -1,0 +1,95 @@
+<svg width="1400" height="860" viewBox="0 0 1400 860" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Attendance vs Leave chart">
+  <defs>
+    <filter id="shadow" x="0" y="0" width="1400" height="860" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.12"/>
+    </filter>
+    <linearGradient id="blueFill" x1="0" y1="220" x2="0" y2="780" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1d78f2" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#1d78f2" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="violetFill" x1="0" y1="480" x2="0" y2="780" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9b8cf1" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#9b8cf1" stop-opacity="0.03"/>
+    </linearGradient>
+    <linearGradient id="cardBg" x1="0" y1="0" x2="0" y2="860" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#fbfcff"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="18" y="18" width="1364" height="824" rx="42" fill="url(#cardBg)" stroke="#e5e7eb"/>
+  <g filter="url(#shadow)">
+    <rect x="18" y="18" width="1364" height="824" rx="42" fill="url(#cardBg)"/>
+  </g>
+
+  <text x="86" y="116" fill="#111827" font-size="56" font-weight="700" font-family="Inter, Arial, sans-serif">Attendance vs. Leave</text>
+  <text x="1158" y="116" fill="#4b5563" font-size="40" font-weight="500" font-family="Inter, Arial, sans-serif">Week 2</text>
+  <path d="M1296 102L1312 118L1328 102" stroke="#6b7280" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <circle cx="104" cy="232" r="16" fill="#1d78f2"/>
+  <text x="146" y="246" fill="#111827" font-size="48" font-weight="500" font-family="Inter, Arial, sans-serif">Attendance</text>
+  <circle cx="446" cy="232" r="16" fill="#9b8cf1"/>
+  <text x="488" y="246" fill="#111827" font-size="48" font-weight="500" font-family="Inter, Arial, sans-serif">Leave</text>
+
+  <g stroke="#d6dde8" stroke-width="4" stroke-dasharray="14 14">
+    <line x1="188" y1="354" x2="1316" y2="354"/>
+    <line x1="188" y1="500" x2="1316" y2="500"/>
+    <line x1="188" y1="646" x2="1316" y2="646"/>
+  </g>
+
+  <g fill="#111827" font-size="44" font-weight="500" font-family="Inter, Arial, sans-serif">
+    <text x="80" y="372">200</text>
+    <text x="80" y="518">150</text>
+    <text x="80" y="664">100</text>
+    <text x="96" y="802">0</text>
+  </g>
+
+  <g fill="#111827" font-size="38" font-weight="500" font-family="Inter, Arial, sans-serif">
+    <text x="222" y="816">Sat</text>
+    <text x="398" y="816">Sun</text>
+    <text x="560" y="816" font-weight="700">Mon</text>
+    <text x="723" y="816">Tue</text>
+    <text x="888" y="816">Wed</text>
+    <text x="1054" y="816">Thur</text>
+    <text x="1228" y="816">Fri</text>
+  </g>
+
+  <path d="M206 804L206 676L372 520L540 606L706 418L872 520L1038 646L1206 572L1336 628L1336 804Z" fill="url(#blueFill)"/>
+  <path d="M206 804L206 742L372 664L540 700L706 584L872 662L1038 722L1206 686L1336 742L1336 804Z" fill="url(#violetFill)"/>
+
+  <path d="M206 676L372 520L540 606L706 418L872 520L1038 646L1206 572L1336 628" stroke="#1d78f2" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M206 742L372 664L540 700L706 584L872 662L1038 722L1206 686L1336 742" stroke="#9b8cf1" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <g fill="#1d78f2">
+    <circle cx="206" cy="676" r="13"/>
+    <circle cx="372" cy="520" r="13"/>
+    <circle cx="540" cy="606" r="13"/>
+    <circle cx="706" cy="418" r="13"/>
+    <circle cx="872" cy="520" r="13"/>
+    <circle cx="1038" cy="646" r="13"/>
+    <circle cx="1206" cy="572" r="13"/>
+    <circle cx="1336" cy="628" r="13"/>
+  </g>
+
+  <g fill="#9b8cf1">
+    <circle cx="206" cy="742" r="13"/>
+    <circle cx="372" cy="664" r="13"/>
+    <circle cx="540" cy="700" r="13"/>
+    <circle cx="706" cy="584" r="13"/>
+    <circle cx="872" cy="662" r="13"/>
+    <circle cx="1038" cy="722" r="13"/>
+    <circle cx="1206" cy="686" r="13"/>
+    <circle cx="1336" cy="742" r="13"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="604" y="490" width="372" height="168" rx="22" fill="#ffffff"/>
+  </g>
+  <path d="M789 490L806 462L823 490" fill="#ffffff"/>
+  <circle cx="666" cy="550" r="11" fill="#1d78f2"/>
+  <text x="696" y="565" fill="#4b5563" font-size="38" font-weight="500" font-family="Inter, Arial, sans-serif">Attendance</text>
+  <text x="950" y="565" fill="#111827" font-size="44" font-weight="700" text-anchor="end" font-family="Inter, Arial, sans-serif">180</text>
+  <circle cx="666" cy="620" r="11" fill="#9b8cf1"/>
+  <text x="696" y="635" fill="#4b5563" font-size="38" font-weight="500" font-family="Inter, Arial, sans-serif">Leave</text>
+  <text x="950" y="635" fill="#111827" font-size="44" font-weight="700" text-anchor="end" font-family="Inter, Arial, sans-serif">70</text>
+</svg>

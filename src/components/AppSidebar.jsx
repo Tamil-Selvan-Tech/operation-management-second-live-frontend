@@ -1,8 +1,16 @@
-export function AppSidebar({ currentRole, email, roleLabel, onNavigateDashboard, onNavigateProfile, onLogout }) {
+export function AppSidebar({
+  currentRole,
+  email,
+  roleLabel,
+  activeNav,
+  onNavigateDashboard,
+  onNavigateCourses,
+  onLogout,
+}) {
   return (
     <aside className="sidebar">
       <div className="brand">
-        <span className="brand-mark">CM</span>
+        <img className="brand-logo" src="/logo.png" alt="Cispro Ops logo" />
         <div>
           <strong>Cispro Ops</strong>
           <p>Role-aware workspace</p>
@@ -10,11 +18,11 @@ export function AppSidebar({ currentRole, email, roleLabel, onNavigateDashboard,
       </div>
 
       <nav className="menu">
-        <button type="button" onClick={onNavigateDashboard}>
+        <button type="button" className={activeNav === 'dashboard' ? 'active' : ''} onClick={onNavigateDashboard}>
           Dashboard
         </button>
-        <button type="button" onClick={onNavigateProfile}>
-          Profile
+        <button type="button" className={activeNav === 'courses' ? 'active' : ''} onClick={onNavigateCourses}>
+          Courses
         </button>
         <button type="button" onClick={onLogout}>
           Logout

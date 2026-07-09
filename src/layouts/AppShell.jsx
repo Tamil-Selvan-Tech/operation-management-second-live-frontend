@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom'
 import { AppBreadcrumbs } from '../components/AppBreadcrumbs'
 import { AppHeader } from '../components/AppHeader'
 import { AppSidebar } from '../components/AppSidebar'
@@ -8,19 +9,23 @@ export function AppShell({
   roleLabel,
   dashboard,
   onNavigateDashboard,
-  onNavigateProfile,
+  onNavigateCourses,
   onLogout,
   showChrome = true,
   children,
 }) {
+  const location = useLocation()
+  const activeNav = location.pathname.startsWith('/courses') ? 'courses' : 'dashboard'
+
   return (
     <div className="app-shell">
       <AppSidebar
         currentRole={currentRole}
         email={email}
         roleLabel={roleLabel}
+        activeNav={activeNav}
         onNavigateDashboard={onNavigateDashboard}
-        onNavigateProfile={onNavigateProfile}
+        onNavigateCourses={onNavigateCourses}
         onLogout={onLogout}
       />
 

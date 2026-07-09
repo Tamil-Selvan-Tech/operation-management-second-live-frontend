@@ -1,8 +1,11 @@
 import { STORAGE_KEY } from '../data/authData'
 
+const getStorage = () => window.sessionStorage
+
 export const loadSession = () => {
   try {
-    const session = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')
+    window.localStorage.removeItem(STORAGE_KEY)
+    const session = JSON.parse(getStorage().getItem(STORAGE_KEY) || 'null')
     if (!session?.token || !session?.user?.role) return null
     return session
   } catch {
@@ -11,9 +14,10 @@ export const loadSession = () => {
 }
 
 export const saveSession = (session) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
+  getStorage().setItem(STORAGE_KEY, JSON.stringify(session))
 }
 
 export const clearSession = () => {
-  localStorage.removeItem(STORAGE_KEY)
+  window.localStorage.removeItem(STORAGE_KEY)
+  getStorage().removeItem(STORAGE_KEY)
 }

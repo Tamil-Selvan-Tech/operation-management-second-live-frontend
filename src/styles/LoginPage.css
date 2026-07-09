@@ -13,7 +13,7 @@
 .checkmark {
   width: 22px;
   height: 22px;
-  border: 2px solid #2563eb;
+  border: 2px solid #0f7bda;
   border-radius: 6px;
   background: #fff;
   position: relative;
@@ -21,8 +21,8 @@
 }
 
 .remember-me input:checked + .checkmark {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #0f7bda;
+  border-color: #0b63b3;
 }
 
 .remember-me input:checked + .checkmark::after {

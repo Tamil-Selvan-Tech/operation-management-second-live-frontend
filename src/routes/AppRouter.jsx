@@ -9,7 +9,7 @@ import { ForgotPasswordPage } from '../pages/ForgotPasswordPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { LoadingPage } from '../pages/LoadingPage'
-import { ProfilePage } from '../pages/ProfilePage'
+import { CoursesPage } from '../pages/CoursesPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 import { SessionExpiredPage } from '../pages/SessionExpiredPage'
 import { UnauthorizedPage } from '../pages/UnauthorizedPage'
@@ -78,7 +78,9 @@ function AppLayout() {
   const location = useLocation()
   const dashboard = role ? roleDashboards[role] : null
   const roleLabel = role ? roleLabels[role] : 'Guest'
-  const showChrome = location.pathname !== '/dashboard/business-owner'
+  const showChrome =
+    location.pathname !== '/dashboard/business-owner' &&
+    location.pathname !== '/dashboard/operation-manager'
 
   return (
     <AppShell
@@ -87,7 +89,7 @@ function AppLayout() {
       roleLabel={roleLabel}
       dashboard={dashboard}
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
-      onNavigateProfile={() => navigate('/profile')}
+      onNavigateCourses={() => navigate('/courses')}
       onLogout={() => {
         signOut()
         navigate('/login')
@@ -96,21 +98,6 @@ function AppLayout() {
     >
       <Outlet />
     </AppShell>
-  )
-}
-
-function ProfileRoute() {
-  const { session, signOut } = useAuth()
-  const navigate = useNavigate()
-
-  return (
-    <ProfilePage
-      session={session}
-      onLogout={() => {
-        signOut()
-        navigate('/login')
-      }}
-    />
   )
 }
 
@@ -193,7 +180,8 @@ export function AppRouter() {
             <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
             <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
             <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
-            <Route path="/profile" element={<ProfileRoute />} />
+            <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/profile" element={<Navigate to="/courses" replace />} />
           </Route>
         </Route>
 
