@@ -30,8 +30,17 @@ async function request(path, options = {}, retryCount = 0) {
     headers.set('Content-Type', 'application/json')
   }
 
+  if (!headers.has('Cache-Control')) {
+    headers.set('Cache-Control', 'no-cache')
+  }
+
+  if (!headers.has('Pragma')) {
+    headers.set('Pragma', 'no-cache')
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...fetchOptions,
+    cache: fetchOptions.cache || 'no-store',
     body,
     headers,
   })
@@ -45,6 +54,10 @@ async function request(path, options = {}, retryCount = 0) {
 
   if (response.status === 401) {
     sessionExpiredHandler?.()
+  }
+
+  if (response.status === 304) {
+    return null
   }
 
   if (!response.ok) {
@@ -86,8 +99,11 @@ export async function refreshAccessToken() {
 
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
       Authorization: `Bearer ${refreshToken}`,
     },
   })

@@ -1,28 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
-
-const seedCourses = []
-const COURSES_STORAGE_KEY = 'courses-page-courses'
-
-function createCourseId() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID()
-  }
-
-  return `course-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-}
-
-function normalizeCourse(course) {
-  return {
-    ...course,
-    id: course.id || createCourseId(),
-    installmentCount: course.installmentCount || '2',
-    installment3: course.installment3 || '',
-  }
-}
-
-function normalizeCourseList(courses) {
-  return Array.isArray(courses) ? courses.map(normalizeCourse) : seedCourses
-}
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  createCourse,
+  deleteCourse,
+  listCourses,
+  normalizeCourseList,
+  updateCourse,
+} from '../services/courseService'
 
 function Field({ label, hint, children, required = false }) {
   return (
@@ -99,18 +82,12 @@ function formatHours(value) {
 
 export function CoursesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [courses, setCourses] = useState(() => {
-    if (typeof window === 'undefined') return seedCourses
-
-    try {
-      const storedCourses = window.localStorage.getItem(COURSES_STORAGE_KEY)
-      if (!storedCourses) return seedCourses
-
-      const parsedCourses = JSON.parse(storedCourses)
-      return normalizeCourseList(parsedCourses)
-    } catch {
-      return seedCourses
-    }
+  const [courses, setCourses] = useState([])
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 5,
+    total: 0,
+    totalPages: 1,
   })
   const [searchTerm, setSearchTerm] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
@@ -133,11 +110,13 @@ export function CoursesPage() {
   })
   const [touched, setTouched] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [loadError, setLoadError] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const requestIdRef = useRef(0)
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(COURSES_STORAGE_KEY, JSON.stringify(courses.map(normalizeCourse)))
-  }, [courses])
+  const pageSize = 5
 
   const afterDiscount = useMemo(() => {
     const actualFees = Number(form.actualFees || 0)
@@ -146,33 +125,112 @@ export function CoursesPage() {
     return String(Math.max(actualFees - discount, 0))
   }, [form.actualFees, form.discount])
 
-  const filteredCourses = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase()
+  const validationError = useMemo(() => {
+    if (!form.name.trim() || !form.mode || !form.duration || !form.hours || !form.actualFees || !form.registrationFees || !form.discount || !form.installmentCount || !form.installment1 || !form.installment2 || !form.status) {
+      return 'Please fill all required fields before saving.'
+    }
 
-    return courses.filter((course) => {
-      const matchesSearch =
-        !query ||
-        [course.name, course.mode, course.duration, course.hours, course.status, course.afterDiscount]
-          .filter(Boolean)
-          .some((value) => String(value).toLowerCase().includes(query))
+    if (form.installmentCount === '3' && !form.installment3) {
+      return 'Please fill Installment 3 before saving.'
+    }
 
-      const matchesFilter =
-        activeFilter === 'All' ||
-        course.status === activeFilter ||
-        course.mode === activeFilter
+    if (Number(form.discount) > Number(form.actualFees)) {
+      return 'Discount cannot be greater than actual fees.'
+    }
 
-      return matchesSearch && matchesFilter
-    })
-  }, [courses, searchTerm, activeFilter])
+    if (Number(form.duration) <= 0) {
+      return 'Duration must be greater than zero.'
+    }
 
-  const pageSize = 5
-  const totalPages = Math.max(1, Math.ceil(filteredCourses.length / pageSize))
+    if (Number(form.hours) <= 0) {
+      return 'Hours must be greater than zero.'
+    }
+
+    const discountedFee = Number(form.actualFees) - Number(form.discount)
+    const installmentTotal =
+      Number(form.installment1 || 0) +
+      Number(form.installment2 || 0) +
+      (form.installmentCount === '3' ? Number(form.installment3 || 0) : 0)
+
+    if (installmentTotal !== discountedFee) {
+      return `Installment totals must match the discounted fee. Current total is ${installmentTotal}, expected ${discountedFee}.`
+    }
+
+    return ''
+  }, [form])
+
+  const totalPages = pagination.totalPages || 1
   const safeCurrentPage = Math.min(currentPage, totalPages)
+  const visibleCourses = courses
 
-  const visibleCourses = useMemo(() => {
-    const startIndex = (safeCurrentPage - 1) * pageSize
-    return filteredCourses.slice(startIndex, startIndex + pageSize)
-  }, [filteredCourses, safeCurrentPage])
+  const loadCourses = useCallback(
+    async ({ page = currentPage, search = searchTerm, filter = activeFilter } = {}) => {
+      const requestId = ++requestIdRef.current
+      const params = {
+        page,
+        limit: pageSize,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      }
+
+      const trimmedSearch = search.trim()
+      if (trimmedSearch) {
+        params.search = trimmedSearch
+      }
+
+      if (filter === 'Active' || filter === 'Inactive') {
+        params.status = filter
+      } else if (filter === 'Online' || filter === 'Offline') {
+        params.mode = filter
+      }
+
+      setIsLoading(true)
+      setLoadError('')
+
+      try {
+        const result = await listCourses(params)
+        if (requestId !== requestIdRef.current) return
+        const nextCourses = normalizeCourseList(result.data)
+        const nextMeta = result.meta || {
+          page,
+          limit: pageSize,
+          total: nextCourses.length,
+          totalPages: 1,
+        }
+
+        setCourses(nextCourses)
+        setPagination({
+          page: nextMeta.page || page,
+          limit: nextMeta.limit || pageSize,
+          total: nextMeta.total || nextCourses.length,
+          totalPages: nextMeta.totalPages || 1,
+        })
+
+        if (page > (nextMeta.totalPages || 1) && (nextMeta.total || 0) > 0) {
+          setCurrentPage(nextMeta.totalPages || 1)
+        }
+      } catch (error) {
+        if (requestId !== requestIdRef.current) return
+        setCourses([])
+        setPagination({
+          page,
+          limit: pageSize,
+          total: 0,
+          totalPages: 1,
+        })
+        setLoadError(error?.body?.message || error?.message || 'Unable to load courses right now.')
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setIsLoading(false)
+        }
+      }
+    },
+    [activeFilter, currentPage, pageSize, searchTerm],
+  )
+
+  useEffect(() => {
+    void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
+  }, [activeFilter, currentPage, loadCourses, searchTerm])
 
   const pageList = useMemo(() => {
     if (totalPages <= 8) {
@@ -247,15 +305,15 @@ export function CoursesPage() {
     setForm({
       name: course.name || '',
       mode: course.mode || '',
-      duration: course.duration || '',
-      hours: course.hours || '',
-      actualFees: course.actualFees || '',
-      registrationFees: course.registrationFees || '',
-      discount: course.discount || '',
-      installmentCount: course.installmentCount || '2',
-      installment1: course.installment1 || '',
-      installment2: course.installment2 || '',
-      installment3: course.installment3 || '',
+      duration: course.duration ?? '',
+      hours: course.hours ?? '',
+      actualFees: course.actualFees ?? '',
+      registrationFees: course.registrationFees ?? '',
+      discount: course.discount ?? '',
+      installmentCount: String(course.installmentCount ?? '2'),
+      installment1: course.installment1 ?? '',
+      installment2: course.installment2 ?? '',
+      installment3: course.installment3 ?? '',
       status: course.status || '',
     })
     setIsModalOpen(true)
@@ -275,35 +333,20 @@ export function CoursesPage() {
     setCurrentPage(1)
   }
 
-  const isValid =
-    form.name.trim() &&
-    form.mode &&
-    form.duration &&
-    form.hours &&
-    form.actualFees &&
-    form.registrationFees &&
-    form.discount &&
-    form.installmentCount &&
-    form.installment1 &&
-    form.installment2 &&
-    (form.installmentCount === '2' || form.installment3) &&
-    form.status &&
-    Number(form.discount) <= Number(form.actualFees) &&
-    Number(form.duration) > 0 &&
-    Number(form.hours) > 0
+  const isValid = !validationError
 
-  const handleSave = (event) => {
+  const handleSave = async (event) => {
     event?.preventDefault()
     setTouched(true)
     if (!isValid) {
-      setSaveError('Please fill all required fields before saving.')
+      setSaveError(validationError)
       return
     }
 
     setSaveError('')
+    setIsSaving(true)
 
-    const nextCourse = {
-      id: editingCourseId || createCourseId(),
+    const payload = {
       name: form.name.trim(),
       mode: form.mode,
       duration: form.duration,
@@ -311,38 +354,55 @@ export function CoursesPage() {
       actualFees: form.actualFees,
       registrationFees: form.registrationFees,
       discount: form.discount,
-      afterDiscount,
       installmentCount: form.installmentCount,
       installment1: form.installment1,
       installment2: form.installment2,
-      installment3: form.installmentCount === '3' ? form.installment3 : '',
+      installment3: form.installmentCount === '3' ? form.installment3 : null,
       status: form.status,
     }
 
-    setCourses((current) => {
+    try {
+      const nextPage = editingCourseId ? currentPage : 1
       if (editingCourseId) {
-        return current.map((course) => (course.id === editingCourseId ? nextCourse : course))
+        await updateCourse(editingCourseId, payload)
+      } else {
+        await createCourse(payload)
       }
 
-      return [nextCourse, ...current]
-    })
-    closeModal()
-    setCurrentPage(1)
+      setCurrentPage(nextPage)
+      if (editingCourseId || currentPage === 1) {
+        await loadCourses({ page: nextPage, search: searchTerm, filter: activeFilter })
+      }
+      closeModal()
+    } catch (error) {
+      setSaveError(error?.body?.message || error?.message || 'Unable to save course right now.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleDelete = (courseId) => {
     setDeleteTarget(courses.find((course) => course.id === courseId) || null)
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteTarget) return
-    setCourses((current) => current.filter((course) => course.id !== deleteTarget.id))
+    setIsDeleting(true)
 
-    if (editingCourseId === deleteTarget.id) {
-      closeModal()
+    try {
+      await deleteCourse(deleteTarget.id)
+      if (editingCourseId === deleteTarget.id) {
+        closeModal()
+      }
+
+      closeDeleteModal()
+      await loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
+    } catch (error) {
+      setLoadError(error?.body?.message || error?.message || 'Unable to delete course right now.')
+      closeDeleteModal()
+    } finally {
+      setIsDeleting(false)
     }
-
-    closeDeleteModal()
   }
 
   return (
@@ -385,6 +445,12 @@ export function CoursesPage() {
           </button>
         ))}
       </div>
+
+      {loadError ? (
+        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem' }}>
+          {loadError}
+        </div>
+      ) : null}
 
       {isModalOpen ? (
         <div className="course-modal-backdrop" role="presentation" onClick={closeModal}>
@@ -543,15 +609,15 @@ export function CoursesPage() {
             ) : null}
 
             <div className="course-form-actions">
-              <button type="button" className="button button-ghost" onClick={resetForm}>
+              <button type="button" className="button button-ghost" onClick={resetForm} disabled={isSaving}>
                 Reset
               </button>
-              <button type="submit" className="button button-solid">
+              <button type="submit" className="button button-solid" disabled={isSaving}>
                 {editingCourseId ? 'Update Course' : 'Save Course'}
               </button>
             </div>
 
-            <button type="button" className="course-modal-close" onClick={closeModal} aria-label="Close course form">
+            <button type="button" className="course-modal-close" onClick={closeModal} aria-label="Close course form" disabled={isSaving}>
               X
             </button>
           </form>
@@ -580,11 +646,11 @@ export function CoursesPage() {
             </p>
 
             <div className="course-form-actions">
-              <button type="button" className="button button-ghost" onClick={closeDeleteModal}>
+              <button type="button" className="button button-ghost" onClick={closeDeleteModal} disabled={isDeleting}>
                 Cancel
               </button>
-              <button type="button" className="button button-solid course-delete-confirm" onClick={confirmDelete}>
-                Delete
+              <button type="button" className="button button-solid course-delete-confirm" onClick={confirmDelete} disabled={isDeleting}>
+                {isDeleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>
@@ -621,7 +687,15 @@ export function CoursesPage() {
                 </tr>
               </thead>
               <tbody>
-                {visibleCourses.length ? (
+                {isLoading ? (
+                  <tr>
+                    <td className="course-empty-state" colSpan="13">Loading courses...</td>
+                  </tr>
+                ) : loadError && !visibleCourses.length ? (
+                  <tr>
+                    <td className="course-empty-state" colSpan="13">{loadError}</td>
+                  </tr>
+                ) : visibleCourses.length ? (
                   visibleCourses.map((course) => (
                     <tr key={course.id || `${course.name}-${course.mode}`}>
                       <td><strong>{course.name}</strong></td>
@@ -665,7 +739,7 @@ export function CoursesPage() {
                   ))
                 ) : (
                   <tr>
-                    <td className="course-empty-state" colSpan="14">No courses found.</td>
+                    <td className="course-empty-state" colSpan="13">No courses found.</td>
                   </tr>
                 )}
               </tbody>
