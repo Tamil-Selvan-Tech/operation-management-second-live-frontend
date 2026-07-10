@@ -68,11 +68,14 @@ function formatDate(value) {
   }).format(date)
 }
 
-function addDays(value, days) {
+function addOneMonth(value) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return ''
-  date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
+
+  const dueDate = new Date(date)
+  dueDate.setMonth(dueDate.getMonth() + 1)
+
+  return dueDate.toISOString().slice(0, 10)
 }
 
 function diffInDays(a, b) {
@@ -424,7 +427,7 @@ export function StudentManagementPage() {
       firstInstallmentDate: form.admissionDate,
       firstInstallmentStatus: 'Paid',
       secondInstallmentAmount: form.installment2 || '',
-      secondDueDate: addDays(form.admissionDate, 30),
+      secondDueDate: addOneMonth(form.admissionDate),
       secondInstallmentStatus: 'Pending',
       overdueDays: 0,
       addedAt: editingStudentId
@@ -466,7 +469,7 @@ export function StudentManagementPage() {
       <article className="panel-card student-management-hero">
         <div>
           <p className="eyebrow">Student Management</p>
-          <h2>Student Intake</h2>
+          
           <p>Capture admissions details with a quick popup form and keep new leads organized in one place.</p>
         </div>
 
@@ -513,7 +516,7 @@ export function StudentManagementPage() {
               </thead>
               <tbody>
                 {students.map((student) => {
-                  const dueDate = student.secondDueDate || addDays(student.admissionDate, 30)
+                 const dueDate = student.secondDueDate || addOneMonth(student.admissionDate)
                   const overdueDays =
                     student.secondInstallmentStatus === 'Paid' ? 0 : diffInDays(dueDate, getTodayValue())
 
@@ -528,13 +531,55 @@ export function StudentManagementPage() {
                       <td>{formatCurrency(student.totalAmount || student.afterDiscount)}</td>
                       <td>{formatDate(student.admissionDate)}</td>
                       <td>
-                        <strong>{formatCurrency(student.firstInstallmentAmount || student.installment1)}</strong>
-                        <small>{student.firstInstallmentStatus || 'Paid'}</small>
-                      </td>
-                      <td>
-                        <strong>{formatCurrency(student.secondInstallmentAmount || student.installment2)}</strong>
-                        <small>{student.secondInstallmentStatus || 'Pending'}</small>
-                      </td>
+  <label className="installment-check">
+    <input
+      type="checkbox"
+      checked={student.firstInstallmentStatus === 'Paid'}
+      onChange={() => {
+        const updated = students.map((s) =>
+          s.id === student.id
+            ? {
+                ...s,
+                firstInstallmentStatus:
+                  s.firstInstallmentStatus === 'Paid'
+                    ? 'Pending'
+                    : 'Paid',
+              }
+            : s
+        )
+
+        saveStudents(updated)
+      }}
+    />
+    <strong>{formatCurrency(student.firstInstallmentAmount)}</strong>
+    <small>{student.firstInstallmentStatus}</small>
+  </label>
+</td>
+  <td>
+  <label className="installment-check">
+    <input
+      type="checkbox"
+      checked={student.secondInstallmentStatus === 'Paid'}
+      onChange={() => {
+        const updated = students.map((s) =>
+          s.id === student.id
+            ? {
+                ...s,
+                secondInstallmentStatus:
+                  s.secondInstallmentStatus === 'Paid'
+                    ? 'Pending'
+                    : 'Paid',
+              }
+            : s
+        )
+
+        saveStudents(updated)
+      }}
+    />
+    <strong>{formatCurrency(student.secondInstallmentAmount)}</strong>
+    <small>{student.secondInstallmentStatus}</small>
+  </label>
+</td>
                       <td>
                         <strong>{formatDate(dueDate)}</strong>
                         <small>{overdueDays > 0 ? `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}</small>
@@ -693,7 +738,7 @@ export function StudentManagementPage() {
                 >
                   <option value="">Select status</option>
                   {statusOptions.map((status) => (
-                    <option key={status} value={status}>
+                    <option key={staFtus} value={status}>
                       {status}
                     </option>
                   ))}
@@ -832,7 +877,6 @@ export function StudentManagementPage() {
                 <DetailItem label="Total Course Fee" value={formatCurrency(selectedStudent.totalAmount || selectedStudent.afterDiscount)} />
                 <DetailItem label="Discount" value={formatCurrency(selectedStudent.discount)} />
                 <DetailItem label="Final Fee" value={formatCurrency(selectedStudent.afterDiscount)} />
-                <DetailItem label="Counselor Name" value={selectedStudent.counselorName || counselorName} />
               </div>
             </div>
 
@@ -843,7 +887,7 @@ export function StudentManagementPage() {
                 <DetailItem label="1st Installment Date" value={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)} />
                 <DetailItem label="1st Installment Status" value={selectedStudent.firstInstallmentStatus || 'Paid'} />
                 <DetailItem label="2nd Installment Amount" value={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)} />
-                <DetailItem label="2nd Due Date" value={formatDate(selectedStudent.secondDueDate || addDays(selectedStudent.admissionDate, 30))} />
+                <DetailItem label="2nd Due Date" value={formatDate(selectedStudent.secondDueDate || addDays(selectedStudent.admissionDate))} />
                 <DetailItem
                   label="2nd Installment Status"
                   value={selectedStudent.secondInstallmentStatus || 'Pending'}
@@ -853,7 +897,7 @@ export function StudentManagementPage() {
                   value={
                     (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
                       ? 'No overdue'
-                      : `${diffInDays(selectedStudent.secondDueDate || addDays(selectedStudent.admissionDate, 30), getTodayValue())} Days`
+                      : `${diffInDays(selectedStudent.secondDueDate || addDays(selectedStudent.admissionDate), getTodayValue())} Days`
                   }
                 />
               </div>

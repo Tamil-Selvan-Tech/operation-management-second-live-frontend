@@ -2778,7 +2778,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 18px 20px;
+  padding: 12px 20px;
 }
 
 .student-management-hero h2,
@@ -2804,7 +2804,7 @@ a {
 
 .student-management-stat {
   min-width: 160px;
-  padding: 12px 14px;
+  padding: 8px 14px;
   border-radius: 14px;
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
   border: 1px solid #e5edf7;
@@ -2826,7 +2826,8 @@ a {
 }
 
 .student-add-button {
-  min-height: 46px;
+  min-height: 40px;
+   padding: 0 18px;
   white-space: nowrap;
 }
 
@@ -4429,5 +4430,23 @@ a {
     width: min(100%, 380px);
     transform: translate(0, 0);
   }
+}
+
+.installment-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.installment-check input {
+  margin: 0;
+}
+
+.installment-check strong {
+  margin-right: 4px;
+}
+
+.installment-check small {
+  margin: 0;
 }
 
