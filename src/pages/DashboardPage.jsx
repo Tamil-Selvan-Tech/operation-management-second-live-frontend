@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { roleDashboards, roleLabels } from '../data/authData'
 import { loadStudentRecords } from '../data/studentRecords'
+import { getRevenueSummary } from '../services/dashboardService'
 
 const revenueComparisonData = [
   { month: 'Jan', monthly: 50000, expected: 55000 },
@@ -178,7 +179,7 @@ function useStudentRecords() {
   return records
 }
 
-function BusinessOwnerDashboard({ dashboard }) {
+function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading }) {
   return (
     <section className="business-owner-dashboard">
       <div className="business-topbar">
@@ -210,7 +211,7 @@ function BusinessOwnerDashboard({ dashboard }) {
         </div>
       </div>
 
-      <RevenueSummaryRow />
+      <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
       <RevenueDashboards />
       <AttendanceComparisonChart />
     </section>
@@ -219,6 +220,48 @@ function BusinessOwnerDashboard({ dashboard }) {
 
 function formatRevenue(value) {
   return revenueFormatter.format(value)
+}
+
+function buildRevenueSummaryCards(summary, isLoading) {
+  const formatValue = (value) => {
+    if (isLoading) return 'Loading...'
+    return formatRevenue(value)
+  }
+
+  return [
+    {
+      label: 'Total Revenue',
+      value: formatValue(summary?.totalRevenue),
+      change: null,
+      note: isLoading ? 'Loading student revenue' : `${summary?.totalStudents || 0} students added`,
+      accent: 'blue',
+      icon: 'wallet',
+    },
+    {
+      label: 'This Month Revenue',
+      value: formatValue(summary?.thisMonthRevenue),
+      change: null,
+      note: isLoading ? 'Loading current month data' : `${summary?.thisMonthStudents || 0} admissions this month`,
+      accent: 'green',
+      icon: 'calendar',
+    },
+    {
+      label: 'This Week Revenue',
+      value: formatValue(summary?.thisWeekRevenue),
+      change: null,
+      note: isLoading ? 'Loading current week data' : `${summary?.thisWeekStudents || 0} admissions this week`,
+      accent: 'purple',
+      icon: 'trend',
+    },
+    {
+      label: 'Expected Next Week',
+      value: formatValue(summary?.expectedNextWeekRevenue),
+      change: null,
+      note: isLoading ? 'Loading projection' : 'Projected from student admissions',
+      accent: 'orange',
+      icon: 'target',
+    },
+  ]
 }
 
 function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
@@ -277,10 +320,12 @@ function SummaryIcon({ kind }) {
   )
 }
 
-function RevenueSummaryRow() {
+function RevenueSummaryRow({ summary = null, isLoading = false }) {
+  const cards = summary || isLoading ? buildRevenueSummaryCards(summary, isLoading) : revenueSummaryCards
+
   return (
     <section className="revenue-summary-row" aria-label="Revenue summary">
-      {revenueSummaryCards.map((card) => (
+      {cards.map((card) => (
         <article key={card.label} className="revenue-summary-card">
           <div className={`revenue-summary-icon ${card.accent}`} aria-hidden="true">
             <SummaryIcon kind={card.icon} />
@@ -728,7 +773,7 @@ function StudentDashboard({ dashboard }) {
   )
 }
 
-function OperationManagerDashboard({ dashboard }) {
+function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading }) {
   return (
     <section className="business-owner-dashboard operation-manager-dashboard">
       <div className="business-topbar">
@@ -760,7 +805,7 @@ function OperationManagerDashboard({ dashboard }) {
         </div>
       </div>
 
-      <RevenueSummaryRow />
+      <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
       <RevenueDashboards />
       <AttendanceComparisonChart />
     </section>
@@ -797,13 +842,50 @@ function GenericDashboard({ role }) {
 
 export function DashboardPage({ role }) {
   const dashboard = roleDashboards[role]
+  const [revenueSummary, setRevenueSummary] = useState(null)
+  const [isRevenueLoading, setIsRevenueLoading] = useState(false)
+
+  useEffect(() => {
+    if (role !== 'business-owner' && role !== 'operation-manager') {
+      setRevenueSummary(null)
+      setIsRevenueLoading(false)
+      return undefined
+    }
+
+    let active = true
+
+    const loadRevenueSummary = async () => {
+      setIsRevenueLoading(true)
+
+      try {
+        const summary = await getRevenueSummary()
+        if (active) {
+          setRevenueSummary(summary)
+        }
+      } catch {
+        if (active) {
+          setRevenueSummary(null)
+        }
+      } finally {
+        if (active) {
+          setIsRevenueLoading(false)
+        }
+      }
+    }
+
+    void loadRevenueSummary()
+
+    return () => {
+      active = false
+    }
+  }, [role])
 
   if (role === 'business-owner') {
-    return <BusinessOwnerDashboard dashboard={dashboard} />
+    return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} />
   }
 
   if (role === 'operation-manager') {
-    return <OperationManagerDashboard dashboard={dashboard} />
+    return <OperationManagerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} />
   }
 
   if (role === 'student') {
