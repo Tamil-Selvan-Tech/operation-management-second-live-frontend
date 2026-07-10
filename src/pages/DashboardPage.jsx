@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { roleDashboards, roleLabels } from '../data/authData'
+import { getRevenueSummary } from '../services/dashboardService'
 
 const revenueComparisonData = [
   { month: 'Jan', monthly: 50000, expected: 55000 },
@@ -42,82 +43,8 @@ const revenueFormatter = new Intl.NumberFormat('en-IN', {
   maximumFractionDigits: 0,
 })
 
-const revenueSummaryCards = [
-  {
-    label: 'Total Revenue',
-    value: '₹8,45,000',
-    change: '+12.5%',
-    note: 'vs last month',
-    accent: 'blue',
-    icon: 'wallet',
-  },
-  {
-    label: 'This Month Revenue',
-    value: '₹95,000',
-    change: '+8.4%',
-    note: 'vs last month',
-    accent: 'green',
-    icon: 'calendar',
-  },
-  {
-    label: 'This Week Revenue',
-    value: '₹32,000',
-    change: '+4.2%',
-    note: 'vs last week',
-    accent: 'purple',
-    icon: 'trend',
-  },
-  {
-    label: 'Expected Next Week',
-    value: '₹1,20,000',
-    change: null,
-    note: 'Target for next week',
-    accent: 'orange',
-    icon: 'target',
-  },
-]
-
-function BusinessOwnerDashboard({ dashboard }) {
-  return (
-    <section className="business-owner-dashboard">
-      <div className="business-topbar">
-        <div>
-          <p className="eyebrow">Business Owner</p>
-          <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
-        </div>
-
-        <div className="business-topbar-actions">
-          <label className="dashboard-search">
-            <span aria-hidden="true">⌕</span>
-            <input type="search" placeholder="Search..." aria-label="Search dashboard" />
-          </label>
-          <button className="icon-chip" type="button" aria-label="Calendar">
-            <span>◫</span>
-          </button>
-          <button className="icon-chip notification-chip" type="button" aria-label="Notifications">
-            <span>🔔</span>
-            <b>1</b>
-          </button>
-          <div className="profile-chip">
-            <div className="profile-avatar">BH</div>
-            <div>
-              <strong>Business Head</strong>
-              <span>business.owner@cispro.com</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <RevenueSummaryRow />
-      <RevenueDashboards />
-      <AttendanceComparisonChart />
-    </section>
-  )
-}
-
 function formatRevenue(value) {
-  return revenueFormatter.format(value)
+  return revenueFormatter.format(Number(value || 0))
 }
 
 function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
@@ -132,6 +59,48 @@ function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
   }
 
   return { left: '50%', transform: 'translateX(-50%)' }
+}
+
+function buildRevenueSummaryCards(summary, isLoading) {
+  const formatValue = (value) => {
+    if (isLoading) return 'Loading...'
+    return formatRevenue(value)
+  }
+
+  return [
+    {
+      label: 'Total Revenue',
+      value: formatValue(summary?.totalRevenue),
+      change: null,
+      note: isLoading ? 'Loading student revenue' : `${summary?.totalStudents || 0} students added`,
+      accent: 'blue',
+      icon: 'wallet',
+    },
+    {
+      label: 'This Month Revenue',
+      value: formatValue(summary?.thisMonthRevenue),
+      change: null,
+      note: isLoading ? 'Loading current month data' : `${summary?.thisMonthStudents || 0} admissions this month`,
+      accent: 'green',
+      icon: 'calendar',
+    },
+    {
+      label: 'This Week Revenue',
+      value: formatValue(summary?.thisWeekRevenue),
+      change: null,
+      note: isLoading ? 'Loading current week data' : `${summary?.thisWeekStudents || 0} admissions this week`,
+      accent: 'purple',
+      icon: 'trend',
+    },
+    {
+      label: 'Expected Next Week',
+      value: formatValue(summary?.expectedNextWeekRevenue),
+      change: null,
+      note: isLoading ? 'Loading projection' : 'Projected from student admissions',
+      accent: 'orange',
+      icon: 'target',
+    },
+  ]
 }
 
 function SummaryIcon({ kind }) {
@@ -176,10 +145,12 @@ function SummaryIcon({ kind }) {
   )
 }
 
-function RevenueSummaryRow() {
+function SummaryCardRow({ summary, isLoading }) {
+  const cards = buildRevenueSummaryCards(summary, isLoading)
+
   return (
     <section className="revenue-summary-row" aria-label="Revenue summary">
-      {revenueSummaryCards.map((card) => (
+      {cards.map((card) => (
         <article key={card.label} className="revenue-summary-card">
           <div className={`revenue-summary-icon ${card.accent}`} aria-hidden="true">
             <SummaryIcon kind={card.icon} />
@@ -218,7 +189,6 @@ function MonthlyRevenueChart() {
           <h3>Monthly Revenue vs Expected Revenue (Next Month)</h3>
           <p>Comparison of actual monthly revenue and expected revenue for the next month.</p>
         </div>
-
         <div className="revenue-legend" aria-hidden="true">
           <span className="revenue-legend-item">
             <span className="revenue-legend-swatch monthly" />
@@ -475,39 +445,67 @@ function AttendanceComparisonChart() {
   )
 }
 
-function OperationManagerDashboard({ dashboard }) {
+function DashboardTopbar({ dashboard, title, subtitle, roleCode, email }) {
   return (
-    <section className="business-owner-dashboard operation-manager-dashboard">
-      <div className="business-topbar">
-        <div>
-          <p className="eyebrow">Operation Manager</p>
-          <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
-        </div>
+    <div className="business-topbar">
+      <div>
+        <p className="eyebrow">{title}</p>
+        <h2>{dashboard.title}</h2>
+        <p>{subtitle || dashboard.summary}</p>
+      </div>
 
-        <div className="business-topbar-actions">
-          <label className="dashboard-search">
-            <span aria-hidden="true">⌕</span>
-            <input type="search" placeholder="Search..." aria-label="Search dashboard" />
-          </label>
-          <button className="icon-chip" type="button" aria-label="Calendar">
-            <span>◫</span>
-          </button>
-          <button className="icon-chip notification-chip" type="button" aria-label="Notifications">
-            <span>🔔</span>
-            <b>1</b>
-          </button>
-          <div className="profile-chip">
-            <div className="profile-avatar">OM</div>
-            <div>
-              <strong>Operation Manager</strong>
-              <span>operation.manager@cispro.com</span>
-            </div>
+      <div className="business-topbar-actions">
+        <label className="dashboard-search">
+          <span aria-hidden="true">⌕</span>
+          <input type="search" placeholder="Search..." aria-label="Search dashboard" />
+        </label>
+        <button className="icon-chip" type="button" aria-label="Calendar">
+          <span>◫</span>
+        </button>
+        <button className="icon-chip notification-chip" type="button" aria-label="Notifications">
+          <span>🔔</span>
+          <b>1</b>
+        </button>
+        <div className="profile-chip">
+          <div className="profile-avatar">{roleCode}</div>
+          <div>
+            <strong>{title}</strong>
+            <span>{email}</span>
           </div>
         </div>
       </div>
+    </div>
+  )
+}
 
-      <RevenueSummaryRow />
+function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading }) {
+  return (
+    <section className="business-owner-dashboard">
+      <DashboardTopbar
+        dashboard={dashboard}
+        title="Business Owner"
+        subtitle={dashboard.summary}
+        roleCode="BH"
+        email="business.owner@cispro.com"
+      />
+      <SummaryCardRow summary={revenueSummary} isLoading={isRevenueLoading} />
+      <RevenueDashboards />
+      <AttendanceComparisonChart />
+    </section>
+  )
+}
+
+function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading }) {
+  return (
+    <section className="business-owner-dashboard operation-manager-dashboard">
+      <DashboardTopbar
+        dashboard={dashboard}
+        title="Operation Manager"
+        subtitle="Revenue is calculated from students added in the backend."
+        roleCode="OM"
+        email="operation.manager@cispro.com"
+      />
+      <SummaryCardRow summary={revenueSummary} isLoading={isRevenueLoading} />
       <RevenueDashboards />
       <AttendanceComparisonChart />
     </section>
@@ -544,13 +542,48 @@ function GenericDashboard({ role }) {
 
 export function DashboardPage({ role }) {
   const dashboard = roleDashboards[role]
+  const [revenueSummary, setRevenueSummary] = useState(null)
+  const [isRevenueLoading, setIsRevenueLoading] = useState(false)
+
+  useEffect(() => {
+    let active = true
+
+    const loadRevenueSummary = async () => {
+      if (role !== 'business-owner' && role !== 'operation-manager') {
+        return
+      }
+
+      setIsRevenueLoading(true)
+
+      try {
+        const summary = await getRevenueSummary()
+        if (active) {
+          setRevenueSummary(summary)
+        }
+      } catch {
+        if (active) {
+          setRevenueSummary(null)
+        }
+      } finally {
+        if (active) {
+          setIsRevenueLoading(false)
+        }
+      }
+    }
+
+    void loadRevenueSummary()
+
+    return () => {
+      active = false
+    }
+  }, [role])
 
   if (role === 'business-owner') {
-    return <BusinessOwnerDashboard dashboard={dashboard} />
+    return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} />
   }
 
   if (role === 'operation-manager') {
-    return <OperationManagerDashboard dashboard={dashboard} />
+    return <OperationManagerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} />
   }
 
   return <GenericDashboard role={role} />
