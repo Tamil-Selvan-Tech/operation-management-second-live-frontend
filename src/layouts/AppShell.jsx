@@ -10,13 +10,19 @@ export function AppShell({
   dashboard,
   onNavigateDashboard,
   onNavigateCourses,
+  onNavigateStudentManagement,
   onLogout,
   showCoursesNav = true,
+  showStudentManagementNav = true,
   showChrome = true,
   children,
 }) {
   const location = useLocation()
-  const activeNav = location.pathname.startsWith('/courses') ? 'courses' : 'dashboard'
+  const activeNav = location.pathname.startsWith('/courses')
+    ? 'courses'
+    : location.pathname.startsWith('/student-management')
+      ? 'student-management'
+      : 'dashboard'
 
   return (
     <div className="app-shell">
@@ -27,8 +33,10 @@ export function AppShell({
         activeNav={activeNav}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCourses={onNavigateCourses}
+        onNavigateStudentManagement={onNavigateStudentManagement}
         onLogout={onLogout}
         showCoursesNav={showCoursesNav}
+        showStudentManagementNav={showStudentManagementNav}
       />
 
       <div className={`main-area ${showChrome ? '' : 'main-area-compact'}`}>

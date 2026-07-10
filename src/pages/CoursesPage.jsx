@@ -229,7 +229,11 @@ export function CoursesPage() {
   )
 
   useEffect(() => {
-    void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
+    const run = async () => {
+      await loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
+    }
+
+    void run()
   }, [activeFilter, currentPage, loadCourses, searchTerm])
 
   const pageList = useMemo(() => {

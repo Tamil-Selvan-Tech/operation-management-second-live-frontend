@@ -10,6 +10,7 @@ import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { LoadingPage } from '../pages/LoadingPage'
 import { CoursesPage } from '../pages/CoursesPage'
+import { StudentManagementPage } from '../pages/StudentManagementPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 import { SessionExpiredPage } from '../pages/SessionExpiredPage'
 import { UnauthorizedPage } from '../pages/UnauthorizedPage'
@@ -79,6 +80,7 @@ function AppLayout() {
   const dashboard = role ? roleDashboards[role] : null
   const roleLabel = role ? roleLabels[role] : 'Guest'
   const canAccessCourses = courseAccessRoles.includes(role)
+  const canAccessStudentManagement = courseAccessRoles.includes(role)
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
     location.pathname !== '/dashboard/operation-manager'
@@ -91,11 +93,13 @@ function AppLayout() {
       dashboard={dashboard}
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
       onNavigateCourses={() => navigate('/courses')}
+      onNavigateStudentManagement={() => navigate('/student-management')}
       onLogout={() => {
         signOut()
         navigate('/login')
       }}
       showCoursesNav={canAccessCourses}
+      showStudentManagementNav={canAccessStudentManagement}
       showChrome={showChrome}
     >
       <Outlet />
@@ -190,6 +194,7 @@ export function AppRouter() {
             <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
             <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
               <Route path="/courses" element={<CoursesPage />} />
+              <Route path="/student-management" element={<StudentManagementPage />} />
             </Route>
             <Route path="/profile" element={<ProfileRedirectRoute />} />
           </Route>
