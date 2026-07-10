@@ -6,6 +6,7 @@ export function AppSidebar({
   onNavigateDashboard,
   onNavigateCourses,
   onLogout,
+  showCoursesNav = true,
 }) {
   return (
     <aside className="sidebar">
@@ -21,9 +22,11 @@ export function AppSidebar({
         <button type="button" className={activeNav === 'dashboard' ? 'active' : ''} onClick={onNavigateDashboard}>
           Dashboard
         </button>
-        <button type="button" className={activeNav === 'courses' ? 'active' : ''} onClick={onNavigateCourses}>
-          Courses
-        </button>
+        {showCoursesNav ? (
+          <button type="button" className={activeNav === 'courses' ? 'active' : ''} onClick={onNavigateCourses}>
+            Courses
+          </button>
+        ) : null}
         <button type="button" onClick={onLogout}>
           Logout
         </button>

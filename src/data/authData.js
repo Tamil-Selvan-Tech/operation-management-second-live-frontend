@@ -53,3 +53,5 @@ export const dashboardPathByRole = {
   faculty: '/dashboard/faculty',
   student: '/dashboard/student',
 }
+
+export const courseAccessRoles = ['business-owner', 'operation-manager']
