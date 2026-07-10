@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { roleDashboards, roleLabels } from '../data/authData'
+import { loadStudentRecords } from '../data/studentRecords'
 
 const revenueComparisonData = [
   { month: 'Jan', monthly: 50000, expected: 55000 },
@@ -76,6 +77,106 @@ const revenueSummaryCards = [
     icon: 'target',
   },
 ]
+
+const STUDENT_RECORD_SYNC_EVENT = 'cispro:students-changed'
+
+function formatCurrency(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return '-'
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount)
+}
+
+function formatDate(value) {
+  if (!value) return '-'
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function addOneMonth(value) {
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const dueDate = new Date(date)
+  dueDate.setMonth(dueDate.getMonth() + 1)
+
+  return dueDate.toISOString().slice(0, 10)
+}
+
+function diffInDays(a, b) {
+  const start = new Date(`${a}T00:00:00`)
+  const end = new Date(`${b}T00:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0
+  const ms = 24 * 60 * 60 * 1000
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / ms))
+}
+
+function getTodayValue() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getStudentInitials(name) {
+  const value = String(name || '').trim()
+  if (!value) return 'ST'
+  return value
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('')
+    .slice(0, 2)
+}
+
+function getStudentId(student, index = 0) {
+  const suffix = String(student?.id || index + 1).replace(/\D/g, '').slice(-6).padStart(6, '0')
+  return `STU${suffix}`
+}
+
+function getStudentStatus(student) {
+  const dueDate = student?.secondDueDate || addOneMonth(student?.admissionDate)
+  const secondPaid = String(student?.secondInstallmentStatus || 'Pending') === 'Paid'
+  const firstPaid = String(student?.firstInstallmentStatus || 'Paid') === 'Paid'
+  const overdueDays = secondPaid ? 0 : diffInDays(dueDate, getTodayValue())
+
+  if (secondPaid && firstPaid) return { label: 'Complete', tone: 'success' }
+  if (overdueDays > 0) return { label: `Overdue · ${overdueDays} Days`, tone: 'danger' }
+  if (firstPaid) return { label: 'Pending', tone: 'warning' }
+
+  return { label: 'Pending', tone: 'warning' }
+}
+
+function getPaidAmount(student) {
+  const first = String(student?.firstInstallmentStatus || 'Paid') === 'Paid' ? Number(student?.installment1 || student?.firstInstallmentAmount || 0) : 0
+  const second = String(student?.secondInstallmentStatus || 'Pending') === 'Paid' ? Number(student?.installment2 || student?.secondInstallmentAmount || 0) : 0
+  return first + second
+}
+
+function useStudentRecords() {
+  const [records, setRecords] = useState(() => loadStudentRecords())
+
+  useEffect(() => {
+    const sync = () => {
+      setRecords(loadStudentRecords())
+    }
+
+    window.addEventListener('storage', sync)
+    window.addEventListener(STUDENT_RECORD_SYNC_EVENT, sync)
+
+    return () => {
+      window.removeEventListener('storage', sync)
+      window.removeEventListener(STUDENT_RECORD_SYNC_EVENT, sync)
+    }
+  }, [])
+
+  return records
+}
 
 function BusinessOwnerDashboard({ dashboard }) {
   return (
@@ -475,6 +576,158 @@ function AttendanceComparisonChart() {
   )
 }
 
+function StudentInfoItem({ label, value, fullWidth = false }) {
+  return (
+    <div className={`student-dashboard-info-item ${fullWidth ? 'student-dashboard-info-item-full' : ''}`.trim()}>
+      <span>{label}</span>
+      <strong>{value || '-'}</strong>
+    </div>
+  )
+}
+
+function StudentSectionCard({ title, subtitle, children }) {
+  return (
+    <article className="panel-card student-section-card">
+      <div className="student-section-card-head">
+        <div>
+          <p className="section-kicker">Student Data</p>
+          <h3>{title}</h3>
+        </div>
+        {subtitle ? <p>{subtitle}</p> : null}
+      </div>
+      {children}
+    </article>
+  )
+}
+
+function StudentDashboard({ dashboard }) {
+  const students = useStudentRecords()
+  const latestStudent = useMemo(() => students[0] || null, [students])
+
+  if (!latestStudent) {
+    return (
+      <section className="student-dashboard-page">
+        <article className="panel-card student-dashboard-empty">
+          <p className="eyebrow">Student Dashboard</p>
+          <h2>{dashboard.title}</h2>
+          <p>{dashboard.summary}</p>
+          <div className="student-empty-state">
+            <strong>No student record found</strong>
+            <p>Add a student from Student Management to see the profile view here.</p>
+          </div>
+        </article>
+      </section>
+    )
+  }
+
+  const studentId = getStudentId(latestStudent)
+  const status = getStudentStatus(latestStudent)
+  const totalAmount = Number(latestStudent.totalAmount || latestStudent.afterDiscount || 0)
+  const paidAmount = getPaidAmount(latestStudent)
+  const dueAmount = Math.max(totalAmount - paidAmount, 0)
+
+  return (
+    <section className="student-dashboard-page">
+      <article className="panel-card student-dashboard-hero">
+        <div className="student-dashboard-hero-top">
+          <div className="student-dashboard-avatar">{getStudentInitials(latestStudent.studentName)}</div>
+          <div className="student-dashboard-hero-main">
+            <div className="student-dashboard-name-row">
+              <h2>{latestStudent.studentName}</h2>
+              <span className={`student-status-pill ${status.tone}`}>{status.label}</span>
+            </div>
+            <div className="student-dashboard-id-row">
+              <div>
+                <span>Student ID</span>
+                <strong>{studentId}</strong>
+              </div>
+              <div>
+                <span>Course</span>
+                <strong>{latestStudent.courseInterested || '-'}</strong>
+              </div>
+              <div>
+                <span>Batch</span>
+                <strong>{latestStudent.batch || '-'}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="student-dashboard-hero-side">
+          <div>
+            <span>Email</span>
+            <strong>{latestStudent.emailAddress || '-'}</strong>
+          </div>
+          <div>
+            <span>Mobile</span>
+            <strong>{latestStudent.mobileNumber || '-'}</strong>
+          </div>
+          <div>
+            <span>Admission Date</span>
+            <strong>{formatDate(latestStudent.admissionDate)}</strong>
+          </div>
+        </div>
+      </article>
+
+      <div className="student-dashboard-grid">
+        <StudentSectionCard title="Basic Information" subtitle="Primary contact and location details">
+          <div className="student-dashboard-info-grid">
+            <StudentInfoItem label="Student Name" value={latestStudent.studentName} />
+            <StudentInfoItem label="Mobile Number" value={latestStudent.mobileNumber} />
+            <StudentInfoItem label="Email Address" value={latestStudent.emailAddress} />
+            <StudentInfoItem label="Parent / Spouse Number" value={latestStudent.parentSpouseNumber} />
+            <StudentInfoItem label="Location" value={latestStudent.location} fullWidth />
+          </div>
+        </StudentSectionCard>
+
+        <StudentSectionCard title="Education Details" subtitle="Course and academic background">
+          <div className="student-dashboard-info-grid">
+            <StudentInfoItem label="Course Interested" value={latestStudent.courseInterested} />
+            <StudentInfoItem label="Faculty Name" value={latestStudent.facultyName} />
+            <StudentInfoItem label="Batch" value={latestStudent.batch} />
+            <StudentInfoItem label="Qualification" value={latestStudent.qualification} />
+            <StudentInfoItem label="Passed Out Year" value={latestStudent.passedOutYear} />
+            <StudentInfoItem label="Current Status" value={latestStudent.currentStatus} />
+            <StudentInfoItem label="Designation" value={latestStudent.designation || '-'} />
+            <StudentInfoItem label="Source" value={latestStudent.source || '-'} />
+          </div>
+        </StudentSectionCard>
+
+        <StudentSectionCard title="Admission Details" subtitle="Fee setup and enrollment tracking">
+          <div className="student-dashboard-info-grid">
+            <StudentInfoItem label="Admission Date" value={formatDate(latestStudent.admissionDate)} />
+            <StudentInfoItem label="Total Course Fee" value={formatCurrency(latestStudent.totalAmount || latestStudent.afterDiscount)} />
+            <StudentInfoItem label="Discount" value={formatCurrency(latestStudent.discount)} />
+            <StudentInfoItem label="Final Fee" value={formatCurrency(latestStudent.afterDiscount)} />
+            <StudentInfoItem label="Counselor Name" value={latestStudent.counselorName || '-'} />
+            <StudentInfoItem label="Remarks" value={latestStudent.remarks || '-'} fullWidth />
+          </div>
+        </StudentSectionCard>
+
+        <StudentSectionCard title="Installment Details" subtitle="Payment progress and due dates">
+          <div className="student-dashboard-info-grid">
+            <StudentInfoItem label="1st Installment Amount" value={formatCurrency(latestStudent.firstInstallmentAmount || latestStudent.installment1)} />
+            <StudentInfoItem label="1st Installment Date" value={formatDate(latestStudent.firstInstallmentDate || latestStudent.admissionDate)} />
+            <StudentInfoItem label="1st Installment Status" value={latestStudent.firstInstallmentStatus || 'Paid'} />
+            <StudentInfoItem label="2nd Installment Amount" value={formatCurrency(latestStudent.secondInstallmentAmount || latestStudent.installment2)} />
+            <StudentInfoItem label="2nd Due Date" value={formatDate(latestStudent.secondDueDate || addOneMonth(latestStudent.admissionDate))} />
+            <StudentInfoItem label="2nd Installment Status" value={latestStudent.secondInstallmentStatus || 'Pending'} />
+            <StudentInfoItem label="Paid Amount" value={formatCurrency(paidAmount)} />
+            <StudentInfoItem label="Due Amount" value={formatCurrency(dueAmount)} />
+          </div>
+        </StudentSectionCard>
+
+        <StudentSectionCard title="Lead Information" subtitle="Counseling and source tracking">
+          <div className="student-dashboard-info-grid">
+            <StudentInfoItem label="How did you know about our Institute?" value={latestStudent.source} />
+            <StudentInfoItem label="Remarks" value={latestStudent.remarks || '-'} fullWidth />
+          </div>
+        </StudentSectionCard>
+      </div>
+    </section>
+  )
+}
+
 function OperationManagerDashboard({ dashboard }) {
   return (
     <section className="business-owner-dashboard operation-manager-dashboard">
@@ -551,6 +804,10 @@ export function DashboardPage({ role }) {
 
   if (role === 'operation-manager') {
     return <OperationManagerDashboard dashboard={dashboard} />
+  }
+
+  if (role === 'student') {
+    return <StudentDashboard dashboard={dashboard} />
   }
 
   return <GenericDashboard role={role} />

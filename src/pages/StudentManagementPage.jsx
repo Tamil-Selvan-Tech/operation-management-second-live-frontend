@@ -1,28 +1,42 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
+import { STUDENT_STORAGE_KEY, loadStudentRecords } from '../data/studentRecords'
 import { listCourses } from '../services/courseService'
 
-const STORAGE_KEY = 'cispro.student-management.records'
 const statusOptions = ['Student', 'Employee', 'Other']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
 const studentWizardSteps = [
   {
     key: 'basic',
     title: 'Basic Information',
-    description: 'Tell us who the student is and how to reach them.',
+    subtitle: 'Personal & Contact Details',
+    description: 'Please provide the basic details of the student.',
   },
   {
     key: 'education',
     title: 'Education Details',
+    subtitle: 'Academic Information',
     description: 'Choose the course and academic background.',
   },
   {
     key: 'admission',
     title: 'Admission Details',
+    subtitle: 'Admission & Other Info',
     description: 'Complete the fee and admission setup before submitting.',
   },
 ]
+
+function getPassedOutYearOptions() {
+  const currentYear = new Date().getFullYear()
+  const years = []
+
+  for (let year = currentYear + 1; year >= 1950; year -= 1) {
+    years.push(String(year))
+  }
+
+  return years
+}
 
 function getTodayValue() {
   const date = new Date()
@@ -60,16 +74,6 @@ function createEmptyForm() {
   }
 }
 
-function loadSavedStudents() {
-  try {
-    if (typeof window === 'undefined') return []
-    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '[]')
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
 function formatCurrency(value) {
   const amount = Number(value)
   if (!Number.isFinite(amount)) return '-'
@@ -95,6 +99,18 @@ function addOneMonth(value) {
   dueDate.setMonth(dueDate.getMonth() + 1)
 
   return dueDate.toISOString().slice(0, 10)
+}
+
+function getStudentInitials(name) {
+  const value = String(name || '').trim()
+  if (!value) return 'ST'
+
+  return value
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('')
+    .slice(0, 2)
 }
 
 function diffInDays(a, b) {
@@ -218,14 +234,19 @@ function validateStep(form, stepIndex) {
   )
 }
 
-function Field({ label, required = false, hint, error, className = '', children }) {
+function Field({ label, required = false, hint, error, className = '', icon, multiline = false, children }) {
   return (
-    <label className={`course-field student-field ${className}`.trim()}>
+    <label
+      className={`course-field student-field ${icon ? 'student-field-has-icon' : ''} ${multiline ? 'student-field-multiline' : ''} ${className}`.trim()}
+    >
       <span>
         {label}
         {required ? <b>*</b> : null}
       </span>
-      {children}
+      <div className="student-field-control">
+        {icon ? <span className="student-field-icon">{icon}</span> : null}
+        {children}
+      </div>
       {hint ? <small>{hint}</small> : null}
       {error ? <small className="student-field-error">{error}</small> : null}
     </label>
@@ -234,25 +255,344 @@ function Field({ label, required = false, hint, error, className = '', children 
 
 function PaymentStatusBadge({ student }) {
   const dueDate = student.secondDueDate || addOneMonth(student.admissionDate)
-  const paidLate =
-    student.secondInstallmentStatus === 'Paid' &&
-    student.secondInstallmentPaidAt &&
-    student.secondInstallmentPaidAt > dueDate
   const isOverdue = student.secondInstallmentStatus !== 'Paid' && diffInDays(dueDate, getTodayValue()) > 0
-  const status = paidLate ? 'Overdue' : student.secondInstallmentStatus === 'Paid' ? 'Complete' : isOverdue ? 'Overdue' : 'Pending'
+  const status = student.secondInstallmentStatus === 'Paid' ? 'Completed' : isOverdue ? 'Overdue' : 'Pending'
   const className =
-    status === 'Complete' ? 'student-badge employee' : status === 'Overdue' ? 'student-badge other' : 'student-badge student'
+    status === 'Completed' ? 'student-badge employee' : status === 'Overdue' ? 'student-badge other' : 'student-badge student'
 
   return <span className={className}>{status}</span>
 }
 
-function DetailItem({ label, value, fullWidth = false }) {
+function DetailItem({ label, value, fullWidth = false, icon = null }) {
   return (
     <div className={`student-detail-item ${fullWidth ? 'student-detail-item-full' : ''}`.trim()}>
-      <span>{label}</span>
+      <div className="student-detail-item-head">
+        {icon ? <span className="student-detail-item-icon">{icon}</span> : null}
+        <span>{label}</span>
+      </div>
       <strong>{value || '-'}</strong>
     </div>
   )
+}
+
+function FieldIcon({ kind }) {
+  if (kind === 'user') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M5.5 18c1.2-3.3 4-5 6.5-5s5.3 1.7 6.5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'phone') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          d="M6.2 4.8l2.1-.8c.8-.3 1.7 0 2.1.7l1.1 2c.4.7.3 1.6-.3 2.1l-1.2 1.1c1 1.9 2.6 3.6 4.5 4.5l1.1-1.2c.5-.6 1.4-.7 2.1-.3l2 1.1c.7.4 1 1.3.7 2.1l-.8 2.1c-.3.8-1.1 1.4-2 1.4C10.2 19.7 4.3 13.8 4.8 6.8c.1-.9.6-1.7 1.4-2Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinejoin="round"
+        />
+      </svg>
+    )
+  }
+
+  if (kind === 'mail') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="4.5" y="6" width="15" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M6 8l6 4.6L18 8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'pin') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 20s5-4.8 5-9a5 5 0 1 0-10 0c0 4.2 5 9 5 9Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="12" cy="11" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    )
+  }
+
+  if (kind === 'course') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4.8 7.5 12 4l7.2 3.5L12 11 4.8 7.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M6.5 9.5V14c0 1.7 2.5 3.2 5.5 3.2s5.5-1.5 5.5-3.2V9.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'faculty') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3 3.8 7.2 12 11.5l8.2-4.3L12 3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+        <path d="M6.2 12.4v3.5c0 1.4 2.6 2.8 5.8 2.8s5.8-1.4 5.8-2.8v-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'batch') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="5" y="6" width="14" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 6V4.5M16 6V4.5M7 10h10M7 13h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'year') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 3.8v2.2M17 3.8v2.2M5.5 8h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <rect x="4.5" y="6" width="15" height="13.5" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    )
+  }
+
+  if (kind === 'status') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M5 12a7 7 0 1 0 7-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M12 5v5l3 2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'note') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="5" y="4.5" width="14" height="15" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 9h8M8 12h8M8 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'currency') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 4.5v15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M15.5 7.2c0-1.5-1.6-2.7-3.5-2.7S8.5 6 8.5 7.4s1.2 2.1 3.5 2.7c2.4.6 3.5 1.2 3.5 2.8S13.9 16 12 16s-3.5-1.1-3.5-2.7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'percent') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 17 17 7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+        <circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="16" cy="16" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    )
+  }
+
+  if (kind === 'balance') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 5v14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M7.5 8.5h9M8.5 12h7M9.2 15.5h5.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'installment') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="4.8" y="5" width="14.4" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 9h8M8 12h8M8 15h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'calendar') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="4.5" y="5.5" width="15" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M4.5 9h15M8 4v3M16 4v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  return null
+}
+
+function SectionIcon({ kind }) {
+  if (kind === 'basic') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="2.2" />
+        <path d="M5.5 18c1.2-3.3 4-5 6.5-5s5.3 1.7 6.5 5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'education') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 4 3.8 8.2 12 12.3l8.2-4.1L12 4Z" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
+        <path d="M6 10.4v3.8c0 1.5 2.7 3 6 3s6-1.5 6-3v-3.8" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'admission') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="5" y="4.8" width="14" height="15" rx="2.4" fill="none" stroke="currentColor" strokeWidth="2.2" />
+        <path d="M8 9h8M8 12h8M8 15h5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  return null
+}
+
+function DetailIcon({ kind }) {
+  if (kind === 'user') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M5.5 18c1.2-3.3 4-5 6.5-5s5.3 1.7 6.5 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'phone') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path
+          d="M6.2 4.8l2.1-.8c.8-.3 1.7 0 2.1.7l1.1 2c.4.7.3 1.6-.3 2.1l-1.2 1.1c1 1.9 2.6 3.6 4.5 4.5l1.1-1.2c.5-.6 1.4-.7 2.1-.3l2 1.1c.7.4 1 1.3.7 2.1l-.8 2.1c-.3.8-1.1 1.4-2 1.4C10.2 19.7 4.3 13.8 4.8 6.8c.1-.9.6-1.7 1.4-2Z"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.9"
+          strokeLinejoin="round"
+        />
+      </svg>
+    )
+  }
+
+  if (kind === 'mail') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="4.5" y="6" width="15" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M6 8l6 4.6L18 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'pin') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 20s5-4.8 5-9a5 5 0 1 0-10 0c0 4.2 5 9 5 9Z" fill="none" stroke="currentColor" strokeWidth="2" />
+        <circle cx="12" cy="11" r="1.8" fill="none" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    )
+  }
+
+  if (kind === 'course') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 4 3.8 8.2 12 12.3l8.2-4.1L12 4Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M6 10.4v3.8c0 1.5 2.7 3 6 3s6-1.5 6-3v-3.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'faculty') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3 3.8 7.2 12 11.5l8.2-4.3L12 3Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M6.2 12.4v3.5c0 1.4 2.6 2.8 5.8 2.8s5.8-1.4 5.8-2.8v-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'batch') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="5" y="6" width="14" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M8 6V4.5M16 6V4.5M7 10h10M7 13h7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'year') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 3.8v2.2M17 3.8v2.2M5.5 8h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <rect x="4.5" y="6" width="15" height="13.5" rx="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    )
+  }
+
+  if (kind === 'status') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M5 12a7 7 0 1 0 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 5v5l3 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'source') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4.8 7.5H19.2M4.8 12H19.2M4.8 16.5h8.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'calendar') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="4.5" y="5.5" width="15" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M4.5 9h15M8 4v3M16 4v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'fees') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 4.5v15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M15.5 7.2c0-1.5-1.6-2.7-3.5-2.7S8.5 6 8.5 7.4s1.2 2.1 3.5 2.7c2.4.6 3.5 1.2 3.5 2.8S13.9 16 12 16s-3.5-1.1-3.5-2.7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'discount') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 17 17 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" strokeWidth="2" />
+        <circle cx="16" cy="16" r="1.7" fill="none" stroke="currentColor" strokeWidth="2" />
+      </svg>
+    )
+  }
+
+  if (kind === 'installment') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="4.8" y="5" width="14.4" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M8 9h8M8 12h8M8 15h4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (kind === 'note') {
+    return (
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="5" y="4.5" width="14" height="15" rx="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M8 9h8M8 12h8M8 15h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  return null
 }
 
 function ViewIcon() {
@@ -312,7 +652,7 @@ function DangerIcon() {
 
 export function StudentManagementPage() {
   const { user } = useAuth()
-  const [students, setStudents] = useState(() => loadSavedStudents())
+  const [students, setStudents] = useState(() => loadStudentRecords())
   const [courseOptions, setCourseOptions] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -324,6 +664,9 @@ export function StudentManagementPage() {
   const [selectedStudentId, setSelectedStudentId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [currentStep, setCurrentStep] = useState(0)
+  const [currentPage, setCurrentPage] = useState(1)
+  const studentsPerPage = 5
+  const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
 
   const errors = useMemo(() => validateForm(form), [form])
   const selectedStudent = useMemo(
@@ -332,12 +675,19 @@ export function StudentManagementPage() {
   )
   const totalStudents = students.length
   const latestStudent = students[0]
+  const totalPages = Math.max(1, Math.ceil(totalStudents / studentsPerPage))
+  const currentPageSafe = Math.min(currentPage, totalPages)
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPageSafe - 1) * studentsPerPage
+    return students.slice(start, start + studentsPerPage)
+  }, [currentPageSafe, students])
   const counselorName = user?.name || user?.email || 'Counselor'
 
   const saveStudents = (nextStudents) => {
     setStudents(nextStudents)
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextStudents))
+      window.localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(nextStudents))
+      window.dispatchEvent(new Event('cispro:students-changed'))
     } catch {
       // ignore storage failures
     }
@@ -439,7 +789,7 @@ export function StudentManagementPage() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(students))
+      window.localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(students))
     } catch {
       // ignore storage failures
     }
@@ -579,6 +929,7 @@ export function StudentManagementPage() {
       : [record, ...students]
 
     saveStudents(nextStudents)
+    setCurrentPage(1)
 
     setIsModalOpen(false)
     setForm(createEmptyForm())
@@ -673,8 +1024,8 @@ export function StudentManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {students.map((student) => {
-                 const dueDate = student.secondDueDate || addOneMonth(student.admissionDate)
+                {paginatedStudents.map((student) => {
+                  const dueDate = student.secondDueDate || addOneMonth(student.admissionDate)
                   const overdueDays =
                     student.secondInstallmentStatus === 'Paid' ? 0 : diffInDays(dueDate, getTodayValue())
 
@@ -760,6 +1111,36 @@ export function StudentManagementPage() {
             <p>Use the Add Student button to create the first record.</p>
           </div>
         )}
+
+        {students.length > studentsPerPage ? (
+          <div className="course-pagination student-pagination">
+            <button
+              type="button"
+              className="pagination-link"
+              onClick={() => setCurrentPage((page) => Math.max(Math.min(page, totalPages) - 1, 1))}
+              disabled={currentPageSafe <= 1}
+            >
+              <span aria-hidden="true">←</span>
+              Prev
+            </button>
+
+            <div className="pagination-pages" aria-label="Student list pages">
+              <button type="button" className="pagination-page active" aria-current="page">
+                {currentPageSafe}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className="pagination-link"
+              onClick={() => setCurrentPage((page) => Math.min(Math.min(page, totalPages) + 1, totalPages))}
+              disabled={currentPageSafe >= totalPages}
+            >
+              Next
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        ) : null}
       </article>
 
       {isModalOpen ? (
@@ -771,9 +1152,8 @@ export function StudentManagementPage() {
 
             <div className="course-modal-header student-modal-header">
               <div>
-                <p className="section-kicker">Students</p>
                 <h3>{editingStudentId ? 'Edit Student' : 'Add New Student'}</h3>
-                <p>{studentWizardSteps[currentStep].description}</p>
+                <p>Fill in the student details to create a new record.</p>
               </div>
             </div>
 
@@ -781,7 +1161,10 @@ export function StudentManagementPage() {
               {studentWizardSteps.map((step, index) => (
                 <div key={step.key} className={`student-stepper-item ${currentStep === index ? 'active' : ''} ${currentStep > index ? 'done' : ''}`.trim()}>
                   <span>{index + 1}</span>
-                  <strong>{step.title}</strong>
+                  <div className="student-stepper-copy">
+                    <strong>{step.title}</strong>
+                    <small>{step.subtitle}</small>
+                  </div>
                 </div>
               ))}
             </div>
@@ -790,11 +1173,16 @@ export function StudentManagementPage() {
               {currentStep === 0 ? (
                 <div className="student-step-section">
                   <div className="student-step-section-head">
-                    <p>Step 1 of 3</p>
-                    <h4>Basic Information</h4>
+                    <div className="student-step-icon">
+                      <SectionIcon kind="basic" />
+                    </div>
+                    <div>
+                      <p>Basic Information</p>
+                      <h4>Please provide the basic details of the student.</h4>
+                    </div>
                   </div>
-                <div className="course-form-grid student-form-grid">
-                  <Field label="Student Name" required error={shouldShowError('studentName') ? errors.studentName : ''}>
+                <div className="course-form-grid student-form-grid student-form-grid-tight">
+                  <Field label="Student Name" required icon={<FieldIcon kind="user" />} error={shouldShowError('studentName') ? errors.studentName : ''}>
                     <input
                       type="text"
                       value={form.studentName}
@@ -804,11 +1192,12 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Mobile Number" required error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
+                  <Field label="Mobile Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
                     <input
                       type="tel"
                       inputMode="numeric"
                       maxLength={10}
+                      pattern="[0-9]*"
                       value={form.mobileNumber}
                       onChange={(event) => updateField('mobileNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
                       onBlur={() => markTouched('mobileNumber')}
@@ -816,7 +1205,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Email Address" required error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
+                  <Field label="Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
                     <input
                       type="email"
                       value={form.emailAddress}
@@ -826,11 +1215,12 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Parent / Spouse Number" required error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
+                  <Field label="Parent / Spouse Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
                     <input
                       type="tel"
                       inputMode="numeric"
                       maxLength={10}
+                      pattern="[0-9]*"
                       value={form.parentSpouseNumber}
                       onChange={(event) => updateField('parentSpouseNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
                       onBlur={() => markTouched('parentSpouseNumber')}
@@ -838,7 +1228,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Location" required error={shouldShowError('location') ? errors.location : ''}>
+                  <Field label="Location" required icon={<FieldIcon kind="pin" />} error={shouldShowError('location') ? errors.location : ''}>
                     <input
                       type="text"
                       value={form.location}
@@ -854,11 +1244,16 @@ export function StudentManagementPage() {
               {currentStep === 1 ? (
                 <div className="student-step-section">
                   <div className="student-step-section-head">
-                    <p>Step 2 of 3</p>
-                    <h4>Education Details</h4>
+                    <div className="student-step-icon">
+                      <SectionIcon kind="education" />
+                    </div>
+                    <div>
+                      <p>Education Details</p>
+                      <h4>Choose the course and academic background.</h4>
+                    </div>
                   </div>
-                <div className="course-form-grid student-form-grid">
-                  <Field label="Course Interested" required error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
+                <div className="course-form-grid student-form-grid student-form-grid-tight">
+                  <Field label="Course Interested" required icon={<FieldIcon kind="course" />} error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
                     <select
                       value={form.courseId}
                       onChange={(event) => applyCourseDetails(event.target.value)}
@@ -875,7 +1270,7 @@ export function StudentManagementPage() {
                     </select>
                   </Field>
 
-                  <Field label="Faculty Name" required error={shouldShowError('facultyName') ? errors.facultyName : ''}>
+                  <Field label="Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
                     <input
                       type="text"
                       value={form.facultyName}
@@ -885,7 +1280,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Batch" required error={shouldShowError('batch') ? errors.batch : ''}>
+                  <Field label="Batch" required icon={<FieldIcon kind="batch" />} error={shouldShowError('batch') ? errors.batch : ''}>
                     <input
                       type="text"
                       value={form.batch}
@@ -895,7 +1290,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Qualification" required error={shouldShowError('qualification') ? errors.qualification : ''}>
+                  <Field label="Qualification" required icon={<FieldIcon kind="user" />} error={shouldShowError('qualification') ? errors.qualification : ''}>
                     <input
                       type="text"
                       value={form.qualification}
@@ -905,20 +1300,22 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Passed Out Year" required error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min="1950"
-                      max={new Date().getFullYear() + 1}
+                  <Field label="Passed Out Year" required icon={<FieldIcon kind="year" />} error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
+                    <select
                       value={form.passedOutYear}
                       onChange={(event) => updateField('passedOutYear', event.target.value)}
                       onBlur={() => markTouched('passedOutYear')}
-                      placeholder="2024"
-                    />
+                    >
+                      <option value="">Select year</option>
+                      {passedOutYearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
 
-                  <Field label="Current Status" required error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
+                  <Field label="Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
                     <select
                       value={form.currentStatus}
                       onChange={(event) => updateField('currentStatus', event.target.value)}
@@ -935,6 +1332,7 @@ export function StudentManagementPage() {
 
                   <Field
                     label="Designation"
+                    icon={<FieldIcon kind="user" />}
                     hint="Required when the current status is Employee."
                     error={shouldShowError('designation') ? errors.designation : ''}
                   >
@@ -950,6 +1348,7 @@ export function StudentManagementPage() {
                   <Field
                     label="How did you know about our Institute?"
                     required
+                    icon={<FieldIcon kind="note" />}
                     error={shouldShowError('source') ? errors.source : ''}
                   >
                     <select value={form.source} onChange={(event) => updateField('source', event.target.value)} onBlur={() => markTouched('source')}>
@@ -968,39 +1367,44 @@ export function StudentManagementPage() {
               {currentStep === 2 ? (
                 <div className="student-step-section">
                   <div className="student-step-section-head">
-                    <p>Step 3 of 3</p>
-                    <h4>Admission Details</h4>
+                    <div className="student-step-icon">
+                      <SectionIcon kind="admission" />
+                    </div>
+                    <div>
+                      <p>Admission Details</p>
+                      <h4>Complete the fee and admission setup before submitting.</h4>
+                    </div>
                   </div>
-                <div className="course-form-grid student-form-grid">
-                  <Field label="Actual Fees" required error={shouldShowError('actualFees') ? errors.actualFees : ''}>
+                <div className="course-form-grid student-form-grid student-form-grid-tight">
+                  <Field label="Actual Fees" required icon={<FieldIcon kind="currency" />} error={shouldShowError('actualFees') ? errors.actualFees : ''}>
                     <input type="text" value={form.actualFees} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Registration Fees" required error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
+                  <Field label="Registration Fees" required icon={<FieldIcon kind="balance" />} error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
                     <input type="text" value={form.registrationFees} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Discount" required error={shouldShowError('discount') ? errors.discount : ''}>
+                  <Field label="Discount" required icon={<FieldIcon kind="percent" />} error={shouldShowError('discount') ? errors.discount : ''}>
                     <input type="text" value={form.discount} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="After Discount" required error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
+                  <Field label="After Discount" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
                     <input type="text" value={form.afterDiscount} readOnly placeholder="Auto calculated" />
                   </Field>
 
-                  <Field label="Installment 1" required error={shouldShowError('installment1') ? errors.installment1 : ''}>
+                  <Field label="Installment 1" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment1') ? errors.installment1 : ''}>
                     <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Installment 2" required error={shouldShowError('installment2') ? errors.installment2 : ''}>
+                  <Field label="Installment 2" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment2') ? errors.installment2 : ''}>
                     <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Installment 3" error={shouldShowError('installment3') ? errors.installment3 : ''}>
+                  <Field label="Installment 3" icon={<FieldIcon kind="installment" />} error={shouldShowError('installment3') ? errors.installment3 : ''}>
                     <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Admission Date" required error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
+                  <Field label="Admission Date" required icon={<FieldIcon kind="calendar" />} error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
                     <input
                       type="date"
                       value={form.admissionDate}
@@ -1011,6 +1415,8 @@ export function StudentManagementPage() {
 
                   <Field
                     label="Remarks"
+                    icon={<FieldIcon kind="note" />}
+                    multiline
                     hint="Optional notes can help the counselor follow up later."
                     error={shouldShowError('remarks') ? errors.remarks : ''}
                     className="student-field--full"
@@ -1061,62 +1467,125 @@ export function StudentManagementPage() {
       {isDrawerOpen && selectedStudent ? (
         <div className="student-drawer-backdrop" role="presentation" onClick={closeDrawer}>
           <aside className="student-drawer" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-            <div className="student-drawer-header">
-              <div>
-                <p className="section-kicker">Student Details</p>
-                <h3>{selectedStudent.studentName}</h3>
-                <p>{selectedStudent.courseInterested}</p>
+            <div className="student-drawer-header student-drawer-header-top">
+              <div className="student-drawer-title-block">
+                <div className="student-drawer-avatar">{getStudentInitials(selectedStudent.studentName)}</div>
+                <div className="student-drawer-main">
+                  <div className="student-drawer-name-row">
+                    <h3>{selectedStudent.studentName}</h3>
+                    <span className="student-drawer-status-pill">Active</span>
+                  </div>
+                  <div className="student-drawer-summary-grid">
+                    <div>
+                      <span>Student ID</span>
+                      <strong>{`STU${String(selectedStudent.id || '').replace(/\D/g, '').slice(-6).padStart(6, '0')}`}</strong>
+                    </div>
+                    <div>
+                      <span>Course</span>
+                      <strong>{selectedStudent.courseInterested}</strong>
+                    </div>
+                    <div>
+                      <span>Batch</span>
+                      <strong>{selectedStudent.batch}</strong>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <button type="button" className="student-drawer-close" onClick={closeDrawer} aria-label="Close student details">
-                X
-              </button>
+
+              <div className="student-drawer-actions">
+                <button type="button" className="student-drawer-action-button student-drawer-action-button-ghost" aria-label="More options">
+                  <span className="student-drawer-action-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                      <circle cx="12" cy="5" r="1.5" fill="currentColor" />
+                      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+                      <circle cx="12" cy="19" r="1.5" fill="currentColor" />
+                    </svg>
+                  </span>
+                </button>
+                <button type="button" className="student-drawer-close" onClick={closeDrawer} aria-label="Close student details">
+                  X
+                </button>
+              </div>
             </div>
 
-            <div className="student-drawer-section">
-              <h4>Basic Information</h4>
+            <div className="student-drawer-section student-drawer-section-card">
+              <div className="student-drawer-section-head">
+                <span className="student-drawer-section-icon">
+                  <SectionIcon kind="basic" />
+                </span>
+                <div>
+                  <h4>Basic Information</h4>
+                  <p>Personal & Contact Details</p>
+                </div>
+              </div>
               <div className="student-detail-grid">
-                <DetailItem label="Student Name" value={selectedStudent.studentName} />
-                <DetailItem label="Mobile Number" value={selectedStudent.mobileNumber} />
-                <DetailItem label="Email Address" value={selectedStudent.emailAddress} />
-                <DetailItem label="Parent / Spouse Number" value={selectedStudent.parentSpouseNumber} />
-                <DetailItem label="Location" value={selectedStudent.location} />
+                <DetailItem label="Student Name" value={selectedStudent.studentName} icon={<DetailIcon kind="user" />} />
+                <DetailItem label="Mobile Number" value={selectedStudent.mobileNumber} icon={<DetailIcon kind="phone" />} />
+                <DetailItem label="Email Address" value={selectedStudent.emailAddress} icon={<DetailIcon kind="mail" />} />
+                <DetailItem label="Parent / Spouse Number" value={selectedStudent.parentSpouseNumber} icon={<DetailIcon kind="phone" />} />
+                <DetailItem label="Location" value={selectedStudent.location} icon={<DetailIcon kind="pin" />} />
               </div>
             </div>
 
-            <div className="student-drawer-section">
-              <h4>Education Details</h4>
+            <div className="student-drawer-section student-drawer-section-card">
+              <div className="student-drawer-section-head">
+                <span className="student-drawer-section-icon">
+                  <SectionIcon kind="education" />
+                </span>
+                <div>
+                  <h4>Education Details</h4>
+                  <p>Academic Information</p>
+                </div>
+              </div>
               <div className="student-detail-grid">
-                <DetailItem label="Course Interested" value={selectedStudent.courseInterested} />
-                <DetailItem label="Faculty Name" value={selectedStudent.facultyName} />
-                <DetailItem label="Batch" value={selectedStudent.batch} />
-                <DetailItem label="Qualification" value={selectedStudent.qualification} />
-                <DetailItem label="Passed Out Year" value={selectedStudent.passedOutYear} />
-                <DetailItem label="Current Status" value={selectedStudent.currentStatus} />
-                <DetailItem label="Designation" value={selectedStudent.designation || '-'} />
+                <DetailItem label="Course Interested" value={selectedStudent.courseInterested} icon={<DetailIcon kind="course" />} />
+                <DetailItem label="Faculty Name" value={selectedStudent.facultyName} icon={<DetailIcon kind="faculty" />} />
+                <DetailItem label="Batch" value={selectedStudent.batch} icon={<DetailIcon kind="batch" />} />
+                <DetailItem label="Qualification" value={selectedStudent.qualification} icon={<DetailIcon kind="user" />} />
+                <DetailItem label="Passed Out Year" value={selectedStudent.passedOutYear} icon={<DetailIcon kind="calendar" />} />
+                <DetailItem label="Current Status" value={selectedStudent.currentStatus} icon={<DetailIcon kind="status" />} />
+                <DetailItem label="Designation" value={selectedStudent.designation || '-'} icon={<DetailIcon kind="note" />} />
               </div>
             </div>
 
-            <div className="student-drawer-section">
-              <h4>Admission Details</h4>
+            <div className="student-drawer-section student-drawer-section-card">
+              <div className="student-drawer-section-head">
+                <span className="student-drawer-section-icon">
+                  <SectionIcon kind="admission" />
+                </span>
+                <div>
+                  <h4>Admission Details</h4>
+                  <p>Admission & Other Info</p>
+                </div>
+              </div>
               <div className="student-detail-grid">
-                <DetailItem label="Admission Date" value={formatDate(selectedStudent.admissionDate)} />
-                <DetailItem label="Total Course Fee" value={formatCurrency(selectedStudent.totalAmount || selectedStudent.afterDiscount)} />
-                <DetailItem label="Discount" value={formatCurrency(selectedStudent.discount)} />
-                <DetailItem label="Final Fee" value={formatCurrency(selectedStudent.afterDiscount)} />
+                <DetailItem label="Admission Date" value={formatDate(selectedStudent.admissionDate)} icon={<DetailIcon kind="calendar" />} />
+                <DetailItem label="Total Course Fee" value={formatCurrency(selectedStudent.totalAmount || selectedStudent.afterDiscount)} icon={<DetailIcon kind="fees" />} />
+                <DetailItem label="Discount" value={formatCurrency(selectedStudent.discount)} icon={<DetailIcon kind="discount" />} />
+                <DetailItem label="Final Fee" value={formatCurrency(selectedStudent.afterDiscount)} icon={<DetailIcon kind="fees" />} />
               </div>
             </div>
 
-            <div className="student-drawer-section">
-              <h4>Installment Details</h4>
+            <div className="student-drawer-section student-drawer-section-card">
+              <div className="student-drawer-section-head">
+                <span className="student-drawer-section-icon">
+                  <SectionIcon kind="admission" />
+                </span>
+                <div>
+                  <h4>Installment Details</h4>
+                  <p>Payment Progress</p>
+                </div>
+              </div>
               <div className="student-installment-grid">
-                <DetailItem label="1st Installment Amount" value={formatCurrency(selectedStudent.firstInstallmentAmount || selectedStudent.installment1)} />
-                <DetailItem label="1st Installment Date" value={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)} />
-                <DetailItem label="1st Installment Status" value={selectedStudent.firstInstallmentStatus || 'Paid'} />
-                <DetailItem label="2nd Installment Amount" value={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)} />
-                <DetailItem label="2nd Due Date" value={formatDate(selectedStudent.secondDueDate || addOneMonth(selectedStudent.admissionDate))} />
+                <DetailItem label="1st Installment Amount" value={formatCurrency(selectedStudent.firstInstallmentAmount || selectedStudent.installment1)} icon={<DetailIcon kind="installment" />} />
+                <DetailItem label="1st Installment Date" value={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)} icon={<DetailIcon kind="calendar" />} />
+                <DetailItem label="1st Installment Status" value={selectedStudent.firstInstallmentStatus || 'Paid'} icon={<DetailIcon kind="status" />} />
+                <DetailItem label="2nd Installment Amount" value={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)} icon={<DetailIcon kind="installment" />} />
+                <DetailItem label="2nd Due Date" value={formatDate(selectedStudent.secondDueDate || addOneMonth(selectedStudent.admissionDate))} icon={<DetailIcon kind="calendar" />} />
                 <DetailItem
                   label="2nd Installment Status"
                   value={selectedStudent.secondInstallmentStatus || 'Pending'}
+                  icon={<DetailIcon kind="status" />}
                 />
                 <DetailItem
                   label="Overdue Days"
@@ -1125,15 +1594,24 @@ export function StudentManagementPage() {
                       ? 'No overdue'
                       : `${diffInDays(selectedStudent.secondDueDate || addOneMonth(selectedStudent.admissionDate), getTodayValue())} Days`
                   }
+                  icon={<DetailIcon kind="calendar" />}
                 />
               </div>
             </div>
 
-            <div className="student-drawer-section">
-              <h4>Lead Information</h4>
+            <div className="student-drawer-section student-drawer-section-card">
+              <div className="student-drawer-section-head">
+                <span className="student-drawer-section-icon">
+                  <SectionIcon kind="basic" />
+                </span>
+                <div>
+                  <h4>Lead Information</h4>
+                  <p>How did you know about our Institute?</p>
+                </div>
+              </div>
               <div className="student-detail-grid">
-                <DetailItem label="How did you know about our Institute?" value={selectedStudent.source} />
-                <DetailItem label="Remarks" value={selectedStudent.remarks || '-'} fullWidth />
+                <DetailItem label="How did you know about our Institute?" value={selectedStudent.source} icon={<DetailIcon kind="source" />} />
+                <DetailItem label="Remarks" value={selectedStudent.remarks || '-'} icon={<DetailIcon kind="note" />} fullWidth />
               </div>
             </div>
           </aside>

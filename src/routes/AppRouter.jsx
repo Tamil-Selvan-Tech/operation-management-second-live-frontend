@@ -83,7 +83,8 @@ function AppLayout() {
   const canAccessStudentManagement = courseAccessRoles.includes(role)
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
-    location.pathname !== '/dashboard/operation-manager'
+    location.pathname !== '/dashboard/operation-manager' &&
+    location.pathname !== '/dashboard/student'
 
   return (
     <AppShell
