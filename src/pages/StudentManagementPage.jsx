@@ -6,6 +6,23 @@ import { listCourses } from '../services/courseService'
 const STORAGE_KEY = 'cispro.student-management.records'
 const statusOptions = ['Student', 'Employee', 'Other']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
+const studentWizardSteps = [
+  {
+    key: 'basic',
+    title: 'Basic Information',
+    description: 'Tell us who the student is and how to reach them.',
+  },
+  {
+    key: 'education',
+    title: 'Education Details',
+    description: 'Choose the course and academic background.',
+  },
+  {
+    key: 'admission',
+    title: 'Admission Details',
+    description: 'Complete the fee and admission setup before submitting.',
+  },
+]
 
 function getTodayValue() {
   const date = new Date()
@@ -22,6 +39,8 @@ function createEmptyForm() {
     mobileNumber: '',
     emailAddress: '',
     courseInterested: '',
+    facultyName: '',
+    batch: '',
     qualification: '',
     passedOutYear: '',
     currentStatus: '',
@@ -107,6 +126,8 @@ function mapCourseToForm(current, course) {
       installment1: '',
       installment2: '',
       installment3: '',
+      facultyName: current.facultyName || '',
+      batch: current.batch || '',
     }
   }
 
@@ -120,6 +141,8 @@ function mapCourseToForm(current, course) {
     ...current,
     courseId: course.id,
     courseInterested: course.name,
+    facultyName: current.facultyName,
+    batch: current.batch,
     actualFees,
     registrationFees: String(course.registrationFees ?? ''),
     discount,
@@ -161,6 +184,8 @@ function validateForm(form) {
   if (!form.source) errors.source = 'Please select a source.'
 
   if (!form.courseId) errors.courseInterested = 'Please select a course.'
+  if (!form.facultyName.trim()) errors.facultyName = 'Faculty name is required.'
+  if (!form.batch.trim()) errors.batch = 'Batch is required.'
   if (!form.actualFees && form.courseId) errors.actualFees = 'Course fee details are missing.'
   if (!form.registrationFees && form.courseId) errors.registrationFees = 'Registration fee is missing.'
   if (!form.discount && form.courseId) errors.discount = 'Discount is missing.'
@@ -180,6 +205,19 @@ function validateForm(form) {
   return errors
 }
 
+function validateStep(form, stepIndex) {
+  const errors = validateForm(form)
+  const stepFields = {
+    0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
+    1: ['courseInterested', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
+    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'admissionDate'],
+  }
+
+  return Object.fromEntries(
+    Object.entries(errors).filter(([field]) => stepFields[stepIndex]?.includes(field)),
+  )
+}
+
 function Field({ label, required = false, hint, error, className = '', children }) {
   return (
     <label className={`course-field student-field ${className}`.trim()}>
@@ -194,11 +232,18 @@ function Field({ label, required = false, hint, error, className = '', children 
   )
 }
 
-function StatusBadge({ value }) {
+function PaymentStatusBadge({ student }) {
+  const dueDate = student.secondDueDate || addOneMonth(student.admissionDate)
+  const paidLate =
+    student.secondInstallmentStatus === 'Paid' &&
+    student.secondInstallmentPaidAt &&
+    student.secondInstallmentPaidAt > dueDate
+  const isOverdue = student.secondInstallmentStatus !== 'Paid' && diffInDays(dueDate, getTodayValue()) > 0
+  const status = paidLate ? 'Overdue' : student.secondInstallmentStatus === 'Paid' ? 'Complete' : isOverdue ? 'Overdue' : 'Pending'
   const className =
-    value === 'Employee' ? 'student-badge employee' : value === 'Other' ? 'student-badge other' : 'student-badge student'
+    status === 'Complete' ? 'student-badge employee' : status === 'Overdue' ? 'student-badge other' : 'student-badge student'
 
-  return <span className={className}>{value}</span>
+  return <span className={className}>{status}</span>
 }
 
 function DetailItem({ label, value, fullWidth = false }) {
@@ -207,6 +252,61 @@ function DetailItem({ label, value, fullWidth = false }) {
       <span>{label}</span>
       <strong>{value || '-'}</strong>
     </div>
+  )
+}
+
+function ViewIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+      />
+      <circle cx="12" cy="12" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  )
+}
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4a2.1 2.1 0 0 0-3 0L3 14.5V20h1z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="m13.5 6.5 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 7h16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M10 11v5M14 11v5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function DangerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M12 3 1.8 20h20.4L12 3Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M12 8.5v5M12 17.2h.01" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
   )
 }
 
@@ -222,6 +322,8 @@ export function StudentManagementPage() {
   const [fieldFocus, setFieldFocus] = useState({})
   const [editingStudentId, setEditingStudentId] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [currentStep, setCurrentStep] = useState(0)
 
   const errors = useMemo(() => validateForm(form), [form])
   const selectedStudent = useMemo(
@@ -246,6 +348,7 @@ export function StudentManagementPage() {
     setFieldFocus({})
     setSubmitted(false)
     setEditingStudentId('')
+    setCurrentStep(0)
     setIsModalOpen(true)
   }
 
@@ -257,6 +360,8 @@ export function StudentManagementPage() {
       mobileNumber: student.mobileNumber || '',
       emailAddress: student.emailAddress || '',
       courseInterested: student.courseInterested || '',
+      facultyName: student.facultyName || '',
+      batch: student.batch || '',
       qualification: student.qualification || '',
       passedOutYear: student.passedOutYear || '',
       currentStatus: student.currentStatus || '',
@@ -273,10 +378,13 @@ export function StudentManagementPage() {
       remarks: student.remarks || '',
       parentSpouseNumber: student.parentSpouseNumber || '',
       admissionDate: student.admissionDate || getTodayValue(),
+      firstInstallmentPaidAt: student.firstInstallmentPaidAt || student.admissionDate || '',
+      secondInstallmentPaidAt: student.secondInstallmentPaidAt || '',
     })
     setFieldFocus({})
     setSubmitted(false)
     setEditingStudentId(student.id)
+    setCurrentStep(0)
     setIsModalOpen(true)
   }
 
@@ -285,13 +393,22 @@ export function StudentManagementPage() {
     setIsDrawerOpen(true)
   }
 
+  const openDeleteModal = (student) => {
+    setDeleteTarget(student)
+  }
+
   const closeDrawer = () => {
     setIsDrawerOpen(false)
+  }
+
+  const closeDeleteModal = () => {
+    setDeleteTarget(null)
   }
 
   const closeModal = () => {
     setIsModalOpen(false)
     setEditingStudentId('')
+    setCurrentStep(0)
   }
 
   useEffect(() => {
@@ -406,8 +523,23 @@ export function StudentManagementPage() {
 
   const shouldShowError = (name) => submitted || fieldFocus[name]
 
-  const handleSubmit = (event) => {
-    event.preventDefault()
+  const goToNextStep = () => {
+    const stepErrors = validateStep(form, currentStep)
+    if (Object.keys(stepErrors).length > 0) {
+      setSubmitted(true)
+      return
+    }
+
+    setSubmitted(false)
+    setCurrentStep((value) => Math.min(value + 1, studentWizardSteps.length - 1))
+  }
+
+  const goToPreviousStep = () => {
+    setSubmitted(false)
+    setCurrentStep((value) => Math.max(value - 1, 0))
+  }
+
+  const handleSubmit = () => {
     setSubmitted(true)
 
     const nextErrors = validateForm(form)
@@ -421,14 +553,18 @@ export function StudentManagementPage() {
       ...form,
       courseId: form.courseId || course?.id || '',
       courseInterested: form.courseInterested || course?.name || '',
+      facultyName: form.facultyName || '',
+      batch: form.batch || '',
       counselorName,
       totalAmount: form.afterDiscount || '',
       firstInstallmentAmount: form.installment1 || '',
       firstInstallmentDate: form.admissionDate,
       firstInstallmentStatus: 'Paid',
+      firstInstallmentPaidAt: form.admissionDate,
       secondInstallmentAmount: form.installment2 || '',
       secondDueDate: addOneMonth(form.admissionDate),
       secondInstallmentStatus: 'Pending',
+      secondInstallmentPaidAt: '',
       overdueDays: 0,
       addedAt: editingStudentId
         ? students.find((student) => student.id === editingStudentId)?.addedAt || new Date().toISOString()
@@ -451,17 +587,39 @@ export function StudentManagementPage() {
     setEditingStudentId('')
   }
 
-  const handleDelete = (studentId) => {
-    const target = students.find((student) => student.id === studentId)
-    const confirmDelete = window.confirm(`Delete ${target?.studentName || 'this student'}?`)
-    if (!confirmDelete) return
+  const handleFormSubmit = (event) => {
+    event.preventDefault()
+  }
 
+  const handleDelete = (studentId) => {
     const nextStudents = students.filter((student) => student.id !== studentId)
     saveStudents(nextStudents)
 
     if (selectedStudentId === studentId) {
       closeDrawer()
     }
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    handleDelete(deleteTarget.id)
+    closeDeleteModal()
+  }
+
+  const toggleInstallmentStatus = (studentId, installmentField, paidAtField) => {
+    const nextStudents = students.map((student) => {
+      if (student.id !== studentId) return student
+
+      const nextStatus = student[installmentField] === 'Paid' ? 'Pending' : 'Paid'
+
+      return {
+        ...student,
+        [installmentField]: nextStatus,
+        [paidAtField]: nextStatus === 'Paid' ? getTodayValue() : '',
+      }
+    })
+
+    saveStudents(nextStudents)
   }
 
   return (
@@ -535,21 +693,7 @@ export function StudentManagementPage() {
     <input
       type="checkbox"
       checked={student.firstInstallmentStatus === 'Paid'}
-      onChange={() => {
-        const updated = students.map((s) =>
-          s.id === student.id
-            ? {
-                ...s,
-                firstInstallmentStatus:
-                  s.firstInstallmentStatus === 'Paid'
-                    ? 'Pending'
-                    : 'Paid',
-              }
-            : s
-        )
-
-        saveStudents(updated)
-      }}
+      onChange={() => toggleInstallmentStatus(student.id, 'firstInstallmentStatus', 'firstInstallmentPaidAt')}
     />
     <strong>{formatCurrency(student.firstInstallmentAmount)}</strong>
     <small>{student.firstInstallmentStatus}</small>
@@ -560,43 +704,47 @@ export function StudentManagementPage() {
     <input
       type="checkbox"
       checked={student.secondInstallmentStatus === 'Paid'}
-      onChange={() => {
-        const updated = students.map((s) =>
-          s.id === student.id
-            ? {
-                ...s,
-                secondInstallmentStatus:
-                  s.secondInstallmentStatus === 'Paid'
-                    ? 'Pending'
-                    : 'Paid',
-              }
-            : s
-        )
-
-        saveStudents(updated)
-      }}
+      onChange={() => toggleInstallmentStatus(student.id, 'secondInstallmentStatus', 'secondInstallmentPaidAt')}
     />
     <strong>{formatCurrency(student.secondInstallmentAmount)}</strong>
     <small>{student.secondInstallmentStatus}</small>
   </label>
 </td>
-                      <td>
+                      <td className="student-date-single-line">
                         <strong>{formatDate(dueDate)}</strong>
                         <small>{overdueDays > 0 ? `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}</small>
                       </td>
                       <td>
-                        <StatusBadge value={student.currentStatus} />
+                        <PaymentStatusBadge student={student} />
                       </td>
                       <td>
                         <div className="student-action-group">
-                          <button type="button" className="student-row-button student-row-button-view" onClick={() => openDrawer(student)}>
-                            View
+                          <button
+                            type="button"
+                            className="student-row-button student-row-button-view"
+                            onClick={() => openDrawer(student)}
+                            aria-label="View student"
+                            title="View"
+                          >
+                            <ViewIcon />
                           </button>
-                          <button type="button" className="student-row-button student-row-button-edit" onClick={() => openEditModal(student)}>
-                            Edit
+                          <button
+                            type="button"
+                            className="student-row-button student-row-button-edit"
+                            onClick={() => openEditModal(student)}
+                            aria-label="Edit student"
+                            title="Edit"
+                          >
+                            <EditIcon />
                           </button>
-                          <button type="button" className="student-row-button student-row-button-delete" onClick={() => handleDelete(student.id)}>
-                            Delete
+                          <button
+                            type="button"
+                            className="student-row-button student-row-button-delete"
+                            onClick={() => openDeleteModal(student)}
+                            aria-label="Delete student"
+                            title="Delete"
+                          >
+                            <DeleteIcon />
                           </button>
                         </div>
                       </td>
@@ -616,7 +764,7 @@ export function StudentManagementPage() {
 
       {isModalOpen ? (
         <div className="course-modal-backdrop student-modal-backdrop" role="presentation" onClick={closeModal}>
-          <form className="course-modal panel-card student-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={handleSubmit}>
+          <form className="course-modal panel-card student-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={handleFormSubmit}>
             <button type="button" className="course-modal-close" onClick={closeModal} aria-label="Close student form">
               X
             </button>
@@ -624,211 +772,287 @@ export function StudentManagementPage() {
             <div className="course-modal-header student-modal-header">
               <div>
                 <p className="section-kicker">Students</p>
-                <h3>Add New Student</h3>
-                <p>Fill in the student details below. Admission date defaults to today.</p>
+                <h3>{editingStudentId ? 'Edit Student' : 'Add New Student'}</h3>
+                <p>{studentWizardSteps[currentStep].description}</p>
               </div>
             </div>
 
-            <div className="course-form-grid student-form-grid">
-              <Field label="Student Name" required error={shouldShowError('studentName') ? errors.studentName : ''}>
-                <input
-                  type="text"
-                  value={form.studentName}
-                  onChange={(event) => updateField('studentName', event.target.value)}
-                  onBlur={() => markTouched('studentName')}
-                  placeholder="Enter student name"
-                />
-              </Field>
+            <div className="student-stepper">
+              {studentWizardSteps.map((step, index) => (
+                <div key={step.key} className={`student-stepper-item ${currentStep === index ? 'active' : ''} ${currentStep > index ? 'done' : ''}`.trim()}>
+                  <span>{index + 1}</span>
+                  <strong>{step.title}</strong>
+                </div>
+              ))}
+            </div>
 
-              <Field label="Mobile Number" required error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={form.mobileNumber}
-                  onChange={(event) => updateField('mobileNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                  onBlur={() => markTouched('mobileNumber')}
-                  placeholder="10-digit mobile number"
-                />
-              </Field>
+            <div className="student-step-panel">
+              {currentStep === 0 ? (
+                <div className="student-step-section">
+                  <div className="student-step-section-head">
+                    <p>Step 1 of 3</p>
+                    <h4>Basic Information</h4>
+                  </div>
+                <div className="course-form-grid student-form-grid">
+                  <Field label="Student Name" required error={shouldShowError('studentName') ? errors.studentName : ''}>
+                    <input
+                      type="text"
+                      value={form.studentName}
+                      onChange={(event) => updateField('studentName', event.target.value)}
+                      onBlur={() => markTouched('studentName')}
+                      placeholder="Enter student name"
+                    />
+                  </Field>
 
-              <Field label="Email Address" required error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
-                <input
-                  type="email"
-                  value={form.emailAddress}
-                  onChange={(event) => updateField('emailAddress', event.target.value)}
-                  onBlur={() => markTouched('emailAddress')}
-                  placeholder="name@example.com"
-                />
-              </Field>
+                  <Field label="Mobile Number" required error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={form.mobileNumber}
+                      onChange={(event) => updateField('mobileNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                      onBlur={() => markTouched('mobileNumber')}
+                      placeholder="10-digit mobile number"
+                    />
+                  </Field>
 
-              <Field label="Course Interested" required error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
-                <select
-                  value={form.courseId}
-                  onChange={(event) => applyCourseDetails(event.target.value)}
-                  onBlur={() => markTouched('courseInterested')}
-                  disabled={isCoursesLoading}
-                >
-                  <option value="">{isCoursesLoading ? 'Loading courses...' : 'Select course'}</option>
-                  {courseOptions.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.name}
-                    </option>
-                  ))}
-                  {!isCoursesLoading && !courseOptions.length ? <option value="" disabled>No courses available</option> : null}
-                </select>
-              </Field>
+                  <Field label="Email Address" required error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
+                    <input
+                      type="email"
+                      value={form.emailAddress}
+                      onChange={(event) => updateField('emailAddress', event.target.value)}
+                      onBlur={() => markTouched('emailAddress')}
+                      placeholder="name@example.com"
+                    />
+                  </Field>
 
-              <Field label="Actual Fees" required error={shouldShowError('actualFees') ? errors.actualFees : ''}>
-                <input type="text" value={form.actualFees} readOnly placeholder="Auto filled from course" />
-              </Field>
+                  <Field label="Parent / Spouse Number" required error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
+                    <input
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={10}
+                      value={form.parentSpouseNumber}
+                      onChange={(event) => updateField('parentSpouseNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                      onBlur={() => markTouched('parentSpouseNumber')}
+                      placeholder="10-digit contact number"
+                    />
+                  </Field>
 
-              <Field label="Registration Fees" required error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
-                <input type="text" value={form.registrationFees} readOnly placeholder="Auto filled from course" />
-              </Field>
+                  <Field label="Location" required error={shouldShowError('location') ? errors.location : ''}>
+                    <input
+                      type="text"
+                      value={form.location}
+                      onChange={(event) => updateField('location', event.target.value)}
+                      onBlur={() => markTouched('location')}
+                      placeholder="Current city or location"
+                    />
+                  </Field>
+                </div>
+                </div>
+              ) : null}
 
-              <Field label="Discount" required error={shouldShowError('discount') ? errors.discount : ''}>
-                <input type="text" value={form.discount} readOnly placeholder="Auto filled from course" />
-              </Field>
+              {currentStep === 1 ? (
+                <div className="student-step-section">
+                  <div className="student-step-section-head">
+                    <p>Step 2 of 3</p>
+                    <h4>Education Details</h4>
+                  </div>
+                <div className="course-form-grid student-form-grid">
+                  <Field label="Course Interested" required error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
+                    <select
+                      value={form.courseId}
+                      onChange={(event) => applyCourseDetails(event.target.value)}
+                      onBlur={() => markTouched('courseInterested')}
+                      disabled={isCoursesLoading}
+                    >
+                      <option value="">{isCoursesLoading ? 'Loading courses...' : 'Select course'}</option>
+                      {courseOptions.map((course) => (
+                        <option key={course.id} value={course.id}>
+                          {course.name}
+                        </option>
+                      ))}
+                      {!isCoursesLoading && !courseOptions.length ? <option value="" disabled>No courses available</option> : null}
+                    </select>
+                  </Field>
 
-              <Field label="After Discount" required error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
-                <input type="text" value={form.afterDiscount} readOnly placeholder="Auto calculated" />
-              </Field>
+                  <Field label="Faculty Name" required error={shouldShowError('facultyName') ? errors.facultyName : ''}>
+                    <input
+                      type="text"
+                      value={form.facultyName}
+                      onChange={(event) => updateField('facultyName', event.target.value)}
+                      onBlur={() => markTouched('facultyName')}
+                      placeholder="Enter faculty name"
+                    />
+                  </Field>
 
-              <Field label="Installment 1" required error={shouldShowError('installment1') ? errors.installment1 : ''}>
-                <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
-              </Field>
+                  <Field label="Batch" required error={shouldShowError('batch') ? errors.batch : ''}>
+                    <input
+                      type="text"
+                      value={form.batch}
+                      onChange={(event) => updateField('batch', event.target.value)}
+                      onBlur={() => markTouched('batch')}
+                      placeholder="Enter batch"
+                    />
+                  </Field>
 
-              <Field label="Installment 2" required error={shouldShowError('installment2') ? errors.installment2 : ''}>
-                <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
-              </Field>
+                  <Field label="Qualification" required error={shouldShowError('qualification') ? errors.qualification : ''}>
+                    <input
+                      type="text"
+                      value={form.qualification}
+                      onChange={(event) => updateField('qualification', event.target.value)}
+                      onBlur={() => markTouched('qualification')}
+                      placeholder="Highest qualification"
+                    />
+                  </Field>
 
-              <Field label="Installment 3" error={shouldShowError('installment3') ? errors.installment3 : ''}>
-                <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
-              </Field>
+                  <Field label="Passed Out Year" required error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="1950"
+                      max={new Date().getFullYear() + 1}
+                      value={form.passedOutYear}
+                      onChange={(event) => updateField('passedOutYear', event.target.value)}
+                      onBlur={() => markTouched('passedOutYear')}
+                      placeholder="2024"
+                    />
+                  </Field>
 
-              <Field label="Qualification" required error={shouldShowError('qualification') ? errors.qualification : ''}>
-                <input
-                  type="text"
-                  value={form.qualification}
-                  onChange={(event) => updateField('qualification', event.target.value)}
-                  onBlur={() => markTouched('qualification')}
-                  placeholder="Highest qualification"
-                />
-              </Field>
+                  <Field label="Current Status" required error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
+                    <select
+                      value={form.currentStatus}
+                      onChange={(event) => updateField('currentStatus', event.target.value)}
+                      onBlur={() => markTouched('currentStatus')}
+                    >
+                      <option value="">Select status</option>
+                      {statusOptions.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
 
-              <Field label="Passed Out Year" required error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="1950"
-                  max={new Date().getFullYear() + 1}
-                  value={form.passedOutYear}
-                  onChange={(event) => updateField('passedOutYear', event.target.value)}
-                  onBlur={() => markTouched('passedOutYear')}
-                  placeholder="2024"
-                />
-              </Field>
+                  <Field
+                    label="Designation"
+                    hint="Required when the current status is Employee."
+                    error={shouldShowError('designation') ? errors.designation : ''}
+                  >
+                    <input
+                      type="text"
+                      value={form.designation}
+                      onChange={(event) => updateField('designation', event.target.value)}
+                      onBlur={() => markTouched('designation')}
+                      placeholder="Job title or designation"
+                    />
+                  </Field>
 
-              <Field label="Current Status" required error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
-                <select
-                  value={form.currentStatus}
-                  onChange={(event) => updateField('currentStatus', event.target.value)}
-                  onBlur={() => markTouched('currentStatus')}
-                >
-                  <option value="">Select status</option>
-                  {statusOptions.map((status) => (
-                    <option key={staFtus} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                  <Field
+                    label="How did you know about our Institute?"
+                    required
+                    error={shouldShowError('source') ? errors.source : ''}
+                  >
+                    <select value={form.source} onChange={(event) => updateField('source', event.target.value)} onBlur={() => markTouched('source')}>
+                      <option value="">Select source</option>
+                      {sourceOptions.map((source) => (
+                        <option key={source} value={source}>
+                          {source}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                </div>
+              ) : null}
 
-              <Field
-                label="Designation"
-                hint="Required when the current status is Employee."
-                error={shouldShowError('designation') ? errors.designation : ''}
-              >
-                <input
-                  type="text"
-                  value={form.designation}
-                  onChange={(event) => updateField('designation', event.target.value)}
-                  onBlur={() => markTouched('designation')}
-                  placeholder="Job title or designation"
-                />
-              </Field>
+              {currentStep === 2 ? (
+                <div className="student-step-section">
+                  <div className="student-step-section-head">
+                    <p>Step 3 of 3</p>
+                    <h4>Admission Details</h4>
+                  </div>
+                <div className="course-form-grid student-form-grid">
+                  <Field label="Actual Fees" required error={shouldShowError('actualFees') ? errors.actualFees : ''}>
+                    <input type="text" value={form.actualFees} readOnly placeholder="Auto filled from course" />
+                  </Field>
 
-              <Field label="Location" required error={shouldShowError('location') ? errors.location : ''}>
-                <input
-                  type="text"
-                  value={form.location}
-                  onChange={(event) => updateField('location', event.target.value)}
-                  onBlur={() => markTouched('location')}
-                  placeholder="Current city or location"
-                />
-              </Field>
+                  <Field label="Registration Fees" required error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
+                    <input type="text" value={form.registrationFees} readOnly placeholder="Auto filled from course" />
+                  </Field>
 
-              <Field
-                label="How did you know about our Institute?"
-                required
-                error={shouldShowError('source') ? errors.source : ''}
-              >
-                <select value={form.source} onChange={(event) => updateField('source', event.target.value)} onBlur={() => markTouched('source')}>
-                  <option value="">Select source</option>
-                  {sourceOptions.map((source) => (
-                    <option key={source} value={source}>
-                      {source}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+                  <Field label="Discount" required error={shouldShowError('discount') ? errors.discount : ''}>
+                    <input type="text" value={form.discount} readOnly placeholder="Auto filled from course" />
+                  </Field>
 
-              <Field label="Parent / Spouse Number" required error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
-                <input
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={form.parentSpouseNumber}
-                  onChange={(event) => updateField('parentSpouseNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                  onBlur={() => markTouched('parentSpouseNumber')}
-                  placeholder="10-digit contact number"
-                />
-              </Field>
+                  <Field label="After Discount" required error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
+                    <input type="text" value={form.afterDiscount} readOnly placeholder="Auto calculated" />
+                  </Field>
 
-              <Field label="Admission Date" required error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
-                <input
-                  type="date"
-                  value={form.admissionDate}
-                  onChange={(event) => updateField('admissionDate', event.target.value)}
-                  onBlur={() => markTouched('admissionDate')}
-                />
-              </Field>
+                  <Field label="Installment 1" required error={shouldShowError('installment1') ? errors.installment1 : ''}>
+                    <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
+                  </Field>
 
-              <Field
-                label="Remarks"
-                hint="Optional notes can help the counselor follow up later."
-                error={shouldShowError('remarks') ? errors.remarks : ''}
-                className="student-field--full"
-              >
-                <textarea
-                  value={form.remarks}
-                  onChange={(event) => updateField('remarks', event.target.value)}
-                  onBlur={() => markTouched('remarks')}
-                  placeholder="Additional notes or counselor remarks"
-                />
-              </Field>
+                  <Field label="Installment 2" required error={shouldShowError('installment2') ? errors.installment2 : ''}>
+                    <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
+                  </Field>
+
+                  <Field label="Installment 3" error={shouldShowError('installment3') ? errors.installment3 : ''}>
+                    <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
+                  </Field>
+
+                  <Field label="Admission Date" required error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
+                    <input
+                      type="date"
+                      value={form.admissionDate}
+                      onChange={(event) => updateField('admissionDate', event.target.value)}
+                      onBlur={() => markTouched('admissionDate')}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Remarks"
+                    hint="Optional notes can help the counselor follow up later."
+                    error={shouldShowError('remarks') ? errors.remarks : ''}
+                    className="student-field--full"
+                  >
+                    <textarea
+                      value={form.remarks}
+                      onChange={(event) => updateField('remarks', event.target.value)}
+                      onBlur={() => markTouched('remarks')}
+                      placeholder="Additional notes or counselor remarks"
+                    />
+                  </Field>
+                </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="course-validation-note student-validation-note">
-              {Object.keys(errors).length ? 'Please review the highlighted fields before submitting.' : 'All required details should be entered accurately.'}
+              {Object.keys(validateStep(form, currentStep)).length
+                ? 'Please review the highlighted fields before continuing.'
+                : currentStep === 2
+                  ? 'All required details should be entered accurately.'
+                  : 'Complete this section to move to the next step.'}
             </div>
 
             <div className="course-form-actions">
               <Button type="button" variant="ghost" onClick={closeModal}>
                 Cancel
               </Button>
-              <Button type="submit">Submit</Button>
+              {currentStep > 0 ? (
+                <Button type="button" variant="ghost" onClick={goToPreviousStep}>
+                  Back
+                </Button>
+              ) : null}
+              {currentStep < studentWizardSteps.length - 1 ? (
+                <Button type="button" onClick={goToNextStep}>
+                  Next
+                </Button>
+              ) : (
+                <Button type="button" onClick={handleSubmit}>
+                  {editingStudentId ? 'Update Student' : 'Submit'}
+                </Button>
+              )}
             </div>
           </form>
         </div>
@@ -863,6 +1087,8 @@ export function StudentManagementPage() {
               <h4>Education Details</h4>
               <div className="student-detail-grid">
                 <DetailItem label="Course Interested" value={selectedStudent.courseInterested} />
+                <DetailItem label="Faculty Name" value={selectedStudent.facultyName} />
+                <DetailItem label="Batch" value={selectedStudent.batch} />
                 <DetailItem label="Qualification" value={selectedStudent.qualification} />
                 <DetailItem label="Passed Out Year" value={selectedStudent.passedOutYear} />
                 <DetailItem label="Current Status" value={selectedStudent.currentStatus} />
@@ -887,7 +1113,7 @@ export function StudentManagementPage() {
                 <DetailItem label="1st Installment Date" value={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)} />
                 <DetailItem label="1st Installment Status" value={selectedStudent.firstInstallmentStatus || 'Paid'} />
                 <DetailItem label="2nd Installment Amount" value={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)} />
-                <DetailItem label="2nd Due Date" value={formatDate(selectedStudent.secondDueDate || addDays(selectedStudent.admissionDate))} />
+                <DetailItem label="2nd Due Date" value={formatDate(selectedStudent.secondDueDate || addOneMonth(selectedStudent.admissionDate))} />
                 <DetailItem
                   label="2nd Installment Status"
                   value={selectedStudent.secondInstallmentStatus || 'Pending'}
@@ -897,7 +1123,7 @@ export function StudentManagementPage() {
                   value={
                     (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
                       ? 'No overdue'
-                      : `${diffInDays(selectedStudent.secondDueDate || addDays(selectedStudent.admissionDate), getTodayValue())} Days`
+                      : `${diffInDays(selectedStudent.secondDueDate || addOneMonth(selectedStudent.admissionDate), getTodayValue())} Days`
                   }
                 />
               </div>
@@ -911,6 +1137,39 @@ export function StudentManagementPage() {
               </div>
             </div>
           </aside>
+        </div>
+      ) : null}
+
+      {deleteTarget ? (
+        <div className="course-modal-backdrop" role="presentation" onClick={closeDeleteModal}>
+          <div
+            className="course-modal panel-card course-delete-modal student-delete-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="course-delete-icon" aria-hidden="true">
+              <DangerIcon />
+            </div>
+            <div className="course-modal-header">
+              <div>
+                <h3>Delete student</h3>
+              </div>
+            </div>
+
+            <p className="course-delete-text">
+              Are you sure you want to delete <strong>{deleteTarget.studentName}</strong>? This action cannot be undone.
+            </p>
+
+            <div className="course-form-actions">
+              <button type="button" className="button button-ghost" onClick={closeDeleteModal}>
+                Cancel
+              </button>
+              <button type="button" className="button button-solid course-delete-confirm" onClick={confirmDelete}>
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </section>
