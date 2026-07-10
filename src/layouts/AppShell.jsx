@@ -11,6 +11,7 @@ export function AppShell({
   onNavigateDashboard,
   onNavigateCourses,
   onLogout,
+  showCoursesNav = true,
   showChrome = true,
   children,
 }) {
@@ -27,6 +28,7 @@ export function AppShell({
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCourses={onNavigateCourses}
         onLogout={onLogout}
+        showCoursesNav={showCoursesNav}
       />
 
       <div className={`main-area ${showChrome ? '' : 'main-area-compact'}`}>

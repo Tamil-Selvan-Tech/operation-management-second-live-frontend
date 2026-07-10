@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigat
 import { AuthShell } from '../layouts/AuthShell'
 import { AppShell } from '../layouts/AppShell'
 import { useAuth } from '../auth/useAuth'
-import { roleDashboards, roleLabels, dashboardPathByRole } from '../data/authData'
+import { courseAccessRoles, roleDashboards, roleLabels, dashboardPathByRole } from '../data/authData'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage'
 import { LoginPage } from '../pages/LoginPage'
@@ -78,6 +78,7 @@ function AppLayout() {
   const location = useLocation()
   const dashboard = role ? roleDashboards[role] : null
   const roleLabel = role ? roleLabels[role] : 'Guest'
+  const canAccessCourses = courseAccessRoles.includes(role)
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
     location.pathname !== '/dashboard/operation-manager'
@@ -94,6 +95,7 @@ function AppLayout() {
         signOut()
         navigate('/login')
       }}
+      showCoursesNav={canAccessCourses}
       showChrome={showChrome}
     >
       <Outlet />
@@ -155,6 +157,12 @@ function NotFoundRoute() {
   )
 }
 
+function ProfileRedirectRoute() {
+  const { role } = useAuth()
+
+  return <Navigate to={dashboardPathByRole[role] || '/dashboard'} replace />
+}
+
 export function AppRouter() {
   return (
     <BrowserRouter>
@@ -180,8 +188,10 @@ export function AppRouter() {
             <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
             <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
             <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
-            <Route path="/courses" element={<CoursesPage />} />
-            <Route path="/profile" element={<Navigate to="/courses" replace />} />
+            <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
+              <Route path="/courses" element={<CoursesPage />} />
+            </Route>
+            <Route path="/profile" element={<ProfileRedirectRoute />} />
           </Route>
         </Route>
 

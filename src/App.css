@@ -1111,6 +1111,662 @@ a {
   gap: 18px;
 }
 
+.revenue-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.revenue-summary-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 128px;
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e4ebf5;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.045);
+}
+
+.revenue-summary-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
+}
+
+.revenue-summary-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.revenue-summary-icon.blue {
+  background: linear-gradient(180deg, #2f8ef0 0%, #0f7bda 100%);
+}
+
+.revenue-summary-icon.green {
+  background: linear-gradient(180deg, #30c26b 0%, #18a957 100%);
+}
+
+.revenue-summary-icon.purple {
+  background: linear-gradient(180deg, #7c6cf5 0%, #6250e0 100%);
+}
+
+.revenue-summary-icon.orange {
+  background: linear-gradient(180deg, #f8b23c 0%, #f59e0b 100%);
+}
+
+.revenue-summary-content {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.revenue-summary-label {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.revenue-summary-value {
+  color: #0f172a;
+  font-size: clamp(1.28rem, 1.55vw, 1.72rem);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.revenue-summary-change {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.revenue-summary-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.11);
+  color: #15803d;
+  font-size: 0.73rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.revenue-summary-arrow {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.revenue-summary-note {
+  color: #718096;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.revenue-summary-note-alone {
+  margin-top: 2px;
+}
+
+.attendance-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 18px 14px;
+}
+
+.attendance-header {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 160px;
+  align-items: center;
+  gap: 12px;
+}
+
+.attendance-axis-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.attendance-axis-left {
+  color: #2f8ef0;
+}
+
+.attendance-axis-right {
+  color: #22c55e;
+  text-align: right;
+}
+
+.attendance-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  color: var(--text-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.attendance-legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.attendance-legend-swatch.attendance {
+  background: #2f8ef0;
+}
+
+.attendance-legend-swatch.students {
+  background: #22c55e;
+}
+
+.attendance-chart {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 56px;
+  gap: 12px;
+  align-items: stretch;
+  min-height: 360px;
+}
+
+.attendance-left-axis,
+.attendance-right-axis {
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  padding: 8px 0 24px;
+  color: #475569;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.attendance-left-axis {
+  text-align: right;
+}
+
+.attendance-right-axis {
+  text-align: left;
+}
+
+.attendance-left-axis span,
+.attendance-right-axis span {
+  align-self: center;
+}
+
+.attendance-plot {
+  position: relative;
+  min-height: 360px;
+  padding: 8px 10px 0;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(255, 255, 255, 0.98));
+  overflow: hidden;
+}
+
+.attendance-grid-lines {
+  position: absolute;
+  inset: 40px 0 34px;
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.attendance-grid-lines span {
+  border-top: 1px solid #e3e8ef;
+}
+
+.attendance-bars-row {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  right: 0;
+  bottom: 28px;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: end;
+  gap: 12px;
+  padding: 0 14px 0;
+}
+
+.attendance-group {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 8px;
+  height: 100%;
+}
+
+.attendance-series {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 20px;
+  height: 100%;
+}
+
+.attendance-series-value {
+  color: #1f2937;
+  font-size: 0.88rem;
+  line-height: 1;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.attendance-bar {
+  width: 16px;
+  border-radius: 6px 6px 3px 3px;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.attendance-bar.attendance {
+  background: linear-gradient(180deg, #5fa0ff 0%, #2f8ef0 100%);
+}
+
+.attendance-bar.students {
+  background: linear-gradient(180deg, #4ccd7a 0%, #22c55e 100%);
+}
+
+.attendance-months-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 10px;
+  padding: 4px 6px 4px;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  z-index: 2;
+}
+
+.revenue-comparison-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.revenue-comparison-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px 14px;
+  min-width: 0;
+  align-self: start;
+  min-height: 420px;
+}
+
+.revenue-comparison-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.revenue-comparison-header > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.revenue-comparison-header h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: clamp(0.68rem, 0.82vw, 0.86rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.revenue-comparison-header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.83rem;
+}
+
+.revenue-legend {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--text-strong);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  max-width: 30%;
+}
+
+.revenue-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.revenue-legend-swatch,
+.revenue-tooltip-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  flex: 0 0 12px;
+}
+
+.revenue-legend-swatch.monthly,
+.revenue-tooltip-dot.monthly {
+  background: linear-gradient(180deg, #79adff 0%, #4d8ff2 100%);
+}
+
+.revenue-legend-swatch.expected,
+.revenue-tooltip-dot.expected {
+  background: linear-gradient(180deg, #86d899 0%, #58c778 100%);
+}
+
+.revenue-comparison-body {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 240px;
+}
+
+.revenue-axis-y {
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  padding-bottom: 26px;
+  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.revenue-axis-y span {
+  align-self: center;
+  justify-self: end;
+}
+
+.revenue-plot {
+  position: relative;
+  min-height: 240px;
+  padding: 0 10px 24px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(247, 250, 255, 0.95), rgba(255, 255, 255, 0.98));
+  overflow: hidden;
+}
+
+.revenue-grid-lines {
+  position: absolute;
+  inset: 0 0 24px;
+  display: grid;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.revenue-grid-lines span {
+  border-top: 1px dashed #dde5ef;
+}
+
+.revenue-groups {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.revenue-month-group {
+  position: relative;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.revenue-bars {
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 1px;
+}
+
+.revenue-bar {
+  width: 24%;
+  min-width: 14px;
+  max-width: 20px;
+  border-radius: 8px 8px 3px 3px;
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.revenue-bar.monthly {
+  background: linear-gradient(180deg, #8ebcff 0%, #4d8ff2 100%);
+}
+
+.revenue-bar.expected {
+  background: linear-gradient(180deg, #a4e4b5 0%, #63ca7b 100%);
+}
+
+.revenue-month-group:hover .revenue-bar,
+.revenue-month-group:focus-visible .revenue-bar,
+.revenue-month-group.is-active .revenue-bar {
+  transform: translateY(-2px);
+  filter: saturate(1.05);
+}
+
+.revenue-month-label {
+  color: #64748b;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.revenue-month-group.is-active .revenue-month-label,
+.revenue-month-group:hover .revenue-month-label {
+  color: var(--text-strong);
+}
+
+.revenue-tooltip {
+  position: absolute;
+  top: 42%;
+  transform: translateX(-50%);
+  min-width: 176px;
+  padding: 10px 12px 9px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e5edf7;
+  box-shadow: 0 16px 38px rgba(15, 23, 42, 0.14);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.revenue-tooltip strong {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-strong);
+  font-size: 0.88rem;
+}
+
+.revenue-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-strong);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.revenue-tooltip-row + .revenue-tooltip-row {
+  margin-top: 4px;
+}
+
+.revenue-tooltip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #334155;
+  font-weight: 500;
+}
+
+.revenue-tooltip-value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.revenue-weekly-card {
+  gap: 10px;
+  min-height: 420px;
+}
+
+.revenue-weekly-legend {
+  justify-content: flex-start;
+}
+
+.revenue-weekly-body {
+  display: grid;
+  grid-template-columns: 106px minmax(0, 1fr);
+  gap: 12px;
+  min-height: 240px;
+}
+
+.revenue-weekly-axis-y {
+  display: grid;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 0 20px;
+  color: #111827;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.revenue-weekly-axis-y span {
+  align-self: center;
+}
+
+.revenue-weekly-plot {
+  position: relative;
+  min-height: 240px;
+  padding: 14px 12px 20px 0;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(247, 250, 255, 0.95), rgba(255, 255, 255, 0.98));
+  overflow: hidden;
+}
+
+.revenue-weekly-grid-lines {
+  position: absolute;
+  inset: 14px 0 20px 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.revenue-weekly-grid-lines span {
+  border-left: 1px dashed #dde5ef;
+}
+
+.revenue-weekly-groups {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: grid;
+  align-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.revenue-week-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+}
+
+.revenue-week-bars {
+  display: grid;
+  gap: 6px;
+}
+
+.revenue-week-bar {
+  min-height: 18px;
+  border-radius: 999px;
+  transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.revenue-week-bar.monthly {
+  background: linear-gradient(90deg, #2f8ef0 0%, #1f7ae0 100%);
+}
+
+.revenue-week-bar.expected {
+  background: linear-gradient(90deg, #28b34f 0%, #2fc463 100%);
+}
+
+.revenue-week-row:hover .revenue-week-bar,
+.revenue-week-row:focus-visible .revenue-week-bar,
+.revenue-week-row.is-active .revenue-week-bar {
+  transform: translateX(2px);
+  filter: saturate(1.05);
+}
+
+.revenue-week-values {
+  display: grid;
+  gap: 8px;
+  color: var(--text-strong);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.revenue-week-values strong {
+  color: var(--text-strong);
+}
+
+.revenue-week-values span {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.revenue-weekly-tooltip {
+  left: auto;
+  right: 8px;
+  transform: translateY(-50%);
+}
+
 .business-owner-dashboard .dashboard-layout {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
@@ -1296,8 +1952,9 @@ a {
 }
 
 .operation-manager-dashboard .business-topbar-actions {
-  width: 100%;
-  flex-wrap: wrap;
+  width: auto;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
 .operation-manager-dashboard .dashboard-search {
@@ -1361,6 +2018,8 @@ a {
   align-items: center;
   gap: 12px;
   flex-wrap: nowrap;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .dashboard-search {
@@ -2592,13 +3251,24 @@ a {
     align-items: flex-start;
   }
 
-  .operation-manager-dashboard .business-topbar > div:first-child {
-    width: 100%;
-  }
+.operation-manager-dashboard .business-topbar > div:first-child {
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.operation-manager-dashboard .business-topbar h2 {
+  font-size: clamp(1.55rem, 2.1vw, 2rem);
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .operation-manager-dashboard .business-topbar-actions {
   width: 100%;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .operation-manager-dashboard .dashboard-search {
@@ -2633,13 +3303,68 @@ a {
   font-size: 0.78rem;
 }
 
-.operation-manager-dashboard .sparkline {
-  height: 48px;
-}
+  .operation-manager-dashboard .sparkline {
+    height: 48px;
+  }
 
-.operation-manager-dashboard .ring-grid {
-  grid-template-columns: 1fr;
-}
+  .revenue-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .revenue-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .revenue-comparison-card {
+    padding: 14px 16px 12px;
+  }
+
+  .revenue-comparison-body {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .revenue-axis-y {
+    grid-template-rows: none;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    padding-bottom: 0;
+    gap: 8px;
+  }
+
+  .revenue-axis-y span {
+    justify-self: center;
+  }
+
+  .revenue-plot {
+    min-height: 220px;
+  }
+
+  .revenue-bars {
+    min-height: 150px;
+  }
+
+  .revenue-weekly-body {
+    grid-template-columns: 92px minmax(0, 1fr);
+    min-height: 220px;
+  }
+
+  .revenue-weekly-plot {
+    min-height: 220px;
+  }
+
+  .revenue-weekly-axis-y {
+    gap: 10px;
+    padding: 12px 0 16px;
+    font-size: 0.9rem;
+  }
+
+  .revenue-week-row {
+    gap: 10px;
+  }
+
+  .operation-manager-dashboard .ring-grid {
+    grid-template-columns: 1fr;
+  }
 
   .operation-manager-dashboard .ring-card {
     grid-template-columns: 92px minmax(0, 1fr);
@@ -2796,6 +3521,79 @@ a {
     padding: 10px;
   }
 
+  .attendance-card {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .attendance-header {
+    gap: 6px;
+  }
+
+  .attendance-axis-title {
+    font-size: 0.82rem;
+  }
+
+  .attendance-legend {
+    justify-content: flex-start;
+    gap: 8px 14px;
+    font-size: 0.82rem;
+    white-space: normal;
+  }
+
+  .attendance-chart {
+    grid-template-columns: 40px minmax(0, 1fr) 36px;
+    min-height: 260px;
+    gap: 8px;
+  }
+
+  .attendance-left-axis,
+  .attendance-right-axis {
+    padding: 10px 0 18px;
+    font-size: 0.72rem;
+  }
+
+  .attendance-plot {
+    min-height: 260px;
+    padding: 6px 6px 0;
+    border-radius: 16px;
+  }
+
+  .attendance-grid-lines {
+    inset: 44px 0 34px;
+  }
+
+  .attendance-bars-row {
+    top: 18px;
+    bottom: 28px;
+    gap: 6px;
+    padding: 0 4px 6px;
+  }
+
+  .attendance-group {
+    gap: 4px;
+  }
+
+  .attendance-series {
+    min-width: 12px;
+    gap: 3px;
+  }
+
+  .attendance-series-value {
+    font-size: 0.68rem;
+  }
+
+  .attendance-bar {
+    width: 10px;
+    border-radius: 5px 5px 2px 2px;
+  }
+
+  .attendance-months-row {
+    gap: 5px;
+    padding: 4px 2px 0;
+    font-size: 0.7rem;
+  }
+
   .business-owner-dashboard {
     gap: 14px;
   }
@@ -2808,10 +3606,185 @@ a {
     font-size: 1.4rem;
   }
 
+  .revenue-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .revenue-summary-card {
+    min-height: 124px;
+    padding: 11px 11px 9px;
+  }
+
   .business-kpi,
   .panel-card {
     border-radius: 16px;
     padding: 14px;
+  }
+
+  .revenue-comparison-card {
+    min-height: 380px;
+    gap: 14px;
+    padding: 14px;
+  }
+
+  .attendance-card {
+    padding: 10px;
+  }
+
+  .attendance-header {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    justify-items: start;
+  }
+
+  .attendance-axis-right {
+    text-align: left;
+  }
+
+  .attendance-legend {
+    justify-content: flex-start;
+    gap: 10px 18px;
+    flex-wrap: wrap;
+  }
+
+  .attendance-chart {
+    grid-template-columns: 52px minmax(0, 1fr) 46px;
+    min-height: 320px;
+  }
+
+  .attendance-plot {
+    min-height: 320px;
+    padding: 8px 8px 0;
+  }
+
+  .attendance-bars-row {
+    top: 18px;
+    bottom: 26px;
+    gap: 8px;
+    padding: 0 8px 0;
+  }
+
+  .attendance-series {
+    min-width: 16px;
+    gap: 4px;
+  }
+
+  .attendance-series-value {
+    font-size: 0.78rem;
+  }
+
+  .attendance-bar {
+    width: 13px;
+  }
+
+  .attendance-months-row {
+    font-size: 0.8rem;
+  }
+
+  .revenue-summary-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .revenue-summary-card {
+    min-height: 118px;
+    padding: 10px 10px 8px;
+  }
+
+  .revenue-comparison-header h3 {
+    font-size: 0.78rem;
+  }
+
+  .revenue-comparison-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .revenue-legend {
+    justify-content: flex-start;
+    gap: 8px 12px;
+    white-space: normal;
+    max-width: 100%;
+  }
+
+  .revenue-comparison-body {
+    gap: 8px;
+  }
+
+  .revenue-axis-y {
+    font-size: 0.78rem;
+  }
+
+  .revenue-plot {
+    min-height: 200px;
+    padding: 0 6px 20px;
+    border-radius: 16px;
+  }
+
+  .revenue-grid-lines {
+    inset: 0 0 20px;
+  }
+
+  .revenue-groups {
+    gap: 8px;
+  }
+
+  .revenue-bars {
+    min-height: 120px;
+    gap: 5px;
+  }
+
+  .revenue-bar {
+    min-width: 16px;
+    max-width: 24px;
+  }
+
+  .revenue-weekly-body {
+    grid-template-columns: 1fr;
+    min-height: 190px;
+    gap: 8px;
+  }
+
+  .revenue-weekly-axis-y {
+    grid-template-rows: none;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 0;
+    font-size: 0.8rem;
+  }
+
+  .revenue-weekly-plot {
+    min-height: 190px;
+    padding: 10px 4px 14px 0;
+    border-radius: 16px;
+  }
+
+  .revenue-weekly-grid-lines {
+    inset: 10px 0 14px 0;
+  }
+
+  .revenue-weekly-groups {
+    gap: 10px;
+  }
+
+  .revenue-week-bar {
+    min-height: 16px;
+  }
+
+  .revenue-week-values {
+    font-size: 0.86rem;
+  }
+
+  .revenue-tooltip {
+    min-width: 180px;
+    max-width: calc(100% - 16px);
+    padding: 12px;
+    top: 36%;
+  }
+
+  .revenue-weekly-tooltip {
+    right: 6px;
   }
 
   .section-head,
