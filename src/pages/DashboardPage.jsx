@@ -28,9 +28,9 @@ const revenueSummaryCards = [
     label: 'Total Revenue',
     value: '₹8,45,000',
     change: '+12.5%',
-    note: 'vs last month',
     accent: 'blue',
     icon: 'wallet',
+    tooltip: 'Total Revenue shows the total income collected from all student fee payments across all courses and admissions.',
     details: [
       { label: 'Collected revenue', value: '₹8,45,000' },
       { label: 'Students added', value: '11 students added' },
@@ -41,9 +41,9 @@ const revenueSummaryCards = [
     label: 'This Month Revenue',
     value: '₹95,000',
     change: '+8.4%',
-    note: 'vs last month',
     accent: 'green',
     icon: 'calendar',
+    tooltip: 'This Month Revenue shows the total income collected during the current month period.',
     details: [
       { label: 'Collected this month', value: '₹95,000' },
       { label: 'Admissions', value: '10 admissions this month' },
@@ -54,9 +54,9 @@ const revenueSummaryCards = [
     label: 'This Week Revenue',
     value: '₹32,000',
     change: '+4.2%',
-    note: 'vs last week',
     accent: 'purple',
     icon: 'trend',
+    tooltip: 'This Week Revenue shows the total income collected during the current week.',
     details: [
       { label: 'Collected this week', value: '₹32,000' },
       { label: 'Admissions', value: '3 admissions this week' },
@@ -67,14 +67,41 @@ const revenueSummaryCards = [
     label: 'Pending Payments',
     value: '₹1,20,000',
     change: null,
-    note: 'Target for next week',
     accent: 'orange',
     icon: 'target',
+    tooltip: 'Pending Payments shows the outstanding amount that is still waiting to be collected.',
     details: [
       { label: 'Pending amount', value: '₹1,20,000' },
       { label: 'Collection target', value: 'Target for next week' },
       { label: 'Scope', value: 'Outstanding student balances' },
     ],
+  },
+]
+
+const notificationItems = [
+  {
+    tone: 'red',
+    icon: '🔴',
+    message: '5 Student fee payments are overdue.',
+    time: '5 mins ago',
+  },
+  {
+    tone: 'yellow',
+    icon: '🟡',
+    message: 'Leave request submitted by Priya\u00A0S.',
+    time: '15 mins ago',
+  },
+  {
+    tone: 'amber',
+    icon: '⚠️',
+    message: 'Monthly revenue report is ready.',
+    time: 'Today',
+  },
+  {
+    tone: 'blue',
+    icon: '📊',
+    message: 'Students Attendance report is ready.',
+    time: 'Just now',
   },
 ]
 
@@ -447,10 +474,7 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, r
           <button className="icon-chip" type="button" aria-label="Calendar">
             <span>◫</span>
           </button>
-          <button className="icon-chip notification-chip" type="button" aria-label="Notifications">
-            <span>🔔</span>
-            <b>1</b>
-          </button>
+          <NotificationBell />
           <div className="profile-chip">
             <div className="profile-avatar">BH</div>
             <div>
@@ -483,7 +507,6 @@ function buildRevenueSummaryCards(summary, isLoading) {
       label: 'Total Revenue',
       value: formatValue(summary?.totalRevenue),
       change: null,
-      note: isLoading ? 'Loading student revenue' : `${summary?.totalStudents || 0} students added`,
       accent: 'blue',
       icon: 'wallet',
       details: [
@@ -496,7 +519,6 @@ function buildRevenueSummaryCards(summary, isLoading) {
       label: 'This Month Revenue',
       value: formatValue(summary?.thisMonthRevenue),
       change: null,
-      note: isLoading ? 'Loading current month data' : `${summary?.thisMonthStudents || 0} admissions this month`,
       accent: 'green',
       icon: 'calendar',
       details: [
@@ -509,7 +531,6 @@ function buildRevenueSummaryCards(summary, isLoading) {
       label: 'This Week Revenue',
       value: formatValue(summary?.thisWeekRevenue),
       change: null,
-      note: isLoading ? 'Loading current week data' : `${summary?.thisWeekStudents || 0} admissions this week`,
       accent: 'purple',
       icon: 'trend',
       details: [
@@ -522,7 +543,6 @@ function buildRevenueSummaryCards(summary, isLoading) {
       label: 'Pending Payments',
       value: formatValue(summary?.pendingPayments ?? summary?.expectedNextWeekRevenue),
       change: null,
-      note: isLoading ? 'Loading pending payments' : 'Outstanding student payments',
       accent: 'orange',
       icon: 'target',
       details: [
@@ -535,6 +555,65 @@ function buildRevenueSummaryCards(summary, isLoading) {
       ],
     },
   ]
+}
+
+function NotificationBell() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 3)
+
+  return (
+    <div
+      className="notification-menu"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => {
+        setIsOpen(false)
+        setShowAll(false)
+      }}
+    >
+      <button
+        className="icon-chip notification-chip"
+        type="button"
+        aria-label="Notifications"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <span>🔔</span>
+        <b>{notificationItems.length}</b>
+      </button>
+
+      {isOpen ? (
+        <div className="notification-dropdown" role="menu" aria-label="Notifications">
+          <div className="notification-dropdown-head">
+            <strong>Notifications</strong>
+          </div>
+
+          <div className="notification-dropdown-list">
+            {visibleItems.map((item) => (
+              <article key={`${item.message}-${item.time}`} className="notification-dropdown-item">
+                <span className={`notification-badge ${item.tone}`} aria-hidden="true">
+                  {item.icon}
+                </span>
+                <div>
+                  <p>{item.message}</p>
+                  <span>{item.time}</span>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <button
+            className="notification-dropdown-footer"
+            type="button"
+            onClick={() => setShowAll((current) => !current)}
+          >
+            {showAll ? 'Show Less' : 'View All Notifications'}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
@@ -595,26 +674,38 @@ function SummaryIcon({ kind }) {
 
 function RevenueSummaryRow({ summary = null, isLoading = false }) {
   const cards = summary || isLoading ? buildRevenueSummaryCards(summary, isLoading) : revenueSummaryCards
+  const [activeTooltipIndex, setActiveTooltipIndex] = useState(null)
 
   return (
     <section className="revenue-summary-row" aria-label="Revenue summary">
       {cards.map((card, index) => {
         const tooltipId = `revenue-summary-tooltip-${index}`
+        const isTooltipOpen = activeTooltipIndex === index
 
         return (
-        <article key={card.label} className="revenue-summary-card">
+        <article key={card.label} className={`revenue-summary-card ${isTooltipOpen ? 'is-tooltip-open' : ''}`}>
+          <div className={`revenue-summary-icon ${card.accent}`} aria-hidden="true">
+            <SummaryIcon kind={card.icon} />
+          </div>
+          <div className="revenue-summary-content">
+            <strong className="revenue-summary-label">{card.label}</strong>
+            <div className="revenue-summary-value">{card.value}</div>
+          </div>
           <button
             type="button"
-            className="revenue-summary-icon-button"
+            className={`revenue-summary-info-button ${isTooltipOpen ? 'is-open' : ''}`}
             aria-describedby={tooltipId}
             aria-label={`${card.label} details`}
+            aria-expanded={isTooltipOpen}
+            onMouseEnter={() => setActiveTooltipIndex(index)}
+            onMouseLeave={() => setActiveTooltipIndex(null)}
+            onFocus={() => setActiveTooltipIndex(index)}
+            onBlur={() => setActiveTooltipIndex(null)}
           >
-            <span className={`revenue-summary-icon ${card.accent}`} aria-hidden="true">
-              <SummaryIcon kind={card.icon} />
-            </span>
+            <span aria-hidden="true">i</span>
             <div className="revenue-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${card.label} details`}>
               <strong>{card.label}</strong>
-              <div className="revenue-summary-tooltip-value">{card.value}</div>
+              <p>{card.tooltip}</p>
               <div className="revenue-summary-tooltip-list">
                 {(card.details || []).map((detail) => (
                   <div key={detail.label} className="revenue-summary-tooltip-item">
@@ -625,21 +716,6 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
               </div>
             </div>
           </button>
-          <div className="revenue-summary-content">
-            <strong className="revenue-summary-label">{card.label}</strong>
-            <div className="revenue-summary-value">{card.value}</div>
-            {card.change ? (
-              <div className="revenue-summary-change">
-                <span className="revenue-summary-pill">
-                  <span className="revenue-summary-arrow">↑</span>
-                  {card.change}
-                </span>
-                <span className="revenue-summary-note">{card.note}</span>
-              </div>
-            ) : (
-              <div className="revenue-summary-note revenue-summary-note-alone">{card.note}</div>
-            )}
-          </div>
         </article>
         )
       })}
@@ -973,7 +1049,7 @@ function StudentDashboard({ dashboard }) {
 
   return (
     <section className="student-dashboard-page">
-      <article className="panel-card student-dashboard-hero">
+      <article className="student-dashboard-hero">
         <div className="student-dashboard-hero-top">
           <div className="student-dashboard-avatar">{getStudentInitials(latestStudent.studentName)}</div>
           <div className="student-dashboard-hero-main">
@@ -1094,10 +1170,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
           <button className="icon-chip" type="button" aria-label="Calendar">
             <span>◫</span>
           </button>
-          <button className="icon-chip notification-chip" type="button" aria-label="Notifications">
-            <span>🔔</span>
-            <b>1</b>
-          </button>
+          <NotificationBell />
           <div className="profile-chip">
             <div className="profile-avatar">OM</div>
             <div>
@@ -1120,17 +1193,13 @@ function GenericDashboard({ role }) {
 
   return (
     <section className="dashboard-grid">
-      <article className="hero-card">
+      <div className="dashboard-hero-plain">
         <div>
           <p className="eyebrow">{dashboard.accent} lane</p>
           <h2>{dashboard.title}</h2>
           <p>{dashboard.summary}</p>
         </div>
-        <div className="metric" style={{ '--metric-color': dashboard.color }}>
-          <span>Access</span>
-          <strong>{roleLabels[role]}</strong>
-        </div>
-      </article>
+      </div>
 
       {dashboard.cards.map((card) => (
         <article key={card} className="info-card">
@@ -1162,3 +1231,6 @@ export function DashboardPage({ role }) {
 
   return <GenericDashboard role={role} />
 }
+
+
+

@@ -861,19 +861,6 @@ export function StudentManagementPage() {
   }
 
   useEffect(() => {
-    if (!isModalOpen) return undefined
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        closeModal()
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isModalOpen])
-
-  useEffect(() => {
     if (!isDrawerOpen) return undefined
 
     const onKeyDown = (event) => {
@@ -896,6 +883,7 @@ export function StudentManagementPage() {
       const uniqueCourseOptions = Array.from(
         new Map(
           normalizeCourseList(loadCourseRecords())
+            .filter((course) => String(course?.status || '').trim() === 'Active')
             .map((course) => {
               const id = String(course?.id || '').trim()
               const name = String(course?.name || '').trim()
@@ -1122,7 +1110,7 @@ export function StudentManagementPage() {
 
   return (
     <section className="student-management-page">
-      <article className="panel-card student-management-hero">
+      <article className="student-management-hero">
         <div>
           <p className="eyebrow">Student Management</p>
           
@@ -1341,7 +1329,7 @@ export function StudentManagementPage() {
       </article>
 
       {isModalOpen ? (
-        <div className="course-modal-backdrop student-modal-backdrop" role="presentation" onClick={closeModal}>
+        <div className="course-modal-backdrop student-modal-backdrop" role="presentation">
           <form className="course-modal panel-card student-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={handleFormSubmit}>
             <button type="button" className="course-modal-close" onClick={closeModal} aria-label="Close student form">
               X

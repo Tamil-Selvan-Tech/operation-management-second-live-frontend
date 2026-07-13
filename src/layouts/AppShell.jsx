@@ -20,6 +20,7 @@ export function AppShell({
     : location.pathname.startsWith('/student-management')
       ? 'student-management'
       : 'dashboard'
+  const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
 
   return (
     <div className="app-shell">
@@ -33,7 +34,7 @@ export function AppShell({
         showStudentManagementNav={showStudentManagementNav}
       />
 
-      <div className={`main-area ${showChrome ? '' : 'main-area-compact'}`}>
+      <div className={`main-area ${showChrome ? '' : 'main-area-compact'} ${isOperationManagerDashboard ? 'main-area-flat' : ''}`}>
         {showChrome ? (
           <>
             <AppHeader title={dashboard?.title || 'Operations Dashboard'} accent={dashboard?.accent || 'Ready'} />
