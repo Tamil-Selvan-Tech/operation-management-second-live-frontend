@@ -1,4 +1,5 @@
 
+import { loadStudentRecords } from '../data/studentRecords'
 import { request } from './apiClient'
 
 const STUDENT_PAGE_LIMIT = 100
@@ -101,11 +102,22 @@ function buildStudentSearchParams(query = {}) {
 
 export async function listStudents(query = {}) {
   const params = buildStudentSearchParams(query)
-  const response = await request(`/students?${params.toString()}`)
+  try {
+    const response = await request(`/students?${params.toString()}`)
 
-  return {
-    data: normalizeStudentList(unwrapData(response)),
-    meta: response?.meta ?? response?.data?.meta ?? null,
+    return {
+      data: normalizeStudentList(unwrapData(response)),
+      meta: response?.meta ?? response?.data?.meta ?? null,
+    }
+  } catch (error) {
+    if (error?.status === 401) {
+      return {
+        data: normalizeStudentList(loadStudentRecords()),
+        meta: null,
+      }
+    }
+
+    throw error
   }
 }
 

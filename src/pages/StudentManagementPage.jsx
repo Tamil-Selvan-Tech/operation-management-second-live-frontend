@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '../components/Button'
+import { saveStudentRecords } from '../data/studentRecords'
+import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { listCourses } from '../services/courseService'
 import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
+import { normalizeCourseList } from '../services/courseService'
 
 const statusOptions = ['Student', 'Employee', 'Other']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
@@ -284,7 +287,7 @@ function getStepIndexForField(fieldName) {
   }
 
   return Number(
-    Object.entries(stepFields).find(([_, fields]) => fields.includes(fieldName))?.[0] ?? 2,
+    Object.entries(stepFields).find(([, fields]) => fields.includes(fieldName))?.[0] ?? 2,
   )
 }
 

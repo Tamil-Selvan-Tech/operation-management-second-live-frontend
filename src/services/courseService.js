@@ -1,3 +1,4 @@
+import { loadCourseRecords } from '../data/courseRecords'
 import { request } from './apiClient'
 
 const COURSE_PAGE_LIMIT = 5
@@ -79,10 +80,21 @@ function buildCourseSearchParams(query = {}) {
 
 export async function listCourses(query = {}) {
   const params = buildCourseSearchParams(query)
-  const response = await request(`/master-setup/courses?${params.toString()}`)
-  return {
-    data: normalizeCourseList(unwrapData(response)),
-    meta: response?.meta ?? response?.data?.meta ?? null,
+  try {
+    const response = await request(`/master-setup/courses?${params.toString()}`)
+    return {
+      data: normalizeCourseList(unwrapData(response)),
+      meta: response?.meta ?? response?.data?.meta ?? null,
+    }
+  } catch (error) {
+    if (error?.status === 401) {
+      return {
+        data: normalizeCourseList(loadCourseRecords()),
+        meta: null,
+      }
+    }
+
+    throw error
   }
 }
 

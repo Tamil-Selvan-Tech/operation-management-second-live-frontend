@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createCourse, deleteCourse, listCourses, updateCourse } from '../services/courseService'
+import { saveCourseRecords } from '../data/courseRecords'
 
 function Field({ label, hint, error, children, required = false }) {
   return (
@@ -272,7 +273,9 @@ export function CoursesPage() {
 
         if (requestId !== requestIdRef.current) return
 
-        setCourses(result.data || [])
+        const nextCourses = result.data || []
+        setCourses(nextCourses)
+        saveCourseRecords(nextCourses)
         setPagination(result.meta || { page, limit: pageSize, total: 0, totalPages: 1 })
         setCurrentPage((result.meta?.page || page) ?? 1)
       } catch (error) {
