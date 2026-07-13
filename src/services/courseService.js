@@ -7,8 +7,21 @@ function unwrapData(response) {
   return response.data ?? response
 }
 
+function deriveAfterDiscount(course) {
+  const actualFees = Number(course?.actualFees)
+  const discount = Number(course?.discount)
+
+  if (Number.isFinite(actualFees) && Number.isFinite(discount)) {
+    return String(Math.max(actualFees - discount, 0))
+  }
+
+  return ''
+}
+
 export function normalizeCourse(course) {
   if (!course) return null
+
+  const afterDiscount = course.afterDiscount ?? deriveAfterDiscount(course)
 
   return {
     ...course,
@@ -22,7 +35,7 @@ export function normalizeCourse(course) {
     actualFees: course.actualFees ?? '',
     registrationFees: course.registrationFees ?? '',
     discount: course.discount ?? '',
-    afterDiscount: course.afterDiscount ?? '',
+    afterDiscount,
     installmentCount: String(course.installmentCount ?? 2),
     installment1: course.installment1 ?? '',
     installment2: course.installment2 ?? '',

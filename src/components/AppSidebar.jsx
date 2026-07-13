@@ -1,7 +1,7 @@
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+
 export function AppSidebar({
-  currentRole,
-  email,
-  roleLabel,
   activeNav,
   onNavigateDashboard,
   onNavigateCourses,
@@ -10,6 +10,31 @@ export function AppSidebar({
   showCoursesNav = true,
   showStudentManagementNav = true,
 }) {
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isLogoutConfirmOpen) return undefined
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsLogoutConfirmOpen(false)
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isLogoutConfirmOpen])
+
+  const confirmLogout = async () => {
+    setIsLogoutConfirmOpen(false)
+    await onLogout?.()
+  }
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -38,17 +63,42 @@ export function AppSidebar({
             Student Management
           </button>
         ) : null}
-        <button type="button" onClick={onLogout}>
-          Logout
-        </button>
       </nav>
 
       <div className="role-card">
-        <span>Signed in as</span>
-        <strong>{roleLabel}</strong>
-        <p>{email}</p>
-        <p className="role-card-note">Role: {currentRole}</p>
+        <p className="role-card-note">End your current session from here.</p>
+        <button type="button" className="logout-card-button" onClick={() => setIsLogoutConfirmOpen(true)}>
+          Logout
+        </button>
       </div>
+
+      {isLogoutConfirmOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="logout-modal-backdrop" role="presentation" onClick={() => setIsLogoutConfirmOpen(false)}>
+              <div
+                className="logout-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="logout-modal-title"
+                aria-describedby="logout-modal-description"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <p className="section-kicker">Confirm logout</p>
+                <h3 id="logout-modal-title">Are you sure you want to logout?</h3>
+                <p id="logout-modal-description">You will be sent back to the login page after signing out.</p>
+                <div className="logout-modal-actions">
+                  <button type="button" className="button-ghost" onClick={() => setIsLogoutConfirmOpen(false)}>
+                    Cancel
+                  </button>
+                  <button type="button" className="button-solid" onClick={confirmLogout}>
+                    Logout
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </aside>
   )
 }

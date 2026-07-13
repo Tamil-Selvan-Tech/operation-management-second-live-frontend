@@ -4,9 +4,6 @@ import { AppHeader } from '../components/AppHeader'
 import { AppSidebar } from '../components/AppSidebar'
 
 export function AppShell({
-  currentRole,
-  email,
-  roleLabel,
   dashboard,
   onNavigateDashboard,
   onNavigateCourses,
@@ -23,13 +20,11 @@ export function AppShell({
     : location.pathname.startsWith('/student-management')
       ? 'student-management'
       : 'dashboard'
+  const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
 
   return (
     <div className="app-shell">
       <AppSidebar
-        currentRole={currentRole}
-        email={email}
-        roleLabel={roleLabel}
         activeNav={activeNav}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCourses={onNavigateCourses}
@@ -39,7 +34,7 @@ export function AppShell({
         showStudentManagementNav={showStudentManagementNav}
       />
 
-      <div className={`main-area ${showChrome ? '' : 'main-area-compact'}`}>
+      <div className={`main-area ${showChrome ? '' : 'main-area-compact'} ${isOperationManagerDashboard ? 'main-area-flat' : ''}`}>
         {showChrome ? (
           <>
             <AppHeader title={dashboard?.title || 'Operations Dashboard'} accent={dashboard?.accent || 'Ready'} />

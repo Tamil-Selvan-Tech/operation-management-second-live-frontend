@@ -899,19 +899,6 @@ export function StudentManagementPage() {
   }
 
   useEffect(() => {
-    if (!isModalOpen) return undefined
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        closeModal()
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isModalOpen])
-
-  useEffect(() => {
     if (!isDrawerOpen) return undefined
 
     const onKeyDown = (event) => {
@@ -923,6 +910,59 @@ export function StudentManagementPage() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isDrawerOpen])
+
+  useEffect(() => {
+    saveStudentRecords(students)
+  }, [students])
+
+  useEffect(() => {
+    const loadCourseOptions = () => {
+      setIsCoursesLoading(true)
+      const uniqueCourseOptions = Array.from(
+        new Map(
+          normalizeCourseList(loadCourseRecords())
+            .filter((course) => String(course?.status || '').trim() === 'Active')
+            .map((course) => {
+              const id = String(course?.id || '').trim()
+              const name = String(course?.name || '').trim()
+              if (!id || !name) return null
+              return [
+                id,
+                {
+                  id,
+                  name,
+                  actualFees: course?.actualFees ?? '',
+                  registrationFees: course?.registrationFees ?? '',
+                  discount: course?.discount ?? '',
+                  afterDiscount: course?.afterDiscount ?? '',
+                  installment1: course?.installment1 ?? '',
+                  installment2: course?.installment2 ?? '',
+                  installment3: course?.installment3 ?? '',
+                },
+              ]
+            })
+            .filter(Boolean),
+        ).values(),
+      )
+
+      setCourseOptions(uniqueCourseOptions)
+      setIsCoursesLoading(false)
+    }
+
+    loadCourseOptions()
+
+    const syncCourseOptions = () => {
+      loadCourseOptions()
+    }
+
+    window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
+    window.addEventListener('storage', syncCourseOptions)
+
+    return () => {
+      window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
+      window.removeEventListener('storage', syncCourseOptions)
+    }
+  }, [])
 
   const updateField = (name, value) => {
     setForm((current) => ({
@@ -1088,7 +1128,7 @@ export function StudentManagementPage() {
 
   return (
     <section className="student-management-page">
-      <article className="panel-card student-management-hero">
+      <article className="student-management-hero">
         <div>
           <p className="eyebrow">Student Management</p>
           
@@ -1307,7 +1347,7 @@ export function StudentManagementPage() {
       </article>
 
       {isModalOpen ? (
-        <div className="course-modal-backdrop student-modal-backdrop" role="presentation" onClick={closeModal}>
+        <div className="course-modal-backdrop student-modal-backdrop" role="presentation">
           <form className="course-modal panel-card student-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={handleFormSubmit}>
             <button type="button" className="course-modal-close" onClick={closeModal} aria-label="Close student form">
               X

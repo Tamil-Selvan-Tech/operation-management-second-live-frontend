@@ -75,6 +75,48 @@ function formatHours(value) {
   return `${normalized} ${normalized === '1' ? 'hour' : 'hours'}`
 }
 
+const MAX_CUSTOM_INSTALLMENTS = 12
+
+function normalizeInstallmentCount(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount < 1) return 0
+  return Math.min(Math.floor(amount), MAX_CUSTOM_INSTALLMENTS)
+}
+
+function getEffectiveInstallmentCount(form) {
+  if (form.installmentCount === 'custom') {
+    return normalizeInstallmentCount(form.customInstallmentCount)
+  }
+
+  return normalizeInstallmentCount(form.installmentCount)
+}
+
+function getInstallmentValue(form, index) {
+  if (index === 1) return form.installment1 ?? ''
+  if (index === 2) return form.installment2 ?? ''
+  if (index === 3) return form.installment3 ?? ''
+  return form.extraInstallments?.[index - 4] ?? ''
+}
+
+function setInstallmentValue(form, index, value) {
+  if (index === 1) return { ...form, installment1: value }
+  if (index === 2) return { ...form, installment2: value }
+  if (index === 3) return { ...form, installment3: value }
+
+  const extraIndex = index - 4
+  const extraInstallments = [...(form.extraInstallments || [])]
+  extraInstallments[extraIndex] = value
+  return { ...form, extraInstallments }
+}
+
+function buildInstallmentsFromCourse(course, count) {
+  const installments = []
+  for (let index = 1; index <= count; index += 1) {
+    installments.push(String(course?.[`installment${index}`] ?? ''))
+  }
+  return installments
+}
+
 export function CoursesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [courses, setCourses] = useState([])
@@ -98,9 +140,11 @@ export function CoursesPage() {
     registrationFees: '',
     discount: '',
     installmentCount: '2',
+    customInstallmentCount: '',
     installment1: '',
     installment2: '',
     installment3: '',
+    extraInstallments: [],
     status: '',
   })
   const [touched, setTouched] = useState({})
@@ -122,9 +166,7 @@ export function CoursesPage() {
     registrationFees: 'Registration Fees',
     discount: 'Discount',
     installmentCount: 'Installment Count',
-    installment1: 'Installment 1',
-    installment2: 'Installment 2',
-    installment3: 'Installment 3',
+    customInstallmentCount: 'Custom Installment Count',
     status: 'Status',
   }
 
@@ -152,10 +194,18 @@ export function CoursesPage() {
     if (!form.registrationFees) errors.registrationFees = `${requiredFieldLabels.registrationFees} is required.`
     if (!form.discount) errors.discount = `${requiredFieldLabels.discount} is required.`
     if (!form.installmentCount) errors.installmentCount = `${requiredFieldLabels.installmentCount} is required.`
-    if (!form.installment1) errors.installment1 = `${requiredFieldLabels.installment1} is required.`
-    if (!form.installment2) errors.installment2 = `${requiredFieldLabels.installment2} is required.`
-    if (form.installmentCount === '3' && !form.installment3) errors.installment3 = `${requiredFieldLabels.installment3} is required.`
     if (!form.status) errors.status = `${requiredFieldLabels.status} is required.`
+
+    const effectiveInstallmentCount = getEffectiveInstallmentCount(form)
+    if (form.installmentCount === 'custom' && !effectiveInstallmentCount) {
+      errors.customInstallmentCount = `${requiredFieldLabels.customInstallmentCount} is required.`
+    }
+
+    for (let index = 1; index <= effectiveInstallmentCount; index += 1) {
+      if (!getInstallmentValue(form, index)) {
+        errors[`installment${index}`] = `Installment ${index} is required.`
+      }
+    }
 
     if (form.actualFees && form.discount && Number(form.discount) > Number(form.actualFees)) {
       errors.discount = 'Discount must be less than or equal to actual fees.'
@@ -170,23 +220,20 @@ export function CoursesPage() {
       form.registrationFees &&
       form.discount &&
       form.installmentCount &&
-      form.installment1 &&
-      form.installment2 &&
       form.status &&
-      (form.installmentCount !== '3' || form.installment3)
+      (form.installmentCount !== 'custom' || effectiveInstallmentCount > 0) &&
+      Array.from({ length: effectiveInstallmentCount }, (_, index) => index + 1).every((index) => Boolean(getInstallmentValue(form, index)))
 
     if (allRequiredFilled) {
       const discountedFee = Number(form.actualFees) - Number(form.discount)
-      const installmentTotal =
-        Number(form.installment1 || 0) +
-        Number(form.installment2 || 0) +
-        (form.installmentCount === '3' ? Number(form.installment3 || 0) : 0)
+      const installmentTotal = Array.from({ length: effectiveInstallmentCount }, (_, index) => Number(getInstallmentValue(form, index + 1) || 0)).reduce(
+        (total, amount) => total + amount,
+        0,
+      )
 
       if (installmentTotal !== discountedFee) {
-        errors.installment1 = `Installment total must match ${discountedFee}.`
-        errors.installment2 = `Installment total must match ${discountedFee}.`
-        if (form.installmentCount === '3') {
-          errors.installment3 = `Installment total must match ${discountedFee}.`
+        for (let index = 1; index <= effectiveInstallmentCount; index += 1) {
+          errors[`installment${index}`] = `Installment total must match ${discountedFee}.`
         }
       }
     }
@@ -283,6 +330,25 @@ export function CoursesPage() {
     updateField(field, value.replace(/[^\d]/g, ''))
   }
 
+  const handleInstallmentCountChange = (value) => {
+    if (saveError) setSaveError('')
+    setForm((current) => ({
+      ...current,
+      installmentCount: value,
+      customInstallmentCount: value === 'custom' ? current.customInstallmentCount : '',
+      extraInstallments: value === 'custom' ? current.extraInstallments : [],
+    }))
+  }
+
+  const handleCustomInstallmentCountChange = (value) => {
+    if (saveError) setSaveError('')
+    setForm((current) => ({
+      ...current,
+      installmentCount: 'custom',
+      customInstallmentCount: value.replace(/[^\d]/g, ''),
+    }))
+  }
+
   const resetForm = () => {
     setForm({
       name: '',
@@ -293,9 +359,11 @@ export function CoursesPage() {
       registrationFees: '',
       discount: '',
       installmentCount: '2',
+      customInstallmentCount: '',
       installment1: '',
       installment2: '',
       installment3: '',
+      extraInstallments: [],
       status: '',
     })
     setTouched({})
@@ -305,6 +373,10 @@ export function CoursesPage() {
 
   const closeModal = () => {
     setIsModalOpen(false)
+  }
+
+  const closeModalAfterSave = () => {
+    setIsModalOpen(false)
     resetForm()
   }
 
@@ -313,7 +385,8 @@ export function CoursesPage() {
   }
 
   const openCreateModal = () => {
-    resetForm()
+    setEditingCourseId(null)
+    setTouched({})
     setIsModalOpen(true)
   }
 
@@ -321,6 +394,9 @@ export function CoursesPage() {
     setEditingCourseId(course.id)
     setTouched({})
     setSaveError('')
+    const installmentCount = normalizeInstallmentCount(course.installmentCount ?? 2)
+    const isCustomCount = installmentCount > 3
+    const installments = buildInstallmentsFromCourse(course, Math.max(installmentCount, 3))
     setForm({
       name: course.name || '',
       mode: course.mode || '',
@@ -329,10 +405,12 @@ export function CoursesPage() {
       actualFees: course.actualFees ?? '',
       registrationFees: course.registrationFees ?? '',
       discount: course.discount ?? '',
-      installmentCount: String(course.installmentCount ?? '2'),
-      installment1: course.installment1 ?? '',
-      installment2: course.installment2 ?? '',
-      installment3: course.installment3 ?? '',
+      installmentCount: isCustomCount ? 'custom' : String(installmentCount || 2),
+      customInstallmentCount: isCustomCount ? String(installmentCount) : '',
+      installment1: installments[0] ?? '',
+      installment2: installments[1] ?? '',
+      installment3: installments[2] ?? '',
+      extraInstallments: installments.slice(3),
       status: course.status || '',
     })
     setIsModalOpen(true)
@@ -358,10 +436,17 @@ export function CoursesPage() {
 
   const handleSave = async (event) => {
     event?.preventDefault()
+    const effectiveInstallmentCount = getEffectiveInstallmentCount(form)
     const allTouched = Object.keys(requiredFieldLabels).reduce((acc, key) => {
       acc[key] = true
       return acc
     }, {})
+    if (form.installmentCount === 'custom') {
+      allTouched.customInstallmentCount = true
+    }
+    for (let index = 1; index <= effectiveInstallmentCount; index += 1) {
+      allTouched[`installment${index}`] = true
+    }
     setTouched(allTouched)
     if (!isValid) {
       const firstError = Object.values(validationErrors)[0]
@@ -372,9 +457,12 @@ export function CoursesPage() {
     setSaveError('')
     setIsSaving(true)
 
+    const installmentsPayload = Array.from({ length: effectiveInstallmentCount }, (_, index) => getInstallmentValue(form, index + 1))
+
     const payload = {
       name: form.name.trim(),
       mode: form.mode,
+
       duration: Number(form.duration),
       hours: Number(form.hours),
       actualFees: Number(form.actualFees),
@@ -385,7 +473,21 @@ export function CoursesPage() {
       installment2: Number(form.installment2),
       installment3: form.installmentCount === '3' ? Number(form.installment3) : null,
       status: form.status === 'Inactive' ? 'INACTIVE' : 'ACTIVE',
+
+      duration: form.duration,
+      hours: form.hours,
+      actualFees: form.actualFees,
+      registrationFees: form.registrationFees,
+      discount: form.discount,
+      afterDiscount,
+      installmentCount: String(effectiveInstallmentCount),
+      status: form.status,
+
     }
+
+    installmentsPayload.forEach((amount, index) => {
+      payload[`installment${index + 1}`] = amount
+    })
 
     try {
       if (editingCourseId) {
@@ -395,7 +497,7 @@ export function CoursesPage() {
       }
 
       await loadCourses({ page: editingCourseId ? currentPage : 1, search: searchTerm, filter: activeFilter })
-      closeModal()
+      closeModalAfterSave()
     } catch (error) {
       setSaveError(error?.message || 'Unable to save course right now.')
     } finally {
@@ -475,7 +577,7 @@ export function CoursesPage() {
       ) : null}
 
       {isModalOpen ? (
-        <div className="course-modal-backdrop" role="presentation" onClick={closeModal}>
+        <div className="course-modal-backdrop" role="presentation">
           <form className="course-modal panel-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={handleSave}>
             <div className="course-modal-header">
               <div>
@@ -588,58 +690,65 @@ export function CoursesPage() {
                 <input type="text" value={afterDiscount} readOnly />
               </Field>
 
-              <Field label="Installment Count" required hint="Choose 2 for basic courses or 3 for special courses" error={shouldShowError('installmentCount') ? validationErrors.installmentCount : ''}>
+              <Field label="Installment Count" required hint="Choose 2, 3, or Custom" error={shouldShowError('installmentCount') ? validationErrors.installmentCount : ''}>
                 <select
                   value={form.installmentCount}
-                  onChange={(event) => updateField('installmentCount', event.target.value)}
+                  onChange={(event) => handleInstallmentCountChange(event.target.value)}
                   onBlur={() => markTouched('installmentCount')}
                   aria-invalid={Boolean(shouldShowError('installmentCount'))}
                 >
                   <option value="2">2 Installments</option>
                   <option value="3">3 Installments</option>
+                  <option value="custom">Custom Installment</option>
                 </select>
               </Field>
 
-              <Field label="Installment 1" required hint="Numbers only" error={shouldShowError('installment1') ? validationErrors.installment1 : ''}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="11000"
-                  value={form.installment1}
-                  onChange={(event) => updateNumericField('installment1', event.target.value)}
-                  onBlur={() => markTouched('installment1')}
-                  aria-invalid={Boolean(shouldShowError('installment1'))}
-                />
-              </Field>
-
-              <Field label="Installment 2" required hint="Numbers only" error={shouldShowError('installment2') ? validationErrors.installment2 : ''}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="11000"
-                  value={form.installment2}
-                  onChange={(event) => updateNumericField('installment2', event.target.value)}
-                  onBlur={() => markTouched('installment2')}
-                  aria-invalid={Boolean(shouldShowError('installment2'))}
-                />
-              </Field>
-
-              {form.installmentCount === '3' ? (
-                <Field label="Installment 3" required hint="Numbers only" error={shouldShowError('installment3') ? validationErrors.installment3 : ''}>
+              {form.installmentCount === 'custom' ? (
+                <Field
+                  label="Custom Installment Count"
+                  required
+                  hint="Type how many installment fields you need"
+                  error={shouldShowError('customInstallmentCount') ? validationErrors.customInstallmentCount : ''}
+                >
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    placeholder="5500"
-                    value={form.installment3}
-                    onChange={(event) => updateNumericField('installment3', event.target.value)}
-                    onBlur={() => markTouched('installment3')}
-                    aria-invalid={Boolean(shouldShowError('installment3'))}
+                    placeholder="4"
+                    value={form.customInstallmentCount}
+                    onChange={(event) => handleCustomInstallmentCountChange(event.target.value)}
+                    onBlur={() => markTouched('customInstallmentCount')}
+                    aria-invalid={Boolean(shouldShowError('customInstallmentCount'))}
                   />
                 </Field>
               ) : null}
+
+              {Array.from({ length: getEffectiveInstallmentCount(form) }, (_, index) => index + 1).map((installmentNumber) => (
+                <Field
+                  key={installmentNumber}
+                  label={`Installment ${installmentNumber}`}
+                  required
+                  hint="Numbers only"
+                  error={shouldShowError(`installment${installmentNumber}`) ? validationErrors[`installment${installmentNumber}`] : ''}
+                >
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder={installmentNumber === 1 ? '11000' : installmentNumber === 2 ? '11000' : '5500'}
+                    value={getInstallmentValue(form, installmentNumber)}
+                    onChange={(event) => {
+                      const nextValue = event.target.value.replace(/[^\d]/g, '')
+                      setForm((current) => {
+                        if (saveError) setSaveError('')
+                        return setInstallmentValue(current, installmentNumber, nextValue)
+                      })
+                    }}
+                    onBlur={() => markTouched(`installment${installmentNumber}`)}
+                    aria-invalid={Boolean(shouldShowError(`installment${installmentNumber}`))}
+                  />
+                </Field>
+              ))}
 
               <Field label="Status" required hint="Active or Inactive" error={shouldShowError('status') ? validationErrors.status : ''}>
                 <select
@@ -713,7 +822,7 @@ export function CoursesPage() {
       ) : null}
 
       <div className="courses-layout">
-        <article className="panel-card course-table-card">
+        <article className="course-table-card">
           <div className="section-head compact">
             <div>
               <p className="section-kicker course-list-kicker">Course List</p>
