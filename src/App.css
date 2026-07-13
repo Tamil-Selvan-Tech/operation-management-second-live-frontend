@@ -567,6 +567,20 @@ tbody tr:hover {
   color: var(--muted);
 }
 
+.student-section-card-head h3,
+.student-drawer-section-head h4,
+.revenue-comparison-header h3,
+.info-card h3 {
+  color: #1f5ee8;
+}
+
+.student-section-card-head p,
+.student-drawer-section-head p,
+.revenue-comparison-header p,
+.info-card p {
+  color: #4f7de0;
+}
+
 .business-owner-dashboard .revenue-summary-card[data-accent='blue'],
 .operation-manager-dashboard .revenue-summary-card[data-accent='blue'] {
   border-top: 3px solid var(--accent);
@@ -1633,13 +1647,14 @@ tbody tr:hover {
 
 .student-section-card-head h3 {
   margin: 0;
+  color: #1f5ee8;
   font-size: 1.02rem;
   font-weight: 800;
 }
 
 .student-section-card-head p {
   margin: 0;
-  color: #64748b;
+  color: #4f7de0;
   font-size: 0.86rem;
 }
 
@@ -4443,7 +4458,7 @@ tbody tr:hover {
 
 .student-drawer-section-head p {
   margin: 4px 0 0;
-  color: #66758f;
+  color: #4f7de0;
   font-size: 0.9rem;
   font-weight: 500;
 }
