@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { roleDashboards, roleLabels } from '../data/authData'
 import { loadStudentRecords } from '../data/studentRecords'
-import { getRevenueSummary } from '../services/dashboardService'
 
 const revenueComparisonData = [
   { month: 'Jan', monthly: 50000, expected: 55000 },
@@ -70,7 +69,7 @@ const revenueSummaryCards = [
     icon: 'trend',
   },
   {
-    label: 'Expected Next Week',
+    label: 'Pending Payments',
     value: '₹1,20,000',
     change: null,
     note: 'Target for next week',
@@ -98,12 +97,12 @@ function formatDate(value) {
   }).format(date)
 }
 
-function addOneMonth(value) {
+function addOneMonth(value, months = 1) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return ''
 
   const dueDate = new Date(date)
-  dueDate.setMonth(dueDate.getMonth() + 1)
+  dueDate.setMonth(dueDate.getMonth() + months)
 
   return dueDate.toISOString().slice(0, 10)
 }
@@ -135,18 +134,32 @@ function getStudentInitials(name) {
     .slice(0, 2)
 }
 
-function getStudentId(student, index = 0) {
-  const suffix = String(student?.id || index + 1).replace(/\D/g, '').slice(-6).padStart(6, '0')
-  return `STU${suffix}`
+function hasThirdInstallment(student) {
+  return Boolean(
+    String(student?.course?.installmentCount ?? '') === '3' ||
+      student?.installment3 ||
+      student?.thirdInstallmentAmount ||
+      student?.thirdDueDate,
+  )
+}
+
+function getSecondDueDate(student) {
+  return student?.secondDueDate || addOneMonth(student?.admissionDate)
+}
+
+function getThirdDueDate(student) {
+  if (!hasThirdInstallment(student)) return ''
+  return student?.thirdDueDate || addOneMonth(getSecondDueDate(student))
 }
 
 function getStudentStatus(student) {
-  const dueDate = student?.secondDueDate || addOneMonth(student?.admissionDate)
+  const dueDate = hasThirdInstallment(student) ? getThirdDueDate(student) || getSecondDueDate(student) : getSecondDueDate(student)
   const secondPaid = String(student?.secondInstallmentStatus || 'Pending') === 'Paid'
-  const firstPaid = String(student?.firstInstallmentStatus || 'Paid') === 'Paid'
-  const overdueDays = secondPaid ? 0 : diffInDays(dueDate, getTodayValue())
+  const thirdPaid = hasThirdInstallment(student) ? String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
+  const firstPaid = String(student?.firstInstallmentStatus || 'Pending') === 'Paid'
+  const overdueDays = (hasThirdInstallment(student) ? thirdPaid : secondPaid) ? 0 : diffInDays(dueDate, getTodayValue())
 
-  if (secondPaid && firstPaid) return { label: 'Complete', tone: 'success' }
+  if (firstPaid && secondPaid && thirdPaid) return { label: 'Complete', tone: 'success' }
   if (overdueDays > 0) return { label: `Overdue · ${overdueDays} Days`, tone: 'danger' }
   if (firstPaid) return { label: 'Pending', tone: 'warning' }
 
@@ -154,9 +167,250 @@ function getStudentStatus(student) {
 }
 
 function getPaidAmount(student) {
-  const first = String(student?.firstInstallmentStatus || 'Paid') === 'Paid' ? Number(student?.installment1 || student?.firstInstallmentAmount || 0) : 0
-  const second = String(student?.secondInstallmentStatus || 'Pending') === 'Paid' ? Number(student?.installment2 || student?.secondInstallmentAmount || 0) : 0
-  return first + second
+  const first = String(student?.firstInstallmentStatus || 'Pending') === 'Paid' && student?.firstInstallmentPaidAt ? Number(student?.installment1 || student?.firstInstallmentAmount || 0) : 0
+  const second = String(student?.secondInstallmentStatus || 'Pending') === 'Paid' && student?.secondInstallmentPaidAt ? Number(student?.installment2 || student?.secondInstallmentAmount || 0) : 0
+  const third =
+    hasThirdInstallment(student) && String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' && student?.thirdInstallmentPaidAt
+      ? Number(student?.thirdInstallmentAmount || student?.installment3 || 0)
+      : 0
+  return first + second + third
+}
+
+function toNumber(value) {
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount : 0
+}
+
+function getLocalDateValue(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getDateValue(value) {
+  if (!value) return ''
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+  return getLocalDateValue(date)
+}
+
+function getMonthStartValue(reference = new Date()) {
+  const date = new Date(reference)
+  date.setDate(1)
+  return getLocalDateValue(date)
+}
+
+function getWeekStartValue(reference = new Date()) {
+  const date = new Date(reference)
+  const offset = (date.getDay() + 6) % 7
+  date.setDate(date.getDate() - offset)
+  return getLocalDateValue(date)
+}
+
+function isWithinRange(value, start, end) {
+  const date = getDateValue(value)
+  if (!date) return false
+  return date >= start && date <= end
+}
+
+function getInstallmentEntries(student) {
+  const firstDueDate = student?.firstInstallmentDate || student?.admissionDate || ''
+  const secondDueDate = getSecondDueDate(student)
+  const thirdDueDate = getThirdDueDate(student)
+
+  const entries = [
+    {
+      amount: toNumber(student?.firstInstallmentAmount || student?.installment1 || 0),
+      status: String(student?.firstInstallmentStatus || 'Pending'),
+      paidAt: student?.firstInstallmentPaidAt || '',
+      dueDate: firstDueDate,
+    },
+    {
+      amount: toNumber(student?.secondInstallmentAmount || student?.installment2 || 0),
+      status: String(student?.secondInstallmentStatus || 'Pending'),
+      paidAt: student?.secondInstallmentPaidAt || '',
+      dueDate: secondDueDate,
+    },
+  ]
+
+  if (hasThirdInstallment(student)) {
+    entries.push({
+      amount: toNumber(student?.thirdInstallmentAmount || student?.installment3 || 0),
+      status: String(student?.thirdInstallmentStatus || 'Pending'),
+      paidAt: student?.thirdInstallmentPaidAt || '',
+      dueDate: thirdDueDate,
+    })
+  }
+
+  return entries.filter((entry) => entry.amount > 0)
+}
+
+function calculateRevenueSummary(students) {
+  const now = new Date()
+  const monthStart = getMonthStartValue(now)
+  const weekStart = getWeekStartValue(now)
+  const today = getTodayValue()
+
+  return students.reduce(
+    (summary, student) => {
+      const admissionDate = student?.admissionDate || student?.firstInstallmentDate || student?.createdAt || ''
+      const entries = getInstallmentEntries(student)
+      const plannedTotal = toNumber(student?.totalAmount || student?.afterDiscount) || entries.reduce((total, entry) => total + entry.amount, 0)
+
+      summary.totalStudents += 1
+
+      if (isWithinRange(admissionDate, monthStart, today)) {
+        summary.thisMonthStudents += 1
+      }
+
+      if (isWithinRange(admissionDate, weekStart, today)) {
+        summary.thisWeekStudents += 1
+      }
+
+      let paidTotalForStudent = 0
+
+      for (const entry of entries) {
+        if (String(entry.status || '').trim() !== 'Paid' || !entry.paidAt) continue
+
+        paidTotalForStudent += entry.amount
+        summary.totalRevenue += entry.amount
+
+        if (isWithinRange(entry.paidAt, monthStart, today)) {
+          summary.thisMonthRevenue += entry.amount
+        }
+
+        if (isWithinRange(entry.paidAt, weekStart, today)) {
+          summary.thisWeekRevenue += entry.amount
+        }
+      }
+
+      summary.pendingPayments += Math.max(plannedTotal - paidTotalForStudent, 0)
+
+      return summary
+    },
+    {
+      totalRevenue: 0,
+      thisMonthRevenue: 0,
+      thisWeekRevenue: 0,
+      pendingPayments: 0,
+      totalStudents: 0,
+      thisMonthStudents: 0,
+      thisWeekStudents: 0,
+    },
+  )
+}
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function getDateObject(value) {
+  if (!value) return null
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function getChartMax(data, fallback = 10000) {
+  const maxValue = data.reduce((highest, item) => Math.max(highest, item.actual, item.expected), 0)
+  const base = Math.max(maxValue, fallback)
+  return Math.ceil(base / 10000) * 10000
+}
+
+function buildRevenueTicks(chartMax) {
+  return [0, 0.25, 0.5, 0.75, 1].map((fraction) => Math.round((chartMax * fraction) / 1000) * 1000)
+}
+
+function getWeekBuckets(referenceDate = new Date()) {
+  const year = referenceDate.getFullYear()
+  const month = referenceDate.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+  return [
+    { label: 'Week 1', start: 1, end: Math.min(7, daysInMonth) },
+    { label: 'Week 2', start: 8, end: Math.min(14, daysInMonth) },
+    { label: 'Week 3', start: 15, end: Math.min(21, daysInMonth) },
+    { label: 'Week 4', start: 22, end: daysInMonth },
+  ]
+}
+
+function getCurrentWeekIndex(referenceDate = new Date()) {
+  const day = referenceDate.getDate()
+  return getWeekBuckets(referenceDate).findIndex((bucket) => day >= bucket.start && day <= bucket.end)
+}
+
+function buildMonthlyRevenueComparison(students, referenceDate = new Date()) {
+  const year = referenceDate.getFullYear()
+  const buckets = MONTH_LABELS.map((month, monthIndex) => ({
+    month,
+    monthIndex,
+    actual: 0,
+    expected: 0,
+  }))
+
+  for (const student of students) {
+    for (const entry of getInstallmentEntries(student)) {
+      const amount = toNumber(entry.amount)
+      if (!amount) continue
+
+      const paidAt = getDateObject(entry.paidAt)
+      if (entry.status === 'Paid' && paidAt && paidAt.getFullYear() === year) {
+        buckets[paidAt.getMonth()].actual += amount
+        continue
+      }
+
+      const dueDate = getDateObject(entry.dueDate)
+      if (!dueDate || dueDate.getFullYear() !== year) {
+        continue
+      }
+
+      buckets[dueDate.getMonth()].expected += amount
+    }
+  }
+
+  return buckets.map(({ month, actual, expected }) => ({ month, actual, expected }))
+}
+
+function buildWeeklyRevenueComparison(students, referenceDate = new Date()) {
+  const year = referenceDate.getFullYear()
+  const month = referenceDate.getMonth()
+  const currentWeekIndex = getCurrentWeekIndex(referenceDate)
+  const buckets = getWeekBuckets(referenceDate).map((bucket, index) => ({
+    week: index === currentWeekIndex ? `${bucket.label} (Current)` : bucket.label,
+    actual: 0,
+    expected: 0,
+    start: bucket.start,
+    end: bucket.end,
+    isCurrent: index === currentWeekIndex,
+  }))
+
+  for (const student of students) {
+    for (const entry of getInstallmentEntries(student)) {
+      const amount = toNumber(entry.amount)
+      if (!amount) continue
+
+      const paidAt = getDateObject(entry.paidAt)
+      if (entry.status === 'Paid' && paidAt && paidAt.getFullYear() === year && paidAt.getMonth() === month) {
+        const paidDay = paidAt.getDate()
+        const paidIndex = buckets.findIndex((bucket) => paidDay >= bucket.start && paidDay <= bucket.end)
+        if (paidIndex >= 0) {
+          buckets[paidIndex].actual += amount
+        }
+        continue
+      }
+
+      const dueDate = getDateObject(entry.dueDate)
+      if (!dueDate || dueDate.getFullYear() !== year || dueDate.getMonth() !== month) {
+        continue
+      }
+
+      const dueDay = dueDate.getDate()
+      const dueIndex = buckets.findIndex((bucket) => dueDay >= bucket.start && dueDay <= bucket.end)
+      if (dueIndex >= 0 && dueIndex >= currentWeekIndex) {
+        buckets[dueIndex].expected += amount
+      }
+    }
+  }
+
+  return buckets.map(({ week, actual, expected, isCurrent }) => ({ week, actual, expected, isCurrent }))
 }
 
 function useStudentRecords() {
@@ -179,7 +433,7 @@ function useStudentRecords() {
   return records
 }
 
-function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading }) {
+function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   return (
     <section className="business-owner-dashboard">
       <div className="business-topbar">
@@ -190,10 +444,6 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading })
         </div>
 
         <div className="business-topbar-actions">
-          <label className="dashboard-search">
-            <span aria-hidden="true">⌕</span>
-            <input type="search" placeholder="Search..." aria-label="Search dashboard" />
-          </label>
           <button className="icon-chip" type="button" aria-label="Calendar">
             <span>◫</span>
           </button>
@@ -212,7 +462,7 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading })
       </div>
 
       <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <RevenueDashboards />
+      <RevenueDashboards students={revenueStudents} />
       <AttendanceComparisonChart />
     </section>
   )
@@ -254,10 +504,10 @@ function buildRevenueSummaryCards(summary, isLoading) {
       icon: 'trend',
     },
     {
-      label: 'Expected Next Week',
-      value: formatValue(summary?.expectedNextWeekRevenue),
+      label: 'Pending Payments',
+      value: formatValue(summary?.pendingPayments ?? summary?.expectedNextWeekRevenue),
       change: null,
-      note: isLoading ? 'Loading projection' : 'Projected from student admissions',
+      note: isLoading ? 'Loading pending payments' : 'Outstanding student payments',
       accent: 'orange',
       icon: 'target',
     },
@@ -351,24 +601,25 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
   )
 }
 
-function MonthlyRevenueChart() {
+function MonthlyRevenueChart({ data = [] }) {
   const [activeIndex, setActiveIndex] = useState(null)
-  const chartMax = revenueComparisonTicks[revenueComparisonTicks.length - 1]
-  const activePoint = activeIndex === null ? null : revenueComparisonData[activeIndex]
-  const tooltipStyle = getEdgeAwareTooltipStyle(activeIndex, revenueComparisonData.length)
+  const chartMax = getChartMax(data, 10000)
+  const ticks = buildRevenueTicks(chartMax)
+  const activePoint = activeIndex === null ? null : data[activeIndex]
+  const tooltipStyle = getEdgeAwareTooltipStyle(activeIndex, data.length)
 
   return (
     <article className="panel-card revenue-comparison-card revenue-monthly-card">
       <div className="revenue-comparison-header">
         <div>
-          <h3>Monthly Revenue vs Expected Revenue (Next Month)</h3>
-          <p>Comparison of actual monthly revenue and expected revenue for the next month.</p>
+          <h3>Monthly Revenue vs Expected Revenue (Current Year)</h3>
+          <p>Current-year actual revenue and expected revenue by month, based on paid dates and due dates.</p>
         </div>
 
         <div className="revenue-legend" aria-hidden="true">
           <span className="revenue-legend-item">
             <span className="revenue-legend-swatch monthly" />
-            Monthly Revenue
+            Actual Revenue
           </span>
           <span className="revenue-legend-item">
             <span className="revenue-legend-swatch expected" />
@@ -379,7 +630,7 @@ function MonthlyRevenueChart() {
 
       <div className="revenue-comparison-body">
         <div className="revenue-axis-y" aria-hidden="true">
-          {revenueComparisonTicks
+          {ticks
             .slice()
             .reverse()
             .map((tick) => (
@@ -389,7 +640,7 @@ function MonthlyRevenueChart() {
 
         <div className="revenue-plot" onMouseLeave={() => setActiveIndex(null)}>
           <div className="revenue-grid-lines" aria-hidden="true">
-            {revenueComparisonTicks.slice(1).map((tick) => (
+            {ticks.slice(1).map((tick) => (
               <span key={tick} />
             ))}
           </div>
@@ -400,9 +651,9 @@ function MonthlyRevenueChart() {
               <div className="revenue-tooltip-row">
                 <span className="revenue-tooltip-label">
                   <span className="revenue-tooltip-dot monthly" />
-                  Monthly Revenue
+                  Actual Revenue
                 </span>
-                <span className="revenue-tooltip-value">{formatRevenue(activePoint.monthly)}</span>
+                <span className="revenue-tooltip-value">{formatRevenue(activePoint.actual)}</span>
               </div>
               <div className="revenue-tooltip-row">
                 <span className="revenue-tooltip-label">
@@ -415,9 +666,9 @@ function MonthlyRevenueChart() {
           ) : null}
 
           <div className="revenue-groups">
-            {revenueComparisonData.map((item, index) => {
-              const monthlyHeight = `${(item.monthly / chartMax) * 100}%`
-              const expectedHeight = `${(item.expected / chartMax) * 100}%`
+            {data.map((item, index) => {
+              const monthlyHeight = `${chartMax ? (item.actual / chartMax) * 100 : 0}%`
+              const expectedHeight = `${chartMax ? (item.expected / chartMax) * 100 : 0}%`
               const isActive = index === activeIndex
 
               return (
@@ -428,7 +679,7 @@ function MonthlyRevenueChart() {
                   onMouseEnter={() => setActiveIndex(index)}
                   onFocus={() => setActiveIndex(index)}
                   onBlur={() => setActiveIndex(null)}
-                  aria-label={`${item.month}. Monthly Revenue ${formatRevenue(item.monthly)}. Expected Revenue ${formatRevenue(item.expected)}.`}
+                  aria-label={`${item.month}. Actual Revenue ${formatRevenue(item.actual)}. Expected Revenue ${formatRevenue(item.expected)}.`}
                 >
                   <span className="revenue-bars" aria-hidden="true">
                     <span className="revenue-bar monthly" style={{ height: monthlyHeight }} />
@@ -445,37 +696,38 @@ function MonthlyRevenueChart() {
   )
 }
 
-function WeeklyRevenueChart() {
+function WeeklyRevenueChart({ data = [] }) {
   const [activeIndex, setActiveIndex] = useState(null)
-  const activePoint = activeIndex === null ? null : weeklyRevenueComparisonData[activeIndex]
+  const chartMax = getChartMax(data, 10000)
+  const activePoint = activeIndex === null ? null : data[activeIndex]
   const tooltipTop =
     activeIndex === null
       ? '50%'
-      : `${Math.min(82, Math.max(18, ((activeIndex + 0.5) / weeklyRevenueComparisonData.length) * 100))}%`
+      : `${Math.min(82, Math.max(18, ((activeIndex + 0.5) / Math.max(data.length, 1)) * 100))}%`
 
   return (
     <article className="panel-card revenue-comparison-card revenue-weekly-card">
       <div className="revenue-comparison-header">
         <div>
-          <h3>Weekly Revenue vs Expected Revenue (Next Week)</h3>
-          <p>Comparison of actual weekly revenue and expected revenue for the next week.</p>
+          <h3>Weekly Revenue vs Expected Revenue (Current Month)</h3>
+          <p>Actual revenue and expected revenue by week, based on paid dates and due dates in the current month.</p>
         </div>
       </div>
 
       <div className="revenue-legend revenue-weekly-legend" aria-hidden="true">
         <span className="revenue-legend-item">
           <span className="revenue-legend-swatch monthly" />
-          Weekly Revenue
+          Actual Revenue
         </span>
         <span className="revenue-legend-item">
           <span className="revenue-legend-swatch expected" />
-          Expected Next Week
+          Expected Revenue
         </span>
       </div>
 
       <div className="revenue-weekly-body">
         <div className="revenue-weekly-axis-y" aria-hidden="true">
-          {weeklyRevenueComparisonData.map((item) => (
+          {data.map((item) => (
             <span key={item.week}>{item.week}</span>
           ))}
         </div>
@@ -494,9 +746,9 @@ function WeeklyRevenueChart() {
               <div className="revenue-tooltip-row">
                 <span className="revenue-tooltip-label">
                   <span className="revenue-tooltip-dot monthly" />
-                  Weekly Revenue
+                  Actual Revenue
                 </span>
-                <span className="revenue-tooltip-value">{formatRevenue(activePoint.weekly)}</span>
+                <span className="revenue-tooltip-value">{formatRevenue(activePoint.actual)}</span>
               </div>
               <div className="revenue-tooltip-row">
                 <span className="revenue-tooltip-label">
@@ -509,9 +761,9 @@ function WeeklyRevenueChart() {
           ) : null}
 
           <div className="revenue-weekly-groups">
-            {weeklyRevenueComparisonData.map((item, index) => {
-              const weeklyWidth = `${(item.weekly / weeklyRevenueMax) * 100}%`
-              const expectedWidth = `${(item.expected / weeklyRevenueMax) * 100}%`
+            {data.map((item, index) => {
+              const weeklyWidth = `${chartMax ? (item.actual / chartMax) * 100 : 0}%`
+              const expectedWidth = `${chartMax ? (item.expected / chartMax) * 100 : 0}%`
               const isActive = index === activeIndex
 
               return (
@@ -522,14 +774,14 @@ function WeeklyRevenueChart() {
                   onMouseEnter={() => setActiveIndex(index)}
                   onFocus={() => setActiveIndex(index)}
                   onBlur={() => setActiveIndex(null)}
-                  aria-label={`${item.week}. Weekly Revenue ${formatRevenue(item.weekly)}. Expected Revenue ${formatRevenue(item.expected)}.`}
+                  aria-label={`${item.week}. Actual Revenue ${formatRevenue(item.actual)}. Expected Revenue ${formatRevenue(item.expected)}.`}
                 >
                   <span className="revenue-week-bars" aria-hidden="true">
                     <span className="revenue-week-bar monthly" style={{ width: weeklyWidth }} />
                     <span className="revenue-week-bar expected" style={{ width: expectedWidth }} />
                   </span>
                   <span className="revenue-week-values">
-                    <strong>{formatRevenue(item.weekly)}</strong>
+                    <strong>{formatRevenue(item.actual)}</strong>
                     <span>{formatRevenue(item.expected)}</span>
                   </span>
                 </button>
@@ -542,11 +794,14 @@ function WeeklyRevenueChart() {
   )
 }
 
-function RevenueDashboards() {
+function RevenueDashboards({ students = [] }) {
+  const monthlyRevenueData = useMemo(() => buildMonthlyRevenueComparison(students), [students])
+  const weeklyRevenueData = useMemo(() => buildWeeklyRevenueComparison(students), [students])
+
   return (
     <div className="revenue-comparison-grid">
-      <WeeklyRevenueChart />
-      <MonthlyRevenueChart />
+      <WeeklyRevenueChart data={weeklyRevenueData} />
+      <MonthlyRevenueChart data={monthlyRevenueData} />
     </div>
   )
 }
@@ -665,7 +920,6 @@ function StudentDashboard({ dashboard }) {
     )
   }
 
-  const studentId = getStudentId(latestStudent)
   const status = getStudentStatus(latestStudent)
   const totalAmount = Number(latestStudent.totalAmount || latestStudent.afterDiscount || 0)
   const paidAmount = getPaidAmount(latestStudent)
@@ -682,10 +936,6 @@ function StudentDashboard({ dashboard }) {
               <span className={`student-status-pill ${status.tone}`}>{status.label}</span>
             </div>
             <div className="student-dashboard-id-row">
-              <div>
-                <span>Student ID</span>
-                <strong>{studentId}</strong>
-              </div>
               <div>
                 <span>Course</span>
                 <strong>{latestStudent.courseInterested || '-'}</strong>
@@ -753,10 +1003,17 @@ function StudentDashboard({ dashboard }) {
           <div className="student-dashboard-info-grid">
             <StudentInfoItem label="1st Installment Amount" value={formatCurrency(latestStudent.firstInstallmentAmount || latestStudent.installment1)} />
             <StudentInfoItem label="1st Installment Date" value={formatDate(latestStudent.firstInstallmentDate || latestStudent.admissionDate)} />
-            <StudentInfoItem label="1st Installment Status" value={latestStudent.firstInstallmentStatus || 'Paid'} />
+            <StudentInfoItem label="1st Installment Status" value={latestStudent.firstInstallmentStatus || 'Pending'} />
             <StudentInfoItem label="2nd Installment Amount" value={formatCurrency(latestStudent.secondInstallmentAmount || latestStudent.installment2)} />
-            <StudentInfoItem label="2nd Due Date" value={formatDate(latestStudent.secondDueDate || addOneMonth(latestStudent.admissionDate))} />
+            <StudentInfoItem label="2nd Due Date" value={formatDate(getSecondDueDate(latestStudent))} />
             <StudentInfoItem label="2nd Installment Status" value={latestStudent.secondInstallmentStatus || 'Pending'} />
+            {hasThirdInstallment(latestStudent) ? (
+              <>
+                <StudentInfoItem label="3rd Installment Amount" value={formatCurrency(latestStudent.thirdInstallmentAmount || latestStudent.installment3)} />
+                <StudentInfoItem label="3rd Due Date" value={formatDate(getThirdDueDate(latestStudent))} />
+                <StudentInfoItem label="3rd Installment Status" value={latestStudent.thirdInstallmentStatus || 'Pending'} />
+              </>
+            ) : null}
             <StudentInfoItem label="Paid Amount" value={formatCurrency(paidAmount)} />
             <StudentInfoItem label="Due Amount" value={formatCurrency(dueAmount)} />
           </div>
@@ -773,7 +1030,7 @@ function StudentDashboard({ dashboard }) {
   )
 }
 
-function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading }) {
+function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   return (
     <section className="business-owner-dashboard operation-manager-dashboard">
       <div className="business-topbar">
@@ -806,7 +1063,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
       </div>
 
       <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <RevenueDashboards />
+      <RevenueDashboards students={revenueStudents} />
       <AttendanceComparisonChart />
     </section>
   )
@@ -842,50 +1099,15 @@ function GenericDashboard({ role }) {
 
 export function DashboardPage({ role }) {
   const dashboard = roleDashboards[role]
-  const [revenueSummary, setRevenueSummary] = useState(null)
-  const [isRevenueLoading, setIsRevenueLoading] = useState(false)
-
-  useEffect(() => {
-    if (role !== 'business-owner' && role !== 'operation-manager') {
-      setRevenueSummary(null)
-      setIsRevenueLoading(false)
-      return undefined
-    }
-
-    let active = true
-
-    const loadRevenueSummary = async () => {
-      setIsRevenueLoading(true)
-
-      try {
-        const summary = await getRevenueSummary()
-        if (active) {
-          setRevenueSummary(summary)
-        }
-      } catch {
-        if (active) {
-          setRevenueSummary(null)
-        }
-      } finally {
-        if (active) {
-          setIsRevenueLoading(false)
-        }
-      }
-    }
-
-    void loadRevenueSummary()
-
-    return () => {
-      active = false
-    }
-  }, [role])
+  const revenueStudents = useStudentRecords()
+  const revenueSummary = useMemo(() => calculateRevenueSummary(revenueStudents), [revenueStudents])
 
   if (role === 'business-owner') {
-    return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} />
+    return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={false} revenueStudents={revenueStudents} />
   }
 
   if (role === 'operation-manager') {
-    return <OperationManagerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} />
+    return <OperationManagerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={false} revenueStudents={revenueStudents} />
   }
 
   if (role === 'student') {

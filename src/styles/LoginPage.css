@@ -13,7 +13,7 @@
 .checkmark {
   width: 22px;
   height: 22px;
-  border: 2px solid #0f7bda;
+  border: 2px solid var(--accent);
   border-radius: 6px;
   background: #fff;
   position: relative;
@@ -21,8 +21,8 @@
 }
 
 .remember-me input:checked + .checkmark {
-  background: #0f7bda;
-  border-color: #0b63b3;
+  background: var(--accent);
+  border-color: var(--accent-hover);
 }
 
 .remember-me input:checked + .checkmark::after {
@@ -38,7 +38,7 @@
 }
 
 .remember-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  color: #1f2937;
+  color: var(--text-strong);
 }

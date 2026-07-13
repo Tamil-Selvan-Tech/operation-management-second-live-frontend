@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
-import { STUDENT_STORAGE_KEY, loadStudentRecords } from '../data/studentRecords'
-import { listCourses } from '../services/courseService'
+import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
+import { loadStudentRecords, saveStudentRecords } from '../data/studentRecords'
+import { normalizeCourseList } from '../services/courseService'
+import { normalizeStudentList } from '../services/studentService'
 
 const statusOptions = ['Student', 'Employee', 'Other']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
+const STUDENT_RECORD_SYNC_EVENT = 'cispro:students-changed'
 const studentWizardSteps = [
   {
     key: 'basic',
@@ -44,6 +47,11 @@ function getTodayValue() {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function notifyStudentRecordsChanged() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new Event(STUDENT_RECORD_SYNC_EVENT))
 }
 
 function createEmptyForm() {
@@ -91,12 +99,12 @@ function formatDate(value) {
   }).format(date)
 }
 
-function addOneMonth(value) {
+function addOneMonth(value, months = 1) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return ''
 
   const dueDate = new Date(date)
-  dueDate.setMonth(dueDate.getMonth() + 1)
+  dueDate.setMonth(dueDate.getMonth() + months)
 
   return dueDate.toISOString().slice(0, 10)
 }
@@ -119,6 +127,34 @@ function diffInDays(a, b) {
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0
   const ms = 24 * 60 * 60 * 1000
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / ms))
+}
+
+function hasThirdInstallment(student = null, course = null) {
+  return Boolean(
+    student?.installment3 ||
+      student?.thirdInstallmentAmount ||
+      student?.thirdDueDate ||
+      String(course?.installmentCount ?? student?.course?.installmentCount ?? '') === '3' ||
+      String(course?.installment3 ?? student?.course?.installment3 ?? '') !== '',
+  )
+}
+
+function getSecondDueDate(student) {
+  return student?.secondDueDate || addOneMonth(student?.admissionDate)
+}
+
+function getThirdDueDate(student) {
+  if (!hasThirdInstallment(student)) return ''
+  return student?.thirdDueDate || addOneMonth(getSecondDueDate(student))
+}
+
+function findCourseForStudent(student, courseOptions) {
+  return (
+    courseOptions.find((course) => course.id === student.courseId) ||
+    courseOptions.find((course) => course.name === student.courseInterested) ||
+    student.course ||
+    null
+  )
 }
 
 function findCourseForForm(courseOptions, form) {
@@ -169,9 +205,10 @@ function mapCourseToForm(current, course) {
   }
 }
 
-function validateForm(form) {
+function validateForm(form, course = null) {
   const errors = {}
   const currentYear = new Date().getFullYear()
+  const requiresThirdInstallment = hasThirdInstallment(form, course)
 
   if (!form.studentName.trim()) errors.studentName = 'Student name is required.'
 
@@ -208,6 +245,7 @@ function validateForm(form) {
   if (!form.afterDiscount && form.courseId) errors.afterDiscount = 'After discount value is missing.'
   if (!form.installment1 && form.courseId) errors.installment1 = 'Installment 1 is missing.'
   if (!form.installment2 && form.courseId) errors.installment2 = 'Installment 2 is missing.'
+  if (requiresThirdInstallment && !form.installment3) errors.installment3 = 'Installment 3 is missing.'
   if (form.remarks.trim() && form.remarks.trim().length < 5) {
     errors.remarks = 'Add a short remark with at least 5 characters.'
   }
@@ -221,17 +259,50 @@ function validateForm(form) {
   return errors
 }
 
-function validateStep(form, stepIndex) {
-  const errors = validateForm(form)
+function validateStep(form, stepIndex, course = null) {
+  const errors = validateForm(form, course)
   const stepFields = {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
-    1: ['courseInterested', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
-    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'admissionDate'],
+    1: [
+      'courseInterested',
+      'facultyName',
+      'batch',
+      'qualification',
+      'passedOutYear',
+      'currentStatus',
+      ...(String(form.currentStatus || '') === 'Employee' ? ['designation'] : []),
+      'source',
+    ],
+    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate'],
   }
 
   return Object.fromEntries(
     Object.entries(errors).filter(([field]) => stepFields[stepIndex]?.includes(field)),
   )
+}
+
+function getStepIndexForField(fieldName) {
+  const stepFields = {
+    0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
+    1: ['courseInterested', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
+    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate', 'remarks'],
+  }
+
+  return Number(
+    Object.entries(stepFields).find(([_, fields]) => fields.includes(fieldName))?.[0] ?? 2,
+  )
+}
+
+function findDuplicateStudent(form, students, editingStudentId = '') {
+  const emailAddress = String(form.emailAddress || '').trim().toLowerCase()
+
+  return students.find((student) => {
+    if (!student || student.id === editingStudentId) return false
+
+    const existingEmail = String(student.emailAddress || '').trim().toLowerCase()
+
+    return Boolean(emailAddress && existingEmail === emailAddress)
+  })
 }
 
 function Field({ label, required = false, hint, error, className = '', icon, multiline = false, children }) {
@@ -254,9 +325,13 @@ function Field({ label, required = false, hint, error, className = '', icon, mul
 }
 
 function PaymentStatusBadge({ student }) {
-  const dueDate = student.secondDueDate || addOneMonth(student.admissionDate)
-  const isOverdue = student.secondInstallmentStatus !== 'Paid' && diffInDays(dueDate, getTodayValue()) > 0
-  const status = student.secondInstallmentStatus === 'Paid' ? 'Completed' : isOverdue ? 'Overdue' : 'Pending'
+  const dueDate = hasThirdInstallment(student) ? getThirdDueDate(student) || getSecondDueDate(student) : getSecondDueDate(student)
+  const firstPaid = String(student.firstInstallmentStatus || 'Pending') === 'Paid'
+  const secondPaid = String(student.secondInstallmentStatus || 'Pending') === 'Paid'
+  const thirdPaid = hasThirdInstallment(student) ? String(student.thirdInstallmentStatus || 'Pending') === 'Paid' : true
+  const latestPending = hasThirdInstallment(student) ? student.thirdInstallmentStatus : student.secondInstallmentStatus
+  const isOverdue = latestPending !== 'Paid' && diffInDays(dueDate, getTodayValue()) > 0
+  const status = firstPaid && secondPaid && thirdPaid ? 'Completed' : isOverdue ? 'Overdue' : 'Pending'
   const className =
     status === 'Completed' ? 'student-badge employee' : status === 'Overdue' ? 'student-badge other' : 'student-badge student'
 
@@ -652,10 +727,11 @@ function DangerIcon() {
 
 export function StudentManagementPage() {
   const { user } = useAuth()
-  const [students, setStudents] = useState(() => loadStudentRecords())
+  const [students, setStudents] = useState(() => normalizeStudentList(loadStudentRecords()))
   const [courseOptions, setCourseOptions] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isStudentsLoading, setIsStudentsLoading] = useState(false)
   const [isCoursesLoading, setIsCoursesLoading] = useState(true)
   const [form, setForm] = useState(createEmptyForm)
   const [submitted, setSubmitted] = useState(false)
@@ -665,13 +741,28 @@ export function StudentManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [currentStep, setCurrentStep] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
+  const [actionError, setActionError] = useState('')
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
 
-  const errors = useMemo(() => validateForm(form), [form])
+  const selectedCourse = useMemo(() => findCourseForForm(courseOptions, form), [courseOptions, form])
+  const errors = useMemo(() => {
+    const nextErrors = validateForm(form, selectedCourse)
+    const duplicateStudent = findDuplicateStudent(form, students, editingStudentId)
+
+    if (duplicateStudent) {
+      nextErrors.emailAddress = 'Email already exists.'
+    }
+
+    return nextErrors
+  }, [editingStudentId, form, selectedCourse, students])
   const selectedStudent = useMemo(
     () => students.find((student) => student.id === selectedStudentId) || null,
     [selectedStudentId, students],
+  )
+  const selectedStudentCourse = useMemo(
+    () => (selectedStudent ? findCourseForStudent(selectedStudent, courseOptions) : null),
+    [courseOptions, selectedStudent],
   )
   const totalStudents = students.length
   const latestStudent = students[0]
@@ -683,17 +774,23 @@ export function StudentManagementPage() {
   }, [currentPageSafe, students])
   const counselorName = user?.name || user?.email || 'Counselor'
 
-  const saveStudents = (nextStudents) => {
-    setStudents(nextStudents)
-    try {
-      window.localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(nextStudents))
-      window.dispatchEvent(new Event('cispro:students-changed'))
-    } catch {
-      // ignore storage failures
-    }
+  const replaceStudentInState = (nextStudent) => {
+    setStudents((current) =>
+      current.some((student) => student.id === nextStudent.id)
+        ? current.map((student) => (student.id === nextStudent.id ? nextStudent : student))
+        : [nextStudent, ...current],
+    )
+  }
+
+  const persistStudentList = (nextStudents) => {
+    const normalized = normalizeStudentList(nextStudents)
+    setStudents(normalized)
+    saveStudentRecords(normalized)
+    notifyStudentRecordsChanged()
   }
 
   const openModal = () => {
+    setActionError('')
     setForm(createEmptyForm())
     setFieldFocus({})
     setSubmitted(false)
@@ -703,6 +800,7 @@ export function StudentManagementPage() {
   }
 
   const openEditModal = (student) => {
+    setActionError('')
     setForm({
       ...createEmptyForm(),
       courseId: student.courseId || '',
@@ -744,6 +842,7 @@ export function StudentManagementPage() {
   }
 
   const openDeleteModal = (student) => {
+    setActionError('')
     setDeleteTarget(student)
   }
 
@@ -788,65 +887,54 @@ export function StudentManagementPage() {
   }, [isDrawerOpen])
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(students))
-    } catch {
-      // ignore storage failures
-    }
+    saveStudentRecords(students)
   }, [students])
 
   useEffect(() => {
-    let isActive = true
-
-    const loadCourseOptions = async () => {
+    const loadCourseOptions = () => {
       setIsCoursesLoading(true)
-
-      try {
-        const result = await listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
-        if (!isActive) return
-
-        const uniqueCourseOptions = Array.from(
-          new Map(
-            (result.data || [])
-              .map((course) => {
-                const id = String(course?.id || '').trim()
-                const name = String(course?.name || '').trim()
-                if (!id || !name) return null
-                return [
+      const uniqueCourseOptions = Array.from(
+        new Map(
+          normalizeCourseList(loadCourseRecords())
+            .map((course) => {
+              const id = String(course?.id || '').trim()
+              const name = String(course?.name || '').trim()
+              if (!id || !name) return null
+              return [
+                id,
+                {
                   id,
-                  {
-                    id,
-                    name,
-                    actualFees: course?.actualFees ?? '',
-                    registrationFees: course?.registrationFees ?? '',
-                    discount: course?.discount ?? '',
-                    afterDiscount: course?.afterDiscount ?? '',
-                    installment1: course?.installment1 ?? '',
-                    installment2: course?.installment2 ?? '',
-                    installment3: course?.installment3 ?? '',
-                  },
-                ]
-              })
-              .filter(Boolean),
-          ).values(),
-        )
+                  name,
+                  actualFees: course?.actualFees ?? '',
+                  registrationFees: course?.registrationFees ?? '',
+                  discount: course?.discount ?? '',
+                  afterDiscount: course?.afterDiscount ?? '',
+                  installment1: course?.installment1 ?? '',
+                  installment2: course?.installment2 ?? '',
+                  installment3: course?.installment3 ?? '',
+                },
+              ]
+            })
+            .filter(Boolean),
+        ).values(),
+      )
 
-        setCourseOptions(uniqueCourseOptions)
-      } catch {
-        if (isActive) {
-          setCourseOptions([])
-        }
-      } finally {
-        if (isActive) {
-          setIsCoursesLoading(false)
-        }
-      }
+      setCourseOptions(uniqueCourseOptions)
+      setIsCoursesLoading(false)
     }
 
-    void loadCourseOptions()
+    loadCourseOptions()
+
+    const syncCourseOptions = () => {
+      loadCourseOptions()
+    }
+
+    window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
+    window.addEventListener('storage', syncCourseOptions)
 
     return () => {
-      isActive = false
+      window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
+      window.removeEventListener('storage', syncCourseOptions)
     }
   }, [])
 
@@ -874,7 +962,7 @@ export function StudentManagementPage() {
   const shouldShowError = (name) => submitted || fieldFocus[name]
 
   const goToNextStep = () => {
-    const stepErrors = validateStep(form, currentStep)
+    const stepErrors = validateStep(form, currentStep, selectedCourse)
     if (Object.keys(stepErrors).length > 0) {
       setSubmitted(true)
       return
@@ -889,48 +977,80 @@ export function StudentManagementPage() {
     setCurrentStep((value) => Math.max(value - 1, 0))
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true)
+    setActionError('')
 
-    const nextErrors = validateForm(form)
+    const nextErrors = validateForm(form, selectedCourse)
+    const duplicateStudent = findDuplicateStudent(form, students, editingStudentId)
     if (Object.keys(nextErrors).length > 0) {
+      const firstErrorField = Object.keys(nextErrors)[0]
+      setCurrentStep(getStepIndexForField(firstErrorField))
+      setFieldFocus((current) => ({
+        ...current,
+        [firstErrorField]: true,
+      }))
+      setActionError(Object.values(nextErrors)[0] || 'Please complete the required fields before submitting.')
       return
     }
 
-    const course = findCourseForForm(courseOptions, form)
-    const record = {
-      id: editingStudentId || (globalThis.crypto?.randomUUID?.() || `student-${Date.now()}`).toString(),
+    if (duplicateStudent) {
+      setCurrentStep(getStepIndexForField('emailAddress'))
+      setFieldFocus((current) => ({
+        ...current,
+        emailAddress: true,
+      }))
+      setActionError(
+        'Email already exists.',
+      )
+      return
+    }
+
+    const course = selectedCourse
+    const existingStudent = editingStudentId ? students.find((student) => student.id === editingStudentId) : null
+    const secondDueDate = addOneMonth(form.admissionDate)
+    const thirdDueDate = hasThirdInstallment(form, course) ? addOneMonth(secondDueDate) : ''
+    const firstInstallmentStatus = existingStudent?.firstInstallmentStatus || 'Pending'
+    const secondInstallmentStatus = existingStudent?.secondInstallmentStatus || 'Pending'
+    const thirdInstallmentStatus = hasThirdInstallment(form, course) ? existingStudent?.thirdInstallmentStatus || 'Pending' : ''
+    const payload = {
       ...form,
       courseId: form.courseId || course?.id || '',
       courseInterested: form.courseInterested || course?.name || '',
       facultyName: form.facultyName || '',
       batch: form.batch || '',
-      counselorName,
-      totalAmount: form.afterDiscount || '',
-      firstInstallmentAmount: form.installment1 || '',
-      firstInstallmentDate: form.admissionDate,
-      firstInstallmentStatus: 'Paid',
-      firstInstallmentPaidAt: form.admissionDate,
-      secondInstallmentAmount: form.installment2 || '',
-      secondDueDate: addOneMonth(form.admissionDate),
-      secondInstallmentStatus: 'Pending',
-      secondInstallmentPaidAt: '',
-      overdueDays: 0,
-      addedAt: editingStudentId
-        ? students.find((student) => student.id === editingStudentId)?.addedAt || new Date().toISOString()
-        : new Date().toISOString(),
+      totalAmount: form.afterDiscount || form.totalAmount || '',
+      firstInstallmentAmount: form.installment1 || course?.installment1 || '',
+      secondInstallmentAmount: form.installment2 || course?.installment2 || '',
+      thirdInstallmentAmount: hasThirdInstallment(form, course) ? form.installment3 || course?.installment3 || '' : '',
+      firstInstallmentDate: form.admissionDate || existingStudent?.firstInstallmentDate || '',
+      secondInstallmentDate: existingStudent?.secondInstallmentDate || '',
+      thirdInstallmentDate: existingStudent?.thirdInstallmentDate || '',
+      secondDueDate,
+      thirdDueDate,
+      firstInstallmentStatus,
+      firstInstallmentPaidAt: existingStudent?.firstInstallmentPaidAt || '',
+      secondInstallmentStatus,
+      secondInstallmentPaidAt: existingStudent?.secondInstallmentPaidAt || '',
+      thirdInstallmentStatus,
+      thirdInstallmentPaidAt: existingStudent?.thirdInstallmentPaidAt || '',
     }
 
-    record.overdueDays =
-      record.secondInstallmentStatus === 'Paid' ? 0 : diffInDays(record.secondDueDate, getTodayValue())
+    const localSavedStudent = normalizeStudentList([
+      {
+        ...(existingStudent || {}),
+        ...payload,
+        id: editingStudentId || existingStudent?.id || `local-${Date.now()}`,
+        counselorName,
+      },
+    ])[0]
 
-    const nextStudents = editingStudentId
-      ? students.map((student) => (student.id === editingStudentId ? { ...student, ...record } : student))
-      : [record, ...students]
+    const nextStudents = students.some((student) => student.id === localSavedStudent.id)
+      ? students.map((student) => (student.id === localSavedStudent.id ? localSavedStudent : student))
+      : [localSavedStudent, ...students]
 
-    saveStudents(nextStudents)
+    persistStudentList(nextStudents)
     setCurrentPage(1)
-
     setIsModalOpen(false)
     setForm(createEmptyForm())
     setFieldFocus({})
@@ -942,9 +1062,22 @@ export function StudentManagementPage() {
     event.preventDefault()
   }
 
-  const handleDelete = (studentId) => {
-    const nextStudents = students.filter((student) => student.id !== studentId)
-    saveStudents(nextStudents)
+  const closeSubmissionPopup = () => {
+    setActionError('')
+  }
+
+  const handlePrimaryAction = () => {
+    if (currentStep < studentWizardSteps.length - 1) {
+      goToNextStep()
+      return
+    }
+
+    void handleSubmit()
+  }
+
+  const handleDelete = async (studentId) => {
+    setActionError('')
+    persistStudentList(students.filter((student) => student.id !== studentId))
 
     if (selectedStudentId === studentId) {
       closeDrawer()
@@ -953,24 +1086,38 @@ export function StudentManagementPage() {
 
   const confirmDelete = () => {
     if (!deleteTarget) return
-    handleDelete(deleteTarget.id)
+    void handleDelete(deleteTarget.id)
     closeDeleteModal()
   }
 
-  const toggleInstallmentStatus = (studentId, installmentField, paidAtField) => {
-    const nextStudents = students.map((student) => {
-      if (student.id !== studentId) return student
+  const toggleInstallmentStatus = async (studentId, installmentField, paidAtField) => {
+    const currentStudent = students.find((student) => student.id === studentId)
+    if (!currentStudent) return
 
-      const nextStatus = student[installmentField] === 'Paid' ? 'Pending' : 'Paid'
+    if (installmentField === 'secondInstallmentStatus' && currentStudent.firstInstallmentStatus !== 'Paid') {
+      return
+    }
 
-      return {
-        ...student,
-        [installmentField]: nextStatus,
-        [paidAtField]: nextStatus === 'Paid' ? getTodayValue() : '',
-      }
-    })
+    if (installmentField === 'thirdInstallmentStatus' && currentStudent.secondInstallmentStatus !== 'Paid') {
+      return
+    }
 
-    saveStudents(nextStudents)
+    setActionError('')
+    const nextStatus = currentStudent[installmentField] === 'Paid' ? 'Pending' : 'Paid'
+    const nextPaidAt = nextStatus === 'Paid' ? getTodayValue() : ''
+
+    const nextStudents = students.map((student) =>
+      student.id === studentId
+        ? {
+            ...currentStudent,
+            [installmentField]: nextStatus,
+            [paidAtField]: nextPaidAt,
+            counselorName: currentStudent.counselorName || counselorName,
+          }
+        : student,
+    )
+
+    persistStudentList(nextStudents)
   }
 
   return (
@@ -1006,7 +1153,19 @@ export function StudentManagementPage() {
           ) : null}
         </div>
 
-        {students.length ? (
+        {actionError ? (
+          <div className="student-empty-state" role="alert" aria-live="polite">
+            <strong>Action failed</strong>
+            <p>{actionError}</p>
+          </div>
+        ) : null}
+
+        {isStudentsLoading ? (
+          <div className="student-empty-state">
+            <strong>Loading students...</strong>
+            <p>Connecting to the backend student records.</p>
+          </div>
+        ) : students.length ? (
           <div className="student-table-wrap">
             <table className="student-table">
               <thead>
@@ -1019,15 +1178,24 @@ export function StudentManagementPage() {
                   <th>1st Installment</th>
                   <th>2nd Installment</th>
                   <th>2nd Due Date</th>
+                  <th>3rd Installment</th>
+                  <th>3rd Due Date</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedStudents.map((student) => {
-                  const dueDate = student.secondDueDate || addOneMonth(student.admissionDate)
-                  const overdueDays =
-                    student.secondInstallmentStatus === 'Paid' ? 0 : diffInDays(dueDate, getTodayValue())
+                  const studentCourse = findCourseForStudent(student, courseOptions)
+                  const studentHasThirdInstallment = hasThirdInstallment(student, studentCourse)
+                  const secondDueDate = getSecondDueDate(student)
+                  const thirdDueDate = getThirdDueDate(student)
+                  const secondOverdueDays = String(student.secondInstallmentStatus || 'Pending') === 'Paid'
+                    ? 0
+                    : diffInDays(secondDueDate, getTodayValue())
+                  const thirdOverdueDays = studentHasThirdInstallment && String(student.thirdInstallmentStatus || 'Pending') !== 'Paid'
+                    ? diffInDays(thirdDueDate || addOneMonth(secondDueDate), getTodayValue())
+                    : 0
 
                   return (
                     <tr key={student.id}>
@@ -1047,7 +1215,7 @@ export function StudentManagementPage() {
       onChange={() => toggleInstallmentStatus(student.id, 'firstInstallmentStatus', 'firstInstallmentPaidAt')}
     />
     <strong>{formatCurrency(student.firstInstallmentAmount)}</strong>
-    <small>{student.firstInstallmentStatus}</small>
+    {student.firstInstallmentStatus === 'Paid' ? null : <small>{student.firstInstallmentStatus}</small>}
   </label>
 </td>
   <td>
@@ -1055,15 +1223,44 @@ export function StudentManagementPage() {
     <input
       type="checkbox"
       checked={student.secondInstallmentStatus === 'Paid'}
+      disabled={student.firstInstallmentStatus !== 'Paid'}
       onChange={() => toggleInstallmentStatus(student.id, 'secondInstallmentStatus', 'secondInstallmentPaidAt')}
     />
     <strong>{formatCurrency(student.secondInstallmentAmount)}</strong>
-    <small>{student.secondInstallmentStatus}</small>
+    {student.secondInstallmentStatus === 'Paid' ? null : <small>{student.secondInstallmentStatus}</small>}
   </label>
 </td>
                       <td className="student-date-single-line">
-                        <strong>{formatDate(dueDate)}</strong>
-                        <small>{overdueDays > 0 ? `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}</small>
+                        <strong>{formatDate(secondDueDate)}</strong>
+                        <small>{secondOverdueDays > 0 ? `${secondOverdueDays} day${secondOverdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}</small>
+                      </td>
+                      <td>
+                        {studentHasThirdInstallment ? (
+                          <label className="installment-check">
+                            <input
+                              type="checkbox"
+                              checked={student.thirdInstallmentStatus === 'Paid'}
+                              disabled={student.secondInstallmentStatus !== 'Paid'}
+                              onChange={() => toggleInstallmentStatus(student.id, 'thirdInstallmentStatus', 'thirdInstallmentPaidAt')}
+                            />
+                            <strong>{formatCurrency(student.thirdInstallmentAmount || student.installment3 || studentCourse?.installment3)}</strong>
+                            {student.thirdInstallmentStatus === 'Paid' ? null : <small>{student.thirdInstallmentStatus}</small>}
+                          </label>
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="student-date-single-line">
+                        {studentHasThirdInstallment ? (
+                          <>
+                            <strong>{formatDate(thirdDueDate || addOneMonth(secondDueDate))}</strong>
+                            <small>
+                              {thirdOverdueDays > 0 ? `${thirdOverdueDays} day${thirdOverdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}
+                            </small>
+                          </>
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td>
                         <PaymentStatusBadge student={student} />
@@ -1157,6 +1354,40 @@ export function StudentManagementPage() {
               </div>
             </div>
 
+            {actionError ? (
+              <div className="student-submit-popup" role="presentation" onClick={closeSubmissionPopup}>
+                <div
+                  className="student-submit-popup-card"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="student-submit-popup-title"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className="student-submit-popup-close"
+                    onClick={closeSubmissionPopup}
+                    aria-label="Close submission popup"
+                  >
+                    X
+                  </button>
+                  <div className="student-submit-popup-icon" aria-hidden="true">
+                    <DangerIcon />
+                  </div>
+                  <div className="student-submit-popup-copy">
+                    <p className="section-kicker">Submission blocked</p>
+                    <h4 id="student-submit-popup-title">Cannot save student</h4>
+                    <p>{actionError}</p>
+                  </div>
+                  <div className="student-submit-popup-actions">
+                    <button type="button" className="button button-solid" onClick={closeSubmissionPopup}>
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="student-stepper">
               {studentWizardSteps.map((step, index) => (
                 <div key={step.key} className={`student-stepper-item ${currentStep === index ? 'active' : ''} ${currentStep > index ? 'done' : ''}`.trim()}>
@@ -1209,9 +1440,11 @@ export function StudentManagementPage() {
                     <input
                       type="email"
                       value={form.emailAddress}
-                      onChange={(event) => updateField('emailAddress', event.target.value)}
+                      onChange={(event) => updateField('emailAddress', event.target.value.replace(/\s+/g, '').toLowerCase())}
                       onBlur={() => markTouched('emailAddress')}
                       placeholder="name@example.com"
+                      autoCapitalize="none"
+                      autoCorrect="off"
                     />
                   </Field>
 
@@ -1434,11 +1667,9 @@ export function StudentManagementPage() {
             </div>
 
             <div className="course-validation-note student-validation-note">
-              {Object.keys(validateStep(form, currentStep)).length
-                ? 'Please review the highlighted fields before continuing.'
-                : currentStep === 2
-                  ? 'All required details should be entered accurately.'
-                  : 'Complete this section to move to the next step.'}
+              {currentStep === 2
+                ? 'All required details should be entered accurately.'
+                : 'Complete this section to move to the next step.'}
             </div>
 
             <div className="course-form-actions">
@@ -1451,11 +1682,11 @@ export function StudentManagementPage() {
                 </Button>
               ) : null}
               {currentStep < studentWizardSteps.length - 1 ? (
-                <Button type="button" onClick={goToNextStep}>
+                <Button type="button" onClick={handlePrimaryAction}>
                   Next
                 </Button>
               ) : (
-                <Button type="button" onClick={handleSubmit}>
+                <Button type="button" onClick={handlePrimaryAction}>
                   {editingStudentId ? 'Update Student' : 'Submit'}
                 </Button>
               )}
@@ -1476,10 +1707,6 @@ export function StudentManagementPage() {
                     <span className="student-drawer-status-pill">Active</span>
                   </div>
                   <div className="student-drawer-summary-grid">
-                    <div>
-                      <span>Student ID</span>
-                      <strong>{`STU${String(selectedStudent.id || '').replace(/\D/g, '').slice(-6).padStart(6, '0')}`}</strong>
-                    </div>
                     <div>
                       <span>Course</span>
                       <strong>{selectedStudent.courseInterested}</strong>
@@ -1579,20 +1806,39 @@ export function StudentManagementPage() {
               <div className="student-installment-grid">
                 <DetailItem label="1st Installment Amount" value={formatCurrency(selectedStudent.firstInstallmentAmount || selectedStudent.installment1)} icon={<DetailIcon kind="installment" />} />
                 <DetailItem label="1st Installment Date" value={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)} icon={<DetailIcon kind="calendar" />} />
-                <DetailItem label="1st Installment Status" value={selectedStudent.firstInstallmentStatus || 'Paid'} icon={<DetailIcon kind="status" />} />
+                <DetailItem label="1st Installment Status" value={selectedStudent.firstInstallmentStatus || 'Pending'} icon={<DetailIcon kind="status" />} />
                 <DetailItem label="2nd Installment Amount" value={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)} icon={<DetailIcon kind="installment" />} />
-                <DetailItem label="2nd Due Date" value={formatDate(selectedStudent.secondDueDate || addOneMonth(selectedStudent.admissionDate))} icon={<DetailIcon kind="calendar" />} />
+                <DetailItem label="2nd Due Date" value={formatDate(getSecondDueDate(selectedStudent))} icon={<DetailIcon kind="calendar" />} />
                 <DetailItem
                   label="2nd Installment Status"
                   value={selectedStudent.secondInstallmentStatus || 'Pending'}
                   icon={<DetailIcon kind="status" />}
                 />
+                {hasThirdInstallment(selectedStudent, selectedStudentCourse) ? (
+                  <>
+                    <DetailItem
+                      label="3rd Installment Amount"
+                      value={formatCurrency(selectedStudent.thirdInstallmentAmount || selectedStudent.installment3 || selectedStudentCourse?.installment3)}
+                      icon={<DetailIcon kind="installment" />}
+                    />
+                    <DetailItem label="3rd Due Date" value={formatDate(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)))} icon={<DetailIcon kind="calendar" />} />
+                    <DetailItem
+                      label="3rd Installment Status"
+                      value={selectedStudent.thirdInstallmentStatus || 'Pending'}
+                      icon={<DetailIcon kind="status" />}
+                    />
+                  </>
+                ) : null}
                 <DetailItem
                   label="Overdue Days"
                   value={
-                    (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
+                    hasThirdInstallment(selectedStudent, selectedStudentCourse)
+                      ? (selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid'
+                        ? 'No overdue'
+                        : `${diffInDays(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)), getTodayValue())} Days`
+                      : (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
                       ? 'No overdue'
-                      : `${diffInDays(selectedStudent.secondDueDate || addOneMonth(selectedStudent.admissionDate), getTodayValue())} Days`
+                      : `${diffInDays(getSecondDueDate(selectedStudent), getTodayValue())} Days`
                   }
                   icon={<DetailIcon kind="calendar" />}
                 />

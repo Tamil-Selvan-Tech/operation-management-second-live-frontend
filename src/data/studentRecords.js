@@ -9,3 +9,12 @@ export function loadStudentRecords() {
     return []
   }
 }
+
+export function saveStudentRecords(records) {
+  try {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(Array.isArray(records) ? records : []))
+  } catch {
+    // ignore storage errors
+  }
+}

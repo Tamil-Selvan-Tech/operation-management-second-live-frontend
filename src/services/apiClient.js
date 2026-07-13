@@ -40,6 +40,7 @@ async function request(path, options = {}, retryCount = 0) {
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...fetchOptions,
+    credentials: fetchOptions.credentials || 'include',
     cache: fetchOptions.cache || 'no-store',
     body,
     headers,
@@ -99,6 +100,7 @@ export async function refreshAccessToken() {
 
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
+    credentials: 'include',
     cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
@@ -132,6 +134,7 @@ export async function logoutSession() {
     await request('/auth/logout', {
       method: 'POST',
       skipAuth: true,
+      credentials: 'include',
       body: JSON.stringify({ refreshToken }),
     })
   } finally {

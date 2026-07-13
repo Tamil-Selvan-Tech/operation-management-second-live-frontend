@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  createCourse,
-  deleteCourse,
-  listCourses,
-  normalizeCourseList,
-  updateCourse,
-} from '../services/courseService'
+import { normalizeCourse, normalizeCourseList } from '../services/courseService'
+import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords, saveCourseRecords } from '../data/courseRecords'
 
-function Field({ label, hint, children, required = false }) {
+function Field({ label, hint, error, children, required = false }) {
   return (
     <label className="course-field">
       <span>
@@ -16,6 +11,7 @@ function Field({ label, hint, children, required = false }) {
       </span>
       {children}
       {hint ? <small>{hint}</small> : null}
+      {error ? <small className="course-field-error">{error}</small> : null}
     </label>
   )
 }
@@ -82,7 +78,7 @@ function formatHours(value) {
 
 export function CoursesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [courses, setCourses] = useState([])
+  const [courses, setCourses] = useState(() => normalizeCourseList(loadCourseRecords()))
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 5,
@@ -108,7 +104,7 @@ export function CoursesPage() {
     installment3: '',
     status: '',
   })
-  const [touched, setTouched] = useState(false)
+  const [touched, setTouched] = useState({})
   const [saveError, setSaveError] = useState('')
   const [loadError, setLoadError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -118,6 +114,25 @@ export function CoursesPage() {
 
   const pageSize = 5
 
+  const requiredFieldLabels = {
+    name: 'Course Name',
+    mode: 'Mode',
+    duration: 'Duration (Months)',
+    hours: 'Hours',
+    actualFees: 'Actual Fees',
+    registrationFees: 'Registration Fees',
+    discount: 'Discount',
+    installmentCount: 'Installment Count',
+    installment1: 'Installment 1',
+    installment2: 'Installment 2',
+    installment3: 'Installment 3',
+    status: 'Status',
+  }
+
+  const markTouched = (field) => {
+    setTouched((current) => (current[field] ? current : { ...current, [field]: true }))
+  }
+
   const afterDiscount = useMemo(() => {
     const actualFees = Number(form.actualFees || 0)
     const discount = Number(form.discount || 0)
@@ -125,39 +140,60 @@ export function CoursesPage() {
     return String(Math.max(actualFees - discount, 0))
   }, [form.actualFees, form.discount])
 
-  const validationError = useMemo(() => {
-    if (!form.name.trim() || !form.mode || !form.duration || !form.hours || !form.actualFees || !form.registrationFees || !form.discount || !form.installmentCount || !form.installment1 || !form.installment2 || !form.status) {
-      return 'Please fill all required fields before saving.'
+  const validationErrors = useMemo(() => {
+    const errors = {}
+
+    if (!form.name.trim()) errors.name = `${requiredFieldLabels.name} is required.`
+    if (!form.mode) errors.mode = `${requiredFieldLabels.mode} is required.`
+    if (!form.duration) errors.duration = `${requiredFieldLabels.duration} is required.`
+    if (form.duration && Number(form.duration) <= 0) errors.duration = 'Duration must be greater than zero.'
+    if (!form.hours) errors.hours = `${requiredFieldLabels.hours} is required.`
+    if (form.hours && Number(form.hours) <= 0) errors.hours = 'Hours must be greater than zero.'
+    if (!form.actualFees) errors.actualFees = `${requiredFieldLabels.actualFees} is required.`
+    if (!form.registrationFees) errors.registrationFees = `${requiredFieldLabels.registrationFees} is required.`
+    if (!form.discount) errors.discount = `${requiredFieldLabels.discount} is required.`
+    if (!form.installmentCount) errors.installmentCount = `${requiredFieldLabels.installmentCount} is required.`
+    if (!form.installment1) errors.installment1 = `${requiredFieldLabels.installment1} is required.`
+    if (!form.installment2) errors.installment2 = `${requiredFieldLabels.installment2} is required.`
+    if (form.installmentCount === '3' && !form.installment3) errors.installment3 = `${requiredFieldLabels.installment3} is required.`
+    if (!form.status) errors.status = `${requiredFieldLabels.status} is required.`
+
+    if (form.actualFees && form.discount && Number(form.discount) > Number(form.actualFees)) {
+      errors.discount = 'Discount must be less than or equal to actual fees.'
     }
 
-    if (form.installmentCount === '3' && !form.installment3) {
-      return 'Please fill Installment 3 before saving.'
+    const allRequiredFilled =
+      form.name.trim() &&
+      form.mode &&
+      form.duration &&
+      form.hours &&
+      form.actualFees &&
+      form.registrationFees &&
+      form.discount &&
+      form.installmentCount &&
+      form.installment1 &&
+      form.installment2 &&
+      form.status &&
+      (form.installmentCount !== '3' || form.installment3)
+
+    if (allRequiredFilled) {
+      const discountedFee = Number(form.actualFees) - Number(form.discount)
+      const installmentTotal =
+        Number(form.installment1 || 0) +
+        Number(form.installment2 || 0) +
+        (form.installmentCount === '3' ? Number(form.installment3 || 0) : 0)
+
+      if (installmentTotal !== discountedFee) {
+        errors.installment1 = `Installment total must match ${discountedFee}.`
+        errors.installment2 = `Installment total must match ${discountedFee}.`
+        if (form.installmentCount === '3') {
+          errors.installment3 = `Installment total must match ${discountedFee}.`
+        }
+      }
     }
 
-    if (Number(form.discount) > Number(form.actualFees)) {
-      return 'Discount cannot be greater than actual fees.'
-    }
-
-    if (Number(form.duration) <= 0) {
-      return 'Duration must be greater than zero.'
-    }
-
-    if (Number(form.hours) <= 0) {
-      return 'Hours must be greater than zero.'
-    }
-
-    const discountedFee = Number(form.actualFees) - Number(form.discount)
-    const installmentTotal =
-      Number(form.installment1 || 0) +
-      Number(form.installment2 || 0) +
-      (form.installmentCount === '3' ? Number(form.installment3 || 0) : 0)
-
-    if (installmentTotal !== discountedFee) {
-      return `Installment totals must match the discounted fee. Current total is ${installmentTotal}, expected ${discountedFee}.`
-    }
-
-    return ''
-  }, [form])
+    return errors
+  }, [form, requiredFieldLabels])
 
   const totalPages = pagination.totalPages || 1
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -166,48 +202,47 @@ export function CoursesPage() {
   const loadCourses = useCallback(
     async ({ page = currentPage, search = searchTerm, filter = activeFilter } = {}) => {
       const requestId = ++requestIdRef.current
-      const params = {
-        page,
-        limit: pageSize,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      }
-
-      const trimmedSearch = search.trim()
-      if (trimmedSearch) {
-        params.search = trimmedSearch
-      }
-
-      if (filter === 'Active' || filter === 'Inactive') {
-        params.status = filter
-      } else if (filter === 'Online' || filter === 'Offline') {
-        params.mode = filter
-      }
-
       setIsLoading(true)
       setLoadError('')
 
       try {
-        const result = await listCourses(params)
+        const allCourses = normalizeCourseList(loadCourseRecords())
+        const trimmedSearch = search.trim().toLowerCase()
+        const filteredCourses = allCourses.filter((course) => {
+          const matchesSearch =
+            !trimmedSearch ||
+            [course.name, course.mode, course.status, course.duration, course.hours]
+              .map((value) => String(value || '').toLowerCase())
+              .some((value) => value.includes(trimmedSearch))
+
+          const matchesFilter =
+            filter === 'All' ||
+            (filter === 'Active' && course.status === 'Active') ||
+            (filter === 'Inactive' && course.status === 'Inactive') ||
+            (filter === 'Online' && course.mode === 'Online') ||
+            (filter === 'Offline' && course.mode === 'Offline')
+
+          return matchesSearch && matchesFilter
+        })
+
+        const total = filteredCourses.length
+        const totalPages = Math.max(1, Math.ceil(total / pageSize))
+        const nextPage = Math.min(page, totalPages)
+        const start = (nextPage - 1) * pageSize
+        const nextCourses = filteredCourses.slice(start, start + pageSize)
+
         if (requestId !== requestIdRef.current) return
-        const nextCourses = normalizeCourseList(result.data)
-        const nextMeta = result.meta || {
-          page,
-          limit: pageSize,
-          total: nextCourses.length,
-          totalPages: 1,
-        }
 
         setCourses(nextCourses)
         setPagination({
-          page: nextMeta.page || page,
-          limit: nextMeta.limit || pageSize,
-          total: nextMeta.total || nextCourses.length,
-          totalPages: nextMeta.totalPages || 1,
+          page: nextPage,
+          limit: pageSize,
+          total,
+          totalPages,
         })
 
-        if (page > (nextMeta.totalPages || 1) && (nextMeta.total || 0) > 0) {
-          setCurrentPage(nextMeta.totalPages || 1)
+        if (page !== nextPage) {
+          setCurrentPage(nextPage)
         }
       } catch (error) {
         if (requestId !== requestIdRef.current) return
@@ -218,7 +253,7 @@ export function CoursesPage() {
           total: 0,
           totalPages: 1,
         })
-        setLoadError(error?.body?.message || error?.message || 'Unable to load courses right now.')
+        setLoadError(error?.message || 'Unable to load courses right now.')
       } finally {
         if (requestId === requestIdRef.current) {
           setIsLoading(false)
@@ -234,6 +269,20 @@ export function CoursesPage() {
     }
 
     void run()
+  }, [activeFilter, currentPage, loadCourses, searchTerm])
+
+  useEffect(() => {
+    const syncCourses = () => {
+      void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
+    }
+
+    window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourses)
+    window.addEventListener('storage', syncCourses)
+
+    return () => {
+      window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourses)
+      window.removeEventListener('storage', syncCourses)
+    }
   }, [activeFilter, currentPage, loadCourses, searchTerm])
 
   const pageList = useMemo(() => {
@@ -283,7 +332,7 @@ export function CoursesPage() {
       installment3: '',
       status: '',
     })
-    setTouched(false)
+    setTouched({})
     setSaveError('')
     setEditingCourseId(null)
   }
@@ -337,13 +386,20 @@ export function CoursesPage() {
     setCurrentPage(1)
   }
 
-  const isValid = !validationError
+  const isValid = Object.keys(validationErrors).length === 0
+
+  const shouldShowError = (field) => Boolean(touched[field] && validationErrors[field])
 
   const handleSave = async (event) => {
     event?.preventDefault()
-    setTouched(true)
+    const allTouched = Object.keys(requiredFieldLabels).reduce((acc, key) => {
+      acc[key] = true
+      return acc
+    }, {})
+    setTouched(allTouched)
     if (!isValid) {
-      setSaveError(validationError)
+      const firstError = Object.values(validationErrors)[0]
+      setSaveError(firstError || 'Please fill all required fields before saving.')
       return
     }
 
@@ -351,6 +407,7 @@ export function CoursesPage() {
     setIsSaving(true)
 
     const payload = {
+      id: editingCourseId || `course-${Date.now()}`,
       name: form.name.trim(),
       mode: form.mode,
       duration: form.duration,
@@ -366,20 +423,19 @@ export function CoursesPage() {
     }
 
     try {
-      const nextPage = editingCourseId ? currentPage : 1
-      if (editingCourseId) {
-        await updateCourse(editingCourseId, payload)
-      } else {
-        await createCourse(payload)
-      }
+      const existingCourses = normalizeCourseList(loadCourseRecords())
+      const nextCourse = normalizeCourse(payload)
+      const nextCourses = editingCourseId
+        ? existingCourses.map((course) => (course.id === editingCourseId ? { ...course, ...nextCourse } : course))
+        : [nextCourse, ...existingCourses]
 
-      setCurrentPage(nextPage)
-      if (editingCourseId || currentPage === 1) {
-        await loadCourses({ page: nextPage, search: searchTerm, filter: activeFilter })
-      }
+      saveCourseRecords(nextCourses)
+      window.dispatchEvent(new Event(COURSE_RECORD_SYNC_EVENT))
+      setCurrentPage(editingCourseId ? currentPage : 1)
+      await loadCourses({ page: editingCourseId ? currentPage : 1, search: searchTerm, filter: activeFilter })
       closeModal()
     } catch (error) {
-      setSaveError(error?.body?.message || error?.message || 'Unable to save course right now.')
+      setSaveError(error?.message || 'Unable to save course right now.')
     } finally {
       setIsSaving(false)
     }
@@ -394,7 +450,9 @@ export function CoursesPage() {
     setIsDeleting(true)
 
     try {
-      await deleteCourse(deleteTarget.id)
+      const nextCourses = normalizeCourseList(loadCourseRecords()).filter((course) => course.id !== deleteTarget.id)
+      saveCourseRecords(nextCourses)
+      window.dispatchEvent(new Event(COURSE_RECORD_SYNC_EVENT))
       if (editingCourseId === deleteTarget.id) {
         closeModal()
       }
@@ -402,7 +460,7 @@ export function CoursesPage() {
       closeDeleteModal()
       await loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
     } catch (error) {
-      setLoadError(error?.body?.message || error?.message || 'Unable to delete course right now.')
+      setLoadError(error?.message || 'Unable to delete course right now.')
       closeDeleteModal()
     } finally {
       setIsDeleting(false)
@@ -468,17 +526,24 @@ export function CoursesPage() {
             </div>
 
             <div className="course-form-grid">
-              <Field label="Course Name" required hint="Required field">
+              <Field label="Course Name" required hint="Required field" error={shouldShowError('name') ? validationErrors.name : ''}>
                 <input
                   type="text"
                   placeholder="Enter course name"
                   value={form.name}
                   onChange={(event) => updateField('name', event.target.value)}
+                  onBlur={() => markTouched('name')}
+                  aria-invalid={Boolean(shouldShowError('name'))}
                 />
               </Field>
 
-              <Field label="Mode" required hint="Online / Offline / Hybrid">
-                <select value={form.mode} onChange={(event) => updateField('mode', event.target.value)}>
+              <Field label="Mode" required hint="Online / Offline / Hybrid" error={shouldShowError('mode') ? validationErrors.mode : ''}>
+                <select
+                  value={form.mode}
+                  onChange={(event) => updateField('mode', event.target.value)}
+                  onBlur={() => markTouched('mode')}
+                  aria-invalid={Boolean(shouldShowError('mode'))}
+                >
                   <option value="" disabled>
                     Select mode
                   </option>
@@ -488,7 +553,7 @@ export function CoursesPage() {
                 </select>
               </Field>
 
-              <Field label="Duration (Months)" required hint="Numbers only">
+              <Field label="Duration (Months)" required hint="Numbers only" error={shouldShowError('duration') ? validationErrors.duration : ''}>
                 <div className="course-input-with-suffix">
                   <input
                     type="text"
@@ -497,12 +562,14 @@ export function CoursesPage() {
                     placeholder="6"
                     value={form.duration}
                     onChange={(event) => updateNumericField('duration', event.target.value)}
+                    onBlur={() => markTouched('duration')}
+                    aria-invalid={Boolean(shouldShowError('duration'))}
                   />
                   <span>{Number(form.duration) === 1 ? 'month' : 'months'}</span>
                 </div>
               </Field>
 
-              <Field label="Hours" required hint="Numbers only">
+              <Field label="Hours" required hint="Numbers only" error={shouldShowError('hours') ? validationErrors.hours : ''}>
                 <div className="course-input-with-suffix">
                   <input
                     type="text"
@@ -511,12 +578,14 @@ export function CoursesPage() {
                     placeholder="180"
                     value={form.hours}
                     onChange={(event) => updateNumericField('hours', event.target.value)}
+                    onBlur={() => markTouched('hours')}
+                    aria-invalid={Boolean(shouldShowError('hours'))}
                   />
                   <span>{Number(form.hours) === 1 ? 'hour' : 'hours'}</span>
                 </div>
               </Field>
 
-              <Field label="Actual Fees" required hint="Numbers only">
+              <Field label="Actual Fees" required hint="Numbers only" error={shouldShowError('actualFees') ? validationErrors.actualFees : ''}>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -524,10 +593,12 @@ export function CoursesPage() {
                   placeholder="24000"
                   value={form.actualFees}
                   onChange={(event) => updateNumericField('actualFees', event.target.value)}
+                  onBlur={() => markTouched('actualFees')}
+                  aria-invalid={Boolean(shouldShowError('actualFees'))}
                 />
               </Field>
 
-              <Field label="Registration Fees" required hint="Numbers only">
+              <Field label="Registration Fees" required hint="Numbers only" error={shouldShowError('registrationFees') ? validationErrors.registrationFees : ''}>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -535,10 +606,12 @@ export function CoursesPage() {
                   placeholder="500"
                   value={form.registrationFees}
                   onChange={(event) => updateNumericField('registrationFees', event.target.value)}
+                  onBlur={() => markTouched('registrationFees')}
+                  aria-invalid={Boolean(shouldShowError('registrationFees'))}
                 />
               </Field>
 
-              <Field label="Discount" required hint="Must be less than or equal to actual fees">
+              <Field label="Discount" required hint="Must be less than or equal to actual fees" error={shouldShowError('discount') ? validationErrors.discount : ''}>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -546,6 +619,8 @@ export function CoursesPage() {
                   placeholder="2000"
                   value={form.discount}
                   onChange={(event) => updateNumericField('discount', event.target.value)}
+                  onBlur={() => markTouched('discount')}
+                  aria-invalid={Boolean(shouldShowError('discount'))}
                 />
               </Field>
 
@@ -553,14 +628,19 @@ export function CoursesPage() {
                 <input type="text" value={afterDiscount} readOnly />
               </Field>
 
-              <Field label="Installment Count" required hint="Choose 2 for basic courses or 3 for special courses">
-                <select value={form.installmentCount} onChange={(event) => updateField('installmentCount', event.target.value)}>
+              <Field label="Installment Count" required hint="Choose 2 for basic courses or 3 for special courses" error={shouldShowError('installmentCount') ? validationErrors.installmentCount : ''}>
+                <select
+                  value={form.installmentCount}
+                  onChange={(event) => updateField('installmentCount', event.target.value)}
+                  onBlur={() => markTouched('installmentCount')}
+                  aria-invalid={Boolean(shouldShowError('installmentCount'))}
+                >
                   <option value="2">2 Installments</option>
                   <option value="3">3 Installments</option>
                 </select>
               </Field>
 
-              <Field label="Installment 1" required hint="Numbers only">
+              <Field label="Installment 1" required hint="Numbers only" error={shouldShowError('installment1') ? validationErrors.installment1 : ''}>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -568,10 +648,12 @@ export function CoursesPage() {
                   placeholder="11000"
                   value={form.installment1}
                   onChange={(event) => updateNumericField('installment1', event.target.value)}
+                  onBlur={() => markTouched('installment1')}
+                  aria-invalid={Boolean(shouldShowError('installment1'))}
                 />
               </Field>
 
-              <Field label="Installment 2" required hint="Numbers only">
+              <Field label="Installment 2" required hint="Numbers only" error={shouldShowError('installment2') ? validationErrors.installment2 : ''}>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -579,11 +661,13 @@ export function CoursesPage() {
                   placeholder="11000"
                   value={form.installment2}
                   onChange={(event) => updateNumericField('installment2', event.target.value)}
+                  onBlur={() => markTouched('installment2')}
+                  aria-invalid={Boolean(shouldShowError('installment2'))}
                 />
               </Field>
 
               {form.installmentCount === '3' ? (
-                <Field label="Installment 3" required hint="Numbers only">
+                <Field label="Installment 3" required hint="Numbers only" error={shouldShowError('installment3') ? validationErrors.installment3 : ''}>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -591,12 +675,19 @@ export function CoursesPage() {
                     placeholder="5500"
                     value={form.installment3}
                     onChange={(event) => updateNumericField('installment3', event.target.value)}
+                    onBlur={() => markTouched('installment3')}
+                    aria-invalid={Boolean(shouldShowError('installment3'))}
                   />
                 </Field>
               ) : null}
 
-              <Field label="Status" required hint="Active or Inactive">
-                <select value={form.status} onChange={(event) => updateField('status', event.target.value)}>
+              <Field label="Status" required hint="Active or Inactive" error={shouldShowError('status') ? validationErrors.status : ''}>
+                <select
+                  value={form.status}
+                  onChange={(event) => updateField('status', event.target.value)}
+                  onBlur={() => markTouched('status')}
+                  aria-invalid={Boolean(shouldShowError('status'))}
+                >
                   <option value="" disabled>
                     Select status
                   </option>
@@ -606,9 +697,9 @@ export function CoursesPage() {
               </Field>
             </div>
 
-            {touched && !isValid ? (
+            {Object.keys(touched).length > 0 && !isValid ? (
               <div className="course-validation-note course-validation-error">
-                {saveError || 'Please fill all required fields before saving.'}
+                {saveError || Object.values(validationErrors)[0] || 'Please fill all required fields before saving.'}
               </div>
             ) : null}
 
