@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigat
 import { AuthShell } from '../layouts/AuthShell'
 import { AppShell } from '../layouts/AppShell'
 import { useAuth } from '../auth/useAuth'
-import { courseAccessRoles, roleDashboards, roleLabels, dashboardPathByRole } from '../data/authData'
+import { courseAccessRoles, roleDashboards, dashboardPathByRole } from '../data/authData'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage'
 import { LoginPage } from '../pages/LoginPage'
@@ -74,11 +74,10 @@ function AuthLayout() {
 }
 
 function AppLayout() {
-  const { role, user, signOut } = useAuth()
+  const { role, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const dashboard = role ? roleDashboards[role] : null
-  const roleLabel = role ? roleLabels[role] : 'Guest'
   const canAccessCourses = courseAccessRoles.includes(role)
   const canAccessStudentManagement = courseAccessRoles.includes(role)
   const showChrome =
@@ -88,15 +87,12 @@ function AppLayout() {
 
   return (
     <AppShell
-      currentRole={role}
-      email={user?.email}
-      roleLabel={roleLabel}
       dashboard={dashboard}
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
       onNavigateCourses={() => navigate('/courses')}
       onNavigateStudentManagement={() => navigate('/student-management')}
-      onLogout={() => {
-        signOut()
+      onLogout={async () => {
+        await signOut()
         navigate('/login')
       }}
       showCoursesNav={canAccessCourses}

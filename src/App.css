@@ -176,7 +176,7 @@ a {
 .auth-copy h2,
 .panel h2,
 .info-card h3 {
-  color: var(--text-strong);
+  color: #1f5ee8;
 }
 
 .brand strong {
@@ -197,6 +197,10 @@ a {
 .info-card p,
 .hero-card p {
   color: var(--muted);
+}
+
+.info-card p {
+  color: #4f7de0;
 }
 
 .menu {
@@ -634,6 +638,8 @@ tbody tr:hover {
   border-radius: var(--radius-lg);
   background: #f8fbff;
   border: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
 }
 
 .role-card span,
@@ -652,13 +658,38 @@ tbody tr:hover {
   font-size: 1.05rem;
 }
 
+.role-card-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.logout-card-button,
+.logout-button {
+  width: 100%;
+}
+
+.logout-card-button {
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 800;
+  color: #ffffff;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 12px 22px rgba(220, 38, 38, 0.18);
+}
+
+.logout-card-button:hover {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  color: #ffffff;
+}
+
 .main-area {
   border-radius: var(--radius-xl);
   padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  overflow: hidden;
+  overflow: visible;
   background: #ffffff;
 }
 
@@ -1633,13 +1664,14 @@ tbody tr:hover {
 
 .student-section-card-head h3 {
   margin: 0;
+  color: #1f5ee8;
   font-size: 1.02rem;
   font-weight: 800;
 }
 
 .student-section-card-head p {
   margin: 0;
-  color: #64748b;
+  color: #4f7de0;
   font-size: 0.86rem;
 }
 
@@ -1885,6 +1917,27 @@ tbody tr:hover {
   background: #ffffff;
   border: 1px solid #e4ebf5;
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.045);
+  position: relative;
+  overflow: visible;
+}
+
+.revenue-summary-icon-button {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  overflow: visible;
+  border-radius: 999px;
+  outline: none;
+}
+
+.revenue-summary-icon-button:hover .revenue-summary-icon,
+.revenue-summary-icon-button:focus-visible .revenue-summary-icon {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.16);
 }
 
 .revenue-summary-icon {
@@ -1895,6 +1948,7 @@ tbody tr:hover {
   place-items: center;
   color: #ffffff;
   box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .revenue-summary-icon svg {
@@ -1977,6 +2031,113 @@ tbody tr:hover {
 
 .revenue-summary-note-alone {
   margin-top: 2px;
+}
+
+.revenue-summary-tooltip {
+  position: absolute;
+  left: 0;
+  width: 280px;
+  top: calc(100% + 12px);
+  z-index: 8;
+  padding: 14px 14px 13px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #dbe6f2;
+  box-shadow: 0 24px 44px rgba(15, 23, 42, 0.18);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  pointer-events: none;
+}
+
+.revenue-summary-icon-button:hover .revenue-summary-tooltip,
+.revenue-summary-icon-button:focus-visible .revenue-summary-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.revenue-summary-tooltip strong {
+  display: block;
+  color: var(--text-strong);
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.revenue-summary-tooltip-value {
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 1.28rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.revenue-summary-tooltip-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.revenue-summary-tooltip-item {
+  display: grid;
+  gap: 3px;
+}
+
+.revenue-summary-tooltip-item span {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.revenue-summary-tooltip-item strong {
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.logout-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(4px);
+}
+
+.logout-modal {
+  width: min(100%, 420px);
+  min-height: 320px;
+  padding: 30px 26px 24px;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid #dce7f3;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.logout-modal h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.logout-modal p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.logout-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 28px;
 }
 
 .attendance-card {
@@ -2185,7 +2346,7 @@ tbody tr:hover {
 
 .revenue-comparison-header h3 {
   margin: 0;
-  color: var(--text-strong);
+  color: #1f5ee8;
   font-size: clamp(0.68rem, 0.82vw, 0.86rem);
   line-height: 1.02;
   letter-spacing: -0.03em;
@@ -2196,7 +2357,7 @@ tbody tr:hover {
 
 .revenue-comparison-header p {
   margin: 5px 0 0;
-  color: var(--muted);
+  color: #4f7de0;
   font-size: 0.83rem;
 }
 
@@ -4443,7 +4604,7 @@ tbody tr:hover {
 
 .student-drawer-section-head p {
   margin: 4px 0 0;
-  color: #66758f;
+  color: #4f7de0;
   font-size: 0.9rem;
   font-weight: 500;
 }

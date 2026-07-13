@@ -4,9 +4,6 @@ import { AppHeader } from '../components/AppHeader'
 import { AppSidebar } from '../components/AppSidebar'
 
 export function AppShell({
-  currentRole,
-  email,
-  roleLabel,
   dashboard,
   onNavigateDashboard,
   onNavigateCourses,
@@ -27,9 +24,6 @@ export function AppShell({
   return (
     <div className="app-shell">
       <AppSidebar
-        currentRole={currentRole}
-        email={email}
-        roleLabel={roleLabel}
         activeNav={activeNav}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCourses={onNavigateCourses}
