@@ -96,18 +96,21 @@ export async function getMe() {
 }
 
 export async function refreshAccessToken() {
-  if (!refreshToken) return null
+  const headers = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    Pragma: 'no-cache',
+  }
+
+  if (refreshToken) {
+    headers.Authorization = `Bearer ${refreshToken}`
+  }
 
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
     cache: 'no-store',
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache',
-      Pragma: 'no-cache',
-      Authorization: `Bearer ${refreshToken}`,
-    },
+    headers,
   })
 
   if (!response.ok) {
@@ -129,13 +132,11 @@ export async function refreshSession() {
 
 export async function logoutSession() {
   try {
-    if (!refreshToken) return
-
     await request('/auth/logout', {
       method: 'POST',
       skipAuth: true,
       credentials: 'include',
-      body: JSON.stringify({ refreshToken }),
+      body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,
     })
   } finally {
     clearAuthTokens()

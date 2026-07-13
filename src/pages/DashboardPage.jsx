@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 
 import { roleDashboards, roleLabels } from '../data/authData'
-import { loadStudentRecords } from '../data/studentRecords'
+import { listStudents } from '../services/studentService'
+import { getRevenueSummary } from '../services/dashboardService'
 
 const revenueComparisonData = [
   { month: 'Jan', monthly: 50000, expected: 55000 },
@@ -413,24 +414,64 @@ function buildWeeklyRevenueComparison(students, referenceDate = new Date()) {
   return buckets.map(({ week, actual, expected, isCurrent }) => ({ week, actual, expected, isCurrent }))
 }
 
-function useStudentRecords() {
-  const [records, setRecords] = useState(() => loadStudentRecords())
+function useBackendStudents() {
+  const [records, setRecords] = useState([])
 
   useEffect(() => {
-    const sync = () => {
-      setRecords(loadStudentRecords())
+    let active = true
+
+    const run = async () => {
+      try {
+        const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+        if (!active) return
+        setRecords(result.data || [])
+      } catch {
+        if (!active) return
+        setRecords([])
+      }
     }
 
-    window.addEventListener('storage', sync)
-    window.addEventListener(STUDENT_RECORD_SYNC_EVENT, sync)
+    void run()
 
     return () => {
-      window.removeEventListener('storage', sync)
-      window.removeEventListener(STUDENT_RECORD_SYNC_EVENT, sync)
+      active = false
     }
   }, [])
 
   return records
+}
+
+function useRevenueSummary() {
+  const [summary, setSummary] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    const run = async () => {
+      setIsLoading(true)
+      try {
+        const result = await getRevenueSummary()
+        if (!active) return
+        setSummary(result || null)
+      } catch {
+        if (!active) return
+        setSummary(null)
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  return { summary, isLoading }
 }
 
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
@@ -475,7 +516,7 @@ function formatRevenue(value) {
 function buildRevenueSummaryCards(summary, isLoading) {
   const formatValue = (value) => {
     if (isLoading) return 'Loading...'
-    return formatRevenue(value)
+    return formatRevenue(value ?? 0)
   }
 
   return [
@@ -571,7 +612,7 @@ function SummaryIcon({ kind }) {
 }
 
 function RevenueSummaryRow({ summary = null, isLoading = false }) {
-  const cards = summary || isLoading ? buildRevenueSummaryCards(summary, isLoading) : revenueSummaryCards
+  const cards = buildRevenueSummaryCards(summary, isLoading)
 
   return (
     <section className="revenue-summary-row" aria-label="Revenue summary">
@@ -901,7 +942,7 @@ function StudentSectionCard({ title, subtitle, children }) {
 }
 
 function StudentDashboard({ dashboard }) {
-  const students = useStudentRecords()
+  const students = useBackendStudents()
   const latestStudent = useMemo(() => students[0] || null, [students])
 
   if (!latestStudent) {
@@ -1099,15 +1140,15 @@ function GenericDashboard({ role }) {
 
 export function DashboardPage({ role }) {
   const dashboard = roleDashboards[role]
-  const revenueStudents = useStudentRecords()
-  const revenueSummary = useMemo(() => calculateRevenueSummary(revenueStudents), [revenueStudents])
+  const revenueStudents = useBackendStudents()
+  const { summary: revenueSummary, isLoading: isRevenueLoading } = useRevenueSummary()
 
   if (role === 'business-owner') {
-    return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={false} revenueStudents={revenueStudents} />
+    return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} revenueStudents={revenueStudents} />
   }
 
   if (role === 'operation-manager') {
-    return <OperationManagerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={false} revenueStudents={revenueStudents} />
+    return <OperationManagerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} revenueStudents={revenueStudents} />
   }
 
   if (role === 'student') {

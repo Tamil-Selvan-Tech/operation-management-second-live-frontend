@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { normalizeCourse, normalizeCourseList } from '../services/courseService'
-import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords, saveCourseRecords } from '../data/courseRecords'
+import { createCourse, deleteCourse, listCourses, updateCourse } from '../services/courseService'
 
 function Field({ label, hint, error, children, required = false }) {
   return (
@@ -78,7 +77,7 @@ function formatHours(value) {
 
 export function CoursesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [courses, setCourses] = useState(() => normalizeCourseList(loadCourseRecords()))
+  const [courses, setCourses] = useState([])
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 5,
@@ -206,44 +205,29 @@ export function CoursesPage() {
       setLoadError('')
 
       try {
-        const allCourses = normalizeCourseList(loadCourseRecords())
-        const trimmedSearch = search.trim().toLowerCase()
-        const filteredCourses = allCourses.filter((course) => {
-          const matchesSearch =
-            !trimmedSearch ||
-            [course.name, course.mode, course.status, course.duration, course.hours]
-              .map((value) => String(value || '').toLowerCase())
-              .some((value) => value.includes(trimmedSearch))
+        const query = {
+          page,
+          limit: pageSize,
+          search,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        }
 
-          const matchesFilter =
-            filter === 'All' ||
-            (filter === 'Active' && course.status === 'Active') ||
-            (filter === 'Inactive' && course.status === 'Inactive') ||
-            (filter === 'Online' && course.mode === 'Online') ||
-            (filter === 'Offline' && course.mode === 'Offline')
+        if (filter === 'Active' || filter === 'Inactive') {
+          query.status = filter
+        }
 
-          return matchesSearch && matchesFilter
-        })
+        if (filter === 'Online' || filter === 'Offline') {
+          query.mode = filter
+        }
 
-        const total = filteredCourses.length
-        const totalPages = Math.max(1, Math.ceil(total / pageSize))
-        const nextPage = Math.min(page, totalPages)
-        const start = (nextPage - 1) * pageSize
-        const nextCourses = filteredCourses.slice(start, start + pageSize)
+        const result = await listCourses(query)
 
         if (requestId !== requestIdRef.current) return
 
-        setCourses(nextCourses)
-        setPagination({
-          page: nextPage,
-          limit: pageSize,
-          total,
-          totalPages,
-        })
-
-        if (page !== nextPage) {
-          setCurrentPage(nextPage)
-        }
+        setCourses(result.data || [])
+        setPagination(result.meta || { page, limit: pageSize, total: 0, totalPages: 1 })
+        setCurrentPage((result.meta?.page || page) ?? 1)
       } catch (error) {
         if (requestId !== requestIdRef.current) return
         setCourses([])
@@ -264,25 +248,7 @@ export function CoursesPage() {
   )
 
   useEffect(() => {
-    const run = async () => {
-      await loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
-    }
-
-    void run()
-  }, [activeFilter, currentPage, loadCourses, searchTerm])
-
-  useEffect(() => {
-    const syncCourses = () => {
-      void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
-    }
-
-    window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourses)
-    window.addEventListener('storage', syncCourses)
-
-    return () => {
-      window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourses)
-      window.removeEventListener('storage', syncCourses)
-    }
+    void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
   }, [activeFilter, currentPage, loadCourses, searchTerm])
 
   const pageList = useMemo(() => {
@@ -353,7 +319,7 @@ export function CoursesPage() {
 
   const openEditModal = (course) => {
     setEditingCourseId(course.id)
-    setTouched(false)
+    setTouched({})
     setSaveError('')
     setForm({
       name: course.name || '',
@@ -407,31 +373,27 @@ export function CoursesPage() {
     setIsSaving(true)
 
     const payload = {
-      id: editingCourseId || `course-${Date.now()}`,
       name: form.name.trim(),
       mode: form.mode,
-      duration: form.duration,
-      hours: form.hours,
-      actualFees: form.actualFees,
-      registrationFees: form.registrationFees,
-      discount: form.discount,
-      installmentCount: form.installmentCount,
-      installment1: form.installment1,
-      installment2: form.installment2,
-      installment3: form.installmentCount === '3' ? form.installment3 : null,
-      status: form.status,
+      duration: Number(form.duration),
+      hours: Number(form.hours),
+      actualFees: Number(form.actualFees),
+      registrationFees: Number(form.registrationFees),
+      discount: Number(form.discount),
+      installmentCount: Number(form.installmentCount),
+      installment1: Number(form.installment1),
+      installment2: Number(form.installment2),
+      installment3: form.installmentCount === '3' ? Number(form.installment3) : null,
+      status: form.status === 'Inactive' ? 'INACTIVE' : 'ACTIVE',
     }
 
     try {
-      const existingCourses = normalizeCourseList(loadCourseRecords())
-      const nextCourse = normalizeCourse(payload)
-      const nextCourses = editingCourseId
-        ? existingCourses.map((course) => (course.id === editingCourseId ? { ...course, ...nextCourse } : course))
-        : [nextCourse, ...existingCourses]
+      if (editingCourseId) {
+        await updateCourse(editingCourseId, payload)
+      } else {
+        await createCourse(payload)
+      }
 
-      saveCourseRecords(nextCourses)
-      window.dispatchEvent(new Event(COURSE_RECORD_SYNC_EVENT))
-      setCurrentPage(editingCourseId ? currentPage : 1)
       await loadCourses({ page: editingCourseId ? currentPage : 1, search: searchTerm, filter: activeFilter })
       closeModal()
     } catch (error) {
@@ -450,9 +412,7 @@ export function CoursesPage() {
     setIsDeleting(true)
 
     try {
-      const nextCourses = normalizeCourseList(loadCourseRecords()).filter((course) => course.id !== deleteTarget.id)
-      saveCourseRecords(nextCourses)
-      window.dispatchEvent(new Event(COURSE_RECORD_SYNC_EVENT))
+      await deleteCourse(deleteTarget.id)
       if (editingCourseId === deleteTarget.id) {
         closeModal()
       }

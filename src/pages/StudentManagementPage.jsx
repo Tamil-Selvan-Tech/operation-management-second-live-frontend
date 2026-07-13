@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
-import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
-import { loadStudentRecords, saveStudentRecords } from '../data/studentRecords'
-import { normalizeCourseList } from '../services/courseService'
-import { normalizeStudentList } from '../services/studentService'
+import { listCourses } from '../services/courseService'
+import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
 
 const statusOptions = ['Student', 'Employee', 'Other']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
-const STUDENT_RECORD_SYNC_EVENT = 'cispro:students-changed'
 const studentWizardSteps = [
   {
     key: 'basic',
@@ -47,11 +43,6 @@ function getTodayValue() {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-function notifyStudentRecordsChanged() {
-  if (typeof window === 'undefined') return
-  window.dispatchEvent(new Event(STUDENT_RECORD_SYNC_EVENT))
 }
 
 function createEmptyForm() {
@@ -107,6 +98,10 @@ function addOneMonth(value, months = 1) {
   dueDate.setMonth(dueDate.getMonth() + months)
 
   return dueDate.toISOString().slice(0, 10)
+}
+
+function apiErrorMessage(error, fallback) {
+  return error?.body?.message || error?.message || fallback
 }
 
 function getStudentInitials(name) {
@@ -726,12 +721,11 @@ function DangerIcon() {
 }
 
 export function StudentManagementPage() {
-  const { user } = useAuth()
-  const [students, setStudents] = useState(() => normalizeStudentList(loadStudentRecords()))
+  const [students, setStudents] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
-  const [isStudentsLoading, setIsStudentsLoading] = useState(false)
+  const [isStudentsLoading, setIsStudentsLoading] = useState(true)
   const [isCoursesLoading, setIsCoursesLoading] = useState(true)
   const [form, setForm] = useState(createEmptyForm)
   const [submitted, setSubmitted] = useState(false)
@@ -772,22 +766,66 @@ export function StudentManagementPage() {
     const start = (currentPageSafe - 1) * studentsPerPage
     return students.slice(start, start + studentsPerPage)
   }, [currentPageSafe, students])
-  const counselorName = user?.name || user?.email || 'Counselor'
+  const loadStudents = async () => {
+    setIsStudentsLoading(true)
 
-  const replaceStudentInState = (nextStudent) => {
-    setStudents((current) =>
-      current.some((student) => student.id === nextStudent.id)
-        ? current.map((student) => (student.id === nextStudent.id ? nextStudent : student))
-        : [nextStudent, ...current],
-    )
+    try {
+      const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      setStudents(result.data || [])
+      setActionError('')
+    } catch (error) {
+      setStudents([])
+      setActionError(apiErrorMessage(error, 'Failed to load students from the backend.'))
+    } finally {
+      setIsStudentsLoading(false)
+    }
   }
 
-  const persistStudentList = (nextStudents) => {
-    const normalized = normalizeStudentList(nextStudents)
-    setStudents(normalized)
-    saveStudentRecords(normalized)
-    notifyStudentRecordsChanged()
+  const loadCourseOptions = async () => {
+    setIsCoursesLoading(true)
+
+    try {
+      const result = await listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const normalizedCourses = Array.from(
+        new Map(
+          (result.data || [])
+            .map((course) => {
+              const id = String(course?.id || '').trim()
+              const name = String(course?.name || '').trim()
+              if (!id || !name) return null
+
+              return [
+                id,
+                {
+                  id,
+                  name,
+                  actualFees: course?.actualFees ?? '',
+                  registrationFees: course?.registrationFees ?? '',
+                  discount: course?.discount ?? '',
+                  afterDiscount: course?.afterDiscount ?? '',
+                  installment1: course?.installment1 ?? '',
+                  installment2: course?.installment2 ?? '',
+                  installment3: course?.installment3 ?? '',
+                },
+              ]
+            })
+            .filter(Boolean),
+        ).values(),
+      )
+
+      setCourseOptions(normalizedCourses)
+      setActionError('')
+    } catch (error) {
+      setCourseOptions([])
+      setActionError(apiErrorMessage(error, 'Failed to load courses from the backend.'))
+    } finally {
+      setIsCoursesLoading(false)
+    }
   }
+
+  useEffect(() => {
+    void Promise.all([loadStudents(), loadCourseOptions()])
+  }, [])
 
   const openModal = () => {
     setActionError('')
@@ -886,58 +924,6 @@ export function StudentManagementPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isDrawerOpen])
 
-  useEffect(() => {
-    saveStudentRecords(students)
-  }, [students])
-
-  useEffect(() => {
-    const loadCourseOptions = () => {
-      setIsCoursesLoading(true)
-      const uniqueCourseOptions = Array.from(
-        new Map(
-          normalizeCourseList(loadCourseRecords())
-            .map((course) => {
-              const id = String(course?.id || '').trim()
-              const name = String(course?.name || '').trim()
-              if (!id || !name) return null
-              return [
-                id,
-                {
-                  id,
-                  name,
-                  actualFees: course?.actualFees ?? '',
-                  registrationFees: course?.registrationFees ?? '',
-                  discount: course?.discount ?? '',
-                  afterDiscount: course?.afterDiscount ?? '',
-                  installment1: course?.installment1 ?? '',
-                  installment2: course?.installment2 ?? '',
-                  installment3: course?.installment3 ?? '',
-                },
-              ]
-            })
-            .filter(Boolean),
-        ).values(),
-      )
-
-      setCourseOptions(uniqueCourseOptions)
-      setIsCoursesLoading(false)
-    }
-
-    loadCourseOptions()
-
-    const syncCourseOptions = () => {
-      loadCourseOptions()
-    }
-
-    window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
-    window.addEventListener('storage', syncCourseOptions)
-
-    return () => {
-      window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
-      window.removeEventListener('storage', syncCourseOptions)
-    }
-  }, [])
-
   const updateField = (name, value) => {
     setForm((current) => ({
       ...current,
@@ -1008,54 +994,33 @@ export function StudentManagementPage() {
 
     const course = selectedCourse
     const existingStudent = editingStudentId ? students.find((student) => student.id === editingStudentId) : null
-    const secondDueDate = addOneMonth(form.admissionDate)
-    const thirdDueDate = hasThirdInstallment(form, course) ? addOneMonth(secondDueDate) : ''
-    const firstInstallmentStatus = existingStudent?.firstInstallmentStatus || 'Pending'
-    const secondInstallmentStatus = existingStudent?.secondInstallmentStatus || 'Pending'
-    const thirdInstallmentStatus = hasThirdInstallment(form, course) ? existingStudent?.thirdInstallmentStatus || 'Pending' : ''
     const payload = {
       ...form,
       courseId: form.courseId || course?.id || '',
       courseInterested: form.courseInterested || course?.name || '',
       facultyName: form.facultyName || '',
-      batch: form.batch || '',
-      totalAmount: form.afterDiscount || form.totalAmount || '',
-      firstInstallmentAmount: form.installment1 || course?.installment1 || '',
-      secondInstallmentAmount: form.installment2 || course?.installment2 || '',
-      thirdInstallmentAmount: hasThirdInstallment(form, course) ? form.installment3 || course?.installment3 || '' : '',
-      firstInstallmentDate: form.admissionDate || existingStudent?.firstInstallmentDate || '',
-      secondInstallmentDate: existingStudent?.secondInstallmentDate || '',
-      thirdInstallmentDate: existingStudent?.thirdInstallmentDate || '',
-      secondDueDate,
-      thirdDueDate,
-      firstInstallmentStatus,
-      firstInstallmentPaidAt: existingStudent?.firstInstallmentPaidAt || '',
-      secondInstallmentStatus,
-      secondInstallmentPaidAt: existingStudent?.secondInstallmentPaidAt || '',
-      thirdInstallmentStatus,
-      thirdInstallmentPaidAt: existingStudent?.thirdInstallmentPaidAt || '',
+      batchName: form.batch || '',
+      firstInstallmentStatus: existingStudent?.firstInstallmentStatus || 'Paid',
+      secondInstallmentStatus: existingStudent?.secondInstallmentStatus || 'Pending',
     }
 
-    const localSavedStudent = normalizeStudentList([
-      {
-        ...(existingStudent || {}),
-        ...payload,
-        id: editingStudentId || existingStudent?.id || `local-${Date.now()}`,
-        counselorName,
-      },
-    ])[0]
+    try {
+      if (editingStudentId) {
+        await updateStudent(editingStudentId, payload)
+      } else {
+        await createStudent(payload)
+      }
 
-    const nextStudents = students.some((student) => student.id === localSavedStudent.id)
-      ? students.map((student) => (student.id === localSavedStudent.id ? localSavedStudent : student))
-      : [localSavedStudent, ...students]
-
-    persistStudentList(nextStudents)
-    setCurrentPage(1)
-    setIsModalOpen(false)
-    setForm(createEmptyForm())
-    setFieldFocus({})
-    setSubmitted(false)
-    setEditingStudentId('')
+      await loadStudents()
+      setCurrentPage(1)
+      setIsModalOpen(false)
+      setForm(createEmptyForm())
+      setFieldFocus({})
+      setSubmitted(false)
+      setEditingStudentId('')
+    } catch (error) {
+      setActionError(apiErrorMessage(error, 'Unable to save student details.'))
+    }
   }
 
   const handleFormSubmit = (event) => {
@@ -1077,10 +1042,15 @@ export function StudentManagementPage() {
 
   const handleDelete = async (studentId) => {
     setActionError('')
-    persistStudentList(students.filter((student) => student.id !== studentId))
-
-    if (selectedStudentId === studentId) {
-      closeDrawer()
+    try {
+      await deleteStudent(studentId)
+      await loadStudents()
+      setCurrentPage(1)
+      if (selectedStudentId === studentId) {
+        closeDrawer()
+      }
+    } catch (error) {
+      setActionError(apiErrorMessage(error, 'Unable to delete student.'))
     }
   }
 
@@ -1105,19 +1075,15 @@ export function StudentManagementPage() {
     setActionError('')
     const nextStatus = currentStudent[installmentField] === 'Paid' ? 'Pending' : 'Paid'
     const nextPaidAt = nextStatus === 'Paid' ? getTodayValue() : ''
-
-    const nextStudents = students.map((student) =>
-      student.id === studentId
-        ? {
-            ...currentStudent,
-            [installmentField]: nextStatus,
-            [paidAtField]: nextPaidAt,
-            counselorName: currentStudent.counselorName || counselorName,
-          }
-        : student,
-    )
-
-    persistStudentList(nextStudents)
+    try {
+      await updateStudent(studentId, {
+        [installmentField]: nextStatus,
+        [paidAtField]: nextPaidAt,
+      })
+      await loadStudents()
+    } catch (error) {
+      setActionError(apiErrorMessage(error, 'Unable to update installment status.'))
+    }
   }
 
   return (
