@@ -147,6 +147,17 @@ function getThirdDueDate(student) {
   return student?.thirdDueDate || addOneMonth(getSecondDueDate(student))
 }
 
+function getVisibleInstallmentStage(student, course = null) {
+  const firstPaid = String(student?.firstInstallmentStatus || 'Pending') === 'Paid'
+  const secondPaid = String(student?.secondInstallmentStatus || 'Pending') === 'Paid'
+  const thirdPaid = hasThirdInstallment(student, course) ? String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
+
+  if (!firstPaid) return 1
+  if (!secondPaid) return 2
+  if (hasThirdInstallment(student, course) && !thirdPaid) return 3
+  return 0
+}
+
 function findCourseForStudent(student, courseOptions) {
   return (
     courseOptions.find((course) => course.id === student.courseId) ||
@@ -694,6 +705,16 @@ function DeleteIcon() {
   )
 }
 
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="5" r="1.7" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+      <circle cx="12" cy="19" r="1.7" fill="currentColor" />
+    </svg>
+  )
+}
+
 function DangerIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -722,6 +743,7 @@ export function StudentManagementPage() {
   const [editingStudentId, setEditingStudentId] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [openActionMenuId, setOpenActionMenuId] = useState('')
   const [currentStep, setCurrentStep] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [actionError, setActionError] = useState('')
@@ -826,6 +848,7 @@ export function StudentManagementPage() {
     setFieldFocus({})
     setSubmitted(false)
     setEditingStudentId('')
+    setOpenActionMenuId('')
     setCurrentStep(0)
     setIsModalOpen(true)
   }
@@ -865,6 +888,7 @@ export function StudentManagementPage() {
     setEditingStudentId(student.id)
     setCurrentStep(0)
     setIsModalOpen(true)
+    setOpenActionMenuId('')
   }
 
   const openDrawer = (student) => {
@@ -883,6 +907,14 @@ export function StudentManagementPage() {
 
   const closeDeleteModal = () => {
     setDeleteTarget(null)
+  }
+
+  const toggleActionMenu = (studentId) => {
+    setOpenActionMenuId((current) => (current === studentId ? '' : studentId))
+  }
+
+  const closeActionMenu = () => {
+    setOpenActionMenuId('')
   }
 
   const closeModal = () => {
@@ -1033,8 +1065,12 @@ export function StudentManagementPage() {
       courseInterested: form.courseInterested || course?.name || '',
       facultyName: form.facultyName || '',
       batchName: form.batch || '',
-      firstInstallmentStatus: existingStudent?.firstInstallmentStatus || 'Paid',
+      firstInstallmentStatus: existingStudent?.firstInstallmentStatus || 'Pending',
+      firstInstallmentPaidAt: existingStudent?.firstInstallmentPaidAt || '',
       secondInstallmentStatus: existingStudent?.secondInstallmentStatus || 'Pending',
+      secondInstallmentPaidAt: existingStudent?.secondInstallmentPaidAt || '',
+      thirdInstallmentStatus: existingStudent?.thirdInstallmentStatus || 'Pending',
+      thirdInstallmentPaidAt: existingStudent?.thirdInstallmentPaidAt || '',
     }
 
     try {
@@ -1051,6 +1087,7 @@ export function StudentManagementPage() {
       setFieldFocus({})
       setSubmitted(false)
       setEditingStudentId('')
+      setOpenActionMenuId('')
     } catch (error) {
       setActionError(apiErrorMessage(error, 'Unable to save student details.'))
     }
@@ -1079,6 +1116,7 @@ export function StudentManagementPage() {
       await deleteStudent(studentId)
       await loadStudents()
       setCurrentPage(1)
+      setOpenActionMenuId('')
       if (selectedStudentId === studentId) {
         closeDrawer()
       }
@@ -1108,13 +1146,28 @@ export function StudentManagementPage() {
     setActionError('')
     const nextStatus = currentStudent[installmentField] === 'Paid' ? 'Pending' : 'Paid'
     const nextPaidAt = nextStatus === 'Paid' ? getTodayValue() : ''
+    const previousStudents = students
+
+    setStudents((currentStudents) =>
+      currentStudents.map((student) =>
+        student.id === studentId
+          ? {
+              ...student,
+              [installmentField]: nextStatus,
+              [paidAtField]: nextPaidAt,
+            }
+          : student,
+      ),
+    )
+
     try {
       await updateStudent(studentId, {
         [installmentField]: nextStatus,
         [paidAtField]: nextPaidAt,
       })
-      await loadStudents()
+      setOpenActionMenuId('')
     } catch (error) {
+      setStudents(previousStudents)
       setActionError(apiErrorMessage(error, 'Unable to update installment status.'))
     }
   }
@@ -1170,15 +1223,11 @@ export function StudentManagementPage() {
               <thead>
                 <tr>
                   <th>Student</th>
-                  <th>Phone</th>
                   <th>Course</th>
                   <th>Total Amount</th>
                   <th>Admission Date</th>
-                  <th>1st Installment</th>
-                  <th>2nd Installment</th>
-                  <th>2nd Due Date</th>
-                  <th>3rd Installment</th>
-                  <th>3rd Due Date</th>
+                  <th>Current Installment</th>
+                  <th>Installment Due Date</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -1187,14 +1236,40 @@ export function StudentManagementPage() {
                 {paginatedStudents.map((student) => {
                   const studentCourse = findCourseForStudent(student, courseOptions)
                   const studentHasThirdInstallment = hasThirdInstallment(student, studentCourse)
+                  const visibleInstallmentStage = getVisibleInstallmentStage(student, studentCourse)
+                  const currentInstallmentAmount =
+                    visibleInstallmentStage === 1
+                      ? student.firstInstallmentAmount
+                      : visibleInstallmentStage === 2
+                        ? student.secondInstallmentAmount
+                        : visibleInstallmentStage === 3
+                          ? student.thirdInstallmentAmount || student.installment3 || studentCourse?.installment3
+                          : ''
+                  const currentInstallmentLabel =
+                    visibleInstallmentStage === 1
+                      ? '1st Installment'
+                      : visibleInstallmentStage === 2
+                        ? '2nd Installment'
+                        : visibleInstallmentStage === 3
+                          ? '3rd Installment'
+                          : ''
+                  const firstPaid = String(student.firstInstallmentStatus || 'Pending') === 'Paid'
+                  const secondPaid = String(student.secondInstallmentStatus || 'Pending') === 'Paid'
+                  const thirdPaid = studentHasThirdInstallment ? String(student.thirdInstallmentStatus || 'Pending') === 'Paid' : true
                   const secondDueDate = getSecondDueDate(student)
                   const thirdDueDate = getThirdDueDate(student)
-                  const secondOverdueDays = String(student.secondInstallmentStatus || 'Pending') === 'Paid'
-                    ? 0
-                    : diffInDays(secondDueDate, getTodayValue())
-                  const thirdOverdueDays = studentHasThirdInstallment && String(student.thirdInstallmentStatus || 'Pending') !== 'Paid'
-                    ? diffInDays(thirdDueDate || addOneMonth(secondDueDate), getTodayValue())
-                    : 0
+                  const currentInstallmentDueDate =
+                    visibleInstallmentStage === 2
+                      ? secondDueDate
+                      : visibleInstallmentStage === 3
+                        ? thirdDueDate || addOneMonth(secondDueDate)
+                        : ''
+                  const currentInstallmentOverdueDays =
+                    visibleInstallmentStage === 2
+                      ? (secondPaid ? 0 : diffInDays(secondDueDate, getTodayValue()))
+                      : visibleInstallmentStage === 3
+                        ? (thirdPaid ? 0 : diffInDays(thirdDueDate || addOneMonth(secondDueDate), getTodayValue()))
+                        : 0
 
                   return (
                     <tr key={student.id}>
@@ -1202,59 +1277,60 @@ export function StudentManagementPage() {
                         <strong>{student.studentName}</strong>
                         <small>{student.emailAddress}</small>
                       </td>
-                      <td>{student.mobileNumber}</td>
                       <td>{student.courseInterested}</td>
                       <td>{formatCurrency(student.totalAmount || student.afterDiscount)}</td>
                       <td>{formatDate(student.admissionDate)}</td>
                       <td>
-  <label className="installment-check">
-    <input
-      type="checkbox"
-      checked={student.firstInstallmentStatus === 'Paid'}
-      onChange={() => toggleInstallmentStatus(student.id, 'firstInstallmentStatus', 'firstInstallmentPaidAt')}
-    />
-    <strong>{formatCurrency(student.firstInstallmentAmount)}</strong>
-    {student.firstInstallmentStatus === 'Paid' ? null : <small>{student.firstInstallmentStatus}</small>}
-  </label>
-</td>
-  <td>
-  <label className="installment-check">
-    <input
-      type="checkbox"
-      checked={student.secondInstallmentStatus === 'Paid'}
-      disabled={student.firstInstallmentStatus !== 'Paid'}
-      onChange={() => toggleInstallmentStatus(student.id, 'secondInstallmentStatus', 'secondInstallmentPaidAt')}
-    />
-    <strong>{formatCurrency(student.secondInstallmentAmount)}</strong>
-    {student.secondInstallmentStatus === 'Paid' ? null : <small>{student.secondInstallmentStatus}</small>}
-  </label>
-</td>
-                      <td className="student-date-single-line">
-                        <strong>{formatDate(secondDueDate)}</strong>
-                        <small>{secondOverdueDays > 0 ? `${secondOverdueDays} day${secondOverdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}</small>
-                      </td>
-                      <td>
-                        {studentHasThirdInstallment ? (
+                        {visibleInstallmentStage === 1 ? (
                           <label className="installment-check">
                             <input
                               type="checkbox"
-                              checked={student.thirdInstallmentStatus === 'Paid'}
-                              disabled={student.secondInstallmentStatus !== 'Paid'}
+                              checked={firstPaid}
+                              onChange={() => toggleInstallmentStatus(student.id, 'firstInstallmentStatus', 'firstInstallmentPaidAt')}
+                            />
+                            <span className="installment-copy">
+                              <strong>{formatCurrency(currentInstallmentAmount)}</strong>
+                              <small>{currentInstallmentLabel}</small>
+                            </span>
+                          </label>
+                        ) : visibleInstallmentStage === 2 ? (
+                          <label className="installment-check">
+                            <input
+                              type="checkbox"
+                              checked={secondPaid}
+                              onChange={() => toggleInstallmentStatus(student.id, 'secondInstallmentStatus', 'secondInstallmentPaidAt')}
+                            />
+                            <span className="installment-copy">
+                              <strong>{formatCurrency(currentInstallmentAmount)}</strong>
+                              <small>{currentInstallmentLabel}</small>
+                            </span>
+                          </label>
+                        ) : visibleInstallmentStage === 3 ? (
+                          <label className="installment-check">
+                            <input
+                              type="checkbox"
+                              checked={thirdPaid}
                               onChange={() => toggleInstallmentStatus(student.id, 'thirdInstallmentStatus', 'thirdInstallmentPaidAt')}
                             />
-                            <strong>{formatCurrency(student.thirdInstallmentAmount || student.installment3 || studentCourse?.installment3)}</strong>
-                            {student.thirdInstallmentStatus === 'Paid' ? null : <small>{student.thirdInstallmentStatus}</small>}
+                            <span className="installment-copy">
+                              <strong>{formatCurrency(currentInstallmentAmount)}</strong>
+                              <small>{currentInstallmentLabel}</small>
+                            </span>
                           </label>
                         ) : (
                           '-'
                         )}
                       </td>
                       <td className="student-date-single-line">
-                        {studentHasThirdInstallment ? (
+                        {visibleInstallmentStage === 1 ? (
+                          '-'
+                        ) : currentInstallmentDueDate ? (
                           <>
-                            <strong>{formatDate(thirdDueDate || addOneMonth(secondDueDate))}</strong>
+                            <strong>{formatDate(currentInstallmentDueDate)}</strong>
                             <small>
-                              {thirdOverdueDays > 0 ? `${thirdOverdueDays} day${thirdOverdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}
+                              {currentInstallmentOverdueDays > 0
+                                ? `${currentInstallmentOverdueDays} day${currentInstallmentOverdueDays === 1 ? '' : 's'} overdue`
+                                : 'On schedule'}
                             </small>
                           </>
                         ) : (
@@ -1265,34 +1341,59 @@ export function StudentManagementPage() {
                         <PaymentStatusBadge student={student} />
                       </td>
                       <td>
-                        <div className="student-action-group">
+                        <div
+                          className={`student-action-menu ${openActionMenuId === student.id ? 'is-open' : ''}`.trim()}
+                          onMouseEnter={() => setOpenActionMenuId(student.id)}
+                          onMouseLeave={closeActionMenu}
+                        >
                           <button
                             type="button"
-                            className="student-row-button student-row-button-view"
-                            onClick={() => openDrawer(student)}
-                            aria-label="View student"
-                            title="View"
+                            className="student-row-button student-row-button-more"
+                            onClick={() => toggleActionMenu(student.id)}
+                            aria-label="Open student actions"
+                            aria-haspopup="menu"
+                            aria-expanded={openActionMenuId === student.id}
                           >
-                            <ViewIcon />
+                            <MoreIcon />
                           </button>
-                          <button
-                            type="button"
-                            className="student-row-button student-row-button-edit"
-                            onClick={() => openEditModal(student)}
-                            aria-label="Edit student"
-                            title="Edit"
-                          >
-                            <EditIcon />
-                          </button>
-                          <button
-                            type="button"
-                            className="student-row-button student-row-button-delete"
-                            onClick={() => openDeleteModal(student)}
-                            aria-label="Delete student"
-                            title="Delete"
-                          >
-                            <DeleteIcon />
-                          </button>
+                          <div className="student-action-menu-panel" role="menu" aria-label="Student actions">
+                            <button
+                              type="button"
+                              className="student-action-menu-item"
+                              role="menuitem"
+                              onClick={() => {
+                                closeActionMenu()
+                                openDrawer(student)
+                              }}
+                            >
+                              <ViewIcon />
+                              <span>View</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="student-action-menu-item"
+                              role="menuitem"
+                              onClick={() => {
+                                closeActionMenu()
+                                openEditModal(student)
+                              }}
+                            >
+                              <EditIcon />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="student-action-menu-item is-danger"
+                              role="menuitem"
+                              onClick={() => {
+                                closeActionMenu()
+                                openDeleteModal(student)
+                              }}
+                            >
+                              <DeleteIcon />
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
