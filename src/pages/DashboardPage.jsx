@@ -495,17 +495,16 @@ function useBackendStudents() {
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   return (
     <section className="business-owner-dashboard">
-      <div className="business-owner-hero">
-        <div className="business-owner-hero-copy">
+      <div className="business-topbar business-owner-topbar">
+        <div>
           <p className="eyebrow">Business Owner</p>
           <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
         </div>
 
-        <div className="business-topbar-actions">
+        <div className="business-topbar-actions business-owner-topbar-actions">
           <NotificationBell />
-          <div className="profile-chip">
-            <div className="profile-avatar">BH</div>
+          <div className="profile-chip business-owner-profile-chip">
+            <div className="profile-avatar">BW</div>
             <div>
               <strong>Business Head</strong>
               <span>business.owner@cispro.com</span>

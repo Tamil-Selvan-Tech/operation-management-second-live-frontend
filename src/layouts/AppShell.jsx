@@ -43,7 +43,7 @@ export function AppShell({
       <div
         className={`main-area ${showChrome ? '' : 'main-area-compact'} ${
           isFlatMainArea ? 'main-area-flat' : ''
-        }`}
+        } ${isBusinessOwnerDashboard ? 'business-owner-main' : ''}`}
       >
         {showChrome ? (
           <>
@@ -51,7 +51,6 @@ export function AppShell({
             <AppBreadcrumbs crumbs={['Home', dashboard?.title || 'Workspace']} />
           </>
         ) : null}
-
         <main className="content">{children}</main>
       </div>
     </div>

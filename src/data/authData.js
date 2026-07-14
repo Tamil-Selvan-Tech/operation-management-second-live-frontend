@@ -11,7 +11,7 @@ export const roleLabels = {
 export const roleDashboards = {
   'business-owner': {
     title: 'Business Owner Dashboard',
-    summary: 'Executive visibility, strategy, and approvals.',
+    summary: '',
     accent: 'Crimson',
     color: '#ef4444',
     cards: ['Revenue overview', 'Company approvals', 'Strategic KPIs'],

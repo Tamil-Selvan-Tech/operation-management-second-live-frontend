@@ -533,6 +533,9 @@ export function CoursesPage() {
         </div>
 
         <div className="courses-topbar-actions">
+          <button className="button button-solid course-add-button" type="button" onClick={openCreateModal}>
+            + Add Course
+          </button>
           <label className="dashboard-search course-search">
             <input
               type="search"
@@ -545,9 +548,6 @@ export function CoursesPage() {
               Search
             </button>
           </label>
-          <button className="button button-solid course-add-button" type="button" onClick={openCreateModal}>
-            + Add Course
-          </button>
         </div>
       </div>
 
