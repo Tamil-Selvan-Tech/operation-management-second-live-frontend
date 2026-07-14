@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Bell, CalendarDays, Info, Target, TrendingUp, Wallet } from 'lucide-react'
+import { AlertTriangle, Bell, CalendarDays, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
 
 import { roleDashboards } from '../data/authData'
 import { loadStudentRecords } from '../data/studentRecords'
@@ -83,27 +83,35 @@ const revenueSummaryCards = [
 const notificationItems = [
   {
     tone: 'red',
-    icon: '\u{1F534}',
-    message: '5 Student fee payments are overdue.',
+    icon: ReceiptText,
+    title: 'Student fee payment updated',
+    message: 'Varsha’s full payment has been saved and marked as completed.',
     time: '5 mins ago',
+    featured: false,
   },
   {
     tone: 'yellow',
-    icon: '\u{1F7E1}',
-    message: 'Leave request submitted by Priya\u00A0S.',
+    icon: CreditCard,
+    title: 'Installment payment received',
+    message: 'A pending installment for the Next.js course has been collected successfully.',
     time: '15 mins ago',
+    featured: true,
   },
   {
     tone: 'amber',
-    icon: '\u26A0\uFE0F',
-    message: 'Monthly revenue report is ready.',
-    time: 'Today',
+    icon: AlertTriangle,
+    title: 'Overdue fee reminder',
+    message: 'Three student fee payments are still overdue and need review today.',
+    time: '1 hour ago',
+    featured: false,
   },
   {
     tone: 'blue',
-    icon: '\u{1F4E8}',
-    message: 'Students Attendance report is ready.',
-    time: 'Just now',
+    icon: CalendarDays,
+    title: 'Admission update',
+    message: 'A new student admission has been added to the dashboard successfully.',
+    time: 'Today',
+    featured: false,
   },
 ]
 
@@ -487,8 +495,8 @@ function useBackendStudents() {
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   return (
     <section className="business-owner-dashboard">
-      <div className="business-topbar business-topbar-plain">
-        <div>
+      <div className="business-owner-hero">
+        <div className="business-owner-hero-copy">
           <p className="eyebrow">Business Owner</p>
           <h2>{dashboard.title}</h2>
           <p>{dashboard.summary}</p>
@@ -581,7 +589,7 @@ function buildRevenueSummaryCards(summary, isLoading) {
 function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const [showAll, setShowAll] = useState(false)
-  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 3)
+  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
 
   return (
     <div
@@ -608,20 +616,30 @@ function NotificationBell() {
         <div className="notification-dropdown" role="menu" aria-label="Notifications">
           <div className="notification-dropdown-head">
             <strong>Notifications</strong>
+            <button type="button" className="notification-mark-read">
+              Mark all as read
+            </button>
           </div>
 
           <div className="notification-dropdown-list">
-            {visibleItems.map((item) => (
-              <article key={`${item.message}-${item.time}`} className="notification-dropdown-item">
-                <span className={`notification-badge ${item.tone}`} aria-hidden="true">
-                  {item.icon}
-                </span>
-                <div>
-                  <p>{item.message}</p>
-                  <span>{item.time}</span>
-                </div>
-              </article>
-            ))}
+            {visibleItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <article
+                  key={`${item.title}-${item.time}`}
+                  className={`notification-dropdown-item ${item.featured ? 'is-highlighted' : ''}`.trim()}
+                >
+                  <span className={`notification-badge ${item.tone}`} aria-hidden="true">
+                    <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                  </span>
+                  <div className="notification-copy">
+                    <p>{item.title}</p>
+                    <span>{item.message}</span>
+                    <small>{item.time}</small>
+                  </div>
+                </article>
+              )
+            })}
           </div>
 
           <button
@@ -629,7 +647,7 @@ function NotificationBell() {
             type="button"
             onClick={() => setShowAll((current) => !current)}
           >
-            {showAll ? 'Show Less' : 'View All Notifications'}
+            {showAll ? 'Show less' : 'View all notifications'}
           </button>
         </div>
       ) : null}
@@ -1037,7 +1055,7 @@ function StudentInfoItem({ label, value, fullWidth = false }) {
 
 function StudentSectionCard({ title, subtitle, children }) {
   return (
-    <article className="panel-card student-section-card">
+    <article className="student-section-card">
       <div className="student-section-card-head">
         <div>
           <p className="section-kicker">Student Data</p>

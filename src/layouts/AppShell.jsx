@@ -21,6 +21,12 @@ export function AppShell({
       ? 'student-management'
       : 'dashboard'
   const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
+  const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
+  const isFlatMainArea =
+    isOperationManagerDashboard ||
+    isBusinessOwnerDashboard ||
+    location.pathname === '/student-management' ||
+    location.pathname === '/courses'
 
   return (
     <div className="app-shell">
@@ -34,10 +40,14 @@ export function AppShell({
         showStudentManagementNav={showStudentManagementNav}
       />
 
-      <div className={`main-area ${showChrome ? '' : 'main-area-compact'} ${isOperationManagerDashboard ? 'main-area-flat' : ''}`}>
+      <div
+        className={`main-area ${showChrome ? '' : 'main-area-compact'} ${
+          isFlatMainArea ? 'main-area-flat' : ''
+        }`}
+      >
         {showChrome ? (
           <>
-            <AppHeader title={dashboard?.title || 'Operations Dashboard'} accent={dashboard?.accent || 'Ready'} />
+            <AppHeader dashboard={dashboard} />
             <AppBreadcrumbs crumbs={['Home', dashboard?.title || 'Workspace']} />
           </>
         ) : null}

@@ -164,10 +164,20 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
           </FormField>
 
           <div className="login-footer-links">
+            <label className="remember-me">
+              <input
+                type="checkbox"
+                checked={Boolean(form.rememberMe)}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, rememberMe: event.target.checked }))
+                }
+              />
+              <span>Remember me</span>
+            </label>
+
             <a href="/forgot-password" className="text-link">
               Forgot password?
             </a>
-            <span className="login-footnote">Terms &amp; Conditions</span>
           </div>
 
           <Button type="submit" className="login-primary" disabled={isSubmitting}>

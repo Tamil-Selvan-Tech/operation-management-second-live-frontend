@@ -21,6 +21,7 @@ function LoginScreen() {
   const [form, setForm] = useState({
     email: '',
     password: '',
+    rememberMe: false,
   })
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)

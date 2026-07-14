@@ -33,9 +33,9 @@
 }
 
 .login-form-panel {
-  padding: 24px 34px 22px 38px;
+  padding: 72px 34px 14px 38px;
   display: grid;
-  align-content: center;
+  align-content: start;
   gap: 22px;
   color: #113a7a;
   background: #ffffff;
@@ -46,16 +46,16 @@
   align-items: flex-start;
   justify-content: flex-start;
   gap: 16px;
-  margin-top: -6px;
+  margin-top: -2px;
 }
 
 .login-brand-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: clamp(120px, 12vw, 150px);
+  width: clamp(112px, 11vw, 140px);
   height: 54px;
-  padding: 8px 14px;
+  padding: 5px 10px;
   border-radius: 999px;
   border: 1px solid #89b4ff;
   background: rgba(255, 255, 255, 0.9);
@@ -70,6 +70,8 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
+  object-position: center;
+  display: block;
 }
 
 .login-close-button {
@@ -81,7 +83,7 @@
   gap: 6px;
   justify-items: center;
   text-align: center;
-  padding: 2px 12px 2px;
+  padding: 0 12px 2px;
 }
 
 .login-copy h2 {
@@ -104,6 +106,7 @@
   max-width: 420px;
   width: 100%;
   justify-self: center;
+  margin-top: -2px;
 }
 
 .login-page .form-field {
@@ -215,9 +218,28 @@
   border-bottom-color: currentColor;
 }
 
+.login-page .remember-me {
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.login-page .remember-me input {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  flex: 0 0 14px;
+}
+
+.login-page .remember-me input:checked {
+  background-size: 7px 7px;
+}
+
 .login-primary {
   min-height: 54px;
-  margin-top: 8px;
+  margin-top: 28px;
   border-radius: 999px;
   background: linear-gradient(180deg, #2b7cff 0%, #0f5fd1 100%);
   color: #ffffff;
@@ -258,7 +280,7 @@
   }
 
   .login-form-panel {
-    padding: 22px 26px 20px 28px;
+    padding: 52px 26px 16px 28px;
   }
 
   .login-visual-panel {
@@ -278,7 +300,7 @@
   }
 
   .login-form-panel {
-    padding: 20px 20px 10px;
+    padding: 38px 20px 10px;
     gap: 18px;
   }
 
@@ -303,7 +325,7 @@
   }
 
   .login-form-panel {
-    padding: 16px 14px 8px;
+    padding: 28px 14px 8px;
     gap: 14px;
   }
 
@@ -312,9 +334,9 @@
   }
 
   .login-brand-pill {
-    width: clamp(108px, 20vw, 128px);
-    height: 46px;
-    padding: 6px 10px;
+    width: clamp(104px, 22vw, 124px);
+    height: 44px;
+    padding: 4px 8px;
   }
 
   .login-close-button {
@@ -340,11 +362,16 @@
   .login-page .password-toggle,
   .login-primary {
     min-height: 48px;
+    margin-top: 20px;
   }
 
   .login-footer-links {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .login-page .remember-me {
+    gap: 8px;
   }
 
   .login-visual-panel {

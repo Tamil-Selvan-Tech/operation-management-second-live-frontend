@@ -1,4 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  BadgeCheck,
+  BookOpen,
+  CalendarDays,
+  CircleDollarSign,
+  CreditCard,
+  FileText,
+  GraduationCap,
+  Landmark,
+  Layers3,
+  Mail,
+  MapPin,
+  Percent,
+  Phone,
+  UserRound,
+} from 'lucide-react'
 import { Button } from '../components/Button'
 import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -159,15 +175,19 @@ function isInstallmentSettled(entity = null) {
 }
 
 function isFullPaymentMode(entity = null) {
-  return String(entity?.paymentMode || 'Installment').trim() === 'Full Payment' || isInstallmentSettled(entity)
+  return String(entity?.paymentMode || 'Installment').trim() === 'Full Payment'
+}
+
+function isFullPaymentRecord(entity = null) {
+  return isFullPaymentMode(entity) || isInstallmentSettled(entity)
 }
 
 function getPaymentModeLabel(entity = null) {
-  return isFullPaymentMode(entity) ? 'Full Payment' : 'Installment'
+  return isFullPaymentRecord(entity) ? 'Full Payment' : 'Installment'
 }
 
 function getVisibleInstallmentStage(student, course = null) {
-  if (isFullPaymentMode(student)) return 0
+  if (isFullPaymentRecord(student)) return 0
   const firstPaid = String(student?.firstInstallmentStatus || 'Pending') === 'Paid'
   const secondPaid = String(student?.secondInstallmentStatus || 'Pending') === 'Paid'
   const thirdPaid = hasThirdInstallment(student, course) ? String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
@@ -232,6 +252,14 @@ function mapCourseToForm(current, course) {
     installment1: String(course.installment1 ?? ''),
     installment2: String(course.installment2 ?? ''),
     installment3: String(course.installment3 ?? ''),
+  }
+}
+
+function getCourseInstallmentValues(course = null) {
+  return {
+    installment1: String(course?.installment1 ?? ''),
+    installment2: String(course?.installment2 ?? ''),
+    installment3: String(course?.installment3 ?? ''),
   }
 }
 
@@ -363,7 +391,7 @@ function Field({ label, required = false, hint, error, className = '', icon, mul
 }
 
 function PaymentStatusBadge({ student }) {
-  if (isFullPaymentMode(student)) {
+  if (isFullPaymentRecord(student)) {
     return <span className="student-badge employee">Completed</span>
   }
 
@@ -489,146 +517,23 @@ function DrawerFormControl({
 }
 
 function FieldIcon({ kind }) {
-  if (kind === 'user') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M5.5 18c1.2-3.3 4-5 6.5-5s5.3 1.7 6.5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
+  const iconProps = { size: 18, strokeWidth: 2.2, 'aria-hidden': true, focusable: false }
 
-  if (kind === 'phone') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path
-          d="M6.2 4.8l2.1-.8c.8-.3 1.7 0 2.1.7l1.1 2c.4.7.3 1.6-.3 2.1l-1.2 1.1c1 1.9 2.6 3.6 4.5 4.5l1.1-1.2c.5-.6 1.4-.7 2.1-.3l2 1.1c.7.4 1 1.3.7 2.1l-.8 2.1c-.3.8-1.1 1.4-2 1.4C10.2 19.7 4.3 13.8 4.8 6.8c.1-.9.6-1.7 1.4-2Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinejoin="round"
-        />
-      </svg>
-    )
-  }
-
-  if (kind === 'mail') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.5" y="6" width="15" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M6 8l6 4.6L18 8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'pin') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 20s5-4.8 5-9a5 5 0 1 0-10 0c0 4.2 5 9 5 9Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <circle cx="12" cy="11" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      </svg>
-    )
-  }
-
-  if (kind === 'course') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M4.8 7.5 12 4l7.2 3.5L12 11 4.8 7.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M6.5 9.5V14c0 1.7 2.5 3.2 5.5 3.2s5.5-1.5 5.5-3.2V9.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'faculty') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 3 3.8 7.2 12 11.5l8.2-4.3L12 3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M6.2 12.4v3.5c0 1.4 2.6 2.8 5.8 2.8s5.8-1.4 5.8-2.8v-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'batch') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="6" width="14" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 6V4.5M16 6V4.5M7 10h10M7 13h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'year') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M7 3.8v2.2M17 3.8v2.2M5.5 8h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <rect x="4.5" y="6" width="15" height="13.5" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      </svg>
-    )
-  }
-
-  if (kind === 'status') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M5 12a7 7 0 1 0 7-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M12 5v5l3 2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'note') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="4.5" width="14" height="15" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 9h8M8 12h8M8 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'currency') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 4.5v15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M15.5 7.2c0-1.5-1.6-2.7-3.5-2.7S8.5 6 8.5 7.4s1.2 2.1 3.5 2.7c2.4.6 3.5 1.2 3.5 2.8S13.9 16 12 16s-3.5-1.1-3.5-2.7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'percent') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M7 17 17 7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-        <circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <circle cx="16" cy="16" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      </svg>
-    )
-  }
-
-  if (kind === 'balance') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 5v14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M7.5 8.5h9M8.5 12h7M9.2 15.5h5.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'installment') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.8" y="5" width="14.4" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 9h8M8 12h8M8 15h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'calendar') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.5" y="5.5" width="15" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M4.5 9h15M8 4v3M16 4v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
+  if (kind === 'user') return <UserRound {...iconProps} />
+  if (kind === 'phone') return <Phone {...iconProps} />
+  if (kind === 'mail') return <Mail {...iconProps} />
+  if (kind === 'pin') return <MapPin {...iconProps} />
+  if (kind === 'course') return <BookOpen {...iconProps} />
+  if (kind === 'faculty') return <GraduationCap {...iconProps} />
+  if (kind === 'batch') return <Layers3 {...iconProps} />
+  if (kind === 'year') return <CalendarDays {...iconProps} />
+  if (kind === 'status') return <BadgeCheck {...iconProps} />
+  if (kind === 'note') return <FileText {...iconProps} />
+  if (kind === 'currency') return <CircleDollarSign {...iconProps} />
+  if (kind === 'percent') return <Percent {...iconProps} />
+  if (kind === 'balance') return <Landmark {...iconProps} />
+  if (kind === 'installment') return <CreditCard {...iconProps} />
+  if (kind === 'calendar') return <CalendarDays {...iconProps} />
 
   return null
 }
@@ -839,7 +744,7 @@ export function StudentManagementPage() {
     location: student.location || '',
     source: student.source || '',
     status: student.status || 'Active',
-    paymentMode: student.paymentMode || 'Installment',
+    paymentMode: isFullPaymentRecord(student) ? 'Full Payment' : 'Installment',
     actualFees: student.actualFees || '',
     registrationFees: student.registrationFees || '',
     discount: student.discount || '',
@@ -907,8 +812,8 @@ export function StudentManagementPage() {
     setDeleteTarget(null)
   }
 
-  const toggleActionMenu = (studentId) => {
-    setOpenActionMenuId((current) => (current === studentId ? '' : studentId))
+  const openActionMenu = (studentId) => {
+    setOpenActionMenuId(studentId)
   }
 
   const closeActionMenu = () => {
@@ -990,9 +895,18 @@ export function StudentManagementPage() {
   const updateField = (name, value) => {
     setForm((current) => ({
       ...current,
-      ...(name === 'paymentMode' && value !== 'Full Payment'
+      ...(name === 'paymentMode' && value === 'Installment'
         ? {
             paymentMode: value,
+            firstInstallmentStatus: 'Pending',
+            secondInstallmentStatus: 'Pending',
+            thirdInstallmentStatus: 'Pending',
+            firstInstallmentPaidAt: '',
+            secondInstallmentPaidAt: '',
+            thirdInstallmentPaidAt: '',
+            ...(current.installment1 || current.installment2 || current.installment3
+              ? {}
+              : getCourseInstallmentValues(findCourseForForm(courseOptions, current))),
           }
         : name === 'paymentMode' && value === 'Full Payment'
           ? {
@@ -1262,10 +1176,12 @@ export function StudentManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedStudents.map((student) => {
+                {paginatedStudents.map((student, index) => {
                   const studentCourse = findCourseForStudent(student, courseOptions)
                   const studentHasThirdInstallment = hasThirdInstallment(student, studentCourse)
                   const visibleInstallmentStage = getVisibleInstallmentStage(student, studentCourse)
+                  const shouldOpenUp = index >= Math.max(paginatedStudents.length - 2, 0)
+                  const actionMenuDirection = shouldOpenUp ? 'up' : 'down'
                   const currentInstallmentAmount =
                     visibleInstallmentStage === 1
                       ? student.firstInstallmentAmount
@@ -1288,7 +1204,7 @@ export function StudentManagementPage() {
                   const secondDueDate = getSecondDueDate(student)
                   const thirdDueDate = getThirdDueDate(student)
                   const currentInstallmentDueDate =
-                    isFullPaymentMode(student)
+                    isFullPaymentRecord(student)
                       ? ''
                       : visibleInstallmentStage === 2
                       ? secondDueDate
@@ -1296,7 +1212,7 @@ export function StudentManagementPage() {
                         ? thirdDueDate || addOneMonth(secondDueDate)
                         : ''
                   const currentInstallmentOverdueDays =
-                    isFullPaymentMode(student)
+                    isFullPaymentRecord(student)
                       ? 0
                       : visibleInstallmentStage === 2
                       ? (secondPaid ? 0 : diffInDays(secondDueDate, getTodayValue()))
@@ -1314,7 +1230,7 @@ export function StudentManagementPage() {
                       <td>{formatCurrency(student.totalAmount || student.actualFees || student.afterDiscount)}</td>
                       <td>{formatDate(student.admissionDate)}</td>
                       <td>
-                        {isFullPaymentMode(student) ? (
+                        {isFullPaymentRecord(student) ? (
                           '-'
                         ) : visibleInstallmentStage === 1 ? (
                           <label className="installment-check">
@@ -1357,7 +1273,7 @@ export function StudentManagementPage() {
                         )}
                       </td>
                       <td className="student-date-single-line">
-                        {isFullPaymentMode(student) ? (
+                        {isFullPaymentRecord(student) ? (
                           '-'
                         ) : visibleInstallmentStage === 1 ? (
                           '-'
@@ -1379,14 +1295,21 @@ export function StudentManagementPage() {
                       </td>
                       <td>
                         <div
-                          className={`student-action-menu ${openActionMenuId === student.id ? 'is-open' : ''}`.trim()}
-                          onMouseEnter={() => setOpenActionMenuId(student.id)}
+                          className={`student-action-menu ${openActionMenuId === student.id ? 'is-open' : ''} ${actionMenuDirection === 'up' ? 'is-up' : 'is-down'}`.trim()}
+                          onMouseEnter={() => openActionMenu(student.id, actionMenuDirection)}
                           onMouseLeave={closeActionMenu}
                         >
                           <button
                             type="button"
                             className="student-row-button student-row-button-more"
-                            onClick={() => toggleActionMenu(student.id)}
+                            onClick={() => {
+                              if (openActionMenuId === student.id) {
+                                closeActionMenu()
+                                return
+                              }
+
+                              openActionMenu(student.id, actionMenuDirection)
+                            }}
                             aria-label="Open student actions"
                             aria-haspopup="menu"
                             aria-expanded={openActionMenuId === student.id}
@@ -2154,7 +2077,7 @@ export function StudentManagementPage() {
                         rightLabel="Payment Mode"
                         rightValue={getPaymentModeLabel(selectedStudent)}
                       />
-                      {isFullPaymentMode(selectedStudent) ? (
+                      {isFullPaymentRecord(selectedStudent) ? (
                         <>
                           <DrawerTableRow
                             leftLabel="Payment Status"
