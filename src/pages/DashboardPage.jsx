@@ -487,7 +487,7 @@ function useBackendStudents() {
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   return (
     <section className="business-owner-dashboard">
-      <div className="business-topbar">
+      <div className="business-topbar business-topbar-plain">
         <div>
           <p className="eyebrow">Business Owner</p>
           <h2>{dashboard.title}</h2>
