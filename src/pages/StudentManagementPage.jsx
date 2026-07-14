@@ -8,6 +8,7 @@ import { normalizeCourseList } from '../services/courseService'
 
 const statusOptions = ['Student', 'Employee', 'Other']
 const recordStatusOptions = ['Active', 'Inactive']
+const paymentModeOptions = ['Installment', 'Full Payment']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
 const studentWizardSteps = [
   {
@@ -65,6 +66,7 @@ function createEmptyForm() {
     location: '',
     source: '',
     status: 'Active',
+    paymentMode: 'Installment',
     actualFees: '',
     registrationFees: '',
     discount: '',
@@ -148,7 +150,24 @@ function getThirdDueDate(student) {
   return student?.thirdDueDate || addOneMonth(getSecondDueDate(student))
 }
 
+function isInstallmentSettled(entity = null) {
+  const firstPaid = String(entity?.firstInstallmentStatus || 'Pending') === 'Paid'
+  const secondPaid = String(entity?.secondInstallmentStatus || 'Pending') === 'Paid'
+  const thirdPaid = hasThirdInstallment(entity) ? String(entity?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
+
+  return firstPaid && secondPaid && thirdPaid
+}
+
+function isFullPaymentMode(entity = null) {
+  return String(entity?.paymentMode || 'Installment').trim() === 'Full Payment' || isInstallmentSettled(entity)
+}
+
+function getPaymentModeLabel(entity = null) {
+  return isFullPaymentMode(entity) ? 'Full Payment' : 'Installment'
+}
+
 function getVisibleInstallmentStage(student, course = null) {
+  if (isFullPaymentMode(student)) return 0
   const firstPaid = String(student?.firstInstallmentStatus || 'Pending') === 'Paid'
   const secondPaid = String(student?.secondInstallmentStatus || 'Pending') === 'Paid'
   const thirdPaid = hasThirdInstallment(student, course) ? String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
@@ -219,6 +238,7 @@ function mapCourseToForm(current, course) {
 function validateForm(form, course = null) {
   const errors = {}
   const currentYear = new Date().getFullYear()
+  const isFullPayment = isFullPaymentMode(form)
   const requiresThirdInstallment = hasThirdInstallment(form, course)
 
   if (!form.studentName.trim()) errors.studentName = 'Student name is required.'
@@ -254,9 +274,9 @@ function validateForm(form, course = null) {
   if (!form.registrationFees && form.courseId) errors.registrationFees = 'Registration fee is missing.'
   if (!form.discount && form.courseId) errors.discount = 'Discount is missing.'
   if (!form.afterDiscount && form.courseId) errors.afterDiscount = 'After discount value is missing.'
-  if (!form.installment1 && form.courseId) errors.installment1 = 'Installment 1 is missing.'
-  if (!form.installment2 && form.courseId) errors.installment2 = 'Installment 2 is missing.'
-  if (requiresThirdInstallment && !form.installment3) errors.installment3 = 'Installment 3 is missing.'
+  if (!isFullPayment && !form.installment1 && form.courseId) errors.installment1 = 'Installment 1 is missing.'
+  if (!isFullPayment && !form.installment2 && form.courseId) errors.installment2 = 'Installment 2 is missing.'
+  if (!isFullPayment && requiresThirdInstallment && !form.installment3) errors.installment3 = 'Installment 3 is missing.'
   if (form.remarks.trim() && form.remarks.trim().length < 5) {
     errors.remarks = 'Add a short remark with at least 5 characters.'
   }
@@ -284,7 +304,14 @@ function validateStep(form, stepIndex, course = null) {
       ...(String(form.currentStatus || '') === 'Employee' ? ['designation'] : []),
       'source',
     ],
-    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate'],
+    2: [
+      'actualFees',
+      'registrationFees',
+      'discount',
+      'afterDiscount',
+      ...(isFullPaymentMode(form) ? [] : ['installment1', 'installment2', 'installment3']),
+      'admissionDate',
+    ],
   }
 
   return Object.fromEntries(
@@ -296,7 +323,7 @@ function getStepIndexForField(fieldName) {
   const stepFields = {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
     1: ['courseInterested', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
-    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate', 'remarks'],
+    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate', 'remarks', 'paymentMode'],
   }
 
   return Number(
@@ -336,6 +363,10 @@ function Field({ label, required = false, hint, error, className = '', icon, mul
 }
 
 function PaymentStatusBadge({ student }) {
+  if (isFullPaymentMode(student)) {
+    return <span className="student-badge employee">Completed</span>
+  }
+
   const dueDate = hasThirdInstallment(student) ? getThirdDueDate(student) || getSecondDueDate(student) : getSecondDueDate(student)
   const firstPaid = String(student.firstInstallmentStatus || 'Pending') === 'Paid'
   const secondPaid = String(student.secondInstallmentStatus || 'Pending') === 'Paid'
@@ -808,6 +839,7 @@ export function StudentManagementPage() {
     location: student.location || '',
     source: student.source || '',
     status: student.status || 'Active',
+    paymentMode: student.paymentMode || 'Installment',
     actualFees: student.actualFees || '',
     registrationFees: student.registrationFees || '',
     discount: student.discount || '',
@@ -958,6 +990,18 @@ export function StudentManagementPage() {
   const updateField = (name, value) => {
     setForm((current) => ({
       ...current,
+      ...(name === 'paymentMode' && value !== 'Full Payment'
+        ? {
+            paymentMode: value,
+          }
+        : name === 'paymentMode' && value === 'Full Payment'
+          ? {
+              paymentMode: value,
+              installment1: '',
+              installment2: '',
+              installment3: '',
+            }
+          : {}),
       [name]: value,
     }))
   }
@@ -1032,13 +1076,26 @@ export function StudentManagementPage() {
       facultyName: form.facultyName || '',
       batchName: form.batch || '',
       status: form.status || existingStudent?.status || 'Active',
-      firstInstallmentStatus: existingStudent?.firstInstallmentStatus || 'Pending',
-      firstInstallmentPaidAt: existingStudent?.firstInstallmentPaidAt || '',
-      secondInstallmentStatus: existingStudent?.secondInstallmentStatus || 'Pending',
-      secondInstallmentPaidAt: existingStudent?.secondInstallmentPaidAt || '',
-      thirdInstallmentStatus: existingStudent?.thirdInstallmentStatus || 'Pending',
-      thirdInstallmentPaidAt: existingStudent?.thirdInstallmentPaidAt || '',
     }
+
+    const isFullPayment = isFullPaymentMode(form)
+    const paidAtDate = form.admissionDate || existingStudent?.admissionDate || getTodayValue()
+    const paidAmount = String(form.afterDiscount || form.actualFees || existingStudent?.afterDiscount || existingStudent?.actualFees || '')
+
+    payload.paymentMode = isFullPayment ? 'Full Payment' : 'Installment'
+    payload.totalAmount = String(form.actualFees || existingStudent?.actualFees || form.afterDiscount || existingStudent?.afterDiscount || '')
+    payload.firstInstallmentStatus = isFullPayment ? 'Paid' : existingStudent?.firstInstallmentStatus || 'Pending'
+    payload.firstInstallmentPaidAt = isFullPayment ? paidAtDate : existingStudent?.firstInstallmentPaidAt || ''
+    payload.secondInstallmentStatus = isFullPayment ? 'Paid' : existingStudent?.secondInstallmentStatus || 'Pending'
+    payload.secondInstallmentPaidAt = isFullPayment ? paidAtDate : existingStudent?.secondInstallmentPaidAt || ''
+    payload.thirdInstallmentStatus = isFullPayment ? 'Paid' : existingStudent?.thirdInstallmentStatus || 'Pending'
+    payload.thirdInstallmentPaidAt = isFullPayment ? paidAtDate : existingStudent?.thirdInstallmentPaidAt || ''
+    payload.firstInstallmentAmount = isFullPayment ? paidAmount : form.installment1 || existingStudent?.firstInstallmentAmount || ''
+    payload.secondInstallmentAmount = isFullPayment ? '0' : form.installment2 || existingStudent?.secondInstallmentAmount || ''
+    payload.thirdInstallmentAmount = isFullPayment ? '0' : form.installment3 || existingStudent?.thirdInstallmentAmount || ''
+    payload.firstInstallmentDate = isFullPayment ? paidAtDate : form.firstInstallmentDate || existingStudent?.firstInstallmentDate || ''
+    payload.secondDueDate = isFullPayment ? '' : form.secondDueDate || existingStudent?.secondDueDate || ''
+    payload.thirdDueDate = isFullPayment ? '' : form.thirdDueDate || existingStudent?.thirdDueDate || ''
 
     try {
       if (editingStudentId) {
@@ -1231,13 +1288,17 @@ export function StudentManagementPage() {
                   const secondDueDate = getSecondDueDate(student)
                   const thirdDueDate = getThirdDueDate(student)
                   const currentInstallmentDueDate =
-                    visibleInstallmentStage === 2
+                    isFullPaymentMode(student)
+                      ? ''
+                      : visibleInstallmentStage === 2
                       ? secondDueDate
                       : visibleInstallmentStage === 3
                         ? thirdDueDate || addOneMonth(secondDueDate)
                         : ''
                   const currentInstallmentOverdueDays =
-                    visibleInstallmentStage === 2
+                    isFullPaymentMode(student)
+                      ? 0
+                      : visibleInstallmentStage === 2
                       ? (secondPaid ? 0 : diffInDays(secondDueDate, getTodayValue()))
                       : visibleInstallmentStage === 3
                         ? (thirdPaid ? 0 : diffInDays(thirdDueDate || addOneMonth(secondDueDate), getTodayValue()))
@@ -1250,10 +1311,12 @@ export function StudentManagementPage() {
                         <small>{student.emailAddress}</small>
                       </td>
                       <td>{student.courseInterested}</td>
-                      <td>{formatCurrency(student.totalAmount || student.afterDiscount)}</td>
+                      <td>{formatCurrency(student.totalAmount || student.actualFees || student.afterDiscount)}</td>
                       <td>{formatDate(student.admissionDate)}</td>
                       <td>
-                        {visibleInstallmentStage === 1 ? (
+                        {isFullPaymentMode(student) ? (
+                          '-'
+                        ) : visibleInstallmentStage === 1 ? (
                           <label className="installment-check">
                             <input
                               type="checkbox"
@@ -1294,7 +1357,9 @@ export function StudentManagementPage() {
                         )}
                       </td>
                       <td className="student-date-single-line">
-                        {visibleInstallmentStage === 1 ? (
+                        {isFullPaymentMode(student) ? (
+                          '-'
+                        ) : visibleInstallmentStage === 1 ? (
                           '-'
                         ) : currentInstallmentDueDate ? (
                           <>
@@ -1693,21 +1758,42 @@ export function StudentManagementPage() {
                     <input type="text" value={form.discount} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="After Discount (Auto Calculated)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
+                <Field label="After Discount (Auto Calculated)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
                     <input type="text" value={form.afterDiscount} readOnly placeholder="Auto calculated" />
                   </Field>
 
-                  <Field label="Installment 1 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment1') ? errors.installment1 : ''}>
-                    <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
+                  <Field label="Payment Mode" required icon={<FieldIcon kind="note" />}>
+                    <select
+                      value={form.paymentMode}
+                      onChange={(event) => updateField('paymentMode', event.target.value)}
+                    >
+                      {paymentModeOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
 
-                  <Field label="Installment 2 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment2') ? errors.installment2 : ''}>
-                    <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
-                  </Field>
+                  {!isFullPaymentMode(form) ? (
+                    <>
+                      <Field label="Installment 1 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment1') ? errors.installment1 : ''}>
+                        <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
+                      </Field>
 
-                  <Field label="Installment 3 (Auto Filled)" icon={<FieldIcon kind="installment" />} error={shouldShowError('installment3') ? errors.installment3 : ''}>
-                    <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
-                  </Field>
+                      <Field label="Installment 2 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment2') ? errors.installment2 : ''}>
+                        <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
+                      </Field>
+
+                      <Field label="Installment 3 (Auto Filled)" icon={<FieldIcon kind="installment" />} error={shouldShowError('installment3') ? errors.installment3 : ''}>
+                        <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
+                      </Field>
+                    </>
+                  ) : (
+                    <Field label="Paid Amount" required icon={<FieldIcon kind="currency" />}>
+                      <input type="text" value={form.afterDiscount} readOnly placeholder="Full payment amount" />
+                    </Field>
+                  )}
 
                   <Field label="Select Admission Date" required icon={<FieldIcon kind="calendar" />} error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
                     <input
@@ -1895,93 +1981,126 @@ export function StudentManagementPage() {
                       <tr>
                         <th>Final Fee</th>
                         <td><DrawerFormControl value={form.afterDiscount} onChange={(event) => updateField('afterDiscount', event.target.value.replace(/\D/g, ''))} /></td>
-                        <th>1st Installment Amount</th>
-                        <td><DrawerFormControl value={form.firstInstallmentAmount || form.installment1} onChange={(event) => updateField('installment1', event.target.value.replace(/\D/g, ''))} /></td>
-                      </tr>
-                      <tr>
-                        <th>1st Installment Date</th>
-                        <td><DrawerFormControl type="date" value={form.firstInstallmentDate} onChange={(event) => updateField('firstInstallmentDate', event.target.value)} /></td>
-                        <th>1st Installment Status</th>
+                        <th>Payment Mode</th>
                         <td>
                           <DrawerFormControl
                             as="select"
-                            value={form.firstInstallmentStatus}
-                            onChange={(event) => updateField('firstInstallmentStatus', event.target.value)}
-                            options={['Pending', 'Paid']}
-                            placeholder="Select status"
+                            value={form.paymentMode}
+                            onChange={(event) => updateField('paymentMode', event.target.value)}
+                            options={paymentModeOptions}
+                            placeholder="Select payment mode"
                           />
                         </td>
                       </tr>
-                      <tr>
-                        <th>2nd Installment Amount</th>
-                        <td><DrawerFormControl value={form.secondInstallmentAmount || form.installment2} onChange={(event) => updateField('installment2', event.target.value.replace(/\D/g, ''))} /></td>
-                        <th>2nd Due Date</th>
-                        <td><DrawerFormControl type="date" value={form.secondDueDate} onChange={(event) => updateField('secondDueDate', event.target.value)} /></td>
-                      </tr>
-                      <tr>
-                        <th>2nd Installment Status</th>
-                        <td>
-                          <DrawerFormControl
-                            as="select"
-                            value={form.secondInstallmentStatus}
-                            onChange={(event) => updateField('secondInstallmentStatus', event.target.value)}
-                            options={['Pending', 'Paid']}
-                            placeholder="Select status"
-                          />
-                        </td>
-                        <th>Overdue Days</th>
-                        <td>
-                          <DrawerValue
-                            value={
-                              hasThirdInstallment(selectedStudent, selectedStudentCourse)
-                                ? (form.thirdInstallmentStatus || 'Pending') === 'Paid'
-                                  ? '0 Days'
-                                  : `${diffInDays(getThirdDueDate({ ...selectedStudent, ...form }) || addOneMonth(getSecondDueDate({ ...selectedStudent, ...form })), getTodayValue())} Days`
-                                : (form.secondInstallmentStatus || 'Pending') === 'Paid'
-                                ? '0 Days'
-                                : `${diffInDays(getSecondDueDate({ ...selectedStudent, ...form }), getTodayValue())} Days`
-                            }
-                          />
-                        </td>
-                      </tr>
-                      {hasThirdInstallment(selectedStudent, selectedStudentCourse) ? (
+                      {!isFullPaymentMode(form) ? (
                         <>
                           <tr>
-                            <th>3rd Installment Amount</th>
-                            <td><DrawerFormControl value={form.thirdInstallmentAmount || form.installment3} onChange={(event) => updateField('installment3', event.target.value.replace(/\D/g, ''))} /></td>
-                            <th>3rd Due Date</th>
-                            <td><DrawerFormControl type="date" value={form.thirdDueDate} onChange={(event) => updateField('thirdDueDate', event.target.value)} /></td>
+                            <th>1st Installment Amount</th>
+                            <td><DrawerFormControl value={form.firstInstallmentAmount || form.installment1} onChange={(event) => updateField('installment1', event.target.value.replace(/\D/g, ''))} /></td>
+                            <th>1st Installment Date</th>
+                            <td><DrawerFormControl type="date" value={form.firstInstallmentDate} onChange={(event) => updateField('firstInstallmentDate', event.target.value)} /></td>
                           </tr>
                           <tr>
-                            <th>3rd Installment Status</th>
+                            <th>1st Installment Status</th>
                             <td>
                               <DrawerFormControl
                                 as="select"
-                                value={form.thirdInstallmentStatus}
-                                onChange={(event) => updateField('thirdInstallmentStatus', event.target.value)}
+                                value={form.firstInstallmentStatus}
+                                onChange={(event) => updateField('firstInstallmentStatus', event.target.value)}
                                 options={['Pending', 'Paid']}
                                 placeholder="Select status"
                               />
                             </td>
+                            <th>2nd Installment Amount</th>
+                            <td><DrawerFormControl value={form.secondInstallmentAmount || form.installment2} onChange={(event) => updateField('installment2', event.target.value.replace(/\D/g, ''))} /></td>
+                          </tr>
+                          <tr>
+                            <th>2nd Due Date</th>
+                            <td><DrawerFormControl type="date" value={form.secondDueDate} onChange={(event) => updateField('secondDueDate', event.target.value)} /></td>
+                            <th>2nd Installment Status</th>
+                            <td>
+                              <DrawerFormControl
+                                as="select"
+                                value={form.secondInstallmentStatus}
+                                onChange={(event) => updateField('secondInstallmentStatus', event.target.value)}
+                                options={['Pending', 'Paid']}
+                                placeholder="Select status"
+                              />
+                            </td>
+                          </tr>
+                          {hasThirdInstallment(selectedStudent, selectedStudentCourse) ? (
+                            <>
+                              <tr>
+                                <th>3rd Installment Amount</th>
+                                <td><DrawerFormControl value={form.thirdInstallmentAmount || form.installment3} onChange={(event) => updateField('installment3', event.target.value.replace(/\D/g, ''))} /></td>
+                                <th>3rd Due Date</th>
+                                <td><DrawerFormControl type="date" value={form.thirdDueDate} onChange={(event) => updateField('thirdDueDate', event.target.value)} /></td>
+                              </tr>
+                              <tr>
+                                <th>3rd Installment Status</th>
+                                <td>
+                                  <DrawerFormControl
+                                    as="select"
+                                    value={form.thirdInstallmentStatus}
+                                    onChange={(event) => updateField('thirdInstallmentStatus', event.target.value)}
+                                    options={['Pending', 'Paid']}
+                                    placeholder="Select status"
+                                  />
+                                </td>
+                                <th>Overdue Days</th>
+                                <td>
+                                  <DrawerValue
+                                    value={
+                                      (form.thirdInstallmentStatus || 'Pending') === 'Paid'
+                                        ? '0 Days'
+                                        : `${diffInDays(getThirdDueDate({ ...selectedStudent, ...form }) || addOneMonth(getSecondDueDate({ ...selectedStudent, ...form })), getTodayValue())} Days`
+                                    }
+                                  />
+                                </td>
+                              </tr>
+                            </>
+                          ) : null}
+                          <tr>
                             <th>Overdue Days</th>
                             <td>
                               <DrawerValue
                                 value={
-                                  (form.thirdInstallmentStatus || 'Pending') === 'Paid'
+                                  (form.secondInstallmentStatus || 'Pending') === 'Paid'
                                     ? '0 Days'
-                                    : `${diffInDays(getThirdDueDate({ ...selectedStudent, ...form }) || addOneMonth(getSecondDueDate({ ...selectedStudent, ...form })), getTodayValue())} Days`
+                                    : `${diffInDays(getSecondDueDate({ ...selectedStudent, ...form }), getTodayValue())} Days`
                                 }
                               />
                             </td>
+                            <th>How did you know about our Institute?</th>
+                            <td><DrawerFormControl value={form.source} onChange={(event) => updateField('source', event.target.value)} /></td>
+                          </tr>
+                          <tr>
+                            <th>Remarks</th>
+                            <td colSpan={3}><DrawerFormControl as="textarea" value={form.remarks} onChange={(event) => updateField('remarks', event.target.value)} /></td>
                           </tr>
                         </>
-                      ) : null}
-                      <tr>
-                        <th>How did you know about our Institute?</th>
-                        <td><DrawerFormControl value={form.source} onChange={(event) => updateField('source', event.target.value)} /></td>
-                        <th>Remarks</th>
-                        <td><DrawerFormControl as="textarea" value={form.remarks} onChange={(event) => updateField('remarks', event.target.value)} /></td>
-                      </tr>
+                      ) : (
+                        <>
+                          <tr>
+                            <th>Paid Amount</th>
+                            <td><DrawerValue value={formatCurrency(form.afterDiscount || form.actualFees)} /></td>
+                            <th>Payment Status</th>
+                            <td><DrawerValue value="Paid" tone="success" /></td>
+                          </tr>
+                          <tr>
+                            <th>Payment Type</th>
+                            <td><DrawerValue value="Full Payment" /></td>
+                            <th>Admission Date</th>
+                            <td><DrawerFormControl type="date" value={form.admissionDate} onChange={(event) => updateField('admissionDate', event.target.value)} /></td>
+                          </tr>
+                          <tr>
+                            <th>How did you know about our Institute?</th>
+                            <td><DrawerFormControl value={form.source} onChange={(event) => updateField('source', event.target.value)} /></td>
+                            <th>Remarks</th>
+                            <td><DrawerFormControl as="textarea" value={form.remarks} onChange={(event) => updateField('remarks', event.target.value)} /></td>
+                          </tr>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
@@ -2025,71 +2144,94 @@ export function StudentManagementPage() {
                       />
                       <DrawerTableRow
                         leftLabel="Total Course Fee"
-                        leftValue={formatCurrency(selectedStudent.totalAmount || selectedStudent.afterDiscount)}
+                        leftValue={formatCurrency(selectedStudent.actualFees || selectedStudent.totalAmount || selectedStudent.afterDiscount)}
                         rightLabel="Discount"
                         rightValue={formatCurrency(selectedStudent.discount)}
                       />
                       <DrawerTableRow
                         leftLabel="Final Fee"
                         leftValue={formatCurrency(selectedStudent.afterDiscount)}
-                        rightLabel="1st Installment Amount"
-                        rightValue={formatCurrency(selectedStudent.firstInstallmentAmount || selectedStudent.installment1)}
+                        rightLabel="Payment Mode"
+                        rightValue={getPaymentModeLabel(selectedStudent)}
                       />
-                      <DrawerTableRow
-                        leftLabel="1st Installment Date"
-                        leftValue={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)}
-                        rightLabel="1st Installment Status"
-                        rightValue={selectedStudent.firstInstallmentStatus || 'Pending'}
-                        rightTone={String(selectedStudent.firstInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
-                      />
-                      <DrawerTableRow
-                        leftLabel="2nd Installment Amount"
-                        leftValue={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)}
-                        rightLabel="2nd Due Date"
-                        rightValue={formatDate(getSecondDueDate(selectedStudent))}
-                      />
-                      <DrawerTableRow
-                        leftLabel="2nd Installment Status"
-                        leftValue={selectedStudent.secondInstallmentStatus || 'Pending'}
-                        leftTone={String(selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
-                        rightLabel="Overdue Days"
-                        rightValue={
-                          hasThirdInstallment(selectedStudent, selectedStudentCourse)
-                            ? (selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid'
-                              ? '0 Days'
-                              : `${diffInDays(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)), getTodayValue())} Days`
-                            : (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
-                            ? '0 Days'
-                            : `${diffInDays(getSecondDueDate(selectedStudent), getTodayValue())} Days`
-                        }
-                      />
-                      {hasThirdInstallment(selectedStudent, selectedStudentCourse) ? (
+                      {isFullPaymentMode(selectedStudent) ? (
                         <>
                           <DrawerTableRow
-                            leftLabel="3rd Installment Amount"
-                            leftValue={formatCurrency(selectedStudent.thirdInstallmentAmount || selectedStudent.installment3 || selectedStudentCourse?.installment3)}
-                            rightLabel="3rd Due Date"
-                            rightValue={formatDate(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)))}
+                            leftLabel="Payment Status"
+                            leftValue="Paid"
+                            leftTone="success"
+                            rightLabel="How did you know about our Institute?"
+                            rightValue={selectedStudent.source}
                           />
                           <DrawerTableRow
-                            leftLabel="3rd Installment Status"
-                            leftValue={selectedStudent.thirdInstallmentStatus || 'Pending'}
-                            leftTone={String(selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
-                            rightLabel="Overdue Days"
-                            rightValue={
-                              (selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid'
-                                ? '0 Days'
-                                : `${diffInDays(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)), getTodayValue())} Days`
-                            }
+                            leftLabel="Remarks"
+                            leftValue={getDrawerValue(selectedStudent.remarks, 'No remarks added')}
+                            rightLabel="Payment Type"
+                            rightValue="Full Payment"
                           />
                         </>
-                      ) : null}
-                      <DrawerTableRow
-                        leftLabel="How did you know about our Institute?"
-                        leftValue={selectedStudent.source}
-                        rightLabel="Remarks"
-                        rightValue={selectedStudent.remarks || '-'}
-                      />
+                      ) : (
+                        <>
+                          <DrawerTableRow
+                            leftLabel="1st Installment Amount"
+                            leftValue={formatCurrency(selectedStudent.firstInstallmentAmount || selectedStudent.installment1)}
+                            rightLabel="1st Installment Date"
+                            rightValue={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)}
+                          />
+                          <DrawerTableRow
+                            leftLabel="1st Installment Status"
+                            leftValue={selectedStudent.firstInstallmentStatus || 'Pending'}
+                            leftTone={String(selectedStudent.firstInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
+                            rightLabel="2nd Installment Amount"
+                            rightValue={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)}
+                          />
+                          <DrawerTableRow
+                            leftLabel="2nd Due Date"
+                            leftValue={formatDate(getSecondDueDate(selectedStudent))}
+                            rightLabel="2nd Installment Status"
+                            rightValue={selectedStudent.secondInstallmentStatus || 'Pending'}
+                            rightTone={String(selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
+                          />
+                          <DrawerTableRow
+                            leftLabel="Overdue Days"
+                            leftValue={
+                              hasThirdInstallment(selectedStudent, selectedStudentCourse)
+                                ? (selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid'
+                                  ? '0 Days'
+                                  : `${diffInDays(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)), getTodayValue())} Days`
+                                : (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
+                                ? '0 Days'
+                                : `${diffInDays(getSecondDueDate(selectedStudent), getTodayValue())} Days`
+                            }
+                            rightLabel="How did you know about our Institute?"
+                            rightValue={selectedStudent.source}
+                          />
+                          {hasThirdInstallment(selectedStudent, selectedStudentCourse) ? (
+                            <>
+                              <DrawerTableRow
+                                leftLabel="3rd Installment Amount"
+                                leftValue={formatCurrency(selectedStudent.thirdInstallmentAmount || selectedStudent.installment3 || selectedStudentCourse?.installment3)}
+                                rightLabel="3rd Due Date"
+                                rightValue={formatDate(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)))}
+                              />
+                              <DrawerTableRow
+                                leftLabel="3rd Installment Status"
+                                leftValue={selectedStudent.thirdInstallmentStatus || 'Pending'}
+                                leftTone={String(selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
+                                rightLabel="Remarks"
+                                rightValue={selectedStudent.remarks || '-'}
+                              />
+                            </>
+                          ) : (
+                            <DrawerTableRow
+                              leftLabel="Remarks"
+                              leftValue={selectedStudent.remarks || '-'}
+                              rightLabel="Admission Date"
+                              rightValue={formatDate(selectedStudent.admissionDate)}
+                            />
+                          )}
+                        </>
+                      )}
                     </>
                   )}
                 </tbody>

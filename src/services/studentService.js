@@ -31,6 +31,7 @@ export function normalizeStudent(student) {
     currentStatus: student.currentStatus || '',
     designation: student.designation || '',
     source: student.source || '',
+    paymentMode: student.paymentMode || 'Installment',
     actualFees: student.actualFees ?? '',
     registrationFees: student.registrationFees ?? '',
     discount: student.discount ?? '',
