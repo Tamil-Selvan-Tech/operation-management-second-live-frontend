@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Bell, CalendarDays, Info, Target, TrendingUp, Wallet } from 'lucide-react'
 
-import { roleDashboards, roleLabels } from '../data/authData'
+import { roleDashboards } from '../data/authData'
+import { loadStudentRecords } from '../data/studentRecords'
 import { listStudents } from '../services/studentService'
-import { getRevenueSummary } from '../services/dashboardService'
 
 const attendanceComparisonData = [
   { month: 'Jan', attendance: 82, students: 240 },
@@ -82,25 +83,25 @@ const revenueSummaryCards = [
 const notificationItems = [
   {
     tone: 'red',
-    icon: 'ðŸ”´',
+    icon: '\u{1F534}',
     message: '5 Student fee payments are overdue.',
     time: '5 mins ago',
   },
   {
     tone: 'yellow',
-    icon: 'ðŸŸ¡',
+    icon: '\u{1F7E1}',
     message: 'Leave request submitted by Priya\u00A0S.',
     time: '15 mins ago',
   },
   {
     tone: 'amber',
-    icon: 'âš ï¸',
+    icon: '\u26A0\uFE0F',
     message: 'Monthly revenue report is ready.',
     time: 'Today',
   },
   {
     tone: 'blue',
-    icon: 'ðŸ“Š',
+    icon: '\u{1F4E8}',
     message: 'Students Attendance report is ready.',
     time: 'Just now',
   },
@@ -195,10 +196,10 @@ function getStudentStatus(student) {
 }
 
 function getPaidAmount(student) {
-  const first = String(student?.firstInstallmentStatus || 'Pending') === 'Paid' && student?.firstInstallmentPaidAt ? Number(student?.installment1 || student?.firstInstallmentAmount || 0) : 0
-  const second = String(student?.secondInstallmentStatus || 'Pending') === 'Paid' && student?.secondInstallmentPaidAt ? Number(student?.installment2 || student?.secondInstallmentAmount || 0) : 0
+  const first = String(student?.firstInstallmentStatus || 'Pending') === 'Paid' ? Number(student?.installment1 || student?.firstInstallmentAmount || 0) : 0
+  const second = String(student?.secondInstallmentStatus || 'Pending') === 'Paid' ? Number(student?.installment2 || student?.secondInstallmentAmount || 0) : 0
   const third =
-    hasThirdInstallment(student) && String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' && student?.thirdInstallmentPaidAt
+    hasThirdInstallment(student) && String(student?.thirdInstallmentStatus || 'Pending') === 'Paid'
       ? Number(student?.thirdInstallmentAmount || student?.installment3 || 0)
       : 0
   return first + second + third
@@ -299,16 +300,18 @@ function calculateRevenueSummary(students) {
       let paidTotalForStudent = 0
 
       for (const entry of entries) {
-        if (String(entry.status || '').trim() !== 'Paid' || !entry.paidAt) continue
+        if (String(entry.status || '').trim() !== 'Paid') continue
 
         paidTotalForStudent += entry.amount
         summary.totalRevenue += entry.amount
 
-        if (isWithinRange(entry.paidAt, monthStart, today)) {
+        const paymentDate = entry.paidAt || admissionDate || entry.dueDate
+
+        if (isWithinRange(paymentDate, monthStart, today)) {
           summary.thisMonthRevenue += entry.amount
         }
 
-        if (isWithinRange(entry.paidAt, weekStart, today)) {
+        if (isWithinRange(paymentDate, weekStart, today)) {
           summary.thisWeekRevenue += entry.amount
         }
       }
@@ -443,6 +446,7 @@ function buildWeeklyRevenueComparison(students, referenceDate = new Date()) {
 
 function useBackendStudents() {
   const [records, setRecords] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let active = true
@@ -454,36 +458,7 @@ function useBackendStudents() {
         setRecords(result.data || [])
       } catch {
         if (!active) return
-        setRecords([])
-      }
-    }
-
-    void run()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  return records
-}
-
-function useRevenueSummary() {
-  const [summary, setSummary] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-
-    const run = async () => {
-      setIsLoading(true)
-      try {
-        const result = await getRevenueSummary()
-        if (!active) return
-        setSummary(result || null)
-      } catch {
-        if (!active) return
-        setSummary(null)
+        setRecords(loadStudentRecords())
       } finally {
         if (active) {
           setIsLoading(false)
@@ -491,14 +466,22 @@ function useRevenueSummary() {
       }
     }
 
+    const syncRecords = () => {
+      void run()
+    }
+
     void run()
+    window.addEventListener(STUDENT_RECORD_SYNC_EVENT, syncRecords)
+    window.addEventListener('storage', syncRecords)
 
     return () => {
       active = false
+      window.removeEventListener(STUDENT_RECORD_SYNC_EVENT, syncRecords)
+      window.removeEventListener('storage', syncRecords)
     }
   }, [])
 
-  return { summary, isLoading }
+  return { records, isLoading }
 }
 
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
@@ -512,9 +495,6 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, r
         </div>
 
         <div className="business-topbar-actions">
-          <button className="icon-chip" type="button" aria-label="Calendar">
-            <span>â—«</span>
-          </button>
           <NotificationBell />
           <div className="profile-chip">
             <div className="profile-avatar">BH</div>
@@ -620,7 +600,7 @@ function NotificationBell() {
         aria-expanded={isOpen}
         onClick={() => setIsOpen((current) => !current)}
       >
-        <span>ðŸ””</span>
+        <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
         <b>{notificationItems.length}</b>
       </button>
 
@@ -673,43 +653,23 @@ function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
 
 function SummaryIcon({ kind }) {
   if (kind === 'wallet') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M4.5 7.5h13.2c1.5 0 2.8 1.2 2.8 2.8V16c0 1.6-1.3 2.8-2.8 2.8H7.2C5.2 18.8 4 17.4 4 15.6V8c0-.3.2-.5.5-.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M16.5 10.2h4v3.6h-4c-1 0-1.8-.8-1.8-1.8s.8-1.8 1.8-1.8Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <circle cx="17.8" cy="12" r="0.9" fill="currentColor" />
-      </svg>
-    )
+    return <Wallet size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'calendar') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.5" y="5.5" width="15" height="14" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M4.5 9h15" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 4v3M16 4v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M8 12h3M13 12h3M8 15h3M13 15h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      </svg>
-    )
+    return <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'trend') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M4.5 17.5h15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M6 16V8M11 16v-4M16 16V6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M6.5 11.5 10.2 8.8 13.5 10 18 5.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M17.2 5.8h1.9v1.9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
+    return <TrendingUp size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+  }
+
+  if (kind === 'target') {
+    return <Target size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
   }
 
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="12" cy="12" r="2" fill="currentColor" />
-      <path d="M12 5.5v2.1M12 16.4v2.1M5.5 12h2.1M16.4 12h2.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
+    <Info size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
   )
 }
 
@@ -743,7 +703,7 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
             onFocus={() => setActiveTooltipIndex(index)}
             onBlur={() => setActiveTooltipIndex(null)}
           >
-            <span aria-hidden="true">i</span>
+            <Info size={13} strokeWidth={2.5} aria-hidden="true" focusable="false" />
             <div className="revenue-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${card.label} details`}>
               <strong>{card.label}</strong>
               <p>{card.tooltip}</p>
@@ -774,21 +734,23 @@ function MonthlyRevenueChart({ data = [] }) {
   return (
     <article className="panel-card revenue-comparison-card revenue-monthly-card">
       <div className="revenue-comparison-header">
-        <div>
+        <div className="revenue-comparison-header-copy">
           <h3>Monthly Revenue vs Expected Revenue (Current Year)</h3>
-          <p>Current-year actual revenue and expected revenue by month, based on paid dates and due dates.</p>
+          <div className="revenue-legend" aria-hidden="true">
+            <span className="revenue-legend-item">
+              <span className="revenue-legend-swatch monthly" />
+              Actual Revenue
+            </span>
+            <span className="revenue-legend-item">
+              <span className="revenue-legend-swatch expected" />
+              Expected Revenue
+            </span>
+          </div>
         </div>
-
-        <div className="revenue-legend" aria-hidden="true">
-          <span className="revenue-legend-item">
-            <span className="revenue-legend-swatch monthly" />
-            Actual Revenue
-          </span>
-          <span className="revenue-legend-item">
-            <span className="revenue-legend-swatch expected" />
-            Expected Revenue
-          </span>
-        </div>
+        <ChartInfoTrigger
+          label="Monthly Revenue details"
+          description="Current-year actual revenue and expected revenue by month, based on paid dates and due dates."
+        />
       </div>
 
       <div className="revenue-comparison-body">
@@ -871,21 +833,23 @@ function WeeklyRevenueChart({ data = [] }) {
   return (
     <article className="panel-card revenue-comparison-card revenue-weekly-card">
       <div className="revenue-comparison-header">
-        <div>
+        <div className="revenue-comparison-header-copy">
           <h3>Weekly Revenue vs Expected Revenue (Current Month)</h3>
-          <p>Actual revenue and expected revenue by week, based on paid dates and due dates in the current month.</p>
+          <div className="revenue-legend revenue-weekly-legend" aria-hidden="true">
+            <span className="revenue-legend-item">
+              <span className="revenue-legend-swatch monthly" />
+              Actual Revenue
+            </span>
+            <span className="revenue-legend-item">
+              <span className="revenue-legend-swatch expected" />
+              Expected Revenue
+            </span>
+          </div>
         </div>
-      </div>
-
-      <div className="revenue-legend revenue-weekly-legend" aria-hidden="true">
-        <span className="revenue-legend-item">
-          <span className="revenue-legend-swatch monthly" />
-          Actual Revenue
-        </span>
-        <span className="revenue-legend-item">
-          <span className="revenue-legend-swatch expected" />
-          Expected Revenue
-        </span>
+        <ChartInfoTrigger
+          label="Weekly Revenue details"
+          description="Actual revenue and expected revenue by week, based on paid dates and due dates in the current month."
+        />
       </div>
 
       <div className="revenue-weekly-body">
@@ -954,6 +918,29 @@ function WeeklyRevenueChart({ data = [] }) {
         </div>
       </div>
     </article>
+  )
+}
+
+function ChartInfoTrigger({ label, description }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <button
+      type="button"
+      className={`chart-info-trigger ${isOpen ? 'is-open' : ''}`}
+      aria-label={label}
+      aria-expanded={isOpen}
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+      onFocus={() => setIsOpen(true)}
+      onBlur={() => setIsOpen(false)}
+    >
+      <Info size={17} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+      <div className="chart-info-tooltip" role="tooltip">
+        <strong>{label}</strong>
+        <p>{description}</p>
+      </div>
+    </button>
   )
 }
 
@@ -1064,7 +1051,7 @@ function StudentSectionCard({ title, subtitle, children }) {
 }
 
 function StudentDashboard({ dashboard }) {
-  const students = useBackendStudents()
+  const { records: students } = useBackendStudents()
   const latestStudent = useMemo(() => students[0] || null, [students])
 
   if (!latestStudent) {
@@ -1208,9 +1195,6 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
             <span aria-hidden="true">âŒ•</span>
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
-          <button className="icon-chip" type="button" aria-label="Calendar">
-            <span>â—«</span>
-          </button>
           <NotificationBell />
           <div className="profile-chip">
             <div className="profile-avatar">OM</div>
@@ -1255,8 +1239,8 @@ function GenericDashboard({ role }) {
 
 export function DashboardPage({ role }) {
   const dashboard = roleDashboards[role]
-  const revenueStudents = useBackendStudents()
-  const { summary: revenueSummary, isLoading: isRevenueLoading } = useRevenueSummary()
+  const { records: revenueStudents, isLoading: isRevenueLoading } = useBackendStudents()
+  const revenueSummary = useMemo(() => calculateRevenueSummary(revenueStudents), [revenueStudents])
 
   if (role === 'business-owner') {
     return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} revenueStudents={revenueStudents} />
@@ -1272,3 +1256,5 @@ export function DashboardPage({ role }) {
 
   return <GenericDashboard role={role} />
 }
+
+

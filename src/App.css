@@ -2000,41 +2000,40 @@ tbody tr:hover {
 
 .revenue-summary-info-button {
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: auto;
+  height: auto;
   margin-top: 0;
   justify-self: end;
   align-self: start;
   padding: 0;
-  border-radius: 999px;
-  border: 1px solid #75a7ff;
-  background: #ffffff;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: #2474e4;
   display: grid;
   place-items: center;
   cursor: pointer;
   overflow: visible;
   outline: none;
-  box-shadow: 0 8px 18px rgba(15, 123, 218, 0.08);
+  box-shadow: none;
 }
 
-.revenue-summary-info-button span {
+.revenue-summary-info-button svg {
+  width: 19px;
+  height: 19px;
   display: block;
-  font-size: 0.76rem;
-  font-weight: 900;
-  line-height: 1;
-  transform: translateY(-0.5px);
 }
 
 .revenue-summary-info-button:hover,
 .revenue-summary-info-button:focus-visible {
-  border-color: #0f7bda;
-  box-shadow: 0 0 0 3px rgba(15, 123, 218, 0.14);
+  color: #0f7bda;
+  transform: translateY(-1px);
+  box-shadow: none;
 }
 
 .revenue-summary-info-button.is-open {
-  border-color: #0f7bda;
-  box-shadow: 0 0 0 3px rgba(15, 123, 218, 0.12);
+  color: #0f7bda;
+  box-shadow: none;
 }
 
 .revenue-summary-icon svg {
@@ -2447,56 +2446,137 @@ tbody tr:hover {
   min-width: 0;
   align-self: stretch;
   height: 100%;
-  min-height: 420px;
+  min-height: 340px;
 }
 
 .revenue-comparison-header {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  padding-right: 28px;
 }
 
-.revenue-comparison-header > div:first-child {
+.revenue-comparison-header-copy {
   min-width: 0;
   flex: 1 1 auto;
+  display: grid;
+  gap: 6px;
 }
 
 .revenue-comparison-header h3 {
   margin: 0;
   color: #1f5ee8;
-  font-size: clamp(0.68rem, 0.82vw, 0.86rem);
-  line-height: 1.02;
+  font-size: clamp(0.76rem, 0.98vw, 1rem);
+  line-height: 1.16;
   letter-spacing: -0.03em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: clip;
-}
-
-.revenue-comparison-header p {
-  margin: 5px 0 0;
-  color: #4f7de0;
-  font-size: 0.83rem;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
 }
 
 .revenue-legend {
   display: inline-flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 12px;
   flex-wrap: wrap;
   color: var(--text-strong);
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   font-weight: 600;
   white-space: nowrap;
   flex: 0 0 auto;
-  max-width: 30%;
+  max-width: none;
+}
+
+.chart-info-trigger {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2474e4;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border-radius: 999px;
+  outline: none;
+}
+
+.chart-info-trigger svg {
+  width: 19px;
+  height: 19px;
+  display: block;
+}
+
+.chart-info-trigger:hover,
+.chart-info-trigger:focus-visible,
+.chart-info-trigger.is-open {
+  color: #0f7bda;
+}
+
+.chart-info-tooltip {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: min(380px, 52vw);
+  padding: 14px 15px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #dbe7f7;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.14);
+  color: #0f172a;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 4;
+}
+
+.chart-info-trigger:hover .chart-info-tooltip,
+.chart-info-trigger:focus-visible .chart-info-tooltip,
+.chart-info-trigger.is-open .chart-info-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.chart-info-tooltip strong {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #1d4ed8;
+}
+
+.chart-info-tooltip p {
+  margin: 0;
+  font-size: 0.83rem;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.chart-info-tooltip::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 12px;
+  width: 11px;
+  height: 11px;
+  background: #ffffff;
+  border-left: 1px solid #dbe7f7;
+  border-top: 1px solid #dbe7f7;
+  transform: rotate(45deg);
 }
 
 .revenue-legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .revenue-legend-swatch,
@@ -2521,13 +2601,13 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr);
   gap: 12px;
-  min-height: 240px;
+  min-height: 180px;
 }
 
 .revenue-axis-y {
   display: grid;
   grid-template-rows: repeat(5, minmax(0, 1fr));
-  padding-bottom: 26px;
+  padding-bottom: 14px;
   color: #6b7280;
   font-size: 0.88rem;
   font-weight: 500;
@@ -2540,8 +2620,8 @@ tbody tr:hover {
 
 .revenue-plot {
   position: relative;
-  min-height: 240px;
-  padding: 0 10px 24px;
+  min-height: 180px;
+  padding: 0 10px 12px;
   border-radius: 18px;
   background:
     linear-gradient(180deg, rgba(247, 250, 255, 0.95), rgba(255, 255, 255, 0.98));
@@ -2550,7 +2630,7 @@ tbody tr:hover {
 
 .revenue-grid-lines {
   position: absolute;
-  inset: 0 0 24px;
+  inset: 0 0 12px;
   display: grid;
   grid-template-rows: repeat(4, minmax(0, 1fr));
   pointer-events: none;
@@ -2680,8 +2760,8 @@ tbody tr:hover {
 }
 
 .revenue-weekly-card {
-  gap: 10px;
-  min-height: 420px;
+  gap: 8px;
+  min-height: 300px;
 }
 
 .revenue-weekly-legend {
@@ -2692,14 +2772,14 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: 106px minmax(0, 1fr);
   gap: 12px;
-  min-height: 240px;
+  min-height: 150px;
 }
 
 .revenue-weekly-axis-y {
   display: grid;
   grid-template-rows: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  padding: 14px 0 20px;
+  gap: 8px;
+  padding: 0 0 6px;
   color: #111827;
   font-size: 0.88rem;
   font-weight: 600;
@@ -2711,8 +2791,8 @@ tbody tr:hover {
 
 .revenue-weekly-plot {
   position: relative;
-  min-height: 240px;
-  padding: 14px 12px 20px 0;
+  min-height: 150px;
+  padding: 0 12px 8px 0;
   border-radius: 18px;
   background:
     linear-gradient(180deg, rgba(247, 250, 255, 0.95), rgba(255, 255, 255, 0.98));
@@ -3240,10 +3320,10 @@ tbody tr:hover {
 
 .notification-chip b {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 18px;
-  height: 18px;
+  top: -6px;
+  right: -6px;
+  min-width: 19px;
+  height: 19px;
   border-radius: 999px;
   display: grid;
   place-items: center;
@@ -3251,6 +3331,18 @@ tbody tr:hover {
   color: #ffffff;
   font-size: 11px;
   font-weight: 700;
+}
+
+.notification-chip svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.12));
+}
+
+.notification-chip:hover svg,
+.notification-chip:focus-visible svg {
+  transform: translateY(-1px) scale(1.05);
 }
 
 .profile-chip {
@@ -4118,15 +4210,15 @@ tbody tr:hover {
 }
 
 .student-submit-popup {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 90;
   display: grid;
   place-items: center;
   padding: 24px;
   background: rgba(15, 23, 42, 0.34);
   backdrop-filter: blur(4px);
-  border-radius: 30px;
+  border-radius: 0;
 }
 
 .student-submit-popup-card {

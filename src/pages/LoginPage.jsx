@@ -100,41 +100,17 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
   const [showPassword, setShowPassword] = useState(false)
 
   return (
-    <Card className="auth-card login-shell">
-      <aside className="login-hero">
-        <div className="login-brand">
-          <div className="login-brand-mark">
-            <img className="login-logo-image" src="/logo.png" alt="CISPRO logo" />
-          </div>
-          <div>
-            <strong>CISPRO</strong>
-            <p>Operation Management System</p>
+    <Card className="auth-card login-shell login-page">
+      <section className="login-form-panel">
+        <div className="login-topbar">
+          <div className="login-brand-pill">
+            <img className="login-brand-icon" src="/logo.png" alt="CISPRO logo" />
           </div>
         </div>
 
-        <div className="login-hero-copy">
-          <p className="hero-rule" />
-          <h2>Streamline.</h2>
-          <h2 className="accent">Manage.</h2>
-          <h2>Succeed.</h2>
-          <p>
-            A complete management solution for Business Owner, Operation Manager, HR, Faculty,
-            and Students.
-          </p>
-        </div>
-
-        <div className="login-hero-art" aria-hidden="true">
-          <img className="login-hero-image" src="/login.png" alt="" />
-        </div>
-      </aside>
-
-      <section className="login-panel">
-        <div className="login-panel-top">
-          {/* <div className="login-shield" aria-hidden="true">
-            <img className="login-logo-image login-logo-image-small" src="/logo.png" alt="" />
-          </div> */}
-          <h2>Welcome Back!</h2>
-          <p>Log in to continue to your account</p>
+        <div className="login-copy">
+          <h2>Welcome back</h2>
+          <p>Sign in to continue to your operation dashboard.</p>
         </div>
 
         <form className="form login-form" onSubmit={onSubmit}>
@@ -151,7 +127,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
                 }
                 type="text"
                 autoComplete="username"
-                placeholder="Enter your email or employee ID"
+                placeholder="Enter your email"
               />
             </div>
           </FormField>
@@ -187,16 +163,11 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
             ) : null}
           </FormField>
 
-          <div className="login-meta">
-            <label className="remember-me">
-              <input type="checkbox" defaultChecked />
-              <span className="checkmark"></span>
-              <span className="remember-text">Remember me</span>
-            </label>
-
+          <div className="login-footer-links">
             <a href="/forgot-password" className="text-link">
-              Forgot Password?
+              Forgot password?
             </a>
+            <span className="login-footnote">Terms &amp; Conditions</span>
           </div>
 
           <Button type="submit" className="login-primary" disabled={isSubmitting}>
@@ -204,6 +175,10 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
           </Button>
         </form>
       </section>
+
+      <aside className="login-visual-panel" aria-hidden="true">
+        <img className="login-visual-image" src="/image copy.png" alt="" />
+      </aside>
     </Card>
   )
 }

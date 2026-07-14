@@ -78,6 +78,19 @@ function formatHours(value) {
 
 const MAX_CUSTOM_INSTALLMENTS = 12
 
+const requiredFieldLabels = {
+  name: 'Course Name',
+  mode: 'Mode',
+  duration: 'Duration (Months)',
+  hours: 'Hours',
+  actualFees: 'Actual Fees',
+  registrationFees: 'Registration Fees',
+  discount: 'Discount',
+  installmentCount: 'Installment Count',
+  customInstallmentCount: 'Custom Installment Count',
+  status: 'Status',
+}
+
 function normalizeInstallmentCount(value) {
   const amount = Number(value)
   if (!Number.isFinite(amount) || amount < 1) return 0
@@ -158,19 +171,6 @@ export function CoursesPage() {
 
   const pageSize = 5
 
-  const requiredFieldLabels = {
-    name: 'Course Name',
-    mode: 'Mode',
-    duration: 'Duration (Months)',
-    hours: 'Hours',
-    actualFees: 'Actual Fees',
-    registrationFees: 'Registration Fees',
-    discount: 'Discount',
-    installmentCount: 'Installment Count',
-    customInstallmentCount: 'Custom Installment Count',
-    status: 'Status',
-  }
-
   const markTouched = (field) => {
     setTouched((current) => (current[field] ? current : { ...current, [field]: true }))
   }
@@ -240,7 +240,7 @@ export function CoursesPage() {
     }
 
     return errors
-  }, [form, requiredFieldLabels])
+  }, [form])
 
   const totalPages = pagination.totalPages || 1
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -298,7 +298,11 @@ export function CoursesPage() {
   )
 
   useEffect(() => {
-    void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
+    const timeoutId = window.setTimeout(() => {
+      void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [activeFilter, currentPage, loadCourses, searchTerm])
 
   const pageList = useMemo(() => {
@@ -465,18 +469,6 @@ export function CoursesPage() {
     const payload = {
       name: form.name.trim(),
       mode: form.mode,
-
-      duration: Number(form.duration),
-      hours: Number(form.hours),
-      actualFees: Number(form.actualFees),
-      registrationFees: Number(form.registrationFees),
-      discount: Number(form.discount),
-      installmentCount: Number(form.installmentCount),
-      installment1: Number(form.installment1),
-      installment2: Number(form.installment2),
-      installment3: form.installmentCount === '3' ? Number(form.installment3) : null,
-      status: form.status === 'Inactive' ? 'INACTIVE' : 'ACTIVE',
-
       duration: form.duration,
       hours: form.hours,
       actualFees: form.actualFees,
@@ -485,7 +477,6 @@ export function CoursesPage() {
       afterDiscount,
       installmentCount: String(effectiveInstallmentCount),
       status: form.status,
-
     }
 
     installmentsPayload.forEach((amount, index) => {
@@ -591,10 +582,10 @@ export function CoursesPage() {
             </div>
 
             <div className="course-form-grid">
-              <Field label="Course Name" required hint="Required field" error={shouldShowError('name') ? validationErrors.name : ''}>
+              <Field label="Enter Course Name" required hint="Required field" error={shouldShowError('name') ? validationErrors.name : ''}>
                 <input
                   type="text"
-                  placeholder="Enter course name"
+                  placeholder="Enter Course Name"
                   value={form.name}
                   onChange={(event) => updateField('name', event.target.value)}
                   onBlur={() => markTouched('name')}
@@ -602,29 +593,26 @@ export function CoursesPage() {
                 />
               </Field>
 
-              <Field label="Mode" required hint="Online / Offline / Hybrid" error={shouldShowError('mode') ? validationErrors.mode : ''}>
+              <Field label="Select Mode" required hint="Online / Offline / Hybrid" error={shouldShowError('mode') ? validationErrors.mode : ''}>
                 <select
                   value={form.mode}
                   onChange={(event) => updateField('mode', event.target.value)}
                   onBlur={() => markTouched('mode')}
                   aria-invalid={Boolean(shouldShowError('mode'))}
                 >
-                  <option value="" disabled>
-                    Select mode
-                  </option>
+                  <option value="" disabled hidden />
                   <option>Online</option>
                   <option>Offline</option>
                   <option>Hybrid</option>
                 </select>
               </Field>
 
-              <Field label="Duration (Months)" required hint="Numbers only" error={shouldShowError('duration') ? validationErrors.duration : ''}>
+              <Field label="Enter Duration (Months)" required hint="Numbers only" error={shouldShowError('duration') ? validationErrors.duration : ''}>
                 <div className="course-input-with-suffix">
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    placeholder="6"
                     value={form.duration}
                     onChange={(event) => updateNumericField('duration', event.target.value)}
                     onBlur={() => markTouched('duration')}
@@ -634,13 +622,12 @@ export function CoursesPage() {
                 </div>
               </Field>
 
-              <Field label="Hours" required hint="Numbers only" error={shouldShowError('hours') ? validationErrors.hours : ''}>
+              <Field label="Enter Hours" required hint="Numbers only" error={shouldShowError('hours') ? validationErrors.hours : ''}>
                 <div className="course-input-with-suffix">
                   <input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    placeholder="180"
                     value={form.hours}
                     onChange={(event) => updateNumericField('hours', event.target.value)}
                     onBlur={() => markTouched('hours')}
@@ -650,50 +637,47 @@ export function CoursesPage() {
                 </div>
               </Field>
 
-              <Field label="Actual Fees" required hint="Numbers only" error={shouldShowError('actualFees') ? validationErrors.actualFees : ''}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="24000"
-                  value={form.actualFees}
-                  onChange={(event) => updateNumericField('actualFees', event.target.value)}
-                  onBlur={() => markTouched('actualFees')}
-                  aria-invalid={Boolean(shouldShowError('actualFees'))}
+              <Field label="Enter Actual Fees" required hint="Numbers only" error={shouldShowError('actualFees') ? validationErrors.actualFees : ''}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={form.actualFees}
+                    onChange={(event) => updateNumericField('actualFees', event.target.value)}
+                    onBlur={() => markTouched('actualFees')}
+                    aria-invalid={Boolean(shouldShowError('actualFees'))}
                 />
               </Field>
 
-              <Field label="Registration Fees" required hint="Numbers only" error={shouldShowError('registrationFees') ? validationErrors.registrationFees : ''}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="500"
-                  value={form.registrationFees}
-                  onChange={(event) => updateNumericField('registrationFees', event.target.value)}
-                  onBlur={() => markTouched('registrationFees')}
-                  aria-invalid={Boolean(shouldShowError('registrationFees'))}
+              <Field label="Enter Registration Fees" required hint="Numbers only" error={shouldShowError('registrationFees') ? validationErrors.registrationFees : ''}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={form.registrationFees}
+                    onChange={(event) => updateNumericField('registrationFees', event.target.value)}
+                    onBlur={() => markTouched('registrationFees')}
+                    aria-invalid={Boolean(shouldShowError('registrationFees'))}
                 />
               </Field>
 
-              <Field label="Discount" required hint="Must be less than or equal to actual fees" error={shouldShowError('discount') ? validationErrors.discount : ''}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="2000"
-                  value={form.discount}
-                  onChange={(event) => updateNumericField('discount', event.target.value)}
-                  onBlur={() => markTouched('discount')}
-                  aria-invalid={Boolean(shouldShowError('discount'))}
+              <Field label="Enter Discount" required hint="Must be less than or equal to actual fees" error={shouldShowError('discount') ? validationErrors.discount : ''}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={form.discount}
+                    onChange={(event) => updateNumericField('discount', event.target.value)}
+                    onBlur={() => markTouched('discount')}
+                    aria-invalid={Boolean(shouldShowError('discount'))}
                 />
               </Field>
 
-              <Field label="After Discount (Auto Calculate)" hint="Auto calculated from actual fees and discount">
+              <Field label="After Discount (Auto Calculated)" hint="Auto calculated from actual fees and discount">
                 <input type="text" value={afterDiscount} readOnly />
               </Field>
 
-              <Field label="Installment Count" required hint="Choose 2, 3, or Custom" error={shouldShowError('installmentCount') ? validationErrors.installmentCount : ''}>
+              <Field label="Select Installment Count" required hint="Choose 2, 3, or Custom" error={shouldShowError('installmentCount') ? validationErrors.installmentCount : ''}>
                 <select
                   value={form.installmentCount}
                   onChange={(event) => handleInstallmentCountChange(event.target.value)}
@@ -708,7 +692,7 @@ export function CoursesPage() {
 
               {form.installmentCount === 'custom' ? (
                 <Field
-                  label="Custom Installment Count"
+                  label="Enter Custom Installment Count"
                   required
                   hint="Type how many installment fields you need"
                   error={shouldShowError('customInstallmentCount') ? validationErrors.customInstallmentCount : ''}
@@ -717,7 +701,6 @@ export function CoursesPage() {
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    placeholder="4"
                     value={form.customInstallmentCount}
                     onChange={(event) => handleCustomInstallmentCountChange(event.target.value)}
                     onBlur={() => markTouched('customInstallmentCount')}
@@ -729,7 +712,7 @@ export function CoursesPage() {
               {Array.from({ length: getEffectiveInstallmentCount(form) }, (_, index) => index + 1).map((installmentNumber) => (
                 <Field
                   key={installmentNumber}
-                  label={`Installment ${installmentNumber}`}
+                  label={`Enter Installment ${installmentNumber}`}
                   required
                   hint="Numbers only"
                   error={shouldShowError(`installment${installmentNumber}`) ? validationErrors[`installment${installmentNumber}`] : ''}
@@ -738,7 +721,6 @@ export function CoursesPage() {
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    placeholder={installmentNumber === 1 ? '11000' : installmentNumber === 2 ? '11000' : '5500'}
                     value={getInstallmentValue(form, installmentNumber)}
                     onChange={(event) => {
                       const nextValue = event.target.value.replace(/[^\d]/g, '')
@@ -753,16 +735,14 @@ export function CoursesPage() {
                 </Field>
               ))}
 
-              <Field label="Status" required hint="Active or Inactive" error={shouldShowError('status') ? validationErrors.status : ''}>
+              <Field label="Select Status" required hint="Active or Inactive" error={shouldShowError('status') ? validationErrors.status : ''}>
                 <select
                   value={form.status}
                   onChange={(event) => updateField('status', event.target.value)}
                   onBlur={() => markTouched('status')}
                   aria-invalid={Boolean(shouldShowError('status'))}
                 >
-                  <option value="" disabled>
-                    Select status
-                  </option>
+                  <option value="" disabled hidden />
                   <option>Active</option>
                   <option>Inactive</option>
                 </select>

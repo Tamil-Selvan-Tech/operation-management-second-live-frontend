@@ -50,6 +50,7 @@ body::-webkit-scrollbar-thumb:hover {
 body {
   min-height: 100vh;
   font-size: 14px;
+  background: #ffffff;
 }
 
 ::selection {

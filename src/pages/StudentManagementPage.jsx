@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { FileText, GraduationCap, UserRound } from 'lucide-react'
 import { Button } from '../components/Button'
 import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -495,30 +496,15 @@ function FieldIcon({ kind }) {
 
 function SectionIcon({ kind }) {
   if (kind === 'basic') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="2.2" />
-        <path d="M5.5 18c1.2-3.3 4-5 6.5-5s5.3 1.7 6.5 5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
-    )
+    return <UserRound size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'education') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 4 3.8 8.2 12 12.3l8.2-4.1L12 4Z" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
-        <path d="M6 10.4v3.8c0 1.5 2.7 3 6 3s6-1.5 6-3v-3.8" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
-    )
+    return <GraduationCap size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'admission') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="4.8" width="14" height="15" rx="2.4" fill="none" stroke="currentColor" strokeWidth="2.2" />
-        <path d="M8 9h8M8 12h8M8 15h5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
-    )
+    return <FileText size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   }
 
   return null
@@ -827,7 +813,11 @@ export function StudentManagementPage() {
   }
 
   useEffect(() => {
-    void Promise.all([loadStudents(), loadCourseOptions()])
+    const timeoutId = window.setTimeout(() => {
+      void Promise.all([loadStudents(), loadCourseOptions()])
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [])
 
   const openModal = () => {
@@ -1422,7 +1412,7 @@ export function StudentManagementPage() {
                     </div>
                   </div>
                 <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Student Name" required icon={<FieldIcon kind="user" />} error={shouldShowError('studentName') ? errors.studentName : ''}>
+                  <Field label="Enter Student Name" required icon={<FieldIcon kind="user" />} error={shouldShowError('studentName') ? errors.studentName : ''}>
                     <input
                       type="text"
                       value={form.studentName}
@@ -1432,7 +1422,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Mobile Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
+                  <Field label="Enter Mobile Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
                     <input
                       type="tel"
                       inputMode="numeric"
@@ -1445,19 +1435,19 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
+                  <Field label="Enter Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
                     <input
                       type="email"
                       value={form.emailAddress}
                       onChange={(event) => updateField('emailAddress', event.target.value.replace(/\s+/g, '').toLowerCase())}
                       onBlur={() => markTouched('emailAddress')}
-                      placeholder="name@example.com"
                       autoCapitalize="none"
                       autoCorrect="off"
+                      placeholder="name@example.com"
                     />
                   </Field>
 
-                  <Field label="Parent / Spouse Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
+                  <Field label="Enter Parent / Spouse Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
                     <input
                       type="tel"
                       inputMode="numeric"
@@ -1470,7 +1460,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Location" required icon={<FieldIcon kind="pin" />} error={shouldShowError('location') ? errors.location : ''}>
+                  <Field label="Enter Location" required icon={<FieldIcon kind="pin" />} error={shouldShowError('location') ? errors.location : ''}>
                     <input
                       type="text"
                       value={form.location}
@@ -1495,7 +1485,7 @@ export function StudentManagementPage() {
                     </div>
                   </div>
                 <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Course Interested" required icon={<FieldIcon kind="course" />} error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
+                  <Field label="Select Course Interested" required icon={<FieldIcon kind="course" />} error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
                     <select
                       value={form.courseId}
                       onChange={(event) => applyCourseDetails(event.target.value)}
@@ -1512,7 +1502,7 @@ export function StudentManagementPage() {
                     </select>
                   </Field>
 
-                  <Field label="Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
+                  <Field label="Enter Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
                     <input
                       type="text"
                       value={form.facultyName}
@@ -1522,7 +1512,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Batch" required icon={<FieldIcon kind="batch" />} error={shouldShowError('batch') ? errors.batch : ''}>
+                  <Field label="Enter Batch" required icon={<FieldIcon kind="batch" />} error={shouldShowError('batch') ? errors.batch : ''}>
                     <input
                       type="text"
                       value={form.batch}
@@ -1532,7 +1522,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Qualification" required icon={<FieldIcon kind="user" />} error={shouldShowError('qualification') ? errors.qualification : ''}>
+                  <Field label="Enter Qualification" required icon={<FieldIcon kind="user" />} error={shouldShowError('qualification') ? errors.qualification : ''}>
                     <input
                       type="text"
                       value={form.qualification}
@@ -1542,7 +1532,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Passed Out Year" required icon={<FieldIcon kind="year" />} error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
+                  <Field label="Select Passed Out Year" required icon={<FieldIcon kind="year" />} error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
                     <select
                       value={form.passedOutYear}
                       onChange={(event) => updateField('passedOutYear', event.target.value)}
@@ -1557,7 +1547,7 @@ export function StudentManagementPage() {
                     </select>
                   </Field>
 
-                  <Field label="Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
+                  <Field label="Select Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
                     <select
                       value={form.currentStatus}
                       onChange={(event) => updateField('currentStatus', event.target.value)}
@@ -1573,7 +1563,7 @@ export function StudentManagementPage() {
                   </Field>
 
                   <Field
-                    label="Designation"
+                    label="Enter Designation"
                     icon={<FieldIcon kind="user" />}
                     hint="Required when the current status is Employee."
                     error={shouldShowError('designation') ? errors.designation : ''}
@@ -1588,7 +1578,7 @@ export function StudentManagementPage() {
                   </Field>
 
                   <Field
-                    label="How did you know about our Institute?"
+                    label="Select Source"
                     required
                     icon={<FieldIcon kind="note" />}
                     error={shouldShowError('source') ? errors.source : ''}
@@ -1618,45 +1608,46 @@ export function StudentManagementPage() {
                     </div>
                   </div>
                 <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Actual Fees" required icon={<FieldIcon kind="currency" />} error={shouldShowError('actualFees') ? errors.actualFees : ''}>
+                  <Field label="Actual Fees (Auto Filled)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('actualFees') ? errors.actualFees : ''}>
                     <input type="text" value={form.actualFees} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Registration Fees" required icon={<FieldIcon kind="balance" />} error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
+                  <Field label="Registration Fees (Auto Filled)" required icon={<FieldIcon kind="balance" />} error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
                     <input type="text" value={form.registrationFees} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Discount" required icon={<FieldIcon kind="percent" />} error={shouldShowError('discount') ? errors.discount : ''}>
+                  <Field label="Discount (Auto Filled)" required icon={<FieldIcon kind="percent" />} error={shouldShowError('discount') ? errors.discount : ''}>
                     <input type="text" value={form.discount} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="After Discount" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
+                  <Field label="After Discount (Auto Calculated)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
                     <input type="text" value={form.afterDiscount} readOnly placeholder="Auto calculated" />
                   </Field>
 
-                  <Field label="Installment 1" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment1') ? errors.installment1 : ''}>
+                  <Field label="Installment 1 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment1') ? errors.installment1 : ''}>
                     <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Installment 2" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment2') ? errors.installment2 : ''}>
+                  <Field label="Installment 2 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment2') ? errors.installment2 : ''}>
                     <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Installment 3" icon={<FieldIcon kind="installment" />} error={shouldShowError('installment3') ? errors.installment3 : ''}>
+                  <Field label="Installment 3 (Auto Filled)" icon={<FieldIcon kind="installment" />} error={shouldShowError('installment3') ? errors.installment3 : ''}>
                     <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Admission Date" required icon={<FieldIcon kind="calendar" />} error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
+                  <Field label="Select Admission Date" required icon={<FieldIcon kind="calendar" />} error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
                     <input
                       type="date"
                       value={form.admissionDate}
                       onChange={(event) => updateField('admissionDate', event.target.value)}
                       onBlur={() => markTouched('admissionDate')}
+                      placeholder="Select admission date"
                     />
                   </Field>
 
                   <Field
-                    label="Remarks"
+                    label="Enter Remarks"
                     icon={<FieldIcon kind="note" />}
                     multiline
                     hint="Optional notes can help the counselor follow up later."
