@@ -98,6 +98,27 @@ function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
 }
 
+function normalizeLookupValue(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+function resolveCourseName(courseOptions, record = {}) {
+  const directName = String(record.courseName || '').trim()
+  if (directName) return directName
+
+  const recordCourseId = normalizeLookupValue(record.courseId)
+  if (!recordCourseId) return '-'
+
+  const matchedCourse = Array.isArray(courseOptions)
+    ? courseOptions.find((course) => normalizeLookupValue(course.id) === recordCourseId)
+    : null
+
+  return matchedCourse?.name || '-'
+}
+
 function FacultyField({ label, required = false, error, icon, children }) {
   return (
     <label className={`course-field faculty-field ${icon ? 'faculty-field-has-icon' : ''}`.trim()}>
@@ -170,7 +191,7 @@ function FacultyEditorContent({
             >
               <input
                 type="email"
-                placeholder="Enter email address"
+                placeholder="Enter faculty email address"
                 value={form.facultyEmail}
                 onChange={(event) => updateField('facultyEmail', event.target.value)}
                 onBlur={() => markTouched('facultyEmail')}
@@ -188,7 +209,7 @@ function FacultyEditorContent({
                 type="tel"
                 inputMode="numeric"
                 maxLength={10}
-                placeholder="Enter phone number"
+                placeholder="Enter faculty phone number"
                 value={form.facultyPhone}
                 onChange={(event) => updateField('facultyPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
                 onBlur={() => markTouched('facultyPhone')}
@@ -475,7 +496,7 @@ function FacultyInlineEditorTable({
                   aria-invalid={Boolean(shouldShowError('facultyName'))}
                 />
               </td>
-              <th>Status</th>
+              <th>Select Status</th>
               <td>
                 <select
                   className="faculty-inline-input"
@@ -496,7 +517,7 @@ function FacultyInlineEditorTable({
                 <input
                   className="faculty-inline-input"
                   type="email"
-                  placeholder="Enter email address"
+                  placeholder="Enter faculty email address"
                   value={form.facultyEmail}
                   onChange={(event) => updateField('facultyEmail', event.target.value)}
                   onBlur={() => markTouched('facultyEmail')}
@@ -510,7 +531,7 @@ function FacultyInlineEditorTable({
                   type="tel"
                   inputMode="numeric"
                   maxLength={10}
-                  placeholder="Enter phone number"
+                  placeholder="Enter faculty phone number"
                   value={form.facultyPhone}
                   onChange={(event) => updateField('facultyPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
                   onBlur={() => markTouched('facultyPhone')}
@@ -519,7 +540,7 @@ function FacultyInlineEditorTable({
               </td>
             </tr>
             <tr>
-              <th>Course</th>
+              <th>Select Course</th>
               <td>
                 <select
                   className="faculty-inline-input"
@@ -895,14 +916,14 @@ export function FacultyManagementPage() {
 
     return records.filter((record) => {
       const facultyName = String(record.facultyName || '').toLowerCase()
-      const courseName = String(record.courseName || '').toLowerCase()
+      const courseName = String(resolveCourseName(courseOptions, record) || '').toLowerCase()
       const batchNames = Array.isArray(record.batchEntries)
         ? record.batchEntries.map((entry) => String(entry.batchName || '').toLowerCase()).join(' ')
         : ''
 
       return facultyName.includes(normalizedQuery) || courseName.includes(normalizedQuery) || batchNames.includes(normalizedQuery)
     })
-  }, [records, searchQuery])
+  }, [courseOptions, records, searchQuery])
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / itemsPerPage))
   const currentPageSafe = Math.min(currentPage, totalPages)
@@ -1442,7 +1463,7 @@ export function FacultyManagementPage() {
                   >
                     <input
                       type="email"
-                      placeholder="Enter email address"
+                      placeholder="Enter faculty email address"
                       value={form.facultyEmail}
                       onChange={(event) => updateField('facultyEmail', event.target.value)}
                       onBlur={() => markTouched('facultyEmail')}
@@ -1461,7 +1482,7 @@ export function FacultyManagementPage() {
                       type="tel"
                       inputMode="numeric"
                       maxLength={10}
-                      placeholder="Enter phone number"
+                      placeholder="Enter faculty phone number"
                       value={form.facultyPhone}
                       onChange={(event) => updateField('facultyPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
                       onBlur={() => markTouched('facultyPhone')}
@@ -1727,7 +1748,7 @@ export function FacultyManagementPage() {
                     </tr>
                     <tr>
                       <th>Course</th>
-                      <td>{selectedFacultyRecord.courseName || '-'}</td>
+                      <td>{resolveCourseName(courseOptions, selectedFacultyRecord)}</td>
                       <th>Total Batches</th>
                       <td>
                         {Array.isArray(selectedFacultyRecord.batchEntries) ? selectedFacultyRecord.batchEntries.length : Number(selectedFacultyRecord.batchCount || 0) || 0}
