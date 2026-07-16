@@ -5106,6 +5106,16 @@ tbody tr:hover {
   background: #ffffff;
 }
 
+.faculty-inline-edit-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.faculty-view-table-shell-edit {
+  overflow: auto;
+}
+
 .faculty-details-table,
 .faculty-batch-details-table {
   width: 100%;
@@ -5152,6 +5162,11 @@ tbody tr:hover {
   word-break: break-word;
 }
 
+.faculty-details-table-edit td,
+.faculty-batch-details-table-edit td {
+  background: #ffffff;
+}
+
 .faculty-details-table th {
   width: 21%;
 }
@@ -5162,6 +5177,69 @@ tbody tr:hover {
 
 .faculty-details-table .status-pill {
   min-height: 30px;
+}
+
+.faculty-inline-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #cddbf1;
+  background: #f8fbff;
+  color: #1f2d5c;
+  font: inherit;
+  font-weight: 700;
+  outline: none;
+}
+
+.faculty-inline-input:focus {
+  border-color: #5b8def;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  background: #ffffff;
+}
+
+.faculty-inline-batch-timing {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faculty-inline-custom-timing {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faculty-inline-custom-timing-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px;
+  gap: 10px;
+  align-items: center;
+}
+
+.faculty-inline-custom-timing-side .faculty-inline-input {
+  min-width: 0;
+}
+
+.faculty-batch-details-table-edit th:nth-child(4),
+.faculty-batch-details-table-edit td:nth-child(4) {
+  width: 110px;
+  text-align: center;
+}
+
+.faculty-batch-inline-add-row td {
+  background: #f8fbff;
+}
+
+.faculty-batch-inline-add-button {
+  min-height: 44px;
+  padding: 0 16px;
+  width: 100%;
+  border-radius: 12px;
+}
+
+.faculty-inline-actions {
+  padding-top: 6px;
 }
 
 .faculty-view-batch-section {
