@@ -8,9 +8,11 @@ export function AppShell({
   onNavigateDashboard,
   onNavigateCourses,
   onNavigateStudentManagement,
+  onNavigateFacultyManagement,
   onLogout,
   showCoursesNav = true,
   showStudentManagementNav = true,
+  showFacultyManagementNav = true,
   showChrome = true,
   children,
 }) {
@@ -19,6 +21,8 @@ export function AppShell({
     ? 'courses'
     : location.pathname.startsWith('/student-management')
       ? 'student-management'
+      : location.pathname.startsWith('/faculty-management')
+        ? 'faculty-management'
       : 'dashboard'
   const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
   const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
@@ -26,6 +30,7 @@ export function AppShell({
     isOperationManagerDashboard ||
     isBusinessOwnerDashboard ||
     location.pathname === '/student-management' ||
+    location.pathname === '/faculty-management' ||
     location.pathname === '/courses'
 
   return (
@@ -35,9 +40,11 @@ export function AppShell({
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCourses={onNavigateCourses}
         onNavigateStudentManagement={onNavigateStudentManagement}
+        onNavigateFacultyManagement={onNavigateFacultyManagement}
         onLogout={onLogout}
         showCoursesNav={showCoursesNav}
         showStudentManagementNav={showStudentManagementNav}
+        showFacultyManagementNav={showFacultyManagementNav}
       />
 
       <div

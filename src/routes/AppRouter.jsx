@@ -10,6 +10,7 @@ import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { LoadingPage } from '../pages/LoadingPage'
 import { CoursesPage } from '../pages/CoursesPage'
+import { FacultyManagementPage } from '../pages/FacultyManagementPage'
 import { StudentManagementPage } from '../pages/StudentManagementPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 import { SessionExpiredPage } from '../pages/SessionExpiredPage'
@@ -81,12 +82,14 @@ function AppLayout() {
   const dashboard = role ? roleDashboards[role] : null
   const canAccessCourses = courseAccessRoles.includes(role)
   const canAccessStudentManagement = courseAccessRoles.includes(role)
+  const canAccessFacultyManagement = courseAccessRoles.includes(role)
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
     location.pathname !== '/dashboard/operation-manager' &&
     location.pathname !== '/dashboard/student' &&
     location.pathname !== '/courses' &&
-    location.pathname !== '/student-management'
+    location.pathname !== '/student-management' &&
+    location.pathname !== '/faculty-management'
 
   return (
     <AppShell
@@ -94,12 +97,14 @@ function AppLayout() {
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
       onNavigateCourses={() => navigate('/courses')}
       onNavigateStudentManagement={() => navigate('/student-management')}
+      onNavigateFacultyManagement={() => navigate('/faculty-management')}
       onLogout={async () => {
         await signOut()
         navigate('/login')
       }}
       showCoursesNav={canAccessCourses}
       showStudentManagementNav={canAccessStudentManagement}
+      showFacultyManagementNav={canAccessFacultyManagement}
       showChrome={showChrome}
     >
       <Outlet />
@@ -195,6 +200,7 @@ export function AppRouter() {
             <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
               <Route path="/courses" element={<CoursesPage />} />
               <Route path="/student-management" element={<StudentManagementPage />} />
+              <Route path="/faculty-management" element={<FacultyManagementPage />} />
             </Route>
             <Route path="/profile" element={<ProfileRedirectRoute />} />
           </Route>

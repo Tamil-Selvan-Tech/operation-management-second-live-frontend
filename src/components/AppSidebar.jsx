@@ -6,9 +6,11 @@ export function AppSidebar({
   onNavigateDashboard,
   onNavigateCourses,
   onNavigateStudentManagement,
+  onNavigateFacultyManagement,
   onLogout,
   showCoursesNav = true,
   showStudentManagementNav = true,
+  showFacultyManagementNav = true,
 }) {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
 
@@ -61,6 +63,15 @@ export function AppSidebar({
             onClick={onNavigateStudentManagement}
           >
             Student Management
+          </button>
+        ) : null}
+        {showFacultyManagementNav ? (
+          <button
+            type="button"
+            className={activeNav === 'faculty-management' ? 'active' : ''}
+            onClick={onNavigateFacultyManagement}
+          >
+            Faculty Management
           </button>
         ) : null}
       </nav>
