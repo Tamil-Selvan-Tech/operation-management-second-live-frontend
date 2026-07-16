@@ -77,6 +77,23 @@ function getTimingMode(entry = {}) {
   return String(entry.batchTimingPreset || '').trim() === 'Custom' ? 'Custom' : 'preset'
 }
 
+function getBatchTimingPresetValue(entry = {}) {
+  const preset = String(entry.batchTimingPreset || '').trim()
+  if (preset) return preset
+
+  return parseBatchTimingState(entry.batchTiming).batchTimingPreset || ''
+}
+
+function getAvailableBatchTimingOptions(batchEntries = []) {
+  const usedPresetTimings = new Set(
+    batchEntries
+      .map((entry) => getBatchTimingPresetValue(entry))
+      .filter((timing) => BATCH_TIMING_OPTIONS.includes(timing)),
+  )
+
+  return BATCH_TIMING_OPTIONS.filter((option) => !usedPresetTimings.has(option))
+}
+
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
 }
@@ -110,6 +127,8 @@ function FacultyEditorContent({
   isSubmitting,
   onCancel,
 }) {
+  const availableBatchTimingOptions = getAvailableBatchTimingOptions(form.batchEntries)
+
   return (
     <>
       <div className="faculty-modal-grid">
@@ -257,10 +276,9 @@ function FacultyEditorContent({
               }}
             >
               <option value="">Select timing</option>
-              <option>09.30 AM - 6.30 PM</option>
-              <option>10.00 AM - 7.30 PM</option>
-              <option>10.30 AM - 7.30 PM</option>
-              <option>11.00 AM - 8.00 PM</option>
+              {availableBatchTimingOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
               <option>Custom</option>
             </select>
           </FacultyField>
@@ -353,6 +371,7 @@ function FacultyEditorContent({
 
 function FacultyInlineEditorTable({
   form,
+  existingRecord,
   isCoursesLoading,
   activeCourseOptions,
   validationErrors,
@@ -361,9 +380,28 @@ function FacultyInlineEditorTable({
   markTouched,
   addBatchEntry,
   setForm,
+  onRequestBatchDelete,
   onCancel,
   isSubmitting,
 }) {
+  const availableBatchTimingOptions = getAvailableBatchTimingOptions(
+    Array.isArray(form.batchEntries) && form.batchEntries.length ? form.batchEntries : existingRecord?.batchEntries || [],
+  )
+
+  const fallbackBatchEntries = useMemo(() => {
+    if (Array.isArray(form.batchEntries) && form.batchEntries.length) return form.batchEntries
+    if (!Array.isArray(existingRecord?.batchEntries) || !existingRecord.batchEntries.length) return []
+
+    return existingRecord.batchEntries.map((entry) => ({
+      id: entry.id || createBatchEntryId(),
+      batchName: String(entry.batchName || '').trim(),
+      batchTiming: String(entry.batchTiming || '').trim(),
+      ...parseBatchTimingState(entry.batchTiming),
+    }))
+  }, [existingRecord, form.batchEntries])
+
+  const editableBatchEntries = fallbackBatchEntries
+
   const updateBatchEntry = (entryId, field, value) => {
     setForm((current) => ({
       ...current,
@@ -526,7 +564,7 @@ function FacultyInlineEditorTable({
               </tr>
             </thead>
             <tbody>
-              {form.batchEntries.map((entry, index) => (
+              {editableBatchEntries.map((entry, index) => (
                 <tr key={entry.id}>
                   <td>{index + 1}</td>
                   <td>
@@ -541,7 +579,7 @@ function FacultyInlineEditorTable({
                     <div className="faculty-inline-batch-timing">
                       <select
                         className="faculty-inline-input"
-                        value={entry.batchTimingPreset || ''}
+                        value={entry.batchTimingPreset || parseBatchTimingState(entry.batchTiming).batchTimingPreset || ''}
                         onChange={(event) => updateBatchTimingEntry(entry.id, event.target.value)}
                       >
                         <option value="">Select timing</option>
@@ -553,7 +591,7 @@ function FacultyInlineEditorTable({
                         <option value="Custom">Custom</option>
                       </select>
 
-                      {getTimingMode(entry) === 'Custom' ? (
+                      {(entry.batchTimingPreset || parseBatchTimingState(entry.batchTiming).batchTimingPreset) === 'Custom' ? (
                         <div className="faculty-inline-custom-timing">
                           <div className="faculty-inline-custom-timing-side">
                             <input
@@ -605,7 +643,7 @@ function FacultyInlineEditorTable({
                     </div>
                   </td>
                   <td>
-                    <button type="button" className="faculty-row-action danger" onClick={() => removeBatchEntry(entry.id)}>
+                    <button type="button" className="faculty-row-action danger" onClick={() => onRequestBatchDelete(entry)}>
                       <Trash2 />
                     </button>
                   </td>
@@ -642,7 +680,7 @@ function FacultyInlineEditorTable({
                       }}
                     >
                       <option value="">Select timing</option>
-                      {BATCH_TIMING_OPTIONS.map((option) => (
+                      {availableBatchTimingOptions.map((option) => (
                         <option key={option} value={option}>
                           {option}
                         </option>
@@ -798,8 +836,10 @@ export function FacultyManagementPage() {
   const [editingFacultyId, setEditingFacultyId] = useState('')
   const [selectedFacultyRecord, setSelectedFacultyRecord] = useState(null)
   const [isViewDrawerEditing, setIsViewDrawerEditing] = useState(false)
+  const [batchDeleteTarget, setBatchDeleteTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [form, setForm] = useState(createEmptyForm())
   const [touched, setTouched] = useState({})
@@ -849,12 +889,31 @@ export function FacultyManagementPage() {
   const latestFaculty = records[0] || null
   const isViewMode = modalMode === 'view'
   const isEditMode = modalMode === 'edit'
-  const totalPages = Math.max(1, Math.ceil(totalFaculty / itemsPerPage))
+  const filteredRecords = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+    if (!normalizedQuery) return records
+
+    return records.filter((record) => {
+      const facultyName = String(record.facultyName || '').toLowerCase()
+      const courseName = String(record.courseName || '').toLowerCase()
+      const batchNames = Array.isArray(record.batchEntries)
+        ? record.batchEntries.map((entry) => String(entry.batchName || '').toLowerCase()).join(' ')
+        : ''
+
+      return facultyName.includes(normalizedQuery) || courseName.includes(normalizedQuery) || batchNames.includes(normalizedQuery)
+    })
+  }, [records, searchQuery])
+
+  const totalPages = Math.max(1, Math.ceil(filteredRecords.length / itemsPerPage))
   const currentPageSafe = Math.min(currentPage, totalPages)
   const paginatedRecords = useMemo(() => {
     const start = (currentPageSafe - 1) * itemsPerPage
-    return records.slice(start, start + itemsPerPage)
-  }, [currentPageSafe, records])
+    return filteredRecords.slice(start, start + itemsPerPage)
+  }, [currentPageSafe, filteredRecords])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   const selectedCourseName = selectedCourse?.name || ''
 
@@ -966,6 +1025,7 @@ export function FacultyManagementPage() {
     setEditingFacultyId('')
     setSelectedFacultyRecord(null)
     setIsViewDrawerEditing(false)
+    setBatchDeleteTarget(null)
   }
 
   const openCreateModal = () => {
@@ -1008,6 +1068,7 @@ export function FacultyManagementPage() {
     setTouched({})
     setActionError('')
     setIsViewDrawerEditing(false)
+    setBatchDeleteTarget(null)
   }
 
   const toggleInlineEditMode = () => {
@@ -1023,6 +1084,40 @@ export function FacultyManagementPage() {
   const openDeleteModal = (record) => {
     setActionError('')
     setDeleteTarget(record)
+  }
+
+  const openBatchDeleteModal = (entry) => {
+    setActionError('')
+    setBatchDeleteTarget(entry)
+  }
+
+  const closeBatchDeleteModal = () => {
+    setBatchDeleteTarget(null)
+  }
+
+  const handleBatchDeleteConfirmed = () => {
+    if (!batchDeleteTarget) return
+
+    setForm((current) => ({
+      ...current,
+      batchEntries: current.batchEntries.filter((entry) => entry.id !== batchDeleteTarget.id),
+    }))
+
+    if (selectedFacultyRecord) {
+      setSelectedFacultyRecord((current) =>
+        current
+          ? {
+              ...current,
+              batchEntries: Array.isArray(current.batchEntries)
+                ? current.batchEntries.filter((entry) => entry.id !== batchDeleteTarget.id)
+                : [],
+            }
+          : current,
+      )
+    }
+
+    setBatchDeleteTarget(null)
+    setActionError('')
   }
 
   const closeDeleteModal = () => {
@@ -1129,6 +1224,18 @@ export function FacultyManagementPage() {
         </div>
 
         <div className="faculty-management-actions">
+          <form className="faculty-management-search" onSubmit={(event) => event.preventDefault()}>
+            <input
+              type="search"
+              placeholder="Search course..."
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              aria-label="Search faculty records"
+            />
+            <Button type="submit" className="faculty-management-search-button">
+              Search
+            </Button>
+          </form>
           <div className="faculty-management-stat">
             <span>Total Faculty</span>
             <strong>{totalFaculty}</strong>
@@ -1159,7 +1266,7 @@ export function FacultyManagementPage() {
           </div>
         ) : null}
 
-        {records.length ? (
+        {filteredRecords.length ? (
           <div className="faculty-table-wrap">
             <table className="faculty-table">
               <thead>
@@ -1225,6 +1332,11 @@ export function FacultyManagementPage() {
               </tbody>
             </table>
           </div>
+        ) : searchQuery.trim() ? (
+          <div className="faculty-empty-state">
+            <strong>No matching faculty found</strong>
+            <p>Try a different faculty name, course name, or batch name.</p>
+          </div>
         ) : (
           <div className="faculty-empty-state">
             <strong>No faculty added yet</strong>
@@ -1232,7 +1344,7 @@ export function FacultyManagementPage() {
           </div>
         )}
 
-        {records.length > itemsPerPage ? (
+        {filteredRecords.length > itemsPerPage ? (
           <div className="faculty-pagination">
             <button
               type="button"
@@ -1579,6 +1691,7 @@ export function FacultyManagementPage() {
               >
                 <FacultyInlineEditorTable
                   form={form}
+                  existingRecord={selectedFacultyRecord}
                   isCoursesLoading={isCoursesLoading}
                   activeCourseOptions={activeCourseOptions}
                   validationErrors={validationErrors}
@@ -1587,6 +1700,7 @@ export function FacultyManagementPage() {
                   markTouched={markTouched}
                   addBatchEntry={addBatchEntry}
                   setForm={setForm}
+                  onRequestBatchDelete={openBatchDeleteModal}
                   onCancel={cancelInlineEdit}
                   isSubmitting={isSubmitting}
                 />
@@ -1669,7 +1783,7 @@ export function FacultyManagementPage() {
             onClick={(event) => event.stopPropagation()}
           >
             <button type="button" className="course-modal-close" onClick={closeDeleteModal} aria-label="Close delete confirmation">
-              ×
+              <X />
             </button>
 
             <div className="course-modal-header">
@@ -1688,6 +1802,43 @@ export function FacultyManagementPage() {
                 Cancel
               </Button>
               <Button type="button" onClick={handleDeleteConfirmed}>
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {batchDeleteTarget ? (
+        <div className="course-modal-backdrop faculty-modal-backdrop" role="presentation">
+          <div
+            className="course-modal panel-card faculty-modal faculty-delete-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-batch-delete-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button type="button" className="course-modal-close" onClick={closeBatchDeleteModal} aria-label="Close delete confirmation">
+              <X />
+            </button>
+
+            <div className="course-modal-header">
+              <div>
+                <p className="section-kicker">Confirm delete</p>
+                <h3 id="faculty-batch-delete-title">Are you sure delete this timing?</h3>
+              </div>
+            </div>
+
+            <p className="faculty-delete-copy">
+              This will remove <strong>{batchDeleteTarget.batchName || 'this batch'}</strong>
+              {batchDeleteTarget.batchTiming ? <> timing <strong>{batchDeleteTarget.batchTiming}</strong></> : null}.
+            </p>
+
+            <div className="faculty-form-actions">
+              <Button type="button" variant="ghost" onClick={closeBatchDeleteModal}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleBatchDeleteConfirmed}>
                 OK
               </Button>
             </div>

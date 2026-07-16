@@ -4329,6 +4329,49 @@ tbody tr:hover {
   justify-content: flex-end;
 }
 
+.faculty-management-search {
+  display: flex;
+  align-items: stretch;
+  min-width: min(100%, 420px);
+}
+
+.faculty-management-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 16px;
+  border-radius: 14px 0 0 14px;
+  border: 1px solid #d8e3f0;
+  background: #ffffff;
+  color: var(--text-strong);
+  font: inherit;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.faculty-management-search input:focus {
+  border-color: #5b8def;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.faculty-management-search-button {
+  min-width: 112px;
+  min-height: 54px;
+  padding: 0 22px;
+  border-radius: 0 14px 14px 0;
+  border: 1px solid #5b8def;
+  border-left: 0;
+  background: linear-gradient(180deg, #57a8ff 0%, #2f80ed 100%);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.faculty-management-search-button:hover {
+  background: linear-gradient(180deg, #4f9dff 0%, #2875dc 100%);
+  color: #ffffff;
+}
+
 .faculty-management-stat {
   min-width: 160px;
   padding: 8px 14px;
@@ -5397,7 +5440,7 @@ tbody tr:hover {
 }
 
 .faculty-delete-modal {
-  width: min(640px, 100%);
+  width: min(520px, 100%);
 }
 
 .faculty-delete-copy {
