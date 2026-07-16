@@ -3,13 +3,14 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigat
 import { AuthShell } from '../layouts/AuthShell'
 import { AppShell } from '../layouts/AppShell'
 import { useAuth } from '../auth/useAuth'
-import { courseAccessRoles, roleDashboards, roleLabels, dashboardPathByRole } from '../data/authData'
+import { courseAccessRoles, roleDashboards, dashboardPathByRole } from '../data/authData'
 import { DashboardPage } from '../pages/DashboardPage'
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage'
 import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { LoadingPage } from '../pages/LoadingPage'
 import { CoursesPage } from '../pages/CoursesPage'
+import { FacultyManagementPage } from '../pages/FacultyManagementPage'
 import { StudentManagementPage } from '../pages/StudentManagementPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 import { SessionExpiredPage } from '../pages/SessionExpiredPage'
@@ -21,6 +22,7 @@ function LoginScreen() {
   const [form, setForm] = useState({
     email: '',
     password: '',
+    rememberMe: false,
   })
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -74,33 +76,35 @@ function AuthLayout() {
 }
 
 function AppLayout() {
-  const { role, user, signOut } = useAuth()
+  const { role, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const dashboard = role ? roleDashboards[role] : null
-  const roleLabel = role ? roleLabels[role] : 'Guest'
   const canAccessCourses = courseAccessRoles.includes(role)
   const canAccessStudentManagement = courseAccessRoles.includes(role)
+  const canAccessFacultyManagement = courseAccessRoles.includes(role)
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
     location.pathname !== '/dashboard/operation-manager' &&
-    location.pathname !== '/dashboard/student'
+    location.pathname !== '/dashboard/student' &&
+    location.pathname !== '/courses' &&
+    location.pathname !== '/student-management' &&
+    location.pathname !== '/faculty-management'
 
   return (
     <AppShell
-      currentRole={role}
-      email={user?.email}
-      roleLabel={roleLabel}
       dashboard={dashboard}
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
       onNavigateCourses={() => navigate('/courses')}
       onNavigateStudentManagement={() => navigate('/student-management')}
-      onLogout={() => {
-        signOut()
+      onNavigateFacultyManagement={() => navigate('/faculty-management')}
+      onLogout={async () => {
+        await signOut()
         navigate('/login')
       }}
       showCoursesNav={canAccessCourses}
       showStudentManagementNav={canAccessStudentManagement}
+      showFacultyManagementNav={canAccessFacultyManagement}
       showChrome={showChrome}
     >
       <Outlet />
@@ -196,6 +200,7 @@ export function AppRouter() {
             <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
               <Route path="/courses" element={<CoursesPage />} />
               <Route path="/student-management" element={<StudentManagementPage />} />
+              <Route path="/faculty-management" element={<FacultyManagementPage />} />
             </Route>
             <Route path="/profile" element={<ProfileRedirectRoute />} />
           </Route>

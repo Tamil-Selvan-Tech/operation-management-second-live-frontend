@@ -1,25 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, Bell, CalendarDays, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
 
-import { roleDashboards, roleLabels } from '../data/authData'
+import { OperationManagerHeader } from '../components/OperationManagerHeader'
+import { roleDashboards } from '../data/authData'
+import { loadStudentRecords } from '../data/studentRecords'
 import { listStudents } from '../services/studentService'
-import { getRevenueSummary } from '../services/dashboardService'
-
-const revenueComparisonData = [
-  { month: 'Jan', monthly: 50000, expected: 55000 },
-  { month: 'Feb', monthly: 65000, expected: 70000 },
-  { month: 'Mar', monthly: 80000, expected: 90000 },
-  { month: 'Apr', monthly: 75000, expected: 85000 },
-  { month: 'May', monthly: 95000, expected: 100000 },
-  { month: 'Jun', monthly: 85000, expected: 90000 },
-  { month: 'Jul', monthly: 60000, expected: 55000 },
-]
-
-const weeklyRevenueComparisonData = [
-  { week: 'Week 1', weekly: 18000, expected: 22000 },
-  { week: 'Week 2', weekly: 25000, expected: 28000 },
-  { week: 'Week 3', weekly: 32000, expected: 35000 },
-  { week: 'Week 4', weekly: 28000, expected: 30000 },
-]
 
 const attendanceComparisonData = [
   { month: 'Jan', attendance: 82, students: 240 },
@@ -35,9 +20,6 @@ const attendanceComparisonData = [
   { month: 'Nov', attendance: 84, students: 252 },
   { month: 'Dec', attendance: 91, students: 275 },
 ]
-
-const revenueComparisonTicks = [0, 30000, 60000, 90000, 120000]
-const weeklyRevenueMax = 40000
 const revenueFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
@@ -47,35 +29,90 @@ const revenueFormatter = new Intl.NumberFormat('en-IN', {
 const revenueSummaryCards = [
   {
     label: 'Total Revenue',
-    value: '₹8,45,000',
+    value: 'â‚¹8,45,000',
     change: '+12.5%',
-    note: 'vs last month',
     accent: 'blue',
     icon: 'wallet',
+    tooltip: 'Total Revenue shows the total income collected from all student fee payments across all courses and admissions.',
+    details: [
+      { label: 'Collected revenue', value: 'â‚¹8,45,000' },
+      { label: 'Students added', value: '11 students added' },
+      { label: 'Scope', value: 'All paid installments in the dashboard' },
+    ],
   },
   {
     label: 'This Month Revenue',
-    value: '₹95,000',
+    value: 'â‚¹95,000',
     change: '+8.4%',
-    note: 'vs last month',
     accent: 'green',
     icon: 'calendar',
+    tooltip: 'This Month Revenue shows the total income collected during the current month period.',
+    details: [
+      { label: 'Collected this month', value: 'â‚¹95,000' },
+      { label: 'Admissions', value: '10 admissions this month' },
+      { label: 'Scope', value: 'Payments captured from the current month' },
+    ],
   },
   {
     label: 'This Week Revenue',
-    value: '₹32,000',
+    value: 'â‚¹32,000',
     change: '+4.2%',
-    note: 'vs last week',
     accent: 'purple',
     icon: 'trend',
+    tooltip: 'This Week Revenue shows the total income collected during the current week.',
+    details: [
+      { label: 'Collected this week', value: 'â‚¹32,000' },
+      { label: 'Admissions', value: '3 admissions this week' },
+      { label: 'Scope', value: 'Payments captured from the current week' },
+    ],
   },
   {
     label: 'Pending Payments',
-    value: '₹1,20,000',
+    value: 'â‚¹1,20,000',
     change: null,
-    note: 'Target for next week',
     accent: 'orange',
     icon: 'target',
+    tooltip: 'Pending Payments shows the outstanding amount that is still waiting to be collected.',
+    details: [
+      { label: 'Pending amount', value: 'â‚¹1,20,000' },
+      { label: 'Collection target', value: 'Target for next week' },
+      { label: 'Scope', value: 'Outstanding student balances' },
+    ],
+  },
+]
+
+const notificationItems = [
+  {
+    tone: 'red',
+    icon: ReceiptText,
+    title: 'Student fee payment updated',
+    message: 'Varsha’s full payment has been saved and marked as completed.',
+    time: '5 mins ago',
+    featured: false,
+  },
+  {
+    tone: 'yellow',
+    icon: CreditCard,
+    title: 'Installment payment received',
+    message: 'A pending installment for the Next.js course has been collected successfully.',
+    time: '15 mins ago',
+    featured: true,
+  },
+  {
+    tone: 'amber',
+    icon: AlertTriangle,
+    title: 'Overdue fee reminder',
+    message: 'Three student fee payments are still overdue and need review today.',
+    time: '1 hour ago',
+    featured: false,
+  },
+  {
+    tone: 'blue',
+    icon: CalendarDays,
+    title: 'Admission update',
+    message: 'A new student admission has been added to the dashboard successfully.',
+    time: 'Today',
+    featured: false,
   },
 ]
 
@@ -161,17 +198,17 @@ function getStudentStatus(student) {
   const overdueDays = (hasThirdInstallment(student) ? thirdPaid : secondPaid) ? 0 : diffInDays(dueDate, getTodayValue())
 
   if (firstPaid && secondPaid && thirdPaid) return { label: 'Complete', tone: 'success' }
-  if (overdueDays > 0) return { label: `Overdue · ${overdueDays} Days`, tone: 'danger' }
+  if (overdueDays > 0) return { label: `Overdue Â· ${overdueDays} Days`, tone: 'danger' }
   if (firstPaid) return { label: 'Pending', tone: 'warning' }
 
   return { label: 'Pending', tone: 'warning' }
 }
 
 function getPaidAmount(student) {
-  const first = String(student?.firstInstallmentStatus || 'Pending') === 'Paid' && student?.firstInstallmentPaidAt ? Number(student?.installment1 || student?.firstInstallmentAmount || 0) : 0
-  const second = String(student?.secondInstallmentStatus || 'Pending') === 'Paid' && student?.secondInstallmentPaidAt ? Number(student?.installment2 || student?.secondInstallmentAmount || 0) : 0
+  const first = String(student?.firstInstallmentStatus || 'Pending') === 'Paid' ? Number(student?.installment1 || student?.firstInstallmentAmount || 0) : 0
+  const second = String(student?.secondInstallmentStatus || 'Pending') === 'Paid' ? Number(student?.installment2 || student?.secondInstallmentAmount || 0) : 0
   const third =
-    hasThirdInstallment(student) && String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' && student?.thirdInstallmentPaidAt
+    hasThirdInstallment(student) && String(student?.thirdInstallmentStatus || 'Pending') === 'Paid'
       ? Number(student?.thirdInstallmentAmount || student?.installment3 || 0)
       : 0
   return first + second + third
@@ -272,16 +309,18 @@ function calculateRevenueSummary(students) {
       let paidTotalForStudent = 0
 
       for (const entry of entries) {
-        if (String(entry.status || '').trim() !== 'Paid' || !entry.paidAt) continue
+        if (String(entry.status || '').trim() !== 'Paid') continue
 
         paidTotalForStudent += entry.amount
         summary.totalRevenue += entry.amount
 
-        if (isWithinRange(entry.paidAt, monthStart, today)) {
+        const paymentDate = entry.paidAt || admissionDate || entry.dueDate
+
+        if (isWithinRange(paymentDate, monthStart, today)) {
           summary.thisMonthRevenue += entry.amount
         }
 
-        if (isWithinRange(entry.paidAt, weekStart, today)) {
+        if (isWithinRange(paymentDate, weekStart, today)) {
           summary.thisWeekRevenue += entry.amount
         }
       }
@@ -416,6 +455,7 @@ function buildWeeklyRevenueComparison(students, referenceDate = new Date()) {
 
 function useBackendStudents() {
   const [records, setRecords] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     let active = true
@@ -427,36 +467,7 @@ function useBackendStudents() {
         setRecords(result.data || [])
       } catch {
         if (!active) return
-        setRecords([])
-      }
-    }
-
-    void run()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  return records
-}
-
-function useRevenueSummary() {
-  const [summary, setSummary] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-
-    const run = async () => {
-      setIsLoading(true)
-      try {
-        const result = await getRevenueSummary()
-        if (!active) return
-        setSummary(result || null)
-      } catch {
-        if (!active) return
-        setSummary(null)
+        setRecords(loadStudentRecords())
       } finally {
         if (active) {
           setIsLoading(false)
@@ -464,43 +475,36 @@ function useRevenueSummary() {
       }
     }
 
+    const syncRecords = () => {
+      void run()
+    }
+
     void run()
+    window.addEventListener(STUDENT_RECORD_SYNC_EVENT, syncRecords)
+    window.addEventListener('storage', syncRecords)
 
     return () => {
       active = false
+      window.removeEventListener(STUDENT_RECORD_SYNC_EVENT, syncRecords)
+      window.removeEventListener('storage', syncRecords)
     }
   }, [])
 
-  return { summary, isLoading }
+  return { records, isLoading }
 }
 
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   return (
     <section className="business-owner-dashboard">
-      <div className="business-topbar">
-        <div>
-          <p className="eyebrow">Business Owner</p>
-          <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
-        </div>
-
-        <div className="business-topbar-actions">
-          <button className="icon-chip" type="button" aria-label="Calendar">
-            <span>◫</span>
-          </button>
-          <button className="icon-chip notification-chip" type="button" aria-label="Notifications">
-            <span>🔔</span>
-            <b>1</b>
-          </button>
-          <div className="profile-chip">
-            <div className="profile-avatar">BH</div>
-            <div>
-              <strong>Business Head</strong>
-              <span>business.owner@cispro.com</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <OperationManagerHeader
+        className="operation-manager-header-plain"
+        eyebrow="Business Owner"
+        title={dashboard.title}
+        summary=""
+        initials="BW"
+        profileTitle="Business Head"
+        email="business.owner@cispro.com"
+      />
 
       <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
       <RevenueDashboards students={revenueStudents} />
@@ -524,35 +528,123 @@ function buildRevenueSummaryCards(summary, isLoading) {
       label: 'Total Revenue',
       value: formatValue(summary?.totalRevenue),
       change: null,
-      note: isLoading ? 'Loading student revenue' : `${summary?.totalStudents || 0} students added`,
       accent: 'blue',
       icon: 'wallet',
+      details: [
+        { label: 'Collected revenue', value: formatValue(summary?.totalRevenue) },
+        { label: 'Students added', value: isLoading ? 'Loading...' : `${summary?.totalStudents || 0} students added` },
+        { label: 'Scope', value: isLoading ? 'Loading...' : 'All paid installments across active records' },
+      ],
     },
     {
       label: 'This Month Revenue',
       value: formatValue(summary?.thisMonthRevenue),
       change: null,
-      note: isLoading ? 'Loading current month data' : `${summary?.thisMonthStudents || 0} admissions this month`,
       accent: 'green',
       icon: 'calendar',
+      details: [
+        { label: 'Collected this month', value: formatValue(summary?.thisMonthRevenue) },
+        { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisMonthStudents || 0} admissions this month` },
+        { label: 'Scope', value: isLoading ? 'Loading...' : 'Payments received from the current month window' },
+      ],
     },
     {
       label: 'This Week Revenue',
       value: formatValue(summary?.thisWeekRevenue),
       change: null,
-      note: isLoading ? 'Loading current week data' : `${summary?.thisWeekStudents || 0} admissions this week`,
       accent: 'purple',
       icon: 'trend',
+      details: [
+        { label: 'Collected this week', value: formatValue(summary?.thisWeekRevenue) },
+        { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisWeekStudents || 0} admissions this week` },
+        { label: 'Scope', value: isLoading ? 'Loading...' : 'Payments received from the current week window' },
+      ],
     },
     {
       label: 'Pending Payments',
       value: formatValue(summary?.pendingPayments ?? summary?.expectedNextWeekRevenue),
       change: null,
-      note: isLoading ? 'Loading pending payments' : 'Outstanding student payments',
       accent: 'orange',
       icon: 'target',
+      details: [
+        {
+          label: 'Pending amount',
+          value: formatValue(summary?.pendingPayments ?? summary?.expectedNextWeekRevenue),
+        },
+        { label: 'Collection target', value: isLoading ? 'Loading...' : 'Target for next week' },
+        { label: 'Scope', value: isLoading ? 'Loading...' : 'Outstanding student balances' },
+      ],
     },
   ]
+}
+
+function NotificationBell() {
+  const [isOpen, setIsOpen] = useState(false)
+  const [showAll, setShowAll] = useState(false)
+  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
+
+  return (
+    <div
+      className="notification-menu"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => {
+        setIsOpen(false)
+        setShowAll(false)
+      }}
+    >
+      <button
+        className="icon-chip notification-chip"
+        type="button"
+        aria-label="Notifications"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+        <b>{notificationItems.length}</b>
+      </button>
+
+      {isOpen ? (
+        <div className="notification-dropdown" role="menu" aria-label="Notifications">
+          <div className="notification-dropdown-head">
+            <strong>Notifications</strong>
+            <button type="button" className="notification-mark-read">
+              Mark all as read
+            </button>
+          </div>
+
+          <div className="notification-dropdown-list">
+            {visibleItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <article
+                  key={`${item.title}-${item.time}`}
+                  className={`notification-dropdown-item ${item.featured ? 'is-highlighted' : ''}`.trim()}
+                >
+                  <span className={`notification-badge ${item.tone}`} aria-hidden="true">
+                    <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                  </span>
+                  <div className="notification-copy">
+                    <p>{item.title}</p>
+                    <span>{item.message}</span>
+                    <small>{item.time}</small>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+
+          <button
+            className="notification-dropdown-footer"
+            type="button"
+            onClick={() => setShowAll((current) => !current)}
+          >
+            {showAll ? 'Show less' : 'View all notifications'}
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
@@ -571,73 +663,98 @@ function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
 
 function SummaryIcon({ kind }) {
   if (kind === 'wallet') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M4.5 7.5h13.2c1.5 0 2.8 1.2 2.8 2.8V16c0 1.6-1.3 2.8-2.8 2.8H7.2C5.2 18.8 4 17.4 4 15.6V8c0-.3.2-.5.5-.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M16.5 10.2h4v3.6h-4c-1 0-1.8-.8-1.8-1.8s.8-1.8 1.8-1.8Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <circle cx="17.8" cy="12" r="0.9" fill="currentColor" />
-      </svg>
-    )
+    return <Wallet size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'calendar') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.5" y="5.5" width="15" height="14" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M4.5 9h15" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 4v3M16 4v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M8 12h3M13 12h3M8 15h3M13 15h3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-      </svg>
-    )
+    return <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'trend') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M4.5 17.5h15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M6 16V8M11 16v-4M16 16V6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M6.5 11.5 10.2 8.8 13.5 10 18 5.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M17.2 5.8h1.9v1.9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
+    return <TrendingUp size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+  }
+
+  if (kind === 'target') {
+    return <Target size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
   }
 
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      <circle cx="12" cy="12" r="2" fill="currentColor" />
-      <path d="M12 5.5v2.1M12 16.4v2.1M5.5 12h2.1M16.4 12h2.1" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
+    <Info size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
   )
 }
 
 function RevenueSummaryRow({ summary = null, isLoading = false }) {
-  const cards = buildRevenueSummaryCards(summary, isLoading)
+  const cards = summary || isLoading ? buildRevenueSummaryCards(summary, isLoading) : revenueSummaryCards
+  const [activeTooltipIndex, setActiveTooltipIndex] = useState(null)
+  const rowRef = useRef(null)
+
+  useEffect(() => {
+    if (activeTooltipIndex === null) return
+
+    const handlePointerDown = (event) => {
+      if (rowRef.current?.contains(event.target)) return
+      setActiveTooltipIndex(null)
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActiveTooltipIndex(null)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeTooltipIndex])
 
   return (
-    <section className="revenue-summary-row" aria-label="Revenue summary">
-      {cards.map((card) => (
-        <article key={card.label} className="revenue-summary-card">
+    <section ref={rowRef} className="revenue-summary-row" aria-label="Revenue summary">
+      {cards.map((card, index) => {
+        const tooltipId = `revenue-summary-tooltip-${index}`
+        const isTooltipOpen = activeTooltipIndex === index
+
+        return (
+          <article key={card.label} className={`revenue-summary-card ${isTooltipOpen ? 'is-tooltip-open' : ''}`}>
           <div className={`revenue-summary-icon ${card.accent}`} aria-hidden="true">
             <SummaryIcon kind={card.icon} />
           </div>
           <div className="revenue-summary-content">
             <strong className="revenue-summary-label">{card.label}</strong>
             <div className="revenue-summary-value">{card.value}</div>
-            {card.change ? (
-              <div className="revenue-summary-change">
-                <span className="revenue-summary-pill">
-                  <span className="revenue-summary-arrow">↑</span>
-                  {card.change}
-                </span>
-                <span className="revenue-summary-note">{card.note}</span>
-              </div>
-            ) : (
-              <div className="revenue-summary-note revenue-summary-note-alone">{card.note}</div>
-            )}
           </div>
+          <button
+            type="button"
+            className={`revenue-summary-info-button ${isTooltipOpen ? 'is-open' : ''}`}
+            aria-describedby={tooltipId}
+            aria-label={`${card.label} details`}
+            aria-expanded={isTooltipOpen}
+            onClick={() => setActiveTooltipIndex(index)}
+            onMouseEnter={() => setActiveTooltipIndex(index)}
+            onMouseLeave={() => setActiveTooltipIndex(null)}
+            onFocus={() => setActiveTooltipIndex(index)}
+            onBlur={() => setActiveTooltipIndex(null)}
+          >
+            <Info size={13} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+            <div className="revenue-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${card.label} details`}>
+              <strong>{card.label}</strong>
+              <p>{card.tooltip}</p>
+              <div className="revenue-summary-tooltip-list">
+                {(card.details || []).map((detail) => (
+                  <div key={detail.label} className="revenue-summary-tooltip-item">
+                    <span>{detail.label}</span>
+                    <strong>{detail.value}</strong>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </button>
         </article>
-      ))}
+        )
+      })}
     </section>
   )
 }
@@ -652,21 +769,23 @@ function MonthlyRevenueChart({ data = [] }) {
   return (
     <article className="panel-card revenue-comparison-card revenue-monthly-card">
       <div className="revenue-comparison-header">
-        <div>
+        <div className="revenue-comparison-header-copy">
           <h3>Monthly Revenue vs Expected Revenue (Current Year)</h3>
-          <p>Current-year actual revenue and expected revenue by month, based on paid dates and due dates.</p>
+          <div className="revenue-legend" aria-hidden="true">
+            <span className="revenue-legend-item">
+              <span className="revenue-legend-swatch monthly" />
+              Actual Revenue
+            </span>
+            <span className="revenue-legend-item">
+              <span className="revenue-legend-swatch expected" />
+              Expected Revenue
+            </span>
+          </div>
         </div>
-
-        <div className="revenue-legend" aria-hidden="true">
-          <span className="revenue-legend-item">
-            <span className="revenue-legend-swatch monthly" />
-            Actual Revenue
-          </span>
-          <span className="revenue-legend-item">
-            <span className="revenue-legend-swatch expected" />
-            Expected Revenue
-          </span>
-        </div>
+        <ChartInfoTrigger
+          label="Monthly Revenue details"
+          description="Current-year actual revenue and expected revenue by month, based on paid dates and due dates."
+        />
       </div>
 
       <div className="revenue-comparison-body">
@@ -749,21 +868,23 @@ function WeeklyRevenueChart({ data = [] }) {
   return (
     <article className="panel-card revenue-comparison-card revenue-weekly-card">
       <div className="revenue-comparison-header">
-        <div>
+        <div className="revenue-comparison-header-copy">
           <h3>Weekly Revenue vs Expected Revenue (Current Month)</h3>
-          <p>Actual revenue and expected revenue by week, based on paid dates and due dates in the current month.</p>
+          <div className="revenue-legend revenue-weekly-legend" aria-hidden="true">
+            <span className="revenue-legend-item">
+              <span className="revenue-legend-swatch monthly" />
+              Actual Revenue
+            </span>
+            <span className="revenue-legend-item">
+              <span className="revenue-legend-swatch expected" />
+              Expected Revenue
+            </span>
+          </div>
         </div>
-      </div>
-
-      <div className="revenue-legend revenue-weekly-legend" aria-hidden="true">
-        <span className="revenue-legend-item">
-          <span className="revenue-legend-swatch monthly" />
-          Actual Revenue
-        </span>
-        <span className="revenue-legend-item">
-          <span className="revenue-legend-swatch expected" />
-          Expected Revenue
-        </span>
+        <ChartInfoTrigger
+          label="Weekly Revenue details"
+          description="Actual revenue and expected revenue by week, based on paid dates and due dates in the current month."
+        />
       </div>
 
       <div className="revenue-weekly-body">
@@ -832,6 +953,55 @@ function WeeklyRevenueChart({ data = [] }) {
         </div>
       </div>
     </article>
+  )
+}
+
+function ChartInfoTrigger({ label, description }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const triggerRef = useRef(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handlePointerDown = (event) => {
+      if (triggerRef.current?.contains(event.target)) return
+      setIsOpen(false)
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
+  return (
+    <button
+      ref={triggerRef}
+      type="button"
+      className={`chart-info-trigger ${isOpen ? 'is-open' : ''}`}
+      aria-label={label}
+      aria-expanded={isOpen}
+      onClick={() => setIsOpen(true)}
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+      onFocus={() => setIsOpen(true)}
+      onBlur={() => setIsOpen(false)}
+    >
+      <Info size={17} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+      <div className="chart-info-tooltip" role="tooltip">
+        <strong>{label}</strong>
+        <p>{description}</p>
+      </div>
+    </button>
   )
 }
 
@@ -928,7 +1098,7 @@ function StudentInfoItem({ label, value, fullWidth = false }) {
 
 function StudentSectionCard({ title, subtitle, children }) {
   return (
-    <article className="panel-card student-section-card">
+    <article className="student-section-card">
       <div className="student-section-card-head">
         <div>
           <p className="section-kicker">Student Data</p>
@@ -942,7 +1112,7 @@ function StudentSectionCard({ title, subtitle, children }) {
 }
 
 function StudentDashboard({ dashboard }) {
-  const students = useBackendStudents()
+  const { records: students } = useBackendStudents()
   const latestStudent = useMemo(() => students[0] || null, [students])
 
   if (!latestStudent) {
@@ -968,7 +1138,7 @@ function StudentDashboard({ dashboard }) {
 
   return (
     <section className="student-dashboard-page">
-      <article className="panel-card student-dashboard-hero">
+      <article className="student-dashboard-hero">
         <div className="student-dashboard-hero-top">
           <div className="student-dashboard-avatar">{getStudentInitials(latestStudent.studentName)}</div>
           <div className="student-dashboard-hero-main">
@@ -1083,16 +1253,10 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
 
         <div className="business-topbar-actions">
           <label className="dashboard-search">
-            <span aria-hidden="true">⌕</span>
+            <span aria-hidden="true">âŒ•</span>
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
-          <button className="icon-chip" type="button" aria-label="Calendar">
-            <span>◫</span>
-          </button>
-          <button className="icon-chip notification-chip" type="button" aria-label="Notifications">
-            <span>🔔</span>
-            <b>1</b>
-          </button>
+          <NotificationBell />
           <div className="profile-chip">
             <div className="profile-avatar">OM</div>
             <div>
@@ -1115,17 +1279,13 @@ function GenericDashboard({ role }) {
 
   return (
     <section className="dashboard-grid">
-      <article className="hero-card">
+      <div className="dashboard-hero-plain">
         <div>
           <p className="eyebrow">{dashboard.accent} lane</p>
           <h2>{dashboard.title}</h2>
           <p>{dashboard.summary}</p>
         </div>
-        <div className="metric" style={{ '--metric-color': dashboard.color }}>
-          <span>Access</span>
-          <strong>{roleLabels[role]}</strong>
-        </div>
-      </article>
+      </div>
 
       {dashboard.cards.map((card) => (
         <article key={card} className="info-card">
@@ -1140,8 +1300,8 @@ function GenericDashboard({ role }) {
 
 export function DashboardPage({ role }) {
   const dashboard = roleDashboards[role]
-  const revenueStudents = useBackendStudents()
-  const { summary: revenueSummary, isLoading: isRevenueLoading } = useRevenueSummary()
+  const { records: revenueStudents, isLoading: isRevenueLoading } = useBackendStudents()
+  const revenueSummary = useMemo(() => calculateRevenueSummary(revenueStudents), [revenueStudents])
 
   if (role === 'business-owner') {
     return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} revenueStudents={revenueStudents} />
@@ -1157,3 +1317,5 @@ export function DashboardPage({ role }) {
 
   return <GenericDashboard role={role} />
 }
+
+

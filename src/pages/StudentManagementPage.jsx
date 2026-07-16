@@ -1,9 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
+import {
+  BadgeCheck,
+  BookOpen,
+  CalendarDays,
+  CircleDollarSign,
+  CreditCard,
+  FileText,
+  GraduationCap,
+  Landmark,
+  Layers3,
+  Mail,
+  MapPin,
+  Percent,
+  Phone,
+  UserRound,
+} from 'lucide-react'
+import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
+import { OperationManagerHeader } from '../components/OperationManagerHeader'
+import { saveStudentRecords } from '../data/studentRecords'
+import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { listCourses } from '../services/courseService'
 import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
+import { normalizeCourseList } from '../services/courseService'
 
 const statusOptions = ['Student', 'Employee', 'Other']
+const recordStatusOptions = ['Active', 'Inactive']
+const paymentModeOptions = ['Installment', 'Full Payment']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
 const studentWizardSteps = [
   {
@@ -60,6 +83,8 @@ function createEmptyForm() {
     designation: '',
     location: '',
     source: '',
+    status: 'Active',
+    paymentMode: 'Installment',
     actualFees: '',
     registrationFees: '',
     discount: '',
@@ -67,6 +92,18 @@ function createEmptyForm() {
     installment1: '',
     installment2: '',
     installment3: '',
+    firstInstallmentAmount: '',
+    firstInstallmentDate: '',
+    firstInstallmentStatus: 'Pending',
+    firstInstallmentPaidAt: '',
+    secondInstallmentAmount: '',
+    secondDueDate: '',
+    secondInstallmentStatus: 'Pending',
+    secondInstallmentPaidAt: '',
+    thirdInstallmentAmount: '',
+    thirdDueDate: '',
+    thirdInstallmentStatus: 'Pending',
+    thirdInstallmentPaidAt: '',
     remarks: '',
     parentSpouseNumber: '',
     admissionDate: getTodayValue(),
@@ -104,18 +141,6 @@ function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
 }
 
-function getStudentInitials(name) {
-  const value = String(name || '').trim()
-  if (!value) return 'ST'
-
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || '')
-    .join('')
-    .slice(0, 2)
-}
-
 function diffInDays(a, b) {
   const start = new Date(`${a}T00:00:00`)
   const end = new Date(`${b}T00:00:00`)
@@ -141,6 +166,38 @@ function getSecondDueDate(student) {
 function getThirdDueDate(student) {
   if (!hasThirdInstallment(student)) return ''
   return student?.thirdDueDate || addOneMonth(getSecondDueDate(student))
+}
+
+function isInstallmentSettled(entity = null) {
+  const firstPaid = String(entity?.firstInstallmentStatus || 'Pending') === 'Paid'
+  const secondPaid = String(entity?.secondInstallmentStatus || 'Pending') === 'Paid'
+  const thirdPaid = hasThirdInstallment(entity) ? String(entity?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
+
+  return firstPaid && secondPaid && thirdPaid
+}
+
+function isFullPaymentMode(entity = null) {
+  return String(entity?.paymentMode || 'Installment').trim() === 'Full Payment'
+}
+
+function isFullPaymentRecord(entity = null) {
+  return isFullPaymentMode(entity) || isInstallmentSettled(entity)
+}
+
+function getPaymentModeLabel(entity = null) {
+  return isFullPaymentRecord(entity) ? 'Full Payment' : 'Installment'
+}
+
+function getVisibleInstallmentStage(student, course = null) {
+  if (isFullPaymentRecord(student)) return 0
+  const firstPaid = String(student?.firstInstallmentStatus || 'Pending') === 'Paid'
+  const secondPaid = String(student?.secondInstallmentStatus || 'Pending') === 'Paid'
+  const thirdPaid = hasThirdInstallment(student, course) ? String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
+
+  if (!firstPaid) return 1
+  if (!secondPaid) return 2
+  if (hasThirdInstallment(student, course) && !thirdPaid) return 3
+  return 0
 }
 
 function findCourseForStudent(student, courseOptions) {
@@ -200,9 +257,18 @@ function mapCourseToForm(current, course) {
   }
 }
 
+function getCourseInstallmentValues(course = null) {
+  return {
+    installment1: String(course?.installment1 ?? ''),
+    installment2: String(course?.installment2 ?? ''),
+    installment3: String(course?.installment3 ?? ''),
+  }
+}
+
 function validateForm(form, course = null) {
   const errors = {}
   const currentYear = new Date().getFullYear()
+  const isFullPayment = isFullPaymentMode(form)
   const requiresThirdInstallment = hasThirdInstallment(form, course)
 
   if (!form.studentName.trim()) errors.studentName = 'Student name is required.'
@@ -238,9 +304,9 @@ function validateForm(form, course = null) {
   if (!form.registrationFees && form.courseId) errors.registrationFees = 'Registration fee is missing.'
   if (!form.discount && form.courseId) errors.discount = 'Discount is missing.'
   if (!form.afterDiscount && form.courseId) errors.afterDiscount = 'After discount value is missing.'
-  if (!form.installment1 && form.courseId) errors.installment1 = 'Installment 1 is missing.'
-  if (!form.installment2 && form.courseId) errors.installment2 = 'Installment 2 is missing.'
-  if (requiresThirdInstallment && !form.installment3) errors.installment3 = 'Installment 3 is missing.'
+  if (!isFullPayment && !form.installment1 && form.courseId) errors.installment1 = 'Installment 1 is missing.'
+  if (!isFullPayment && !form.installment2 && form.courseId) errors.installment2 = 'Installment 2 is missing.'
+  if (!isFullPayment && requiresThirdInstallment && !form.installment3) errors.installment3 = 'Installment 3 is missing.'
   if (form.remarks.trim() && form.remarks.trim().length < 5) {
     errors.remarks = 'Add a short remark with at least 5 characters.'
   }
@@ -268,7 +334,14 @@ function validateStep(form, stepIndex, course = null) {
       ...(String(form.currentStatus || '') === 'Employee' ? ['designation'] : []),
       'source',
     ],
-    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate'],
+    2: [
+      'actualFees',
+      'registrationFees',
+      'discount',
+      'afterDiscount',
+      ...(isFullPaymentMode(form) ? [] : ['installment1', 'installment2', 'installment3']),
+      'admissionDate',
+    ],
   }
 
   return Object.fromEntries(
@@ -280,11 +353,11 @@ function getStepIndexForField(fieldName) {
   const stepFields = {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
     1: ['courseInterested', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
-    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate', 'remarks'],
+    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate', 'remarks', 'paymentMode'],
   }
 
   return Number(
-    Object.entries(stepFields).find(([_, fields]) => fields.includes(fieldName))?.[0] ?? 2,
+    Object.entries(stepFields).find(([, fields]) => fields.includes(fieldName))?.[0] ?? 2,
   )
 }
 
@@ -320,6 +393,10 @@ function Field({ label, required = false, hint, error, className = '', icon, mul
 }
 
 function PaymentStatusBadge({ student }) {
+  if (isFullPaymentRecord(student)) {
+    return <span className="student-badge employee">Completed</span>
+  }
+
   const dueDate = hasThirdInstallment(student) ? getThirdDueDate(student) || getSecondDueDate(student) : getSecondDueDate(student)
   const firstPaid = String(student.firstInstallmentStatus || 'Pending') === 'Paid'
   const secondPaid = String(student.secondInstallmentStatus || 'Pending') === 'Paid'
@@ -333,196 +410,8 @@ function PaymentStatusBadge({ student }) {
   return <span className={className}>{status}</span>
 }
 
-function DetailItem({ label, value, fullWidth = false, icon = null }) {
-  return (
-    <div className={`student-detail-item ${fullWidth ? 'student-detail-item-full' : ''}`.trim()}>
-      <div className="student-detail-item-head">
-        {icon ? <span className="student-detail-item-icon">{icon}</span> : null}
-        <span>{label}</span>
-      </div>
-      <strong>{value || '-'}</strong>
-    </div>
-  )
-}
-
-function FieldIcon({ kind }) {
-  if (kind === 'user') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M5.5 18c1.2-3.3 4-5 6.5-5s5.3 1.7 6.5 5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'phone') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path
-          d="M6.2 4.8l2.1-.8c.8-.3 1.7 0 2.1.7l1.1 2c.4.7.3 1.6-.3 2.1l-1.2 1.1c1 1.9 2.6 3.6 4.5 4.5l1.1-1.2c.5-.6 1.4-.7 2.1-.3l2 1.1c.7.4 1 1.3.7 2.1l-.8 2.1c-.3.8-1.1 1.4-2 1.4C10.2 19.7 4.3 13.8 4.8 6.8c.1-.9.6-1.7 1.4-2Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinejoin="round"
-        />
-      </svg>
-    )
-  }
-
-  if (kind === 'mail') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.5" y="6" width="15" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M6 8l6 4.6L18 8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'pin') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 20s5-4.8 5-9a5 5 0 1 0-10 0c0 4.2 5 9 5 9Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <circle cx="12" cy="11" r="1.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      </svg>
-    )
-  }
-
-  if (kind === 'course') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M4.8 7.5 12 4l7.2 3.5L12 11 4.8 7.5Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M6.5 9.5V14c0 1.7 2.5 3.2 5.5 3.2s5.5-1.5 5.5-3.2V9.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'faculty') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 3 3.8 7.2 12 11.5l8.2-4.3L12 3Z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-        <path d="M6.2 12.4v3.5c0 1.4 2.6 2.8 5.8 2.8s5.8-1.4 5.8-2.8v-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'batch') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="6" width="14" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 6V4.5M16 6V4.5M7 10h10M7 13h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'year') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M7 3.8v2.2M17 3.8v2.2M5.5 8h13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <rect x="4.5" y="6" width="15" height="13.5" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      </svg>
-    )
-  }
-
-  if (kind === 'status') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M5 12a7 7 0 1 0 7-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M12 5v5l3 2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'note') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="4.5" width="14" height="15" rx="2.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 9h8M8 12h8M8 15h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'currency') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 4.5v15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M15.5 7.2c0-1.5-1.6-2.7-3.5-2.7S8.5 6 8.5 7.4s1.2 2.1 3.5 2.7c2.4.6 3.5 1.2 3.5 2.8S13.9 16 12 16s-3.5-1.1-3.5-2.7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'percent') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M7 17 17 7" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
-        <circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <circle cx="16" cy="16" r="1.7" fill="none" stroke="currentColor" strokeWidth="1.8" />
-      </svg>
-    )
-  }
-
-  if (kind === 'balance') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 5v14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M7.5 8.5h9M8.5 12h7M9.2 15.5h5.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'installment') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.8" y="5" width="14.4" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M8 9h8M8 12h8M8 15h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'calendar') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.5" y="5.5" width="15" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M4.5 9h15M8 4v3M16 4v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  return null
-}
-
 function SectionIcon({ kind }) {
   if (kind === 'basic') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="2.2" />
-        <path d="M5.5 18c1.2-3.3 4-5 6.5-5s5.3 1.7 6.5 5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'education') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 4 3.8 8.2 12 12.3l8.2-4.1L12 4Z" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinejoin="round" />
-        <path d="M6 10.4v3.8c0 1.5 2.7 3 6 3s6-1.5 6-3v-3.8" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'admission') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="4.8" width="14" height="15" rx="2.4" fill="none" stroke="currentColor" strokeWidth="2.2" />
-        <path d="M8 9h8M8 12h8M8 15h5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  return null
-}
-
-function DetailIcon({ kind }) {
-  if (kind === 'user') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -531,39 +420,7 @@ function DetailIcon({ kind }) {
     )
   }
 
-  if (kind === 'phone') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path
-          d="M6.2 4.8l2.1-.8c.8-.3 1.7 0 2.1.7l1.1 2c.4.7.3 1.6-.3 2.1l-1.2 1.1c1 1.9 2.6 3.6 4.5 4.5l1.1-1.2c.5-.6 1.4-.7 2.1-.3l2 1.1c.7.4 1 1.3.7 2.1l-.8 2.1c-.3.8-1.1 1.4-2 1.4C10.2 19.7 4.3 13.8 4.8 6.8c.1-.9.6-1.7 1.4-2Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.9"
-          strokeLinejoin="round"
-        />
-      </svg>
-    )
-  }
-
-  if (kind === 'mail') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.5" y="6" width="15" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M6 8l6 4.6L18 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'pin') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 20s5-4.8 5-9a5 5 0 1 0-10 0c0 4.2 5 9 5 9Z" fill="none" stroke="currentColor" strokeWidth="2" />
-        <circle cx="12" cy="11" r="1.8" fill="none" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    )
-  }
-
-  if (kind === 'course') {
+  if (kind === 'education') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M12 4 3.8 8.2 12 12.3l8.2-4.1L12 4Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
@@ -572,79 +429,7 @@ function DetailIcon({ kind }) {
     )
   }
 
-  if (kind === 'faculty') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 3 3.8 7.2 12 11.5l8.2-4.3L12 3Z" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        <path d="M6.2 12.4v3.5c0 1.4 2.6 2.8 5.8 2.8s5.8-1.4 5.8-2.8v-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'batch') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="6" width="14" height="12" rx="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M8 6V4.5M16 6V4.5M7 10h10M7 13h7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'year') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M7 3.8v2.2M17 3.8v2.2M5.5 8h13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <rect x="4.5" y="6" width="15" height="13.5" rx="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    )
-  }
-
-  if (kind === 'status') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M5 12a7 7 0 1 0 7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <path d="M12 5v5l3 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'source') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M4.8 7.5H19.2M4.8 12H19.2M4.8 16.5h8.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'calendar') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="4.5" y="5.5" width="15" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M4.5 9h15M8 4v3M16 4v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'fees') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M12 4.5v15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <path d="M15.5 7.2c0-1.5-1.6-2.7-3.5-2.7S8.5 6 8.5 7.4s1.2 2.1 3.5 2.7c2.4.6 3.5 1.2 3.5 2.8S13.9 16 12 16s-3.5-1.1-3.5-2.7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (kind === 'discount') {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path d="M7 17 17 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="8" cy="8" r="1.7" fill="none" stroke="currentColor" strokeWidth="2" />
-        <circle cx="16" cy="16" r="1.7" fill="none" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    )
-  }
-
-  if (kind === 'installment') {
+  if (kind === 'admission') {
     return (
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <rect x="4.8" y="5" width="14.4" height="14" rx="2.4" fill="none" stroke="currentColor" strokeWidth="2" />
@@ -653,14 +438,104 @@ function DetailIcon({ kind }) {
     )
   }
 
-  if (kind === 'note') {
+  return null
+}
+
+function getDrawerValue(value, fallback = '-') {
+  if (value === 0) return '0'
+  const text = String(value ?? '').trim()
+  return text || fallback
+}
+
+function DrawerValue({ value, tone = '' }) {
+  const text = getDrawerValue(value)
+
+  if (tone) {
+    return <span className={`student-detail-pill ${tone}`.trim()}>{text}</span>
+  }
+
+  return <span className="student-detail-text">{text}</span>
+}
+
+function DrawerTableRow({ leftLabel, leftValue, rightLabel, rightValue, leftTone = '', rightTone = '' }) {
+  return (
+    <tr>
+      <th>{leftLabel}</th>
+      <td>
+        <DrawerValue value={leftValue} tone={leftTone} />
+      </td>
+      <th>{rightLabel}</th>
+      <td>
+        <DrawerValue value={rightValue} tone={rightTone} />
+      </td>
+    </tr>
+  )
+}
+
+function DrawerFormControl({
+  value,
+  onChange,
+  type = 'text',
+  options = [],
+  as = 'input',
+  placeholder = '',
+  readOnly = false,
+}) {
+  if (as === 'select') {
     return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <rect x="5" y="4.5" width="14" height="15" rx="2.2" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M8 9h8M8 12h8M8 15h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+      <select className="student-drawer-inline-control" value={value} onChange={onChange}>
+        <option value="">{placeholder || 'Select option'}</option>
+        {options.map((option) => (
+          <option key={typeof option === 'object' ? option.value : option} value={typeof option === 'object' ? option.value : option}>
+            {typeof option === 'object' ? option.label : option}
+          </option>
+        ))}
+      </select>
     )
   }
+
+  if (as === 'textarea') {
+    return (
+      <textarea
+        className="student-drawer-inline-control student-drawer-inline-textarea"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        readOnly={readOnly}
+      />
+    )
+  }
+
+  return (
+    <input
+      className="student-drawer-inline-control"
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      readOnly={readOnly}
+    />
+  )
+}
+
+function FieldIcon({ kind }) {
+  const iconProps = { size: 18, strokeWidth: 2.2, 'aria-hidden': true, focusable: false }
+
+  if (kind === 'user') return <UserRound {...iconProps} />
+  if (kind === 'phone') return <Phone {...iconProps} />
+  if (kind === 'mail') return <Mail {...iconProps} />
+  if (kind === 'pin') return <MapPin {...iconProps} />
+  if (kind === 'course') return <BookOpen {...iconProps} />
+  if (kind === 'faculty') return <GraduationCap {...iconProps} />
+  if (kind === 'batch') return <Layers3 {...iconProps} />
+  if (kind === 'year') return <CalendarDays {...iconProps} />
+  if (kind === 'status') return <BadgeCheck {...iconProps} />
+  if (kind === 'note') return <FileText {...iconProps} />
+  if (kind === 'currency') return <CircleDollarSign {...iconProps} />
+  if (kind === 'percent') return <Percent {...iconProps} />
+  if (kind === 'balance') return <Landmark {...iconProps} />
+  if (kind === 'installment') return <CreditCard {...iconProps} />
+  if (kind === 'calendar') return <CalendarDays {...iconProps} />
 
   return null
 }
@@ -705,6 +580,16 @@ function DeleteIcon() {
   )
 }
 
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="5" r="1.7" fill="currentColor" />
+      <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+      <circle cx="12" cy="19" r="1.7" fill="currentColor" />
+    </svg>
+  )
+}
+
 function DangerIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -721,6 +606,7 @@ function DangerIcon() {
 }
 
 export function StudentManagementPage() {
+  const { role } = useAuth()
   const [students, setStudents] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -733,11 +619,20 @@ export function StudentManagementPage() {
   const [editingStudentId, setEditingStudentId] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [openActionMenuId, setOpenActionMenuId] = useState('')
+  const [isDrawerEditing, setIsDrawerEditing] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
   const [actionError, setActionError] = useState('')
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
+  const isBusinessOwner = role === 'business-owner'
+  const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
+  const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
+  const headerSummary = 'Operations oversight, approvals, and team health.'
+  const headerInitials = isBusinessOwner ? 'BW' : 'OM'
+  const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
+  const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
 
   const selectedCourse = useMemo(() => findCourseForForm(courseOptions, form), [courseOptions, form])
   const errors = useMemo(() => {
@@ -824,7 +719,11 @@ export function StudentManagementPage() {
   }
 
   useEffect(() => {
-    void Promise.all([loadStudents(), loadCourseOptions()])
+    const timeoutId = window.setTimeout(() => {
+      void Promise.all([loadStudents(), loadCourseOptions()])
+    }, 0)
+
+    return () => window.clearTimeout(timeoutId)
   }, [])
 
   const openModal = () => {
@@ -833,50 +732,80 @@ export function StudentManagementPage() {
     setFieldFocus({})
     setSubmitted(false)
     setEditingStudentId('')
+    setOpenActionMenuId('')
+    setIsDrawerEditing(false)
     setCurrentStep(0)
     setIsModalOpen(true)
   }
 
+  const prepareStudentForm = (student) => ({
+    ...createEmptyForm(),
+    courseId: student.courseId || '',
+    studentName: student.studentName || '',
+    mobileNumber: student.mobileNumber || '',
+    emailAddress: student.emailAddress || '',
+    courseInterested: student.courseInterested || '',
+    facultyName: student.facultyName || '',
+    batch: student.batch || '',
+    qualification: student.qualification || '',
+    passedOutYear: student.passedOutYear || '',
+    currentStatus: student.currentStatus || '',
+    designation: student.designation || '',
+    location: student.location || '',
+    source: student.source || '',
+    status: student.status || 'Active',
+    paymentMode: isFullPaymentRecord(student) ? 'Full Payment' : 'Installment',
+    actualFees: student.actualFees || '',
+    registrationFees: student.registrationFees || '',
+    discount: student.discount || '',
+    afterDiscount: student.afterDiscount || '',
+    installment1: student.installment1 || '',
+    installment2: student.installment2 || '',
+    installment3: student.installment3 || '',
+    firstInstallmentAmount: student.firstInstallmentAmount || student.installment1 || '',
+    firstInstallmentDate: student.firstInstallmentDate || student.admissionDate || '',
+    firstInstallmentStatus: student.firstInstallmentStatus || 'Pending',
+    firstInstallmentPaidAt: student.firstInstallmentPaidAt || student.admissionDate || '',
+    secondInstallmentAmount: student.secondInstallmentAmount || student.installment2 || '',
+    secondDueDate: student.secondDueDate || '',
+    secondInstallmentStatus: student.secondInstallmentStatus || 'Pending',
+    secondInstallmentPaidAt: student.secondInstallmentPaidAt || '',
+    thirdInstallmentAmount: student.thirdInstallmentAmount || student.installment3 || '',
+    thirdDueDate: student.thirdDueDate || '',
+    thirdInstallmentStatus: student.thirdInstallmentStatus || 'Pending',
+    thirdInstallmentPaidAt: student.thirdInstallmentPaidAt || '',
+    remarks: student.remarks || '',
+    parentSpouseNumber: student.parentSpouseNumber || '',
+    admissionDate: student.admissionDate || getTodayValue(),
+  })
+
   const openEditModal = (student) => {
     setActionError('')
-    setForm({
-      ...createEmptyForm(),
-      courseId: student.courseId || '',
-      studentName: student.studentName || '',
-      mobileNumber: student.mobileNumber || '',
-      emailAddress: student.emailAddress || '',
-      courseInterested: student.courseInterested || '',
-      facultyName: student.facultyName || '',
-      batch: student.batch || '',
-      qualification: student.qualification || '',
-      passedOutYear: student.passedOutYear || '',
-      currentStatus: student.currentStatus || '',
-      designation: student.designation || '',
-      location: student.location || '',
-      source: student.source || '',
-      actualFees: student.actualFees || '',
-      registrationFees: student.registrationFees || '',
-      discount: student.discount || '',
-      afterDiscount: student.afterDiscount || '',
-      installment1: student.installment1 || '',
-      installment2: student.installment2 || '',
-      installment3: student.installment3 || '',
-      remarks: student.remarks || '',
-      parentSpouseNumber: student.parentSpouseNumber || '',
-      admissionDate: student.admissionDate || getTodayValue(),
-      firstInstallmentPaidAt: student.firstInstallmentPaidAt || student.admissionDate || '',
-      secondInstallmentPaidAt: student.secondInstallmentPaidAt || '',
-    })
+    setForm(prepareStudentForm(student))
     setFieldFocus({})
     setSubmitted(false)
     setEditingStudentId(student.id)
     setCurrentStep(0)
     setIsModalOpen(true)
+    setIsDrawerEditing(false)
+    setOpenActionMenuId('')
+  }
+
+  const startDrawerEdit = (student) => {
+    setActionError('')
+    setForm(prepareStudentForm(student))
+    setFieldFocus({})
+    setSubmitted(false)
+    setEditingStudentId(student.id)
+    setCurrentStep(0)
+    setIsDrawerEditing(true)
+    setOpenActionMenuId('')
   }
 
   const openDrawer = (student) => {
     setSelectedStudentId(student.id)
     setIsDrawerOpen(true)
+    setIsDrawerEditing(false)
   }
 
   const openDeleteModal = (student) => {
@@ -886,10 +815,19 @@ export function StudentManagementPage() {
 
   const closeDrawer = () => {
     setIsDrawerOpen(false)
+    setIsDrawerEditing(false)
   }
 
   const closeDeleteModal = () => {
     setDeleteTarget(null)
+  }
+
+  const openActionMenu = (studentId) => {
+    setOpenActionMenuId(studentId)
+  }
+
+  const closeActionMenu = () => {
+    setOpenActionMenuId('')
   }
 
   const closeModal = () => {
@@ -897,19 +835,6 @@ export function StudentManagementPage() {
     setEditingStudentId('')
     setCurrentStep(0)
   }
-
-  useEffect(() => {
-    if (!isModalOpen) return undefined
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        closeModal()
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isModalOpen])
 
   useEffect(() => {
     if (!isDrawerOpen) return undefined
@@ -924,9 +849,83 @@ export function StudentManagementPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isDrawerOpen])
 
+  useEffect(() => {
+    saveStudentRecords(students)
+  }, [students])
+
+  useEffect(() => {
+    const loadCourseOptions = () => {
+      setIsCoursesLoading(true)
+      const uniqueCourseOptions = Array.from(
+        new Map(
+          normalizeCourseList(loadCourseRecords())
+            .filter((course) => String(course?.status || '').trim() === 'Active')
+            .map((course) => {
+              const id = String(course?.id || '').trim()
+              const name = String(course?.name || '').trim()
+              if (!id || !name) return null
+              return [
+                id,
+                {
+                  id,
+                  name,
+                  actualFees: course?.actualFees ?? '',
+                  registrationFees: course?.registrationFees ?? '',
+                  discount: course?.discount ?? '',
+                  afterDiscount: course?.afterDiscount ?? '',
+                  installment1: course?.installment1 ?? '',
+                  installment2: course?.installment2 ?? '',
+                  installment3: course?.installment3 ?? '',
+                },
+              ]
+            })
+            .filter(Boolean),
+        ).values(),
+      )
+
+      setCourseOptions(uniqueCourseOptions)
+      setIsCoursesLoading(false)
+    }
+
+    loadCourseOptions()
+
+    const syncCourseOptions = () => {
+      loadCourseOptions()
+    }
+
+    window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
+    window.addEventListener('storage', syncCourseOptions)
+
+    return () => {
+      window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
+      window.removeEventListener('storage', syncCourseOptions)
+    }
+  }, [])
+
   const updateField = (name, value) => {
     setForm((current) => ({
       ...current,
+      ...(name === 'paymentMode' && value === 'Installment'
+        ? {
+            paymentMode: value,
+            firstInstallmentStatus: 'Pending',
+            secondInstallmentStatus: 'Pending',
+            thirdInstallmentStatus: 'Pending',
+            firstInstallmentPaidAt: '',
+            secondInstallmentPaidAt: '',
+            thirdInstallmentPaidAt: '',
+            ...(current.installment1 || current.installment2 || current.installment3
+              ? {}
+              : getCourseInstallmentValues(findCourseForForm(courseOptions, current))),
+          }
+        : name === 'paymentMode' && value === 'Full Payment'
+          ? {
+              paymentMode: value,
+              installment1: '',
+              installment2: '',
+              installment3: '',
+            }
+          : {}),
       [name]: value,
     }))
   }
@@ -1000,9 +999,27 @@ export function StudentManagementPage() {
       courseInterested: form.courseInterested || course?.name || '',
       facultyName: form.facultyName || '',
       batchName: form.batch || '',
-      firstInstallmentStatus: existingStudent?.firstInstallmentStatus || 'Paid',
-      secondInstallmentStatus: existingStudent?.secondInstallmentStatus || 'Pending',
+      status: form.status || existingStudent?.status || 'Active',
     }
+
+    const isFullPayment = isFullPaymentMode(form)
+    const paidAtDate = form.admissionDate || existingStudent?.admissionDate || getTodayValue()
+    const paidAmount = String(form.afterDiscount || form.actualFees || existingStudent?.afterDiscount || existingStudent?.actualFees || '')
+
+    payload.paymentMode = isFullPayment ? 'Full Payment' : 'Installment'
+    payload.totalAmount = String(form.actualFees || existingStudent?.actualFees || form.afterDiscount || existingStudent?.afterDiscount || '')
+    payload.firstInstallmentStatus = isFullPayment ? 'Paid' : existingStudent?.firstInstallmentStatus || 'Pending'
+    payload.firstInstallmentPaidAt = isFullPayment ? paidAtDate : existingStudent?.firstInstallmentPaidAt || ''
+    payload.secondInstallmentStatus = isFullPayment ? 'Paid' : existingStudent?.secondInstallmentStatus || 'Pending'
+    payload.secondInstallmentPaidAt = isFullPayment ? paidAtDate : existingStudent?.secondInstallmentPaidAt || ''
+    payload.thirdInstallmentStatus = isFullPayment ? 'Paid' : existingStudent?.thirdInstallmentStatus || 'Pending'
+    payload.thirdInstallmentPaidAt = isFullPayment ? paidAtDate : existingStudent?.thirdInstallmentPaidAt || ''
+    payload.firstInstallmentAmount = isFullPayment ? paidAmount : form.installment1 || existingStudent?.firstInstallmentAmount || ''
+    payload.secondInstallmentAmount = isFullPayment ? '0' : form.installment2 || existingStudent?.secondInstallmentAmount || ''
+    payload.thirdInstallmentAmount = isFullPayment ? '0' : form.installment3 || existingStudent?.thirdInstallmentAmount || ''
+    payload.firstInstallmentDate = isFullPayment ? paidAtDate : form.firstInstallmentDate || existingStudent?.firstInstallmentDate || ''
+    payload.secondDueDate = isFullPayment ? '' : form.secondDueDate || existingStudent?.secondDueDate || ''
+    payload.thirdDueDate = isFullPayment ? '' : form.thirdDueDate || existingStudent?.thirdDueDate || ''
 
     try {
       if (editingStudentId) {
@@ -1013,11 +1030,17 @@ export function StudentManagementPage() {
 
       await loadStudents()
       setCurrentPage(1)
-      setIsModalOpen(false)
-      setForm(createEmptyForm())
-      setFieldFocus({})
-      setSubmitted(false)
-      setEditingStudentId('')
+      if (isDrawerEditing) {
+        setIsDrawerEditing(false)
+        setEditingStudentId('')
+      } else {
+        setIsModalOpen(false)
+        setForm(createEmptyForm())
+        setFieldFocus({})
+        setSubmitted(false)
+        setEditingStudentId('')
+      }
+      setOpenActionMenuId('')
     } catch (error) {
       setActionError(apiErrorMessage(error, 'Unable to save student details.'))
     }
@@ -1046,6 +1069,7 @@ export function StudentManagementPage() {
       await deleteStudent(studentId)
       await loadStudents()
       setCurrentPage(1)
+      setOpenActionMenuId('')
       if (selectedStudentId === studentId) {
         closeDrawer()
       }
@@ -1075,20 +1099,45 @@ export function StudentManagementPage() {
     setActionError('')
     const nextStatus = currentStudent[installmentField] === 'Paid' ? 'Pending' : 'Paid'
     const nextPaidAt = nextStatus === 'Paid' ? getTodayValue() : ''
+    const previousStudents = students
+
+    setStudents((currentStudents) =>
+      currentStudents.map((student) =>
+        student.id === studentId
+          ? {
+              ...student,
+              [installmentField]: nextStatus,
+              [paidAtField]: nextPaidAt,
+            }
+          : student,
+      ),
+    )
+
     try {
       await updateStudent(studentId, {
         [installmentField]: nextStatus,
         [paidAtField]: nextPaidAt,
       })
-      await loadStudents()
+      setOpenActionMenuId('')
     } catch (error) {
+      setStudents(previousStudents)
       setActionError(apiErrorMessage(error, 'Unable to update installment status.'))
     }
   }
 
   return (
     <section className="student-management-page">
-      <article className="panel-card student-management-hero">
+      <OperationManagerHeader
+        className="operation-manager-header-plain"
+        eyebrow={headerEyebrow}
+        title={headerTitle}
+        summary={headerSummary}
+        initials={headerInitials}
+        profileTitle={headerProfileTitle}
+        email={headerEmail}
+      />
+
+      <article className="student-management-hero">
         <div>
           <p className="eyebrow">Student Management</p>
           
@@ -1106,7 +1155,7 @@ export function StudentManagementPage() {
         </div>
       </article>
 
-      <article className="panel-card student-list-card">
+      <article className="student-list-card">
         <div className="student-list-header">
           <div>
             <h3>Student List</h3>
@@ -1137,31 +1186,59 @@ export function StudentManagementPage() {
               <thead>
                 <tr>
                   <th>Student</th>
-                  <th>Phone</th>
                   <th>Course</th>
                   <th>Total Amount</th>
                   <th>Admission Date</th>
-                  <th>1st Installment</th>
-                  <th>2nd Installment</th>
-                  <th>2nd Due Date</th>
-                  <th>3rd Installment</th>
-                  <th>3rd Due Date</th>
+                  <th>Current Installment</th>
+                  <th>Installment Due Date</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedStudents.map((student) => {
+                {paginatedStudents.map((student, index) => {
                   const studentCourse = findCourseForStudent(student, courseOptions)
                   const studentHasThirdInstallment = hasThirdInstallment(student, studentCourse)
+                  const visibleInstallmentStage = getVisibleInstallmentStage(student, studentCourse)
+                  const shouldOpenUp = index >= Math.max(paginatedStudents.length - 2, 0)
+                  const actionMenuDirection = shouldOpenUp ? 'up' : 'down'
+                  const currentInstallmentAmount =
+                    visibleInstallmentStage === 1
+                      ? student.firstInstallmentAmount
+                      : visibleInstallmentStage === 2
+                        ? student.secondInstallmentAmount
+                        : visibleInstallmentStage === 3
+                          ? student.thirdInstallmentAmount || student.installment3 || studentCourse?.installment3
+                          : ''
+                  const currentInstallmentLabel =
+                    visibleInstallmentStage === 1
+                      ? '1st Installment'
+                      : visibleInstallmentStage === 2
+                        ? '2nd Installment'
+                        : visibleInstallmentStage === 3
+                          ? '3rd Installment'
+                          : ''
+                  const firstPaid = String(student.firstInstallmentStatus || 'Pending') === 'Paid'
+                  const secondPaid = String(student.secondInstallmentStatus || 'Pending') === 'Paid'
+                  const thirdPaid = studentHasThirdInstallment ? String(student.thirdInstallmentStatus || 'Pending') === 'Paid' : true
                   const secondDueDate = getSecondDueDate(student)
                   const thirdDueDate = getThirdDueDate(student)
-                  const secondOverdueDays = String(student.secondInstallmentStatus || 'Pending') === 'Paid'
-                    ? 0
-                    : diffInDays(secondDueDate, getTodayValue())
-                  const thirdOverdueDays = studentHasThirdInstallment && String(student.thirdInstallmentStatus || 'Pending') !== 'Paid'
-                    ? diffInDays(thirdDueDate || addOneMonth(secondDueDate), getTodayValue())
-                    : 0
+                  const currentInstallmentDueDate =
+                    isFullPaymentRecord(student)
+                      ? ''
+                      : visibleInstallmentStage === 2
+                      ? secondDueDate
+                      : visibleInstallmentStage === 3
+                        ? thirdDueDate || addOneMonth(secondDueDate)
+                        : ''
+                  const currentInstallmentOverdueDays =
+                    isFullPaymentRecord(student)
+                      ? 0
+                      : visibleInstallmentStage === 2
+                      ? (secondPaid ? 0 : diffInDays(secondDueDate, getTodayValue()))
+                      : visibleInstallmentStage === 3
+                        ? (thirdPaid ? 0 : diffInDays(thirdDueDate || addOneMonth(secondDueDate), getTodayValue()))
+                        : 0
 
                   return (
                     <tr key={student.id}>
@@ -1169,59 +1246,64 @@ export function StudentManagementPage() {
                         <strong>{student.studentName}</strong>
                         <small>{student.emailAddress}</small>
                       </td>
-                      <td>{student.mobileNumber}</td>
                       <td>{student.courseInterested}</td>
-                      <td>{formatCurrency(student.totalAmount || student.afterDiscount)}</td>
+                      <td>{formatCurrency(student.totalAmount || student.actualFees || student.afterDiscount)}</td>
                       <td>{formatDate(student.admissionDate)}</td>
                       <td>
-  <label className="installment-check">
-    <input
-      type="checkbox"
-      checked={student.firstInstallmentStatus === 'Paid'}
-      onChange={() => toggleInstallmentStatus(student.id, 'firstInstallmentStatus', 'firstInstallmentPaidAt')}
-    />
-    <strong>{formatCurrency(student.firstInstallmentAmount)}</strong>
-    {student.firstInstallmentStatus === 'Paid' ? null : <small>{student.firstInstallmentStatus}</small>}
-  </label>
-</td>
-  <td>
-  <label className="installment-check">
-    <input
-      type="checkbox"
-      checked={student.secondInstallmentStatus === 'Paid'}
-      disabled={student.firstInstallmentStatus !== 'Paid'}
-      onChange={() => toggleInstallmentStatus(student.id, 'secondInstallmentStatus', 'secondInstallmentPaidAt')}
-    />
-    <strong>{formatCurrency(student.secondInstallmentAmount)}</strong>
-    {student.secondInstallmentStatus === 'Paid' ? null : <small>{student.secondInstallmentStatus}</small>}
-  </label>
-</td>
-                      <td className="student-date-single-line">
-                        <strong>{formatDate(secondDueDate)}</strong>
-                        <small>{secondOverdueDays > 0 ? `${secondOverdueDays} day${secondOverdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}</small>
-                      </td>
-                      <td>
-                        {studentHasThirdInstallment ? (
+                        {isFullPaymentRecord(student) ? (
+                          '-'
+                        ) : visibleInstallmentStage === 1 ? (
                           <label className="installment-check">
                             <input
                               type="checkbox"
-                              checked={student.thirdInstallmentStatus === 'Paid'}
-                              disabled={student.secondInstallmentStatus !== 'Paid'}
+                              checked={firstPaid}
+                              onChange={() => toggleInstallmentStatus(student.id, 'firstInstallmentStatus', 'firstInstallmentPaidAt')}
+                            />
+                            <span className="installment-copy">
+                              <strong>{formatCurrency(currentInstallmentAmount)}</strong>
+                              <small>{currentInstallmentLabel}</small>
+                            </span>
+                          </label>
+                        ) : visibleInstallmentStage === 2 ? (
+                          <label className="installment-check">
+                            <input
+                              type="checkbox"
+                              checked={secondPaid}
+                              onChange={() => toggleInstallmentStatus(student.id, 'secondInstallmentStatus', 'secondInstallmentPaidAt')}
+                            />
+                            <span className="installment-copy">
+                              <strong>{formatCurrency(currentInstallmentAmount)}</strong>
+                              <small>{currentInstallmentLabel}</small>
+                            </span>
+                          </label>
+                        ) : visibleInstallmentStage === 3 ? (
+                          <label className="installment-check">
+                            <input
+                              type="checkbox"
+                              checked={thirdPaid}
                               onChange={() => toggleInstallmentStatus(student.id, 'thirdInstallmentStatus', 'thirdInstallmentPaidAt')}
                             />
-                            <strong>{formatCurrency(student.thirdInstallmentAmount || student.installment3 || studentCourse?.installment3)}</strong>
-                            {student.thirdInstallmentStatus === 'Paid' ? null : <small>{student.thirdInstallmentStatus}</small>}
+                            <span className="installment-copy">
+                              <strong>{formatCurrency(currentInstallmentAmount)}</strong>
+                              <small>{currentInstallmentLabel}</small>
+                            </span>
                           </label>
                         ) : (
                           '-'
                         )}
                       </td>
                       <td className="student-date-single-line">
-                        {studentHasThirdInstallment ? (
+                        {isFullPaymentRecord(student) ? (
+                          '-'
+                        ) : visibleInstallmentStage === 1 ? (
+                          '-'
+                        ) : currentInstallmentDueDate ? (
                           <>
-                            <strong>{formatDate(thirdDueDate || addOneMonth(secondDueDate))}</strong>
+                            <strong>{formatDate(currentInstallmentDueDate)}</strong>
                             <small>
-                              {thirdOverdueDays > 0 ? `${thirdOverdueDays} day${thirdOverdueDays === 1 ? '' : 's'} overdue` : 'On schedule'}
+                              {currentInstallmentOverdueDays > 0
+                                ? `${currentInstallmentOverdueDays} day${currentInstallmentOverdueDays === 1 ? '' : 's'} overdue`
+                                : 'On schedule'}
                             </small>
                           </>
                         ) : (
@@ -1232,34 +1314,66 @@ export function StudentManagementPage() {
                         <PaymentStatusBadge student={student} />
                       </td>
                       <td>
-                        <div className="student-action-group">
+                        <div
+                          className={`student-action-menu ${openActionMenuId === student.id ? 'is-open' : ''} ${actionMenuDirection === 'up' ? 'is-up' : 'is-down'}`.trim()}
+                          onMouseEnter={() => openActionMenu(student.id, actionMenuDirection)}
+                          onMouseLeave={closeActionMenu}
+                        >
                           <button
                             type="button"
-                            className="student-row-button student-row-button-view"
-                            onClick={() => openDrawer(student)}
-                            aria-label="View student"
-                            title="View"
+                            className="student-row-button student-row-button-more"
+                            onClick={() => {
+                              if (openActionMenuId === student.id) {
+                                closeActionMenu()
+                                return
+                              }
+
+                              openActionMenu(student.id, actionMenuDirection)
+                            }}
+                            aria-label="Open student actions"
+                            aria-haspopup="menu"
+                            aria-expanded={openActionMenuId === student.id}
                           >
-                            <ViewIcon />
+                            <MoreIcon />
                           </button>
-                          <button
-                            type="button"
-                            className="student-row-button student-row-button-edit"
-                            onClick={() => openEditModal(student)}
-                            aria-label="Edit student"
-                            title="Edit"
-                          >
-                            <EditIcon />
-                          </button>
-                          <button
-                            type="button"
-                            className="student-row-button student-row-button-delete"
-                            onClick={() => openDeleteModal(student)}
-                            aria-label="Delete student"
-                            title="Delete"
-                          >
-                            <DeleteIcon />
-                          </button>
+                          <div className="student-action-menu-panel" role="menu" aria-label="Student actions">
+                            <button
+                              type="button"
+                              className="student-action-menu-item"
+                              role="menuitem"
+                              onClick={() => {
+                                closeActionMenu()
+                                openDrawer(student)
+                              }}
+                            >
+                              <ViewIcon />
+                              <span>View</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="student-action-menu-item"
+                              role="menuitem"
+                              onClick={() => {
+                                closeActionMenu()
+                                openEditModal(student)
+                              }}
+                            >
+                              <EditIcon />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="student-action-menu-item is-danger"
+                              role="menuitem"
+                              onClick={() => {
+                                closeActionMenu()
+                                openDeleteModal(student)
+                              }}
+                            >
+                              <DeleteIcon />
+                              <span>Delete</span>
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -1307,7 +1421,7 @@ export function StudentManagementPage() {
       </article>
 
       {isModalOpen ? (
-        <div className="course-modal-backdrop student-modal-backdrop" role="presentation" onClick={closeModal}>
+        <div className="course-modal-backdrop student-modal-backdrop" role="presentation">
           <form className="course-modal panel-card student-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={handleFormSubmit}>
             <button type="button" className="course-modal-close" onClick={closeModal} aria-label="Close student form">
               X
@@ -1379,7 +1493,7 @@ export function StudentManagementPage() {
                     </div>
                   </div>
                 <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Student Name" required icon={<FieldIcon kind="user" />} error={shouldShowError('studentName') ? errors.studentName : ''}>
+                  <Field label="Enter Student Name" required icon={<FieldIcon kind="user" />} error={shouldShowError('studentName') ? errors.studentName : ''}>
                     <input
                       type="text"
                       value={form.studentName}
@@ -1389,7 +1503,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Mobile Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
+                  <Field label="Enter Mobile Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
                     <input
                       type="tel"
                       inputMode="numeric"
@@ -1402,19 +1516,19 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
+                  <Field label="Enter Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
                     <input
                       type="email"
                       value={form.emailAddress}
                       onChange={(event) => updateField('emailAddress', event.target.value.replace(/\s+/g, '').toLowerCase())}
                       onBlur={() => markTouched('emailAddress')}
-                      placeholder="name@example.com"
                       autoCapitalize="none"
                       autoCorrect="off"
+                      placeholder="name@example.com"
                     />
                   </Field>
 
-                  <Field label="Parent / Spouse Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
+                  <Field label="Enter Parent / Spouse Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
                     <input
                       type="tel"
                       inputMode="numeric"
@@ -1427,7 +1541,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Location" required icon={<FieldIcon kind="pin" />} error={shouldShowError('location') ? errors.location : ''}>
+                  <Field label="Enter Location" required icon={<FieldIcon kind="pin" />} error={shouldShowError('location') ? errors.location : ''}>
                     <input
                       type="text"
                       value={form.location}
@@ -1452,7 +1566,7 @@ export function StudentManagementPage() {
                     </div>
                   </div>
                 <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Course Interested" required icon={<FieldIcon kind="course" />} error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
+                  <Field label="Select Course Interested" required icon={<FieldIcon kind="course" />} error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
                     <select
                       value={form.courseId}
                       onChange={(event) => applyCourseDetails(event.target.value)}
@@ -1469,7 +1583,7 @@ export function StudentManagementPage() {
                     </select>
                   </Field>
 
-                  <Field label="Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
+                  <Field label="Enter Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
                     <input
                       type="text"
                       value={form.facultyName}
@@ -1479,7 +1593,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Batch" required icon={<FieldIcon kind="batch" />} error={shouldShowError('batch') ? errors.batch : ''}>
+                  <Field label="Enter Batch" required icon={<FieldIcon kind="batch" />} error={shouldShowError('batch') ? errors.batch : ''}>
                     <input
                       type="text"
                       value={form.batch}
@@ -1489,7 +1603,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Qualification" required icon={<FieldIcon kind="user" />} error={shouldShowError('qualification') ? errors.qualification : ''}>
+                  <Field label="Enter Qualification" required icon={<FieldIcon kind="user" />} error={shouldShowError('qualification') ? errors.qualification : ''}>
                     <input
                       type="text"
                       value={form.qualification}
@@ -1499,7 +1613,7 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Passed Out Year" required icon={<FieldIcon kind="year" />} error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
+                  <Field label="Select Passed Out Year" required icon={<FieldIcon kind="year" />} error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
                     <select
                       value={form.passedOutYear}
                       onChange={(event) => updateField('passedOutYear', event.target.value)}
@@ -1514,7 +1628,7 @@ export function StudentManagementPage() {
                     </select>
                   </Field>
 
-                  <Field label="Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
+                  <Field label="Select Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
                     <select
                       value={form.currentStatus}
                       onChange={(event) => updateField('currentStatus', event.target.value)}
@@ -1530,7 +1644,7 @@ export function StudentManagementPage() {
                   </Field>
 
                   <Field
-                    label="Designation"
+                    label="Enter Designation"
                     icon={<FieldIcon kind="user" />}
                     hint="Required when the current status is Employee."
                     error={shouldShowError('designation') ? errors.designation : ''}
@@ -1545,7 +1659,7 @@ export function StudentManagementPage() {
                   </Field>
 
                   <Field
-                    label="How did you know about our Institute?"
+                    label="Select Source"
                     required
                     icon={<FieldIcon kind="note" />}
                     error={shouldShowError('source') ? errors.source : ''}
@@ -1575,45 +1689,67 @@ export function StudentManagementPage() {
                     </div>
                   </div>
                 <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Actual Fees" required icon={<FieldIcon kind="currency" />} error={shouldShowError('actualFees') ? errors.actualFees : ''}>
+                  <Field label="Actual Fees (Auto Filled)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('actualFees') ? errors.actualFees : ''}>
                     <input type="text" value={form.actualFees} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Registration Fees" required icon={<FieldIcon kind="balance" />} error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
+                  <Field label="Registration Fees (Auto Filled)" required icon={<FieldIcon kind="balance" />} error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
                     <input type="text" value={form.registrationFees} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="Discount" required icon={<FieldIcon kind="percent" />} error={shouldShowError('discount') ? errors.discount : ''}>
+                  <Field label="Discount (Auto Filled)" required icon={<FieldIcon kind="percent" />} error={shouldShowError('discount') ? errors.discount : ''}>
                     <input type="text" value={form.discount} readOnly placeholder="Auto filled from course" />
                   </Field>
 
-                  <Field label="After Discount" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
+                <Field label="After Discount (Auto Calculated)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
                     <input type="text" value={form.afterDiscount} readOnly placeholder="Auto calculated" />
                   </Field>
 
-                  <Field label="Installment 1" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment1') ? errors.installment1 : ''}>
-                    <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
+                  <Field label="Payment Mode" required icon={<FieldIcon kind="note" />}>
+                    <select
+                      value={form.paymentMode}
+                      onChange={(event) => updateField('paymentMode', event.target.value)}
+                    >
+                      {paymentModeOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
 
-                  <Field label="Installment 2" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment2') ? errors.installment2 : ''}>
-                    <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
-                  </Field>
+                  {!isFullPaymentMode(form) ? (
+                    <>
+                      <Field label="Installment 1 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment1') ? errors.installment1 : ''}>
+                        <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
+                      </Field>
 
-                  <Field label="Installment 3" icon={<FieldIcon kind="installment" />} error={shouldShowError('installment3') ? errors.installment3 : ''}>
-                    <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
-                  </Field>
+                      <Field label="Installment 2 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment2') ? errors.installment2 : ''}>
+                        <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
+                      </Field>
 
-                  <Field label="Admission Date" required icon={<FieldIcon kind="calendar" />} error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
+                      <Field label="Installment 3 (Auto Filled)" icon={<FieldIcon kind="installment" />} error={shouldShowError('installment3') ? errors.installment3 : ''}>
+                        <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
+                      </Field>
+                    </>
+                  ) : (
+                    <Field label="Paid Amount" required icon={<FieldIcon kind="currency" />}>
+                      <input type="text" value={form.afterDiscount} readOnly placeholder="Full payment amount" />
+                    </Field>
+                  )}
+
+                  <Field label="Select Admission Date" required icon={<FieldIcon kind="calendar" />} error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
                     <input
                       type="date"
                       value={form.admissionDate}
                       onChange={(event) => updateField('admissionDate', event.target.value)}
                       onBlur={() => markTouched('admissionDate')}
+                      placeholder="Select admission date"
                     />
                   </Field>
 
                   <Field
-                    label="Remarks"
+                    label="Enter Remarks"
                     icon={<FieldIcon kind="note" />}
                     multiline
                     hint="Optional notes can help the counselor follow up later."
@@ -1662,169 +1798,387 @@ export function StudentManagementPage() {
       ) : null}
 
       {isDrawerOpen && selectedStudent ? (
-        <div className="student-drawer-backdrop" role="presentation" onClick={closeDrawer}>
-          <aside className="student-drawer" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-            <div className="student-drawer-header student-drawer-header-top">
-              <div className="student-drawer-title-block">
-                <div className="student-drawer-avatar">{getStudentInitials(selectedStudent.studentName)}</div>
-                <div className="student-drawer-main">
-                  <div className="student-drawer-name-row">
-                    <h3>{selectedStudent.studentName}</h3>
-                    <span className="student-drawer-status-pill">Active</span>
-                  </div>
-                  <div className="student-drawer-summary-grid">
-                    <div>
-                      <span>Course</span>
-                      <strong>{selectedStudent.courseInterested}</strong>
-                    </div>
-                    <div>
-                      <span>Batch</span>
-                      <strong>{selectedStudent.batch}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="student-drawer-actions">
-                <button type="button" className="student-drawer-action-button student-drawer-action-button-ghost" aria-label="More options">
-                  <span className="student-drawer-action-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-                      <circle cx="12" cy="5" r="1.5" fill="currentColor" />
-                      <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-                      <circle cx="12" cy="19" r="1.5" fill="currentColor" />
-                    </svg>
-                  </span>
-                </button>
-                <button type="button" className="student-drawer-close" onClick={closeDrawer} aria-label="Close student details">
+        <div className="student-drawer-backdrop" role="presentation">
+          <aside className="student-drawer student-drawer-table-view" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="student-drawer-table-header">
+              <h3>Student Details</h3>
+              <div className="student-drawer-table-actions">
+                {isDrawerEditing ? (
+                  <>
+                    <button type="button" className="student-drawer-edit-button" onClick={handleSubmit}>
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      className="student-drawer-edit-button student-drawer-edit-button-ghost"
+                      onClick={() => {
+                        setForm(prepareStudentForm(selectedStudent))
+                        setEditingStudentId(selectedStudent.id)
+                        setIsDrawerEditing(false)
+                        setActionError('')
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="student-drawer-edit-button"
+                    onClick={() => startDrawerEdit(selectedStudent)}
+                  >
+                    Edit
+                  </button>
+                )}
+                <button type="button" className="student-drawer-close student-drawer-close-floating" onClick={closeDrawer} aria-label="Close student details">
                   X
                 </button>
               </div>
             </div>
 
-            <div className="student-drawer-section student-drawer-section-card">
-              <div className="student-drawer-section-head">
-                <span className="student-drawer-section-icon">
-                  <SectionIcon kind="basic" />
-                </span>
-                <div>
-                  <h4>Basic Information</h4>
-                  <p>Personal & Contact Details</p>
-                </div>
-              </div>
-              <div className="student-detail-grid">
-                <DetailItem label="Student Name" value={selectedStudent.studentName} icon={<DetailIcon kind="user" />} />
-                <DetailItem label="Mobile Number" value={selectedStudent.mobileNumber} icon={<DetailIcon kind="phone" />} />
-                <DetailItem label="Email Address" value={selectedStudent.emailAddress} icon={<DetailIcon kind="mail" />} />
-                <DetailItem label="Parent / Spouse Number" value={selectedStudent.parentSpouseNumber} icon={<DetailIcon kind="phone" />} />
-                <DetailItem label="Location" value={selectedStudent.location} icon={<DetailIcon kind="pin" />} />
-              </div>
-            </div>
-
-            <div className="student-drawer-section student-drawer-section-card">
-              <div className="student-drawer-section-head">
-                <span className="student-drawer-section-icon">
-                  <SectionIcon kind="education" />
-                </span>
-                <div>
-                  <h4>Education Details</h4>
-                  <p>Academic Information</p>
-                </div>
-              </div>
-              <div className="student-detail-grid">
-                <DetailItem label="Course Interested" value={selectedStudent.courseInterested} icon={<DetailIcon kind="course" />} />
-                <DetailItem label="Faculty Name" value={selectedStudent.facultyName} icon={<DetailIcon kind="faculty" />} />
-                <DetailItem label="Batch" value={selectedStudent.batch} icon={<DetailIcon kind="batch" />} />
-                <DetailItem label="Qualification" value={selectedStudent.qualification} icon={<DetailIcon kind="user" />} />
-                <DetailItem label="Passed Out Year" value={selectedStudent.passedOutYear} icon={<DetailIcon kind="calendar" />} />
-                <DetailItem label="Current Status" value={selectedStudent.currentStatus} icon={<DetailIcon kind="status" />} />
-                <DetailItem label="Designation" value={selectedStudent.designation || '-'} icon={<DetailIcon kind="note" />} />
-              </div>
-            </div>
-
-            <div className="student-drawer-section student-drawer-section-card">
-              <div className="student-drawer-section-head">
-                <span className="student-drawer-section-icon">
-                  <SectionIcon kind="admission" />
-                </span>
-                <div>
-                  <h4>Admission Details</h4>
-                  <p>Admission & Other Info</p>
-                </div>
-              </div>
-              <div className="student-detail-grid">
-                <DetailItem label="Admission Date" value={formatDate(selectedStudent.admissionDate)} icon={<DetailIcon kind="calendar" />} />
-                <DetailItem label="Total Course Fee" value={formatCurrency(selectedStudent.totalAmount || selectedStudent.afterDiscount)} icon={<DetailIcon kind="fees" />} />
-                <DetailItem label="Discount" value={formatCurrency(selectedStudent.discount)} icon={<DetailIcon kind="discount" />} />
-                <DetailItem label="Final Fee" value={formatCurrency(selectedStudent.afterDiscount)} icon={<DetailIcon kind="fees" />} />
-              </div>
-            </div>
-
-            <div className="student-drawer-section student-drawer-section-card">
-              <div className="student-drawer-section-head">
-                <span className="student-drawer-section-icon">
-                  <SectionIcon kind="admission" />
-                </span>
-                <div>
-                  <h4>Installment Details</h4>
-                  <p>Payment Progress</p>
-                </div>
-              </div>
-              <div className="student-installment-grid">
-                <DetailItem label="1st Installment Amount" value={formatCurrency(selectedStudent.firstInstallmentAmount || selectedStudent.installment1)} icon={<DetailIcon kind="installment" />} />
-                <DetailItem label="1st Installment Date" value={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)} icon={<DetailIcon kind="calendar" />} />
-                <DetailItem label="1st Installment Status" value={selectedStudent.firstInstallmentStatus || 'Pending'} icon={<DetailIcon kind="status" />} />
-                <DetailItem label="2nd Installment Amount" value={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)} icon={<DetailIcon kind="installment" />} />
-                <DetailItem label="2nd Due Date" value={formatDate(getSecondDueDate(selectedStudent))} icon={<DetailIcon kind="calendar" />} />
-                <DetailItem
-                  label="2nd Installment Status"
-                  value={selectedStudent.secondInstallmentStatus || 'Pending'}
-                  icon={<DetailIcon kind="status" />}
-                />
-                {hasThirdInstallment(selectedStudent, selectedStudentCourse) ? (
-                  <>
-                    <DetailItem
-                      label="3rd Installment Amount"
-                      value={formatCurrency(selectedStudent.thirdInstallmentAmount || selectedStudent.installment3 || selectedStudentCourse?.installment3)}
-                      icon={<DetailIcon kind="installment" />}
-                    />
-                    <DetailItem label="3rd Due Date" value={formatDate(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)))} icon={<DetailIcon kind="calendar" />} />
-                    <DetailItem
-                      label="3rd Installment Status"
-                      value={selectedStudent.thirdInstallmentStatus || 'Pending'}
-                      icon={<DetailIcon kind="status" />}
-                    />
-                  </>
-                ) : null}
-                <DetailItem
-                  label="Overdue Days"
-                  value={
-                    hasThirdInstallment(selectedStudent, selectedStudentCourse)
-                      ? (selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid'
-                        ? 'No overdue'
-                        : `${diffInDays(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)), getTodayValue())} Days`
-                      : (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
-                      ? 'No overdue'
-                      : `${diffInDays(getSecondDueDate(selectedStudent), getTodayValue())} Days`
-                  }
-                  icon={<DetailIcon kind="calendar" />}
-                />
-              </div>
-            </div>
-
-            <div className="student-drawer-section student-drawer-section-card">
-              <div className="student-drawer-section-head">
-                <span className="student-drawer-section-icon">
-                  <SectionIcon kind="basic" />
-                </span>
-                <div>
-                  <h4>Lead Information</h4>
-                  <p>How did you know about our Institute?</p>
-                </div>
-              </div>
-              <div className="student-detail-grid">
-                <DetailItem label="How did you know about our Institute?" value={selectedStudent.source} icon={<DetailIcon kind="source" />} />
-                <DetailItem label="Remarks" value={selectedStudent.remarks || '-'} icon={<DetailIcon kind="note" />} fullWidth />
-              </div>
+            <div className="student-drawer-table-shell">
+              <table className="student-details-table">
+                <tbody>
+                  {isDrawerEditing ? (
+                    <>
+                      <tr>
+                        <th>Student Name</th>
+                        <td><DrawerFormControl value={form.studentName} onChange={(event) => updateField('studentName', event.target.value)} /></td>
+                        <th>Status</th>
+                        <td>
+                          <DrawerFormControl
+                            as="select"
+                            value={form.status}
+                            onChange={(event) => updateField('status', event.target.value)}
+                            options={recordStatusOptions}
+                            placeholder="Select status"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>Email Address</th>
+                        <td><DrawerFormControl value={form.emailAddress} onChange={(event) => updateField('emailAddress', event.target.value)} /></td>
+                        <th>Mobile Number</th>
+                        <td><DrawerFormControl value={form.mobileNumber} onChange={(event) => updateField('mobileNumber', event.target.value.replace(/\D/g, '').slice(0, 10))} /></td>
+                      </tr>
+                      <tr>
+                        <th>Parent / Spouse Number</th>
+                        <td><DrawerFormControl value={form.parentSpouseNumber} onChange={(event) => updateField('parentSpouseNumber', event.target.value.replace(/\D/g, '').slice(0, 10))} /></td>
+                        <th>Location</th>
+                        <td><DrawerFormControl value={form.location} onChange={(event) => updateField('location', event.target.value)} /></td>
+                      </tr>
+                      <tr>
+                        <th>Course Interested</th>
+                        <td>
+                          <DrawerFormControl
+                            as="select"
+                            value={form.courseId}
+                            onChange={(event) => applyCourseDetails(event.target.value)}
+                            options={courseOptions.map((course) => ({ value: course.id, label: course.name }))}
+                            placeholder={isCoursesLoading ? 'Loading courses...' : 'Select course'}
+                          />
+                        </td>
+                        <th>Faculty Name</th>
+                        <td><DrawerFormControl value={form.facultyName} onChange={(event) => updateField('facultyName', event.target.value)} /></td>
+                      </tr>
+                      <tr>
+                        <th>Batch</th>
+                        <td><DrawerFormControl value={form.batch} onChange={(event) => updateField('batch', event.target.value)} /></td>
+                        <th>Qualification</th>
+                        <td><DrawerFormControl value={form.qualification} onChange={(event) => updateField('qualification', event.target.value)} /></td>
+                      </tr>
+                      <tr>
+                        <th>Passed Out Year</th>
+                        <td>
+                          <DrawerFormControl
+                            as="select"
+                            value={form.passedOutYear}
+                            onChange={(event) => updateField('passedOutYear', event.target.value)}
+                            options={passedOutYearOptions}
+                            placeholder="Select year"
+                          />
+                        </td>
+                        <th>Current Status</th>
+                        <td>
+                          <DrawerFormControl
+                            as="select"
+                            value={form.currentStatus}
+                            onChange={(event) => updateField('currentStatus', event.target.value)}
+                            options={statusOptions}
+                            placeholder="Select status"
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>Designation</th>
+                        <td><DrawerFormControl value={form.designation} onChange={(event) => updateField('designation', event.target.value)} /></td>
+                        <th>Admission Date</th>
+                        <td><DrawerFormControl type="date" value={form.admissionDate} onChange={(event) => updateField('admissionDate', event.target.value)} /></td>
+                      </tr>
+                      <tr>
+                        <th>Total Course Fee</th>
+                        <td><DrawerFormControl value={form.actualFees} onChange={(event) => updateField('actualFees', event.target.value.replace(/\D/g, ''))} /></td>
+                        <th>Discount</th>
+                        <td><DrawerFormControl value={form.discount} onChange={(event) => updateField('discount', event.target.value.replace(/\D/g, ''))} /></td>
+                      </tr>
+                      <tr>
+                        <th>Final Fee</th>
+                        <td><DrawerFormControl value={form.afterDiscount} onChange={(event) => updateField('afterDiscount', event.target.value.replace(/\D/g, ''))} /></td>
+                        <th>Payment Mode</th>
+                        <td>
+                          <DrawerFormControl
+                            as="select"
+                            value={form.paymentMode}
+                            onChange={(event) => updateField('paymentMode', event.target.value)}
+                            options={paymentModeOptions}
+                            placeholder="Select payment mode"
+                          />
+                        </td>
+                      </tr>
+                      {!isFullPaymentMode(form) ? (
+                        <>
+                          <tr>
+                            <th>1st Installment Amount</th>
+                            <td><DrawerFormControl value={form.firstInstallmentAmount || form.installment1} onChange={(event) => updateField('installment1', event.target.value.replace(/\D/g, ''))} /></td>
+                            <th>1st Installment Date</th>
+                            <td><DrawerFormControl type="date" value={form.firstInstallmentDate} onChange={(event) => updateField('firstInstallmentDate', event.target.value)} /></td>
+                          </tr>
+                          <tr>
+                            <th>1st Installment Status</th>
+                            <td>
+                              <DrawerFormControl
+                                as="select"
+                                value={form.firstInstallmentStatus}
+                                onChange={(event) => updateField('firstInstallmentStatus', event.target.value)}
+                                options={['Pending', 'Paid']}
+                                placeholder="Select status"
+                              />
+                            </td>
+                            <th>2nd Installment Amount</th>
+                            <td><DrawerFormControl value={form.secondInstallmentAmount || form.installment2} onChange={(event) => updateField('installment2', event.target.value.replace(/\D/g, ''))} /></td>
+                          </tr>
+                          <tr>
+                            <th>2nd Due Date</th>
+                            <td><DrawerFormControl type="date" value={form.secondDueDate} onChange={(event) => updateField('secondDueDate', event.target.value)} /></td>
+                            <th>2nd Installment Status</th>
+                            <td>
+                              <DrawerFormControl
+                                as="select"
+                                value={form.secondInstallmentStatus}
+                                onChange={(event) => updateField('secondInstallmentStatus', event.target.value)}
+                                options={['Pending', 'Paid']}
+                                placeholder="Select status"
+                              />
+                            </td>
+                          </tr>
+                          {hasThirdInstallment(selectedStudent, selectedStudentCourse) ? (
+                            <>
+                              <tr>
+                                <th>3rd Installment Amount</th>
+                                <td><DrawerFormControl value={form.thirdInstallmentAmount || form.installment3} onChange={(event) => updateField('installment3', event.target.value.replace(/\D/g, ''))} /></td>
+                                <th>3rd Due Date</th>
+                                <td><DrawerFormControl type="date" value={form.thirdDueDate} onChange={(event) => updateField('thirdDueDate', event.target.value)} /></td>
+                              </tr>
+                              <tr>
+                                <th>3rd Installment Status</th>
+                                <td>
+                                  <DrawerFormControl
+                                    as="select"
+                                    value={form.thirdInstallmentStatus}
+                                    onChange={(event) => updateField('thirdInstallmentStatus', event.target.value)}
+                                    options={['Pending', 'Paid']}
+                                    placeholder="Select status"
+                                  />
+                                </td>
+                                <th>Overdue Days</th>
+                                <td>
+                                  <DrawerValue
+                                    value={
+                                      (form.thirdInstallmentStatus || 'Pending') === 'Paid'
+                                        ? '0 Days'
+                                        : `${diffInDays(getThirdDueDate({ ...selectedStudent, ...form }) || addOneMonth(getSecondDueDate({ ...selectedStudent, ...form })), getTodayValue())} Days`
+                                    }
+                                  />
+                                </td>
+                              </tr>
+                            </>
+                          ) : null}
+                          <tr>
+                            <th>Overdue Days</th>
+                            <td>
+                              <DrawerValue
+                                value={
+                                  (form.secondInstallmentStatus || 'Pending') === 'Paid'
+                                    ? '0 Days'
+                                    : `${diffInDays(getSecondDueDate({ ...selectedStudent, ...form }), getTodayValue())} Days`
+                                }
+                              />
+                            </td>
+                            <th>How did you know about our Institute?</th>
+                            <td><DrawerFormControl value={form.source} onChange={(event) => updateField('source', event.target.value)} /></td>
+                          </tr>
+                          <tr>
+                            <th>Remarks</th>
+                            <td colSpan={3}><DrawerFormControl as="textarea" value={form.remarks} onChange={(event) => updateField('remarks', event.target.value)} /></td>
+                          </tr>
+                        </>
+                      ) : (
+                        <>
+                          <tr>
+                            <th>Paid Amount</th>
+                            <td><DrawerValue value={formatCurrency(form.afterDiscount || form.actualFees)} /></td>
+                            <th>Payment Status</th>
+                            <td><DrawerValue value="Paid" tone="success" /></td>
+                          </tr>
+                          <tr>
+                            <th>Payment Type</th>
+                            <td><DrawerValue value="Full Payment" /></td>
+                            <th>Admission Date</th>
+                            <td><DrawerFormControl type="date" value={form.admissionDate} onChange={(event) => updateField('admissionDate', event.target.value)} /></td>
+                          </tr>
+                          <tr>
+                            <th>How did you know about our Institute?</th>
+                            <td><DrawerFormControl value={form.source} onChange={(event) => updateField('source', event.target.value)} /></td>
+                            <th>Remarks</th>
+                            <td><DrawerFormControl as="textarea" value={form.remarks} onChange={(event) => updateField('remarks', event.target.value)} /></td>
+                          </tr>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <DrawerTableRow
+                        leftLabel="Student Name"
+                        leftValue={selectedStudent.studentName}
+                        rightLabel="Status"
+                        rightValue={selectedStudent.status || 'Inactive'}
+                        rightTone={String(selectedStudent.status || 'Inactive') === 'Active' ? 'success' : 'warning'}
+                      />
+                      <DrawerTableRow
+                        leftLabel="Email Address"
+                        leftValue={selectedStudent.emailAddress}
+                        rightLabel="Mobile Number"
+                        rightValue={selectedStudent.mobileNumber}
+                      />
+                      <DrawerTableRow
+                        leftLabel="Parent / Spouse Number"
+                        leftValue={selectedStudent.parentSpouseNumber}
+                        rightLabel="Location"
+                        rightValue={selectedStudent.location}
+                      />
+                      <DrawerTableRow
+                        leftLabel="Course Interested"
+                        leftValue={selectedStudent.courseInterested}
+                        rightLabel="Faculty Name"
+                        rightValue={selectedStudent.facultyName}
+                      />
+                      <DrawerTableRow leftLabel="Batch" leftValue={selectedStudent.batch} rightLabel="Qualification" rightValue={selectedStudent.qualification} />
+                      <DrawerTableRow
+                        leftLabel="Passed Out Year"
+                        leftValue={selectedStudent.passedOutYear}
+                        rightLabel="Current Status"
+                        rightValue={selectedStudent.currentStatus}
+                      />
+                      <DrawerTableRow
+                        leftLabel="Designation"
+                        leftValue={selectedStudent.designation || '-'}
+                        rightLabel="Admission Date"
+                        rightValue={formatDate(selectedStudent.admissionDate)}
+                      />
+                      <DrawerTableRow
+                        leftLabel="Total Course Fee"
+                        leftValue={formatCurrency(selectedStudent.actualFees || selectedStudent.totalAmount || selectedStudent.afterDiscount)}
+                        rightLabel="Discount"
+                        rightValue={formatCurrency(selectedStudent.discount)}
+                      />
+                      <DrawerTableRow
+                        leftLabel="Final Fee"
+                        leftValue={formatCurrency(selectedStudent.afterDiscount)}
+                        rightLabel="Payment Mode"
+                        rightValue={getPaymentModeLabel(selectedStudent)}
+                      />
+                      {isFullPaymentRecord(selectedStudent) ? (
+                        <>
+                          <DrawerTableRow
+                            leftLabel="Payment Status"
+                            leftValue="Paid"
+                            leftTone="success"
+                            rightLabel="How did you know about our Institute?"
+                            rightValue={selectedStudent.source}
+                          />
+                          <DrawerTableRow
+                            leftLabel="Remarks"
+                            leftValue={getDrawerValue(selectedStudent.remarks, 'No remarks added')}
+                            rightLabel="Payment Type"
+                            rightValue="Full Payment"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <DrawerTableRow
+                            leftLabel="1st Installment Amount"
+                            leftValue={formatCurrency(selectedStudent.firstInstallmentAmount || selectedStudent.installment1)}
+                            rightLabel="1st Installment Date"
+                            rightValue={formatDate(selectedStudent.firstInstallmentDate || selectedStudent.admissionDate)}
+                          />
+                          <DrawerTableRow
+                            leftLabel="1st Installment Status"
+                            leftValue={selectedStudent.firstInstallmentStatus || 'Pending'}
+                            leftTone={String(selectedStudent.firstInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
+                            rightLabel="2nd Installment Amount"
+                            rightValue={formatCurrency(selectedStudent.secondInstallmentAmount || selectedStudent.installment2)}
+                          />
+                          <DrawerTableRow
+                            leftLabel="2nd Due Date"
+                            leftValue={formatDate(getSecondDueDate(selectedStudent))}
+                            rightLabel="2nd Installment Status"
+                            rightValue={selectedStudent.secondInstallmentStatus || 'Pending'}
+                            rightTone={String(selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
+                          />
+                          <DrawerTableRow
+                            leftLabel="Overdue Days"
+                            leftValue={
+                              hasThirdInstallment(selectedStudent, selectedStudentCourse)
+                                ? (selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid'
+                                  ? '0 Days'
+                                  : `${diffInDays(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)), getTodayValue())} Days`
+                                : (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
+                                ? '0 Days'
+                                : `${diffInDays(getSecondDueDate(selectedStudent), getTodayValue())} Days`
+                            }
+                            rightLabel="How did you know about our Institute?"
+                            rightValue={selectedStudent.source}
+                          />
+                          {hasThirdInstallment(selectedStudent, selectedStudentCourse) ? (
+                            <>
+                              <DrawerTableRow
+                                leftLabel="3rd Installment Amount"
+                                leftValue={formatCurrency(selectedStudent.thirdInstallmentAmount || selectedStudent.installment3 || selectedStudentCourse?.installment3)}
+                                rightLabel="3rd Due Date"
+                                rightValue={formatDate(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)))}
+                              />
+                              <DrawerTableRow
+                                leftLabel="3rd Installment Status"
+                                leftValue={selectedStudent.thirdInstallmentStatus || 'Pending'}
+                                leftTone={String(selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
+                                rightLabel="Remarks"
+                                rightValue={selectedStudent.remarks || '-'}
+                              />
+                            </>
+                          ) : (
+                            <DrawerTableRow
+                              leftLabel="Remarks"
+                              leftValue={selectedStudent.remarks || '-'}
+                              rightLabel="Admission Date"
+                              rightValue={formatDate(selectedStudent.admissionDate)}
+                            />
+                          )}
+                        </>
+                      )}
+                    </>
+                  )}
+                </tbody>
+              </table>
             </div>
           </aside>
         </div>

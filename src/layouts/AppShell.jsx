@@ -4,16 +4,15 @@ import { AppHeader } from '../components/AppHeader'
 import { AppSidebar } from '../components/AppSidebar'
 
 export function AppShell({
-  currentRole,
-  email,
-  roleLabel,
   dashboard,
   onNavigateDashboard,
   onNavigateCourses,
   onNavigateStudentManagement,
+  onNavigateFacultyManagement,
   onLogout,
   showCoursesNav = true,
   showStudentManagementNav = true,
+  showFacultyManagementNav = true,
   showChrome = true,
   children,
 }) {
@@ -22,31 +21,43 @@ export function AppShell({
     ? 'courses'
     : location.pathname.startsWith('/student-management')
       ? 'student-management'
+      : location.pathname.startsWith('/faculty-management')
+        ? 'faculty-management'
       : 'dashboard'
+  const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
+  const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
+  const isFlatMainArea =
+    isOperationManagerDashboard ||
+    isBusinessOwnerDashboard ||
+    location.pathname === '/student-management' ||
+    location.pathname === '/faculty-management' ||
+    location.pathname === '/courses'
 
   return (
     <div className="app-shell">
       <AppSidebar
-        currentRole={currentRole}
-        email={email}
-        roleLabel={roleLabel}
         activeNav={activeNav}
         onNavigateDashboard={onNavigateDashboard}
         onNavigateCourses={onNavigateCourses}
         onNavigateStudentManagement={onNavigateStudentManagement}
+        onNavigateFacultyManagement={onNavigateFacultyManagement}
         onLogout={onLogout}
         showCoursesNav={showCoursesNav}
         showStudentManagementNav={showStudentManagementNav}
+        showFacultyManagementNav={showFacultyManagementNav}
       />
 
-      <div className={`main-area ${showChrome ? '' : 'main-area-compact'}`}>
+      <div
+        className={`main-area ${showChrome ? '' : 'main-area-compact'} ${
+          isFlatMainArea ? 'main-area-flat' : ''
+        } ${isBusinessOwnerDashboard ? 'business-owner-main' : ''}`}
+      >
         {showChrome ? (
           <>
-            <AppHeader title={dashboard?.title || 'Operations Dashboard'} accent={dashboard?.accent || 'Ready'} />
+            <AppHeader dashboard={dashboard} />
             <AppBreadcrumbs crumbs={['Home', dashboard?.title || 'Workspace']} />
           </>
         ) : null}
-
         <main className="content">{children}</main>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { loadCourseRecords } from '../data/courseRecords'
 import { request } from './apiClient'
 
 const COURSE_PAGE_LIMIT = 5
@@ -7,8 +8,21 @@ function unwrapData(response) {
   return response.data ?? response
 }
 
+function deriveAfterDiscount(course) {
+  const actualFees = Number(course?.actualFees)
+  const discount = Number(course?.discount)
+
+  if (Number.isFinite(actualFees) && Number.isFinite(discount)) {
+    return String(Math.max(actualFees - discount, 0))
+  }
+
+  return ''
+}
+
 export function normalizeCourse(course) {
   if (!course) return null
+
+  const afterDiscount = course.afterDiscount ?? deriveAfterDiscount(course)
 
   return {
     ...course,
@@ -22,7 +36,7 @@ export function normalizeCourse(course) {
     actualFees: course.actualFees ?? '',
     registrationFees: course.registrationFees ?? '',
     discount: course.discount ?? '',
-    afterDiscount: course.afterDiscount ?? '',
+    afterDiscount,
     installmentCount: String(course.installmentCount ?? 2),
     installment1: course.installment1 ?? '',
     installment2: course.installment2 ?? '',
@@ -66,10 +80,21 @@ function buildCourseSearchParams(query = {}) {
 
 export async function listCourses(query = {}) {
   const params = buildCourseSearchParams(query)
-  const response = await request(`/master-setup/courses?${params.toString()}`)
-  return {
-    data: normalizeCourseList(unwrapData(response)),
-    meta: response?.meta ?? response?.data?.meta ?? null,
+  try {
+    const response = await request(`/master-setup/courses?${params.toString()}`)
+    return {
+      data: normalizeCourseList(unwrapData(response)),
+      meta: response?.meta ?? response?.data?.meta ?? null,
+    }
+  } catch (error) {
+    if (error?.status === 401) {
+      return {
+        data: normalizeCourseList(loadCourseRecords()),
+        meta: null,
+      }
+    }
+
+    throw error
   }
 }
 
