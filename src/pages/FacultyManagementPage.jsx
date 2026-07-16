@@ -2,9 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { BookOpen, Clock3, Eye, Mail, PencilLine, Phone, Plus, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
-import { loadFacultyRecords, saveFacultyRecords } from '../data/facultyRecords'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { listCourses, normalizeCourseList } from '../services/courseService'
+import {
+  createFacultyRecord,
+  deleteFacultyRecord,
+  listFacultyRecords,
+  updateFacultyRecord,
+} from '../services/facultyService'
 import { useAuth } from '../auth/useAuth'
 
 function createEmptyForm() {
@@ -82,6 +87,68 @@ function getBatchTimingPresetValue(entry = {}) {
   if (preset) return preset
 
   return parseBatchTimingState(entry.batchTiming).batchTimingPreset || ''
+}
+
+function getSuggestedBatchName(facultyName, batchEntries = [], fallback = '') {
+  const baseName = String(facultyName || '').trim()
+  const preferred = String(fallback || '').trim()
+
+  if (preferred) {
+    return preferred
+  }
+
+  if (!baseName) {
+    return ''
+  }
+
+  const usedNames = new Set(
+    batchEntries
+      .map((entry) => String(entry?.batchName || '').trim().toLowerCase())
+      .filter(Boolean),
+  )
+
+  for (let index = 1; index <= 100; index += 1) {
+    const nextName = index === 1 ? `${baseName} batch` : `${baseName} batch ${index}`
+    if (!usedNames.has(nextName.toLowerCase())) {
+      return nextName
+    }
+  }
+
+  return `${baseName} batch ${batchEntries.length + 1}`
+}
+
+function resolveBatchEntryFromForm(form) {
+  const batchName = getSuggestedBatchName(form.facultyName, form.batchEntries, form.batchName)
+  const batchTiming = String(form.batchTiming || '').trim()
+  const batchTimingCustomStart = String(form.batchTimingCustomStart || '').trim()
+  const batchTimingCustomStartMeridiem = String(form.batchTimingCustomStartMeridiem || 'AM').trim()
+  const batchTimingCustomEnd = String(form.batchTimingCustomEnd || '').trim()
+  const batchTimingCustomEndMeridiem = String(form.batchTimingCustomEndMeridiem || 'PM').trim()
+
+  const resolvedBatchTiming =
+    batchTiming === 'Custom'
+      ? batchTimingCustomStart && batchTimingCustomEnd
+        ? `${batchTimingCustomStart} ${batchTimingCustomStartMeridiem} - ${batchTimingCustomEnd} ${batchTimingCustomEndMeridiem}`
+        : ''
+      : batchTiming
+
+  if (!batchName || !batchTiming || !resolvedBatchTiming) {
+    return null
+  }
+
+  return {
+    id: createBatchEntryId(),
+    batchName,
+    batchTiming: resolvedBatchTiming,
+    ...parseBatchTimingState(resolvedBatchTiming),
+  }
+}
+
+function sameBatchEntry(a, b) {
+  return (
+    String(a?.batchName || '').trim().toLowerCase() === String(b?.batchName || '').trim().toLowerCase() &&
+    String(a?.batchTiming || '').trim().toLowerCase() === String(b?.batchTiming || '').trim().toLowerCase()
+  )
 }
 
 function getAvailableBatchTimingOptions(batchEntries = []) {
@@ -255,9 +322,9 @@ function FacultyEditorContent({
             <input
               type="text"
               placeholder="Enter batch name"
-              value={form.batchName || (form.facultyName.trim() ? `${form.facultyName.trim()} batch` : '')}
+              value={form.batchName || getSuggestedBatchName(form.facultyName, form.batchEntries)}
               onChange={(event) => updateField('batchName', event.target.value)}
-              onFocus={() => updateField('batchName', form.batchName || (form.facultyName.trim() ? `${form.facultyName.trim()} batch` : ''))}
+              onFocus={() => updateField('batchName', form.batchName || getSuggestedBatchName(form.facultyName, form.batchEntries))}
             />
           </FacultyField>
 
@@ -656,10 +723,10 @@ function FacultyInlineEditorTable({
                     className="faculty-inline-input"
                     type="text"
                     placeholder="Enter batch name"
-                    value={form.batchName || (form.facultyName.trim() ? `${form.facultyName.trim()} batch` : '')}
+                    value={form.batchName || getSuggestedBatchName(form.facultyName, form.batchEntries)}
                     onChange={(event) => updateField('batchName', event.target.value)}
                     onFocus={() =>
-                      updateField('batchName', form.batchName || (form.facultyName.trim() ? `${form.facultyName.trim()} batch` : ''))
+                      updateField('batchName', form.batchName || getSuggestedBatchName(form.facultyName, form.batchEntries))
                     }
                   />
                 </td>
@@ -757,18 +824,6 @@ function FacultyInlineEditorTable({
   )
 }
 
-function getTodayLabel() {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date())
-}
-
-function getCurrentTimestamp() {
-  return new Date().toISOString()
-}
-
 function createBatchEntryId(index = 0) {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
@@ -828,7 +883,7 @@ export function FacultyManagementPage() {
   const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
 
-  const [records, setRecords] = useState(() => loadFacultyRecords())
+  const [records, setRecords] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
   const [isCoursesLoading, setIsCoursesLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -870,20 +925,16 @@ export function FacultyManagementPage() {
     }
     if (!form.facultyPhone.trim()) nextErrors.facultyPhone = 'Faculty phone number is required.'
     else if (!/^\d{10}$/.test(form.facultyPhone.trim())) nextErrors.facultyPhone = 'Enter a valid 10-digit phone number.'
-    if (!form.batchEntries.length) nextErrors.batchEntries = 'Add at least one batch.'
     if (!form.courseId) nextErrors.courseId = 'Please select an active course.'
     if (!form.status.trim()) nextErrors.status = 'Please select faculty status.'
 
+    const pendingBatchEntry = resolveBatchEntryFromForm(form)
+    if (!form.batchEntries.length && !pendingBatchEntry) {
+      nextErrors.batchEntries = 'Add batch name and timing, then click Add Batch.'
+    }
+
     return nextErrors
   }, [editingFacultyId, form, records])
-
-  const selectedCourse = useMemo(() => {
-    return (
-      activeCourseOptions.find((course) => course.id === form.courseId) ||
-      courseOptions.find((course) => course.id === form.courseId) ||
-      null
-    )
-  }, [activeCourseOptions, courseOptions, form.courseId])
 
   const totalFaculty = records.length
   const latestFaculty = records[0] || null
@@ -915,8 +966,6 @@ export function FacultyManagementPage() {
     setCurrentPage(1)
   }, [searchQuery])
 
-  const selectedCourseName = selectedCourse?.name || ''
-
   const shouldShowError = (field) => touched[field] && validationErrors[field]
 
   const updateField = (field, value) => {
@@ -928,20 +977,9 @@ export function FacultyManagementPage() {
   }
 
   const addBatchEntry = () => {
-    const batchName = (form.batchName || form.facultyName).trim()
-    const batchTiming = form.batchTiming.trim()
-    const batchTimingCustomStart = form.batchTimingCustomStart.trim()
-    const batchTimingCustomStartMeridiem = form.batchTimingCustomStartMeridiem.trim()
-    const batchTimingCustomEnd = form.batchTimingCustomEnd.trim()
-    const batchTimingCustomEndMeridiem = form.batchTimingCustomEndMeridiem.trim()
-    const resolvedBatchTiming =
-      batchTiming === 'Custom'
-        ? batchTimingCustomStart && batchTimingCustomEnd
-          ? `${batchTimingCustomStart} ${batchTimingCustomStartMeridiem} - ${batchTimingCustomEnd} ${batchTimingCustomEndMeridiem}`
-          : ''
-        : batchTiming
+    const nextBatchEntry = resolveBatchEntryFromForm(form)
 
-    if (!batchName || !batchTiming || !resolvedBatchTiming) {
+    if (!nextBatchEntry) {
       setActionError('Enter batch name and batch timing, then click Add Batch.')
       return
     }
@@ -949,16 +987,8 @@ export function FacultyManagementPage() {
     setActionError('')
     setForm((current) => ({
       ...current,
-      batchEntries: [
-        ...current.batchEntries,
-        {
-          id: createBatchEntryId(current.batchEntries.length + 1),
-          batchName,
-          batchTiming: resolvedBatchTiming,
-          ...parseBatchTimingState(resolvedBatchTiming),
-        },
-      ],
-      batchName,
+      batchEntries: [...current.batchEntries, nextBatchEntry],
+      batchName: getSuggestedBatchName(current.facultyName, [...current.batchEntries, nextBatchEntry]),
       batchTiming: '',
       batchTimingCustomStart: '',
       batchTimingCustomStartMeridiem: 'AM',
@@ -983,9 +1013,20 @@ export function FacultyManagementPage() {
     }
   }
 
+  const loadFacultyOptions = async () => {
+    try {
+      const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      setRecords(result.data || [])
+      setActionError('')
+    } catch (error) {
+      setRecords([])
+      setActionError(apiErrorMessage(error, 'Failed to load faculty records from the backend.'))
+    }
+  }
+
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void loadCourseOptions()
+      void Promise.all([loadCourseOptions(), loadFacultyOptions()])
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
@@ -999,20 +1040,6 @@ export function FacultyManagementPage() {
     window.addEventListener(COURSE_RECORD_SYNC_EVENT, refreshCourses)
 
     return () => window.removeEventListener(COURSE_RECORD_SYNC_EVENT, refreshCourses)
-  }, [])
-
-  useEffect(() => {
-    const syncFacultyRecords = () => {
-      setRecords(loadFacultyRecords())
-    }
-
-    window.addEventListener('storage', syncFacultyRecords)
-    window.addEventListener('cispro:faculty-changed', syncFacultyRecords)
-
-    return () => {
-      window.removeEventListener('storage', syncFacultyRecords)
-      window.removeEventListener('cispro:faculty-changed', syncFacultyRecords)
-    }
   }, [])
 
   const closeModal = () => {
@@ -1147,47 +1174,46 @@ export function FacultyManagementPage() {
     setIsSubmitting(true)
     setActionError('')
 
-    const existingRecord = records.find((record) => record.id === editingFacultyId)
+    const pendingBatchEntry = resolveBatchEntryFromForm(form)
     const existingBatchEntries = Array.isArray(form.batchEntries) && form.batchEntries.length
       ? form.batchEntries
       : Array.isArray(selectedFacultyRecord?.batchEntries) && selectedFacultyRecord.batchEntries.length
         ? selectedFacultyRecord.batchEntries
         : []
-    const nextRecord = {
-      id: editingFacultyId || `${Date.now()}`,
+    const resolvedBatchEntries = [...existingBatchEntries]
+
+    if (pendingBatchEntry && !resolvedBatchEntries.some((entry) => sameBatchEntry(entry, pendingBatchEntry))) {
+      resolvedBatchEntries.push(pendingBatchEntry)
+    }
+
+    const payload = {
       facultyName: form.facultyName.trim(),
       facultyEmail: form.facultyEmail.trim(),
       facultyPhone: form.facultyPhone.trim(),
-      status: form.status.trim() || 'Active',
-      batchEntries: existingBatchEntries.map((entry) => ({
-        id: entry.id,
+      courseId: form.courseId,
+      status: String(form.status || 'Active').trim().toUpperCase(),
+      batchEntries: resolvedBatchEntries.map((entry) => ({
         batchName: String(entry.batchName || '').trim(),
         batchTiming: formatBatchTimingState(entry),
       })),
-      batchCount: existingBatchEntries.length,
-      courseId: form.courseId,
-      courseName: selectedCourseName,
-      createdAt: existingRecord?.createdAt || getCurrentTimestamp(),
-      createdOn: existingRecord?.createdOn || getTodayLabel(),
-      updatedAt: getCurrentTimestamp(),
-      updatedOn: getTodayLabel(),
     }
 
     try {
-      const nextRecords = isEditMode || isViewDrawerEditing
-        ? records.map((record) => (record.id === editingFacultyId ? nextRecord : record))
-        : [nextRecord, ...records]
-      setRecords(nextRecords)
-      saveFacultyRecords(nextRecords)
+      const savedRecord = isEditMode || isViewDrawerEditing
+        ? await updateFacultyRecord(editingFacultyId, payload)
+        : await createFacultyRecord(payload)
+
+      await loadFacultyOptions()
       setCurrentPage(1)
       if (isViewDrawerEditing) {
-        setSelectedFacultyRecord(nextRecord)
-        setForm(getPrefilledForm(nextRecord))
+        setSelectedFacultyRecord(savedRecord)
+        setForm(getPrefilledForm(savedRecord))
         setTouched({})
         setIsSubmitting(false)
         setIsViewDrawerEditing(false)
         return
       }
+      setSelectedFacultyRecord(savedRecord)
       closeModal()
     } catch (error) {
       setActionError(apiErrorMessage(error, 'Unable to save faculty details right now.'))
@@ -1195,14 +1221,17 @@ export function FacultyManagementPage() {
     }
   }
 
-  const handleDeleteConfirmed = () => {
+  const handleDeleteConfirmed = async () => {
     if (!deleteTarget) return
 
-    const nextRecords = records.filter((record) => record.id !== deleteTarget.id)
-    setRecords(nextRecords)
-    saveFacultyRecords(nextRecords)
-    setCurrentPage((page) => Math.min(page, Math.max(1, Math.ceil(nextRecords.length / itemsPerPage))))
-    closeDeleteModal()
+    try {
+      await deleteFacultyRecord(deleteTarget.id)
+      await loadFacultyOptions()
+      setCurrentPage(1)
+      closeDeleteModal()
+    } catch (error) {
+      setActionError(apiErrorMessage(error, 'Unable to delete faculty right now.'))
+    }
   }
 
   return (
@@ -1794,7 +1823,7 @@ export function FacultyManagementPage() {
             </div>
 
             <p className="faculty-delete-copy">
-              This will remove <strong>{deleteTarget.facultyName}</strong> from the faculty list.
+              This will permanently delete <strong>{deleteTarget.facultyName}</strong> from the database.
             </p>
 
             <div className="faculty-form-actions">
