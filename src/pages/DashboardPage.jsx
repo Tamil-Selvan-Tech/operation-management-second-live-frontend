@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Bell, CalendarDays, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
 
+import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
 import { loadStudentRecords } from '../data/studentRecords'
 import { listStudents } from '../services/studentService'
@@ -495,23 +496,15 @@ function useBackendStudents() {
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   return (
     <section className="business-owner-dashboard">
-      <div className="business-topbar business-owner-topbar">
-        <div>
-          <p className="eyebrow">Business Owner</p>
-          <h2>{dashboard.title}</h2>
-        </div>
-
-        <div className="business-topbar-actions business-owner-topbar-actions">
-          <NotificationBell />
-          <div className="profile-chip business-owner-profile-chip">
-            <div className="profile-avatar">BW</div>
-            <div>
-              <strong>Business Head</strong>
-              <span>business.owner@cispro.com</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <OperationManagerHeader
+        className="operation-manager-header-plain"
+        eyebrow="Business Owner"
+        title={dashboard.title}
+        summary=""
+        initials="BW"
+        profileTitle="Business Head"
+        email="business.owner@cispro.com"
+      />
 
       <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
       <RevenueDashboards students={revenueStudents} />
@@ -693,9 +686,33 @@ function SummaryIcon({ kind }) {
 function RevenueSummaryRow({ summary = null, isLoading = false }) {
   const cards = summary || isLoading ? buildRevenueSummaryCards(summary, isLoading) : revenueSummaryCards
   const [activeTooltipIndex, setActiveTooltipIndex] = useState(null)
+  const rowRef = useRef(null)
+
+  useEffect(() => {
+    if (activeTooltipIndex === null) return
+
+    const handlePointerDown = (event) => {
+      if (rowRef.current?.contains(event.target)) return
+      setActiveTooltipIndex(null)
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActiveTooltipIndex(null)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeTooltipIndex])
 
   return (
-    <section className="revenue-summary-row" aria-label="Revenue summary">
+    <section ref={rowRef} className="revenue-summary-row" aria-label="Revenue summary">
       {cards.map((card, index) => {
         const tooltipId = `revenue-summary-tooltip-${index}`
         const isTooltipOpen = activeTooltipIndex === index
@@ -715,6 +732,7 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
             aria-describedby={tooltipId}
             aria-label={`${card.label} details`}
             aria-expanded={isTooltipOpen}
+            onClick={() => setActiveTooltipIndex(index)}
             onMouseEnter={() => setActiveTooltipIndex(index)}
             onMouseLeave={() => setActiveTooltipIndex(null)}
             onFocus={() => setActiveTooltipIndex(index)}
@@ -940,13 +958,39 @@ function WeeklyRevenueChart({ data = [] }) {
 
 function ChartInfoTrigger({ label, description }) {
   const [isOpen, setIsOpen] = useState(false)
+  const triggerRef = useRef(null)
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handlePointerDown = (event) => {
+      if (triggerRef.current?.contains(event.target)) return
+      setIsOpen(false)
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
 
   return (
     <button
+      ref={triggerRef}
       type="button"
       className={`chart-info-trigger ${isOpen ? 'is-open' : ''}`}
       aria-label={label}
       aria-expanded={isOpen}
+      onClick={() => setIsOpen(true)}
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
       onFocus={() => setIsOpen(true)}

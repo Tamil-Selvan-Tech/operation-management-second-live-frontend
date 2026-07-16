@@ -15,7 +15,9 @@ import {
   Phone,
   UserRound,
 } from 'lucide-react'
+import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
+import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { listCourses } from '../services/courseService'
@@ -604,6 +606,7 @@ function DangerIcon() {
 }
 
 export function StudentManagementPage() {
+  const { role } = useAuth()
   const [students, setStudents] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -623,6 +626,13 @@ export function StudentManagementPage() {
   const [actionError, setActionError] = useState('')
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
+  const isBusinessOwner = role === 'business-owner'
+  const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
+  const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
+  const headerSummary = 'Operations oversight, approvals, and team health.'
+  const headerInitials = isBusinessOwner ? 'BW' : 'OM'
+  const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
+  const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
 
   const selectedCourse = useMemo(() => findCourseForForm(courseOptions, form), [courseOptions, form])
   const errors = useMemo(() => {
@@ -1117,6 +1127,16 @@ export function StudentManagementPage() {
 
   return (
     <section className="student-management-page">
+      <OperationManagerHeader
+        className="operation-manager-header-plain"
+        eyebrow={headerEyebrow}
+        title={headerTitle}
+        summary={headerSummary}
+        initials={headerInitials}
+        profileTitle={headerProfileTitle}
+        email={headerEmail}
+      />
+
       <article className="student-management-hero">
         <div>
           <p className="eyebrow">Student Management</p>

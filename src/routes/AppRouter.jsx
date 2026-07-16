@@ -84,7 +84,9 @@ function AppLayout() {
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
     location.pathname !== '/dashboard/operation-manager' &&
-    location.pathname !== '/dashboard/student'
+    location.pathname !== '/dashboard/student' &&
+    location.pathname !== '/courses' &&
+    location.pathname !== '/student-management'
 
   return (
     <AppShell

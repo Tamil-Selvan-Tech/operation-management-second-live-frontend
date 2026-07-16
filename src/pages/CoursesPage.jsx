@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAuth } from '../auth/useAuth'
+import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { createCourse, deleteCourse, listCourses, updateCourse } from '../services/courseService'
 import { saveCourseRecords } from '../data/courseRecords'
 
@@ -132,6 +134,7 @@ function buildInstallmentsFromCourse(course, count) {
 }
 
 export function CoursesPage() {
+  const { role } = useAuth()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [courses, setCourses] = useState([])
   const [pagination, setPagination] = useState({
@@ -245,6 +248,7 @@ export function CoursesPage() {
   const totalPages = pagination.totalPages || 1
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const visibleCourses = courses
+  const totalCourseCount = pagination.total || courses.length || 0
 
   const loadCourses = useCallback(
     async ({ page = currentPage, search = searchTerm, filter = activeFilter } = {}) => {
@@ -438,6 +442,13 @@ export function CoursesPage() {
   }
 
   const isValid = Object.keys(validationErrors).length === 0
+  const isBusinessOwner = role === 'business-owner'
+  const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
+  const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
+  const headerSummary = 'Operations oversight, approvals, and team health.'
+  const headerInitials = isBusinessOwner ? 'BW' : 'OM'
+  const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
+  const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
 
   const shouldShowError = (field) => Boolean(touched[field] && validationErrors[field])
 
@@ -525,6 +536,16 @@ export function CoursesPage() {
 
   return (
     <section className="courses-page">
+      <OperationManagerHeader
+        className="operation-manager-header-plain"
+        eyebrow={headerEyebrow}
+        title={headerTitle}
+        summary={headerSummary}
+        initials={headerInitials}
+        profileTitle={headerProfileTitle}
+        email={headerEmail}
+      />
+
       <div className="courses-topbar">
         <div>
           <p className="eyebrow">Courses</p>
@@ -533,6 +554,10 @@ export function CoursesPage() {
         </div>
 
         <div className="courses-topbar-actions">
+          <div className="course-count-pill" aria-label={`Total courses ${totalCourseCount}`}>
+            <span>Total Courses</span>
+            <strong>{totalCourseCount}</strong>
+          </div>
           <button className="button button-solid course-add-button" type="button" onClick={openCreateModal}>
             + Add Course
           </button>
