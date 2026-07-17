@@ -1,37 +1,103 @@
 import { request } from './apiClient'
 
 const FACULTY_PAGE_LIMIT = 100
+const BATCH_NAME_STORAGE_SEPARATOR = '::course::'
+
+function getUniqueCourseIdsFromBatchEntries(batchEntries = []) {
+  const seen = new Set()
+  const courseIds = []
+
+  if (!Array.isArray(batchEntries)) return courseIds
+
+  batchEntries.forEach((entry) => {
+    const courseId = String(entry?.courseId || '').trim()
+    if (!courseId || seen.has(courseId)) return
+    seen.add(courseId)
+    courseIds.push(courseId)
+  })
+
+  return courseIds
+}
+
+function getStoredBatchCourseLabel(batchName = '') {
+  const normalizedBatchName = String(batchName || '').trim()
+  if (!normalizedBatchName || !normalizedBatchName.includes(BATCH_NAME_STORAGE_SEPARATOR)) return ''
+
+  const parts = normalizedBatchName.split(BATCH_NAME_STORAGE_SEPARATOR).map((part) => String(part || '').trim()).filter(Boolean)
+  return parts[parts.length - 1] || ''
+}
+
+function stripStoredBatchName(batchName = '', courseLabel = '') {
+  let normalizedBatchName = String(batchName || '').trim()
+  if (!normalizedBatchName) return normalizedBatchName
+
+  const separatorIndex = normalizedBatchName.indexOf(BATCH_NAME_STORAGE_SEPARATOR)
+  if (separatorIndex === -1) return normalizedBatchName
+
+  normalizedBatchName = normalizedBatchName.slice(0, separatorIndex).trim()
+
+  const normalizedCourseLabel = String(courseLabel || '').trim()
+  if (!normalizedBatchName || !normalizedCourseLabel) return normalizedBatchName
+
+  const storedSuffix = `${BATCH_NAME_STORAGE_SEPARATOR}${normalizedCourseLabel}`
+  while (normalizedBatchName.endsWith(storedSuffix)) {
+    normalizedBatchName = normalizedBatchName.slice(0, -storedSuffix.length).trim()
+  }
+
+  return normalizedBatchName
+}
+
+function storeBatchName(batchName = '', courseId = '', courseName = '') {
+  const normalizedBatchName = stripStoredBatchName(batchName, courseName || courseId)
+  const normalizedCourseLabel = String(courseName || courseId || '').trim()
+  if (!normalizedBatchName || !normalizedCourseLabel) return normalizedBatchName
+
+  return `${normalizedBatchName}${BATCH_NAME_STORAGE_SEPARATOR}${normalizedCourseLabel}`
+}
 
 function unwrapData(response) {
   if (!response) return null
   return response.data ?? response
 }
 
-export function normalizeFacultyRecord(record) {
+export function normalizeFacultyRecord(record, fallback = {}) {
   if (!record) return null
 
-  const batchEntries = Array.isArray(record.batchEntries)
-    ? record.batchEntries.map((entry) => ({
-        ...entry,
-        id: entry.id || '',
-        batchName: entry.batchName || '',
-        batchTiming: entry.batchTiming || '',
-        sequenceNo: entry.sequenceNo ?? 1,
-      }))
-    : []
-  const courseIds = Array.isArray(record.courseIds)
-    ? record.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
-    : record.courseId
-      ? [String(record.courseId).trim()].filter(Boolean)
+  const sourceBatchEntries = Array.isArray(record.batchEntries) && record.batchEntries.length
+    ? record.batchEntries
+    : Array.isArray(fallback.batchEntries) && fallback.batchEntries.length
+      ? fallback.batchEntries
       : []
+  const batchEntries = sourceBatchEntries.map((entry) => ({
+    ...entry,
+    id: entry.id || '',
+    batchName: stripStoredBatchName(entry.batchName || '', entry.courseName || entry.courseId || ''),
+    batchTiming: entry.batchTiming || '',
+    courseId: entry.courseId || '',
+    courseName: entry.courseName || getStoredBatchCourseLabel(entry.batchName || '') || '',
+    sequenceNo: entry.sequenceNo ?? 1,
+  }))
+  const courseIdsFromPayload = Array.isArray(record.courseIds)
+    ? record.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
+    : Array.isArray(fallback.courseIds)
+      ? fallback.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
+    : []
+  const batchCourseIds = getUniqueCourseIdsFromBatchEntries(batchEntries)
+  const courseIds = Array.from(new Set([
+    ...courseIdsFromPayload,
+    ...batchCourseIds,
+    record.courseId ? String(record.courseId).trim() : '',
+    fallback.courseId ? String(fallback.courseId).trim() : '',
+  ].filter(Boolean)))
 
   return {
+    ...fallback,
     ...record,
     id: record.id || '',
     facultyName: record.facultyName || '',
     facultyEmail: record.facultyEmail || '',
     facultyPhone: record.facultyPhone || '',
-    courseId: record.courseId || '',
+    courseId: courseIds[0] || record.courseId || '',
     courseIds,
     courseName: record.courseName || record.course?.name || '',
     course: record.course || null,
@@ -94,8 +160,10 @@ function buildFacultyPayload(payload = {}) {
     status: String(payload.status ?? 'Active').trim().toUpperCase(),
     batchEntries: Array.isArray(payload.batchEntries)
       ? payload.batchEntries.map((entry) => ({
-          batchName: String(entry?.batchName ?? '').trim(),
+          batchName: storeBatchName(String(entry?.batchName ?? '').trim(), entry?.courseId ?? '', entry?.courseName ?? ''),
           batchTiming: String(entry?.batchTiming ?? '').trim(),
+          courseId: String(entry?.courseId ?? '').trim(),
+          courseName: String(entry?.courseName ?? '').trim(),
         }))
       : [],
   }
@@ -112,21 +180,23 @@ export async function listFacultyRecords(query = {}) {
 }
 
 export async function createFacultyRecord(payload) {
+  const nextPayload = buildFacultyPayload(payload)
   const response = await request('/faculty-management', {
     method: 'POST',
-    body: JSON.stringify(buildFacultyPayload(payload)),
+    body: JSON.stringify(nextPayload),
   })
 
-  return normalizeFacultyRecord(unwrapData(response))
+  return normalizeFacultyRecord(unwrapData(response), nextPayload)
 }
 
 export async function updateFacultyRecord(facultyId, payload) {
+  const nextPayload = buildFacultyPayload(payload)
   const response = await request(`/faculty-management/${facultyId}`, {
     method: 'PATCH',
-    body: JSON.stringify(buildFacultyPayload(payload)),
+    body: JSON.stringify(nextPayload),
   })
 
-  return normalizeFacultyRecord(unwrapData(response))
+  return normalizeFacultyRecord(unwrapData(response), nextPayload)
 }
 
 export async function deleteFacultyRecord(facultyId) {

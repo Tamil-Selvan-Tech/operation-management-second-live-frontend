@@ -685,6 +685,7 @@ export function StudentManagementPage() {
   const [isDrawerEditing, setIsDrawerEditing] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
+  const [serverFieldErrors, setServerFieldErrors] = useState({})
   const [actionError, setActionError] = useState('')
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
@@ -932,6 +933,7 @@ export function StudentManagementPage() {
 
   const openModal = () => {
     setActionError('')
+    setServerFieldErrors({})
     setForm(createEmptyForm())
     setFieldFocus({})
     setSubmitted(false)
@@ -985,6 +987,7 @@ export function StudentManagementPage() {
 
   const openEditModal = (student) => {
     setActionError('')
+    setServerFieldErrors({})
     setForm(prepareStudentForm(student))
     setFieldFocus({})
     setSubmitted(false)
@@ -997,6 +1000,7 @@ export function StudentManagementPage() {
 
   const startDrawerEdit = (student) => {
     setActionError('')
+    setServerFieldErrors({})
     setForm(prepareStudentForm(student))
     setFieldFocus({})
     setSubmitted(false)
@@ -1036,6 +1040,8 @@ export function StudentManagementPage() {
 
   const closeModal = () => {
     setIsModalOpen(false)
+    setActionError('')
+    setServerFieldErrors({})
     setEditingStudentId('')
     setCurrentStep(0)
   }
@@ -1146,6 +1152,12 @@ export function StudentManagementPage() {
           : {}),
       [name]: value,
     }))
+    setServerFieldErrors((current) => {
+      if (!current[name]) return current
+      const nextErrors = { ...current }
+      delete nextErrors[name]
+      return nextErrors
+    })
   }
 
   const applyCourseDetails = (courseId) => {
@@ -1200,6 +1212,7 @@ export function StudentManagementPage() {
   const handleSubmit = async () => {
     setSubmitted(true)
     setActionError('')
+    setServerFieldErrors({})
 
     const nextErrors = validateForm(form, selectedCourse)
     const duplicateStudent = findDuplicateStudent(form, students, editingStudentId)
@@ -1277,7 +1290,18 @@ export function StudentManagementPage() {
       }
       setOpenActionMenuId('')
     } catch (error) {
-      setActionError(apiErrorMessage(error, 'Unable to save student details.'))
+      const errorMessage = apiErrorMessage(error, 'Unable to save student details.')
+      const normalizedErrorMessage = String(errorMessage || '').toLowerCase()
+
+      if (normalizedErrorMessage.includes('mobile number already exists') || normalizedErrorMessage.includes('mobile already exists')) {
+        setServerFieldErrors({ mobileNumber: 'Mobile number already exists.' })
+        setFieldFocus((current) => ({ ...current, mobileNumber: true }))
+        setCurrentStep(0)
+        setActionError('')
+        return
+      }
+
+      setActionError(errorMessage)
     }
   }
 
@@ -1738,7 +1762,12 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Enter Mobile Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
+                  <Field
+                    label="Enter Mobile Number"
+                    required
+                    icon={<FieldIcon kind="phone" />}
+                    error={shouldShowError('mobileNumber') ? serverFieldErrors.mobileNumber || errors.mobileNumber : ''}
+                  >
                     <input
                       type="tel"
                       inputMode="numeric"
