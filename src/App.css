@@ -4704,7 +4704,7 @@ tbody tr:hover {
 }
 
 .faculty-modal-image {
-  width: min(1240px, calc(100vw - 32px));
+  width: min(900px, calc(100vw - 32px));
   max-height: calc(100vh - 72px);
   padding: 22px 24px 18px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
@@ -4804,6 +4804,104 @@ tbody tr:hover {
   gap: 18px;
 }
 
+.faculty-modal-stepper {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 14px;
+  margin-bottom: 16px;
+  border-radius: 18px;
+  border: 1px solid #e3ebf6;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.faculty-wizard-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #dbe5f1;
+  background: #ffffff;
+  color: #475569;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+}
+
+.faculty-wizard-step.is-active {
+  border-color: #c6d9ff;
+  background: linear-gradient(180deg, #eef5ff 0%, #ffffff 100%);
+  color: #1d4ed8;
+  box-shadow: 0 10px 30px rgba(31, 94, 232, 0.08);
+}
+
+.faculty-wizard-step.is-complete {
+  border-color: #cdebd6;
+  background: linear-gradient(180deg, #f3fbf4 0%, #ffffff 100%);
+}
+
+.faculty-wizard-step-index {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: #eef4ff;
+  color: #1f5ee8;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.faculty-wizard-step.is-active .faculty-wizard-step-index {
+  background: linear-gradient(180deg, #5b8def 0%, #2f80ed 100%);
+  color: #ffffff;
+}
+
+.faculty-wizard-step.is-complete .faculty-wizard-step-index {
+  background: #dff7e7;
+  color: #15803d;
+}
+
+.faculty-wizard-step-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.faculty-wizard-step-copy strong {
+  color: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.faculty-wizard-step-copy span {
+  color: inherit;
+  opacity: 0.78;
+  font-size: 0.88rem;
+}
+
+.faculty-modal-alert {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  background: rgba(254, 242, 242, 0.96);
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.faculty-modal-content {
+  display: grid;
+  gap: 18px;
+}
+
+.faculty-step-panel {
+  min-height: 100%;
+}
+
 .faculty-card {
   display: grid;
   gap: 14px;
@@ -4819,6 +4917,12 @@ tbody tr:hover {
   gap: 16px;
   padding-bottom: 14px;
   border-bottom: 1px solid #e5ebf4;
+}
+
+.faculty-card-head > div:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
 }
 
 .faculty-card-head-icon {
@@ -4842,9 +4946,47 @@ tbody tr:hover {
   letter-spacing: -0.02em;
 }
 
+.faculty-card-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .faculty-field-stack {
   display: grid;
   gap: 14px;
+}
+
+.faculty-two-column-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.faculty-two-column-fields .faculty-field-has-icon .faculty-field-control input,
+.faculty-two-column-fields .faculty-field-has-icon .faculty-field-control select,
+.faculty-two-column-fields .faculty-input-with-icon input,
+.faculty-two-column-fields .faculty-input-with-icon select,
+.faculty-two-column-fields .faculty-course-multi-trigger,
+.faculty-two-column-fields .faculty-course-multi.compact .faculty-course-multi-trigger {
+  width: 100%;
+}
+
+.faculty-course-row {
+  width: min(100%, 60%);
+}
+
+.faculty-course-row .faculty-course-multi,
+.faculty-course-row .faculty-course-multi-control,
+.faculty-course-row .faculty-course-multi-trigger {
+  width: 100%;
+}
+
+.faculty-course-row .faculty-course-multi-menu,
+.faculty-course-row .faculty-course-multi.compact .faculty-course-multi-menu {
+  width: 100%;
 }
 
 .faculty-field,
@@ -4897,9 +5039,9 @@ tbody tr:hover {
 .faculty-field-has-icon .faculty-field-control select,
 .faculty-input-with-icon input,
 .faculty-input-with-icon select {
-  width: 100%;
+  width: min(100%, 50%);
   min-height: 54px;
-  padding: 0 18px 0 60px;
+  padding: 0 16px 0 56px;
   border-radius: 12px;
   border: 1px solid #d9e2ef;
   background: #ffffff;
@@ -4934,6 +5076,174 @@ tbody tr:hover {
 .faculty-input-with-icon select:focus {
   border-color: rgba(31, 94, 232, 0.42);
   box-shadow: 0 0 0 4px rgba(31, 94, 232, 0.08);
+}
+
+.faculty-course-multi {
+  position: relative;
+  display: grid;
+  gap: 10px;
+}
+
+.faculty-course-multi-control {
+  position: relative;
+}
+
+.faculty-course-multi-trigger {
+  width: min(100%, 50%);
+  min-height: 54px;
+  padding: 0 14px 0 16px;
+  border-radius: 12px;
+  border: 1px solid #d9e2ef;
+  background: #ffffff;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.2;
+  text-align: left;
+  outline: none;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02);
+}
+
+.faculty-course-multi-trigger:hover {
+  border-color: #c9d2df;
+}
+
+.faculty-course-multi-trigger:focus-visible {
+  border-color: #b9c4d3;
+  box-shadow: 0 0 0 4px rgba(148, 163, 184, 0.14);
+}
+
+.faculty-course-multi-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.faculty-course-multi-icon {
+  width: 20px;
+  height: 20px;
+  color: #7c8aa5;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.faculty-course-multi-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.faculty-course-multi-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #1f2937;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.faculty-course-multi-value.placeholder {
+  color: #7c8aa5;
+}
+
+.faculty-course-multi-caret {
+  width: 0;
+  height: 0;
+  margin-left: auto;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid #334155;
+  flex: 0 0 auto;
+}
+
+.faculty-course-multi-menu {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  width: min(100%, 50%);
+  top: calc(100% + 8px);
+  max-height: 108px;
+  overflow: auto;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid #d9e2ef;
+  background: #ffffff;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.12);
+}
+
+.faculty-course-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 2px;
+  border-radius: 0;
+  color: #1f2937;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.faculty-course-option:hover {
+  background: transparent;
+}
+
+.faculty-course-option.is-selected {
+  background: transparent;
+  outline: none;
+}
+
+.faculty-course-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: #64748b;
+  flex: 0 0 auto;
+  border: 0;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  appearance: auto;
+}
+
+.faculty-course-option span {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.faculty-course-empty {
+  padding: 10px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.faculty-course-multi.compact .faculty-course-multi-trigger {
+  width: min(100%, 50%);
+  min-height: 44px;
+  padding: 0 12px 0 12px;
+}
+
+.faculty-course-multi.compact .faculty-course-multi-menu {
+  width: min(100%, 50%);
+  top: calc(100% + 6px);
+  max-height: 108px;
+}
+
+@media (max-width: 900px) {
+  .faculty-two-column-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .faculty-course-row {
+    width: 100%;
+  }
+
+  .faculty-course-row .faculty-course-multi-menu,
+  .faculty-course-row .faculty-course-multi.compact .faculty-course-multi-menu {
+    width: min(100%, 100%);
+  }
 }
 
 .faculty-custom-timing-range {
@@ -5006,6 +5316,28 @@ tbody tr:hover {
   border-width: 2px;
   background: #f7fbff;
   font-size: 1rem;
+}
+
+.faculty-form-actions-wizard {
+  justify-content: flex-end;
+}
+
+.faculty-form-actions-wizard .faculty-save-button {
+  min-width: 130px;
+}
+
+@media (max-width: 900px) {
+  .faculty-modal-stepper {
+    grid-template-columns: 1fr;
+  }
+
+  .faculty-wizard-step {
+    padding: 12px 14px;
+  }
+
+  .faculty-modal-content {
+    gap: 14px;
+  }
 }
 
 .faculty-batch-add-full svg {

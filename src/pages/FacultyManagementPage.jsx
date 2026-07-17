@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, Clock3, Eye, Mail, PencilLine, Phone, Plus, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
@@ -19,6 +19,7 @@ function createEmptyForm() {
     facultyEmail: '',
     facultyPhone: '',
     courseId: '',
+    courseIds: [],
     status: 'Active',
     batchEntries: [],
     batchName: '',
@@ -31,6 +32,23 @@ function createEmptyForm() {
 }
 
 const BATCH_TIMING_OPTIONS = ['09.30 AM - 6.30 PM', '10.00 AM - 7.30 PM', '10.30 AM - 7.30 PM', '11.00 AM - 8.00 PM']
+const FACULTY_WIZARD_STEPS = [
+  {
+    key: 'faculty',
+    step: '01',
+    title: 'Faculty Information',
+    subtitle: 'Active Course Mapping',
+    description: 'Enter the faculty details and map them to an active course.',
+  },
+  {
+    key: 'batch',
+    step: '02',
+    title: 'Batch Management',
+    subtitle: 'Add New Batch',
+    description: 'Create one or more batches before saving the faculty record.',
+  },
+]
+const FACULTY_STEP_ONE_FIELDS = ['facultyName', 'facultyEmail', 'facultyPhone', 'courseId', 'status']
 
 function createEmptyBatchTimingState() {
   return {
@@ -77,10 +95,6 @@ function formatBatchTimingState(entry = {}) {
   if (!start || !end) return ''
 
   return `${start} ${startMeridiem} - ${end} ${endMeridiem}`
-}
-
-function getTimingMode(entry = {}) {
-  return String(entry.batchTimingPreset || '').trim() === 'Custom' ? 'Custom' : 'preset'
 }
 
 function getBatchTimingPresetValue(entry = {}) {
@@ -182,258 +196,120 @@ function FacultyField({ label, required = false, error, icon, children }) {
   )
 }
 
-function FacultyEditorContent({
-  form,
-  isCoursesLoading,
-  activeCourseOptions,
-  validationErrors,
-  shouldShowError,
-  updateField,
-  markTouched,
-  addBatchEntry,
-  isEditMode,
-  isSubmitting,
-  onCancel,
+function getCourseSelectionNames(courseIds = [], courseOptions = []) {
+  const normalizedIds = Array.isArray(courseIds) ? courseIds.map((id) => String(id || '').trim()).filter(Boolean) : []
+  if (!normalizedIds.length) return []
+
+  const optionsById = new Map(courseOptions.map((course) => [String(course?.id || '').trim(), String(course?.name || '').trim()]))
+  return normalizedIds.map((courseId) => optionsById.get(courseId)).filter(Boolean)
+}
+
+function CourseCheckboxSelect({
+  label,
+  required = false,
+  error,
+  icon,
+  selectedCourseIds = [],
+  courseOptions = [],
+  isLoading = false,
+  disabled = false,
+  placeholder = 'Select course',
+  onChange,
+  onBlur,
+  compact = false,
 }) {
-  const availableBatchTimingOptions = getAvailableBatchTimingOptions(form.batchEntries)
+  const [isOpen, setIsOpen] = useState(false)
+  const wrapperRef = useRef(null)
+  const normalizedSelectedIds = Array.isArray(selectedCourseIds) ? selectedCourseIds.map((id) => String(id || '').trim()).filter(Boolean) : []
+  const selectedIdSet = new Set(normalizedSelectedIds)
+  const selectedCourseNames = courseOptions
+    .filter((course) => selectedIdSet.has(String(course?.id || '').trim()))
+    .map((course) => String(course?.name || '').trim())
+    .filter(Boolean)
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
+        setIsOpen(false)
+        onBlur?.()
+      }
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+        onBlur?.()
+      }
+    }
+
+    window.addEventListener('mousedown', handlePointerDown)
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown)
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [onBlur])
+
+  const toggleCourse = (courseId) => {
+    const nextIds = selectedIdSet.has(courseId)
+      ? normalizedSelectedIds.filter((id) => id !== courseId)
+      : [...normalizedSelectedIds, courseId]
+
+    onChange?.(nextIds)
+  }
 
   return (
-    <>
-      <div className="faculty-modal-grid">
-        <section className="faculty-card faculty-card-info">
-          <div className="faculty-card-head">
-            <div className="faculty-card-head-icon">
-              <UserRound />
-            </div>
-            <h4>Faculty Information</h4>
-          </div>
+    <div className={`course-field faculty-field faculty-course-multi ${compact ? 'compact' : ''}`.trim()} ref={wrapperRef}>
+      <span>
+        {label}
+        {required ? <b>*</b> : null}
+      </span>
 
-          <div className="faculty-field-stack">
-            <FacultyField
-              label="Faculty Name"
-              required
-              icon={<UserRound />}
-              error={shouldShowError('facultyName') ? validationErrors.facultyName : ''}
-            >
-              <input
-                type="text"
-                placeholder="Enter faculty name"
-                value={form.facultyName}
-                onChange={(event) => {
-                  const value = event.target.value
-                  const autoBatchName = value.trim() ? `${value.trim()} batch` : ''
-                  updateField('facultyName', value)
-                  updateField('batchName', autoBatchName)
-                }}
-                onBlur={() => markTouched('facultyName')}
-                aria-invalid={Boolean(shouldShowError('facultyName'))}
-              />
-            </FacultyField>
+      <div className="faculty-course-multi-control">
+        <button
+          type="button"
+          className="faculty-course-multi-trigger"
+          onClick={() => setIsOpen((current) => !current)}
+          disabled={disabled || isLoading}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen}
+        >
+          {icon ? <span className="faculty-course-multi-icon">{icon}</span> : null}
+          <span className={`faculty-course-multi-value ${selectedCourseNames.length ? '' : 'placeholder'}`.trim()}>
+            {isLoading ? 'Loading courses...' : selectedCourseNames.length ? selectedCourseNames.join(', ') : placeholder}
+          </span>
+          <span className="faculty-course-multi-caret" aria-hidden="true" />
+        </button>
 
-            <FacultyField
-              label="Faculty Email"
-              required
-              icon={<Mail />}
-              error={shouldShowError('facultyEmail') ? validationErrors.facultyEmail : ''}
-            >
-              <input
-                type="email"
-                placeholder="Enter email address"
-                value={form.facultyEmail}
-                onChange={(event) => updateField('facultyEmail', event.target.value)}
-                onBlur={() => markTouched('facultyEmail')}
-                aria-invalid={Boolean(shouldShowError('facultyEmail'))}
-              />
-            </FacultyField>
+        {isOpen ? (
+          <div className="faculty-course-multi-menu" role="listbox" aria-multiselectable="true">
+            {!isLoading && courseOptions.length ? (
+              courseOptions.map((course) => {
+                const courseId = String(course?.id || '').trim()
+                const checked = selectedIdSet.has(courseId)
 
-            <FacultyField
-              label="Faculty Phone"
-              required
-              icon={<Phone />}
-              error={shouldShowError('facultyPhone') ? validationErrors.facultyPhone : ''}
-            >
-              <input
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                placeholder="Enter phone number"
-                value={form.facultyPhone}
-                onChange={(event) => updateField('facultyPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                onBlur={() => markTouched('facultyPhone')}
-                aria-invalid={Boolean(shouldShowError('facultyPhone'))}
-              />
-            </FacultyField>
-
-            <FacultyField
-              label="Select Course"
-              required
-              icon={<BookOpen />}
-              error={shouldShowError('courseId') ? validationErrors.courseId : ''}
-            >
-              <select
-                value={form.courseId}
-                onChange={(event) => updateField('courseId', event.target.value)}
-                onBlur={() => markTouched('courseId')}
-                aria-invalid={Boolean(shouldShowError('courseId'))}
-                disabled={isCoursesLoading}
-              >
-                <option value="">{isCoursesLoading ? 'Loading courses...' : 'Select course'}</option>
-                {!isCoursesLoading && activeCourseOptions.length
-                  ? activeCourseOptions.map((course) => (
-                      <option key={course.id} value={course.id}>
-                        {course.name}
-                      </option>
-                    ))
-                  : null}
-                {!isCoursesLoading && !activeCourseOptions.length ? <option value="" disabled>No active courses available</option> : null}
-              </select>
-            </FacultyField>
-
-            <FacultyField
-              label="Select Status"
-              required
-              icon={<UsersRound />}
-              error={shouldShowError('status') ? validationErrors.status : ''}
-            >
-              <select
-                value={form.status}
-                onChange={(event) => updateField('status', event.target.value)}
-                onBlur={() => markTouched('status')}
-                aria-invalid={Boolean(shouldShowError('status'))}
-              >
-                <option value="">Select status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </FacultyField>
-          </div>
-        </section>
-
-        <section className="faculty-card faculty-card-batch">
-          <div className="faculty-card-head">
-            <div className="faculty-card-head-icon">
-              <UsersRound />
-            </div>
-            <h4>Batch Management</h4>
-          </div>
-
-          <div className="faculty-batch-subtitle">Add New Batch</div>
-
-          <FacultyField label="Batch Name" required icon={<BookOpen />}>
-            <input
-              type="text"
-              placeholder="Enter batch name"
-              value={form.batchName || getSuggestedBatchName(form.facultyName, form.batchEntries)}
-              onChange={(event) => updateField('batchName', event.target.value)}
-              onFocus={() => updateField('batchName', form.batchName || getSuggestedBatchName(form.facultyName, form.batchEntries))}
-            />
-          </FacultyField>
-
-          <FacultyField label="Batch Timing" required icon={<Clock3 />}>
-            <select
-              value={form.batchTiming}
-              onChange={(event) => {
-                const nextTiming = event.target.value
-                updateField('batchTiming', nextTiming)
-                if (nextTiming !== 'Custom') {
-                  updateField('batchTimingCustomStart', '')
-                  updateField('batchTimingCustomStartMeridiem', 'AM')
-                  updateField('batchTimingCustomEnd', '')
-                  updateField('batchTimingCustomEndMeridiem', 'PM')
-                }
-              }}
-            >
-              <option value="">Select timing</option>
-              {availableBatchTimingOptions.map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-              <option>Custom</option>
-            </select>
-          </FacultyField>
-
-          {form.batchTiming === 'Custom' ? (
-            <FacultyField label="Custom Timing" required icon={<Clock3 />}>
-              <div className="faculty-custom-timing-range">
-                <div className="faculty-custom-timing-side">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="09:30"
-                    aria-label="Custom timing start time"
-                    value={form.batchTimingCustomStart}
-                    onChange={(event) => updateField('batchTimingCustomStart', event.target.value)}
-                  />
-                  <select
-                    aria-label="Custom timing start meridiem"
-                    value={form.batchTimingCustomStartMeridiem}
-                    onChange={(event) => updateField('batchTimingCustomStartMeridiem', event.target.value)}
-                  >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
-                <span aria-hidden="true">-</span>
-                <div className="faculty-custom-timing-side">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="06:30"
-                    aria-label="Custom timing end time"
-                    value={form.batchTimingCustomEnd}
-                    onChange={(event) => updateField('batchTimingCustomEnd', event.target.value)}
-                  />
-                  <select
-                    aria-label="Custom timing end meridiem"
-                    value={form.batchTimingCustomEndMeridiem}
-                    onChange={(event) => updateField('batchTimingCustomEndMeridiem', event.target.value)}
-                  >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
-              </div>
-            </FacultyField>
-          ) : null}
-
-          <button type="button" className="faculty-batch-add faculty-batch-add-full" onClick={addBatchEntry}>
-            <Plus />
-            <span>Add Batch</span>
-          </button>
-
-          <div className="faculty-batch-list-wrap">
-            <div className="faculty-batch-list-title">
-              <strong>Batches ({form.batchEntries.length})</strong>
-            </div>
-            {form.batchEntries.length ? (
-              <div className="faculty-batch-list faculty-batch-list-scroll" aria-label="Added batches">
-                {form.batchEntries.map((entry) => (
-                  <div key={entry.id} className="faculty-batch-item faculty-batch-item-image">
-                    <div className="faculty-batch-item-copy">
-                      <strong>{entry.batchName}</strong>
-                      <small>{entry.batchTiming}</small>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                return (
+                  <label key={courseId} className={`faculty-course-option ${checked ? 'is-selected' : ''}`.trim()}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleCourse(courseId)}
+                      disabled={disabled}
+                    />
+                    <span>{course?.name || 'Unnamed course'}</span>
+                  </label>
+                )
+              })
             ) : (
-              <div className="faculty-batch-empty">No batches added yet</div>
+              <div className="faculty-course-empty">{isLoading ? 'Loading courses...' : 'No active courses available'}</div>
             )}
           </div>
-
-          {shouldShowError('batchEntries') ? <small className="course-field-error">{validationErrors.batchEntries}</small> : null}
-        </section>
+        ) : null}
       </div>
 
-      <div className="faculty-form-actions faculty-form-actions-large">
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={isSubmitting} className="faculty-save-button">
-          <Save />
-          <span>{isEditMode ? (isSubmitting ? 'Updating...' : 'Update') : isSubmitting ? 'Submitting...' : 'Save Faculty'}</span>
-        </Button>
-      </div>
-    </>
+      {error ? <small className="course-field-error">{error}</small> : null}
+    </div>
   )
 }
 
@@ -447,6 +323,7 @@ function FacultyInlineEditorTable({
   updateField,
   markTouched,
   addBatchEntry,
+  onChangeCourseIds,
   setForm,
   onRequestBatchDelete,
   onCancel,
@@ -513,13 +390,6 @@ function FacultyInlineEditorTable({
     }))
   }
 
-  const removeBatchEntry = (entryId) => {
-    setForm((current) => ({
-      ...current,
-      batchEntries: current.batchEntries.filter((entry) => entry.id !== entryId),
-    }))
-  }
-
   return (
     <>
       <div className="faculty-view-table-shell faculty-view-table-shell-edit">
@@ -564,21 +434,21 @@ function FacultyInlineEditorTable({
                 <input
                   className="faculty-inline-input"
                   type="email"
-                  placeholder="Enter email address"
+                  placeholder="Enter faculty email"
                   value={form.facultyEmail}
                   onChange={(event) => updateField('facultyEmail', event.target.value)}
                   onBlur={() => markTouched('facultyEmail')}
                   aria-invalid={Boolean(shouldShowError('facultyEmail'))}
                 />
               </td>
-              <th>Faculty Phone</th>
+              <th>Faculty Phone Number</th>
               <td>
                 <input
                   className="faculty-inline-input"
                   type="tel"
                   inputMode="numeric"
                   maxLength={10}
-                  placeholder="Enter phone number"
+                  placeholder="Enter faculty phone number"
                   value={form.facultyPhone}
                   onChange={(event) => updateField('facultyPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
                   onBlur={() => markTouched('facultyPhone')}
@@ -589,24 +459,18 @@ function FacultyInlineEditorTable({
             <tr>
               <th>Course</th>
               <td>
-                <select
-                  className="faculty-inline-input"
-                  value={form.courseId}
-                  onChange={(event) => updateField('courseId', event.target.value)}
-                  onBlur={() => markTouched('courseId')}
-                  aria-invalid={Boolean(shouldShowError('courseId'))}
-                  disabled={isCoursesLoading}
-                >
-                  <option value="">{isCoursesLoading ? 'Loading courses...' : 'Select course'}</option>
-                  {!isCoursesLoading && activeCourseOptions.length
-                    ? activeCourseOptions.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.name}
-                        </option>
-                      ))
-                    : null}
-                  {!isCoursesLoading && !activeCourseOptions.length ? <option value="" disabled>No active courses available</option> : null}
-                </select>
+                  <CourseCheckboxSelect
+                    compact
+                    label="Select course"
+                    icon={<BookOpen />}
+                    error={shouldShowError('courseId') ? validationErrors.courseId : ''}
+                    selectedCourseIds={form.courseIds}
+                    courseOptions={activeCourseOptions}
+                    isLoading={isCoursesLoading}
+                    placeholder={isCoursesLoading ? 'Loading courses...' : 'Select course'}
+                    onChange={onChangeCourseIds}
+                    onBlur={() => markTouched('courseId')}
+                  />
               </td>
               <th>Total Batches</th>
               <td>{form.batchEntries.length}</td>
@@ -862,7 +726,12 @@ function getPrefilledForm(record = null) {
     facultyName: record.facultyName || '',
     facultyEmail: record.facultyEmail || '',
     facultyPhone: record.facultyPhone || '',
-    courseId: record.courseId || '',
+    courseId: record.courseId || (Array.isArray(record.courseIds) && record.courseIds[0]) || '',
+    courseIds: Array.isArray(record.courseIds)
+      ? record.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
+      : record.courseId
+        ? [String(record.courseId).trim()]
+        : [],
     status: String(record.status || 'Active'),
     batchEntries,
     batchName: '',
@@ -892,6 +761,7 @@ export function FacultyManagementPage() {
   const [editingFacultyId, setEditingFacultyId] = useState('')
   const [selectedFacultyRecord, setSelectedFacultyRecord] = useState(null)
   const [isViewDrawerEditing, setIsViewDrawerEditing] = useState(false)
+  const [facultyWizardStep, setFacultyWizardStep] = useState(1)
   const [batchDeleteTarget, setBatchDeleteTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -926,16 +796,16 @@ export function FacultyManagementPage() {
     }
     if (!form.facultyPhone.trim()) nextErrors.facultyPhone = 'Faculty phone number is required.'
     else if (!/^\d{10}$/.test(form.facultyPhone.trim())) nextErrors.facultyPhone = 'Enter a valid 10-digit phone number.'
-    if (!form.courseId) nextErrors.courseId = 'Please select an active course.'
+    if (!Array.isArray(form.courseIds) || !form.courseIds.length) nextErrors.courseId = 'Please select at least one active course.'
     if (!form.status.trim()) nextErrors.status = 'Please select faculty status.'
 
     const pendingBatchEntry = resolveBatchEntryFromForm(form)
-    if (!form.batchEntries.length && !pendingBatchEntry) {
+    if (facultyWizardStep === 2 && !form.batchEntries.length && !pendingBatchEntry) {
       nextErrors.batchEntries = 'Add batch name and timing, then click Add Batch.'
     }
 
     return nextErrors
-  }, [editingFacultyId, form, records])
+  }, [editingFacultyId, facultyWizardStep, form, records])
 
   const totalFaculty = records.length
   const latestFaculty = records[0] || null
@@ -948,13 +818,14 @@ export function FacultyManagementPage() {
     return records.filter((record) => {
       const facultyName = String(record.facultyName || '').toLowerCase()
       const courseName = String(record.courseName || '').toLowerCase()
+      const courseNames = getCourseSelectionNames(record.courseIds, activeCourseOptions).join(' ').toLowerCase()
       const batchNames = Array.isArray(record.batchEntries)
         ? record.batchEntries.map((entry) => String(entry.batchName || '').toLowerCase()).join(' ')
         : ''
 
-      return facultyName.includes(normalizedQuery) || courseName.includes(normalizedQuery) || batchNames.includes(normalizedQuery)
+      return facultyName.includes(normalizedQuery) || courseName.includes(normalizedQuery) || courseNames.includes(normalizedQuery) || batchNames.includes(normalizedQuery)
     })
-  }, [records, searchQuery])
+  }, [activeCourseOptions, records, searchQuery])
 
   const totalPages = Math.max(1, Math.ceil(filteredRecords.length / itemsPerPage))
   const currentPageSafe = Math.min(currentPage, totalPages)
@@ -963,14 +834,27 @@ export function FacultyManagementPage() {
     return filteredRecords.slice(start, start + itemsPerPage)
   }, [currentPageSafe, filteredRecords])
 
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery])
-
   const shouldShowError = (field) => touched[field] && validationErrors[field]
+  const currentWizardStep = facultyWizardStep
+  const isFacultyStepOne = currentWizardStep === 1
+  const isFacultyStepTwo = currentWizardStep === 2
+  const availableBatchTimingOptions = getAvailableBatchTimingOptions(form.batchEntries)
+  const stepOneHasErrors = FACULTY_STEP_ONE_FIELDS.some((field) => Boolean(validationErrors[field]))
 
   const updateField = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const updateCourseIds = (nextCourseIds) => {
+    const normalizedCourseIds = Array.isArray(nextCourseIds)
+      ? nextCourseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
+      : []
+
+    setForm((current) => ({
+      ...current,
+      courseIds: normalizedCourseIds,
+      courseId: normalizedCourseIds[0] || '',
+    }))
   }
 
   const markTouched = (field) => {
@@ -996,6 +880,27 @@ export function FacultyManagementPage() {
       batchTimingCustomEnd: '',
       batchTimingCustomEndMeridiem: 'PM',
     }))
+  }
+
+  const goToNextFacultyStep = () => {
+    const nextTouched = {
+      facultyName: true,
+      facultyEmail: true,
+      facultyPhone: true,
+      courseId: true,
+      status: true,
+    }
+    setTouched((current) => ({ ...current, ...nextTouched }))
+
+    if (stepOneHasErrors) return
+
+    setActionError('')
+    setFacultyWizardStep(2)
+  }
+
+  const goToPreviousFacultyStep = () => {
+    setActionError('')
+    setFacultyWizardStep(1)
   }
 
   const loadCourseOptions = async () => {
@@ -1057,6 +962,7 @@ export function FacultyManagementPage() {
     setEditingFacultyId('')
     setSelectedFacultyRecord(null)
     setIsViewDrawerEditing(false)
+    setFacultyWizardStep(1)
     setBatchDeleteTarget(null)
   }
 
@@ -1068,6 +974,7 @@ export function FacultyManagementPage() {
     setEditingFacultyId('')
     setSelectedFacultyRecord(null)
     setIsViewDrawerEditing(false)
+    setFacultyWizardStep(1)
     setIsModalOpen(true)
   }
 
@@ -1079,6 +986,7 @@ export function FacultyManagementPage() {
     setEditingFacultyId(record.id)
     setSelectedFacultyRecord(record)
     setIsViewDrawerEditing(false)
+    setFacultyWizardStep(1)
     setIsModalOpen(true)
   }
 
@@ -1090,6 +998,7 @@ export function FacultyManagementPage() {
     setEditingFacultyId(record.id)
     setSelectedFacultyRecord(record)
     setIsViewDrawerEditing(false)
+    setFacultyWizardStep(1)
     setIsModalOpen(true)
   }
 
@@ -1164,6 +1073,11 @@ export function FacultyManagementPage() {
       return
     }
 
+    if (isFacultyStepOne) {
+      goToNextFacultyStep()
+      return
+    }
+
     const nextTouched = {
       facultyName: true,
       facultyEmail: true,
@@ -1196,6 +1110,7 @@ export function FacultyManagementPage() {
       facultyEmail: form.facultyEmail.trim(),
       facultyPhone: form.facultyPhone.trim(),
       courseId: form.courseId,
+      courseIds: form.courseIds,
       status: String(form.status || 'Active').trim().toUpperCase(),
       batchEntries: resolvedBatchEntries.map((entry) => ({
         batchName: String(entry.batchName || '').trim(),
@@ -1263,7 +1178,10 @@ export function FacultyManagementPage() {
               type="search"
               placeholder="Search course..."
               value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
+              onChange={(event) => {
+                setSearchQuery(event.target.value)
+                setCurrentPage(1)
+              }}
               aria-label="Search faculty records"
             />
             <Button type="submit" className="faculty-management-search-button">
@@ -1324,7 +1242,7 @@ export function FacultyManagementPage() {
                     <td>{record.facultyEmail}</td>
                     <td>{record.facultyPhone}</td>
                     <td>{Array.isArray(record.batchEntries) ? record.batchEntries.length : Number(record.batchCount || 0) || '-'}</td>
-                    <td>{record.courseName || '-'}</td>
+                    <td>{getCourseSelectionNames(record.courseIds, activeCourseOptions).join(', ') || record.courseName || '-'}</td>
                     <td>
                       <span className={`status-pill ${String(record.status || 'Active').toLowerCase()}`}>
                         {record.status || 'Active'}
@@ -1403,7 +1321,7 @@ export function FacultyManagementPage() {
         ) : null}
       </article>
 
-            {isModalOpen && !isViewMode ? (
+      {isModalOpen && !isViewMode ? (
         <div className="course-modal-backdrop faculty-modal-backdrop" role="presentation">
           <form
             className="course-modal panel-card faculty-modal faculty-modal-image"
@@ -1433,257 +1351,284 @@ export function FacultyManagementPage() {
               </div>
             </div>
 
-            <div className="faculty-modal-grid">
-              <section className="faculty-card faculty-card-info">
-                <div className="faculty-card-head">
-                  <div className="faculty-card-head-icon">
-                    <UserRound />
-                  </div>
-                  <h4>Faculty Information</h4>
-                </div>
+            <div className="faculty-modal-stepper" aria-label="Faculty setup steps">
+              {FACULTY_WIZARD_STEPS.map((step, index) => {
+                const stepNumber = index + 1
+                const isActive = currentWizardStep === stepNumber
+                const isCompleted = currentWizardStep > stepNumber
 
-                <div className="faculty-field-stack">
-                  <FacultyField
-                    label="Faculty Name"
-                    required
-                    icon={<UserRound />}
-                    error={shouldShowError('facultyName') ? validationErrors.facultyName : ''}
+                return (
+                  <div
+                    key={step.key}
+                    className={`faculty-wizard-step ${isActive ? 'is-active' : ''} ${isCompleted ? 'is-complete' : ''}`.trim()}
                   >
-                    <input
-                      type="text"
-                      placeholder="Enter faculty name"
-                      value={form.facultyName}
-                      onChange={(event) => {
-                        const value = event.target.value
-                        const autoBatchName = value.trim() ? `${value.trim()} batch` : ''
-                        setForm((current) => ({
-                          ...current,
-                          facultyName: value,
-                          batchName: autoBatchName,
-                        }))
-                      }}
-                      onBlur={() => markTouched('facultyName')}
-                      aria-invalid={Boolean(shouldShowError('facultyName'))}
-                      disabled={isViewMode}
-                    />
-                  </FacultyField>
-
-                  <FacultyField
-                    label="Faculty Email"
-                    required
-                    icon={<Mail />}
-                    error={shouldShowError('facultyEmail') ? validationErrors.facultyEmail : ''}
-                  >
-                    <input
-                      type="email"
-                      placeholder="Enter email address"
-                      value={form.facultyEmail}
-                      onChange={(event) => updateField('facultyEmail', event.target.value)}
-                      onBlur={() => markTouched('facultyEmail')}
-                      aria-invalid={Boolean(shouldShowError('facultyEmail'))}
-                      disabled={isViewMode}
-                    />
-                  </FacultyField>
-
-                  <FacultyField
-                    label="Faculty Phone"
-                    required
-                    icon={<Phone />}
-                    error={shouldShowError('facultyPhone') ? validationErrors.facultyPhone : ''}
-                  >
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={10}
-                      placeholder="Enter phone number"
-                      value={form.facultyPhone}
-                      onChange={(event) => updateField('facultyPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                      onBlur={() => markTouched('facultyPhone')}
-                      aria-invalid={Boolean(shouldShowError('facultyPhone'))}
-                      disabled={isViewMode}
-                    />
-                  </FacultyField>
-
-                  <FacultyField
-                    label="Select Course"
-                    required
-                    icon={<BookOpen />}
-                    error={shouldShowError('courseId') ? validationErrors.courseId : ''}
-                  >
-                    <select
-                      value={form.courseId}
-                      onChange={(event) => updateField('courseId', event.target.value)}
-                      onBlur={() => markTouched('courseId')}
-                      aria-invalid={Boolean(shouldShowError('courseId'))}
-                      disabled={isCoursesLoading || isViewMode}
-                    >
-                      <option value="">{isCoursesLoading ? 'Loading courses...' : 'Select course'}</option>
-                      {!isCoursesLoading && activeCourseOptions.length
-                        ? activeCourseOptions.map((course) => (
-                            <option key={course.id} value={course.id}>
-                              {course.name}
-                            </option>
-                          ))
-                        : null}
-                      {!isCoursesLoading && !activeCourseOptions.length ? <option value="" disabled>No active courses available</option> : null}
-                    </select>
-                  </FacultyField>
-
-                  <FacultyField
-                    label="Select Status"
-                    required
-                    icon={<UsersRound />}
-                    error={shouldShowError('status') ? validationErrors.status : ''}
-                  >
-                    <select
-                      value={form.status}
-                      onChange={(event) => updateField('status', event.target.value)}
-                      onBlur={() => markTouched('status')}
-                      aria-invalid={Boolean(shouldShowError('status'))}
-                      disabled={isViewMode}
-                    >
-                      <option value="">Select status</option>
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </FacultyField>
-                </div>
-              </section>
-
-              <section className="faculty-card faculty-card-batch">
-                <div className="faculty-card-head">
-                  <div className="faculty-card-head-icon">
-                    <UsersRound />
-                  </div>
-                  <h4>Batch Management</h4>
-                </div>
-
-                <div className="faculty-batch-subtitle">Add New Batch</div>
-
-                <FacultyField label="Batch Name" required icon={<BookOpen />}>
-                  <input
-                    type="text"
-                    placeholder="Enter batch name"
-                    value={form.batchName || (form.facultyName.trim() ? `${form.facultyName.trim()} batch` : '')}
-                    onChange={(event) => updateField('batchName', event.target.value)}
-                    onFocus={() =>
-                      updateField('batchName', form.batchName || (form.facultyName.trim() ? `${form.facultyName.trim()} batch` : ''))
-                    }
-                    disabled={isViewMode}
-                  />
-                </FacultyField>
-
-                <FacultyField label="Batch Timing" required icon={<Clock3 />}>
-                  <select
-                    value={form.batchTiming}
-                    onChange={(event) => {
-                      const nextTiming = event.target.value
-                      updateField('batchTiming', nextTiming)
-                      if (nextTiming !== 'Custom') {
-                        updateField('batchTimingCustomStart', '')
-                        updateField('batchTimingCustomStartMeridiem', 'AM')
-                        updateField('batchTimingCustomEnd', '')
-                        updateField('batchTimingCustomEndMeridiem', 'PM')
-                      }
-                    }}
-                    disabled={isViewMode}
-                  >
-                    <option value="">Select timing</option>
-                    <option>09.30 AM - 6.30 PM</option>
-                    <option>10.00 AM - 7.30 PM</option>
-                    <option>10.30 AM - 7.30 PM</option>
-                    <option>11.00 AM - 8.00 PM</option>
-                    <option>Custom</option>
-                  </select>
-                </FacultyField>
-
-                {form.batchTiming === 'Custom' ? (
-                  <FacultyField label="Custom Timing" required icon={<Clock3 />}>
-                    <div className="faculty-custom-timing-range">
-                      <div className="faculty-custom-timing-side">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="09:30"
-                          aria-label="Custom timing start time"
-                          value={form.batchTimingCustomStart}
-                          onChange={(event) => updateField('batchTimingCustomStart', event.target.value)}
-                          disabled={isViewMode}
-                        />
-                        <select
-                          aria-label="Custom timing start meridiem"
-                          value={form.batchTimingCustomStartMeridiem}
-                          onChange={(event) => updateField('batchTimingCustomStartMeridiem', event.target.value)}
-                          disabled={isViewMode}
-                        >
-                          <option value="AM">AM</option>
-                          <option value="PM">PM</option>
-                        </select>
-                      </div>
-                      <span aria-hidden="true">-</span>
-                      <div className="faculty-custom-timing-side">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="06:30"
-                          aria-label="Custom timing end time"
-                          value={form.batchTimingCustomEnd}
-                          onChange={(event) => updateField('batchTimingCustomEnd', event.target.value)}
-                          disabled={isViewMode}
-                        />
-                        <select
-                          aria-label="Custom timing end meridiem"
-                          value={form.batchTimingCustomEndMeridiem}
-                          onChange={(event) => updateField('batchTimingCustomEndMeridiem', event.target.value)}
-                          disabled={isViewMode}
-                        >
-                          <option value="AM">AM</option>
-                          <option value="PM">PM</option>
-                        </select>
-                      </div>
+                    <div className="faculty-wizard-step-index">{step.step}</div>
+                    <div className="faculty-wizard-step-copy">
+                      <strong>{step.title}</strong>
+                      <span>{step.subtitle}</span>
                     </div>
-                  </FacultyField>
-                ) : null}
-
-                <button type="button" className="faculty-batch-add faculty-batch-add-full" onClick={addBatchEntry} disabled={isViewMode}>
-                  <Plus />
-                  <span>Add Batch</span>
-                </button>
-
-                <div className="faculty-batch-list-wrap">
-                  <div className="faculty-batch-list-title">
-                    <strong>Batches ({form.batchEntries.length})</strong>
                   </div>
-                  {form.batchEntries.length ? (
-                    <div className="faculty-batch-list faculty-batch-list-scroll" aria-label="Added batches">
-                      {form.batchEntries.map((entry) => (
-                        <div key={entry.id} className="faculty-batch-item faculty-batch-item-image">
-                          <div className="faculty-batch-item-copy">
-                            <strong>{entry.batchName}</strong>
-                            <small>{entry.batchTiming}</small>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="faculty-batch-empty">No batches added yet</div>
-                  )}
-                </div>
-
-                {shouldShowError('batchEntries') ? <small className="course-field-error">{validationErrors.batchEntries}</small> : null}
-              </section>
+                )
+              })}
             </div>
 
-            <div className="faculty-form-actions faculty-form-actions-large">
+            {actionError ? (
+              <div className="faculty-modal-alert" role="alert" aria-live="polite">
+                {actionError}
+              </div>
+            ) : null}
+
+            <div className="faculty-modal-content">
+              {isFacultyStepOne ? (
+                <section className="faculty-card faculty-card-info faculty-step-panel">
+                  <div className="faculty-card-head">
+                    <div className="faculty-card-head-icon">
+                      <UserRound />
+                    </div>
+                    <div>
+                      <h4>Faculty Information</h4>
+                      <p>Enter the faculty details and map them to an active course.</p>
+                    </div>
+                  </div>
+
+                  <div className="faculty-field-stack">
+                    <div className="faculty-two-column-fields">
+                      <FacultyField
+                        label="Faculty Name"
+                        required
+                        icon={<UserRound />}
+                        error={shouldShowError('facultyName') ? validationErrors.facultyName : ''}
+                      >
+                        <input
+                          type="text"
+                          placeholder="Enter faculty name"
+                          value={form.facultyName}
+                          onChange={(event) => {
+                            const value = event.target.value
+                            const autoBatchName = value.trim() ? `${value.trim()} batch` : ''
+                            setForm((current) => ({
+                              ...current,
+                              facultyName: value,
+                              batchName: autoBatchName,
+                            }))
+                          }}
+                          onBlur={() => markTouched('facultyName')}
+                          aria-invalid={Boolean(shouldShowError('facultyName'))}
+                        />
+                      </FacultyField>
+
+                      <FacultyField
+                        label="Faculty Email"
+                        required
+                        icon={<Mail />}
+                        error={shouldShowError('facultyEmail') ? validationErrors.facultyEmail : ''}
+                      >
+                        <input
+                          type="email"
+                          placeholder="Enter faculty email"
+                          value={form.facultyEmail}
+                          onChange={(event) => updateField('facultyEmail', event.target.value)}
+                          onBlur={() => markTouched('facultyEmail')}
+                          aria-invalid={Boolean(shouldShowError('facultyEmail'))}
+                        />
+                      </FacultyField>
+                    </div>
+
+                    <div className="faculty-two-column-fields">
+                      <FacultyField
+                        label="Faculty Phone Number"
+                        required
+                        icon={<Phone />}
+                        error={shouldShowError('facultyPhone') ? validationErrors.facultyPhone : ''}
+                      >
+                        <input
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={10}
+                          placeholder="Enter faculty phone number"
+                          value={form.facultyPhone}
+                          onChange={(event) => updateField('facultyPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                          onBlur={() => markTouched('facultyPhone')}
+                          aria-invalid={Boolean(shouldShowError('facultyPhone'))}
+                        />
+                      </FacultyField>
+
+                      <FacultyField
+                        label="Select Status"
+                        required
+                        icon={<UsersRound />}
+                        error={shouldShowError('status') ? validationErrors.status : ''}
+                      >
+                        <select
+                          value={form.status}
+                          onChange={(event) => updateField('status', event.target.value)}
+                          onBlur={() => markTouched('status')}
+                          aria-invalid={Boolean(shouldShowError('status'))}
+                        >
+                          <option value="">Select status</option>
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                        </select>
+                      </FacultyField>
+                    </div>
+
+                    <div className="faculty-course-row">
+                      <CourseCheckboxSelect
+                        label="Select Course"
+                        required
+                        icon={<BookOpen />}
+                        error={shouldShowError('courseId') ? validationErrors.courseId : ''}
+                        selectedCourseIds={form.courseIds}
+                        courseOptions={activeCourseOptions}
+                        isLoading={isCoursesLoading}
+                        placeholder={isCoursesLoading ? 'Loading courses...' : 'Select course'}
+                        onChange={updateCourseIds}
+                        onBlur={() => markTouched('courseId')}
+                      />
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {isFacultyStepTwo ? (
+                <section className="faculty-card faculty-card-batch faculty-step-panel">
+                  <div className="faculty-card-head">
+                    <div className="faculty-card-head-icon">
+                      <UsersRound />
+                    </div>
+                    <div>
+                      <h4>Batch Management</h4>
+                      <p>Add one or more batches before you save the faculty record.</p>
+                    </div>
+                  </div>
+
+                  <div className="faculty-batch-subtitle">Add New Batch</div>
+
+                  <FacultyField label="Batch Name" required icon={<BookOpen />}>
+                    <input
+                      type="text"
+                      placeholder="Enter batch name"
+                      value={form.batchName || getSuggestedBatchName(form.facultyName, form.batchEntries)}
+                      onChange={(event) => updateField('batchName', event.target.value)}
+                      onFocus={() => updateField('batchName', form.batchName || getSuggestedBatchName(form.facultyName, form.batchEntries))}
+                    />
+                  </FacultyField>
+
+                  <FacultyField label="Batch Timing" required icon={<Clock3 />}>
+                    <select
+                      value={form.batchTiming}
+                      onChange={(event) => {
+                        const nextTiming = event.target.value
+                        updateField('batchTiming', nextTiming)
+                        if (nextTiming !== 'Custom') {
+                          updateField('batchTimingCustomStart', '')
+                          updateField('batchTimingCustomStartMeridiem', 'AM')
+                          updateField('batchTimingCustomEnd', '')
+                          updateField('batchTimingCustomEndMeridiem', 'PM')
+                        }
+                      }}
+                    >
+                      <option value="">Select timing</option>
+                      {availableBatchTimingOptions.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                      <option>Custom</option>
+                    </select>
+                  </FacultyField>
+
+                  {form.batchTiming === 'Custom' ? (
+                    <FacultyField label="Custom Timing" required icon={<Clock3 />}>
+                      <div className="faculty-custom-timing-range">
+                        <div className="faculty-custom-timing-side">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="09:30"
+                            aria-label="Custom timing start time"
+                            value={form.batchTimingCustomStart}
+                            onChange={(event) => updateField('batchTimingCustomStart', event.target.value)}
+                          />
+                          <select
+                            aria-label="Custom timing start meridiem"
+                            value={form.batchTimingCustomStartMeridiem}
+                            onChange={(event) => updateField('batchTimingCustomStartMeridiem', event.target.value)}
+                          >
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                          </select>
+                        </div>
+                        <span aria-hidden="true">-</span>
+                        <div className="faculty-custom-timing-side">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="06:30"
+                            aria-label="Custom timing end time"
+                            value={form.batchTimingCustomEnd}
+                            onChange={(event) => updateField('batchTimingCustomEnd', event.target.value)}
+                          />
+                          <select
+                            aria-label="Custom timing end meridiem"
+                            value={form.batchTimingCustomEndMeridiem}
+                            onChange={(event) => updateField('batchTimingCustomEndMeridiem', event.target.value)}
+                          >
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                          </select>
+                        </div>
+                      </div>
+                    </FacultyField>
+                  ) : null}
+
+                  <button type="button" className="faculty-batch-add faculty-batch-add-full" onClick={addBatchEntry}>
+                    <Plus />
+                    <span>Add Batch</span>
+                  </button>
+
+                  <div className="faculty-batch-list-wrap">
+                    <div className="faculty-batch-list-title">
+                      <strong>Batches ({form.batchEntries.length})</strong>
+                    </div>
+                    {form.batchEntries.length ? (
+                      <div className="faculty-batch-list faculty-batch-list-scroll" aria-label="Added batches">
+                        {form.batchEntries.map((entry) => (
+                          <div key={entry.id} className="faculty-batch-item faculty-batch-item-image">
+                            <div className="faculty-batch-item-copy">
+                              <strong>{entry.batchName}</strong>
+                              <small>{entry.batchTiming}</small>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="faculty-batch-empty">No batches added yet</div>
+                    )}
+                  </div>
+
+                  {shouldShowError('batchEntries') ? <small className="course-field-error">{validationErrors.batchEntries}</small> : null}
+                </section>
+              ) : null}
+            </div>
+
+            <div className="faculty-form-actions faculty-form-actions-large faculty-form-actions-wizard">
               <Button type="button" variant="ghost" onClick={closeModal} disabled={isSubmitting}>
                 Cancel
               </Button>
-              {!isViewMode ? (
+              {isFacultyStepTwo ? (
+                <Button type="button" variant="ghost" onClick={goToPreviousFacultyStep} disabled={isSubmitting}>
+                  Back
+                </Button>
+              ) : null}
+              {!isFacultyStepTwo ? (
+                <Button type="button" onClick={goToNextFacultyStep} disabled={isSubmitting} className="faculty-save-button">
+                  <span>Next</span>
+                </Button>
+              ) : (
                 <Button type="submit" disabled={isSubmitting} className="faculty-save-button">
                   <Save />
                   <span>{isEditMode ? (isSubmitting ? 'Updating...' : 'Update') : isSubmitting ? 'Submitting...' : 'Save Faculty'}</span>
                 </Button>
-              ) : null}
+              )}
             </div>
           </form>
         </div>
@@ -1733,6 +1678,7 @@ export function FacultyManagementPage() {
                   updateField={updateField}
                   markTouched={markTouched}
                   addBatchEntry={addBatchEntry}
+                  onChangeCourseIds={updateCourseIds}
                   setForm={setForm}
                   onRequestBatchDelete={openBatchDeleteModal}
                   onCancel={cancelInlineEdit}
@@ -1756,12 +1702,12 @@ export function FacultyManagementPage() {
                     <tr>
                       <th>Faculty Email</th>
                       <td>{selectedFacultyRecord.facultyEmail || '-'}</td>
-                      <th>Faculty Phone</th>
+                      <th>Faculty Phone Number</th>
                       <td>{selectedFacultyRecord.facultyPhone || '-'}</td>
                     </tr>
                     <tr>
                       <th>Course</th>
-                      <td>{selectedFacultyRecord.courseName || '-'}</td>
+                      <td>{getCourseSelectionNames(selectedFacultyRecord.courseIds, activeCourseOptions).join(', ') || selectedFacultyRecord.courseName || '-'}</td>
                       <th>Total Batches</th>
                       <td>
                         {Array.isArray(selectedFacultyRecord.batchEntries) ? selectedFacultyRecord.batchEntries.length : Number(selectedFacultyRecord.batchCount || 0) || 0}

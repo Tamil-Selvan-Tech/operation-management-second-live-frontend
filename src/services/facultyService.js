@@ -19,6 +19,11 @@ export function normalizeFacultyRecord(record) {
         sequenceNo: entry.sequenceNo ?? 1,
       }))
     : []
+  const courseIds = Array.isArray(record.courseIds)
+    ? record.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
+    : record.courseId
+      ? [String(record.courseId).trim()].filter(Boolean)
+      : []
 
   return {
     ...record,
@@ -27,6 +32,7 @@ export function normalizeFacultyRecord(record) {
     facultyEmail: record.facultyEmail || '',
     facultyPhone: record.facultyPhone || '',
     courseId: record.courseId || '',
+    courseIds,
     courseName: record.courseName || record.course?.name || '',
     course: record.course || null,
     status: record.status || 'Inactive',
@@ -73,11 +79,18 @@ function buildFacultySearchParams(query = {}) {
 }
 
 function buildFacultyPayload(payload = {}) {
+  const courseIds = Array.isArray(payload.courseIds)
+    ? payload.courseIds.map((courseId) => String(courseId ?? '').trim()).filter(Boolean)
+    : String(payload.courseId ?? '').trim()
+      ? [String(payload.courseId).trim()]
+      : []
+
   return {
     facultyName: String(payload.facultyName ?? '').trim(),
     facultyEmail: String(payload.facultyEmail ?? '').trim(),
     facultyPhone: String(payload.facultyPhone ?? '').trim(),
-    courseId: String(payload.courseId ?? '').trim(),
+    courseId: courseIds[0] || String(payload.courseId ?? '').trim(),
+    courseIds,
     status: String(payload.status ?? 'Active').trim().toUpperCase(),
     batchEntries: Array.isArray(payload.batchEntries)
       ? payload.batchEntries.map((entry) => ({
