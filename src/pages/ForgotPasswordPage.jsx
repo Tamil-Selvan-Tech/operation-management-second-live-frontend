@@ -24,7 +24,7 @@ function EmailIcon() {
   )
 }
 
-export function ForgotPasswordPage({ onSubmit }) {
+export function ForgotPasswordPage({ onSubmit, errorMessage = '', successMessage = '', isSubmitting = false }) {
   return (
     <Card className="auth-card login-shell forgot-shell">
       <aside className="login-hero">
@@ -68,17 +68,29 @@ export function ForgotPasswordPage({ onSubmit }) {
         </div>
 
         <form className="form login-form forgot-form" onSubmit={onSubmit}>
+          {errorMessage ? (
+            <div className="form-message form-message-error" role="alert">
+              {errorMessage}
+            </div>
+          ) : null}
+
+          {successMessage ? (
+            <div className="form-message form-message-success" role="status" aria-live="polite">
+              {successMessage}
+            </div>
+          ) : null}
+
           <FormField label="Email">
             <div className="field-with-icon">
               <span className="field-icon" aria-hidden="true">
                 <EmailIcon />
               </span>
-              <input type="email" placeholder="name@company.com" />
+              <input name="email" type="email" placeholder="name@company.com" disabled={isSubmitting} />
             </div>
           </FormField>
 
-          <Button type="submit" className="login-primary">
-            Send reset link
+          <Button type="submit" className="login-primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Sending...' : 'Send reset link'}
           </Button>
 
           <a href="/login" className="text-link forgot-back-link">

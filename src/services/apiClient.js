@@ -1,4 +1,26 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+function isLocalhostLike(value) {
+  const text = String(value || '').trim().toLowerCase()
+  return (
+    text.includes('localhost') ||
+    text.includes('127.0.0.1') ||
+    text.includes('0.0.0.0')
+  )
+}
+
+function buildRuntimeApiBaseUrl() {
+  if (typeof window === 'undefined' || !window.location?.hostname) {
+    return ''
+  }
+
+  const { protocol, hostname } = window.location
+  return `${protocol}//${hostname}:4000/api/v1`
+}
+
+const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim()
+const runtimeApiBaseUrl = buildRuntimeApiBaseUrl()
+
+export const API_BASE_URL =
+  configuredApiBaseUrl && !isLocalhostLike(configuredApiBaseUrl) ? configuredApiBaseUrl : runtimeApiBaseUrl || configuredApiBaseUrl
 
 let accessToken = null
 let refreshToken = null
@@ -141,6 +163,22 @@ export async function logoutSession() {
   } finally {
     clearAuthTokens()
   }
+}
+
+export async function requestPasswordReset(identifier) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({ email: identifier }),
+  })
+}
+
+export async function resetPassword({ token, password }) {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    skipAuth: true,
+    body: JSON.stringify({ token, password }),
+  })
 }
 
 export { request }
