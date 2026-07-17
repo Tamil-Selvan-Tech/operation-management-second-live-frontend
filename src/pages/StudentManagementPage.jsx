@@ -1,4 +1,5 @@
 import { isValidElement, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BadgeCheck,
   BookOpen,
@@ -667,6 +668,8 @@ function DangerIcon() {
 
 export function StudentManagementPage() {
   const { role } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [students, setStudents] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
   const [facultyOptions, setFacultyOptions] = useState([])
@@ -779,6 +782,7 @@ export function StudentManagementPage() {
     () => (selectedStudent ? findCourseForStudent(selectedStudent, courseOptions) : null),
     [courseOptions, selectedStudent],
   )
+  const selectedStudentQueryId = useMemo(() => new URLSearchParams(location.search).get('studentId') || '', [location.search])
   const totalStudents = students.length
   const latestStudent = students[0]
   const totalPages = Math.max(1, Math.ceil(totalStudents / studentsPerPage))
@@ -1014,6 +1018,7 @@ export function StudentManagementPage() {
     setSelectedStudentId(student.id)
     setIsDrawerOpen(true)
     setIsDrawerEditing(false)
+    navigate(`/student-management?studentId=${encodeURIComponent(student.id)}`)
   }
 
   const openDeleteModal = (student) => {
@@ -1024,6 +1029,8 @@ export function StudentManagementPage() {
   const closeDrawer = () => {
     setIsDrawerOpen(false)
     setIsDrawerEditing(false)
+    setSelectedStudentId('')
+    navigate('/student-management', { replace: true })
   }
 
   const closeDeleteModal = () => {
@@ -1058,6 +1065,19 @@ export function StudentManagementPage() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isDrawerOpen])
+
+  useEffect(() => {
+    if (!selectedStudentQueryId) {
+      setIsDrawerOpen(false)
+      setIsDrawerEditing(false)
+      setSelectedStudentId('')
+      return
+    }
+
+    setSelectedStudentId(selectedStudentQueryId)
+    setIsDrawerOpen(true)
+    setIsDrawerEditing(false)
+  }, [selectedStudentQueryId])
 
   useEffect(() => {
     saveStudentRecords(students)

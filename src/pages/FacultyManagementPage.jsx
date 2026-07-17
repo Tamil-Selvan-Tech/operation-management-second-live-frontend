@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { BookOpen, Clock3, Eye, Mail, MoreVertical, PencilLine, Phone, Plus, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
@@ -13,6 +14,7 @@ import {
 } from '../services/facultyService'
 import { loadFacultyRecords, saveFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
+import { buildFacultyDetailsPath } from '../lib/facultyFlow'
 
 function createEmptyForm() {
   return {
@@ -965,6 +967,7 @@ function getPrefilledForm(record = null, courseOptions = []) {
 
 export function FacultyManagementPage() {
   const { role } = useAuth()
+  const navigate = useNavigate()
   const isBusinessOwner = role === 'business-owner'
   const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
   const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
@@ -1623,7 +1626,7 @@ export function FacultyManagementPage() {
                       <button
                         type="button"
                         className="faculty-batch-details-button"
-                        onClick={() => openViewModal(record)}
+                        onClick={() => navigate(buildFacultyDetailsPath(record.id))}
                         aria-label={`View details for ${record.facultyName}`}
                       >
                         View Details

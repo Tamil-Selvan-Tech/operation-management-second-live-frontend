@@ -10,7 +10,10 @@ import { LoginPage } from '../pages/LoginPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 import { LoadingPage } from '../pages/LoadingPage'
 import { CoursesPage } from '../pages/CoursesPage'
+import { FacultyDetailsPage } from '../pages/FacultyDetailsPage'
 import { FacultyManagementPage } from '../pages/FacultyManagementPage'
+import { BatchStudentsPage } from '../pages/BatchStudentsPage'
+import { CourseBatchesPage } from '../pages/CourseBatchesPage'
 import { StudentManagementPage } from '../pages/StudentManagementPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 import { SessionExpiredPage } from '../pages/SessionExpiredPage'
@@ -89,7 +92,8 @@ function AppLayout() {
     location.pathname !== '/dashboard/student' &&
     location.pathname !== '/courses' &&
     location.pathname !== '/student-management' &&
-    location.pathname !== '/faculty-management'
+    location.pathname !== '/faculty-management' &&
+    !location.pathname.startsWith('/faculty-management/')
 
   return (
     <AppShell
@@ -198,10 +202,13 @@ export function AppRouter() {
             <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
             <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
             <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
-              <Route path="/courses" element={<CoursesPage />} />
-              <Route path="/student-management" element={<StudentManagementPage />} />
-              <Route path="/faculty-management" element={<FacultyManagementPage />} />
-            </Route>
+            <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/student-management" element={<StudentManagementPage />} />
+            <Route path="/faculty-management" element={<FacultyManagementPage />} />
+            <Route path="/faculty-management/:facultyId" element={<FacultyDetailsPage />} />
+            <Route path="/faculty-management/:facultyId/courses/:courseId" element={<CourseBatchesPage />} />
+            <Route path="/faculty-management/:facultyId/courses/:courseId/batches/:batchId" element={<BatchStudentsPage />} />
+          </Route>
             <Route path="/profile" element={<ProfileRedirectRoute />} />
           </Route>
         </Route>
