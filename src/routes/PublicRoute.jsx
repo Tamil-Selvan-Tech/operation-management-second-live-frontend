@@ -1,10 +1,15 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 
 export function PublicRoute() {
   const { isAuthenticated } = useAuth()
+  const location = useLocation()
+  const pathname = location.pathname || ''
 
-  if (isAuthenticated) {
+  const allowsAuthenticatedAccess =
+    pathname === '/forgot-password' || pathname === '/reset-password'
+
+  if (isAuthenticated && !allowsAuthenticatedAccess) {
     return <Navigate to="/dashboard" replace />
   }
 

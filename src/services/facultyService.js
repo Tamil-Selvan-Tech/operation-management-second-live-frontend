@@ -179,6 +179,11 @@ export async function listFacultyRecords(query = {}) {
   }
 }
 
+export async function getCurrentFacultyProfile() {
+  const response = await request('/faculty-management/me')
+  return normalizeFacultyRecord(unwrapData(response))
+}
+
 export async function createFacultyRecord(payload) {
   const nextPayload = buildFacultyPayload(payload)
   const response = await request('/faculty-management', {

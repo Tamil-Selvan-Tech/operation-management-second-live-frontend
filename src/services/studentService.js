@@ -122,6 +122,11 @@ export async function listStudents(query = {}) {
   }
 }
 
+export async function getCurrentStudentProfile() {
+  const response = await request('/students/me')
+  return normalizeStudent(unwrapData(response))
+}
+
 export async function createStudent(payload) {
   const response = await request('/students', {
     method: 'POST',
