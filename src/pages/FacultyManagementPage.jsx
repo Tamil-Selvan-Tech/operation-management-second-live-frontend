@@ -10,6 +10,7 @@ import {
   listFacultyRecords,
   updateFacultyRecord,
 } from '../services/facultyService'
+import { saveFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
 
 function createEmptyForm() {
@@ -1033,6 +1034,10 @@ export function FacultyManagementPage() {
   }, [])
 
   useEffect(() => {
+    saveFacultyRecords(records)
+  }, [records])
+
+  useEffect(() => {
     const refreshCourses = () => {
       void loadCourseOptions()
     }
@@ -1081,10 +1086,10 @@ export function FacultyManagementPage() {
     setActionError('')
     setForm(getPrefilledForm(record))
     setTouched({})
-    setModalMode('view')
+    setModalMode('edit')
     setEditingFacultyId(record.id)
     setSelectedFacultyRecord(record)
-    setIsViewDrawerEditing(true)
+    setIsViewDrawerEditing(false)
     setIsModalOpen(true)
   }
 
