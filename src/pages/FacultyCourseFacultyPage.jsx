@@ -1,0 +1,327 @@
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeft, BookOpen, ChevronRight, Mail, Phone, Search, UsersRound } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Button } from '../components/Button'
+import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
+import { loadFacultyRecords } from '../data/facultyRecords'
+import { loadStudentRecords } from '../data/studentRecords'
+import { listCourses, normalizeCourseList } from '../services/courseService'
+import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
+import { listStudents, normalizeStudentList } from '../services/studentService'
+import {
+  buildFacultyCoursePath,
+  buildFacultyCourseCatalogPath,
+  getFacultyBatchEntriesForCourse,
+  getFacultyCourseIds,
+  getFacultyCourseName,
+  getMatchingStudents,
+  sortByNameThenTiming,
+} from '../lib/facultyFlow'
+
+function apiErrorMessage(error, fallback) {
+  return error?.body?.message || error?.message || fallback
+}
+
+function loadStoredCourses() {
+  return normalizeCourseList(loadCourseRecords())
+}
+
+function loadStoredFaculty() {
+  return normalizeFacultyList(loadFacultyRecords())
+}
+
+function loadStoredStudents() {
+  return normalizeStudentList(loadStudentRecords())
+}
+
+export function FacultyCourseFacultyPage() {
+  const { courseId = '' } = useParams()
+  const navigate = useNavigate()
+
+  const [facultyRecords, setFacultyRecords] = useState([])
+  const [courseOptions, setCourseOptions] = useState([])
+  const [students, setStudents] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+
+      try {
+        const [facultyResult, courseResult, studentResult] = await Promise.all([
+          listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredFaculty() })),
+          listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredCourses() })),
+          listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredStudents() })),
+        ])
+
+        setFacultyRecords(Array.isArray(facultyResult.data) ? facultyResult.data : loadStoredFaculty())
+        setCourseOptions(Array.isArray(courseResult.data) ? courseResult.data : loadStoredCourses())
+        setStudents(Array.isArray(studentResult.data) ? studentResult.data : loadStoredStudents())
+        setError('')
+      } catch (nextError) {
+        setFacultyRecords(loadStoredFaculty())
+        setCourseOptions(loadStoredCourses())
+        setStudents(loadStoredStudents())
+        setError(apiErrorMessage(nextError, 'Unable to load faculty records right now.'))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    void loadData()
+
+    const syncData = () => void loadData()
+    window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncData)
+    window.addEventListener('cispro:faculty-changed', syncData)
+    window.addEventListener('cispro:students-changed', syncData)
+
+    return () => {
+      window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncData)
+      window.removeEventListener('cispro:faculty-changed', syncData)
+      window.removeEventListener('cispro:students-changed', syncData)
+    }
+  }, [])
+
+  const selectedCourse = useMemo(
+    () => courseOptions.find((course) => String(course?.id || '').trim() === String(courseId || '').trim()) || null,
+    [courseId, courseOptions],
+  )
+
+  const matchedFaculty = useMemo(() => {
+    const normalizedCourseId = String(courseId || '').trim()
+    if (!normalizedCourseId) return []
+
+    return facultyRecords
+      .filter((record) => getFacultyCourseIds(record).includes(normalizedCourseId))
+      .map((record) => {
+        const batchEntries = getFacultyBatchEntriesForCourse(record, normalizedCourseId)
+        const courseName = selectedCourse?.name || getFacultyCourseName(normalizedCourseId, courseOptions) || normalizedCourseId
+        const studentCount = batchEntries.reduce(
+          (sum, batch) =>
+            sum +
+            getMatchingStudents(students, {
+              facultyName: record.facultyName || '',
+              courseId: normalizedCourseId,
+              courseName,
+              batchName: batch.batchName,
+            }).length,
+          0,
+        )
+
+        return {
+          ...record,
+          batchEntries: sortByNameThenTiming(batchEntries),
+          studentCount,
+          courseName,
+        }
+      })
+      .sort((left, right) => String(left.facultyName || '').localeCompare(String(right.facultyName || '')))
+  }, [courseOptions, courseId, facultyRecords, selectedCourse, students])
+
+  const filteredFaculty = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase()
+    if (!normalizedSearch) return matchedFaculty
+
+    return matchedFaculty.filter((record) => String(record.facultyName || '').toLowerCase().includes(normalizedSearch))
+  }, [matchedFaculty, searchTerm])
+
+  const pageSize = 4
+  const totalPages = Math.max(1, Math.ceil(filteredFaculty.length / pageSize))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const visibleFaculty = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pageSize
+    return filteredFaculty.slice(start, start + pageSize)
+  }, [filteredFaculty, safeCurrentPage])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, courseId])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const pageList = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1)
+    }
+
+    const pages = [1]
+    const start = Math.max(2, safeCurrentPage - 1)
+    const end = Math.min(totalPages - 1, safeCurrentPage + 1)
+
+    if (start > 2) pages.push('left-ellipsis')
+    for (let page = start; page <= end; page += 1) pages.push(page)
+    if (end < totalPages - 1) pages.push('right-ellipsis')
+    pages.push(totalPages)
+    return pages
+  }, [safeCurrentPage, totalPages])
+
+  const goToPage = (page) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+  }
+
+  return (
+    <section className="faculty-flow-page faculty-course-faculty-page">
+      <div className="faculty-flow-toolbar">
+        <Button type="button" variant="ghost" className="faculty-flow-back-button" onClick={() => navigate(buildFacultyCourseCatalogPath())}>
+          <ArrowLeft size={18} />
+          <span>Back</span>
+        </Button>
+      </div>
+
+      {error ? (
+        <div className="faculty-flow-empty" role="alert">
+          <strong>Unable to load faculty</strong>
+          <p>{error}</p>
+        </div>
+      ) : null}
+
+      {!isLoading && !selectedCourse ? (
+        <div className="faculty-flow-empty">
+          <strong>Course not found</strong>
+          <p>The selected course is missing or has been removed.</p>
+        </div>
+      ) : null}
+
+      {!isLoading && selectedCourse ? (
+        <>
+          <article className="faculty-flow-hero panel-card">
+            <div className="faculty-flow-hero-main">
+              <div className="faculty-flow-avatar" aria-hidden="true">
+                <BookOpen />
+              </div>
+              <div className="faculty-flow-hero-copy">
+                <p className="faculty-flow-kicker">Faculty List</p>
+                <h2>{selectedCourse.name || courseId}</h2>
+                <p>Choose a faculty member to view the batches mapped under this course.</p>
+              </div>
+            </div>
+
+            <div className="faculty-flow-stats" aria-label="Course summary">
+              <div className="faculty-flow-stat">
+                <span>Total Faculty</span>
+                <strong>{matchedFaculty.length}</strong>
+              </div>
+              <div className="faculty-flow-stat">
+                <span>Total Students</span>
+                <strong>
+                  {matchedFaculty.reduce((sum, record) => sum + Number(record.studentCount || 0), 0)}
+                </strong>
+              </div>
+            </div>
+          </article>
+
+          <article className="faculty-flow-section">
+            <div className="faculty-course-faculty-toolbar">
+              <div className="faculty-course-faculty-summary">
+                <p className="faculty-course-faculty-kicker">Faculty Records</p>
+                <h3>Faculty Members</h3>
+                <p>Search by faculty name and open any record to view batches.</p>
+              </div>
+              <form className="faculty-course-faculty-search" onSubmit={(event) => event.preventDefault()}>
+                <span className="faculty-course-faculty-search-icon" aria-hidden="true">
+                  <Search size={18} />
+                </span>
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search faculty name"
+                  aria-label="Search faculty name"
+                />
+              </form>
+            </div>
+
+            <div className="faculty-flow-course-grid">
+              {visibleFaculty.length ? (
+                visibleFaculty.map((record) => (
+                  <button
+                    key={record.id}
+                    type="button"
+                    className="faculty-flow-course-card"
+                    onClick={() => navigate(buildFacultyCoursePath(record.id, courseId))}
+                  >
+                    <div className="faculty-flow-course-left">
+                      <div className="faculty-flow-course-icon">
+                        <UsersRound />
+                      </div>
+                      <div className="faculty-flow-course-copy">
+                        <strong>{record.facultyName || '-'}</strong>
+                        <span className="faculty-flow-course-badge">
+                          <Mail size={14} />
+                          {record.facultyEmail || '-'}
+                        </span>
+                        <p>{record.batchEntries.length} Batch{record.batchEntries.length === 1 ? '' : 'es'}</p>
+                      </div>
+                    </div>
+                    <div className="faculty-flow-course-overview">
+                      <div className="faculty-flow-overview-card">
+                        <div className="faculty-flow-overview-icon faculty-flow-overview-icon-blue">
+                          <Phone size={18} />
+                        </div>
+                        <div>
+                          <span>Phone</span>
+                          <strong>{record.facultyPhone || '-'}</strong>
+                        </div>
+                      </div>
+                      <div className="faculty-flow-overview-card">
+                        <div className="faculty-flow-overview-icon faculty-flow-overview-icon-green">
+                          <UsersRound size={18} />
+                        </div>
+                        <div>
+                          <span>Students</span>
+                          <strong>{record.studentCount}</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="faculty-flow-course-chevron" />
+                  </button>
+                ))
+              ) : (
+                <div className="faculty-flow-empty">
+                  <strong>{searchTerm.trim() ? 'No matching faculty found' : 'No faculty mapped yet'}</strong>
+                  <p>{searchTerm.trim() ? 'Try a different faculty name.' : 'This course does not have any faculty records assigned.'}</p>
+                </div>
+              )}
+            </div>
+
+            {filteredFaculty.length ? (
+              <div className="faculty-course-pagination">
+                <button type="button" className="pagination-link" onClick={() => goToPage(safeCurrentPage - 1)} disabled={safeCurrentPage === 1}>
+                  <span aria-hidden="true">&lt;</span>
+                  <span>Prev</span>
+                </button>
+                <div className="pagination-pages">
+                  {pageList.map((page, index) =>
+                    typeof page === 'number' ? (
+                      <button
+                        key={page}
+                        type="button"
+                        className={`pagination-page ${safeCurrentPage === page ? 'active' : ''}`}
+                        onClick={() => goToPage(page)}
+                      >
+                        {page}
+                      </button>
+                    ) : (
+                      <span key={`${page}-${index}`} className="pagination-dots">...</span>
+                    ),
+                  )}
+                </div>
+                <button type="button" className="pagination-link" onClick={() => goToPage(safeCurrentPage + 1)} disabled={safeCurrentPage === totalPages}>
+                  <span>Next</span>
+                  <span aria-hidden="true">&gt;</span>
+                </button>
+              </div>
+            ) : null}
+          </article>
+        </>
+      ) : null}
+    </section>
+  )
+}

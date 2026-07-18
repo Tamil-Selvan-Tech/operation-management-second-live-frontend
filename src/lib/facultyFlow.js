@@ -112,16 +112,32 @@ export function buildFacultyDetailsPath(facultyId) {
   return `/faculty-management/${encodeURIComponent(String(facultyId || '').trim())}`
 }
 
+export function buildFacultyCourseCatalogPath() {
+  return '/faculty-management/courses'
+}
+
+export function buildFacultyCourseListPath(courseId) {
+  return `/faculty-management/course/${encodeURIComponent(String(courseId || '').trim())}`
+}
+
 export function buildFacultyCoursePath(facultyId, courseId) {
-  return `${buildFacultyDetailsPath(facultyId)}/courses/${encodeURIComponent(String(courseId || '').trim())}`
+  return `/faculty-management/course/${encodeURIComponent(String(courseId || '').trim())}/faculty/${encodeURIComponent(String(facultyId || '').trim())}/batches`
 }
 
 export function buildFacultyBatchPath(facultyId, courseId, batchEntryId) {
-  return `${buildFacultyCoursePath(facultyId, courseId)}/batches/${encodeURIComponent(String(batchEntryId || '').trim())}`
+  return `${buildFacultyCoursePath(facultyId, courseId)}/${encodeURIComponent(String(batchEntryId || '').trim())}`
 }
 
-export function buildStudentManagementPath(studentId) {
-  return `/student-management?studentId=${encodeURIComponent(String(studentId || '').trim())}`
+export function buildStudentManagementPath({ studentId = '', courseId = '', facultyId = '', batchId = '' } = {}) {
+  const params = new URLSearchParams()
+
+  if (studentId) params.set('studentId', String(studentId).trim())
+  if (courseId) params.set('courseId', String(courseId).trim())
+  if (facultyId) params.set('facultyId', String(facultyId).trim())
+  if (batchId) params.set('batchId', String(batchId).trim())
+
+  const query = params.toString()
+  return query ? `/student-management?${query}` : '/student-management'
 }
 
 export function sortByNameThenTiming(entries = []) {

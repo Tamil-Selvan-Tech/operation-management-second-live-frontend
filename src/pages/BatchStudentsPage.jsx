@@ -10,7 +10,6 @@ import { listFacultyRecords, normalizeFacultyList } from '../services/facultySer
 import { listStudents, normalizeStudentList } from '../services/studentService'
 import {
   buildFacultyCoursePath,
-  buildStudentManagementPath,
   getFacultyBatchEntryById,
   getFacultyCourseName,
   getMatchingStudents,
@@ -43,6 +42,26 @@ function formatDate(value) {
   }).format(date)
 }
 
+function formatCurrency(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return '-'
+
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
+function DetailRow({ label, value, tone = '' }) {
+  return (
+    <div className="batch-student-detail-row">
+      <span>{label}</span>
+      <strong className={tone ? `tone-${tone}` : ''}>{value || '-'}</strong>
+    </div>
+  )
+}
+
 export function BatchStudentsPage() {
   const { facultyId = '', courseId = '', batchId = '' } = useParams()
   const navigate = useNavigate()
@@ -52,6 +71,7 @@ export function BatchStudentsPage() {
   const [students, setStudents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [selectedStudent, setSelectedStudent] = useState(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -123,8 +143,16 @@ export function BatchStudentsPage() {
     [batchName, courseId, courseName, selectedFaculty, students],
   )
 
+  const selectedStudentCourse = useMemo(
+    () =>
+      courseOptions.find((course) => String(course?.id || '').trim() === String(selectedStudent?.courseId || courseId || '').trim()) ||
+      selectedCourse ||
+      null,
+    [courseId, courseOptions, selectedCourse, selectedStudent],
+  )
+
   return (
-    <section className="faculty-flow-page">
+    <section className="faculty-flow-page faculty-batch-students-page">
       <div className="faculty-flow-toolbar">
         <Button
           type="button"
@@ -224,7 +252,7 @@ export function BatchStudentsPage() {
                           <button
                             type="button"
                             className="faculty-flow-mini-button"
-                            onClick={() => navigate(buildStudentManagementPath(student.id))}
+                            onClick={() => setSelectedStudent(student)}
                           >
                             View Details
                           </button>
@@ -242,6 +270,57 @@ export function BatchStudentsPage() {
             )}
           </article>
         </>
+      ) : null}
+
+      {selectedStudent ? (
+        <div className="course-modal-backdrop student-modal-backdrop batch-student-modal-backdrop" role="presentation" onClick={() => setSelectedStudent(null)}>
+          <div className="course-modal panel-card student-modal batch-student-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="course-modal-close batch-student-modal-close"
+              onClick={() => setSelectedStudent(null)}
+              aria-label="Close student details"
+            >
+              x
+            </button>
+
+            <div className="batch-student-modal-header">
+              <div>
+                <p className="section-kicker">Student Details</p>
+                <h3>{selectedStudent.studentName || '-'}</h3>
+                <p>All student information stays on this batch page.</p>
+              </div>
+              <div className={`batch-student-status ${String(selectedStudent.status || 'Inactive').toLowerCase()}`}>
+                {selectedStudent.status || 'Inactive'}
+              </div>
+            </div>
+
+            <div className="batch-student-modal-grid">
+              <DetailRow label="Student Name" value={selectedStudent.studentName} />
+              <DetailRow label="Email Address" value={selectedStudent.emailAddress} />
+              <DetailRow label="Mobile Number" value={selectedStudent.mobileNumber} />
+              <DetailRow label="Parent / Spouse Number" value={selectedStudent.parentSpouseNumber} />
+              <DetailRow label="Location" value={selectedStudent.location} />
+              <DetailRow label="Course Interested" value={selectedStudent.courseInterested || selectedStudentCourse?.name || courseName} />
+              <DetailRow label="Faculty Name" value={selectedStudent.facultyName || selectedFaculty?.facultyName} />
+              <DetailRow label="Batch" value={`${batchName}${batchTiming && batchTiming !== '-' ? ` (${batchTiming})` : ''}`} />
+              <DetailRow label="Qualification" value={selectedStudent.qualification} />
+              <DetailRow label="Passed Out Year" value={selectedStudent.passedOutYear} />
+              <DetailRow label="Current Status" value={selectedStudent.currentStatus} />
+              <DetailRow label="Designation" value={selectedStudent.designation} />
+              <DetailRow label="Admission Date" value={formatDate(selectedStudent.admissionDate)} />
+              <DetailRow label="Total Course Fee" value={formatCurrency(selectedStudent.totalAmount || selectedStudent.actualFees || selectedStudent.afterDiscount)} />
+              <DetailRow label="Discount" value={formatCurrency(selectedStudent.discount)} />
+              <DetailRow label="Final Fee" value={formatCurrency(selectedStudent.afterDiscount)} />
+              <DetailRow label="Payment Mode" value={selectedStudent.paymentMode || selectedStudent.paymentType || '-'} />
+              <DetailRow label="Source" value={selectedStudent.source} />
+              <DetailRow label="Remarks" value={selectedStudent.remarks} />
+              <DetailRow label="1st Installment Status" value={selectedStudent.firstInstallmentStatus} />
+              <DetailRow label="2nd Installment Status" value={selectedStudent.secondInstallmentStatus} />
+              <DetailRow label="3rd Installment Status" value={selectedStudent.thirdInstallmentStatus} />
+            </div>
+          </div>
+        </div>
       ) : null}
     </section>
   )

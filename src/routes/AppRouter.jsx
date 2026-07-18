@@ -21,6 +21,8 @@ import { LoadingPage } from '../pages/LoadingPage'
 import { CoursesPage } from '../pages/CoursesPage'
 import { FacultyDetailsPage } from '../pages/FacultyDetailsPage'
 import { FacultyManagementPage } from '../pages/FacultyManagementPage'
+import { FacultyCourseCatalogPage } from '../pages/FacultyCourseCatalogPage'
+import { FacultyCourseFacultyPage } from '../pages/FacultyCourseFacultyPage'
 import { BatchStudentsPage } from '../pages/BatchStudentsPage'
 import { CourseBatchesPage } from '../pages/CourseBatchesPage'
 import { StudentManagementPage } from '../pages/StudentManagementPage'
@@ -30,10 +32,17 @@ import { UnauthorizedPage } from '../pages/UnauthorizedPage'
 import { requestPasswordReset, resetPassword } from '../services/apiClient'
 import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
 import { PublicRoute } from './PublicRoute'
+import {
+  clearPendingLoginEmail,
+  loadPendingLoginEmail,
+  savePendingLoginEmail,
+} from '../lib/session'
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
 
 function LoginScreen() {
   const [form, setForm] = useState({
-    email: '',
+    email: loadPendingLoginEmail(),
     password: '',
     rememberMe: false,
   })
@@ -53,6 +62,7 @@ function LoginScreen() {
 
     try {
       const target = await signIn(form)
+      clearPendingLoginEmail()
       navigate(target)
     } catch (error) {
       const status = error?.status
@@ -146,11 +156,12 @@ function LoginResetRoute({ title }) {
 
       if (title === 'forgot') {
         const email = String(formData.get('email') || '').trim()
-        if (!email) {
+        if (!isValidEmail(email)) {
           throw new Error('Email is required')
         }
 
         const result = await requestPasswordReset(email)
+        savePendingLoginEmail(email)
         setSuccessMessage(result?.message || 'Reset link sent successfully.')
         event.currentTarget.reset()
         return
@@ -284,6 +295,10 @@ export function AppRouter() {
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/student-management" element={<StudentManagementPage />} />
             <Route path="/faculty-management" element={<FacultyManagementPage />} />
+            <Route path="/faculty-management/courses" element={<FacultyCourseCatalogPage />} />
+            <Route path="/faculty-management/course/:courseId" element={<FacultyCourseFacultyPage />} />
+            <Route path="/faculty-management/course/:courseId/faculty/:facultyId/batches" element={<CourseBatchesPage />} />
+            <Route path="/faculty-management/course/:courseId/faculty/:facultyId/batches/:batchId" element={<BatchStudentsPage />} />
             <Route path="/faculty-management/:facultyId" element={<FacultyDetailsPage />} />
             <Route path="/faculty-management/:facultyId/courses/:courseId" element={<CourseBatchesPage />} />
             <Route path="/faculty-management/:facultyId/courses/:courseId/batches/:batchId" element={<BatchStudentsPage />} />
