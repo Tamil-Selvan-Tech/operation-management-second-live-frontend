@@ -1,5 +1,5 @@
 import { isValidElement, useEffect, useMemo, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   BadgeCheck,
   BookOpen,
@@ -27,6 +27,7 @@ import { listFacultyRecords, normalizeFacultyList } from '../services/facultySer
 import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
 import { normalizeCourseList } from '../services/courseService'
 import { savePendingLoginEmail } from '../lib/session'
+import { getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
 
 const statusOptions = ['Student', 'Employee', 'Other']
 const recordStatusOptions = ['Active', 'Inactive']
@@ -669,8 +670,8 @@ function DangerIcon() {
 
 export function StudentManagementPage() {
   const { role } = useAuth()
-  const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [students, setStudents] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
   const [facultyOptions, setFacultyOptions] = useState([])
@@ -784,15 +785,51 @@ export function StudentManagementPage() {
     () => (selectedStudent ? findCourseForStudent(selectedStudent, courseOptions) : null),
     [courseOptions, selectedStudent],
   )
-  const selectedStudentQueryId = useMemo(() => new URLSearchParams(location.search).get('studentId') || '', [location.search])
-  const totalStudents = students.length
-  const latestStudent = students[0]
+  const courseFilterId = String(searchParams.get('courseId') || '').trim()
+  const facultyFilterId = String(searchParams.get('facultyId') || '').trim()
+  const batchFilterId = String(searchParams.get('batchId') || '').trim()
+  const selectedStudentQueryId = String(searchParams.get('studentId') || '').trim()
+  const selectedFacultyFilter = useMemo(
+    () => facultyOptions.find((faculty) => String(faculty?.id || '').trim() === facultyFilterId) || null,
+    [facultyFilterId, facultyOptions],
+  )
+  const selectedCourseFilter = useMemo(
+    () => courseOptions.find((course) => String(course?.id || '').trim() === courseFilterId) || null,
+    [courseFilterId, courseOptions],
+  )
+  const selectedBatchFilter = useMemo(
+    () => (selectedFacultyFilter ? getFacultyBatchEntryById(selectedFacultyFilter, batchFilterId) : null),
+    [batchFilterId, selectedFacultyFilter],
+  )
+  const filteredStudents = useMemo(() => {
+    if (!courseFilterId && !facultyFilterId && !batchFilterId) return students
+
+    return getMatchingStudents(students, {
+      facultyName: selectedFacultyFilter?.facultyName || '',
+      courseId: courseFilterId,
+      courseName: selectedCourseFilter?.name || getFacultyCourseName(courseFilterId, courseOptions) || '',
+      batchName: selectedBatchFilter?.batchName || '',
+    })
+  }, [batchFilterId, courseFilterId, courseOptions, facultyFilterId, selectedCourseFilter, selectedFacultyFilter, selectedBatchFilter, students])
+  const buildStudentManagementUrl = (studentId = '') => {
+    const params = new URLSearchParams()
+
+    if (studentId) params.set('studentId', String(studentId).trim())
+    if (courseFilterId) params.set('courseId', courseFilterId)
+    if (facultyFilterId) params.set('facultyId', facultyFilterId)
+    if (batchFilterId) params.set('batchId', batchFilterId)
+
+    const query = params.toString()
+    return query ? `/student-management?${query}` : '/student-management'
+  }
+  const totalStudents = filteredStudents.length
+  const latestStudent = filteredStudents[0]
   const totalPages = Math.max(1, Math.ceil(totalStudents / studentsPerPage))
   const currentPageSafe = Math.min(currentPage, totalPages)
   const paginatedStudents = useMemo(() => {
     const start = (currentPageSafe - 1) * studentsPerPage
-    return students.slice(start, start + studentsPerPage)
-  }, [currentPageSafe, students])
+    return filteredStudents.slice(start, start + studentsPerPage)
+  }, [currentPageSafe, filteredStudents])
   const loadStudents = async () => {
     setIsStudentsLoading(true)
 
@@ -1020,7 +1057,7 @@ export function StudentManagementPage() {
     setSelectedStudentId(student.id)
     setIsDrawerOpen(true)
     setIsDrawerEditing(false)
-    navigate(`/student-management?studentId=${encodeURIComponent(student.id)}`)
+    navigate(buildStudentManagementUrl(student.id))
   }
 
   const openDeleteModal = (student) => {
@@ -1032,7 +1069,7 @@ export function StudentManagementPage() {
     setIsDrawerOpen(false)
     setIsDrawerEditing(false)
     setSelectedStudentId('')
-    navigate('/student-management', { replace: true })
+    navigate(buildStudentManagementUrl(), { replace: true })
   }
 
   const closeDeleteModal = () => {
@@ -1472,7 +1509,7 @@ export function StudentManagementPage() {
             <strong>Loading students...</strong>
             <p>Connecting to the backend student records.</p>
           </div>
-        ) : students.length ? (
+        ) : filteredStudents.length ? (
           <div className="student-table-wrap">
             <table className="student-table">
               <thead>
@@ -1681,7 +1718,7 @@ export function StudentManagementPage() {
           </div>
         )}
 
-        {students.length > studentsPerPage ? (
+        {filteredStudents.length > studentsPerPage ? (
           <div className="course-pagination student-pagination">
             <button
               type="button"

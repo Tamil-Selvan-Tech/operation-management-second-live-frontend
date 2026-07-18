@@ -14,7 +14,7 @@ import {
 } from '../services/facultyService'
 import { loadFacultyRecords, saveFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
-import { buildFacultyDetailsPath, getFacultyCourseIds } from '../lib/facultyFlow'
+import { buildFacultyCourseCatalogPath, buildFacultyDetailsPath, getFacultyCourseIds } from '../lib/facultyFlow'
 
 function createEmptyForm() {
   return {
@@ -1538,6 +1538,9 @@ export function FacultyManagementPage() {
               Search
             </Button>
           </form>
+          <Button type="button" className="faculty-add-button" variant="ghost" onClick={() => navigate(buildFacultyCourseCatalogPath())}>
+            Batch
+          </Button>
           <div className="faculty-management-stat">
             <span>Total Faculty</span>
             <strong>{totalFaculty}</strong>

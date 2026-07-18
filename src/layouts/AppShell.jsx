@@ -29,9 +29,9 @@ export function AppShell({
   const isFlatMainArea =
     isOperationManagerDashboard ||
     isBusinessOwnerDashboard ||
-    location.pathname === '/student-management' ||
-    location.pathname === '/faculty-management' ||
-    location.pathname === '/courses'
+    location.pathname.startsWith('/student-management') ||
+    location.pathname.startsWith('/faculty-management') ||
+    location.pathname.startsWith('/courses')
 
   return (
     <div className="app-shell">

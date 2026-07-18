@@ -21,6 +21,8 @@ import { LoadingPage } from '../pages/LoadingPage'
 import { CoursesPage } from '../pages/CoursesPage'
 import { FacultyDetailsPage } from '../pages/FacultyDetailsPage'
 import { FacultyManagementPage } from '../pages/FacultyManagementPage'
+import { FacultyCourseCatalogPage } from '../pages/FacultyCourseCatalogPage'
+import { FacultyCourseFacultyPage } from '../pages/FacultyCourseFacultyPage'
 import { BatchStudentsPage } from '../pages/BatchStudentsPage'
 import { CourseBatchesPage } from '../pages/CourseBatchesPage'
 import { StudentManagementPage } from '../pages/StudentManagementPage'
@@ -291,6 +293,10 @@ export function AppRouter() {
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/student-management" element={<StudentManagementPage />} />
             <Route path="/faculty-management" element={<FacultyManagementPage />} />
+            <Route path="/faculty-management/courses" element={<FacultyCourseCatalogPage />} />
+            <Route path="/faculty-management/course/:courseId" element={<FacultyCourseFacultyPage />} />
+            <Route path="/faculty-management/course/:courseId/faculty/:facultyId/batches" element={<CourseBatchesPage />} />
+            <Route path="/faculty-management/course/:courseId/faculty/:facultyId/batches/:batchId" element={<BatchStudentsPage />} />
             <Route path="/faculty-management/:facultyId" element={<FacultyDetailsPage />} />
             <Route path="/faculty-management/:facultyId/courses/:courseId" element={<CourseBatchesPage />} />
             <Route path="/faculty-management/:facultyId/courses/:courseId/batches/:batchId" element={<BatchStudentsPage />} />
