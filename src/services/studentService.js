@@ -1,5 +1,3 @@
-
-import { loadStudentRecords } from '../data/studentRecords'
 import { request } from './apiClient'
 
 const STUDENT_PAGE_LIMIT = 100
@@ -113,7 +111,7 @@ export async function listStudents(query = {}) {
   } catch (error) {
     if (error?.status === 401) {
       return {
-        data: normalizeStudentList(loadStudentRecords()),
+        data: [],
         meta: null,
       }
     }

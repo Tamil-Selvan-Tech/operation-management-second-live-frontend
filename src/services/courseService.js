@@ -1,4 +1,3 @@
-import { loadCourseRecords } from '../data/courseRecords'
 import { request } from './apiClient'
 
 const COURSE_PAGE_LIMIT = 5
@@ -89,7 +88,7 @@ export async function listCourses(query = {}) {
   } catch (error) {
     if (error?.status === 401) {
       return {
-        data: normalizeCourseList(loadCourseRecords()),
+        data: [],
         meta: null,
       }
     }

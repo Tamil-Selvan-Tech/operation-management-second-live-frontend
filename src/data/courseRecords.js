@@ -1,21 +1,23 @@
 export const COURSE_STORAGE_KEY = 'cispro.course-management.records'
 export const COURSE_RECORD_SYNC_EVENT = 'cispro:courses-changed'
 
-export function loadCourseRecords() {
+function clearLegacyCourseRecords() {
   try {
-    if (typeof window === 'undefined') return []
-    const parsed = JSON.parse(window.localStorage.getItem(COURSE_STORAGE_KEY) || '[]')
-    return Array.isArray(parsed) ? parsed : []
+    if (typeof window === 'undefined') return
+    window.localStorage.removeItem(COURSE_STORAGE_KEY)
   } catch {
-    return []
+    // ignore storage errors
   }
 }
 
+export function loadCourseRecords() {
+  clearLegacyCourseRecords()
+  return []
+}
+
 export function saveCourseRecords(records) {
-  try {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(COURSE_STORAGE_KEY, JSON.stringify(Array.isArray(records) ? records : []))
-  } catch {
-    // ignore storage errors
+  clearLegacyCourseRecords()
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(COURSE_RECORD_SYNC_EVENT))
   }
 }

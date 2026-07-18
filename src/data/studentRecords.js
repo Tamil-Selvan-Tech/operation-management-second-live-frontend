@@ -1,21 +1,22 @@
 export const STUDENT_STORAGE_KEY = 'cispro.student-management.records'
 
-export function loadStudentRecords() {
+function clearLegacyStudentRecords() {
   try {
-    if (typeof window === 'undefined') return []
-    const parsed = JSON.parse(window.localStorage.getItem(STUDENT_STORAGE_KEY) || '[]')
-    return Array.isArray(parsed) ? parsed : []
+    if (typeof window === 'undefined') return
+    window.localStorage.removeItem(STUDENT_STORAGE_KEY)
   } catch {
-    return []
+    // ignore storage errors
   }
 }
 
+export function loadStudentRecords() {
+  clearLegacyStudentRecords()
+  return []
+}
+
 export function saveStudentRecords(records) {
-  try {
-    if (typeof window === 'undefined') return
-    window.localStorage.setItem(STUDENT_STORAGE_KEY, JSON.stringify(Array.isArray(records) ? records : []))
+  clearLegacyStudentRecords()
+  if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('cispro:students-changed'))
-  } catch {
-    // ignore storage errors
   }
 }

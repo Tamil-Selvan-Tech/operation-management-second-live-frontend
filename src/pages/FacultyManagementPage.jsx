@@ -12,7 +12,7 @@ import {
   normalizeFacultyList,
   updateFacultyRecord,
 } from '../services/facultyService'
-import { loadFacultyRecords, saveFacultyRecords } from '../data/facultyRecords'
+import { loadFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
 import { buildFacultyDetailsPath, getFacultyCourseIds } from '../lib/facultyFlow'
 
@@ -1248,39 +1248,7 @@ export function FacultyManagementPage() {
     try {
       const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
       const fetchedRecords = Array.isArray(result.data) ? result.data : []
-      const cachedRecords = normalizeFacultyList(loadFacultyRecords())
-      const cachedById = new Map(cachedRecords.map((record) => [String(record?.id || '').trim(), record]).filter(([id]) => Boolean(id)))
-
-      const mergedRecords = fetchedRecords.map((record) => {
-        const cachedRecord = cachedById.get(String(record?.id || '').trim())
-        if (!cachedRecord) return record
-
-        const mergedCourseIds = Array.from(
-          new Set([
-            ...(Array.isArray(record.courseIds) ? record.courseIds : []),
-            ...(Array.isArray(cachedRecord.courseIds) ? cachedRecord.courseIds : []),
-            record.courseId || '',
-            cachedRecord.courseId || '',
-          ].map((courseId) => String(courseId || '').trim()).filter(Boolean)),
-        )
-
-        const mergedBatchEntries = Array.isArray(record.batchEntries) && record.batchEntries.length
-          ? record.batchEntries
-          : Array.isArray(cachedRecord.batchEntries) && cachedRecord.batchEntries.length
-            ? cachedRecord.batchEntries
-            : []
-
-        return {
-          ...cachedRecord,
-          ...record,
-          courseIds: mergedCourseIds,
-          courseId: mergedCourseIds[0] || record.courseId || cachedRecord.courseId || '',
-          batchEntries: mergedBatchEntries,
-          batchCount: Number(record.batchCount ?? cachedRecord.batchCount ?? mergedBatchEntries.length) || mergedBatchEntries.length,
-        }
-      })
-
-      setRecords(normalizeFacultyList(mergedRecords))
+      setRecords(normalizeFacultyList(fetchedRecords))
       setActionError('')
     } catch (error) {
       setRecords(normalizeFacultyList(loadFacultyRecords()))
@@ -1306,10 +1274,6 @@ export function FacultyManagementPage() {
       document.body.style.overflow = previousOverflow
     }
   }, [isModalOpen])
-
-  useEffect(() => {
-    saveFacultyRecords(records)
-  }, [records])
 
   useEffect(() => {
     const refreshCourses = () => {
@@ -1479,7 +1443,6 @@ export function FacultyManagementPage() {
         : await createFacultyRecord(payload)
 
       const nextRecords = upsertFacultyRecordById(records, savedRecord)
-      saveFacultyRecords(nextRecords)
       setRecords(nextRecords)
       await loadFacultyOptions()
       setCurrentPage(1)
