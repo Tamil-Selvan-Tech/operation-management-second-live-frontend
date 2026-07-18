@@ -78,7 +78,7 @@ function formatHours(value) {
   return `${normalized} ${normalized === '1' ? 'hour' : 'hours'}`
 }
 
-const MAX_CUSTOM_INSTALLMENTS = 12
+const MAX_CUSTOM_INSTALLMENTS = 3
 
 const requiredFieldLabels = {
   name: 'Course Name',
@@ -131,6 +131,10 @@ function buildInstallmentsFromCourse(course, count) {
     installments.push(String(course?.[`installment${index}`] ?? ''))
   }
   return installments
+}
+
+function apiErrorMessage(error, fallback) {
+  return error?.body?.message || error?.body?.error || error?.message || fallback
 }
 
 export function CoursesPage() {
@@ -213,6 +217,10 @@ export function CoursesPage() {
 
     if (form.actualFees && form.discount && Number(form.discount) > Number(form.actualFees)) {
       errors.discount = 'Discount must be less than or equal to actual fees.'
+    }
+
+    if (form.installmentCount === 'custom' && Number(form.customInstallmentCount) > MAX_CUSTOM_INSTALLMENTS) {
+      errors.customInstallmentCount = 'Custom installment count is limited to 3.'
     }
 
     const allRequiredFilled =
@@ -353,10 +361,11 @@ export function CoursesPage() {
 
   const handleCustomInstallmentCountChange = (value) => {
     if (saveError) setSaveError('')
+    const nextDigits = value.replace(/[^\d]/g, '')
     setForm((current) => ({
       ...current,
       installmentCount: 'custom',
-      customInstallmentCount: value.replace(/[^\d]/g, ''),
+      customInstallmentCount: nextDigits ? String(Math.min(Number(nextDigits), MAX_CUSTOM_INSTALLMENTS)) : '',
     }))
   }
 
@@ -504,7 +513,7 @@ export function CoursesPage() {
       await loadCourses({ page: editingCourseId ? currentPage : 1, search: searchTerm, filter: activeFilter })
       closeModalAfterSave()
     } catch (error) {
-      setSaveError(error?.message || 'Unable to save course right now.')
+      setSaveError(apiErrorMessage(error, 'Unable to save course right now.'))
     } finally {
       setIsSaving(false)
     }

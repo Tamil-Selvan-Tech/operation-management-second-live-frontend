@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, Mail, Phone, UserRound, UsersRound } from 'lucide-react'
+import {
+  ArrowLeft,
+  BadgeCheck,
+  BookOpen,
+  CalendarDays,
+  CircleDollarSign,
+  FileText,
+  GraduationCap,
+  Mail,
+  MapPin,
+  Phone,
+  UserRound,
+  UsersRound,
+} from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -53,13 +66,55 @@ function formatCurrency(value) {
   }).format(amount)
 }
 
-function DetailRow({ label, value, tone = '', valueClassName = '' }) {
+function getStudentInitials(name) {
+  const value = String(name || '').trim()
+  if (!value) return 'ST'
+
+  return value
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('')
+    .slice(0, 2)
+}
+
+function DetailRow({ label, value, tone = '', valueClassName = '', icon: Icon = UserRound, iconTone = 'blue' }) {
   return (
-    <div className="batch-student-detail-row">
+    <div className="batch-student-detail-row" data-tone={iconTone}>
+      <div className="batch-student-detail-icon" aria-hidden="true">
+        <Icon />
+      </div>
       <span>{label}</span>
       <strong className={`${tone ? `tone-${tone}` : ''} ${valueClassName}`.trim()}>{value || '-'}</strong>
     </div>
   )
+}
+
+function getBatchStudentDetailItems(selectedStudent, selectedStudentCourse, selectedFaculty, courseName, batchName, batchTiming) {
+  return [
+    { label: 'Student Name', value: selectedStudent.studentName, icon: UserRound, iconTone: 'blue' },
+    { label: 'Email Address', value: selectedStudent.emailAddress, valueClassName: 'student-inline-email', icon: Mail, iconTone: 'blue' },
+    { label: 'Mobile Number', value: selectedStudent.mobileNumber, icon: Phone, iconTone: 'green' },
+    { label: 'Parent / Spouse Number', value: selectedStudent.parentSpouseNumber, icon: UsersRound, iconTone: 'green' },
+    { label: 'Location', value: selectedStudent.location, icon: MapPin, iconTone: 'purple' },
+    { label: 'Course Interested', value: selectedStudent.courseInterested || selectedStudentCourse?.name || courseName, icon: BookOpen, iconTone: 'purple' },
+    { label: 'Faculty Name', value: selectedStudent.facultyName || selectedFaculty?.facultyName, icon: GraduationCap, iconTone: 'orange' },
+    { label: 'Batch', value: `${batchName}${batchTiming && batchTiming !== '-' ? ` (${batchTiming})` : ''}`, icon: CalendarDays, iconTone: 'orange' },
+    { label: 'Qualification', value: selectedStudent.qualification, icon: BadgeCheck, iconTone: 'cyan' },
+    { label: 'Passed Out Year', value: selectedStudent.passedOutYear, icon: GraduationCap, iconTone: 'cyan' },
+    { label: 'Current Status', value: selectedStudent.currentStatus, icon: UsersRound, iconTone: 'pink' },
+    { label: 'Designation', value: selectedStudent.designation, icon: FileText, iconTone: 'pink' },
+    { label: 'Admission Date', value: formatDate(selectedStudent.admissionDate), icon: CalendarDays, iconTone: 'amber' },
+    { label: 'Total Course Fee', value: formatCurrency(selectedStudent.totalAmount || selectedStudent.actualFees || selectedStudent.afterDiscount), icon: CircleDollarSign, iconTone: 'amber' },
+    { label: 'Discount', value: formatCurrency(selectedStudent.discount), icon: FileText, iconTone: 'violet' },
+    { label: 'Final Fee', value: formatCurrency(selectedStudent.afterDiscount), icon: CircleDollarSign, iconTone: 'violet' },
+    { label: 'Payment Mode', value: selectedStudent.paymentMode || selectedStudent.paymentType || '-', icon: BadgeCheck, iconTone: 'blue' },
+    { label: 'Source', value: selectedStudent.source, icon: FileText, iconTone: 'green' },
+    { label: 'Remarks', value: selectedStudent.remarks, icon: FileText, iconTone: 'pink' },
+    { label: '1st Installment Status', value: selectedStudent.firstInstallmentStatus, icon: BadgeCheck, iconTone: 'green', tone: String(selectedStudent.firstInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning' },
+    { label: '2nd Installment Status', value: selectedStudent.secondInstallmentStatus, icon: BadgeCheck, iconTone: 'green', tone: String(selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning' },
+    { label: '3rd Installment Status', value: selectedStudent.thirdInstallmentStatus, icon: BadgeCheck, iconTone: 'green', tone: String(selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning' },
+  ]
 }
 
 export function BatchStudentsPage() {
@@ -292,39 +347,34 @@ export function BatchStudentsPage() {
             </button>
 
             <div className="batch-student-modal-header">
-              <div>
-                <p className="section-kicker">Student Details</p>
-                <h3>{selectedStudent.studentName || '-'}</h3>
-                <p>All student information stays on this batch page.</p>
+              <div className="batch-student-modal-header-main">
+                <div className="batch-student-avatar" aria-hidden="true">
+                  {getStudentInitials(selectedStudent.studentName)}
+                </div>
+                <div className="batch-student-modal-header-copy">
+                  <p className="section-kicker">Student Details</p>
+                  <h3>{selectedStudent.studentName || '-'}</h3>
+                  <p>All student information stays on this batch page.</p>
+                </div>
               </div>
               <div className={`batch-student-status ${String(selectedStudent.status || 'Inactive').toLowerCase()}`}>
-                {selectedStudent.status || 'Inactive'}
+                <BadgeCheck size={16} />
+                <span>{selectedStudent.status || 'Inactive'}</span>
               </div>
             </div>
 
             <div className="batch-student-modal-grid">
-              <DetailRow label="Student Name" value={selectedStudent.studentName} />
-              <DetailRow label="Email Address" value={selectedStudent.emailAddress} valueClassName="student-inline-email" />
-              <DetailRow label="Mobile Number" value={selectedStudent.mobileNumber} />
-              <DetailRow label="Parent / Spouse Number" value={selectedStudent.parentSpouseNumber} />
-              <DetailRow label="Location" value={selectedStudent.location} />
-              <DetailRow label="Course Interested" value={selectedStudent.courseInterested || selectedStudentCourse?.name || courseName} />
-              <DetailRow label="Faculty Name" value={selectedStudent.facultyName || selectedFaculty?.facultyName} />
-              <DetailRow label="Batch" value={`${batchName}${batchTiming && batchTiming !== '-' ? ` (${batchTiming})` : ''}`} />
-              <DetailRow label="Qualification" value={selectedStudent.qualification} />
-              <DetailRow label="Passed Out Year" value={selectedStudent.passedOutYear} />
-              <DetailRow label="Current Status" value={selectedStudent.currentStatus} />
-              <DetailRow label="Designation" value={selectedStudent.designation} />
-              <DetailRow label="Admission Date" value={formatDate(selectedStudent.admissionDate)} />
-              <DetailRow label="Total Course Fee" value={formatCurrency(selectedStudent.totalAmount || selectedStudent.actualFees || selectedStudent.afterDiscount)} />
-              <DetailRow label="Discount" value={formatCurrency(selectedStudent.discount)} />
-              <DetailRow label="Final Fee" value={formatCurrency(selectedStudent.afterDiscount)} />
-              <DetailRow label="Payment Mode" value={selectedStudent.paymentMode || selectedStudent.paymentType || '-'} />
-              <DetailRow label="Source" value={selectedStudent.source} />
-              <DetailRow label="Remarks" value={selectedStudent.remarks} />
-              <DetailRow label="1st Installment Status" value={selectedStudent.firstInstallmentStatus} />
-              <DetailRow label="2nd Installment Status" value={selectedStudent.secondInstallmentStatus} />
-              <DetailRow label="3rd Installment Status" value={selectedStudent.thirdInstallmentStatus} />
+              {getBatchStudentDetailItems(selectedStudent, selectedStudentCourse, selectedFaculty, courseName, batchName, batchTiming).map((item) => (
+                <DetailRow
+                  key={item.label}
+                  label={item.label}
+                  value={item.value}
+                  tone={item.tone || ''}
+                  valueClassName={item.valueClassName || ''}
+                  icon={item.icon}
+                  iconTone={item.iconTone}
+                />
+              ))}
             </div>
           </div>
         </div>
