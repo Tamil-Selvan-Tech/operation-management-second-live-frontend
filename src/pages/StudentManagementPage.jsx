@@ -688,6 +688,7 @@ export function StudentManagementPage() {
   const [editingStudentId, setEditingStudentId] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [installmentConfirmTarget, setInstallmentConfirmTarget] = useState(null)
   const [openActionMenuId, setOpenActionMenuId] = useState('')
   const [isDrawerEditing, setIsDrawerEditing] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -1078,6 +1079,10 @@ export function StudentManagementPage() {
     setDeleteTarget(null)
   }
 
+  const closeInstallmentConfirmModal = () => {
+    setInstallmentConfirmTarget(null)
+  }
+
   const openActionMenu = (studentId) => {
     setOpenActionMenuId(studentId)
   }
@@ -1415,6 +1420,50 @@ export function StudentManagementPage() {
     closeDeleteModal()
   }
 
+  const requestInstallmentToggle = (studentId, installmentField, paidAtField) => {
+    const currentStudent = students.find((student) => student.id === studentId)
+    if (!currentStudent) return
+
+    if (installmentField === 'secondInstallmentStatus' && currentStudent.firstInstallmentStatus !== 'Paid') {
+      return
+    }
+
+    if (installmentField === 'thirdInstallmentStatus' && currentStudent.secondInstallmentStatus !== 'Paid') {
+      return
+    }
+
+    const nextStatus = currentStudent[installmentField] === 'Paid' ? 'Pending' : 'Paid'
+    setInstallmentConfirmTarget({
+      studentId,
+      installmentField,
+      paidAtField,
+      nextStatus,
+      studentName: currentStudent.studentName || 'this student',
+      installmentLabel:
+        installmentField === 'firstInstallmentStatus'
+          ? '1st Installment'
+          : installmentField === 'secondInstallmentStatus'
+            ? '2nd Installment'
+            : '3rd Installment',
+      amount:
+        installmentField === 'firstInstallmentStatus'
+          ? currentStudent.firstInstallmentAmount
+          : installmentField === 'secondInstallmentStatus'
+            ? currentStudent.secondInstallmentAmount
+            : currentStudent.thirdInstallmentAmount || currentStudent.installment3,
+    })
+  }
+
+  const confirmInstallmentToggle = () => {
+    if (!installmentConfirmTarget) return
+    void toggleInstallmentStatus(
+      installmentConfirmTarget.studentId,
+      installmentConfirmTarget.installmentField,
+      installmentConfirmTarget.paidAtField,
+    )
+    closeInstallmentConfirmModal()
+  }
+
   const toggleInstallmentStatus = async (studentId, installmentField, paidAtField) => {
     const currentStudent = students.find((student) => student.id === studentId)
     if (!currentStudent) return
@@ -1588,7 +1637,7 @@ export function StudentManagementPage() {
                             <input
                               type="checkbox"
                               checked={firstPaid}
-                              onChange={() => toggleInstallmentStatus(student.id, 'firstInstallmentStatus', 'firstInstallmentPaidAt')}
+                              onChange={() => requestInstallmentToggle(student.id, 'firstInstallmentStatus', 'firstInstallmentPaidAt')}
                             />
                             <span className="installment-copy">
                               <strong>{formatCurrency(currentInstallmentAmount)}</strong>
@@ -1600,7 +1649,7 @@ export function StudentManagementPage() {
                             <input
                               type="checkbox"
                               checked={secondPaid}
-                              onChange={() => toggleInstallmentStatus(student.id, 'secondInstallmentStatus', 'secondInstallmentPaidAt')}
+                              onChange={() => requestInstallmentToggle(student.id, 'secondInstallmentStatus', 'secondInstallmentPaidAt')}
                             />
                             <span className="installment-copy">
                               <strong>{formatCurrency(currentInstallmentAmount)}</strong>
@@ -1612,7 +1661,7 @@ export function StudentManagementPage() {
                             <input
                               type="checkbox"
                               checked={thirdPaid}
-                              onChange={() => toggleInstallmentStatus(student.id, 'thirdInstallmentStatus', 'thirdInstallmentPaidAt')}
+                              onChange={() => requestInstallmentToggle(student.id, 'thirdInstallmentStatus', 'thirdInstallmentPaidAt')}
                             />
                             <span className="installment-copy">
                               <strong>{formatCurrency(currentInstallmentAmount)}</strong>
@@ -2617,6 +2666,60 @@ export function StudentManagementPage() {
               </button>
               <button type="button" className="button button-solid course-delete-confirm" onClick={confirmDelete}>
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {installmentConfirmTarget ? (
+        <div className="course-modal-backdrop student-installment-confirm-backdrop" role="presentation" onClick={closeInstallmentConfirmModal}>
+          <div
+            className="course-modal panel-card course-delete-modal student-delete-modal student-installment-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="student-installment-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="course-delete-icon student-installment-confirm-icon" aria-hidden="true">
+              <DangerIcon />
+            </div>
+            <div className="course-modal-header">
+              <div>
+                <h3 id="student-installment-confirm-title">Are you confirm installment pay panurigala?</h3>
+              </div>
+            </div>
+
+            <p className="course-delete-text">
+              {installmentConfirmTarget.nextStatus === 'Paid' ? (
+                <>
+                  Mark <strong>{installmentConfirmTarget.studentName}</strong>'s{' '}
+                  <strong>{installmentConfirmTarget.installmentLabel}</strong> as paid?
+                  {installmentConfirmTarget.amount ? (
+                    <>
+                      {' '}
+                      Amount: <strong>{formatCurrency(installmentConfirmTarget.amount)}</strong>.
+                    </>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  Remove paid status for <strong>{installmentConfirmTarget.studentName}</strong>'s{' '}
+                  <strong>{installmentConfirmTarget.installmentLabel}</strong>?
+                </>
+              )}
+            </p>
+
+            <div className="course-form-actions">
+              <button type="button" className="button button-ghost" onClick={closeInstallmentConfirmModal}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button button-solid course-installment-confirm"
+                onClick={confirmInstallmentToggle}
+              >
+                OK
               </button>
             </div>
           </div>

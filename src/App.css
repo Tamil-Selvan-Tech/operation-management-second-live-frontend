@@ -9068,6 +9068,15 @@ tbody tr:hover {
   background: #c81e1e;
 }
 
+.course-installment-confirm {
+  background: linear-gradient(135deg, #1f7ae0, #2f80ed);
+  box-shadow: 0 6px 14px rgba(47, 128, 237, 0.22);
+}
+
+.course-installment-confirm:hover {
+  background: linear-gradient(135deg, #196ad0, #1f7ae0);
+}
+
 .course-pagination {
   display: flex;
   align-items: center;
