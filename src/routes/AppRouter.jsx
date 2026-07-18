@@ -152,8 +152,10 @@ function LoginResetRoute({ title }) {
         return
       }
 
-      const password = String(formData.get('password') || '')
-      const confirmPassword = String(formData.get('confirmPassword') || '')
+      const password = String(formData.get('newPassword') || formData.get('password') || '')
+      const confirmPassword = String(
+        formData.get('confirmNewPassword') || formData.get('confirmPassword') || '',
+      )
       const resetToken = String(formData.get('token') || token || '').trim()
 
       if (!resetToken) {

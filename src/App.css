@@ -1470,6 +1470,20 @@ tbody tr:hover {
   font-size: 14px;
 }
 
+.form .password-display {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--text-strong);
+  font-size: 14px;
+  line-height: 1.2;
+  word-break: break-all;
+  user-select: all;
+}
+
 .form button,
 .panel button,
 .button-row button {
