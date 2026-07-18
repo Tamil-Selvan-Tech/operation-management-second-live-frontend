@@ -10,7 +10,7 @@ import { listFacultyRecords, normalizeFacultyList } from '../services/facultySer
 import { listStudents, normalizeStudentList } from '../services/studentService'
 import {
   buildFacultyBatchPath,
-  buildFacultyDetailsPath,
+  buildFacultyCourseListPath,
   getFacultyBatchEntriesForCourse,
   getFacultyCourseName,
   getMatchingStudents,
@@ -117,7 +117,7 @@ export function CourseBatchesPage() {
   return (
     <section className="faculty-flow-page">
       <div className="faculty-flow-toolbar">
-        <Button type="button" variant="ghost" className="faculty-flow-back-button" onClick={() => navigate(buildFacultyDetailsPath(facultyId))}>
+        <Button type="button" variant="ghost" className="faculty-flow-back-button" onClick={() => navigate(buildFacultyCourseListPath(courseId))}>
           <ArrowLeft size={18} />
           <span>Back</span>
         </Button>
