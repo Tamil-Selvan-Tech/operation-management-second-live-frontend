@@ -16,11 +16,30 @@ function uniqueById(entries = [], selector) {
   return nextEntries
 }
 
-export function getFacultyCourseIds(record = {}) {
+export function getFacultyCourseIds(record = {}, courseOptions = []) {
+  const optionLookup = new Map(
+    (Array.isArray(courseOptions) ? courseOptions : []).map((course) => [
+      normalizeText(course?.name || ''),
+      String(course?.id || '').trim(),
+    ]),
+  )
+
   const ids = [
     ...(Array.isArray(record.courseIds) ? record.courseIds : []),
     record.courseId || '',
-    ...(Array.isArray(record.batchEntries) ? record.batchEntries.map((entry) => entry?.courseId || '') : []),
+    ...(Array.isArray(record.batchEntries)
+      ? record.batchEntries.flatMap((entry) => {
+          const directCourseId = String(entry?.courseId || '').trim()
+          if (directCourseId) return [directCourseId]
+
+          const courseName = normalizeText(entry?.courseName || '')
+          const resolvedCourseId = courseName ? optionLookup.get(courseName) || '' : ''
+          return resolvedCourseId ? [resolvedCourseId] : []
+        })
+      : []),
+    ...(Array.isArray(record.courseAssignments)
+      ? record.courseAssignments.map((assignment) => String(assignment?.courseId || '').trim())
+      : []),
   ]
     .map((courseId) => String(courseId || '').trim())
     .filter(Boolean)
@@ -36,25 +55,34 @@ export function getFacultyCourseName(courseId, courseOptions = []) {
 }
 
 export function getFacultyCourses(record = {}, courseOptions = []) {
-  const courseIds = getFacultyCourseIds(record)
+  const courseIds = getFacultyCourseIds(record, courseOptions)
   const fallbackCourseName = String(record.courseName || '').trim()
 
   return courseIds.map((courseId, index) => ({
     courseId,
     courseName: getFacultyCourseName(courseId, courseOptions) || (index === 0 ? fallbackCourseName : '') || courseId,
-    batchCount: getFacultyBatchEntriesForCourse(record, courseId).length,
+    batchCount: getFacultyBatchEntriesForCourse(record, courseId, courseOptions).length,
   }))
 }
 
-export function getFacultyBatchEntriesForCourse(record = {}, courseId = '') {
+export function getFacultyBatchEntriesForCourse(record = {}, courseId = '', courseOptions = []) {
   const normalizedCourseId = String(courseId || '').trim()
   const batchEntries = Array.isArray(record.batchEntries) ? record.batchEntries : []
   if (!normalizedCourseId) return batchEntries.slice()
 
-  const matchingEntries = batchEntries.filter((entry) => String(entry?.courseId || '').trim() === normalizedCourseId)
+  const matchingEntries = batchEntries.filter((entry) => {
+    const entryCourseId = String(entry?.courseId || '').trim()
+    if (entryCourseId) return entryCourseId === normalizedCourseId
+
+    const entryCourseName = normalizeText(entry?.courseName || '')
+    if (!entryCourseName || !Array.isArray(courseOptions) || !courseOptions.length) return false
+
+    const resolvedCourse = courseOptions.find((course) => normalizeText(course?.name || '') === entryCourseName)
+    return String(resolvedCourse?.id || '').trim() === normalizedCourseId
+  })
   if (matchingEntries.length) return matchingEntries
 
-  const fallbackCourseIds = getFacultyCourseIds(record)
+  const fallbackCourseIds = getFacultyCourseIds(record, courseOptions)
   if (fallbackCourseIds.length === 1 && fallbackCourseIds[0] === normalizedCourseId) {
     return batchEntries.slice()
   }
@@ -69,8 +97,8 @@ export function getFacultyBatchEntryById(record = {}, batchEntryId = '') {
   return (Array.isArray(record.batchEntries) ? record.batchEntries : []).find((entry) => String(entry?.id || '').trim() === normalizedBatchEntryId) || null
 }
 
-export function getFacultyTotals(record = {}) {
-  const courseCount = getFacultyCourseIds(record).length
+export function getFacultyTotals(record = {}, courseOptions = []) {
+  const courseCount = getFacultyCourseIds(record, courseOptions).length
   const batchCount = Array.isArray(record.batchEntries) ? record.batchEntries.length : Number(record.batchCount || 0) || 0
 
   return {

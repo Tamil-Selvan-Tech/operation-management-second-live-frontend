@@ -85,6 +85,13 @@ function mergeFacultyRecordVariants(baseRecord = {}, nextRecord = {}) {
     ].map((entry) => [getMergedEntryKey(entry), entry]))
   ).map(([, entry]) => entry)
 
+  const mergedCourseAssignments = Array.from(
+    new Map([
+      ...(Array.isArray(baseRecord.courseAssignments) ? baseRecord.courseAssignments : []),
+      ...(Array.isArray(nextRecord.courseAssignments) ? nextRecord.courseAssignments : []),
+    ].map((entry) => [getMergedEntryKey(entry), entry]))
+  ).map(([, entry]) => entry)
+
   const mergedUpdatedAt = [baseRecord.updatedAt, nextRecord.updatedAt].find((value) => String(value || '').trim()) || ''
   const mergedCreatedAt = [baseRecord.createdAt, nextRecord.createdAt].find((value) => String(value || '').trim()) || ''
 
@@ -94,6 +101,7 @@ function mergeFacultyRecordVariants(baseRecord = {}, nextRecord = {}) {
     courseIds: mergedCourseIds,
     courseId: mergedCourseIds[0] || nextRecord.courseId || baseRecord.courseId || '',
     batchEntries: mergedBatchEntries,
+    courseAssignments: mergedCourseAssignments,
     batchCount: Math.max(
       Number(baseRecord.batchCount || 0) || 0,
       Number(nextRecord.batchCount || 0) || 0,
@@ -121,15 +129,29 @@ export function normalizeFacultyRecord(record, fallback = {}) {
     courseName: entry.courseName || getStoredBatchCourseLabel(entry.batchName || '') || '',
     sequenceNo: entry.sequenceNo ?? 1,
   }))
+  const sourceCourseAssignments = Array.isArray(record.courseAssignments) && record.courseAssignments.length
+    ? record.courseAssignments
+    : Array.isArray(fallback.courseAssignments) && fallback.courseAssignments.length
+      ? fallback.courseAssignments
+      : []
+  const courseAssignments = sourceCourseAssignments.map((entry) => ({
+    ...entry,
+    id: entry.id || '',
+    facultyId: entry.facultyId || '',
+    courseId: String(entry.courseId || '').trim(),
+    courseName: entry.courseName || '',
+  }))
   const courseIdsFromPayload = Array.isArray(record.courseIds)
     ? record.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
     : Array.isArray(fallback.courseIds)
       ? fallback.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
     : []
   const batchCourseIds = getUniqueCourseIdsFromBatchEntries(batchEntries)
+  const assignmentCourseIds = getUniqueCourseIdsFromBatchEntries(courseAssignments)
   const courseIds = Array.from(new Set([
     ...courseIdsFromPayload,
     ...batchCourseIds,
+    ...assignmentCourseIds,
     record.courseId ? String(record.courseId).trim() : '',
     fallback.courseId ? String(fallback.courseId).trim() : '',
   ].filter(Boolean)))
@@ -145,6 +167,7 @@ export function normalizeFacultyRecord(record, fallback = {}) {
     courseIds,
     courseName: record.courseName || record.course?.name || '',
     course: record.course || null,
+    courseAssignments,
     status: record.status || 'Inactive',
     batchEntries,
     batchCount: Number(record.batchCount ?? batchEntries.length) || batchEntries.length,
@@ -221,7 +244,7 @@ function buildFacultyPayload(payload = {}) {
     status: String(payload.status ?? 'Active').trim().toUpperCase(),
     batchEntries: Array.isArray(payload.batchEntries)
       ? payload.batchEntries.map((entry) => ({
-          batchName: storeBatchName(String(entry?.batchName ?? '').trim(), entry?.courseId ?? '', entry?.courseName ?? ''),
+          batchName: String(entry?.batchName ?? '').trim(),
           batchTiming: String(entry?.batchTiming ?? '').trim(),
           courseId: String(entry?.courseId ?? '').trim(),
           courseName: String(entry?.courseName ?? '').trim(),

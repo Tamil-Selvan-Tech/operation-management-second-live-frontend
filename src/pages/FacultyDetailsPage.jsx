@@ -90,7 +90,7 @@ export function FacultyDetailsPage() {
     const baseCourses = getFacultyCourses(selectedFaculty || {}, courseOptions)
 
     return baseCourses.map((course) => {
-      const courseBatches = getFacultyBatchEntriesForCourse(selectedFaculty || {}, course.courseId)
+      const courseBatches = getFacultyBatchEntriesForCourse(selectedFaculty || {}, course.courseId, courseOptions)
       const courseStudents = courseBatches.reduce(
         (sum, batch) =>
           sum +
@@ -110,7 +110,7 @@ export function FacultyDetailsPage() {
       }
     })
   }, [courseOptions, selectedFaculty, students])
-  const totals = useMemo(() => getFacultyTotals(selectedFaculty || {}), [selectedFaculty])
+  const totals = useMemo(() => getFacultyTotals(selectedFaculty || {}, courseOptions), [courseOptions, selectedFaculty])
   const isActive = String(selectedFaculty?.status || 'Active').toLowerCase() === 'active'
 
   return (

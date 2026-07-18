@@ -295,7 +295,7 @@ function getCourseSelectionNames(courseSource = [], courseOptions = []) {
   const record = Array.isArray(courseSource) ? null : courseSource || null
   const normalizedIds = Array.isArray(courseSource)
     ? courseSource.map((id) => String(id || '').trim()).filter(Boolean)
-    : getFacultyCourseIds(courseSource)
+    : getFacultyCourseIds(courseSource, courseOptions)
   if (!normalizedIds.length) return []
 
   const optionsById = new Map(courseOptions.map((course) => [String(course?.id || '').trim(), String(course?.name || '').trim()]))
@@ -897,7 +897,7 @@ function createBatchEntryId(index = 0) {
 function getPrefilledForm(record = null, courseOptions = []) {
   if (!record) return createEmptyForm()
 
-  const derivedCourseIds = getFacultyCourseIds(record)
+  const derivedCourseIds = getFacultyCourseIds(record, courseOptions)
   const batchEntries = Array.isArray(record.batchEntries)
     ? record.batchEntries.map((entry) => {
         const timingState = parseBatchTimingState(entry.batchTiming)
@@ -992,7 +992,7 @@ export function FacultyManagementPage() {
     return getGroupedBatchEntriesByCourse(
       selectedFacultyRecord.batchEntries || [],
       activeCourseOptions,
-      getFacultyCourseIds(selectedFacultyRecord),
+      getFacultyCourseIds(selectedFacultyRecord, activeCourseOptions),
     )
   }, [activeCourseOptions, selectedFacultyRecord])
 
