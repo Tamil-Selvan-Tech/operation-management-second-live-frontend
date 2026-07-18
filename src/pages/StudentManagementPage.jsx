@@ -26,6 +26,7 @@ import { listCourses } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
 import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
 import { normalizeCourseList } from '../services/courseService'
+import { savePendingLoginEmail } from '../lib/session'
 
 const statusOptions = ['Student', 'Employee', 'Other']
 const recordStatusOptions = ['Active', 'Inactive']
@@ -1290,12 +1291,14 @@ export function StudentManagementPage() {
     payload.thirdDueDate = isFullPayment ? '' : form.thirdDueDate || existingStudent?.thirdDueDate || ''
 
     try {
+      let savedStudent = null
       if (editingStudentId) {
-        await updateStudent(editingStudentId, payload)
+        savedStudent = await updateStudent(editingStudentId, payload)
       } else {
-        await createStudent(payload)
+        savedStudent = await createStudent(payload)
       }
 
+      savePendingLoginEmail(savedStudent?.emailAddress || payload.emailAddress)
       await loadStudents()
       setCurrentPage(1)
       if (isDrawerEditing) {

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -98,6 +98,31 @@ function EyeIcon({ hidden = false }) {
 
 export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting = false }) {
   const [showPassword, setShowPassword] = useState(false)
+  const emailInputRef = useRef(null)
+  const passwordInputRef = useRef(null)
+
+  useEffect(() => {
+    const syncAutofill = () => {
+      const nextEmail = String(emailInputRef.current?.value || '').trim()
+      const nextPassword = String(passwordInputRef.current?.value || '')
+
+      if (nextEmail && !form.email) {
+        setForm((current) => ({ ...current, email: nextEmail }))
+      }
+
+      if (nextPassword && !form.password) {
+        setForm((current) => ({ ...current, password: nextPassword }))
+      }
+    }
+
+    const timeoutId = window.setTimeout(syncAutofill, 150)
+    const secondTimeoutId = window.setTimeout(syncAutofill, 500)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      window.clearTimeout(secondTimeoutId)
+    }
+  }, [form.email, form.password, setForm])
 
   return (
     <Card className="auth-card login-shell login-page">
@@ -120,12 +145,14 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
                 <EmailIcon />
               </span>
               <input
+                ref={emailInputRef}
                 className="login-input login-input-icon"
                 value={form.email}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, email: event.target.value }))
                 }
-                type="text"
+                type="email"
+                name="username"
                 autoComplete="username"
                 placeholder="Enter your email"
               />
@@ -138,12 +165,14 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
                 <LockIcon />
               </span>
               <input
+                ref={passwordInputRef}
                 className="login-input login-input-icon login-input-password"
                 value={form.password}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, password: event.target.value }))
                 }
                 type={showPassword ? 'text' : 'password'}
+                name="password"
                 autoComplete="current-password"
                 placeholder="Enter your password"
               />
