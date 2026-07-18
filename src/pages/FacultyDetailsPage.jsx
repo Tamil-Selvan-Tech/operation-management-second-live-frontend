@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, Mail, Phone, UsersRound, ChevronRight } from 'lucide-react'
+import { ArrowLeft, BookOpen, GraduationCap, Mail, Phone, UsersRound, ChevronRight } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
+import { loadStudentRecords } from '../data/studentRecords'
 import { listCourses, normalizeCourseList } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
+import { listStudents, normalizeStudentList } from '../services/studentService'
 import {
   buildFacultyCoursePath,
+  getFacultyBatchEntriesForCourse,
   getFacultyCourses,
   getFacultyTotals,
+  getMatchingStudents,
 } from '../lib/facultyFlow'
 
 function apiErrorMessage(error, fallback) {
@@ -24,12 +28,17 @@ function loadStoredFaculty() {
   return normalizeFacultyList(loadFacultyRecords())
 }
 
+function loadStoredStudents() {
+  return loadStudentRecords()
+}
+
 export function FacultyDetailsPage() {
   const { facultyId = '' } = useParams()
   const navigate = useNavigate()
 
   const [facultyRecords, setFacultyRecords] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
+  const [students, setStudents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -38,17 +47,20 @@ export function FacultyDetailsPage() {
       setIsLoading(true)
 
       try {
-        const [facultyResult, courseResult] = await Promise.all([
+        const [facultyResult, courseResult, studentResult] = await Promise.all([
           listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredFaculty() })),
           listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredCourses() })),
+          listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: normalizeStudentList(loadStoredStudents()) })),
         ])
 
         setFacultyRecords(Array.isArray(facultyResult.data) ? facultyResult.data : loadStoredFaculty())
         setCourseOptions(Array.isArray(courseResult.data) ? courseResult.data : loadStoredCourses())
+        setStudents(Array.isArray(studentResult.data) ? studentResult.data : loadStoredStudents())
         setError('')
       } catch (nextError) {
         setFacultyRecords(loadStoredFaculty())
         setCourseOptions(loadStoredCourses())
+        setStudents(loadStoredStudents())
         setError(apiErrorMessage(nextError, 'Unable to load faculty details right now.'))
       } finally {
         setIsLoading(false)
@@ -60,10 +72,12 @@ export function FacultyDetailsPage() {
     const syncFaculty = () => void loadData()
     window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncFaculty)
     window.addEventListener('cispro:faculty-changed', syncFaculty)
+    window.addEventListener('cispro:students-changed', syncFaculty)
 
     return () => {
       window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncFaculty)
       window.removeEventListener('cispro:faculty-changed', syncFaculty)
+      window.removeEventListener('cispro:students-changed', syncFaculty)
     }
   }, [])
 
@@ -72,8 +86,32 @@ export function FacultyDetailsPage() {
     [facultyId, facultyRecords],
   )
 
-  const facultyCourses = useMemo(() => getFacultyCourses(selectedFaculty || {}, courseOptions), [courseOptions, selectedFaculty])
+  const facultyCourses = useMemo(() => {
+    const baseCourses = getFacultyCourses(selectedFaculty || {}, courseOptions)
+
+    return baseCourses.map((course) => {
+      const courseBatches = getFacultyBatchEntriesForCourse(selectedFaculty || {}, course.courseId)
+      const courseStudents = courseBatches.reduce(
+        (sum, batch) =>
+          sum +
+          getMatchingStudents(students, {
+            facultyName: selectedFaculty?.facultyName || '',
+            courseId: course.courseId,
+            courseName: course.courseName,
+            batchName: batch.batchName,
+          }).length,
+        0,
+      )
+
+      return {
+        ...course,
+        studentCount: courseStudents,
+        batchTiming: courseBatches[0]?.batchTiming || '-',
+      }
+    })
+  }, [courseOptions, selectedFaculty, students])
   const totals = useMemo(() => getFacultyTotals(selectedFaculty || {}), [selectedFaculty])
+  const isActive = String(selectedFaculty?.status || 'Active').toLowerCase() === 'active'
 
   return (
     <section className="faculty-flow-page">
@@ -105,33 +143,54 @@ export function FacultyDetailsPage() {
         <>
           <article className="faculty-flow-hero panel-card">
             <div className="faculty-flow-hero-main">
-              <div className="faculty-flow-avatar" aria-hidden="true">
+              <div className="faculty-flow-avatar faculty-flow-avatar-large" aria-hidden="true">
                 <UsersRound />
               </div>
               <div className="faculty-flow-hero-copy">
                 <p className="faculty-flow-kicker">Faculty Details</p>
-                <h2>{selectedFaculty.facultyName || '-'}</h2>
+                <div className="faculty-flow-title-row">
+                  <h2>{selectedFaculty.facultyName || '-'}</h2>
+                  <span className={`faculty-flow-status-pill ${isActive ? 'is-active' : 'is-inactive'}`.trim()}>
+                    {selectedFaculty.status || 'Active'}
+                  </span>
+                </div>
                 <div className="faculty-flow-contact">
                   <span>
-                    <Mail size={16} />
+                    <span className="faculty-flow-contact-dot faculty-flow-contact-dot-blue">
+                      <Mail size={14} />
+                    </span>
                     {selectedFaculty.facultyEmail || '-'}
                   </span>
                   <span>
-                    <Phone size={16} />
+                    <span className="faculty-flow-contact-dot faculty-flow-contact-dot-blue">
+                      <Phone size={14} />
+                    </span>
                     {selectedFaculty.facultyPhone || '-'}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="faculty-flow-stats" aria-label="Faculty summary">
-              <div className="faculty-flow-stat">
-                <span>Total Courses</span>
-                <strong>{totals.courseCount}</strong>
+            <div className="faculty-flow-stats faculty-flow-stats-split" aria-label="Faculty summary">
+              <div className="faculty-flow-stat faculty-flow-stat-courses">
+                <div className="faculty-flow-stat-icon">
+                  <GraduationCap />
+                </div>
+                <div>
+                  <span>Total Courses</span>
+                  <strong>{totals.courseCount}</strong>
+                  <small>Courses Assigned</small>
+                </div>
               </div>
-              <div className="faculty-flow-stat">
-                <span>Total Batches</span>
-                <strong>{totals.batchCount}</strong>
+              <div className="faculty-flow-stat faculty-flow-stat-batches">
+                <div className="faculty-flow-stat-icon faculty-flow-stat-icon-purple">
+                  <UsersRound />
+                </div>
+                <div>
+                  <span>Total Batches</span>
+                  <strong>{totals.batchCount}</strong>
+                  <small>Batches Assigned</small>
+                </div>
               </div>
             </div>
           </article>
@@ -153,14 +212,38 @@ export function FacultyDetailsPage() {
                     className="faculty-flow-course-card"
                     onClick={() => navigate(buildFacultyCoursePath(selectedFaculty.id, course.courseId))}
                   >
-                    <div className="faculty-flow-course-icon">
-                      <BookOpen />
+                    <div className="faculty-flow-course-left">
+                      <div className="faculty-flow-course-icon">
+                        <BookOpen />
+                      </div>
+                      <div className="faculty-flow-course-copy">
+                        <strong>{course.courseName || course.courseId}</strong>
+                        <span className="faculty-flow-course-badge">
+                          <UsersRound size={14} />
+                          {course.batchCount} Batch{course.batchCount === 1 ? '' : 'es'}
+                        </span>
+                        <p>View all batches and students under this course.</p>
+                      </div>
                     </div>
-                    <div className="faculty-flow-course-copy">
-                      <strong>{course.courseName || course.courseId}</strong>
-                      <span>
-                        {course.batchCount} Batch{course.batchCount === 1 ? '' : 'es'}
-                      </span>
+                    <div className="faculty-flow-course-overview">
+                      <div className="faculty-flow-overview-card">
+                        <div className="faculty-flow-overview-icon faculty-flow-overview-icon-blue">
+                          <UsersRound size={18} />
+                        </div>
+                        <div>
+                          <span>Students</span>
+                          <strong>{course.studentCount}</strong>
+                        </div>
+                      </div>
+                      <div className="faculty-flow-overview-card">
+                        <div className="faculty-flow-overview-icon faculty-flow-overview-icon-green">
+                          <Phone size={18} />
+                        </div>
+                        <div>
+                          <span>Timing</span>
+                          <strong>{course.batchTiming}</strong>
+                        </div>
+                      </div>
                     </div>
                     <ChevronRight className="faculty-flow-course-chevron" />
                   </button>

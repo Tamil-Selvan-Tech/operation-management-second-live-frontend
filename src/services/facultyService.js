@@ -60,6 +60,50 @@ function unwrapData(response) {
   return response.data ?? response
 }
 
+function getFacultyRecordMergeKey(record = {}) {
+  return String(record.facultyEmail || record.id || '').trim().toLowerCase()
+}
+
+function getMergedEntryKey(entry = {}) {
+  return String(entry.id || `${entry.batchName || ''}-${entry.batchTiming || ''}-${entry.courseId || ''}`).trim().toLowerCase()
+}
+
+function mergeFacultyRecordVariants(baseRecord = {}, nextRecord = {}) {
+  const mergedCourseIds = Array.from(
+    new Set([
+      ...(Array.isArray(baseRecord.courseIds) ? baseRecord.courseIds : []),
+      ...(Array.isArray(nextRecord.courseIds) ? nextRecord.courseIds : []),
+      baseRecord.courseId || '',
+      nextRecord.courseId || '',
+    ].map((courseId) => String(courseId || '').trim()).filter(Boolean)),
+  )
+
+  const mergedBatchEntries = Array.from(
+    new Map([
+      ...(Array.isArray(baseRecord.batchEntries) ? baseRecord.batchEntries : []),
+      ...(Array.isArray(nextRecord.batchEntries) ? nextRecord.batchEntries : []),
+    ].map((entry) => [getMergedEntryKey(entry), entry]))
+  ).map(([, entry]) => entry)
+
+  const mergedUpdatedAt = [baseRecord.updatedAt, nextRecord.updatedAt].find((value) => String(value || '').trim()) || ''
+  const mergedCreatedAt = [baseRecord.createdAt, nextRecord.createdAt].find((value) => String(value || '').trim()) || ''
+
+  return {
+    ...baseRecord,
+    ...nextRecord,
+    courseIds: mergedCourseIds,
+    courseId: mergedCourseIds[0] || nextRecord.courseId || baseRecord.courseId || '',
+    batchEntries: mergedBatchEntries,
+    batchCount: Math.max(
+      Number(baseRecord.batchCount || 0) || 0,
+      Number(nextRecord.batchCount || 0) || 0,
+      mergedBatchEntries.length,
+    ),
+    updatedAt: mergedUpdatedAt,
+    createdAt: mergedCreatedAt,
+  }
+}
+
 export function normalizeFacultyRecord(record, fallback = {}) {
   if (!record) return null
 
@@ -112,7 +156,24 @@ export function normalizeFacultyRecord(record, fallback = {}) {
 }
 
 export function normalizeFacultyList(records) {
-  return Array.isArray(records) ? records.map(normalizeFacultyRecord).filter(Boolean) : []
+  if (!Array.isArray(records)) return []
+
+  const normalizedRecords = records.map(normalizeFacultyRecord).filter(Boolean)
+  const mergedByKey = new Map()
+
+  normalizedRecords.forEach((record) => {
+    const mergeKey = getFacultyRecordMergeKey(record)
+    if (!mergeKey) {
+      const fallbackKey = String(record.id || '').trim().toLowerCase()
+      mergedByKey.set(fallbackKey || `${mergedByKey.size}-${Date.now()}`, record)
+      return
+    }
+
+    const existingRecord = mergedByKey.get(mergeKey)
+    mergedByKey.set(mergeKey, existingRecord ? mergeFacultyRecordVariants(existingRecord, record) : record)
+  })
+
+  return Array.from(mergedByKey.values())
 }
 
 function buildFacultySearchParams(query = {}) {
