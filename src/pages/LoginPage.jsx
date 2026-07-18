@@ -120,13 +120,18 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
                 <EmailIcon />
               </span>
               <input
+                name="email"
                 className="login-input login-input-icon"
                 value={form.email}
                 onChange={(event) =>
                   setForm((current) => ({ ...current, email: event.target.value }))
                 }
-                type="text"
-                autoComplete="username"
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="Enter your email"
               />
             </div>
@@ -138,6 +143,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
                 <LockIcon />
               </span>
               <input
+                name="password"
                 className="login-input login-input-icon login-input-password"
                 value={form.password}
                 onChange={(event) =>
@@ -145,6 +151,9 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
                 }
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="Enter your password"
               />
               <button

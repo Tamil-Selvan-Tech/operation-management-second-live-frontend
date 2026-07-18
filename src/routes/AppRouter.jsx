@@ -1,5 +1,14 @@
 import { useState } from 'react'
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom'
 import { AuthShell } from '../layouts/AuthShell'
 import { AppShell } from '../layouts/AppShell'
 import { useAuth } from '../auth/useAuth'
@@ -15,6 +24,7 @@ import { StudentManagementPage } from '../pages/StudentManagementPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 import { SessionExpiredPage } from '../pages/SessionExpiredPage'
 import { UnauthorizedPage } from '../pages/UnauthorizedPage'
+import { requestPasswordReset, resetPassword } from '../services/apiClient'
 import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
 import { PublicRoute } from './PublicRoute'
 
@@ -114,16 +124,85 @@ function AppLayout() {
 
 function LoginResetRoute({ title }) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [errorMessage, setErrorMessage] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const token = searchParams.get('token') || ''
+  const temporaryPassword = searchParams.get('temporaryPassword') || ''
+
   const returnToLogin = async (event) => {
     event.preventDefault()
-    navigate('/login')
+    setErrorMessage('')
+    setSuccessMessage('')
+    setIsSubmitting(true)
+
+    try {
+      const formData = new FormData(event.currentTarget)
+
+      if (title === 'forgot') {
+        const email = String(formData.get('email') || '').trim()
+        if (!email) {
+          throw new Error('Email is required')
+        }
+
+        const result = await requestPasswordReset(email)
+        setSuccessMessage(result?.message || 'Reset link sent successfully.')
+        event.currentTarget.reset()
+        return
+      }
+
+      const password = String(formData.get('newPassword') || formData.get('password') || '')
+      const confirmPassword = String(
+        formData.get('confirmNewPassword') || formData.get('confirmPassword') || '',
+      )
+      const resetToken = String(formData.get('token') || token || '').trim()
+
+      if (!resetToken) {
+        throw new Error('Reset token is missing')
+      }
+
+      if (!password || !confirmPassword) {
+        throw new Error('Both password fields are required')
+      }
+
+      if (password !== confirmPassword) {
+        throw new Error('Passwords do not match')
+      }
+
+      const result = await resetPassword({ token: resetToken, password })
+      setSuccessMessage(result?.message || 'Password updated successfully.')
+      setTimeout(() => {
+        navigate('/login')
+      }, 800)
+    } catch (error) {
+      setErrorMessage(error?.body?.message || error?.message || 'Unable to process request right now.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (title === 'forgot') {
-    return <ForgotPasswordPage onSubmit={returnToLogin} />
+    return (
+      <ForgotPasswordPage
+        onSubmit={returnToLogin}
+        errorMessage={errorMessage}
+        successMessage={successMessage}
+        isSubmitting={isSubmitting}
+      />
+    )
   }
 
-  return <ResetPasswordPage onSubmit={returnToLogin} />
+  return (
+    <ResetPasswordPage
+      onSubmit={returnToLogin}
+      errorMessage={errorMessage}
+      successMessage={successMessage}
+      isSubmitting={isSubmitting}
+      token={token}
+      temporaryPassword={temporaryPassword}
+    />
+  )
 }
 
 function RootRoute() {

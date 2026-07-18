@@ -1470,6 +1470,20 @@ tbody tr:hover {
   font-size: 14px;
 }
 
+.form .password-display {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--text-strong);
+  font-size: 14px;
+  line-height: 1.2;
+  word-break: break-all;
+  user-select: all;
+}
+
 .form button,
 .panel button,
 .button-row button {
@@ -1690,6 +1704,27 @@ tbody tr:hover {
 
 .student-dashboard-hero-side {
   grid-template-columns: 1fr;
+}
+
+.student-dashboard-hero-actions {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.student-dashboard-hero-actions span {
+  display: block;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.student-dashboard-hero-actions small {
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .student-dashboard-grid {

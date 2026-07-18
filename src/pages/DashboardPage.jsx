@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Bell, CalendarDays, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
 import { loadStudentRecords } from '../data/studentRecords'
-import { listStudents } from '../services/studentService'
+import { getCurrentFacultyProfile } from '../services/facultyService'
+import { getCurrentStudentProfile, listStudents } from '../services/studentService'
 
 const attendanceComparisonData = [
   { month: 'Jan', attendance: 82, students: 240 },
@@ -491,6 +493,38 @@ function useBackendStudents() {
   }, [])
 
   return { records, isLoading }
+}
+
+function useCurrentStudentProfile() {
+  const [student, setStudent] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    const run = async () => {
+      try {
+        const result = await getCurrentStudentProfile()
+        if (!active) return
+        setStudent(result)
+      } catch {
+        if (!active) return
+        setStudent(loadStudentRecords()[0] || null)
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  return { student, isLoading }
 }
 
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
@@ -1096,12 +1130,12 @@ function StudentInfoItem({ label, value, fullWidth = false }) {
   )
 }
 
-function StudentSectionCard({ title, subtitle, children }) {
+function StudentSectionCard({ title, subtitle, kicker = 'Student Data', children }) {
   return (
     <article className="student-section-card">
       <div className="student-section-card-head">
         <div>
-          <p className="section-kicker">Student Data</p>
+          <p className="section-kicker">{kicker}</p>
           <h3>{title}</h3>
         </div>
         {subtitle ? <p>{subtitle}</p> : null}
@@ -1112,8 +1146,23 @@ function StudentSectionCard({ title, subtitle, children }) {
 }
 
 function StudentDashboard({ dashboard }) {
-  const { records: students } = useBackendStudents()
-  const latestStudent = useMemo(() => students[0] || null, [students])
+  const { student: latestStudent, isLoading } = useCurrentStudentProfile()
+
+  if (isLoading) {
+    return (
+      <section className="student-dashboard-page">
+        <article className="panel-card student-dashboard-empty">
+          <p className="eyebrow">Student Dashboard</p>
+          <h2>{dashboard.title}</h2>
+          <p>{dashboard.summary}</p>
+          <div className="student-empty-state">
+            <strong>Loading student profile...</strong>
+            <p>Please wait while we fetch your dashboard details.</p>
+          </div>
+        </article>
+      </section>
+    )
+  }
 
   if (!latestStudent) {
     return (
@@ -1171,6 +1220,13 @@ function StudentDashboard({ dashboard }) {
           <div>
             <span>Admission Date</span>
             <strong>{formatDate(latestStudent.admissionDate)}</strong>
+          </div>
+          <div className="student-dashboard-hero-actions">
+            <span>Need help signing in?</span>
+            <Link to="/forgot-password" className="text-link">
+              Forgot password?
+            </Link>
+            <small>We will send a reset link to your registered email address.</small>
           </div>
         </div>
       </article>
@@ -1241,6 +1297,159 @@ function StudentDashboard({ dashboard }) {
   )
 }
 
+function useCurrentFacultyProfile() {
+  const [faculty, setFaculty] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    const run = async () => {
+      try {
+        const result = await getCurrentFacultyProfile()
+        if (!active) return
+        setFaculty(result)
+      } catch {
+        if (!active) return
+        setFaculty(null)
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  return { faculty, isLoading }
+}
+
+function getFacultyStatus(record) {
+  const status = String(record?.status || 'Inactive').trim()
+  if (status === 'Active') return { label: 'Active', tone: 'success' }
+  return { label: 'Inactive', tone: 'warning' }
+}
+
+function FacultyDashboard({ dashboard }) {
+  const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
+
+  if (isLoading) {
+    return (
+      <section className="student-dashboard-page">
+        <article className="panel-card student-dashboard-empty">
+          <p className="eyebrow">Faculty Dashboard</p>
+          <h2>{dashboard.title}</h2>
+          <p>{dashboard.summary}</p>
+          <div className="student-empty-state">
+            <strong>Loading faculty profile...</strong>
+            <p>Please wait while we fetch your dashboard details.</p>
+          </div>
+        </article>
+      </section>
+    )
+  }
+
+  if (!latestFaculty) {
+    return (
+      <section className="student-dashboard-page">
+        <article className="panel-card student-dashboard-empty">
+          <p className="eyebrow">Faculty Dashboard</p>
+          <h2>{dashboard.title}</h2>
+          <p>{dashboard.summary}</p>
+          <div className="student-empty-state">
+            <strong>No faculty profile found</strong>
+            <p>Please contact the operation manager to create or activate your faculty record.</p>
+          </div>
+        </article>
+      </section>
+    )
+  }
+
+  const status = getFacultyStatus(latestFaculty)
+  const batchNames = Array.isArray(latestFaculty.batchEntries)
+    ? latestFaculty.batchEntries.map((entry) => String(entry.batchName || '').trim()).filter(Boolean)
+    : []
+
+  return (
+    <section className="student-dashboard-page">
+      <article className="student-dashboard-hero">
+        <div className="student-dashboard-hero-top">
+          <div className="student-dashboard-avatar">
+            {getStudentInitials(latestFaculty.facultyName || 'Faculty')}
+          </div>
+          <div className="student-dashboard-hero-main">
+            <div className="student-dashboard-name-row">
+              <h2>{latestFaculty.facultyName}</h2>
+              <span className={`student-status-pill ${status.tone}`}>{status.label}</span>
+            </div>
+            <div className="student-dashboard-id-row">
+              <div>
+                <span>Course</span>
+                <strong>{latestFaculty.courseName || latestFaculty.course?.name || '-'}</strong>
+              </div>
+              <div>
+                <span>Batches</span>
+                <strong>{batchNames.length || 0}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="student-dashboard-hero-side">
+          <div>
+            <span>Email</span>
+            <strong>{latestFaculty.facultyEmail || '-'}</strong>
+          </div>
+          <div>
+            <span>Phone</span>
+            <strong>{latestFaculty.facultyPhone || '-'}</strong>
+          </div>
+          <div>
+            <span>Created On</span>
+            <strong>{formatDate(latestFaculty.createdAt)}</strong>
+          </div>
+        </div>
+      </article>
+
+      <div className="student-dashboard-grid">
+        <StudentSectionCard title="Faculty Information" subtitle="Primary faculty profile and contact details" kicker="Faculty Data">
+          <div className="student-dashboard-info-grid">
+            <StudentInfoItem label="Faculty Name" value={latestFaculty.facultyName} />
+            <StudentInfoItem label="Faculty Email" value={latestFaculty.facultyEmail} />
+            <StudentInfoItem label="Faculty Phone" value={latestFaculty.facultyPhone} />
+            <StudentInfoItem label="Course" value={latestFaculty.courseName || latestFaculty.course?.name || '-'} />
+            <StudentInfoItem label="Status" value={latestFaculty.status} />
+            <StudentInfoItem label="Created On" value={formatDate(latestFaculty.createdAt)} />
+          </div>
+        </StudentSectionCard>
+
+        <StudentSectionCard title="Assigned Batches" subtitle="Batch schedule and timing details" kicker="Faculty Data">
+          <div className="student-dashboard-info-grid">
+            {batchNames.length ? (
+              latestFaculty.batchEntries.map((entry) => (
+                <div key={entry.id || `${entry.batchName}-${entry.batchTiming}`} className="student-dashboard-info-item">
+                  <span>{entry.batchName || 'Batch'}</span>
+                  <strong>{entry.batchTiming || '-'}</strong>
+                </div>
+              ))
+            ) : (
+              <div className="student-dashboard-info-item student-dashboard-info-item-full">
+                <span>Batch assignments</span>
+                <strong>No batches assigned yet</strong>
+              </div>
+            )}
+          </div>
+        </StudentSectionCard>
+      </div>
+    </section>
+  )
+}
+
 function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   return (
     <section className="business-owner-dashboard operation-manager-dashboard">
@@ -1298,21 +1507,48 @@ function GenericDashboard({ role }) {
   )
 }
 
-export function DashboardPage({ role }) {
-  const dashboard = roleDashboards[role]
+function ManagementDashboard({ role, dashboard }) {
   const { records: revenueStudents, isLoading: isRevenueLoading } = useBackendStudents()
   const revenueSummary = useMemo(() => calculateRevenueSummary(revenueStudents), [revenueStudents])
 
   if (role === 'business-owner') {
-    return <BusinessOwnerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} revenueStudents={revenueStudents} />
+    return (
+      <BusinessOwnerDashboard
+        dashboard={dashboard}
+        revenueSummary={revenueSummary}
+        isRevenueLoading={isRevenueLoading}
+        revenueStudents={revenueStudents}
+      />
+    )
+  }
+
+  return (
+    <OperationManagerDashboard
+      dashboard={dashboard}
+      revenueSummary={revenueSummary}
+      isRevenueLoading={isRevenueLoading}
+      revenueStudents={revenueStudents}
+    />
+  )
+}
+
+export function DashboardPage({ role }) {
+  const dashboard = roleDashboards[role]
+
+  if (role === 'business-owner') {
+    return <ManagementDashboard role={role} dashboard={dashboard} />
   }
 
   if (role === 'operation-manager') {
-    return <OperationManagerDashboard dashboard={dashboard} revenueSummary={revenueSummary} isRevenueLoading={isRevenueLoading} revenueStudents={revenueStudents} />
+    return <ManagementDashboard role={role} dashboard={dashboard} />
   }
 
   if (role === 'student') {
     return <StudentDashboard dashboard={dashboard} />
+  }
+
+  if (role === 'faculty') {
+    return <FacultyDashboard dashboard={dashboard} />
   }
 
   return <GenericDashboard role={role} />
