@@ -691,6 +691,7 @@ export function StudentManagementPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [serverFieldErrors, setServerFieldErrors] = useState({})
   const [actionError, setActionError] = useState('')
+  const [isSavingStudent, setIsSavingStudent] = useState(false)
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
   const isBusinessOwner = role === 'business-owner'
@@ -1047,6 +1048,8 @@ export function StudentManagementPage() {
   }
 
   const closeModal = () => {
+    if (isSavingStudent) return
+
     setIsModalOpen(false)
     setActionError('')
     setServerFieldErrors({})
@@ -1231,6 +1234,9 @@ export function StudentManagementPage() {
   }
 
   const handleSubmit = async () => {
+    if (isSavingStudent) return
+
+    setIsSavingStudent(true)
     setSubmitted(true)
     setActionError('')
     setServerFieldErrors({})
@@ -1325,6 +1331,8 @@ export function StudentManagementPage() {
       }
 
       setActionError(errorMessage)
+    } finally {
+      setIsSavingStudent(false)
     }
   }
 
@@ -1337,6 +1345,8 @@ export function StudentManagementPage() {
   }
 
   const handlePrimaryAction = () => {
+    if (isSavingStudent) return
+
     if (currentStep < studentWizardSteps.length - 1) {
       goToNextStep()
       return
@@ -2105,12 +2115,12 @@ export function StudentManagementPage() {
                 </Button>
               ) : null}
               {currentStep < studentWizardSteps.length - 1 ? (
-                <Button type="button" onClick={handlePrimaryAction}>
+                <Button type="button" onClick={handlePrimaryAction} disabled={isSavingStudent}>
                   Next
                 </Button>
               ) : (
-                <Button type="button" onClick={handlePrimaryAction}>
-                  {editingStudentId ? 'Update Student' : 'Submit'}
+                <Button type="button" onClick={handlePrimaryAction} disabled={isSavingStudent}>
+                  {isSavingStudent ? 'Saving...' : editingStudentId ? 'Update Student' : 'Submit'}
                 </Button>
               )}
             </div>
@@ -2126,8 +2136,8 @@ export function StudentManagementPage() {
               <div className="student-drawer-table-actions">
                 {isDrawerEditing ? (
                   <>
-                    <button type="button" className="student-drawer-edit-button" onClick={handleSubmit}>
-                      Save
+                    <button type="button" className="student-drawer-edit-button" onClick={handleSubmit} disabled={isSavingStudent}>
+                      {isSavingStudent ? 'Saving...' : 'Save'}
                     </button>
                     <button
                       type="button"
