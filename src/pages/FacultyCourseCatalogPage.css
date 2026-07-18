@@ -106,14 +106,14 @@
 
 .faculty-flow-catalog-card-head {
   display: grid;
-  grid-template-columns: 84px minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
   gap: 14px;
   align-items: center;
 }
 
 .faculty-flow-catalog-card-icon {
-  width: 84px;
-  height: 84px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   display: grid;
   place-items: center;
@@ -124,8 +124,8 @@
 }
 
 .faculty-flow-catalog-card-icon svg {
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   stroke-width: 1.8;
 }
 
@@ -345,19 +345,19 @@
   }
 
   .faculty-flow-catalog-card-head {
-    grid-template-columns: 76px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
     gap: 12px;
     align-items: start;
   }
 
   .faculty-flow-catalog-card-icon {
-    width: 76px;
-    height: 76px;
+    width: 64px;
+    height: 64px;
   }
 
   .faculty-flow-catalog-card-icon svg {
-    width: 28px;
-    height: 28px;
+    width: 24px;
+    height: 24px;
   }
 
   .faculty-flow-catalog-meta-item {
@@ -395,18 +395,18 @@
   }
 
   .faculty-flow-catalog-card-head {
-    grid-template-columns: 68px minmax(0, 1fr);
+    grid-template-columns: 56px minmax(0, 1fr);
     gap: 10px;
   }
 
   .faculty-flow-catalog-card-icon {
-    width: 68px;
-    height: 68px;
+    width: 56px;
+    height: 56px;
   }
 
   .faculty-flow-catalog-card-icon svg {
-    width: 26px;
-    height: 26px;
+    width: 20px;
+    height: 20px;
   }
 
   .faculty-flow-catalog-card-copy strong {

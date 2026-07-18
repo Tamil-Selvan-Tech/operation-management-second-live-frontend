@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, BookOpen, ChevronRight, Mail, Phone, Search, UsersRound } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
@@ -173,6 +173,9 @@ export function FacultyCourseFacultyPage() {
           <ArrowLeft size={18} />
           <span>Back</span>
         </Button>
+        <Link to="/faculty-management" className="faculty-flow-link-button faculty-flow-toolbar-link">
+          Faculty Management
+        </Link>
       </div>
 
       {error ? (

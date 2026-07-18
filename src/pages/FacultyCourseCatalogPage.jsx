@@ -61,8 +61,8 @@ function buildPageList(totalPages, currentPage) {
 
 export function FacultyCourseCatalogPage() {
   const navigate = useNavigate()
-  const [courses, setCourses] = useState([])
-  const [facultyRecords, setFacultyRecords] = useState([])
+  const [courses, setCourses] = useState(() => loadStoredCourses())
+  const [facultyRecords, setFacultyRecords] = useState(() => loadStoredFaculty())
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -70,8 +70,6 @@ export function FacultyCourseCatalogPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true)
-
       try {
         const [courseResult, facultyResult] = await Promise.all([
           listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredCourses() })),
@@ -130,7 +128,7 @@ export function FacultyCourseCatalogPage() {
     })
   }, [cards, searchTerm])
 
-  const pageSize = 6
+  const pageSize = 4
   const totalPages = Math.max(1, Math.ceil(filteredCards.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const pageList = useMemo(() => buildPageList(totalPages, safeCurrentPage), [safeCurrentPage, totalPages])
@@ -160,6 +158,13 @@ export function FacultyCourseCatalogPage() {
           <ArrowLeft size={18} />
           <span>Back</span>
         </Button>
+        <button
+          type="button"
+          className="faculty-flow-link-button faculty-flow-toolbar-link"
+          onClick={() => navigate('/faculty-management')}
+        >
+          Faculty Management
+        </button>
       </div>
 
       <article className="faculty-course-catalog-header">
@@ -189,7 +194,7 @@ export function FacultyCourseCatalogPage() {
         </div>
       ) : null}
 
-      {!isLoading && !filteredCards.length ? (
+      {!filteredCards.length ? (
         <div className="faculty-flow-empty">
           <strong>No courses found</strong>
           <p>{searchTerm.trim() ? 'No matching courses found.' : 'Add courses first, then open the faculty flow.'}</p>

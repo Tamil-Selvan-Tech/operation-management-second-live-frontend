@@ -121,6 +121,13 @@ export function CourseBatchesPage() {
           <ArrowLeft size={18} />
           <span>Back</span>
         </Button>
+        <button
+          type="button"
+          className="faculty-flow-link-button faculty-flow-toolbar-link"
+          onClick={() => navigate('/faculty-management')}
+        >
+          Faculty Management
+        </button>
       </div>
 
       {error ? (

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Check, Clock3, Eye, Mail, MoreVertical, PencilLine, Phone, Plus, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
+import { BookOpen, Check, Clock3, Eye, FolderOpen, Mail, MoreVertical, PencilLine, Phone, Plus, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -14,7 +14,7 @@ import {
 } from '../services/facultyService'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
-import { buildFacultyCourseCatalogPath, buildFacultyDetailsPath, getFacultyCourseIds } from '../lib/facultyFlow'
+import { buildFacultyCourseCatalogPath, getFacultyCourseIds } from '../lib/facultyFlow'
 
 function createEmptyForm() {
   return {
@@ -589,7 +589,7 @@ export function FacultyInlineEditorTable({
                   value={form.facultyName}
                   onChange={(event) => {
                     const value = event.target.value
-                    const autoBatchName = value.trim() ? getSuggestedBatchName(value.trim(), form.batchEntries, form.batchName) : ''
+                    const autoBatchName = value.trim() ? getSuggestedBatchName(value.trim(), form.batchEntries) : ''
                     updateField('facultyName', value)
                     updateField('batchName', autoBatchName)
                   }}
@@ -1502,7 +1502,8 @@ export function FacultyManagementPage() {
             </Button>
           </form>
           <Button type="button" className="faculty-add-button" variant="ghost" onClick={() => navigate(buildFacultyCourseCatalogPath())}>
-            Batch
+            <FolderOpen size={18} />
+            <span>Batch</span>
           </Button>
           <div className="faculty-management-stat">
             <span>Total Faculty</span>
@@ -1544,7 +1545,6 @@ export function FacultyManagementPage() {
                   <th>Phone</th>
                   <th>Batch</th>
                   <th>Course</th>
-                  <th>Batch Details</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -1571,16 +1571,6 @@ export function FacultyManagementPage() {
                           <span className="faculty-course-chip faculty-course-chip-empty">{record.courseName || '-'}</span>
                         )}
                       </div>
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="faculty-batch-details-button"
-                        onClick={() => navigate(buildFacultyDetailsPath(record.id))}
-                        aria-label={`View details for ${record.facultyName}`}
-                      >
-                        View Details
-                      </button>
                     </td>
                     <td>
                       <span className={`status-pill ${String(record.status || 'Active').toLowerCase()}`}>
@@ -1790,7 +1780,7 @@ export function FacultyManagementPage() {
                         value={form.facultyName}
                         onChange={(event) => {
                           const value = event.target.value
-                          const autoBatchName = value.trim() ? getSuggestedBatchName(value.trim(), form.batchEntries, form.batchName) : ''
+                          const autoBatchName = value.trim() ? getSuggestedBatchName(value.trim(), form.batchEntries) : ''
                           setForm((current) => ({
                             ...current,
                             facultyName: value,

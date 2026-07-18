@@ -53,11 +53,11 @@ function formatCurrency(value) {
   }).format(amount)
 }
 
-function DetailRow({ label, value, tone = '' }) {
+function DetailRow({ label, value, tone = '', valueClassName = '' }) {
   return (
     <div className="batch-student-detail-row">
       <span>{label}</span>
-      <strong className={tone ? `tone-${tone}` : ''}>{value || '-'}</strong>
+      <strong className={`${tone ? `tone-${tone}` : ''} ${valueClassName}`.trim()}>{value || '-'}</strong>
     </div>
   )
 }
@@ -163,6 +163,13 @@ export function BatchStudentsPage() {
           <ArrowLeft size={18} />
           <span>Back</span>
         </Button>
+        <button
+          type="button"
+          className="faculty-flow-link-button faculty-flow-toolbar-link"
+          onClick={() => navigate('/faculty-management')}
+        >
+          Faculty Management
+        </button>
       </div>
 
       {error ? (
@@ -297,7 +304,7 @@ export function BatchStudentsPage() {
 
             <div className="batch-student-modal-grid">
               <DetailRow label="Student Name" value={selectedStudent.studentName} />
-              <DetailRow label="Email Address" value={selectedStudent.emailAddress} />
+              <DetailRow label="Email Address" value={selectedStudent.emailAddress} valueClassName="student-inline-email" />
               <DetailRow label="Mobile Number" value={selectedStudent.mobileNumber} />
               <DetailRow label="Parent / Spouse Number" value={selectedStudent.parentSpouseNumber} />
               <DetailRow label="Location" value={selectedStudent.location} />

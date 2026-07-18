@@ -1121,11 +1121,11 @@ function AttendanceComparisonChart() {
   )
 }
 
-function StudentInfoItem({ label, value, fullWidth = false }) {
+function StudentInfoItem({ label, value, fullWidth = false, valueClassName = '' }) {
   return (
     <div className={`student-dashboard-info-item ${fullWidth ? 'student-dashboard-info-item-full' : ''}`.trim()}>
       <span>{label}</span>
-      <strong>{value || '-'}</strong>
+      <strong className={valueClassName}>{value || '-'}</strong>
     </div>
   )
 }
@@ -1211,7 +1211,7 @@ function StudentDashboard({ dashboard }) {
         <div className="student-dashboard-hero-side">
           <div>
             <span>Email</span>
-            <strong>{latestStudent.emailAddress || '-'}</strong>
+            <strong className="student-inline-email">{latestStudent.emailAddress || '-'}</strong>
           </div>
           <div>
             <span>Mobile</span>
@@ -1236,7 +1236,7 @@ function StudentDashboard({ dashboard }) {
           <div className="student-dashboard-info-grid">
             <StudentInfoItem label="Student Name" value={latestStudent.studentName} />
             <StudentInfoItem label="Mobile Number" value={latestStudent.mobileNumber} />
-            <StudentInfoItem label="Email Address" value={latestStudent.emailAddress} />
+            <StudentInfoItem label="Email Address" value={latestStudent.emailAddress} valueClassName="student-inline-email" />
             <StudentInfoItem label="Parent / Spouse Number" value={latestStudent.parentSpouseNumber} />
             <StudentInfoItem label="Location" value={latestStudent.location} fullWidth />
           </div>

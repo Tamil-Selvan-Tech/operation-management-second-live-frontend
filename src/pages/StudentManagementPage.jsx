@@ -510,12 +510,14 @@ function DrawerValue({ value, tone = '' }) {
   }
 
   const text = getDrawerValue(value)
+  const isEmailValue = text.includes('@')
+  const valueClassName = isEmailValue ? 'student-inline-email' : ''
 
   if (tone) {
-    return <span className={`student-detail-pill ${tone}`.trim()}>{text}</span>
+    return <span className={`student-detail-pill ${tone} ${valueClassName}`.trim()}>{text}</span>
   }
 
-  return <span className="student-detail-text">{text}</span>
+  return <span className={`student-detail-text ${valueClassName}`.trim()}>{text}</span>
 }
 
 function DrawerTableRow({ leftLabel, leftValue, rightLabel, rightValue, leftTone = '', rightTone = '' }) {
@@ -1573,7 +1575,7 @@ export function StudentManagementPage() {
                     <tr key={student.id}>
                       <td>
                         <strong>{student.studentName}</strong>
-                        <small>{student.emailAddress}</small>
+                        <small className="student-inline-email">{student.emailAddress}</small>
                       </td>
                       <td>{student.courseInterested}</td>
                       <td>{formatCurrency(student.totalAmount || student.actualFees || student.afterDiscount)}</td>

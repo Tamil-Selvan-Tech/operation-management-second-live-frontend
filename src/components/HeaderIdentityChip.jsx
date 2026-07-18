@@ -4,7 +4,7 @@ export function HeaderIdentityChip({ initials, title, email, className = '' }) {
       <div className="profile-avatar">{initials}</div>
       <div>
         <strong>{title}</strong>
-        <span>{email}</span>
+        <span className="profile-chip-email">{email}</span>
       </div>
     </div>
   )
