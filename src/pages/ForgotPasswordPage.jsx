@@ -85,7 +85,13 @@ export function ForgotPasswordPage({ onSubmit, errorMessage = '', successMessage
               <span className="field-icon" aria-hidden="true">
                 <EmailIcon />
               </span>
-              <input name="email" type="email" placeholder="name@company.com" disabled={isSubmitting} />
+              <input
+                name="email"
+                type="email"
+                autoComplete="email"
+                placeholder="name@company.com"
+                disabled={isSubmitting}
+              />
             </div>
           </FormField>
 

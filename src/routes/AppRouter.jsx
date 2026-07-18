@@ -30,10 +30,17 @@ import { UnauthorizedPage } from '../pages/UnauthorizedPage'
 import { requestPasswordReset, resetPassword } from '../services/apiClient'
 import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
 import { PublicRoute } from './PublicRoute'
+import {
+  clearPendingLoginEmail,
+  loadPendingLoginEmail,
+  savePendingLoginEmail,
+} from '../lib/session'
+
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
 
 function LoginScreen() {
   const [form, setForm] = useState({
-    email: '',
+    email: loadPendingLoginEmail(),
     password: '',
     rememberMe: false,
   })
@@ -53,6 +60,7 @@ function LoginScreen() {
 
     try {
       const target = await signIn(form)
+      clearPendingLoginEmail()
       navigate(target)
     } catch (error) {
       const status = error?.status
@@ -146,11 +154,12 @@ function LoginResetRoute({ title }) {
 
       if (title === 'forgot') {
         const email = String(formData.get('email') || '').trim()
-        if (!email) {
+        if (!isValidEmail(email)) {
           throw new Error('Email is required')
         }
 
         const result = await requestPasswordReset(email)
+        savePendingLoginEmail(email)
         setSuccessMessage(result?.message || 'Reset link sent successfully.')
         event.currentTarget.reset()
         return
