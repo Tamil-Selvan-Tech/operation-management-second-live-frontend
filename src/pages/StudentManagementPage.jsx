@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { isValidElement, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   BadgeCheck,
   BookOpen,
@@ -22,6 +23,7 @@ import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRe
 import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { listCourses } from '../services/courseService'
+import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
 import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
 import { normalizeCourseList } from '../services/courseService'
 
@@ -76,9 +78,7 @@ function createEmptyForm() {
     mobileNumber: '',
     emailAddress: '',
     courseInterested: '',
-    facultyRecordId: '',
     facultyName: '',
-    batchEntryId: '',
     batch: '',
     qualification: '',
     passedOutYear: '',
@@ -204,75 +204,72 @@ function getVisibleInstallmentStage(student, course = null) {
 }
 
 function findCourseForStudent(student, courseOptions) {
-  const studentCourseId = normalizeLookupValue(student.courseId)
-  const studentCourseInterested = normalizeLookupValue(student.courseInterested)
-
   return (
-    courseOptions.find((course) => normalizeLookupValue(course.id) === studentCourseId) ||
-    courseOptions.find((course) => normalizeLookupValue(course.name) === studentCourseInterested) ||
+    courseOptions.find((course) => course.id === student.courseId) ||
+    courseOptions.find((course) => course.name === student.courseInterested) ||
     student.course ||
     null
   )
 }
 
 function findCourseForForm(courseOptions, form) {
-  const formCourseId = normalizeLookupValue(form.courseId)
-  const formCourseInterested = normalizeLookupValue(form.courseInterested)
-
   return (
-    courseOptions.find((course) => normalizeLookupValue(course.id) === formCourseId) ||
-    courseOptions.find((course) => normalizeLookupValue(course.name) === formCourseInterested) ||
+    courseOptions.find((course) => course.id === form.courseId) ||
+    courseOptions.find((course) => course.name === form.courseInterested) ||
     null
   )
 }
 
-function normalizeLookupValue(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '')
-}
+function findFacultyForForm(facultyOptions, form) {
+  const normalizedFacultyName = String(form.facultyName || '').trim().toLowerCase()
+  const normalizedCourseId = String(form.courseId || '').trim()
 
-function formatFacultyBatchLabel(entry = {}) {
-  const batchName = String(entry.batchName || '').trim()
-  const batchTiming = String(entry.batchTiming || '').trim()
-
-  if (batchTiming) return batchTiming
-  return batchName || ''
-}
-
-function getFacultyRecordCourseMatch(record = {}, course = null) {
-  if (!course) return false
-
-  const courseId = normalizeLookupValue(course.id)
-  const courseName = normalizeLookupValue(course.name)
-  const recordCourseId = normalizeLookupValue(record.courseId)
-  const recordCourseName = normalizeLookupValue(record.courseName)
-  const recordCourseInterested = normalizeLookupValue(record.courseInterested)
-  const recordCourse = normalizeLookupValue(record.course?.name || record.course)
-
-  return Boolean(
-    (courseId && recordCourseId && courseId === recordCourseId) ||
-      (courseName && recordCourseName && courseName === recordCourseName) ||
-      (courseName && recordCourseInterested && courseName === recordCourseInterested) ||
-      (courseName && recordCourse && courseName === recordCourse),
+  return (
+    facultyOptions.find(
+      (faculty) =>
+        String(faculty?.courseId || '').trim() === normalizedCourseId &&
+        String(faculty?.facultyName || '').trim().toLowerCase() === normalizedFacultyName,
+    ) ||
+    facultyOptions.find((faculty) => String(faculty?.facultyName || '').trim().toLowerCase() === normalizedFacultyName) ||
+    null
   )
 }
 
-function getFacultyBatchEntries(record = null) {
-  return Array.isArray(record?.batchEntries)
-    ? record.batchEntries
-        .map((entry) => {
-          const label = formatFacultyBatchLabel(entry)
-          if (!label) return null
+function getBatchTimingLabel(entry = {}) {
+  const batchName = String(entry.batchName || '').trim()
+  const batchTiming = String(entry.batchTiming || '').trim()
 
-          return {
-            id: String(entry.id || label),
-            label,
-          }
-        })
-        .filter(Boolean)
-    : []
+  if (!batchName) return ''
+  return batchTiming ? `${batchName} - ${batchTiming}` : batchName
+}
+
+function StudentBatchDisplay({ student, facultyOptions = [] }) {
+  const batchName = String(student?.batchName || student?.batch || '').trim()
+  if (!batchName) return <span className="student-detail-text">-</span>
+
+  const normalizedCourseId = String(student?.courseId || '').trim()
+  const normalizedFacultyName = String(student?.facultyName || '').trim().toLowerCase()
+  const faculty =
+    facultyOptions.find(
+      (item) =>
+        String(item?.courseId || '').trim() === normalizedCourseId &&
+        String(item?.facultyName || '').trim().toLowerCase() === normalizedFacultyName,
+    ) ||
+    facultyOptions.find((item) => String(item?.facultyName || '').trim().toLowerCase() === normalizedFacultyName) ||
+    null
+
+  const matchedBatch = Array.isArray(faculty?.batchEntries)
+    ? faculty.batchEntries.find((entry) => String(entry?.batchName || '').trim() === batchName)
+    : null
+
+  const batchTiming = String(matchedBatch?.batchTiming || '').trim()
+
+  return (
+    <span className="student-batch-display" style={{ display: 'inline-flex', flexDirection: 'column', gap: '2px' }}>
+      <span>{batchName}</span>
+      {batchTiming ? <small>{batchTiming}</small> : null}
+    </span>
+  )
 }
 
 function mapCourseToForm(current, course) {
@@ -288,8 +285,8 @@ function mapCourseToForm(current, course) {
       installment1: '',
       installment2: '',
       installment3: '',
-      facultyName: current.facultyName || '',
-      batch: current.batch || '',
+      facultyName: '',
+      batch: '',
     }
   }
 
@@ -303,8 +300,8 @@ function mapCourseToForm(current, course) {
     ...current,
     courseId: course.id,
     courseInterested: course.name,
-    facultyName: current.facultyName,
-    batch: current.batch,
+    facultyName: '',
+    batch: '',
     actualFees,
     registrationFees: String(course.registrationFees ?? ''),
     discount,
@@ -323,7 +320,7 @@ function getCourseInstallmentValues(course = null) {
   }
 }
 
-function validateForm(form, course = null, facultyOptions = [], batchOptions = []) {
+function validateForm(form, course = null) {
   const errors = {}
   const currentYear = new Date().getFullYear()
   const isFullPayment = isFullPaymentMode(form)
@@ -356,20 +353,8 @@ function validateForm(form, course = null, facultyOptions = [], batchOptions = [
   if (!form.source) errors.source = 'Please select a source.'
 
   if (!form.courseId) errors.courseInterested = 'Please select a course.'
-  if (!String(form.facultyRecordId || '').trim() && !form.facultyName.trim()) {
-    errors.facultyName = form.courseId
-      ? facultyOptions.length
-        ? 'Please select a faculty.'
-        : 'No active faculty available for this course.'
-      : 'Please select a course first.'
-  }
-  if (!String(form.batchEntryId || '').trim() && !form.batch.trim()) {
-    errors.batch = form.facultyName.trim()
-      ? batchOptions.length
-        ? 'Please select a batch.'
-        : 'No batches available for the selected faculty.'
-      : 'Please select a faculty first.'
-  }
+  if (!form.facultyName.trim()) errors.facultyName = 'Faculty name is required.'
+  if (!form.batch.trim()) errors.batch = 'Batch is required.'
   if (!form.actualFees && form.courseId) errors.actualFees = 'Course fee details are missing.'
   if (!form.registrationFees && form.courseId) errors.registrationFees = 'Registration fee is missing.'
   if (!form.discount && form.courseId) errors.discount = 'Discount is missing.'
@@ -390,8 +375,8 @@ function validateForm(form, course = null, facultyOptions = [], batchOptions = [
   return errors
 }
 
-function validateStep(form, stepIndex, course = null, facultyOptions = [], batchOptions = []) {
-  const errors = validateForm(form, course, facultyOptions, batchOptions)
+function validateStep(form, stepIndex, course = null) {
+  const errors = validateForm(form, course)
   const stepFields = {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
     1: [
@@ -518,6 +503,10 @@ function getDrawerValue(value, fallback = '-') {
 }
 
 function DrawerValue({ value, tone = '' }) {
+  if (isValidElement(value)) {
+    return value
+  }
+
   const text = getDrawerValue(value)
 
   if (tone) {
@@ -550,10 +539,11 @@ function DrawerFormControl({
   as = 'input',
   placeholder = '',
   readOnly = false,
+  disabled = false,
 }) {
   if (as === 'select') {
     return (
-      <select className="student-drawer-inline-control" value={value} onChange={onChange}>
+      <select className="student-drawer-inline-control" value={value} onChange={onChange} disabled={disabled}>
         <option value="">{placeholder || 'Select option'}</option>
         {options.map((option) => (
           <option key={typeof option === 'object' ? option.value : option} value={typeof option === 'object' ? option.value : option}>
@@ -584,6 +574,7 @@ function DrawerFormControl({
       onChange={onChange}
       placeholder={placeholder}
       readOnly={readOnly}
+      disabled={disabled}
     />
   )
 }
@@ -677,13 +668,16 @@ function DangerIcon() {
 
 export function StudentManagementPage() {
   const { role } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [students, setStudents] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
-  const [facultyRecords, setFacultyRecords] = useState(() => loadFacultyRecords())
+  const [facultyOptions, setFacultyOptions] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isStudentsLoading, setIsStudentsLoading] = useState(true)
   const [isCoursesLoading, setIsCoursesLoading] = useState(true)
+  const [isFacultyLoading, setIsFacultyLoading] = useState(true)
   const [form, setForm] = useState(createEmptyForm)
   const [submitted, setSubmitted] = useState(false)
   const [fieldFocus, setFieldFocus] = useState({})
@@ -694,6 +688,7 @@ export function StudentManagementPage() {
   const [isDrawerEditing, setIsDrawerEditing] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
+  const [serverFieldErrors, setServerFieldErrors] = useState({})
   const [actionError, setActionError] = useState('')
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
@@ -706,104 +701,79 @@ export function StudentManagementPage() {
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
 
   const selectedCourse = useMemo(() => findCourseForForm(courseOptions, form), [courseOptions, form])
-  const activeFacultyOptions = useMemo(() => {
-    if (!selectedCourse) return []
+  const selectedCourseFacultyOptions = useMemo(() => {
+    const normalizedCourseId = String(form.courseId || '').trim()
+    if (!normalizedCourseId) return []
 
-    return facultyRecords.filter((record) => {
-      return normalizeLookupValue(record.status) === 'active' && getFacultyRecordCourseMatch(record, selectedCourse)
-    })
-  }, [facultyRecords, selectedCourse])
-  const selectedFacultyRecord = useMemo(() => {
-    if (!selectedCourse) return null
-
-    const currentFacultyId = normalizeLookupValue(form.facultyRecordId)
-    const currentFacultyName = normalizeLookupValue(form.facultyName)
-
-    const matchedRecord = facultyRecords.find((record) => {
-      if (!getFacultyRecordCourseMatch(record, selectedCourse)) return false
-
-      const recordId = normalizeLookupValue(record.id)
-      const recordName = normalizeLookupValue(record.facultyName)
-
-      return Boolean(
-        (currentFacultyId && currentFacultyId === recordId) ||
-          (currentFacultyName && currentFacultyName === recordName),
-      )
-    })
-
-    if (matchedRecord) return matchedRecord
-    return null
-  }, [facultyRecords, form.facultyName, form.facultyRecordId, selectedCourse])
-  const selectedFacultyBatchOptions = useMemo(() => getFacultyBatchEntries(selectedFacultyRecord), [selectedFacultyRecord])
-  const selectedBatchOption = useMemo(() => {
-    const currentBatchId = normalizeLookupValue(form.batchEntryId)
-    const currentBatchLabel = normalizeLookupValue(form.batch)
-
-    return (
-      selectedFacultyBatchOptions.find((entry) => currentBatchId && normalizeLookupValue(entry.id) === currentBatchId) ||
-      selectedFacultyBatchOptions.find((entry) => currentBatchLabel && normalizeLookupValue(entry.label) === currentBatchLabel) ||
-      null
+    return facultyOptions.filter(
+      (faculty) => String(faculty?.courseId || '').trim() === normalizedCourseId,
     )
-  }, [form.batch, form.batchEntryId, selectedFacultyBatchOptions])
+  }, [facultyOptions, form.courseId])
+  const selectedFaculty = useMemo(() => {
+    if (String(form.courseId || '').trim()) {
+      return findFacultyForForm(selectedCourseFacultyOptions, form)
+    }
+
+    return findFacultyForForm(facultyOptions, form)
+  }, [facultyOptions, form, selectedCourseFacultyOptions])
   const facultySelectOptions = useMemo(() => {
-    if (!selectedFacultyRecord) return activeFacultyOptions
+    const nextOptions = selectedCourseFacultyOptions.map((faculty) => ({
+      value: faculty.facultyName,
+      label: faculty.facultyName,
+    }))
 
-    return activeFacultyOptions.some((record) => String(record.id) === String(selectedFacultyRecord.id))
-      ? activeFacultyOptions
-      : [selectedFacultyRecord, ...activeFacultyOptions]
-  }, [activeFacultyOptions, selectedFacultyRecord])
+    const currentValue = String(form.facultyName || '').trim()
+    if (currentValue && !nextOptions.some((option) => option.value === currentValue)) {
+      nextOptions.unshift({
+        value: currentValue,
+        label: currentValue,
+      })
+    }
+
+    return nextOptions
+  }, [form.facultyName, selectedCourseFacultyOptions])
   const batchSelectOptions = useMemo(() => {
-    if (!selectedBatchOption) return selectedFacultyBatchOptions
+    const batches = Array.isArray(selectedFaculty?.batchEntries) ? selectedFaculty.batchEntries : []
+    const nextOptions = batches
+      .map((entry) => {
+        const value = String(entry?.batchName || '').trim()
+        if (!value) return null
 
-    return selectedFacultyBatchOptions.some((entry) => String(entry.id) === String(selectedBatchOption.id))
-      ? selectedFacultyBatchOptions
-      : [selectedBatchOption, ...selectedFacultyBatchOptions]
-  }, [selectedBatchOption, selectedFacultyBatchOptions])
+        return {
+          value,
+          label: getBatchTimingLabel(entry) || value,
+        }
+      })
+      .filter(Boolean)
 
-  useEffect(() => {
-    if (isCoursesLoading) return
+    const currentValue = String(form.batch || '').trim()
+    if (currentValue && !nextOptions.some((option) => option.value === currentValue)) {
+      nextOptions.unshift({
+        value: currentValue,
+        label: currentValue,
+      })
+    }
 
-    setForm((current) => {
-      const facultyId = String(current.facultyRecordId || '').trim()
-      const batchId = String(current.batchEntryId || '').trim()
-
-      const facultyStillAvailable =
-        !facultyId || facultySelectOptions.some((record) => String(record.id) === facultyId)
-      const batchStillAvailable =
-        !batchId || batchSelectOptions.some((entry) => String(entry.id) === batchId)
-
-      if (facultyStillAvailable && batchStillAvailable) return current
-
-      return {
-        ...current,
-        ...(facultyStillAvailable
-          ? {}
-          : {
-              facultyRecordId: '',
-              facultyName: '',
-              batchEntryId: '',
-              batch: '',
-            }),
-        ...(facultyStillAvailable && !batchStillAvailable
-          ? {
-              batchEntryId: '',
-              batch: '',
-            }
-          : {}),
-      }
-    })
-  }, [batchSelectOptions, facultySelectOptions, isCoursesLoading])
-
+    return nextOptions
+  }, [form.batch, selectedFaculty])
   const errors = useMemo(() => {
-    const nextErrors = validateForm(form, selectedCourse, activeFacultyOptions, selectedFacultyBatchOptions)
+    const nextErrors = validateForm(form, selectedCourse)
     const duplicateStudent = findDuplicateStudent(form, students, editingStudentId)
 
     if (duplicateStudent) {
       nextErrors.emailAddress = 'Email already exists.'
     }
 
+    if (form.courseId && !selectedCourseFacultyOptions.length) {
+      nextErrors.facultyName = 'No faculty mapped to the selected course.'
+    }
+
+    if (form.facultyName && !batchSelectOptions.length) {
+      nextErrors.batch = 'No batches available for the selected faculty.'
+    }
+
     return nextErrors
-  }, [activeFacultyOptions, editingStudentId, form, selectedCourse, selectedFacultyBatchOptions, students])
+  }, [batchSelectOptions, editingStudentId, form, selectedCourse, selectedCourseFacultyOptions, students])
   const selectedStudent = useMemo(
     () => students.find((student) => student.id === selectedStudentId) || null,
     [selectedStudentId, students],
@@ -812,6 +782,7 @@ export function StudentManagementPage() {
     () => (selectedStudent ? findCourseForStudent(selectedStudent, courseOptions) : null),
     [courseOptions, selectedStudent],
   )
+  const selectedStudentQueryId = useMemo(() => new URLSearchParams(location.search).get('studentId') || '', [location.search])
   const totalStudents = students.length
   const latestStudent = students[0]
   const totalPages = Math.max(1, Math.ceil(totalStudents / studentsPerPage))
@@ -877,30 +848,96 @@ export function StudentManagementPage() {
     }
   }
 
+  const loadFacultyOptions = async () => {
+    setIsFacultyLoading(true)
+
+    try {
+      const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const normalizedFaculty = Array.from(
+        new Map(
+          (result.data || [])
+            .map((faculty) => {
+              const id = String(faculty?.id || '').trim()
+              const facultyName = String(faculty?.facultyName || '').trim()
+              const courseId = String(faculty?.courseId || '').trim()
+              if (!id || !facultyName || !courseId) return null
+
+              return [
+                id,
+                {
+                  ...faculty,
+                  id,
+                  facultyName,
+                  courseId,
+                  batchEntries: Array.isArray(faculty?.batchEntries)
+                    ? faculty.batchEntries
+                        .map((entry) => ({
+                          id: String(entry?.id || '').trim(),
+                          batchName: String(entry?.batchName || '').trim(),
+                          batchTiming: String(entry?.batchTiming || '').trim(),
+                        }))
+                        .filter((entry) => entry.batchName)
+                    : [],
+                },
+              ]
+            })
+            .filter(Boolean),
+        ).values(),
+      )
+
+      setFacultyOptions(normalizedFaculty)
+      setActionError('')
+    } catch (error) {
+      const localFaculty = Array.from(
+        new Map(
+          normalizeFacultyList(loadFacultyRecords())
+            .map((faculty) => {
+              const id = String(faculty?.id || '').trim()
+              const facultyName = String(faculty?.facultyName || '').trim()
+              const courseId = String(faculty?.courseId || '').trim()
+              if (!id || !facultyName || !courseId) return null
+
+              return [
+                id,
+                {
+                  ...faculty,
+                  id,
+                  facultyName,
+                  courseId,
+                  batchEntries: Array.isArray(faculty?.batchEntries)
+                    ? faculty.batchEntries
+                        .map((entry) => ({
+                          id: String(entry?.id || '').trim(),
+                          batchName: String(entry?.batchName || '').trim(),
+                          batchTiming: String(entry?.batchTiming || '').trim(),
+                        }))
+                        .filter((entry) => entry.batchName)
+                    : [],
+                },
+              ]
+            })
+            .filter(Boolean),
+        ).values(),
+      )
+
+      setFacultyOptions(localFaculty)
+      setActionError(apiErrorMessage(error, 'Failed to load faculty records from the backend.'))
+    } finally {
+      setIsFacultyLoading(false)
+    }
+  }
+
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void Promise.all([loadStudents(), loadCourseOptions()])
+      void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
   }, [])
 
-  useEffect(() => {
-    const syncFacultyRecords = () => {
-      setFacultyRecords(loadFacultyRecords())
-    }
-
-    window.addEventListener('storage', syncFacultyRecords)
-    window.addEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyRecords)
-
-    return () => {
-      window.removeEventListener('storage', syncFacultyRecords)
-      window.removeEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyRecords)
-    }
-  }, [])
-
   const openModal = () => {
     setActionError('')
+    setServerFieldErrors({})
     setForm(createEmptyForm())
     setFieldFocus({})
     setSubmitted(false)
@@ -918,9 +955,7 @@ export function StudentManagementPage() {
     mobileNumber: student.mobileNumber || '',
     emailAddress: student.emailAddress || '',
     courseInterested: student.courseInterested || '',
-    facultyRecordId: student.facultyRecordId || '',
     facultyName: student.facultyName || '',
-    batchEntryId: student.batchEntryId || '',
     batch: student.batch || '',
     qualification: student.qualification || '',
     passedOutYear: student.passedOutYear || '',
@@ -956,6 +991,7 @@ export function StudentManagementPage() {
 
   const openEditModal = (student) => {
     setActionError('')
+    setServerFieldErrors({})
     setForm(prepareStudentForm(student))
     setFieldFocus({})
     setSubmitted(false)
@@ -968,6 +1004,7 @@ export function StudentManagementPage() {
 
   const startDrawerEdit = (student) => {
     setActionError('')
+    setServerFieldErrors({})
     setForm(prepareStudentForm(student))
     setFieldFocus({})
     setSubmitted(false)
@@ -981,6 +1018,7 @@ export function StudentManagementPage() {
     setSelectedStudentId(student.id)
     setIsDrawerOpen(true)
     setIsDrawerEditing(false)
+    navigate(`/student-management?studentId=${encodeURIComponent(student.id)}`)
   }
 
   const openDeleteModal = (student) => {
@@ -991,6 +1029,8 @@ export function StudentManagementPage() {
   const closeDrawer = () => {
     setIsDrawerOpen(false)
     setIsDrawerEditing(false)
+    setSelectedStudentId('')
+    navigate('/student-management', { replace: true })
   }
 
   const closeDeleteModal = () => {
@@ -1007,6 +1047,8 @@ export function StudentManagementPage() {
 
   const closeModal = () => {
     setIsModalOpen(false)
+    setActionError('')
+    setServerFieldErrors({})
     setEditingStudentId('')
     setCurrentStep(0)
   }
@@ -1023,6 +1065,19 @@ export function StudentManagementPage() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isDrawerOpen])
+
+  useEffect(() => {
+    if (!selectedStudentQueryId) {
+      setIsDrawerOpen(false)
+      setIsDrawerEditing(false)
+      setSelectedStudentId('')
+      return
+    }
+
+    setSelectedStudentId(selectedStudentQueryId)
+    setIsDrawerOpen(true)
+    setIsDrawerEditing(false)
+  }, [selectedStudentQueryId])
 
   useEffect(() => {
     saveStudentRecords(students)
@@ -1077,6 +1132,20 @@ export function StudentManagementPage() {
     }
   }, [])
 
+  useEffect(() => {
+    const syncFacultyOptions = () => {
+      void loadFacultyOptions()
+    }
+
+    window.addEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyOptions)
+    window.addEventListener('storage', syncFacultyOptions)
+
+    return () => {
+      window.removeEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyOptions)
+      window.removeEventListener('storage', syncFacultyOptions)
+    }
+  }, [])
+
   const updateField = (name, value) => {
     setForm((current) => ({
       ...current,
@@ -1103,60 +1172,35 @@ export function StudentManagementPage() {
           : {}),
       [name]: value,
     }))
+    setServerFieldErrors((current) => {
+      if (!current[name]) return current
+      const nextErrors = { ...current }
+      delete nextErrors[name]
+      return nextErrors
+    })
   }
 
   const applyCourseDetails = (courseId) => {
-    const normalizedCourseId = normalizeLookupValue(courseId)
-    const course = courseOptions.find((item) => normalizeLookupValue(item.id) === normalizedCourseId) || null
+    const course = courseOptions.find((item) => item.id === courseId) || null
     setForm((current) => ({
       ...mapCourseToForm(current, course),
-      facultyRecordId: '',
       facultyName: '',
-      batchEntryId: '',
       batch: '',
     }))
   }
 
-  const applyFacultyDetails = (facultyRecordId) => {
-    const facultyRecord =
-      facultyRecords.find((record) => String(record.id || '') === String(facultyRecordId || '')) || null
-
-    if (!facultyRecord) {
-      setForm((current) => ({
-        ...current,
-        facultyRecordId: '',
-        facultyName: '',
-        batchEntryId: '',
-        batch: '',
-      }))
-      return
-    }
-
+  const applyFacultyDetails = (facultyName) => {
     setForm((current) => ({
       ...current,
-      facultyRecordId: facultyRecord.id,
-      facultyName: facultyRecord.facultyName || '',
-      batchEntryId: '',
+      facultyName,
       batch: '',
     }))
   }
 
-  const applyBatchDetails = (batchEntryId) => {
-    const batchEntry = selectedFacultyBatchOptions.find((entry) => entry.id === batchEntryId) || null
-
-    if (!batchEntry) {
-      setForm((current) => ({
-        ...current,
-        batchEntryId: '',
-        batch: '',
-      }))
-      return
-    }
-
+  const applyBatchDetails = (batch) => {
     setForm((current) => ({
       ...current,
-      batchEntryId: batchEntry.id,
-      batch: batchEntry.label,
+      batch,
     }))
   }
 
@@ -1170,7 +1214,7 @@ export function StudentManagementPage() {
   const shouldShowError = (name) => submitted || fieldFocus[name]
 
   const goToNextStep = () => {
-    const stepErrors = validateStep(form, currentStep, selectedCourse, activeFacultyOptions, selectedFacultyBatchOptions)
+    const stepErrors = validateStep(form, currentStep, selectedCourse)
     if (Object.keys(stepErrors).length > 0) {
       setSubmitted(true)
       return
@@ -1188,8 +1232,9 @@ export function StudentManagementPage() {
   const handleSubmit = async () => {
     setSubmitted(true)
     setActionError('')
+    setServerFieldErrors({})
 
-    const nextErrors = validateForm(form, selectedCourse, activeFacultyOptions, selectedFacultyBatchOptions)
+    const nextErrors = validateForm(form, selectedCourse)
     const duplicateStudent = findDuplicateStudent(form, students, editingStudentId)
     if (Object.keys(nextErrors).length > 0) {
       const firstErrorField = Object.keys(nextErrors)[0]
@@ -1220,11 +1265,8 @@ export function StudentManagementPage() {
       ...form,
       courseId: form.courseId || course?.id || '',
       courseInterested: form.courseInterested || course?.name || '',
-      facultyRecordId: form.facultyRecordId || '',
       facultyName: form.facultyName || '',
-      batchEntryId: form.batchEntryId || '',
       batchName: form.batch || '',
-      batch: form.batch || '',
       status: form.status || existingStudent?.status || 'Active',
     }
 
@@ -1268,7 +1310,18 @@ export function StudentManagementPage() {
       }
       setOpenActionMenuId('')
     } catch (error) {
-      setActionError(apiErrorMessage(error, 'Unable to save student details.'))
+      const errorMessage = apiErrorMessage(error, 'Unable to save student details.')
+      const normalizedErrorMessage = String(errorMessage || '').toLowerCase()
+
+      if (normalizedErrorMessage.includes('mobile number already exists') || normalizedErrorMessage.includes('mobile already exists')) {
+        setServerFieldErrors({ mobileNumber: 'Mobile number already exists.' })
+        setFieldFocus((current) => ({ ...current, mobileNumber: true }))
+        setCurrentStep(0)
+        setActionError('')
+        return
+      }
+
+      setActionError(errorMessage)
     }
   }
 
@@ -1729,7 +1782,12 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Enter Mobile Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('mobileNumber') ? errors.mobileNumber : ''}>
+                  <Field
+                    label="Enter Mobile Number"
+                    required
+                    icon={<FieldIcon kind="phone" />}
+                    error={shouldShowError('mobileNumber') ? serverFieldErrors.mobileNumber || errors.mobileNumber : ''}
+                  >
                     <input
                       type="tel"
                       inputMode="numeric"
@@ -1811,48 +1869,55 @@ export function StudentManagementPage() {
 
                   <Field label="Select Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
                     <select
-                      value={form.facultyRecordId || selectedFacultyRecord?.id || ''}
+                      value={form.facultyName}
                       onChange={(event) => applyFacultyDetails(event.target.value)}
                       onBlur={() => markTouched('facultyName')}
-                      disabled={!form.courseId || isCoursesLoading}
+                      disabled={isFacultyLoading || !form.courseId || !facultySelectOptions.length}
                     >
                       <option value="">
-                        {!form.courseId
-                          ? 'Select course first'
-                          : facultySelectOptions.length
+                        {isFacultyLoading
+                          ? 'Loading faculty...'
+                          : form.courseId
                             ? 'Select faculty'
-                            : 'No active faculty available for this course'}
+                            : 'Select a course first'}
                       </option>
                       {facultySelectOptions.map((faculty) => (
-                        <option key={faculty.id} value={faculty.id}>
-                          {faculty.facultyName}
-                          {normalizeLookupValue(faculty.status) !== 'active' ? ' (Inactive)' : ''}
+                        <option key={`${faculty.value}-${faculty.label}`} value={faculty.value}>
+                          {faculty.label}
                         </option>
                       ))}
+                      {!isFacultyLoading && form.courseId && !facultySelectOptions.length ? (
+                        <option value="" disabled>
+                          No faculty mapped for this course
+                        </option>
+                      ) : null}
                     </select>
                   </Field>
 
                   <Field label="Select Batch" required icon={<FieldIcon kind="batch" />} error={shouldShowError('batch') ? errors.batch : ''}>
                     <select
-                      value={form.batchEntryId || selectedBatchOption?.id || ''}
+                      value={form.batch}
                       onChange={(event) => applyBatchDetails(event.target.value)}
                       onBlur={() => markTouched('batch')}
-                      disabled={!selectedFacultyRecord || isCoursesLoading}
+                      disabled={isFacultyLoading || !form.facultyName || !batchSelectOptions.length}
                     >
                       <option value="">
-                        {!form.courseId
-                          ? 'Select course first'
-                          : !form.facultyName.trim()
-                            ? 'Select faculty first'
-                            : batchSelectOptions.length
-                              ? 'Select batch'
-                              : 'No batches available for the selected faculty'}
+                        {isFacultyLoading
+                          ? 'Loading batches...'
+                          : form.facultyName
+                            ? 'Select batch'
+                            : 'Select faculty first'}
                       </option>
                       {batchSelectOptions.map((batch) => (
-                        <option key={batch.id} value={batch.id}>
+                        <option key={`${batch.value}-${batch.label}`} value={batch.value}>
                           {batch.label}
                         </option>
                       ))}
+                      {!isFacultyLoading && form.facultyName && !batchSelectOptions.length ? (
+                        <option value="" disabled>
+                          No batches available for this faculty
+                        </option>
+                      ) : null}
                     </select>
                   </Field>
 
@@ -2129,25 +2194,24 @@ export function StudentManagementPage() {
                             onChange={(event) => applyCourseDetails(event.target.value)}
                             options={courseOptions.map((course) => ({ value: course.id, label: course.name }))}
                             placeholder={isCoursesLoading ? 'Loading courses...' : 'Select course'}
+                            disabled={isCoursesLoading}
                           />
                         </td>
                         <th>Faculty Name</th>
                         <td>
                           <DrawerFormControl
                             as="select"
-                            value={form.facultyRecordId || selectedFacultyRecord?.id || ''}
+                            value={form.facultyName}
                             onChange={(event) => applyFacultyDetails(event.target.value)}
-                            options={facultySelectOptions.map((faculty) => ({
-                              value: faculty.id,
-                              label: `${faculty.facultyName}${normalizeLookupValue(faculty.status) !== 'active' ? ' (Inactive)' : ''}`,
-                            }))}
+                            options={facultySelectOptions}
                             placeholder={
-                              !form.courseId
-                                ? 'Select course first'
-                                : facultySelectOptions.length
+                              isFacultyLoading
+                                ? 'Loading faculty...'
+                                : form.courseId
                                   ? 'Select faculty'
-                                  : 'No active faculty available for this course'
+                                  : 'Select a course first'
                             }
+                            disabled={isFacultyLoading || !form.courseId || !facultySelectOptions.length}
                           />
                         </td>
                       </tr>
@@ -2156,18 +2220,17 @@ export function StudentManagementPage() {
                         <td>
                           <DrawerFormControl
                             as="select"
-                            value={form.batchEntryId || selectedBatchOption?.id || ''}
+                            value={form.batch}
                             onChange={(event) => applyBatchDetails(event.target.value)}
-                            options={batchSelectOptions.map((batch) => ({ value: batch.id, label: batch.label }))}
+                            options={batchSelectOptions}
                             placeholder={
-                              !form.courseId
-                                ? 'Select course first'
-                                : !form.facultyName.trim()
-                                  ? 'Select faculty first'
-                                  : batchSelectOptions.length
-                                    ? 'Select batch'
-                                    : 'No batches available for the selected faculty'
+                              isFacultyLoading
+                                ? 'Loading batches...'
+                                : form.facultyName
+                                  ? 'Select batch'
+                                  : 'Select faculty first'
                             }
+                            disabled={isFacultyLoading || !form.facultyName || !batchSelectOptions.length}
                           />
                         </td>
                         <th>Qualification</th>
@@ -2358,7 +2421,12 @@ export function StudentManagementPage() {
                         rightLabel="Faculty Name"
                         rightValue={selectedStudent.facultyName}
                       />
-                      <DrawerTableRow leftLabel="Batch" leftValue={selectedStudent.batch} rightLabel="Qualification" rightValue={selectedStudent.qualification} />
+                      <DrawerTableRow
+                        leftLabel="Batch"
+                        leftValue={<StudentBatchDisplay student={selectedStudent} facultyOptions={facultyOptions} />}
+                        rightLabel="Qualification"
+                        rightValue={selectedStudent.qualification}
+                      />
                       <DrawerTableRow
                         leftLabel="Passed Out Year"
                         leftValue={selectedStudent.passedOutYear}
