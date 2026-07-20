@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
+import { SearchBar } from '../components/SearchBar'
+import { PaginationBar } from '../components/PaginationBar'
 import { createCourse, deleteCourse, listCourses, updateCourse } from '../services/courseService'
 import { saveCourseRecords } from '../data/courseRecords'
+import { Eye, MoreVertical, PencilLine, Trash2 } from 'lucide-react'
 
 function Field({ label, hint, error, children, required = false }) {
   return (
@@ -19,51 +22,8 @@ function Field({ label, hint, error, children, required = false }) {
 }
 
 function StatusPill({ status }) {
-  return <span className={`status-pill ${status.toLowerCase()}`}>{status}</span>
-}
-
-function EditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0 0-3L16.5 4a2.1 2.1 0 0 0-3 0L3 14.5V20h1z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path d="m13.5 6.5 4 4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function DeleteIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M4 7h16"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M6.5 7l1 12.5A1.5 1.5 0 0 0 9 21h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path d="M10 11v5M14 11v5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  )
+  const normalizedStatus = String(status || 'Active')
+  return <span className={`status-pill ${normalizedStatus.toLowerCase()}`}>{normalizedStatus}</span>
 }
 
 function formatDuration(value) {
@@ -133,6 +93,44 @@ function buildInstallmentsFromCourse(course, count) {
   return installments
 }
 
+function buildCourseFormFromCourse(course) {
+  const installmentCount = normalizeInstallmentCount(course?.installmentCount ?? 2)
+  const isCustomCount = installmentCount > 3
+  const installments = buildInstallmentsFromCourse(course, Math.max(installmentCount, 3))
+
+  return {
+    name: course?.name || '',
+    mode: course?.mode || '',
+    duration: course?.duration ?? '',
+    hours: course?.hours ?? '',
+    actualFees: course?.actualFees ?? '',
+    registrationFees: course?.registrationFees ?? '',
+    discount: course?.discount ?? '',
+    installmentCount: isCustomCount ? 'custom' : String(installmentCount || 2),
+    customInstallmentCount: isCustomCount ? String(installmentCount) : '',
+    installment1: installments[0] ?? '',
+    installment2: installments[1] ?? '',
+    installment3: installments[2] ?? '',
+    extraInstallments: installments.slice(3),
+    status: course?.status || '',
+  }
+}
+
+function normalizeCourseFormForSave(courseForm) {
+  const nextForm = { ...courseForm }
+  const effectiveInstallmentCount = getEffectiveInstallmentCount(nextForm)
+  if (!effectiveInstallmentCount) return nextForm
+
+  const actualFees = Number(nextForm.actualFees || 0)
+  const discount = Number(nextForm.discount || 0)
+  const discountedFee = Math.max(actualFees - discount, 0)
+  const installmentValues = Array.from({ length: effectiveInstallmentCount }, (_, index) => Number(getInstallmentValue(nextForm, index + 1) || 0))
+  const leadingTotal = installmentValues.slice(0, Math.max(0, effectiveInstallmentCount - 1)).reduce((total, amount) => total + amount, 0)
+  const lastInstallment = Math.max(discountedFee - leadingTotal, 0)
+
+  return setInstallmentValue(nextForm, effectiveInstallmentCount, String(lastInstallment))
+}
+
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.body?.error || error?.message || fallback
 }
@@ -152,6 +150,11 @@ export function CoursesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [editingCourseId, setEditingCourseId] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [viewTarget, setViewTarget] = useState(null)
+  const [isCourseInlineEditing, setIsCourseInlineEditing] = useState(false)
+  const [openActionMenuId, setOpenActionMenuId] = useState(null)
+  const [openActionMenuPlacement, setOpenActionMenuPlacement] = useState('bottom')
+  const [openActionMenuMode, setOpenActionMenuMode] = useState('')
   const [form, setForm] = useState({
     name: '',
     mode: '',
@@ -175,6 +178,7 @@ export function CoursesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const requestIdRef = useRef(0)
+  const actionMenuButtonRefs = useRef(new Map())
 
   const pageSize = 5
 
@@ -243,7 +247,7 @@ export function CoursesPage() {
         0,
       )
 
-      if (installmentTotal !== discountedFee) {
+      if (!isCourseInlineEditing && installmentTotal !== discountedFee) {
         for (let index = 1; index <= effectiveInstallmentCount; index += 1) {
           errors[`installment${index}`] = `Installment total must match ${discountedFee}.`
         }
@@ -251,7 +255,7 @@ export function CoursesPage() {
     }
 
     return errors
-  }, [form])
+  }, [form, isCourseInlineEditing])
 
   const totalPages = pagination.totalPages || 1
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -393,6 +397,8 @@ export function CoursesPage() {
 
   const closeModal = () => {
     setIsModalOpen(false)
+    setViewTarget(null)
+    setIsCourseInlineEditing(false)
   }
 
   const closeModalAfterSave = () => {
@@ -404,36 +410,59 @@ export function CoursesPage() {
     setDeleteTarget(null)
   }
 
+  const closeViewModal = () => {
+    setViewTarget(null)
+    setIsCourseInlineEditing(false)
+    setEditingCourseId(null)
+    setTouched({})
+    setSaveError('')
+  }
+
   const openCreateModal = () => {
     setEditingCourseId(null)
     setTouched({})
+    setViewTarget(null)
+    setIsCourseInlineEditing(false)
     setIsModalOpen(true)
+    setOpenActionMenuId(null)
+    setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuMode('')
   }
 
   const openEditModal = (course) => {
+    if (!course) return
     setEditingCourseId(course.id)
     setTouched({})
     setSaveError('')
-    const installmentCount = normalizeInstallmentCount(course.installmentCount ?? 2)
-    const isCustomCount = installmentCount > 3
-    const installments = buildInstallmentsFromCourse(course, Math.max(installmentCount, 3))
-    setForm({
-      name: course.name || '',
-      mode: course.mode || '',
-      duration: course.duration ?? '',
-      hours: course.hours ?? '',
-      actualFees: course.actualFees ?? '',
-      registrationFees: course.registrationFees ?? '',
-      discount: course.discount ?? '',
-      installmentCount: isCustomCount ? 'custom' : String(installmentCount || 2),
-      customInstallmentCount: isCustomCount ? String(installmentCount) : '',
-      installment1: installments[0] ?? '',
-      installment2: installments[1] ?? '',
-      installment3: installments[2] ?? '',
-      extraInstallments: installments.slice(3),
-      status: course.status || '',
-    })
-    setIsModalOpen(true)
+    setViewTarget(course)
+    setForm(buildCourseFormFromCourse(course))
+    setIsCourseInlineEditing(true)
+    setIsModalOpen(false)
+    setOpenActionMenuId(null)
+    setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuMode('')
+  }
+
+  const openViewModal = (course) => {
+    setIsModalOpen(false)
+    setViewTarget(course)
+    setIsCourseInlineEditing(false)
+    setEditingCourseId(null)
+    setTouched({})
+    setSaveError('')
+    setOpenActionMenuId(null)
+    setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuMode('')
+  }
+
+  const cancelInlineEdit = () => {
+    if (viewTarget) {
+      setForm(buildCourseFormFromCourse(viewTarget))
+    }
+    setIsCourseInlineEditing(false)
+    setEditingCourseId(null)
+    setTouched({})
+    setSaveError('')
   }
 
   const goToPage = (page) => {
@@ -484,19 +513,22 @@ export function CoursesPage() {
     setSaveError('')
     setIsSaving(true)
 
-    const installmentsPayload = Array.from({ length: effectiveInstallmentCount }, (_, index) => getInstallmentValue(form, index + 1))
+    const saveForm = isCourseInlineEditing ? normalizeCourseFormForSave(form) : form
+    const saveAfterDiscount = String(Math.max(Number(saveForm.actualFees || 0) - Number(saveForm.discount || 0), 0))
+    const saveEffectiveInstallmentCount = getEffectiveInstallmentCount(saveForm)
+    const installmentsPayload = Array.from({ length: saveEffectiveInstallmentCount }, (_, index) => getInstallmentValue(saveForm, index + 1))
 
     const payload = {
-      name: form.name.trim(),
-      mode: form.mode,
-      duration: form.duration,
-      hours: form.hours,
-      actualFees: form.actualFees,
-      registrationFees: form.registrationFees,
-      discount: form.discount,
-      afterDiscount,
-      installmentCount: String(effectiveInstallmentCount),
-      status: form.status,
+      name: saveForm.name.trim(),
+      mode: saveForm.mode,
+      duration: saveForm.duration,
+      hours: saveForm.hours,
+      actualFees: saveForm.actualFees,
+      registrationFees: saveForm.registrationFees,
+      discount: saveForm.discount,
+      afterDiscount: saveAfterDiscount,
+      installmentCount: String(saveEffectiveInstallmentCount),
+      status: saveForm.status,
     }
 
     installmentsPayload.forEach((amount, index) => {
@@ -511,6 +543,25 @@ export function CoursesPage() {
       }
 
       await loadCourses({ page: editingCourseId ? currentPage : 1, search: searchTerm, filter: activeFilter })
+
+      if (isCourseInlineEditing) {
+        setForm(saveForm)
+        setViewTarget((current) =>
+          current
+            ? {
+                ...current,
+                ...payload,
+                id: editingCourseId || current.id,
+              }
+            : current,
+        )
+        setIsCourseInlineEditing(false)
+        setEditingCourseId(null)
+        setTouched({})
+        setSaveError('')
+        return
+      }
+
       closeModalAfterSave()
     } catch (error) {
       setSaveError(apiErrorMessage(error, 'Unable to save course right now.'))
@@ -521,7 +572,55 @@ export function CoursesPage() {
 
   const handleDelete = (courseId) => {
     setDeleteTarget(courses.find((course) => course.id === courseId) || null)
+    setOpenActionMenuId(null)
+    setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuMode('')
   }
+
+  const getAfterDiscountValue = (course) => {
+    const actualFees = Number(course?.actualFees || 0)
+    const discount = Number(course?.discount || 0)
+    if (!Number.isFinite(actualFees) || !Number.isFinite(discount)) return course?.afterDiscount || '-'
+    return String(Math.max(actualFees - discount, 0))
+  }
+
+  const syncOpenActionMenuPlacement = (buttonElement) => {
+    if (!buttonElement) return
+
+    const rect = buttonElement.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    const estimatedMenuHeight = 180
+    const nextPlacement = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? 'top' : 'bottom'
+
+    setOpenActionMenuPlacement(nextPlacement)
+  }
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!event.target.closest('.course-row-actions-wrap')) {
+        setOpenActionMenuId(null)
+        setOpenActionMenuPlacement('bottom')
+        setOpenActionMenuMode('')
+      }
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setOpenActionMenuId(null)
+        setOpenActionMenuPlacement('bottom')
+        setOpenActionMenuMode('')
+      }
+    }
+
+    window.addEventListener('mousedown', handlePointerDown)
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown)
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [])
 
   const confirmDelete = async () => {
     if (!deleteTarget) return
@@ -570,18 +669,12 @@ export function CoursesPage() {
           <button className="button button-solid course-add-button" type="button" onClick={openCreateModal}>
             + Add Course
           </button>
-          <label className="dashboard-search course-search">
-            <input
-              type="search"
-              placeholder="Search course..."
-              aria-label="Search courses"
-              value={searchTerm}
-              onChange={(event) => handleSearchChange(event.target.value)}
-            />
-            <button type="button" className="dashboard-search-button" aria-label="Search courses">
-              Search
-            </button>
-          </label>
+          <SearchBar
+            value={searchTerm}
+            onChange={handleSearchChange}
+            placeholder="Search course..."
+            ariaLabel="Search courses"
+          />
         </div>
       </div>
 
@@ -805,6 +898,225 @@ export function CoursesPage() {
         </div>
       ) : null}
 
+      {viewTarget ? (
+        <div className="student-drawer-backdrop" role="presentation">
+          <aside className="student-drawer student-drawer-table-view" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="student-drawer-table-header course-drawer-table-header">
+              <div>
+                <p className="section-kicker">Course Details</p>
+                <h3>{viewTarget.name || 'Course Details'}</h3>
+                <p>Full course pricing and installment breakdown.</p>
+              </div>
+              <div className="student-drawer-table-actions">
+                {isCourseInlineEditing ? (
+                  <>
+                    <button type="button" className="student-drawer-edit-button student-drawer-edit-button-ghost" onClick={cancelInlineEdit} disabled={isSaving}>
+                      Cancel
+                    </button>
+                    <button type="button" className="student-drawer-edit-button" onClick={handleSave} disabled={isSaving}>
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="student-drawer-edit-button"
+                    onClick={() => openEditModal(viewTarget)}
+                  >
+                    <PencilLine />
+                    <span>Edit</span>
+                  </button>
+                )}
+                <button type="button" className="student-drawer-close student-drawer-close-floating" onClick={closeViewModal} aria-label="Close course details">
+                  X
+                </button>
+              </div>
+            </div>
+
+            {isCourseInlineEditing ? (
+              <div className="course-validation-note course-drawer-inline-note">
+                {saveError || Object.values(validationErrors)[0] || 'Edit the values below and click Save.'}
+              </div>
+            ) : null}
+
+            <div className="student-drawer-table-shell course-drawer-table-shell">
+              <table className="student-details-table course-details-table">
+                <tbody>
+                  <tr>
+                    <th>Course Name</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          value={form.name}
+                          onChange={(event) => updateField('name', event.target.value)}
+                        />
+                      ) : (
+                        viewTarget.name || '-'
+                      )}
+                    </td>
+                    <th>Mode</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <select className="student-drawer-inline-control" value={form.mode} onChange={(event) => updateField('mode', event.target.value)}>
+                          <option value="" disabled>
+                            Select mode
+                          </option>
+                          <option>Online</option>
+                          <option>Offline</option>
+                          <option>Hybrid</option>
+                        </select>
+                      ) : (
+                        viewTarget.mode || '-'
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Duration</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          inputMode="numeric"
+                          value={form.duration}
+                          onChange={(event) => updateNumericField('duration', event.target.value)}
+                        />
+                      ) : (
+                        formatDuration(viewTarget.duration)
+                      )}
+                    </td>
+                    <th>Hours</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          inputMode="numeric"
+                          value={form.hours}
+                          onChange={(event) => updateNumericField('hours', event.target.value)}
+                        />
+                      ) : (
+                        formatHours(viewTarget.hours)
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Actual Fees</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          inputMode="numeric"
+                          value={form.actualFees}
+                          onChange={(event) => updateNumericField('actualFees', event.target.value)}
+                        />
+                      ) : (
+                        viewTarget.actualFees || '-'
+                      )}
+                    </td>
+                    <th>Registration Fees</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          inputMode="numeric"
+                          value={form.registrationFees}
+                          onChange={(event) => updateNumericField('registrationFees', event.target.value)}
+                        />
+                      ) : (
+                        viewTarget.registrationFees || '-'
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Discount</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          inputMode="numeric"
+                          value={form.discount}
+                          onChange={(event) => updateNumericField('discount', event.target.value)}
+                        />
+                      ) : (
+                        viewTarget.discount || '-'
+                      )}
+                    </td>
+                    <th>After Discount</th>
+                    <td>{getAfterDiscountValue(isCourseInlineEditing ? form : viewTarget)}</td>
+                  </tr>
+                  <tr>
+                    <th>Installment 1</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          inputMode="numeric"
+                          value={form.installment1}
+                          onChange={(event) => updateNumericField('installment1', event.target.value)}
+                        />
+                      ) : (
+                        viewTarget.installment1 || '-'
+                      )}
+                    </td>
+                    <th>Installment 2</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          inputMode="numeric"
+                          value={form.installment2}
+                          onChange={(event) => updateNumericField('installment2', event.target.value)}
+                        />
+                      ) : (
+                        viewTarget.installment2 || '-'
+                      )}
+                    </td>
+                  </tr>
+                  <tr>
+                    <th>Installment 3</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          inputMode="numeric"
+                          value={form.installment3}
+                          onChange={(event) => updateNumericField('installment3', event.target.value)}
+                        />
+                      ) : (
+                        viewTarget.installment3 || '-'
+                      )}
+                    </td>
+                    <th>Status</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <select className="student-drawer-inline-control" value={form.status} onChange={(event) => updateField('status', event.target.value)}>
+                          <option value="" disabled>
+                            Select status
+                          </option>
+                          <option>Active</option>
+                          <option>Inactive</option>
+                        </select>
+                      ) : (
+                        <StatusPill status={viewTarget.status || 'Active'} />
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </aside>
+        </div>
+      ) : null}
+
       {deleteTarget ? (
         <div className="course-modal-backdrop" role="presentation" onClick={closeDeleteModal}>
           <div
@@ -854,15 +1166,9 @@ export function CoursesPage() {
                   <th>Course Name</th>
                   <th>Mode</th>
                   <th>Duration</th>
-                  <th>Hours</th>
                   <th>Actual Fees</th>
                   <th>Registration Fees</th>
-                  <th>Discount</th>
                   <th>After Discount</th>
-                  <th>Installment 1</th>
-                  <th>Installment 2</th>
-                  <th>Installment 3</th>
-                  
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -870,62 +1176,143 @@ export function CoursesPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td className="course-empty-state" colSpan="13">Loading courses...</td>
+                    <td className="course-empty-state" colSpan="8">Loading courses...</td>
                   </tr>
                 ) : loadError && !visibleCourses.length ? (
                   <tr>
-                    <td className="course-empty-state" colSpan="13">{loadError}</td>
+                    <td className="course-empty-state" colSpan="8">{loadError}</td>
                   </tr>
                 ) : visibleCourses.length ? (
-                  visibleCourses.map((course) => (
-                    <tr key={course.id || `${course.name}-${course.mode}`}>
-                      <td><strong>{course.name}</strong></td>
-                      <td>{course.mode}</td>
-                      <td>{formatDuration(course.duration)}</td>
-                      <td>{formatHours(course.hours)}</td>
-                      <td>{course.actualFees}</td>
-                      <td>{course.registrationFees}</td>
-                      <td>{course.discount}</td>
-                      <td>{course.afterDiscount}</td>
-                      <td>{course.installment1}</td>
-                      <td>{course.installment2}</td>
-                      <td>{course.installment3 || '-'}</td>
-                      
-                      <td>
-                        <StatusPill status={course.status} />
-                      </td>
-                      <td>
-                        <div className="course-row-actions">
-                          <button
-                            type="button"
-                            className="course-row-action course-row-edit"
-                            onClick={() => openEditModal(course)}
-                            aria-label={`Edit ${course.name || 'course'}`}
-                            title="Edit"
+                  visibleCourses.map((course, index) => {
+                    const shouldOpenMenuUpwards = index >= Math.max(0, visibleCourses.length - 2)
+                    const menuPlacement = shouldOpenMenuUpwards ? 'top' : openActionMenuPlacement
+
+                    return (
+                      <tr key={course.id || `${course.name}-${course.mode}`} className={openActionMenuId === course.id ? 'course-row-actions-open' : ''}>
+                        <td><strong>{course.name}</strong></td>
+                        <td>{course.mode}</td>
+                        <td>{formatDuration(course.duration)}</td>
+                        <td>{course.actualFees}</td>
+                        <td>{course.registrationFees}</td>
+                        <td>{getAfterDiscountValue(course)}</td>
+                        <td>
+                          <StatusPill status={course.status} />
+                        </td>
+                        <td className="course-actions-cell">
+                          <div
+                            className={`course-row-actions-wrap ${openActionMenuId === course.id ? 'is-open' : ''}`.trim()}
+                            onMouseEnter={() => {
+                              setOpenActionMenuId(course.id)
+                              setOpenActionMenuMode((current) => (current === 'click' && openActionMenuId === course.id ? 'click' : 'hover'))
+                              syncOpenActionMenuPlacement(actionMenuButtonRefs.current.get(course.id))
+                            }}
+                            onMouseLeave={() => {
+                              setOpenActionMenuMode((currentMode) => {
+                                if (currentMode !== 'hover') return currentMode
+                                setOpenActionMenuId(null)
+                                setOpenActionMenuPlacement('bottom')
+                                return ''
+                              })
+                            }}
                           >
-                            <EditIcon />
-                          </button>
-                          <button
-                            type="button"
-                            className="course-row-action course-row-delete"
-                            onClick={() => handleDelete(course.id)}
-                            aria-label={`Delete ${course.name || 'course'}`}
-                            title="Delete"
-                          >
-                            <DeleteIcon />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                            <button
+                              ref={(node) => {
+                                if (node) actionMenuButtonRefs.current.set(course.id, node)
+                                else actionMenuButtonRefs.current.delete(course.id)
+                              }}
+                              type="button"
+                              className={`course-row-action course-row-menu-trigger ${openActionMenuId === course.id ? 'is-open' : ''}`.trim()}
+                              onClick={(event) => {
+                                const nextIsOpen = openActionMenuId !== course.id || openActionMenuMode !== 'click'
+                                if (!nextIsOpen) {
+                                  setOpenActionMenuId(null)
+                                  setOpenActionMenuPlacement('bottom')
+                                  setOpenActionMenuMode('')
+                                  return
+                                }
+
+                                setOpenActionMenuId(course.id)
+                                setOpenActionMenuMode('click')
+                                syncOpenActionMenuPlacement(event.currentTarget)
+                              }}
+                              aria-label={`Open actions for ${course.name || 'course'}`}
+                              aria-haspopup="menu"
+                              aria-expanded={openActionMenuId === course.id}
+                            >
+                              <MoreVertical />
+                            </button>
+                            {openActionMenuId === course.id ? (
+                              <div
+                                className={`course-row-action-menu ${menuPlacement === 'top' ? 'course-row-action-menu-top' : 'course-row-action-menu-bottom'}`.trim()}
+                                role="menu"
+                                aria-label={`${course.name || 'course'} actions`}
+                              >
+                                <button
+                                  type="button"
+                                  className="course-row-action-menu-item"
+                                  onClick={() => {
+                                    setOpenActionMenuId(null)
+                                    setOpenActionMenuPlacement('bottom')
+                                    setOpenActionMenuMode('')
+                                    openViewModal(course)
+                                  }}
+                                  role="menuitem"
+                                >
+                                  <Eye />
+                                  <span>View</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="course-row-action-menu-item"
+                                  onClick={() => {
+                                    setOpenActionMenuId(null)
+                                    setOpenActionMenuPlacement('bottom')
+                                    setOpenActionMenuMode('')
+                                    openEditModal(course)
+                                  }}
+                                  role="menuitem"
+                                >
+                                  <PencilLine />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="course-row-action-menu-item danger"
+                                  onClick={() => {
+                                    setOpenActionMenuId(null)
+                                    setOpenActionMenuPlacement('bottom')
+                                    setOpenActionMenuMode('')
+                                    handleDelete(course.id)
+                                  }}
+                                  role="menuitem"
+                                >
+                                  <Trash2 />
+                                  <span>Delete</span>
+                                </button>
+                              </div>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
                 ) : (
                   <tr>
-                    <td className="course-empty-state" colSpan="13">No courses found.</td>
+                    <td className="course-empty-state" colSpan="8">No courses found.</td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          <PaginationBar
+            className="app-pagination"
+            currentPage={safeCurrentPage}
+            totalPages={totalPages}
+            pageList={pageList}
+            onPageChange={goToPage}
+            label="Course pagination"
+          />
 
           <div className="course-pagination">
             <button

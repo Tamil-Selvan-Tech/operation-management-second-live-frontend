@@ -16,6 +16,8 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
+import { SearchBar } from '../components/SearchBar'
+import { PaginationBar } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { loadStudentRecords } from '../data/studentRecords'
@@ -128,6 +130,9 @@ export function BatchStudentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedStudent, setSelectedStudent] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const pageSize = 5
 
   useEffect(() => {
     const loadData = async () => {
@@ -198,6 +203,18 @@ export function BatchStudentsPage() {
       }),
     [batchName, courseId, courseName, selectedFaculty, students],
   )
+  const visibleStudents = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLowerCase()
+    if (!normalizedSearch) return matchingStudents
+
+    return matchingStudents.filter((student) => String(student?.studentName || '').toLowerCase().includes(normalizedSearch))
+  }, [matchingStudents, searchQuery])
+  const totalPages = Math.max(1, Math.ceil(visibleStudents.length / pageSize))
+  const currentPageSafe = Math.min(currentPage, totalPages)
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPageSafe - 1) * pageSize
+    return visibleStudents.slice(start, start + pageSize)
+  }, [currentPageSafe, pageSize, visibleStudents])
 
   const selectedStudentCourse = useMemo(
     () =>
@@ -283,15 +300,24 @@ export function BatchStudentsPage() {
       ) : null}
 
       {!isLoading && selectedFaculty && selectedBatch ? (
-        <article className="faculty-flow-section">
-          <div className="faculty-flow-section-header">
-            <div>
-              <h3>Students in {batchName}</h3>
-              <p>These students match the selected faculty, course, and batch.</p>
-            </div>
+      <article className="faculty-flow-section">
+        <div className="faculty-flow-section-header">
+          <div>
+            <h3>Students in {batchName}</h3>
+            <p>These students match the selected faculty, course, and batch.</p>
           </div>
+          <SearchBar
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value)
+              setCurrentPage(1)
+            }}
+            placeholder="Search student..."
+            ariaLabel="Search students in batch"
+          />
+        </div>
 
-          {matchingStudents.length ? (
+          {paginatedStudents.length ? (
             <div className="faculty-flow-table-wrap">
               <table className="faculty-flow-table">
                 <thead>
@@ -306,7 +332,7 @@ export function BatchStudentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {matchingStudents.map((student, index) => (
+                  {paginatedStudents.map((student, index) => (
                     <tr key={student.id || `${student.studentName}-${index}`}>
                       <td>{index + 1}</td>
                       <td>
@@ -336,10 +362,24 @@ export function BatchStudentsPage() {
             </div>
           ) : (
             <div className="faculty-flow-empty">
-              <strong>No students found</strong>
-              <p>No student records match this faculty, course, and batch combination.</p>
+              <strong>{searchQuery.trim() ? 'No matching students found' : 'No students found'}</strong>
+              <p>
+                {searchQuery.trim()
+                  ? 'Try a different student name.'
+                  : 'No student records match this faculty, course, and batch combination.'}
+              </p>
             </div>
           )}
+
+          {visibleStudents.length > pageSize ? (
+            <PaginationBar
+              className="app-pagination"
+              currentPage={currentPageSafe}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              label="Batch student pagination"
+            />
+          ) : null}
         </article>
       ) : null}
 

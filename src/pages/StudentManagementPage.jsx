@@ -19,6 +19,8 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
+import { SearchBar } from '../components/SearchBar'
+import { PaginationBar } from '../components/PaginationBar'
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -712,6 +714,7 @@ export function StudentManagementPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [serverFieldErrors, setServerFieldErrors] = useState({})
   const [actionError, setActionError] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
   const [isSavingStudent, setIsSavingStudent] = useState(false)
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
@@ -825,15 +828,33 @@ export function StudentManagementPage() {
     [batchFilterId, selectedFacultyFilter],
   )
   const filteredStudents = useMemo(() => {
-    if (!courseFilterId && !facultyFilterId && !batchFilterId) return students
+    const baseMatches =
+      !courseFilterId && !facultyFilterId && !batchFilterId
+        ? students
+        : getMatchingStudents(students, {
+            facultyName: selectedFacultyFilter?.facultyName || '',
+            courseId: courseFilterId,
+            courseName: selectedCourseFilter?.name || getFacultyCourseName(courseFilterId, courseOptions) || '',
+            batchName: selectedBatchFilter?.batchName || '',
+          })
 
-    return getMatchingStudents(students, {
-      facultyName: selectedFacultyFilter?.facultyName || '',
-      courseId: courseFilterId,
-      courseName: selectedCourseFilter?.name || getFacultyCourseName(courseFilterId, courseOptions) || '',
-      batchName: selectedBatchFilter?.batchName || '',
+    const normalizedSearch = searchQuery.trim().toLowerCase()
+    if (!normalizedSearch) return baseMatches
+
+    return baseMatches.filter((student) => {
+      const studentName = String(student?.studentName || '').toLowerCase()
+      const courseName = String(student?.courseInterested || student?.courseName || '').toLowerCase()
+      const facultyName = String(student?.facultyName || '').toLowerCase()
+      const batchName = String(student?.batchName || student?.batch || '').toLowerCase()
+
+      return (
+        studentName.includes(normalizedSearch) ||
+        courseName.includes(normalizedSearch) ||
+        facultyName.includes(normalizedSearch) ||
+        batchName.includes(normalizedSearch)
+      )
     })
-  }, [batchFilterId, courseFilterId, courseOptions, facultyFilterId, selectedCourseFilter, selectedFacultyFilter, selectedBatchFilter, students])
+  }, [batchFilterId, courseFilterId, courseOptions, facultyFilterId, searchQuery, selectedCourseFilter, selectedFacultyFilter, selectedBatchFilter, students])
   const buildStudentManagementUrl = (studentId = '') => {
     const params = new URLSearchParams()
 
@@ -1547,6 +1568,16 @@ export function StudentManagementPage() {
         </div>
 
         <div className="student-management-actions">
+          <SearchBar
+            className="student-management-search"
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value)
+              setCurrentPage(1)
+            }}
+            placeholder="Search student or course"
+            ariaLabel="Search students"
+          />
           <div className="student-management-stat">
             <span>Total Students</span>
             <strong>{totalStudents}</strong>
@@ -1790,6 +1821,16 @@ export function StudentManagementPage() {
             <p>Use the Add Student button to create the first record.</p>
           </div>
         )}
+
+        {filteredStudents.length > studentsPerPage ? (
+          <PaginationBar
+            className="app-pagination"
+            currentPage={currentPageSafe}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            label="Student pagination"
+          />
+        ) : null}
 
         {filteredStudents.length > studentsPerPage ? (
           <div className="course-pagination student-pagination">

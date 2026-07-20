@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { BookOpen, Check, Clock3, Eye, FolderOpen, Mail, MoreVertical, PencilLine, Phone, Plus, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
+import { SearchBar } from '../components/SearchBar'
+import { PaginationBar } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { listCourses, normalizeCourseList } from '../services/courseService'
 import {
@@ -318,6 +320,14 @@ function getCourseSelectionNames(courseSource = [], courseOptions = []) {
       courseId,
     )
     .filter(Boolean)
+}
+
+function getCoursePreviewNames(courseSource = [], courseOptions = []) {
+  const courseNames = getCourseSelectionNames(courseSource, courseOptions)
+  return {
+    primaryCourseName: courseNames[0] || '',
+    extraCourseNames: courseNames.slice(1),
+  }
 }
 
 function mergeCourseOptions(courseOptions = [], courseLabelOverrides = {}) {
@@ -972,6 +982,8 @@ export function FacultyManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [openActionMenuId, setOpenActionMenuId] = useState('')
   const [openActionMenuPlacement, setOpenActionMenuPlacement] = useState('bottom')
+  const [openCoursePopoverId, setOpenCoursePopoverId] = useState('')
+  const [openCoursePopoverMode, setOpenCoursePopoverMode] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -1151,6 +1163,30 @@ export function FacultyManagementPage() {
     }
   }, [])
 
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      if (!event.target.closest('.faculty-course-popover')) {
+        setOpenCoursePopoverId('')
+        setOpenCoursePopoverMode('')
+      }
+    }
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setOpenCoursePopoverId('')
+        setOpenCoursePopoverMode('')
+      }
+    }
+
+    window.addEventListener('mousedown', handlePointerDown)
+    window.addEventListener('keydown', handleEscape)
+
+    return () => {
+      window.removeEventListener('mousedown', handlePointerDown)
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [])
+
   const updateCourseIds = (nextCourseIds) => {
     const normalizedCourseIds = Array.isArray(nextCourseIds)
       ? nextCourseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean)
@@ -1310,6 +1346,8 @@ export function FacultyManagementPage() {
     setBatchDeleteTarget(null)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenCoursePopoverId('')
+    setOpenCoursePopoverMode('')
   }
 
   const openCreateModal = () => {
@@ -1323,6 +1361,8 @@ export function FacultyManagementPage() {
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenCoursePopoverId('')
+    setOpenCoursePopoverMode('')
   }
 
   const openViewModal = (record) => {
@@ -1336,6 +1376,8 @@ export function FacultyManagementPage() {
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenCoursePopoverId('')
+    setOpenCoursePopoverMode('')
   }
 
   const openEditModal = (record) => {
@@ -1349,6 +1391,8 @@ export function FacultyManagementPage() {
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenCoursePopoverId('')
+    setOpenCoursePopoverMode('')
   }
 
   const openDeleteModal = (record) => {
@@ -1498,21 +1542,15 @@ export function FacultyManagementPage() {
         </div>
 
         <div className="faculty-management-actions">
-          <form className="faculty-management-search" onSubmit={(event) => event.preventDefault()}>
-            <input
-              type="search"
-              placeholder="Search course..."
-              value={searchQuery}
-              onChange={(event) => {
-                setSearchQuery(event.target.value)
-                setCurrentPage(1)
-              }}
-              aria-label="Search faculty records"
-            />
-            <Button type="submit" className="faculty-management-search-button">
-              Search
-            </Button>
-          </form>
+          <SearchBar
+            value={searchQuery}
+            onChange={(value) => {
+              setSearchQuery(value)
+              setCurrentPage(1)
+            }}
+            placeholder="Search faculty..."
+            ariaLabel="Search faculty records"
+          />
           <Button type="button" className="faculty-add-button" variant="ghost" onClick={() => navigate(buildFacultyCourseCatalogPath())}>
             <FolderOpen size={18} />
             <span>Batch</span>
@@ -1562,8 +1600,19 @@ export function FacultyManagementPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedRecords.map((record) => (
-                  <tr key={record.id} className={openActionMenuId === record.id ? 'faculty-row-actions-open' : ''}>
+                {paginatedRecords.map((record, index) => {
+                  const shouldOpenPopoverUpwards = index >= Math.max(0, paginatedRecords.length - 2)
+
+                  return (
+                  <tr
+                    key={record.id}
+                    className={[
+                      openActionMenuId === record.id ? 'faculty-row-actions-open' : '',
+                      openCoursePopoverId === record.id ? 'faculty-course-popover-open' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
                     <td>
                       <strong>{record.facultyName}</strong>
                       <small>Faculty member</small>
@@ -1571,17 +1620,60 @@ export function FacultyManagementPage() {
                     <td>{record.facultyEmail}</td>
                     <td>{record.facultyPhone}</td>
                     <td>{Array.isArray(record.batchEntries) ? record.batchEntries.length : Number(record.batchCount || 0) || '-'}</td>
-                    <td>
+                    <td className="faculty-course-cell">
                       <div className="faculty-course-chip-list">
-                        {getCourseSelectionNames(record, activeCourseOptions).length ? (
-                          getCourseSelectionNames(record, activeCourseOptions).map((courseName) => (
-                            <span key={courseName} className="faculty-course-chip">
-                              {courseName}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="faculty-course-chip faculty-course-chip-empty">{record.courseName || '-'}</span>
-                        )}
+                        {(() => {
+                          const { primaryCourseName, extraCourseNames } = getCoursePreviewNames(record, activeCourseOptions)
+
+                          if (!primaryCourseName) {
+                            return <span className="faculty-course-chip faculty-course-chip-empty">{record.courseName || '-'}</span>
+                          }
+
+                          return (
+                            <div
+                              className={`faculty-course-popover ${openCoursePopoverId === record.id ? 'is-open' : ''} ${shouldOpenPopoverUpwards ? 'faculty-course-popover-top' : ''}`.trim()}
+                              onMouseEnter={() => {
+                                setOpenCoursePopoverId(record.id)
+                                setOpenCoursePopoverMode((current) => (current === 'click' && openCoursePopoverId === record.id ? 'click' : 'hover'))
+                              }}
+                              onMouseLeave={() => {
+                                setOpenCoursePopoverMode((currentMode) => {
+                                  if (currentMode !== 'hover') return currentMode
+                                  setOpenCoursePopoverId((current) => (current === record.id ? '' : current))
+                                  return ''
+                                })
+                              }}
+                            >
+                              <span className="faculty-course-chip faculty-course-chip-primary">{primaryCourseName}</span>
+                              {extraCourseNames.length ? (
+                                <button
+                                  type="button"
+                                  className="faculty-course-chip faculty-course-chip-more"
+                                  onClick={() => {
+                                    setOpenCoursePopoverId((current) => (current === record.id && openCoursePopoverMode === 'click' ? '' : record.id))
+                                    setOpenCoursePopoverMode((current) => (current === 'click' && openCoursePopoverId === record.id ? '' : 'click'))
+                                  }}
+                                  aria-haspopup="listbox"
+                                  aria-expanded={openCoursePopoverId === record.id}
+                                  aria-label={`${record.facultyName} has ${extraCourseNames.length} more courses`}
+                                >
+                                  +{extraCourseNames.length}
+                                </button>
+                              ) : null}
+                              {extraCourseNames.length ? (
+                                <div className="faculty-course-popover-panel" aria-label={`${record.facultyName} course list`}>
+                                  <ul className="faculty-course-popover-list">
+                                    {extraCourseNames.map((courseName, index) => (
+                                      <li key={`${courseName}-${index}`} className="faculty-course-popover-item">
+                                        {courseName}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              ) : null}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </td>
                     <td>
@@ -1661,7 +1753,8 @@ export function FacultyManagementPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -1676,6 +1769,16 @@ export function FacultyManagementPage() {
             <p>Use the Add Faculty button to link a faculty member to an active course.</p>
           </div>
         )}
+
+        {filteredRecords.length > itemsPerPage ? (
+          <PaginationBar
+            className="app-pagination"
+            currentPage={currentPageSafe}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            label="Faculty pagination"
+          />
+        ) : null}
 
         {filteredRecords.length > itemsPerPage ? (
           <div className="faculty-pagination">

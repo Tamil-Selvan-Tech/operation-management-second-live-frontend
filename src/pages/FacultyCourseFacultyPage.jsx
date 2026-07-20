@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, ChevronRight, Mail, Phone, Search, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChevronRight, Mail, Phone, UsersRound } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
+import { SearchBar } from '../components/SearchBar'
+import { PaginationBar } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { loadStudentRecords } from '../data/studentRecords'
@@ -129,7 +131,7 @@ export function FacultyCourseFacultyPage() {
     return matchedFaculty.filter((record) => String(record.facultyName || '').toLowerCase().includes(normalizedSearch))
   }, [matchedFaculty, searchTerm])
 
-  const pageSize = 4
+  const pageSize = 5
   const totalPages = Math.max(1, Math.ceil(filteredFaculty.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const visibleFaculty = useMemo(() => {
@@ -241,18 +243,12 @@ export function FacultyCourseFacultyPage() {
               <h3>Faculty Members</h3>
               <p>Search by faculty name and open any record to view batches.</p>
             </div>
-            <form className="faculty-course-faculty-search" onSubmit={(event) => event.preventDefault()}>
-              <span className="faculty-course-faculty-search-icon" aria-hidden="true">
-                <Search size={18} />
-              </span>
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search faculty name"
-                aria-label="Search faculty name"
-              />
-            </form>
+            <SearchBar
+              value={searchTerm}
+              onChange={setSearchTerm}
+              placeholder="Search faculty name"
+              ariaLabel="Search faculty name"
+            />
           </div>
 
           <div className="faculty-flow-course-grid">
@@ -307,6 +303,15 @@ export function FacultyCourseFacultyPage() {
               </div>
             )}
           </div>
+
+          <PaginationBar
+            className="app-pagination"
+            currentPage={safeCurrentPage}
+            totalPages={totalPages}
+            pageList={pageList}
+            onPageChange={goToPage}
+            label="Faculty course faculty pagination"
+          />
 
           {filteredFaculty.length ? (
             <div className="faculty-course-pagination">

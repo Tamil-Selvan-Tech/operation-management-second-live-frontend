@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, Clock3, Globe2, IndianRupee, Monitor, Search, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpen, Clock3, Globe2, IndianRupee, Monitor, UsersRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
+import { SearchBar } from '../components/SearchBar'
+import { PaginationBar } from '../components/PaginationBar'
 import './FacultyCourseCatalogPage.css'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
@@ -128,7 +130,7 @@ export function FacultyCourseCatalogPage() {
     })
   }, [cards, searchTerm])
 
-  const pageSize = 4
+  const pageSize = 5
   const totalPages = Math.max(1, Math.ceil(filteredCards.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const pageList = useMemo(() => buildPageList(totalPages, safeCurrentPage), [safeCurrentPage, totalPages])
@@ -173,18 +175,12 @@ export function FacultyCourseCatalogPage() {
           <h2>Course Catalog</h2>
           <p>Search and open the faculty mapping for each course.</p>
         </div>
-        <form className="faculty-course-catalog-search" onSubmit={(event) => event.preventDefault()}>
-          <span className="faculty-course-catalog-search-icon" aria-hidden="true">
-            <Search size={18} />
-          </span>
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search course"
-            aria-label="Search course"
-          />
-        </form>
+        <SearchBar
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Search course"
+          ariaLabel="Search course"
+        />
       </article>
 
       {error ? (
@@ -326,6 +322,15 @@ export function FacultyCourseCatalogPage() {
                 </article>
               ))}
             </div>
+
+            <PaginationBar
+              className="app-pagination"
+              currentPage={safeCurrentPage}
+              totalPages={totalPages}
+              pageList={pageList}
+              onPageChange={goToPage}
+              label="Faculty course catalog pagination"
+            />
 
             <div className="faculty-course-pagination">
               <button type="button" className="pagination-link" onClick={() => goToPage(safeCurrentPage - 1)} disabled={safeCurrentPage === 1}>
