@@ -38,8 +38,6 @@ function formatHours(value) {
   return `${normalized} ${normalized === '1' ? 'hour' : 'hours'}`
 }
 
-const MAX_CUSTOM_INSTALLMENTS = 3
-
 const requiredFieldLabels = {
   name: 'Course Name',
   mode: 'Mode',
@@ -56,7 +54,7 @@ const requiredFieldLabels = {
 function normalizeInstallmentCount(value) {
   const amount = Number(value)
   if (!Number.isFinite(amount) || amount < 1) return 0
-  return Math.min(Math.floor(amount), MAX_CUSTOM_INSTALLMENTS)
+  return Math.floor(amount)
 }
 
 function getEffectiveInstallmentCount(form) {
@@ -96,6 +94,18 @@ function buildInstallmentsFromCourse(course, count) {
     installments.push(String(course?.[`installment${index}`] ?? ''))
   }
   return installments
+}
+
+function getCourseInstallments(course) {
+  const storedInstallments = Array.isArray(course?.installments) ? course.installments : []
+
+  if (storedInstallments.length) {
+    return storedInstallments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
+  }
+
+  return [course?.installment1, course?.installment2, course?.installment3]
+    .map((value) => String(value ?? '').trim())
+    .filter((value) => value !== '')
 }
 
 function buildCourseFormFromCourse(course) {
@@ -240,10 +250,6 @@ export function CoursesPage() {
       errors.discount = 'Discount must be less than or equal to actual fees.'
     }
 
-    if (form.installmentCount === 'custom' && Number(form.customInstallmentCount) > MAX_CUSTOM_INSTALLMENTS) {
-      errors.customInstallmentCount = 'Custom installment count is limited to 3.'
-    }
-
     const allRequiredFilled =
       form.name.trim() &&
       form.mode &&
@@ -280,12 +286,20 @@ export function CoursesPage() {
   const totalCourseCount = pagination.total || courses.length || 0
   const installmentColumnCount = useMemo(() => {
     const maxCount = visibleCourses.reduce((highest, course) => {
-      const values = getCourseInstallmentValues(course)
+      const values = getCourseInstallments(course)
       return Math.max(highest, values.length || Number(course?.installmentCount) || 0)
     }, 3)
 
     return Math.max(3, maxCount)
   }, [visibleCourses])
+  const drawerInstallmentValues = useMemo(() => getCourseInstallments(viewTarget), [viewTarget])
+  const drawerInstallmentCount = useMemo(() => {
+    const effectiveCount = isCourseInlineEditing
+      ? getEffectiveInstallmentCount(form)
+      : drawerInstallmentValues.length || Number(viewTarget?.installmentCount) || 0
+
+    return Math.max(3, effectiveCount)
+  }, [drawerInstallmentValues, form, isCourseInlineEditing, viewTarget])
 
   const loadCourses = useCallback(
     async ({ page = currentPage, search = searchTerm, filter = activeFilter } = {}) => {
@@ -394,7 +408,7 @@ export function CoursesPage() {
     setForm((current) => ({
       ...current,
       installmentCount: 'custom',
-      customInstallmentCount: nextDigits ? String(Math.min(Number(nextDigits), MAX_CUSTOM_INSTALLMENTS)) : '',
+      customInstallmentCount: nextDigits,
     }))
   }
 
@@ -1076,53 +1090,67 @@ export function CoursesPage() {
                     <th>After Discount</th>
                     <td>{getAfterDiscountValue(isCourseInlineEditing ? form : viewTarget)}</td>
                   </tr>
+                  {Array.from({ length: Math.ceil(drawerInstallmentCount / 2) }, (_, rowIndex) => {
+                    const leftNumber = rowIndex * 2 + 1
+                    const rightNumber = leftNumber + 1
+                    const leftFieldName = `installment${leftNumber}`
+                    const rightFieldName = `installment${rightNumber}`
+                    const leftValue = isCourseInlineEditing
+                      ? getInstallmentValue(form, leftNumber)
+                      : drawerInstallmentValues[leftNumber - 1] ?? viewTarget?.[leftFieldName] ?? '-'
+                    const rightExists = rightNumber <= drawerInstallmentCount
+                    const rightValue = rightExists
+                      ? isCourseInlineEditing
+                        ? getInstallmentValue(form, rightNumber)
+                        : drawerInstallmentValues[rightNumber - 1] ?? viewTarget?.[rightFieldName] ?? '-'
+                      : ''
+
+                    return (
+                      <tr key={`course-installment-row-${rowIndex}`}>
+                        <th>{`Installment ${leftNumber}`}</th>
+                        <td>
+                          {isCourseInlineEditing ? (
+                            <input
+                              className="student-drawer-inline-control"
+                              type="text"
+                              inputMode="numeric"
+                              value={leftValue}
+                              onChange={(event) => {
+                                const nextValue = event.target.value.replace(/[^\d]/g, '')
+                                setForm((current) => setInstallmentValue(current, leftNumber, nextValue))
+                              }}
+                            />
+                          ) : (
+                            leftValue || '-'
+                          )}
+                        </td>
+                        <th>{rightExists ? `Installment ${rightNumber}` : ''}</th>
+                        <td>
+                          {rightExists ? (
+                            isCourseInlineEditing ? (
+                              <input
+                                className="student-drawer-inline-control"
+                                type="text"
+                                inputMode="numeric"
+                                value={rightValue}
+                                onChange={(event) => {
+                                  const nextValue = event.target.value.replace(/[^\d]/g, '')
+                                  setForm((current) => setInstallmentValue(current, rightNumber, nextValue))
+                                }}
+                              />
+                            ) : (
+                              rightValue || '-'
+                            )
+                          ) : (
+                            ''
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                   <tr>
-                    <th>Installment 1</th>
-                    <td>
-                      {isCourseInlineEditing ? (
-                        <input
-                          className="student-drawer-inline-control"
-                          type="text"
-                          inputMode="numeric"
-                          value={form.installment1}
-                          onChange={(event) => updateNumericField('installment1', event.target.value)}
-                        />
-                      ) : (
-                        viewTarget.installment1 || '-'
-                      )}
-                    </td>
-                    <th>Installment 2</th>
-                    <td>
-                      {isCourseInlineEditing ? (
-                        <input
-                          className="student-drawer-inline-control"
-                          type="text"
-                          inputMode="numeric"
-                          value={form.installment2}
-                          onChange={(event) => updateNumericField('installment2', event.target.value)}
-                        />
-                      ) : (
-                        viewTarget.installment2 || '-'
-                      )}
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>Installment 3</th>
-                    <td>
-                      {isCourseInlineEditing ? (
-                        <input
-                          className="student-drawer-inline-control"
-                          type="text"
-                          inputMode="numeric"
-                          value={form.installment3}
-                          onChange={(event) => updateNumericField('installment3', event.target.value)}
-                        />
-                      ) : (
-                        viewTarget.installment3 || '-'
-                      )}
-                    </td>
                     <th>Status</th>
-                    <td>
+                    <td colSpan={3}>
                       {isCourseInlineEditing ? (
                         <select className="student-drawer-inline-control" value={form.status} onChange={(event) => updateField('status', event.target.value)}>
                           <option value="" disabled>
@@ -1205,11 +1233,11 @@ export function CoursesPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td className="course-empty-state" colSpan={10 + installmentColumnCount}>Loading courses...</td>
+                    <td className="course-empty-state" colSpan={8 + installmentColumnCount}>Loading courses...</td>
                   </tr>
                 ) : loadError && !visibleCourses.length ? (
                   <tr>
-                    <td className="course-empty-state" colSpan={10 + installmentColumnCount}>{loadError}</td>
+                    <td className="course-empty-state" colSpan={8 + installmentColumnCount}>{loadError}</td>
                   </tr>
                 ) : visibleCourses.length ? (
                   visibleCourses.map((course, index) => {
@@ -1336,7 +1364,7 @@ export function CoursesPage() {
                   })
                 ) : (
                   <tr>
-                    <td className="course-empty-state" colSpan={10 + installmentColumnCount}>No courses found.</td>
+                    <td className="course-empty-state" colSpan={8 + installmentColumnCount}>No courses found.</td>
                   </tr>
                 )}
               </tbody>
