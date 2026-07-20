@@ -37,6 +37,7 @@ export function normalizeStudent(student) {
     installment1: student.installment1 ?? '',
     installment2: student.installment2 ?? '',
     installment3: student.installment3 ?? '',
+    installment4: student.installment4 ?? '',
     totalAmount: student.totalAmount ?? '',
     admissionDate: student.admissionDate || '',
     firstInstallmentAmount: student.firstInstallmentAmount ?? '',
