@@ -50,7 +50,7 @@ export function ForgotPasswordPage({ onSubmit, errorMessage = '', successMessage
         </div>
 
         <div className="login-hero-art" aria-hidden="true">
-          <img className="login-hero-image" src="/login.png" alt="" />
+          <img className="login-hero-image" src="/image copy 2.png" alt="" />
         </div>
       </aside>
 

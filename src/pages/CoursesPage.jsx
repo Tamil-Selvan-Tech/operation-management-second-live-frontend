@@ -1223,9 +1223,6 @@ export function CoursesPage() {
                   <th>Actual Fees</th>
                   <th>Registration Fees</th>
                   <th>After Discount</th>
-                  {Array.from({ length: installmentColumnCount }, (_, index) => (
-                    <th key={`installment-header-${index + 1}`}>Installment {index + 1}</th>
-                  ))}
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -1233,11 +1230,11 @@ export function CoursesPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td className="course-empty-state" colSpan={8 + installmentColumnCount}>Loading courses...</td>
+                    <td className="course-empty-state" colSpan={8}>Loading courses...</td>
                   </tr>
                 ) : loadError && !visibleCourses.length ? (
                   <tr>
-                    <td className="course-empty-state" colSpan={8 + installmentColumnCount}>{loadError}</td>
+                    <td className="course-empty-state" colSpan={8}>{loadError}</td>
                   </tr>
                 ) : visibleCourses.length ? (
                   visibleCourses.map((course, index) => {
@@ -1249,18 +1246,9 @@ export function CoursesPage() {
                         <td><strong>{course.name}</strong></td>
                         <td>{course.mode}</td>
                         <td>{formatDuration(course.duration)}</td>
-                        <td>{formatHours(course.hours)}</td>
                         <td>{course.actualFees}</td>
                         <td>{course.registrationFees}</td>
-                        <td>{course.discount}</td>
                         <td>{getAfterDiscountValue(course)}</td>
-                        {Array.from({ length: installmentColumnCount }, (_, installmentIndex) => {
-                          const slot = installmentIndex + 1
-                          const installmentValues = getCourseInstallmentValues(course)
-                          const value = installmentValues[slot - 1] ?? course?.[`installment${slot}`] ?? '-'
-
-                          return <td key={`${course.id || course.name}-installment-${slot}`}>{value || '-'}</td>
-                        })}
                         <td>
                           <StatusPill status={course.status} />
                         </td>
@@ -1364,7 +1352,7 @@ export function CoursesPage() {
                   })
                 ) : (
                   <tr>
-                    <td className="course-empty-state" colSpan={8 + installmentColumnCount}>No courses found.</td>
+                    <td className="course-empty-state" colSpan={8}>No courses found.</td>
                   </tr>
                 )}
               </tbody>

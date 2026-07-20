@@ -18,9 +18,42 @@ function deriveAfterDiscount(course) {
   return ''
 }
 
+function normalizeText(value) {
+  return String(value ?? '').trim()
+}
+
+function looksLikeHoursValue(value) {
+  return /\bhour(s)?\b/i.test(normalizeText(value))
+}
+
+function looksLikeNumericValue(value) {
+  const normalized = normalizeText(value).replace(/,/g, '')
+  return normalized !== '' && /^-?\d+(\.\d+)?$/.test(normalized)
+}
+
+function normalizeFeePair(course) {
+  const actualFees = course?.actualFees ?? ''
+  const registrationFees = course?.registrationFees ?? ''
+
+  // Some course records arrive with the hour string and fee amount swapped.
+  // Normalize that shape so the UI and downstream student flows stay consistent.
+  if (looksLikeHoursValue(actualFees) && looksLikeNumericValue(registrationFees)) {
+    return {
+      actualFees: registrationFees,
+      registrationFees: actualFees,
+    }
+  }
+
+  return {
+    actualFees,
+    registrationFees,
+  }
+}
+
 export function normalizeCourse(course) {
   if (!course) return null
 
+  const { actualFees, registrationFees } = normalizeFeePair(course)
   const afterDiscount = course.afterDiscount ?? deriveAfterDiscount(course)
   const installments = Array.isArray(course.installments)
     ? course.installments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
@@ -35,8 +68,8 @@ export function normalizeCourse(course) {
     mode: course.mode || '',
     duration: course.duration ?? '',
     hours: course.hours ?? '',
-    actualFees: course.actualFees ?? '',
-    registrationFees: course.registrationFees ?? '',
+    actualFees,
+    registrationFees,
     discount: course.discount ?? '',
     afterDiscount,
     installmentCount: String(course.installmentCount ?? 2),
