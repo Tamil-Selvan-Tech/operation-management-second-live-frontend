@@ -6156,26 +6156,26 @@ tbody tr:hover {
 
 .faculty-course-faculty-page .faculty-flow-hero {
   align-items: stretch;
-  padding: 12px 14px 12px 14px;
-  min-height: 150px;
+  padding: 8px 12px;
+  min-height: 118px;
 }
 
 .faculty-course-faculty-page .faculty-flow-hero-main {
   flex: 1 1 auto;
-  gap: 12px;
+  gap: 8px;
 }
 
 .faculty-course-faculty-page .faculty-flow-stats {
   min-width: 320px;
-  padding-left: 12px;
+  padding-left: 10px;
 }
 
 .faculty-course-faculty-page .faculty-flow-stat {
   flex: 1 1 0;
-  padding: 10px 12px;
+  padding: 8px 12px;
   min-width: 120px;
-  min-height: 84px;
-  gap: 2px;
+  min-height: 66px;
+  gap: 0;
 }
 
 .faculty-course-faculty-page .faculty-flow-course-grid {
@@ -6188,8 +6188,8 @@ tbody tr:hover {
   grid-template-columns: minmax(240px, 0.9fr) minmax(0, 1.42fr) auto;
   gap: 10px;
   align-items: center;
-  padding: 15px 16px;
-  min-height: 168px;
+  padding: 12px 14px;
+  min-height: 152px;
 }
 
 .faculty-course-faculty-page .faculty-flow-course-left {
@@ -6201,30 +6201,30 @@ tbody tr:hover {
 }
 
 .faculty-course-faculty-page .faculty-flow-course-icon {
-  width: 64px;
-  height: 64px;
+  width: 56px;
+  height: 56px;
 }
 
 .faculty-course-faculty-page .faculty-flow-course-icon svg {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
 }
 
 .faculty-course-faculty-page .faculty-flow-course-copy {
-  gap: 4px;
+  gap: 2px;
 }
 
 .faculty-course-faculty-page .faculty-flow-course-copy strong {
-  font-size: 1rem;
-  line-height: 1.15;
+  font-size: 0.95rem;
+  line-height: 1.1;
   white-space: nowrap;
   word-break: break-word;
 }
 
 .faculty-course-faculty-page .faculty-flow-course-badge {
   max-width: 100%;
-  font-size: 0.75rem;
-  min-height: 24px;
+  font-size: 0.72rem;
+  min-height: 22px;
   padding: 0 8px;
   line-height: 1.25;
 }
@@ -6235,39 +6235,39 @@ tbody tr:hover {
 
 .faculty-course-faculty-page .faculty-flow-course-copy p {
   max-width: none;
-  font-size: 10px;
+  font-size: 9px;
   white-space: nowrap;
 }
 
 .faculty-course-faculty-page .faculty-flow-course-overview {
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  gap: 8px;
+  gap: 6px;
   align-self: stretch;
 }
 
 .faculty-course-faculty-page .faculty-flow-overview-card {
-  min-height: 58px;
-  padding: 9px 10px;
+  min-height: 50px;
+  padding: 7px 9px;
   align-items: center;
   min-width: 0;
-  gap: 6px;
+  gap: 4px;
 }
 
 .faculty-course-faculty-page .faculty-flow-overview-card span {
-  font-size: 9px;
+  font-size: 8px;
   white-space: nowrap;
 }
 
 .faculty-course-faculty-page .faculty-flow-overview-card strong {
-  font-size: 0.74rem;
-  line-height: 1.15;
+  font-size: 0.7rem;
+  line-height: 1.1;
   white-space: nowrap;
   word-break: normal;
 }
 
 .faculty-course-faculty-page .faculty-flow-overview-icon {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 8px;
 }
 
@@ -9625,7 +9625,7 @@ tbody tr:hover {
 
 .course-table thead th:nth-child(1),
 .course-table tbody td:nth-child(1) strong {
-  color: #1d4ed8;
+  color: #2563eb;
 }
 
 .course-table thead th:nth-child(2),
@@ -9650,7 +9650,7 @@ tbody tr:hover {
 
 .course-table thead th:nth-child(6),
 .course-table tbody td:nth-child(6) {
-  color: #2563eb;
+  color: #38bdf8;
 }
 
 .course-table thead th:nth-child(7),
@@ -9658,17 +9658,14 @@ tbody tr:hover {
   color: #16a34a;
 }
 
-.course-table thead th:nth-child(8) {
-  color: #4f46e5;
-}
-
+.course-table thead th:nth-child(8),
 .course-actions-cell .course-row-action {
-  color: #2563eb;
+  color: #4f46e5;
 }
 
 .course-actions-cell .course-row-action:hover,
 .course-actions-cell .course-row-action:focus-visible {
-  color: #0f4cc9;
+  color: #4338ca;
 }
 
 .course-table tbody td {

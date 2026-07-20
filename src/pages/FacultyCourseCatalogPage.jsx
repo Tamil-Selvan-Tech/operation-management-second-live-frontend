@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, Clock3, Globe2, IndianRupee, Monitor, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpen, CheckCircle2, Clock3, Globe2, IndianRupee, Monitor, UsersRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { SearchBar } from '../components/SearchBar'
@@ -130,7 +130,7 @@ export function FacultyCourseCatalogPage() {
     })
   }, [cards, searchTerm])
 
-  const pageSize = 5
+  const pageSize = 4
   const totalPages = Math.max(1, Math.ceil(filteredCards.length / pageSize))
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const pageList = useMemo(() => buildPageList(totalPages, safeCurrentPage), [safeCurrentPage, totalPages])
@@ -288,7 +288,7 @@ export function FacultyCourseCatalogPage() {
 
                     <div className="faculty-flow-catalog-meta-item">
                       <div className="faculty-flow-catalog-meta-icon faculty-flow-catalog-meta-icon-teal">
-                        <span className="faculty-flow-catalog-text-icon">H</span>
+                        <Clock3 size={18} strokeWidth={2.2} aria-hidden="true" />
                       </div>
                       <div className="faculty-flow-catalog-meta-copy">
                         <span>Hours</span>
@@ -299,7 +299,7 @@ export function FacultyCourseCatalogPage() {
 
                     <div className="faculty-flow-catalog-meta-item">
                       <div className="faculty-flow-catalog-meta-icon faculty-flow-catalog-meta-icon-rose">
-                        <span className="faculty-flow-catalog-text-icon">S</span>
+                        <CheckCircle2 size={18} strokeWidth={2.2} aria-hidden="true" />
                       </div>
                       <div className="faculty-flow-catalog-meta-copy">
                         <span>Status</span>
