@@ -2686,7 +2686,7 @@ export function StudentManagementPage() {
             </div>
             <div className="course-modal-header">
               <div>
-                <h3 id="student-installment-confirm-title">Are you confirm installment pay panurigala?</h3>
+                <h3 id="student-installment-confirm-title">Confirm installment payment</h3>
               </div>
             </div>
 

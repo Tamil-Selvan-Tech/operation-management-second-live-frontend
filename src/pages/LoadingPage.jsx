@@ -1,9 +1,10 @@
+import { AppLoadingState } from '../components/AppLoadingState'
+
 export function LoadingPage() {
   return (
-    <section className="panel panel-center">
-      <div className="spinner" aria-hidden="true" />
-      <h2>Loading workspace</h2>
-      <p>Checking saved session and preparing route guards.</p>
-    </section>
+    <AppLoadingState
+      title="Loading workspace"
+      description="Checking saved session and preparing route guards."
+    />
   )
 }

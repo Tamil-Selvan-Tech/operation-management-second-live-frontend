@@ -14,6 +14,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
@@ -234,6 +235,46 @@ export function BatchStudentsPage() {
         </div>
       ) : null}
 
+      <article className="faculty-flow-hero panel-card">
+        <div className="faculty-flow-hero-main">
+          <div className="faculty-flow-avatar" aria-hidden="true">
+            <UsersRound />
+          </div>
+          <div className="faculty-flow-hero-copy">
+            <p className="faculty-flow-kicker">Batch Students</p>
+            <h2>{isLoading ? 'Loading students...' : batchName}</h2>
+            <div className="faculty-flow-contact">
+              <span>
+                <UserRound size={16} />
+                {isLoading ? 'Faculty: Loading...' : `Faculty: ${selectedFaculty?.facultyName || '-'}`}
+              </span>
+              <span>
+                <BookOpen size={16} />
+                {isLoading ? 'Course: Loading...' : `Course: ${courseName}`}
+              </span>
+              <span>
+                <Phone size={16} />
+                {isLoading ? 'Timing: Loading...' : `Timing: ${batchTiming}`}
+              </span>
+              <span>
+                <Mail size={16} />
+                {isLoading ? 'Total Students: Loading...' : `Total Students: ${matchingStudents.length}`}
+              </span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      {isLoading ? (
+        <div className="faculty-flow-loading-slot">
+          <AppLoadingState
+            title="Loading students..."
+            description="Please wait while we fetch the batch student details."
+            className="faculty-flow-inline-loading"
+          />
+        </div>
+      ) : null}
+
       {!isLoading && (!selectedFaculty || !selectedBatch) ? (
         <div className="faculty-flow-empty">
           <strong>Batch not found</strong>
@@ -242,96 +283,64 @@ export function BatchStudentsPage() {
       ) : null}
 
       {!isLoading && selectedFaculty && selectedBatch ? (
-        <>
-          <article className="faculty-flow-hero panel-card">
-            <div className="faculty-flow-hero-main">
-              <div className="faculty-flow-avatar" aria-hidden="true">
-                <UsersRound />
-              </div>
-              <div className="faculty-flow-hero-copy">
-                <p className="faculty-flow-kicker">Batch Students</p>
-                <h2>{batchName}</h2>
-                <div className="faculty-flow-contact">
-                  <span>
-                    <UserRound size={16} />
-                    Faculty: {selectedFaculty.facultyName || '-'}
-                  </span>
-                  <span>
-                    <BookOpen size={16} />
-                    Course: {courseName}
-                  </span>
-                  <span>
-                    <Phone size={16} />
-                    Timing: {batchTiming}
-                  </span>
-                  <span>
-                    <Mail size={16} />
-                    Total Students: {matchingStudents.length}
-                  </span>
-                </div>
-              </div>
+        <article className="faculty-flow-section">
+          <div className="faculty-flow-section-header">
+            <div>
+              <h3>Students in {batchName}</h3>
+              <p>These students match the selected faculty, course, and batch.</p>
             </div>
-          </article>
+          </div>
 
-          <article className="faculty-flow-section">
-            <div className="faculty-flow-section-header">
-              <div>
-                <h3>Students in {batchName}</h3>
-                <p>These students match the selected faculty, course, and batch.</p>
-              </div>
-            </div>
-
-            {matchingStudents.length ? (
-              <div className="faculty-flow-table-wrap">
-                <table className="faculty-flow-table">
-                  <thead>
-                    <tr>
-                      <th>S.No</th>
-                      <th>Student Name</th>
-                      <th>Email</th>
-                      <th>Phone</th>
-                      <th>Admission Date</th>
-                      <th>Status</th>
-                      <th>Action</th>
+          {matchingStudents.length ? (
+            <div className="faculty-flow-table-wrap">
+              <table className="faculty-flow-table">
+                <thead>
+                  <tr>
+                    <th>S.No</th>
+                    <th>Student Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Admission Date</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {matchingStudents.map((student, index) => (
+                    <tr key={student.id || `${student.studentName}-${index}`}>
+                      <td>{index + 1}</td>
+                      <td>
+                        <strong>{student.studentName || '-'}</strong>
+                      </td>
+                      <td>{student.emailAddress || '-'}</td>
+                      <td>{student.mobileNumber || '-'}</td>
+                      <td>{formatDate(student.admissionDate)}</td>
+                      <td>
+                        <span className={`status-pill ${String(student.status || 'Inactive').toLowerCase()}`}>
+                          {student.status || 'Inactive'}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="faculty-flow-mini-button"
+                          onClick={() => setSelectedStudent(student)}
+                        >
+                          View Details
+                        </button>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {matchingStudents.map((student, index) => (
-                      <tr key={student.id || `${student.studentName}-${index}`}>
-                        <td>{index + 1}</td>
-                        <td>
-                          <strong>{student.studentName || '-'}</strong>
-                        </td>
-                        <td>{student.emailAddress || '-'}</td>
-                        <td>{student.mobileNumber || '-'}</td>
-                        <td>{formatDate(student.admissionDate)}</td>
-                        <td>
-                          <span className={`status-pill ${String(student.status || 'Inactive').toLowerCase()}`}>
-                            {student.status || 'Inactive'}
-                          </span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="faculty-flow-mini-button"
-                            onClick={() => setSelectedStudent(student)}
-                          >
-                            View Details
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="faculty-flow-empty">
-                <strong>No students found</strong>
-                <p>No student records match this faculty, course, and batch combination.</p>
-              </div>
-            )}
-          </article>
-        </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="faculty-flow-empty">
+              <strong>No students found</strong>
+              <p>No student records match this faculty, course, and batch combination.</p>
+            </div>
+          )}
+        </article>
       ) : null}
 
       {selectedStudent ? (

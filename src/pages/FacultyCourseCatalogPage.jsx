@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Clock3, Globe2, IndianRupee, Monitor, Search, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpen, Clock3, Globe2, IndianRupee, Monitor, Search, UsersRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
 import './FacultyCourseCatalogPage.css'
@@ -194,7 +194,32 @@ export function FacultyCourseCatalogPage() {
         </div>
       ) : null}
 
-      {!filteredCards.length ? (
+      {isLoading ? (
+        <div className="faculty-flow-empty faculty-course-catalog-loading" aria-busy="true" aria-live="polite">
+          <div className="faculty-course-catalog-loader" aria-hidden="true">
+            <span className="faculty-course-catalog-loader-ring" />
+            <span className="faculty-course-catalog-loader-icon">
+              <BookOpen size={84} strokeWidth={2.2} />
+            </span>
+            <span className="faculty-course-catalog-loader-dot faculty-course-catalog-loader-dot-a" />
+            <span className="faculty-course-catalog-loader-dot faculty-course-catalog-loader-dot-b" />
+            <span className="faculty-course-catalog-loader-dot faculty-course-catalog-loader-dot-c" />
+            <span className="faculty-course-catalog-loader-dot faculty-course-catalog-loader-dot-d" />
+            <span className="faculty-course-catalog-loader-dot faculty-course-catalog-loader-dot-e" />
+          </div>
+          <strong>Loading courses...</strong>
+          <p>Please wait while we fetch the course catalog.</p>
+          <div className="faculty-course-catalog-loader-bars" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
+      ) : null}
+
+      {!isLoading && !filteredCards.length ? (
         <div className="faculty-flow-empty">
           <strong>No courses found</strong>
           <p>{searchTerm.trim() ? 'No matching courses found.' : 'Add courses first, then open the faculty flow.'}</p>

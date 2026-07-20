@@ -1115,6 +1115,18 @@ export function FacultyManagementPage() {
     setForm((current) => ({ ...current, [field]: value }))
   }
 
+  const syncOpenActionMenuPlacement = (buttonElement) => {
+    if (!buttonElement) return
+
+    const rect = buttonElement.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    const estimatedMenuHeight = 184
+    const nextPlacement = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? 'top' : 'bottom'
+
+    setOpenActionMenuPlacement(nextPlacement)
+  }
+
   useEffect(() => {
     const handlePointerDown = (event) => {
       if (!event.target.closest('.faculty-row-actions')) {
@@ -1551,7 +1563,7 @@ export function FacultyManagementPage() {
               </thead>
               <tbody>
                 {paginatedRecords.map((record) => (
-                  <tr key={record.id}>
+                  <tr key={record.id} className={openActionMenuId === record.id ? 'faculty-row-actions-open' : ''}>
                     <td>
                       <strong>{record.facultyName}</strong>
                       <small>Faculty member</small>
@@ -1577,7 +1589,7 @@ export function FacultyManagementPage() {
                         {record.status || 'Active'}
                       </span>
                     </td>
-                    <td>
+                    <td className="faculty-actions-cell">
                       <div className="faculty-row-actions">
                         <button
                           type="button"
@@ -1590,19 +1602,12 @@ export function FacultyManagementPage() {
                               return
                             }
 
-                            const rect = event.currentTarget.getBoundingClientRect()
-                            const spaceBelow = window.innerHeight - rect.bottom
-                            const spaceAbove = rect.top
-                            const estimatedMenuHeight = 184
-                            const placement = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? 'top' : 'bottom'
-
                             setOpenActionMenuId(record.id)
-                            setOpenActionMenuPlacement(placement)
+                            syncOpenActionMenuPlacement(event.currentTarget)
                           }}
                           aria-label={`Open actions for ${record.facultyName}`}
                           aria-haspopup="menu"
                           aria-expanded={openActionMenuId === record.id}
-                          title="Actions"
                         >
                           <MoreVertical />
                         </button>
@@ -1617,6 +1622,7 @@ export function FacultyManagementPage() {
                               className="faculty-row-action-menu-item"
                               onClick={() => {
                                 setOpenActionMenuId('')
+                                setOpenActionMenuPlacement('bottom')
                                 openViewModal(record)
                               }}
                               role="menuitem"
@@ -1629,6 +1635,7 @@ export function FacultyManagementPage() {
                               className="faculty-row-action-menu-item"
                               onClick={() => {
                                 setOpenActionMenuId('')
+                                setOpenActionMenuPlacement('bottom')
                                 openEditModal(record)
                               }}
                               role="menuitem"
@@ -1641,6 +1648,7 @@ export function FacultyManagementPage() {
                               className="faculty-row-action-menu-item danger"
                               onClick={() => {
                                 setOpenActionMenuId('')
+                                setOpenActionMenuPlacement('bottom')
                                 openDeleteModal(record)
                               }}
                               role="menuitem"

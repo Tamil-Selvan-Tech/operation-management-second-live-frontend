@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, BookOpen, ChevronRight, Mail, Phone, Search, UsersRound } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
@@ -185,6 +186,46 @@ export function FacultyCourseFacultyPage() {
         </div>
       ) : null}
 
+      <article className="faculty-flow-hero panel-card">
+        <div className="faculty-flow-hero-main">
+          <div className="faculty-flow-avatar" aria-hidden="true">
+            <BookOpen />
+          </div>
+          <div className="faculty-flow-hero-copy">
+            <p className="faculty-flow-kicker">Faculty List</p>
+            <h2>{isLoading ? 'Loading course...' : selectedCourse?.name || courseId || 'Course'}</h2>
+            <p>
+              {isLoading
+                ? 'Please wait while we fetch the faculty mapping for this course.'
+                : 'Choose a faculty member to view the batches mapped under this course.'}
+            </p>
+          </div>
+        </div>
+
+        <div className="faculty-flow-stats" aria-label="Course summary">
+          <div className="faculty-flow-stat">
+            <span>Total Faculty</span>
+            <strong>{isLoading ? '—' : matchedFaculty.length}</strong>
+          </div>
+          <div className="faculty-flow-stat">
+            <span>Total Students</span>
+            <strong>
+              {isLoading ? '—' : matchedFaculty.reduce((sum, record) => sum + Number(record.studentCount || 0), 0)}
+            </strong>
+          </div>
+        </div>
+      </article>
+
+      {isLoading ? (
+        <div className="faculty-flow-loading-slot">
+          <AppLoadingState
+            title="Loading faculty members..."
+            description="Please wait while we fetch the faculty mapping for this course."
+            className="faculty-flow-inline-loading"
+          />
+        </div>
+      ) : null}
+
       {!isLoading && !selectedCourse ? (
         <div className="faculty-flow-empty">
           <strong>Course not found</strong>
@@ -193,137 +234,109 @@ export function FacultyCourseFacultyPage() {
       ) : null}
 
       {!isLoading && selectedCourse ? (
-        <>
-          <article className="faculty-flow-hero panel-card">
-            <div className="faculty-flow-hero-main">
-              <div className="faculty-flow-avatar" aria-hidden="true">
-                <BookOpen />
-              </div>
-              <div className="faculty-flow-hero-copy">
-                <p className="faculty-flow-kicker">Faculty List</p>
-                <h2>{selectedCourse.name || courseId}</h2>
-                <p>Choose a faculty member to view the batches mapped under this course.</p>
-              </div>
+        <article className="faculty-flow-section">
+          <div className="faculty-course-faculty-toolbar">
+            <div className="faculty-course-faculty-summary">
+              <p className="faculty-course-faculty-kicker">Faculty Records</p>
+              <h3>Faculty Members</h3>
+              <p>Search by faculty name and open any record to view batches.</p>
             </div>
+            <form className="faculty-course-faculty-search" onSubmit={(event) => event.preventDefault()}>
+              <span className="faculty-course-faculty-search-icon" aria-hidden="true">
+                <Search size={18} />
+              </span>
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search faculty name"
+                aria-label="Search faculty name"
+              />
+            </form>
+          </div>
 
-            <div className="faculty-flow-stats" aria-label="Course summary">
-              <div className="faculty-flow-stat">
-                <span>Total Faculty</span>
-                <strong>{matchedFaculty.length}</strong>
-              </div>
-              <div className="faculty-flow-stat">
-                <span>Total Students</span>
-                <strong>
-                  {matchedFaculty.reduce((sum, record) => sum + Number(record.studentCount || 0), 0)}
-                </strong>
-              </div>
-            </div>
-          </article>
-
-          <article className="faculty-flow-section">
-            <div className="faculty-course-faculty-toolbar">
-              <div className="faculty-course-faculty-summary">
-                <p className="faculty-course-faculty-kicker">Faculty Records</p>
-                <h3>Faculty Members</h3>
-                <p>Search by faculty name and open any record to view batches.</p>
-              </div>
-              <form className="faculty-course-faculty-search" onSubmit={(event) => event.preventDefault()}>
-                <span className="faculty-course-faculty-search-icon" aria-hidden="true">
-                  <Search size={18} />
-                </span>
-                <input
-                  type="search"
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search faculty name"
-                  aria-label="Search faculty name"
-                />
-              </form>
-            </div>
-
-            <div className="faculty-flow-course-grid">
-              {visibleFaculty.length ? (
-                visibleFaculty.map((record) => (
-                  <button
-                    key={record.id}
-                    type="button"
-                    className="faculty-flow-course-card"
-                    onClick={() => navigate(buildFacultyCoursePath(record.id, courseId))}
-                  >
-                    <div className="faculty-flow-course-left">
-                      <div className="faculty-flow-course-icon">
-                        <UsersRound />
+          <div className="faculty-flow-course-grid">
+            {visibleFaculty.length ? (
+              visibleFaculty.map((record) => (
+                <button
+                  key={record.id}
+                  type="button"
+                  className="faculty-flow-course-card"
+                  onClick={() => navigate(buildFacultyCoursePath(record.id, courseId))}
+                >
+                  <div className="faculty-flow-course-left">
+                    <div className="faculty-flow-course-icon">
+                      <UsersRound />
+                    </div>
+                    <div className="faculty-flow-course-copy">
+                      <strong>{record.facultyName || '-'}</strong>
+                      <span className="faculty-flow-course-badge">
+                        <Mail size={14} />
+                        {record.facultyEmail || '-'}
+                      </span>
+                      <p>{record.batchEntries.length} Batch{record.batchEntries.length === 1 ? '' : 'es'}</p>
+                    </div>
+                  </div>
+                  <div className="faculty-flow-course-overview">
+                    <div className="faculty-flow-overview-card">
+                      <div className="faculty-flow-overview-icon faculty-flow-overview-icon-blue">
+                        <Phone size={18} />
                       </div>
-                      <div className="faculty-flow-course-copy">
-                        <strong>{record.facultyName || '-'}</strong>
-                        <span className="faculty-flow-course-badge">
-                          <Mail size={14} />
-                          {record.facultyEmail || '-'}
-                        </span>
-                        <p>{record.batchEntries.length} Batch{record.batchEntries.length === 1 ? '' : 'es'}</p>
+                      <div>
+                        <span>Phone</span>
+                        <strong>{record.facultyPhone || '-'}</strong>
                       </div>
                     </div>
-                    <div className="faculty-flow-course-overview">
-                      <div className="faculty-flow-overview-card">
-                        <div className="faculty-flow-overview-icon faculty-flow-overview-icon-blue">
-                          <Phone size={18} />
-                        </div>
-                        <div>
-                          <span>Phone</span>
-                          <strong>{record.facultyPhone || '-'}</strong>
-                        </div>
+                    <div className="faculty-flow-overview-card">
+                      <div className="faculty-flow-overview-icon faculty-flow-overview-icon-green">
+                        <UsersRound size={18} />
                       </div>
-                      <div className="faculty-flow-overview-card">
-                        <div className="faculty-flow-overview-icon faculty-flow-overview-icon-green">
-                          <UsersRound size={18} />
-                        </div>
-                        <div>
-                          <span>Students</span>
-                          <strong>{record.studentCount}</strong>
-                        </div>
+                      <div>
+                        <span>Students</span>
+                        <strong>{record.studentCount}</strong>
                       </div>
                     </div>
-                    <ChevronRight className="faculty-flow-course-chevron" />
-                  </button>
-                ))
-              ) : (
-                <div className="faculty-flow-empty">
-                  <strong>{searchTerm.trim() ? 'No matching faculty found' : 'No faculty mapped yet'}</strong>
-                  <p>{searchTerm.trim() ? 'Try a different faculty name.' : 'This course does not have any faculty records assigned.'}</p>
-                </div>
-              )}
-            </div>
-
-            {filteredFaculty.length ? (
-              <div className="faculty-course-pagination">
-                <button type="button" className="pagination-link" onClick={() => goToPage(safeCurrentPage - 1)} disabled={safeCurrentPage === 1}>
-                  <span aria-hidden="true">&lt;</span>
-                  <span>Prev</span>
+                  </div>
+                  <ChevronRight className="faculty-flow-course-chevron" />
                 </button>
-                <div className="pagination-pages">
-                  {pageList.map((page, index) =>
-                    typeof page === 'number' ? (
-                      <button
-                        key={page}
-                        type="button"
-                        className={`pagination-page ${safeCurrentPage === page ? 'active' : ''}`}
-                        onClick={() => goToPage(page)}
-                      >
-                        {page}
-                      </button>
-                    ) : (
-                      <span key={`${page}-${index}`} className="pagination-dots">...</span>
-                    ),
-                  )}
-                </div>
-                <button type="button" className="pagination-link" onClick={() => goToPage(safeCurrentPage + 1)} disabled={safeCurrentPage === totalPages}>
-                  <span>Next</span>
-                  <span aria-hidden="true">&gt;</span>
-                </button>
+              ))
+            ) : (
+              <div className="faculty-flow-empty">
+                <strong>{searchTerm.trim() ? 'No matching faculty found' : 'No faculty mapped yet'}</strong>
+                <p>{searchTerm.trim() ? 'Try a different faculty name.' : 'This course does not have any faculty records assigned.'}</p>
               </div>
-            ) : null}
-          </article>
-        </>
+            )}
+          </div>
+
+          {filteredFaculty.length ? (
+            <div className="faculty-course-pagination">
+              <button type="button" className="pagination-link" onClick={() => goToPage(safeCurrentPage - 1)} disabled={safeCurrentPage === 1}>
+                <span aria-hidden="true">&lt;</span>
+                <span>Prev</span>
+              </button>
+              <div className="pagination-pages">
+                {pageList.map((page, index) =>
+                  typeof page === 'number' ? (
+                    <button
+                      key={page}
+                      type="button"
+                      className={`pagination-page ${safeCurrentPage === page ? 'active' : ''}`}
+                      onClick={() => goToPage(page)}
+                    >
+                      {page}
+                    </button>
+                  ) : (
+                    <span key={`${page}-${index}`} className="pagination-dots">...</span>
+                  ),
+                )}
+              </div>
+              <button type="button" className="pagination-link" onClick={() => goToPage(safeCurrentPage + 1)} disabled={safeCurrentPage === totalPages}>
+                <span>Next</span>
+                <span aria-hidden="true">&gt;</span>
+              </button>
+            </div>
+          ) : null}
+        </article>
       ) : null}
     </section>
   )

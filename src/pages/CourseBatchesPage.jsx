@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, BookOpen, ChevronRight, Mail, Phone, UsersRound } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
@@ -137,6 +138,53 @@ export function CourseBatchesPage() {
         </div>
       ) : null}
 
+      <article className="faculty-flow-hero panel-card">
+        <div className="faculty-flow-hero-main">
+          <div className="faculty-flow-avatar" aria-hidden="true">
+            <BookOpen />
+          </div>
+          <div className="faculty-flow-hero-copy">
+            <p className="faculty-flow-kicker">Course Batches</p>
+            <h2>{isLoading ? 'Loading batches...' : courseName}</h2>
+            <div className="faculty-flow-contact">
+              <span>
+                <UsersRound size={16} />
+                {isLoading ? 'Faculty: Loading...' : `Faculty: ${selectedFaculty?.facultyName || '-'}`}
+              </span>
+              <span>
+                <Mail size={16} />
+                {isLoading ? 'Loading email...' : (selectedFaculty?.facultyEmail || '-')}
+              </span>
+              <span>
+                <Phone size={16} />
+                {isLoading ? 'Loading phone...' : (selectedFaculty?.facultyPhone || '-')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="faculty-flow-stats" aria-label="Course summary">
+          <div className="faculty-flow-stat">
+            <span>Total Batches</span>
+            <strong>{isLoading ? '—' : totalBatches}</strong>
+          </div>
+          <div className="faculty-flow-stat">
+            <span>Total Students</span>
+            <strong>{isLoading ? '—' : totalStudents}</strong>
+          </div>
+        </div>
+      </article>
+
+      {isLoading ? (
+        <div className="faculty-flow-loading-slot">
+          <AppLoadingState
+            title="Loading batches..."
+            description="Please wait while we fetch the batches and related student records."
+            className="faculty-flow-inline-loading"
+          />
+        </div>
+      ) : null}
+
       {!isLoading && !selectedFaculty ? (
         <div className="faculty-flow-empty">
           <strong>Faculty not found</strong>
@@ -145,106 +193,67 @@ export function CourseBatchesPage() {
       ) : null}
 
       {!isLoading && selectedFaculty ? (
-        <>
-          <article className="faculty-flow-hero panel-card">
-            <div className="faculty-flow-hero-main">
-              <div className="faculty-flow-avatar" aria-hidden="true">
-                <BookOpen />
-              </div>
-              <div className="faculty-flow-hero-copy">
-                <p className="faculty-flow-kicker">Course Batches</p>
-                <h2>{courseName}</h2>
-                <div className="faculty-flow-contact">
-                  <span>
-                    <UsersRound size={16} />
-                    Faculty: {selectedFaculty.facultyName || '-'}
-                  </span>
-                  <span>
-                    <Mail size={16} />
-                    {selectedFaculty.facultyEmail || '-'}
-                  </span>
-                  <span>
-                    <Phone size={16} />
-                    {selectedFaculty.facultyPhone || '-'}
-                  </span>
-                </div>
-              </div>
+        <article className="faculty-flow-section">
+          <div className="faculty-flow-section-header">
+            <div>
+              <h3>Batches for {courseName}</h3>
+              <p>Click on any batch to view students.</p>
             </div>
+          </div>
 
-            <div className="faculty-flow-stats" aria-label="Course summary">
-              <div className="faculty-flow-stat">
-                <span>Total Batches</span>
-                <strong>{totalBatches}</strong>
-              </div>
-              <div className="faculty-flow-stat">
-                <span>Total Students</span>
-                <strong>{totalStudents}</strong>
-              </div>
+          {batches.length ? (
+            <div className="faculty-flow-table-wrap">
+              <table className="faculty-flow-table">
+                <thead>
+                  <tr>
+                    <th>S.No</th>
+                    <th>Batch Name</th>
+                    <th>Batch Timing</th>
+                    <th>Students</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {batches.map((batch, index) => {
+                    const studentCount = batchStudentCounts[index] || 0
+
+                    return (
+                      <tr key={batch.id || `${batch.batchName}-${index}`}>
+                        <td>{index + 1}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="faculty-flow-link-button"
+                            onClick={() => navigate(buildFacultyBatchPath(selectedFaculty.id, courseId, batch.id))}
+                          >
+                            {batch.batchName || '-'}
+                          </button>
+                        </td>
+                        <td>{batch.batchTiming || '-'}</td>
+                        <td>{studentCount}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="faculty-flow-mini-button"
+                            onClick={() => navigate(buildFacultyBatchPath(selectedFaculty.id, courseId, batch.id))}
+                          >
+                            View Students
+                            <ChevronRight size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-          </article>
-
-          <article className="faculty-flow-section">
-            <div className="faculty-flow-section-header">
-              <div>
-                <h3>Batches for {courseName}</h3>
-                <p>Click on any batch to view students.</p>
-              </div>
+          ) : (
+            <div className="faculty-flow-empty">
+              <strong>No batches mapped for this course</strong>
+              <p>Add a batch under this course from the faculty record to continue.</p>
             </div>
-
-            {batches.length ? (
-              <div className="faculty-flow-table-wrap">
-                <table className="faculty-flow-table">
-                  <thead>
-                    <tr>
-                      <th>S.No</th>
-                      <th>Batch Name</th>
-                      <th>Batch Timing</th>
-                      <th>Students</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {batches.map((batch, index) => {
-                      const studentCount = batchStudentCounts[index] || 0
-
-                      return (
-                        <tr key={batch.id || `${batch.batchName}-${index}`}>
-                          <td>{index + 1}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className="faculty-flow-link-button"
-                              onClick={() => navigate(buildFacultyBatchPath(selectedFaculty.id, courseId, batch.id))}
-                            >
-                              {batch.batchName || '-'}
-                            </button>
-                          </td>
-                          <td>{batch.batchTiming || '-'}</td>
-                          <td>{studentCount}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className="faculty-flow-mini-button"
-                              onClick={() => navigate(buildFacultyBatchPath(selectedFaculty.id, courseId, batch.id))}
-                            >
-                              View Students
-                              <ChevronRight size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="faculty-flow-empty">
-                <strong>No batches mapped for this course</strong>
-                <p>Add a batch under this course from the faculty record to continue.</p>
-              </div>
-            )}
-          </article>
-        </>
+          )}
+        </article>
       ) : null}
     </section>
   )
