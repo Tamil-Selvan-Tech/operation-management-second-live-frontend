@@ -30,6 +30,7 @@ import { createStudent, deleteStudent, listStudents, updateStudent } from '../se
 import { normalizeCourseList } from '../services/courseService'
 import { savePendingLoginEmail } from '../lib/session'
 import { getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 const statusOptions = ['Student', 'Employee', 'Other']
 const recordStatusOptions = ['Active', 'Inactive']
@@ -725,6 +726,7 @@ function DangerIcon() {
 
 export function StudentManagementPage() {
   const { role } = useAuth()
+  const openMenu = useMobileMenu()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [students, setStudents] = useState([])
@@ -1609,6 +1611,7 @@ export function StudentManagementPage() {
         initials={headerInitials}
         profileTitle={headerProfileTitle}
         email={headerEmail}
+        onOpenMenu={openMenu}
       />
 
       <article className="student-management-hero">

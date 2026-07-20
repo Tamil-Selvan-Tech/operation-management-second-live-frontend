@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
+import { AlertTriangle, Bell, CalendarDays, ChevronDown, ChevronRight, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
 import { loadStudentRecords } from '../data/studentRecords'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { getCurrentFacultyProfile } from '../services/facultyService'
 import { getCurrentStudentProfile, listStudents } from '../services/studentService'
 
@@ -22,6 +23,7 @@ const attendanceComparisonData = [
   { month: 'Nov', attendance: 84, students: 252 },
   { month: 'Dec', attendance: 91, students: 275 },
 ]
+const attendanceMonthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const revenueFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR',
@@ -117,6 +119,52 @@ const notificationItems = [
     featured: false,
   },
 ]
+
+function useMediaQuery(query) {
+  const getMatches = () => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+    return window.matchMedia(query).matches
+  }
+
+  const [matches, setMatches] = useState(getMatches)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+
+    const mediaQuery = window.matchMedia(query)
+    const handleChange = (event) => setMatches(event.matches)
+    const frameId = window.requestAnimationFrame(() => {
+      setMatches(mediaQuery.matches)
+    })
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleChange)
+      return () => {
+        window.cancelAnimationFrame(frameId)
+        mediaQuery.removeEventListener('change', handleChange)
+      }
+    }
+
+    mediaQuery.addListener(handleChange)
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      mediaQuery.removeListener(handleChange)
+    }
+  }, [query])
+
+  return matches
+}
+
+function getRollingWindowData(data, monthsBefore = 1, monthsAfter = 4, referenceDate = new Date()) {
+  const totalMonths = monthsBefore + monthsAfter + 1
+  const startMonthIndex = referenceDate.getMonth() - monthsBefore
+
+  return Array.from({ length: totalMonths }, (_, offset) => {
+    const monthIndex = (startMonthIndex + offset + 12) % 12
+    const monthName = attendanceMonthOrder[monthIndex]
+    return data.find((item) => item.month === monthName) ?? null
+  }).filter(Boolean)
+}
 
 const STUDENT_RECORD_SYNC_EVENT = 'cispro:students-changed'
 
@@ -528,6 +576,8 @@ function useCurrentStudentProfile() {
 }
 
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
+  const openMenu = useMobileMenu()
+
   return (
     <section className="business-owner-dashboard">
       <OperationManagerHeader
@@ -538,6 +588,7 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, r
         initials="BW"
         profileTitle="Business Head"
         email="business.owner@cispro.com"
+        onOpenMenu={openMenu}
       />
 
       <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
@@ -766,7 +817,7 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
             aria-describedby={tooltipId}
             aria-label={`${card.label} details`}
             aria-expanded={isTooltipOpen}
-            onClick={() => setActiveTooltipIndex(index)}
+            onClick={() => setActiveTooltipIndex((current) => (current === index ? null : index))}
             onMouseEnter={() => setActiveTooltipIndex(index)}
             onMouseLeave={() => setActiveTooltipIndex(null)}
             onFocus={() => setActiveTooltipIndex(index)}
@@ -795,10 +846,15 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
 
 function MonthlyRevenueChart({ data = [] }) {
   const [activeIndex, setActiveIndex] = useState(null)
-  const chartMax = getChartMax(data, 10000)
+  const isCompactMobile = useMediaQuery('(max-width: 640px)')
+  const visibleMonthlyData = useMemo(
+    () => (isCompactMobile ? getRollingWindowData(data, 1, 4) : data),
+    [data, isCompactMobile],
+  )
+  const chartMax = getChartMax(visibleMonthlyData, 10000)
   const ticks = buildRevenueTicks(chartMax)
-  const activePoint = activeIndex === null ? null : data[activeIndex]
-  const tooltipStyle = getEdgeAwareTooltipStyle(activeIndex, data.length)
+  const activePoint = activeIndex === null ? null : visibleMonthlyData[activeIndex]
+  const tooltipStyle = getEdgeAwareTooltipStyle(activeIndex, visibleMonthlyData.length)
 
   return (
     <article className="panel-card revenue-comparison-card revenue-monthly-card">
@@ -859,8 +915,8 @@ function MonthlyRevenueChart({ data = [] }) {
             </div>
           ) : null}
 
-          <div className="revenue-groups">
-            {data.map((item, index) => {
+          <div className="revenue-groups" style={{ gridTemplateColumns: `repeat(${visibleMonthlyData.length}, minmax(0, 1fr))` }}>
+            {visibleMonthlyData.map((item, index) => {
               const monthlyHeight = `${chartMax ? (item.actual / chartMax) * 100 : 0}%`
               const expectedHeight = `${chartMax ? (item.expected / chartMax) * 100 : 0}%`
               const isActive = index === activeIndex
@@ -885,6 +941,11 @@ function MonthlyRevenueChart({ data = [] }) {
             })}
           </div>
         </div>
+      </div>
+
+      <div className="chart-card-footer" aria-hidden="true">
+        <span>View Details</span>
+        <ChevronRight size={16} strokeWidth={2.4} />
       </div>
     </article>
   )
@@ -986,6 +1047,11 @@ function WeeklyRevenueChart({ data = [] }) {
           </div>
         </div>
       </div>
+
+      <div className="chart-card-footer" aria-hidden="true">
+        <span>View Details</span>
+        <ChevronRight size={16} strokeWidth={2.4} />
+      </div>
     </article>
   )
 }
@@ -1024,7 +1090,7 @@ function ChartInfoTrigger({ label, description }) {
       className={`chart-info-trigger ${isOpen ? 'is-open' : ''}`}
       aria-label={label}
       aria-expanded={isOpen}
-      onClick={() => setIsOpen(true)}
+      onClick={() => setIsOpen((current) => !current)}
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => setIsOpen(false)}
       onFocus={() => setIsOpen(true)}
@@ -1052,10 +1118,22 @@ function RevenueDashboards({ students = [] }) {
 }
 
 function AttendanceComparisonChart() {
+  const isCompactMobile = useMediaQuery('(max-width: 640px)')
+  const visibleAttendanceData = useMemo(
+    () => (isCompactMobile ? getRollingWindowData(attendanceComparisonData, 1, 4) : attendanceComparisonData),
+    [isCompactMobile],
+  )
+
   return (
     <article className="panel-card attendance-card">
       <div className="attendance-header">
-        <div className="attendance-axis-title attendance-axis-left">Attendance (%)</div>
+        <div className="attendance-header-row">
+          <div className="attendance-header-title">Attendance (%)</div>
+          <button type="button" className="attendance-period-chip" aria-label="Attendance period">
+            <span>This Month</span>
+            <ChevronDown size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+          </button>
+        </div>
         <div className="attendance-legend" aria-hidden="true">
           <span className="revenue-legend-item">
             <span className="attendance-legend-swatch attendance" />
@@ -1066,7 +1144,6 @@ function AttendanceComparisonChart() {
             Present Students
           </span>
         </div>
-        <div className="attendance-axis-title attendance-axis-right">No. of Students</div>
       </div>
 
       <div className="attendance-chart" aria-label="Attendance comparison chart">
@@ -1087,8 +1164,8 @@ function AttendanceComparisonChart() {
             <span />
           </div>
 
-          <div className="attendance-bars-row">
-            {attendanceComparisonData.map((item) => (
+          <div className="attendance-bars-row" style={{ gridTemplateColumns: `repeat(${visibleAttendanceData.length}, minmax(0, 1fr))` }}>
+            {visibleAttendanceData.map((item) => (
               <div key={item.month} className="attendance-group">
                 <div className="attendance-series">
                   <strong className="attendance-series-value">{item.attendance}%</strong>
@@ -1102,8 +1179,8 @@ function AttendanceComparisonChart() {
             ))}
           </div>
 
-          <div className="attendance-months-row">
-            {attendanceComparisonData.map((item) => (
+          <div className="attendance-months-row" style={{ gridTemplateColumns: `repeat(${visibleAttendanceData.length}, minmax(0, 1fr))` }}>
+            {visibleAttendanceData.map((item) => (
               <span key={item.month}>{item.month}</span>
             ))}
           </div>
@@ -1116,6 +1193,11 @@ function AttendanceComparisonChart() {
           <span>125</span>
           <span>0</span>
         </div>
+      </div>
+
+      <div className="chart-card-footer" aria-hidden="true">
+        <span>View Details</span>
+        <ChevronRight size={16} strokeWidth={2.4} />
       </div>
     </article>
   )
@@ -1451,10 +1533,31 @@ function FacultyDashboard({ dashboard }) {
 }
 
 function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
+  const openMenu = useMobileMenu()
+
   return (
     <section className="business-owner-dashboard operation-manager-dashboard">
       <div className="business-topbar">
-        <div>
+        <button
+          type="button"
+          className="mobile-menu-button dashboard-mobile-menu-button"
+          onClick={openMenu}
+          aria-label="Open navigation menu"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M4 7h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M4 12h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+            <path d="M4 17h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+        </button>
+        <div className="operation-manager-mobile-brand" aria-hidden="true">
+          <img className="operation-manager-mobile-brand-logo" src="/logo.png" alt="" />
+          <div className="operation-manager-mobile-brand-copy">
+            <strong>Cispro Ops</strong>
+            <p>Role-aware workspace</p>
+          </div>
+        </div>
+        <div className="business-topbar-copy">
           <p className="eyebrow">Operation Manager</p>
           <h2>{dashboard.title}</h2>
           <p>{dashboard.summary}</p>

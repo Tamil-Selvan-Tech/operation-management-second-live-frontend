@@ -8,6 +8,8 @@ export function AppSidebar({
   onNavigateStudentManagement,
   onNavigateFacultyManagement,
   onLogout,
+  onClose,
+  isMobileOpen = false,
   showCoursesNav = true,
   showStudentManagementNav = true,
   showFacultyManagementNav = true,
@@ -38,21 +40,41 @@ export function AppSidebar({
   }
 
   return (
-    <aside className="sidebar">
-      <div className="brand">
-        <img className="brand-logo" src="/logo.png" alt="Cispro Ops logo" />
-        <div>
-          <strong>Cispro Ops</strong>
-          <p>Role-aware workspace</p>
+    <aside className={`sidebar ${isMobileOpen ? 'is-open' : ''}`.trim()}>
+      <div className="sidebar-head">
+        <div className="brand">
+          <img className="brand-logo" src="/logo.png" alt="Cispro Ops logo" />
+          <div>
+            <strong>Cispro Ops</strong>
+            <p>Role-aware workspace</p>
+          </div>
         </div>
+
+        <button type="button" className="sidebar-close-button" onClick={onClose} aria-label="Close navigation menu">
+          <span aria-hidden="true">×</span>
+        </button>
       </div>
 
       <nav className="menu">
-        <button type="button" className={activeNav === 'dashboard' ? 'active' : ''} onClick={onNavigateDashboard}>
+        <button
+          type="button"
+          className={activeNav === 'dashboard' ? 'active' : ''}
+          onClick={() => {
+            onClose?.()
+            onNavigateDashboard?.()
+          }}
+        >
           Dashboard
         </button>
         {showCoursesNav ? (
-          <button type="button" className={activeNav === 'courses' ? 'active' : ''} onClick={onNavigateCourses}>
+          <button
+            type="button"
+            className={activeNav === 'courses' ? 'active' : ''}
+            onClick={() => {
+              onClose?.()
+              onNavigateCourses?.()
+            }}
+          >
             Courses
           </button>
         ) : null}
@@ -60,7 +82,10 @@ export function AppSidebar({
           <button
             type="button"
             className={activeNav === 'student-management' ? 'active' : ''}
-            onClick={onNavigateStudentManagement}
+            onClick={() => {
+              onClose?.()
+              onNavigateStudentManagement?.()
+            }}
           >
             Student Management
           </button>
@@ -69,7 +94,10 @@ export function AppSidebar({
           <button
             type="button"
             className={activeNav === 'faculty-management' ? 'active' : ''}
-            onClick={onNavigateFacultyManagement}
+            onClick={() => {
+              onClose?.()
+              onNavigateFacultyManagement?.()
+            }}
           >
             Faculty Management
           </button>
@@ -101,7 +129,14 @@ export function AppSidebar({
                   <button type="button" className="button-ghost" onClick={() => setIsLogoutConfirmOpen(false)}>
                     Cancel
                   </button>
-                  <button type="button" className="button-solid" onClick={confirmLogout}>
+                  <button
+                    type="button"
+                    className="button-solid"
+                    onClick={async () => {
+                      onClose?.()
+                      await confirmLogout()
+                    }}
+                  >
                     Logout
                   </button>
                 </div>

@@ -116,7 +116,7 @@ export function CourseBatchesPage() {
   const totalBatches = batches.length
 
   return (
-    <section className="faculty-flow-page">
+    <section className="faculty-flow-page faculty-course-batches-page">
       <div className="faculty-flow-toolbar">
         <Button type="button" variant="ghost" className="faculty-flow-back-button" onClick={() => navigate(buildFacultyCourseListPath(courseId))}>
           <ArrowLeft size={18} />

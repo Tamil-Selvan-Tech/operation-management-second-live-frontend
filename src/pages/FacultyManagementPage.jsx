@@ -17,6 +17,7 @@ import {
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
 import { buildFacultyCourseCatalogPath, getFacultyCourseIds } from '../lib/facultyFlow'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function createEmptyForm() {
   return {
@@ -961,6 +962,7 @@ function getPrefilledForm(record = null, courseOptions = []) {
 
 export function FacultyManagementPage() {
   const { role } = useAuth()
+  const openMenu = useMobileMenu()
   const navigate = useNavigate()
   const isBusinessOwner = role === 'business-owner'
   const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
@@ -1533,6 +1535,7 @@ export function FacultyManagementPage() {
         initials={headerInitials}
         profileTitle={headerProfileTitle}
         email={headerEmail}
+        onOpenMenu={openMenu}
       />
 
       <article className="faculty-management-hero">

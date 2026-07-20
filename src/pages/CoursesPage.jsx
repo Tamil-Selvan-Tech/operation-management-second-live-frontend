@@ -5,6 +5,7 @@ import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
 import { createCourse, deleteCourse, listCourses, updateCourse } from '../services/courseService'
 import { saveCourseRecords } from '../data/courseRecords'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { Eye, MoreVertical, PencilLine, Trash2 } from 'lucide-react'
 
 function Field({ label, hint, error, children, required = false }) {
@@ -150,20 +151,9 @@ function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.body?.error || error?.message || fallback
 }
 
-function getCourseInstallmentValues(course) {
-  const storedInstallments = Array.isArray(course?.installments) ? course.installments : []
-
-  if (storedInstallments.length) {
-    return storedInstallments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
-  }
-
-  return [course?.installment1, course?.installment2, course?.installment3]
-    .map((value) => String(value ?? '').trim())
-    .filter((value) => value !== '')
-}
-
 export function CoursesPage() {
   const { role } = useAuth()
+  const openMenu = useMobileMenu()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [courses, setCourses] = useState([])
   const [pagination, setPagination] = useState({
@@ -284,14 +274,6 @@ export function CoursesPage() {
   const safeCurrentPage = Math.min(currentPage, totalPages)
   const visibleCourses = courses
   const totalCourseCount = pagination.total || courses.length || 0
-  const installmentColumnCount = useMemo(() => {
-    const maxCount = visibleCourses.reduce((highest, course) => {
-      const values = getCourseInstallments(course)
-      return Math.max(highest, values.length || Number(course?.installmentCount) || 0)
-    }, 3)
-
-    return Math.max(3, maxCount)
-  }, [visibleCourses])
   const drawerInstallmentValues = useMemo(() => getCourseInstallments(viewTarget), [viewTarget])
   const drawerInstallmentCount = useMemo(() => {
     const effectiveCount = isCourseInlineEditing
@@ -692,20 +674,22 @@ export function CoursesPage() {
         initials={headerInitials}
         profileTitle={headerProfileTitle}
         email={headerEmail}
+        onOpenMenu={openMenu}
       />
 
       <div className="courses-topbar">
-        <div>
+        <div className="courses-topbar-copy">
           <p className="eyebrow">Courses</p>
           {/* <h2>Course Management</h2> */}
           <p>Create and manage course details with a clean enterprise workflow.</p>
         </div>
 
+        <div className="course-count-pill" aria-label={`Total courses ${totalCourseCount}`}>
+          <span>Total Courses</span>
+          <strong>{totalCourseCount}</strong>
+        </div>
+
         <div className="courses-topbar-actions">
-          <div className="course-count-pill" aria-label={`Total courses ${totalCourseCount}`}>
-            <span>Total Courses</span>
-            <strong>{totalCourseCount}</strong>
-          </div>
           <button className="button button-solid course-add-button" type="button" onClick={openCreateModal}>
             + Add Course
           </button>
