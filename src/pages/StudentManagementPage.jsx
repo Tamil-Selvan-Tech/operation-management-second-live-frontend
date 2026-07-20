@@ -97,6 +97,7 @@ function createEmptyForm() {
     installment1: '',
     installment2: '',
     installment3: '',
+    installment4: '',
     firstInstallmentAmount: '',
     firstInstallmentDate: '',
     firstInstallmentStatus: 'Pending',
@@ -164,6 +165,18 @@ function hasThirdInstallment(student = null, course = null) {
   )
 }
 
+function hasFourthInstallment(student = null, course = null) {
+  const courseInstallmentCount = Array.isArray(course?.installments) ? course.installments.length : 0
+
+  return Boolean(
+    student?.installment4 ||
+      student?.fourthInstallmentAmount ||
+      student?.fourthDueDate ||
+      courseInstallmentCount >= 4 ||
+      String(course?.installment4 ?? student?.course?.installment4 ?? '') !== '',
+  )
+}
+
 function getSecondDueDate(student) {
   return student?.secondDueDate || addOneMonth(student?.admissionDate)
 }
@@ -173,12 +186,18 @@ function getThirdDueDate(student) {
   return student?.thirdDueDate || addOneMonth(getSecondDueDate(student))
 }
 
+function getFourthDueDate(student, course = null) {
+  if (!hasFourthInstallment(student, course)) return ''
+  return student?.fourthDueDate || addOneMonth(getThirdDueDate(student) || addOneMonth(getSecondDueDate(student)))
+}
+
 function isInstallmentSettled(entity = null) {
   const firstPaid = String(entity?.firstInstallmentStatus || 'Pending') === 'Paid'
   const secondPaid = String(entity?.secondInstallmentStatus || 'Pending') === 'Paid'
   const thirdPaid = hasThirdInstallment(entity) ? String(entity?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
+  const fourthPaid = hasFourthInstallment(entity) ? String(entity?.fourthInstallmentStatus || 'Pending') === 'Paid' : true
 
-  return firstPaid && secondPaid && thirdPaid
+  return firstPaid && secondPaid && thirdPaid && fourthPaid
 }
 
 function isFullPaymentMode(entity = null) {
@@ -198,10 +217,12 @@ function getVisibleInstallmentStage(student, course = null) {
   const firstPaid = String(student?.firstInstallmentStatus || 'Pending') === 'Paid'
   const secondPaid = String(student?.secondInstallmentStatus || 'Pending') === 'Paid'
   const thirdPaid = hasThirdInstallment(student, course) ? String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
+  const fourthPaid = hasFourthInstallment(student, course) ? String(student?.fourthInstallmentStatus || 'Pending') === 'Paid' : true
 
   if (!firstPaid) return 1
   if (!secondPaid) return 2
   if (hasThirdInstallment(student, course) && !thirdPaid) return 3
+  if (hasFourthInstallment(student, course) && !fourthPaid) return 4
   return 0
 }
 
@@ -287,11 +308,13 @@ function mapCourseToForm(current, course) {
       installment1: '',
       installment2: '',
       installment3: '',
+      installment4: '',
       facultyName: '',
       batch: '',
     }
   }
 
+  const courseInstallments = getCourseInstallmentValues(course)
   const actualFees = String(course.actualFees ?? '')
   const discount = String(course.discount ?? '')
   const afterDiscount =
@@ -308,25 +331,34 @@ function mapCourseToForm(current, course) {
     registrationFees: String(course.registrationFees ?? ''),
     discount,
     afterDiscount,
-    installment1: String(course.installment1 ?? ''),
-    installment2: String(course.installment2 ?? ''),
-    installment3: String(course.installment3 ?? ''),
+    installment1: courseInstallments[0] ?? '',
+    installment2: courseInstallments[1] ?? '',
+    installment3: courseInstallments[2] ?? '',
+    installment4: courseInstallments[3] ?? '',
   }
 }
 
 function getCourseInstallmentValues(course = null) {
-  return {
-    installment1: String(course?.installment1 ?? ''),
-    installment2: String(course?.installment2 ?? ''),
-    installment3: String(course?.installment3 ?? ''),
+  const storedInstallments = Array.isArray(course?.installments) ? course.installments : []
+
+  if (storedInstallments.length) {
+    return storedInstallments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
   }
+
+  return [course?.installment1, course?.installment2, course?.installment3, course?.installment4]
+    .map((value) => String(value ?? '').trim())
+    .filter((value) => value !== '')
+}
+
+function getRequiredInstallmentCount(course = null) {
+  return Math.max(getCourseInstallmentValues(course).length, 3)
 }
 
 function validateForm(form, course = null) {
   const errors = {}
   const currentYear = new Date().getFullYear()
   const isFullPayment = isFullPaymentMode(form)
-  const requiresThirdInstallment = hasThirdInstallment(form, course)
+  const requiredInstallmentCount = isFullPayment ? 0 : getRequiredInstallmentCount(course)
 
   if (!form.studentName.trim()) errors.studentName = 'Student name is required.'
 
@@ -361,9 +393,11 @@ function validateForm(form, course = null) {
   if (!form.registrationFees && form.courseId) errors.registrationFees = 'Registration fee is missing.'
   if (!form.discount && form.courseId) errors.discount = 'Discount is missing.'
   if (!form.afterDiscount && form.courseId) errors.afterDiscount = 'After discount value is missing.'
-  if (!isFullPayment && !form.installment1 && form.courseId) errors.installment1 = 'Installment 1 is missing.'
-  if (!isFullPayment && !form.installment2 && form.courseId) errors.installment2 = 'Installment 2 is missing.'
-  if (!isFullPayment && requiresThirdInstallment && !form.installment3) errors.installment3 = 'Installment 3 is missing.'
+  for (let index = 1; index <= requiredInstallmentCount; index += 1) {
+    if (!form[`installment${index}`] && form.courseId) {
+      errors[`installment${index}`] = `Installment ${index} is missing.`
+    }
+  }
   if (form.remarks.trim() && form.remarks.trim().length < 5) {
     errors.remarks = 'Add a short remark with at least 5 characters.'
   }
@@ -396,7 +430,7 @@ function validateStep(form, stepIndex, course = null) {
       'registrationFees',
       'discount',
       'afterDiscount',
-      ...(isFullPaymentMode(form) ? [] : ['installment1', 'installment2', 'installment3']),
+      ...(isFullPaymentMode(form) ? [] : ['installment1', 'installment2', 'installment3', 'installment4']),
       'admissionDate',
     ],
   }
@@ -410,7 +444,7 @@ function getStepIndexForField(fieldName) {
   const stepFields = {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
     1: ['courseInterested', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
-    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'admissionDate', 'remarks', 'paymentMode'],
+    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'installment4', 'admissionDate', 'remarks', 'paymentMode'],
   }
 
   return Number(
@@ -704,6 +738,8 @@ export function StudentManagementPage() {
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
 
   const selectedCourse = useMemo(() => findCourseForForm(courseOptions, form), [courseOptions, form])
+  const selectedCourseInstallments = useMemo(() => getCourseInstallmentValues(selectedCourse), [selectedCourse])
+  const visibleInstallmentCount = Math.max(selectedCourseInstallments.length, 3)
   const selectedCourseFacultyOptions = useMemo(() => {
     const normalizedCourseId = String(form.courseId || '').trim()
     if (!normalizedCourseId) return []
@@ -867,9 +903,11 @@ export function StudentManagementPage() {
                   registrationFees: course?.registrationFees ?? '',
                   discount: course?.discount ?? '',
                   afterDiscount: course?.afterDiscount ?? '',
-                  installment1: course?.installment1 ?? '',
-                  installment2: course?.installment2 ?? '',
-                  installment3: course?.installment3 ?? '',
+                  installments: Array.isArray(course?.installments)
+                    ? course.installments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
+                    : [course?.installment1, course?.installment2, course?.installment3, course?.installment4]
+                        .map((value) => String(value ?? '').trim())
+                        .filter((value) => value !== ''),
                 },
               ]
             })
@@ -1011,6 +1049,7 @@ export function StudentManagementPage() {
     installment1: student.installment1 || '',
     installment2: student.installment2 || '',
     installment3: student.installment3 || '',
+    installment4: student.installment4 || '',
     firstInstallmentAmount: student.firstInstallmentAmount || student.installment1 || '',
     firstInstallmentDate: student.firstInstallmentDate || student.admissionDate || '',
     firstInstallmentStatus: student.firstInstallmentStatus || 'Pending',
@@ -1196,12 +1235,22 @@ export function StudentManagementPage() {
             firstInstallmentStatus: 'Pending',
             secondInstallmentStatus: 'Pending',
             thirdInstallmentStatus: 'Pending',
+            fourthInstallmentStatus: 'Pending',
             firstInstallmentPaidAt: '',
             secondInstallmentPaidAt: '',
             thirdInstallmentPaidAt: '',
-            ...(current.installment1 || current.installment2 || current.installment3
+            fourthInstallmentPaidAt: '',
+            ...(current.installment1 || current.installment2 || current.installment3 || current.installment4
               ? {}
-              : getCourseInstallmentValues(findCourseForForm(courseOptions, current))),
+              : (() => {
+                  const installments = getCourseInstallmentValues(findCourseForForm(courseOptions, current))
+                  return {
+                    installment1: installments[0] || '',
+                    installment2: installments[1] || '',
+                    installment3: installments[2] || '',
+                    installment4: installments[3] || '',
+                  }
+                })()),
           }
         : name === 'paymentMode' && value === 'Full Payment'
           ? {
@@ -1209,6 +1258,7 @@ export function StudentManagementPage() {
               installment1: '',
               installment2: '',
               installment3: '',
+              installment4: '',
             }
           : {}),
       [name]: value,
@@ -1329,6 +1379,7 @@ export function StudentManagementPage() {
     payload.firstInstallmentAmount = isFullPayment ? paidAmount : form.installment1 || existingStudent?.firstInstallmentAmount || ''
     payload.secondInstallmentAmount = isFullPayment ? '0' : form.installment2 || existingStudent?.secondInstallmentAmount || ''
     payload.thirdInstallmentAmount = isFullPayment ? '0' : form.installment3 || existingStudent?.thirdInstallmentAmount || ''
+    payload.installment4 = isFullPayment ? '0' : form.installment4 || existingStudent?.installment4 || ''
     payload.firstInstallmentDate = isFullPayment ? paidAtDate : form.firstInstallmentDate || existingStudent?.firstInstallmentDate || ''
     payload.secondDueDate = isFullPayment ? '' : form.secondDueDate || existingStudent?.secondDueDate || ''
     payload.thirdDueDate = isFullPayment ? '' : form.thirdDueDate || existingStudent?.thirdDueDate || ''
@@ -2088,17 +2139,23 @@ export function StudentManagementPage() {
 
                   {!isFullPaymentMode(form) ? (
                     <>
-                      <Field label="Installment 1 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment1') ? errors.installment1 : ''}>
-                        <input type="text" value={form.installment1} readOnly placeholder="Auto filled from course" />
-                      </Field>
+                      {Array.from({ length: visibleInstallmentCount }, (_, index) => {
+                        const installmentIndex = index + 1
+                        const fieldName = `installment${installmentIndex}`
+                        const fieldValue = form[fieldName] || ''
 
-                      <Field label="Installment 2 (Auto Filled)" required icon={<FieldIcon kind="installment" />} error={shouldShowError('installment2') ? errors.installment2 : ''}>
-                        <input type="text" value={form.installment2} readOnly placeholder="Auto filled from course" />
-                      </Field>
-
-                      <Field label="Installment 3 (Auto Filled)" icon={<FieldIcon kind="installment" />} error={shouldShowError('installment3') ? errors.installment3 : ''}>
-                        <input type="text" value={form.installment3} readOnly placeholder="Auto filled from course" />
-                      </Field>
+                        return (
+                          <Field
+                            key={fieldName}
+                            label={`Installment ${installmentIndex} (Auto Filled)`}
+                            required={installmentIndex <= visibleInstallmentCount}
+                            icon={<FieldIcon kind="installment" />}
+                            error={shouldShowError(fieldName) ? errors[fieldName] : ''}
+                          >
+                            <input type="text" value={fieldValue} readOnly placeholder="Auto filled from course" />
+                          </Field>
+                        )
+                      })}
                     </>
                   ) : (
                     <Field label="Paid Amount" required icon={<FieldIcon kind="currency" />}>
@@ -2565,9 +2622,34 @@ export function StudentManagementPage() {
                                 leftLabel="3rd Installment Status"
                                 leftValue={selectedStudent.thirdInstallmentStatus || 'Pending'}
                                 leftTone={String(selectedStudent.thirdInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
-                                rightLabel="Remarks"
-                                rightValue={selectedStudent.remarks || '-'}
+                                rightLabel={hasFourthInstallment(selectedStudent, selectedStudentCourse) ? '4th Installment Amount' : 'Remarks'}
+                                rightValue={
+                                  hasFourthInstallment(selectedStudent, selectedStudentCourse)
+                                    ? formatCurrency(
+                                        selectedStudent.fourthInstallmentAmount ||
+                                          selectedStudent.installment4 ||
+                                          selectedStudentCourse?.installment4,
+                                      )
+                                    : selectedStudent.remarks || '-'
+                                }
                               />
+                              {hasFourthInstallment(selectedStudent, selectedStudentCourse) ? (
+                                <>
+                                  <DrawerTableRow
+                                    leftLabel="4th Due Date"
+                                    leftValue={formatDate(getFourthDueDate(selectedStudent, selectedStudentCourse))}
+                                    rightLabel="4th Installment Status"
+                                    rightValue={selectedStudent.fourthInstallmentStatus || 'Pending'}
+                                    rightTone={String(selectedStudent.fourthInstallmentStatus || 'Pending') === 'Paid' ? 'success' : 'warning'}
+                                  />
+                                  <DrawerTableRow
+                                    leftLabel="Remarks"
+                                    leftValue={selectedStudent.remarks || '-'}
+                                    rightLabel="Admission Date"
+                                    rightValue={formatDate(selectedStudent.admissionDate)}
+                                  />
+                                </>
+                              ) : null}
                             </>
                           ) : (
                             <DrawerTableRow

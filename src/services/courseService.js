@@ -22,6 +22,9 @@ export function normalizeCourse(course) {
   if (!course) return null
 
   const afterDiscount = course.afterDiscount ?? deriveAfterDiscount(course)
+  const installments = Array.isArray(course.installments)
+    ? course.installments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
+    : []
 
   return {
     ...course,
@@ -40,6 +43,7 @@ export function normalizeCourse(course) {
     installment1: course.installment1 ?? '',
     installment2: course.installment2 ?? '',
     installment3: course.installment3 ?? '',
+    installments,
     status: course.status || 'Inactive',
   }
 }
