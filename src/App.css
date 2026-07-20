@@ -9623,6 +9623,54 @@ tbody tr:hover {
   width: 120px;
 }
 
+.course-table thead th:nth-child(1),
+.course-table tbody td:nth-child(1) strong {
+  color: #1d4ed8;
+}
+
+.course-table thead th:nth-child(2),
+.course-table tbody td:nth-child(2) {
+  color: #0f766e;
+}
+
+.course-table thead th:nth-child(3),
+.course-table tbody td:nth-child(3) {
+  color: #7c3aed;
+}
+
+.course-table thead th:nth-child(4),
+.course-table tbody td:nth-child(4) {
+  color: #d97706;
+}
+
+.course-table thead th:nth-child(5),
+.course-table tbody td:nth-child(5) {
+  color: #db2777;
+}
+
+.course-table thead th:nth-child(6),
+.course-table tbody td:nth-child(6) {
+  color: #2563eb;
+}
+
+.course-table thead th:nth-child(7),
+.course-table tbody td:nth-child(7) {
+  color: #16a34a;
+}
+
+.course-table thead th:nth-child(8) {
+  color: #4f46e5;
+}
+
+.course-actions-cell .course-row-action {
+  color: #2563eb;
+}
+
+.course-actions-cell .course-row-action:hover,
+.course-actions-cell .course-row-action:focus-visible {
+  color: #0f4cc9;
+}
+
 .course-table tbody td {
   padding: 12px;
   border-bottom: 1px solid #eef2f7;
