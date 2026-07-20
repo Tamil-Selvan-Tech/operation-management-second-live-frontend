@@ -229,11 +229,28 @@ function findFacultyForForm(facultyOptions, form) {
   return (
     facultyOptions.find(
       (faculty) =>
-        String(faculty?.courseId || '').trim() === normalizedCourseId &&
+        facultyMatchesCourse(faculty, normalizedCourseId) &&
         String(faculty?.facultyName || '').trim().toLowerCase() === normalizedFacultyName,
     ) ||
     facultyOptions.find((faculty) => String(faculty?.facultyName || '').trim().toLowerCase() === normalizedFacultyName) ||
     null
+  )
+}
+
+function facultyMatchesCourse(faculty, courseId = '') {
+  const normalizedCourseId = String(courseId || '').trim()
+  if (!normalizedCourseId) return false
+
+  const facultyCourseIds = Array.isArray(faculty?.courseIds)
+    ? faculty.courseIds.map((id) => String(id || '').trim()).filter(Boolean)
+    : []
+
+  return (
+    facultyCourseIds.includes(normalizedCourseId) ||
+    String(faculty?.courseId || '').trim() === normalizedCourseId ||
+    (Array.isArray(faculty?.batchEntries)
+      ? faculty.batchEntries.some((entry) => String(entry?.courseId || '').trim() === normalizedCourseId)
+      : false)
   )
 }
 
@@ -711,9 +728,7 @@ export function StudentManagementPage() {
     const normalizedCourseId = String(form.courseId || '').trim()
     if (!normalizedCourseId) return []
 
-    return facultyOptions.filter(
-      (faculty) => String(faculty?.courseId || '').trim() === normalizedCourseId,
-    )
+    return facultyOptions.filter((faculty) => facultyMatchesCourse(faculty, normalizedCourseId))
   }, [facultyOptions, form.courseId])
   const selectedFaculty = useMemo(() => {
     if (String(form.courseId || '').trim()) {
@@ -739,8 +754,13 @@ export function StudentManagementPage() {
     return nextOptions
   }, [form.facultyName, selectedCourseFacultyOptions])
   const batchSelectOptions = useMemo(() => {
+    const normalizedCourseId = String(form.courseId || '').trim()
     const batches = Array.isArray(selectedFaculty?.batchEntries) ? selectedFaculty.batchEntries : []
     const nextOptions = batches
+      .filter((entry) => {
+        if (!normalizedCourseId) return true
+        return String(entry?.courseId || '').trim() === normalizedCourseId
+      })
       .map((entry) => {
         const value = String(entry?.batchName || '').trim()
         if (!value) return null
@@ -761,7 +781,7 @@ export function StudentManagementPage() {
     }
 
     return nextOptions
-  }, [form.batch, selectedFaculty])
+  }, [form.batch, form.courseId, selectedFaculty])
   const errors = useMemo(() => {
     const nextErrors = validateForm(form, selectedCourse)
     const duplicateStudent = findDuplicateStudent(form, students, editingStudentId)
@@ -774,8 +794,8 @@ export function StudentManagementPage() {
       nextErrors.facultyName = 'No faculty mapped to the selected course.'
     }
 
-    if (form.facultyName && !batchSelectOptions.length) {
-      nextErrors.batch = 'No batches available for the selected faculty.'
+    if (form.facultyName && form.courseId && !batchSelectOptions.length) {
+      nextErrors.batch = 'No batches available for the selected faculty and course.'
     }
 
     return nextErrors
@@ -915,6 +935,7 @@ export function StudentManagementPage() {
                     ? faculty.batchEntries
                         .map((entry) => ({
                           id: String(entry?.id || '').trim(),
+                          courseId: String(entry?.courseId || faculty?.courseId || '').trim(),
                           batchName: String(entry?.batchName || '').trim(),
                           batchTiming: String(entry?.batchTiming || '').trim(),
                         }))
@@ -950,6 +971,7 @@ export function StudentManagementPage() {
                     ? faculty.batchEntries
                         .map((entry) => ({
                           id: String(entry?.id || '').trim(),
+                          courseId: String(entry?.courseId || faculty?.courseId || '').trim(),
                           batchName: String(entry?.batchName || '').trim(),
                           batchTiming: String(entry?.batchTiming || '').trim(),
                         }))
@@ -2014,9 +2036,9 @@ export function StudentManagementPage() {
                           {batch.label}
                         </option>
                       ))}
-                      {!isFacultyLoading && form.facultyName && !batchSelectOptions.length ? (
+                      {!isFacultyLoading && form.facultyName && form.courseId && !batchSelectOptions.length ? (
                         <option value="" disabled>
-                          No batches available for this faculty
+                          No batches available for this faculty and course
                         </option>
                       ) : null}
                     </select>
