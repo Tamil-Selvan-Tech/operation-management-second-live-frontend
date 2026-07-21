@@ -13,6 +13,7 @@ export function AppShell({
   onNavigateCourses,
   onNavigateStudentManagement,
   onNavigateFacultyManagement,
+  onNavigateNotifications,
   onLogout,
   showCoursesNav = true,
   showStudentManagementNav = true,
@@ -22,12 +23,23 @@ export function AppShell({
 }) {
   const location = useLocation()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const activeNav = location.pathname.startsWith('/courses')
+  const isCoursesPath =
+    location.pathname.startsWith('/courses') ||
+    location.pathname.startsWith('/dashboard/operation-manager/courses')
+  const isStudentManagementPath =
+    location.pathname.startsWith('/student-management') ||
+    location.pathname.startsWith('/dashboard/operation-manager/student-management')
+  const isFacultyManagementPath =
+    location.pathname.startsWith('/faculty-management') ||
+    location.pathname.startsWith('/dashboard/operation-manager/faculty-management')
+  const activeNav = isCoursesPath
     ? 'courses'
-    : location.pathname.startsWith('/student-management')
+    : isStudentManagementPath
       ? 'student-management'
-      : location.pathname.startsWith('/faculty-management')
+      : isFacultyManagementPath
         ? 'faculty-management'
+        : location.pathname.startsWith('/notifications')
+          ? 'notifications'
       : 'dashboard'
   const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
   const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
@@ -35,9 +47,9 @@ export function AppShell({
     isOperationManagerDashboard ||
     isBusinessOwnerDashboard ||
     location.pathname === '/notifications' ||
-    location.pathname.startsWith('/student-management') ||
-    location.pathname.startsWith('/faculty-management') ||
-    location.pathname.startsWith('/courses')
+    isStudentManagementPath ||
+    isFacultyManagementPath ||
+    isCoursesPath
 
   const bottomNavItems = [
     { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard },
@@ -83,6 +95,7 @@ export function AppShell({
           onNavigateCourses={onNavigateCourses}
           onNavigateStudentManagement={onNavigateStudentManagement}
           onNavigateFacultyManagement={onNavigateFacultyManagement}
+          onNavigateNotifications={onNavigateNotifications}
           onLogout={onLogout}
           onClose={() => setIsMobileSidebarOpen(false)}
           isMobileOpen={isMobileSidebarOpen}
