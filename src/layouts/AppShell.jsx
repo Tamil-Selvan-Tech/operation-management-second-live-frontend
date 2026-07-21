@@ -8,6 +8,7 @@ import { MobileMenuContext } from './mobileMenuContext'
 
 export function AppShell({
   dashboard,
+  user,
   onNavigateDashboard,
   onNavigateCourses,
   onNavigateStudentManagement,
@@ -33,6 +34,7 @@ export function AppShell({
   const isFlatMainArea =
     isOperationManagerDashboard ||
     isBusinessOwnerDashboard ||
+    location.pathname === '/notifications' ||
     location.pathname.startsWith('/student-management') ||
     location.pathname.startsWith('/faculty-management') ||
     location.pathname.startsWith('/courses')
@@ -76,6 +78,7 @@ export function AppShell({
         />
         <AppSidebar
           activeNav={activeNav}
+          user={user}
           onNavigateDashboard={onNavigateDashboard}
           onNavigateCourses={onNavigateCourses}
           onNavigateStudentManagement={onNavigateStudentManagement}

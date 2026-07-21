@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { ArrowRight, Bell, ChevronLeft } from 'lucide-react'
+import { Bell, ChevronDown, Filter, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { dashboardPathByRole, roleLabels } from '../data/authData'
@@ -20,6 +20,7 @@ function NotificationGroup({ label, items }) {
             >
               <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
                 <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                <span className="notifications-item-dot" aria-hidden="true" />
               </span>
 
               <div className="notifications-item-copy">
@@ -30,10 +31,14 @@ function NotificationGroup({ label, items }) {
                 <p>{item.message}</p>
               </div>
 
-              <button type="button" className="notifications-item-action">
-                {item.actionLabel || 'View'}
-                <ArrowRight size={15} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-              </button>
+              <div className="notifications-item-meta">
+                <span className={`notifications-item-chip tone-${item.tone}`}>
+                  {item.categoryLabel || item.actionLabel || 'View'}
+                </span>
+                <button type="button" className="notifications-item-kebab" aria-label="More actions">
+                  <MoreVertical size={16} strokeWidth={2.3} aria-hidden="true" focusable="false" />
+                </button>
+              </div>
             </article>
           )
         })}
@@ -45,7 +50,6 @@ function NotificationGroup({ label, items }) {
 export function NotificationsPage() {
   const { role } = useAuth()
   const navigate = useNavigate()
-
   const sections = useMemo(() => getNotificationSections(role), [role])
   const totalCount = useMemo(
     () => sections.reduce((count, section) => count + section.items.length, 0),
@@ -59,8 +63,8 @@ export function NotificationsPage() {
 
   return (
     <section className="notifications-page">
-      <article className="panel-card notifications-hero">
-        <div className="notifications-hero-copy">
+      <header className="notifications-page-header">
+        <div className="notifications-page-copy">
           <p className="eyebrow">Notifications</p>
           <h2>Notifications</h2>
           <p>
@@ -69,22 +73,27 @@ export function NotificationsPage() {
           </p>
         </div>
 
-        <div className="notifications-hero-actions">
+        <div className="notifications-page-actions">
           <button
             type="button"
             className="notifications-back-button"
             onClick={() => navigate(dashboardPathByRole[role] || '/dashboard')}
           >
-            <ChevronLeft size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
             Back to dashboard
           </button>
 
           <button type="button" className="notifications-mark-read">
             <Bell size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-            Mark all as Read
+            Mark all as read
+          </button>
+
+          <button type="button" className="notifications-filter-button">
+            <Filter size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+            Filter
+            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
           </button>
         </div>
-      </article>
+      </header>
 
       <div className="notifications-feed">
         {sections.map((section) => (

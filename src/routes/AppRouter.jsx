@@ -115,7 +115,7 @@ function AuthLayout() {
 }
 
 function AppLayout() {
-  const { role, signOut } = useAuth()
+  const { role, signOut, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const dashboard = role ? roleDashboards[role] : null
@@ -135,6 +135,7 @@ function AppLayout() {
   return (
     <AppShell
       dashboard={dashboard}
+      user={user}
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
       onNavigateCourses={() => navigate('/courses')}
       onNavigateStudentManagement={() => navigate('/student-management')}

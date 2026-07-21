@@ -9,7 +9,7 @@
 .auth-card.login-shell.login-page {
   position: relative;
   width: min(1200px, calc(100vw - 32px));
-  min-height: min(760px, calc(100vh - 32px));
+  min-height: min(620px, calc(100vh - 32px));
   padding: 0;
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
@@ -35,7 +35,7 @@
 .auth-card.forgot-page {
   position: relative;
   width: min(1200px, calc(100vw - 32px));
-  min-height: min(760px, calc(100vh - 32px));
+  min-height: min(620px, calc(100vh - 32px));
   padding: 0;
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
@@ -65,11 +65,11 @@
 }
 
 .login-form-panel {
-  padding: clamp(26px, 4vw, 68px);
+  padding: clamp(18px, 2.8vw, 46px);
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 18px;
+  gap: 12px;
   color: #113a7a;
   background: transparent;
   min-width: 0;
@@ -105,16 +105,20 @@
 
 .login-copy {
   display: grid;
-  gap: 8px;
+  gap: 4px;
   justify-items: start;
   text-align: left;
   max-width: 480px;
 }
 
+.login-page .login-copy {
+  margin-top: 34px;
+}
+
 .login-copy h2 {
   margin: 0;
   color: #0f4fb8;
-  font-size: clamp(2rem, 2.8vw, 3rem);
+  font-size: clamp(1.8rem, 2.5vw, 2.7rem);
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1.05;
@@ -123,8 +127,8 @@
 .login-copy p {
   margin: 0;
   color: #4b6ea8;
-  font-size: 0.98rem;
-  line-height: 1.6;
+  font-size: 0.94rem;
+  line-height: 1.45;
 }
 
 .forgot-topbar {
@@ -162,7 +166,7 @@
 }
 
 .forgot-copy {
-  gap: 10px;
+  gap: 8px;
   margin-top: 2px;
   max-width: 440px;
 }
@@ -177,12 +181,12 @@
 }
 
 .forgot-copy h2 {
-  font-size: clamp(1.55rem, 2.1vw, 2rem);
+  font-size: clamp(1.4rem, 1.9vw, 1.8rem);
   color: #1d4ed8;
 }
 
 .forgot-form {
-  gap: 16px;
+  gap: 12px;
   margin-top: 0;
   max-width: 440px;
 }
@@ -219,14 +223,14 @@
 
 .login-form {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   width: 100%;
   max-width: 460px;
 }
 
 .login-page .form-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .login-page .form-field > span {
@@ -237,8 +241,8 @@
 }
 
 .login-page .field-with-icon {
-  min-height: 54px;
-  border-radius: 18px;
+  min-height: 50px;
+  border-radius: 16px;
   border: 1px solid #7fb6ff;
   background: #ffffff;
   display: flex;
@@ -251,15 +255,15 @@
 
 .login-page .password-field {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
   align-items: stretch;
   gap: 0;
   padding-right: 0;
 }
 
 .login-page .field-icon {
-  width: 52px;
-  min-width: 52px;
+  width: 48px;
+  min-width: 48px;
   height: 100%;
   color: #2f5fae;
   display: grid;
@@ -268,12 +272,12 @@
 }
 
 .login-page .field-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
 }
 
 .login-page .login-input {
-  min-height: 52px;
+  min-height: 48px;
   height: 100%;
   flex: 1 1 auto;
   min-width: 0;
@@ -315,8 +319,8 @@
 }
 
 .login-page .login-form .password-toggle {
-  width: 48px;
-  min-width: 48px;
+  width: 44px;
+  min-width: 44px;
   height: 100%;
   border: 0;
   border-radius: 999px;
@@ -336,8 +340,8 @@
 }
 
 .login-page .login-form .password-toggle svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   display: block;
   stroke-width: 1.9;
 }
@@ -369,7 +373,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   color: #2f5fae;
   font-size: 0.84rem;
@@ -405,12 +409,16 @@
 .login-primary {
   width: 100%;
   max-width: 460px;
-  min-height: 54px;
-  margin-top: 18px;
-  border-radius: 18px;
+  min-height: 48px;
+  margin-top: 8px;
+  border-radius: 16px;
   background: linear-gradient(180deg, #2b7cff 0%, #0f5fd1 100%);
   color: #ffffff;
   box-shadow: 0 12px 20px rgba(31, 122, 224, 0.22);
+}
+
+.login-page .login-primary {
+  margin-top: 14px;
 }
 
 .login-primary:hover {
@@ -419,7 +427,7 @@
 }
 
 .login-visual-panel {
-  padding: 18px 18px 18px 0;
+  padding: 12px 12px 12px 0;
   display: flex;
   align-items: stretch;
   justify-content: stretch;
@@ -447,7 +455,7 @@
   }
 
   .login-form-panel {
-    padding: 34px 26px 18px;
+    padding: 24px 20px 14px;
   }
 
   .login-form {
@@ -456,16 +464,20 @@
 
   .login-primary {
     max-width: 100%;
-    margin-top: 14px;
+    margin-top: 8px;
+  }
+
+  .login-page .login-primary {
+    margin-top: 12px;
   }
 
   .login-visual-panel {
-    padding: 0 18px 18px;
-    min-height: 320px;
+    padding: 0 14px 14px;
+    min-height: 280px;
   }
 
   .login-visual-image {
-    min-height: 320px;
+    min-height: 280px;
     border-radius: 24px;
   }
 
@@ -476,17 +488,17 @@
   }
 
   .forgot-form-panel {
-    padding: 34px 26px 18px;
-    gap: 16px;
+    padding: 24px 20px 14px;
+    gap: 12px;
   }
 
   .forgot-visual-panel {
-    padding: 0 18px 18px;
-    min-height: 320px;
+    padding: 0 14px 14px;
+    min-height: 280px;
   }
 
   .forgot-visual-image {
-    min-height: 320px;
+    min-height: 280px;
     border-radius: 24px;
   }
 }
@@ -502,8 +514,8 @@
   }
 
   .login-form-panel {
-    padding: 24px 16px 18px;
-    gap: 14px;
+    padding: 16px 12px 12px;
+    gap: 10px;
   }
 
   .login-brand-pill {
@@ -517,15 +529,19 @@
   }
 
   .login-copy {
-    gap: 6px;
+    gap: 4px;
+  }
+
+  .login-page .login-copy {
+    margin-top: 24px;
   }
 
   .login-copy h2 {
-    font-size: 1.7rem;
+    font-size: 1.55rem;
   }
 
   .login-copy p {
-    font-size: 0.92rem;
+    font-size: 0.9rem;
   }
 
   .login-form {
@@ -536,13 +552,17 @@
   .login-page .login-input,
   .login-page .password-toggle,
   .login-primary {
-    min-height: 48px;
+    min-height: 44px;
   }
 
   .login-page .field-icon,
   .login-page .password-toggle {
-    width: 48px;
-    min-width: 48px;
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .login-page .login-primary {
+    margin-top: 10px;
   }
 
   .login-footer-links {
@@ -560,8 +580,8 @@
   }
 
   .forgot-form-panel {
-    padding: 22px 14px 16px;
-    gap: 12px;
+    padding: 16px 12px 12px;
+    gap: 10px;
   }
 
   .forgot-topbar {

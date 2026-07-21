@@ -795,23 +795,122 @@ tbody tr:hover {
   font-size: 0.92rem;
 }
 
-.logout-card-button,
-.logout-button {
+.sidebar-account-card {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.sidebar-account-button {
   width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  cursor: pointer;
 }
 
-.logout-card-button {
-  border-radius: 14px;
-  padding: 12px 16px;
+.sidebar-account-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  padding: 0;
+  transform: translateY(1px);
+  background: linear-gradient(135deg, #0f7bda, #4da3ff);
+  box-shadow: 0 8px 18px rgba(15, 123, 218, 0.18);
+}
+
+.sidebar-account-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.sidebar-account-copy strong {
+  color: #0f172a;
+  font-size: 0.98rem;
   font-weight: 800;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  box-shadow: 0 12px 22px rgba(220, 38, 38, 0.18);
+  line-height: 1.15;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
 
-.logout-card-button:hover {
-  background: linear-gradient(135deg, #dc2626, #b91c1c);
-  color: #ffffff;
+.sidebar-account-copy span {
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.sidebar-account-icon {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  color: #64748b;
+}
+
+.sidebar-account-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.sidebar-account-button:hover .sidebar-account-icon {
+  color: #1d4ed8;
+}
+
+.sidebar-account-button:hover .sidebar-account-copy strong {
+  color: #1d4ed8;
+}
+
+.business-owner-main .sidebar-account-copy strong {
+  font-size: 0.94rem;
+}
+
+.operation-manager-dashboard .sidebar-account-copy strong {
+  display: block;
+  font-size: 0.74rem;
+  line-height: 1;
+  white-space: nowrap;
+  width: max-content;
+}
+
+.operation-manager-dashboard .sidebar-account-button {
+  width: calc(100% + 6px);
+  transform: translateX(-2px);
+  grid-template-columns: 40px minmax(0, 1fr) 14px;
+  gap: 4px;
+}
+
+.operation-manager-dashboard .sidebar-account-copy {
+  overflow: hidden;
+}
+
+.operation-manager-dashboard .sidebar-account-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.operation-manager-dashboard .sidebar-account-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.operation-manager-dashboard .sidebar-account-icon svg {
+  width: 16px;
+  height: 16px;
 }
 
 .main-area {
@@ -3843,12 +3942,24 @@ tbody tr:hover {
 
 .notification-dropdown-item {
   position: relative;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
   padding: 12px 10px;
   border-radius: 14px;
+  cursor: pointer;
+}
+
+.notification-dropdown-item:hover,
+.notification-dropdown-item:focus-visible {
+  background: #f4f8ff;
+  outline: none;
 }
 
 .notification-badge {
@@ -3971,84 +4082,99 @@ tbody tr:hover {
   padding: 6px 0 28px;
 }
 
-.notifications-hero {
+.notifications-page-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  padding: 24px 26px;
-  border: 1px solid #dbe7f4;
-  background:
-    linear-gradient(135deg, rgba(239, 246, 255, 0.9), rgba(255, 255, 255, 0.98)),
-    #ffffff;
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 0 0 8px;
 }
 
-.notifications-hero-copy {
+.notifications-page-copy {
   min-width: 0;
+  max-width: 760px;
 }
 
-.notifications-hero-copy h2 {
+.notifications-page-copy h2 {
   margin: 4px 0 8px;
   color: #0f172a;
-  font-size: clamp(1.65rem, 2.5vw, 2.1rem);
+  font-size: clamp(1.7rem, 2.6vw, 2.25rem);
   font-weight: 900;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.05em;
 }
 
-.notifications-hero-copy p {
+.notifications-page-copy p {
   margin: 0;
   color: #475569;
   font-size: 0.95rem;
-  line-height: 1.5;
+  line-height: 1.45;
 }
 
-.notifications-hero-copy strong {
-  color: #0f172a;
+.notifications-page-copy strong {
+  color: #1d4ed8;
 }
 
+.notifications-page-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-top: 2px;
+}
+
+.notifications-back-button,
+.notifications-filter-button,
 .notifications-mark-read {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid #cce7d8;
-  border-radius: 999px;
-  padding: 10px 14px;
-  background: #effdf4;
-  color: #15803d;
+  white-space: nowrap;
+  cursor: pointer;
   font-size: 0.9rem;
   font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.notifications-hero-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
 .notifications-back-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #d7e1ee;
+  border: 1px solid #cfe0fb;
   border-radius: 999px;
   padding: 10px 14px;
   background: #ffffff;
-  color: #334155;
-  font-size: 0.9rem;
-  font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
+  color: #1e3a8a;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
 }
 
 .notifications-back-button:hover {
-  background: #f8fbff;
-  border-color: #c7d6ea;
+  background: #eff6ff;
+  border-color: #b6cff9;
+}
+
+.notifications-mark-read {
+  border: 1px solid #cfe0fb;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: #ffffff;
+  color: #334155;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.notifications-mark-read:hover {
+  background: #eff6ff;
+  border-color: #b6cff9;
+}
+
+.notifications-filter-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #1d71f2 0%, #0f5fd1 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(29, 113, 242, 0.22);
+}
+
+.notifications-filter-button:hover {
+  background: linear-gradient(180deg, #1667ea 0%, #0b57c0 100%);
 }
 
 .notifications-feed {
@@ -4063,7 +4189,7 @@ tbody tr:hover {
 
 .notifications-group-label {
   margin: 0;
-  color: #94a3b8;
+  color: #1d4ed8;
   font-size: 0.8rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -4077,28 +4203,39 @@ tbody tr:hover {
 
 .notifications-item {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
+  gap: 16px;
+  padding: 14px 18px;
   border: 1px solid #e6edf7;
-  border-radius: 18px;
+  border-radius: 16px;
   background: #ffffff;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
 }
 
 .notifications-item.is-unread {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfffd 100%);
-  box-shadow: 0 14px 28px rgba(15, 23, 42, 0.06);
+  background: #ffffff;
 }
 
 .notifications-item-icon {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 14px;
   display: grid;
   place-items: center;
+  position: relative;
   flex: 0 0 auto;
+}
+
+.notifications-item-dot {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .notifications-item-icon.tone-red {
@@ -4132,7 +4269,7 @@ tbody tr:hover {
 
 .notifications-item-title-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
@@ -4140,14 +4277,14 @@ tbody tr:hover {
 .notifications-item-title-row h3 {
   margin: 0;
   color: #0f172a;
-  font-size: 1rem;
+  font-size: 0.98rem;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 
 .notifications-item-title-row small {
   color: #94a3b8;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -4155,26 +4292,65 @@ tbody tr:hover {
 .notifications-item-copy p {
   margin: 6px 0 0;
   color: #475569;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   line-height: 1.45;
 }
 
-.notifications-item-action {
+.notifications-item-meta {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   justify-self: end;
-  border: 0;
-  background: transparent;
-  color: #0f766e;
-  font-size: 0.88rem;
-  font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
 }
 
-.notifications-item-action:hover {
-  color: #115e59;
+.notifications-item-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.notifications-item-chip.tone-red {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.notifications-item-chip.tone-yellow,
+.notifications-item-chip.tone-amber {
+  background: #ffedd5;
+  color: #f59e0b;
+}
+
+.notifications-item-chip.tone-blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.notifications-item-chip.tone-green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.notifications-item-kebab {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.notifications-item-kebab:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .profile-chip {
@@ -4216,21 +4392,18 @@ tbody tr:hover {
 }
 
 @media (max-width: 768px) {
-  .notifications-hero {
+  .notifications-page-header {
     flex-direction: column;
   }
 
-  .notifications-hero-actions {
-    justify-content: flex-start;
-  }
-
   .notifications-item {
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: 42px minmax(0, 1fr);
   }
 
-  .notifications-item-action {
+  .notifications-item-meta {
+    grid-column: 2 / -1;
     justify-self: start;
-    margin-left: 54px;
+    margin-top: 6px;
   }
 }
 
@@ -12542,10 +12715,6 @@ tbody tr:hover {
 
   .role-card {
     padding: 14px;
-  }
-
-  .logout-card-button {
-    min-height: 46px;
   }
 
   .login-shell .login-hero {
