@@ -4124,6 +4124,28 @@ tbody tr:hover {
   padding-top: 2px;
 }
 
+.notifications-page-top-header {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+}
+
+.notifications-page-top-header .business-topbar-actions {
+  margin-top: 0;
+  transform: none;
+}
+
+.notifications-page-top-header .business-topbar-copy {
+  padding-top: 0;
+}
+
+.notifications-filter-menu {
+  position: relative;
+}
+
 .notifications-back-button,
 .notifications-filter-button,
 .notifications-mark-read {
@@ -4155,13 +4177,13 @@ tbody tr:hover {
   border-radius: 999px;
   padding: 10px 14px;
   background: #ffffff;
-  color: #334155;
+  color: #15803d;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
 }
 
 .notifications-mark-read:hover {
-  background: #eff6ff;
-  border-color: #b6cff9;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
 }
 
 .notifications-filter-button {
@@ -4175,6 +4197,49 @@ tbody tr:hover {
 
 .notifications-filter-button:hover {
   background: linear-gradient(180deg, #1667ea 0%, #0b57c0 100%);
+}
+
+.notifications-filter-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 30;
+  min-width: 220px;
+  padding: 8px;
+  border: 1px solid #d8e6fb;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(10px);
+  display: grid;
+  gap: 4px;
+}
+
+.notifications-filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+}
+
+.notifications-filter-option:hover,
+.notifications-filter-option:focus-visible {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.notifications-filter-option.is-active {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .notifications-feed {
@@ -4426,25 +4491,41 @@ tbody tr:hover {
   color: var(--muted);
 }
 
-.profile-modal-backdrop {
+.profile-drawer-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1210;
-  display: grid;
-  place-items: center;
-  padding: 24px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
   background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(6px);
 }
 
-.profile-modal {
-  width: min(100%, 560px);
-  border-radius: 28px;
+.profile-drawer {
+  width: min(100%, 440px);
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 28px 0 0 28px;
   overflow: hidden;
   background: #ffffff;
   border: 1px solid #d9e7f7;
-  box-shadow: 0 30px 90px rgba(15, 23, 42, 0.28);
-  max-height: min(86vh, 860px);
+  border-right: 0;
+  box-shadow: -24px 0 90px rgba(15, 23, 42, 0.28);
+  display: flex;
+  flex-direction: column;
+  animation: profileDrawerSlideIn 0.24s ease-out both;
+}
+
+@keyframes profileDrawerSlideIn {
+  from {
+    transform: translateX(104%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
 }
 
 .profile-modal-cover {
@@ -4542,11 +4623,41 @@ tbody tr:hover {
   color: #1d4ed8;
 }
 
-.profile-modal-body {
-  padding: 36px 24px 18px;
+.profile-drawer-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0 24px 16px;
   display: grid;
-  gap: 12px;
+  gap: 0;
+  justify-items: center;
   text-align: center;
+}
+
+.profile-drawer-body .profile-modal-eyebrow {
+  margin: 0;
+  margin-top: 0;
+  line-height: 1.1;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  font-weight: 900;
+}
+
+.profile-drawer-body h3 {
+  margin: -8px 0 0;
+  line-height: 1.02;
+}
+
+.profile-drawer-body .profile-modal-email {
+  margin: -38px 0 0;
+  line-height: 1.08;
+}
+
+.profile-drawer-body .profile-modal-grid {
+  margin-top: -12px;
+}
+
+.profile-drawer-body .profile-modal-info-list {
+  margin-top: -12px;
 }
 
 .profile-modal-eyebrow {
@@ -4613,7 +4724,7 @@ tbody tr:hover {
 .profile-modal-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
   text-align: left;
 }
 
@@ -4679,14 +4790,16 @@ tbody tr:hover {
 
 .profile-modal-info-list {
   display: grid;
-  gap: 2px;
+  gap: 0;
   padding-top: 0;
+  width: 100%;
 }
 
 .profile-modal-info-row {
   display: grid;
+  width: 100%;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px solid #edf2f7;
@@ -4702,10 +4815,11 @@ tbody tr:hover {
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   color: #64748b;
   font-size: 0.78rem;
   font-weight: 700;
+  justify-self: start;
 }
 
 .profile-modal-info-label svg {
@@ -4718,6 +4832,7 @@ tbody tr:hover {
   font-size: 0.86rem;
   font-weight: 700;
   text-align: right;
+  justify-self: end;
   word-break: break-word;
 }
 
@@ -4752,6 +4867,17 @@ tbody tr:hover {
     flex-direction: column;
   }
 
+  .notifications-page-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .notifications-filter-dropdown {
+    left: 0;
+    right: auto;
+    min-width: 200px;
+  }
+
   .notifications-item {
     grid-template-columns: 42px minmax(0, 1fr);
   }
@@ -4762,16 +4888,17 @@ tbody tr:hover {
     margin-top: 6px;
   }
 
-  .profile-modal {
-    width: min(100%, 360px);
+  .profile-drawer {
+    width: min(100%, 320px);
   }
 
   .profile-modal-cover {
     min-height: 132px;
   }
 
-  .profile-modal-body {
-    padding: 34px 16px 16px;
+  .profile-drawer-body {
+    padding: 0 16px 14px;
+    gap: 0;
   }
 
   .profile-modal-grid {
@@ -13031,8 +13158,8 @@ tbody tr:hover {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.42);
-    backdrop-filter: blur(2px);
+    background: rgba(15, 23, 42, 0.2);
+    backdrop-filter: none;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.22s ease, visibility 0.22s ease;

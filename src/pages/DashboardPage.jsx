@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronRight, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
+import { CalendarDays, ChevronDown, ChevronRight, Info, Target, TrendingUp, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { NotificationBell } from '../components/NotificationBell'
@@ -581,6 +581,8 @@ function buildRevenueSummaryCards(summary, isLoading) {
       change: null,
       accent: 'blue',
       icon: 'wallet',
+      tooltip:
+        'Total Revenue combines every paid installment collected across active records and gives you the overall income picture.',
       details: [
         { label: 'Collected revenue', value: formatValue(summary?.totalRevenue) },
         { label: 'Students added', value: isLoading ? 'Loading...' : `${summary?.totalStudents || 0} students added` },
@@ -593,6 +595,8 @@ function buildRevenueSummaryCards(summary, isLoading) {
       change: null,
       accent: 'green',
       icon: 'calendar',
+      tooltip:
+        'This Month Revenue tracks all income received during the current calendar month, helping you compare fresh collections against the month goal.',
       details: [
         { label: 'Collected this month', value: formatValue(summary?.thisMonthRevenue) },
         { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisMonthStudents || 0} admissions this month` },
@@ -605,6 +609,8 @@ function buildRevenueSummaryCards(summary, isLoading) {
       change: null,
       accent: 'purple',
       icon: 'trend',
+      tooltip:
+        'This Week Revenue shows how much cash came in during the current week so you can spot short-term momentum quickly.',
       details: [
         { label: 'Collected this week', value: formatValue(summary?.thisWeekRevenue) },
         { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisWeekStudents || 0} admissions this week` },
@@ -617,6 +623,8 @@ function buildRevenueSummaryCards(summary, isLoading) {
       change: null,
       accent: 'orange',
       icon: 'target',
+      tooltip:
+        'Pending Payments highlights the outstanding balance that is still waiting to be collected from active students.',
       details: [
         {
           label: 'Pending amount',
@@ -714,24 +722,15 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
             aria-describedby={tooltipId}
             aria-label={`${card.label} details`}
             aria-expanded={isTooltipOpen}
-            onClick={() => setActiveTooltipIndex((current) => (current === index ? null : index))}
-            onMouseEnter={() => setActiveTooltipIndex(index)}
-            onMouseLeave={() => setActiveTooltipIndex(null)}
-            onFocus={() => setActiveTooltipIndex(index)}
-            onBlur={() => setActiveTooltipIndex(null)}
+            onClick={(event) => {
+              event.stopPropagation()
+              setActiveTooltipIndex((current) => (current === index ? null : index))
+            }}
           >
             <Info size={13} strokeWidth={2.5} aria-hidden="true" focusable="false" />
             <div className="revenue-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${card.label} details`}>
               <strong>{card.label}</strong>
               <p>{card.tooltip}</p>
-              <div className="revenue-summary-tooltip-list">
-                {(card.details || []).map((detail) => (
-                  <div key={detail.label} className="revenue-summary-tooltip-item">
-                    <span>{detail.label}</span>
-                    <strong>{detail.value}</strong>
-                  </div>
-                ))}
-              </div>
             </div>
           </button>
         </article>

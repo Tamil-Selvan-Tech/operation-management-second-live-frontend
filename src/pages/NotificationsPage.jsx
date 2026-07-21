@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
-import { Bell, ChevronDown, Filter, MoreVertical } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, Bell, CheckCheck, ChevronDown, CircleAlert, Filter, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { dashboardPathByRole, roleLabels } from '../data/authData'
 import { getNotificationSections } from '../data/notificationsData'
+import { OperationManagerHeader } from '../components/OperationManagerHeader'
 
 function NotificationGroup({ label, items }) {
   return (
@@ -50,7 +51,24 @@ function NotificationGroup({ label, items }) {
 export function NotificationsPage() {
   const { role } = useAuth()
   const navigate = useNavigate()
+  const filterMenuRef = useRef(null)
+  const [activeFilter, setActiveFilter] = useState('all')
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false)
   const sections = useMemo(() => getNotificationSections(role), [role])
+  const visibleSections = useMemo(() => {
+    if (activeFilter === 'all') return sections
+
+    return sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => {
+          if (activeFilter === 'unread') return Boolean(item.unread)
+          if (activeFilter === 'read') return !item.unread
+          return true
+        }),
+      }))
+      .filter((section) => section.items.length)
+  }, [activeFilter, sections])
   const totalCount = useMemo(
     () => sections.reduce((count, section) => count + section.items.length, 0),
     [sections],
@@ -60,9 +78,57 @@ export function NotificationsPage() {
     [sections],
   )
   const roleLabel = roleLabels[role] || 'Workspace'
+  const isBusinessOwner = role === 'business-owner'
+  const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
+  const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
+  const headerSummary = isBusinessOwner ? '' : 'Notifications, approvals, and team updates.'
+  const headerInitials = isBusinessOwner ? 'BW' : 'OM'
+  const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
+  const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
+  const activeFilterLabel =
+    activeFilter === 'all' ? 'Filter' : activeFilter === 'unread' ? 'Unread' : 'Read'
+
+  useEffect(() => {
+    if (!isFilterMenuOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target)) {
+        setIsFilterMenuOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsFilterMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isFilterMenuOpen])
+
+  const markAllAsRead = () => {
+    setActiveFilter('all')
+    setIsFilterMenuOpen(false)
+  }
 
   return (
     <section className="notifications-page">
+      <OperationManagerHeader
+        className="notifications-page-top-header"
+        eyebrow={headerEyebrow}
+        title={headerTitle}
+        summary={headerSummary}
+        initials={headerInitials}
+        profileTitle={headerProfileTitle}
+        email={headerEmail}
+      />
+
       <header className="notifications-page-header">
         <div className="notifications-page-copy">
           <p className="eyebrow">Notifications</p>
@@ -79,24 +145,61 @@ export function NotificationsPage() {
             className="notifications-back-button"
             onClick={() => navigate(dashboardPathByRole[role] || '/dashboard')}
           >
+            <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
             Back to dashboard
           </button>
 
-          <button type="button" className="notifications-mark-read">
-            <Bell size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+          <button type="button" className="notifications-mark-read" onClick={markAllAsRead}>
+            <CheckCheck size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
             Mark all as read
           </button>
 
-          <button type="button" className="notifications-filter-button">
-            <Filter size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-            Filter
-            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-          </button>
+          <div ref={filterMenuRef} className="notifications-filter-menu">
+            <button
+              type="button"
+              className="notifications-filter-button"
+              onClick={() => setIsFilterMenuOpen((current) => !current)}
+              aria-haspopup="menu"
+              aria-expanded={isFilterMenuOpen}
+            >
+              <Filter size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+              {activeFilterLabel}
+              <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+            </button>
+
+            {isFilterMenuOpen ? (
+              <div className="notifications-filter-dropdown" role="menu" aria-label="Notification filters">
+                {[
+                  { key: 'all', label: 'All notifications', icon: Bell },
+                  { key: 'unread', label: 'Unread only', icon: CircleAlert },
+                  { key: 'read', label: 'Read only', icon: CheckCheck },
+                ].map((option) => {
+                  const Icon = option.icon
+
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      className={`notifications-filter-option ${activeFilter === option.key ? 'is-active' : ''}`.trim()}
+                      onClick={() => {
+                        setActiveFilter(option.key)
+                        setIsFilterMenuOpen(false)
+                      }}
+                      role="menuitem"
+                    >
+                      <Icon size={15} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                      <span>{option.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
       <div className="notifications-feed">
-        {sections.map((section) => (
+        {visibleSections.map((section) => (
           <NotificationGroup key={section.label} label={section.label} items={section.items} />
         ))}
       </div>

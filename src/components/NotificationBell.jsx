@@ -42,10 +42,6 @@ export function NotificationBell() {
     <div
       ref={menuRef}
       className="notification-menu"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => {
-        setIsOpen(false)
-      }}
       onFocusCapture={() => setIsOpen(true)}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) {
@@ -59,7 +55,7 @@ export function NotificationBell() {
         aria-label="Notifications"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={() => setIsOpen(true)}
       >
         <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
         <b>{unreadCount}</b>

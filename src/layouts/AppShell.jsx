@@ -51,21 +51,46 @@ export function AppShell({
     isFacultyManagementPath ||
     isCoursesPath
 
+  const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
+
   const bottomNavItems = [
-    { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard },
-    { key: 'courses', label: 'Courses', icon: BookOpen, onClick: onNavigateCourses, hidden: !showCoursesNav },
+    {
+      key: 'dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateDashboard?.()
+      },
+    },
+    {
+      key: 'courses',
+      label: 'Courses',
+      icon: BookOpen,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateCourses?.()
+      },
+      hidden: !showCoursesNav,
+    },
     {
       key: 'student-management',
       label: 'Students',
       icon: UsersRound,
-      onClick: onNavigateStudentManagement,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateStudentManagement?.()
+      },
       hidden: !showStudentManagementNav,
     },
     {
       key: 'faculty-management',
       label: 'Faculty',
       icon: GraduationCap,
-      onClick: onNavigateFacultyManagement,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateFacultyManagement?.()
+      },
       hidden: !showFacultyManagementNav,
     },
   ]
@@ -86,7 +111,7 @@ export function AppShell({
         <div
           className={`sidebar-backdrop ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
           role="presentation"
-          onClick={() => setIsMobileSidebarOpen(false)}
+          onClick={closeMobileSidebar}
         />
         <AppSidebar
           activeNav={activeNav}

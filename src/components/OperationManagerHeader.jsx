@@ -25,7 +25,7 @@ function buildProfileDetails({ eyebrow, profileTitle, email, initials }) {
     primaryEmail: email,
     contactNumber: '+91 98765 43210',
     location: isBusinessOwner ? 'Chennai, Tamil Nadu, India' : 'Coimbatore, Tamil Nadu, India',
-    passwordMasked: 'ChangeMe123',
+    passwordMasked: 'ChangeMe123!',
     resetPasswordText: 'Send Reset Link',
     lastLogin: 'Today, 10:25 AM',
     initials,
@@ -111,18 +111,17 @@ export function OperationManagerHeader({
       {isProfileOpen && typeof document !== 'undefined'
         ? createPortal(
             <div
-              className="profile-modal-backdrop"
+              className="profile-drawer-backdrop"
               role="presentation"
-              onClick={() => setIsProfileOpen(false)}
             >
               <div
-                className="profile-modal"
+                className="profile-drawer"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="profile-modal-title"
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="profile-modal-cover">
+                <div className="profile-modal-cover profile-drawer-cover">
                   <button
                     type="button"
                     className="course-modal-close profile-modal-close"
@@ -158,7 +157,7 @@ export function OperationManagerHeader({
                   </div>
                 </div>
 
-                <div className="profile-modal-body">
+                <div className="profile-modal-body profile-drawer-body">
                   <p className="profile-modal-eyebrow">Profile</p>
                   <h3 id="profile-modal-title">{profileTitle}</h3>
                   <p className="profile-modal-email">{email}</p>
