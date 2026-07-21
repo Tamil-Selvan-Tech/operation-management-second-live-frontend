@@ -26,6 +26,7 @@ import { FacultyCourseFacultyPage } from '../pages/FacultyCourseFacultyPage'
 import { BatchStudentsPage } from '../pages/BatchStudentsPage'
 import { CourseBatchesPage } from '../pages/CourseBatchesPage'
 import { StudentManagementPage } from '../pages/StudentManagementPage'
+import { NotificationsPage } from '../pages/NotificationsPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 import { SessionExpiredPage } from '../pages/SessionExpiredPage'
 import { UnauthorizedPage } from '../pages/UnauthorizedPage'
@@ -39,6 +40,19 @@ import {
 } from '../lib/session'
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+
+const workspacePathsByRole = {
+  'business-owner': {
+    courses: '/courses',
+    studentManagement: '/student-management',
+    facultyManagement: '/faculty-management',
+  },
+  'operation-manager': {
+    courses: '/dashboard/operation-manager/courses',
+    studentManagement: '/dashboard/operation-manager/student-management',
+    facultyManagement: '/dashboard/operation-manager/faculty-management',
+  },
+}
 
 function LoginScreen() {
   const [form, setForm] = useState({
@@ -114,17 +128,22 @@ function AuthLayout() {
 }
 
 function AppLayout() {
-  const { role, signOut } = useAuth()
+  const { role, signOut, user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const dashboard = role ? roleDashboards[role] : null
+  const workspacePaths = workspacePathsByRole[role] || workspacePathsByRole['business-owner']
   const canAccessCourses = courseAccessRoles.includes(role)
   const canAccessStudentManagement = courseAccessRoles.includes(role)
   const canAccessFacultyManagement = courseAccessRoles.includes(role)
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
     location.pathname !== '/dashboard/operation-manager' &&
+    location.pathname !== '/dashboard/operation-manager/courses' &&
+    location.pathname !== '/dashboard/operation-manager/student-management' &&
+    location.pathname !== '/dashboard/operation-manager/faculty-management' &&
     location.pathname !== '/dashboard/student' &&
+    location.pathname !== '/notifications' &&
     location.pathname !== '/courses' &&
     location.pathname !== '/student-management' &&
     location.pathname !== '/faculty-management' &&
@@ -133,10 +152,12 @@ function AppLayout() {
   return (
     <AppShell
       dashboard={dashboard}
+      user={user}
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
-      onNavigateCourses={() => navigate('/courses')}
-      onNavigateStudentManagement={() => navigate('/student-management')}
-      onNavigateFacultyManagement={() => navigate('/faculty-management')}
+      onNavigateCourses={() => navigate(workspacePaths.courses)}
+      onNavigateStudentManagement={() => navigate(workspacePaths.studentManagement)}
+      onNavigateFacultyManagement={() => navigate(workspacePaths.facultyManagement)}
+      onNavigateNotifications={() => navigate('/notifications')}
       onLogout={async () => {
         await signOut()
         navigate('/login')
@@ -303,9 +324,13 @@ export function AppRouter() {
             <Route path="/dashboard" element={<RoleDashboardRedirect />} />
             <Route path="/dashboard/business-owner" element={<DashboardPage role="business-owner" />} />
             <Route path="/dashboard/operation-manager" element={<DashboardPage role="operation-manager" />} />
+            <Route path="/dashboard/operation-manager/courses" element={<CoursesPage />} />
+            <Route path="/dashboard/operation-manager/student-management" element={<StudentManagementPage />} />
+            <Route path="/dashboard/operation-manager/faculty-management" element={<FacultyManagementPage />} />
             <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
             <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
             <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/student-management" element={<StudentManagementPage />} />

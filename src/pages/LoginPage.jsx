@@ -86,7 +86,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
       <section className="login-form-panel">
         <div className="login-topbar">
           <div className="login-brand-pill">
-            <img className="login-brand-icon" src="/logo.png" alt="CISPRO logo" />
+            <img className="login-brand-icon" src="/logo1.JPG" alt="CISPRO logo" />
           </div>
         </div>
 

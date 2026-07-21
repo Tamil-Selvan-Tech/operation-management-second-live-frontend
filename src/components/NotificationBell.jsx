@@ -1,53 +1,52 @@
-import { useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, CreditCard, ReceiptText } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Bell } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-const notificationItems = [
-  {
-    tone: 'red',
-    icon: ReceiptText,
-    title: 'Student fee payment updated',
-    message: 'Varsha\'s full payment has been saved and marked as completed.',
-    time: '5 mins ago',
-    featured: false,
-  },
-  {
-    tone: 'yellow',
-    icon: CreditCard,
-    title: 'Installment payment received',
-    message: 'A pending installment for the Next.js course has been collected successfully.',
-    time: '15 mins ago',
-    featured: true,
-  },
-  {
-    tone: 'amber',
-    icon: AlertTriangle,
-    title: 'Overdue fee reminder',
-    message: 'Three student fee payments are still overdue and need review today.',
-    time: '1 hour ago',
-    featured: false,
-  },
-  {
-    tone: 'blue',
-    icon: CalendarDays,
-    title: 'Admission update',
-    message: 'A new student admission has been added to the dashboard successfully.',
-    time: 'Today',
-    featured: false,
-  },
-]
+import { useAuth } from '../auth/useAuth'
+import { getNotificationItems, getUnreadNotificationCount } from '../data/notificationsData'
 
 export function NotificationBell() {
+  const { role } = useAuth()
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
-  const [showAll, setShowAll] = useState(false)
-  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
+  const menuRef = useRef(null)
+  const notificationItems = getNotificationItems(role)
+  const visibleItems = notificationItems.slice(0, 2)
+  const unreadCount = getUnreadNotificationCount(role)
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
 
   return (
     <div
+      ref={menuRef}
       className="notification-menu"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => {
-        setIsOpen(false)
-        setShowAll(false)
+      onFocusCapture={() => setIsOpen(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setIsOpen(false)
+        }
       }}
     >
       <button
@@ -56,10 +55,10 @@ export function NotificationBell() {
         aria-label="Notifications"
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={() => setIsOpen(true)}
       >
         <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        <b>{notificationItems.length}</b>
+        <b>{unreadCount}</b>
       </button>
 
       {isOpen ? (
@@ -75,9 +74,14 @@ export function NotificationBell() {
             {visibleItems.map((item) => {
               const Icon = item.icon
               return (
-                <article
+                <button
+                  type="button"
                   key={`${item.title}-${item.time}`}
                   className={`notification-dropdown-item ${item.featured ? 'is-highlighted' : ''}`.trim()}
+                  onClick={() => {
+                    setIsOpen(false)
+                    navigate('/notifications')
+                  }}
                 >
                   <span className={`notification-badge ${item.tone}`} aria-hidden="true">
                     <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
@@ -87,7 +91,7 @@ export function NotificationBell() {
                     <span>{item.message}</span>
                     <small>{item.time}</small>
                   </div>
-                </article>
+                </button>
               )
             })}
           </div>
@@ -95,9 +99,12 @@ export function NotificationBell() {
           <button
             className="notification-dropdown-footer"
             type="button"
-            onClick={() => setShowAll((current) => !current)}
+            onClick={() => {
+              setIsOpen(false)
+              navigate('/notifications')
+            }}
           >
-            {showAll ? 'Show less' : 'View all notifications'}
+            View all notifications
           </button>
         </div>
       ) : null}

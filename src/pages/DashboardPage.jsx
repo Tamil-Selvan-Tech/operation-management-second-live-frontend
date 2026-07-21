@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, ChevronDown, ChevronRight, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDays, ChevronDown, ChevronRight, Info, Target, TrendingUp, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import { NotificationBell } from '../components/NotificationBell'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
 import { loadStudentRecords } from '../data/studentRecords'
@@ -33,90 +34,55 @@ const revenueFormatter = new Intl.NumberFormat('en-IN', {
 const revenueSummaryCards = [
   {
     label: 'Total Revenue',
-    value: 'â‚¹8,45,000',
+    value: 'Ã¢â€šÂ¹8,45,000',
     change: '+12.5%',
     accent: 'blue',
     icon: 'wallet',
     tooltip: 'Total Revenue shows the total income collected from all student fee payments across all courses and admissions.',
     details: [
-      { label: 'Collected revenue', value: 'â‚¹8,45,000' },
+      { label: 'Collected revenue', value: 'Ã¢â€šÂ¹8,45,000' },
       { label: 'Students added', value: '11 students added' },
       { label: 'Scope', value: 'All paid installments in the dashboard' },
     ],
   },
   {
     label: 'This Month Revenue',
-    value: 'â‚¹95,000',
+    value: 'Ã¢â€šÂ¹95,000',
     change: '+8.4%',
     accent: 'green',
     icon: 'calendar',
     tooltip: 'This Month Revenue shows the total income collected during the current month period.',
     details: [
-      { label: 'Collected this month', value: 'â‚¹95,000' },
+      { label: 'Collected this month', value: 'Ã¢â€šÂ¹95,000' },
       { label: 'Admissions', value: '10 admissions this month' },
       { label: 'Scope', value: 'Payments captured from the current month' },
     ],
   },
   {
     label: 'This Week Revenue',
-    value: 'â‚¹32,000',
+    value: 'Ã¢â€šÂ¹32,000',
     change: '+4.2%',
     accent: 'purple',
     icon: 'trend',
     tooltip: 'This Week Revenue shows the total income collected during the current week.',
     details: [
-      { label: 'Collected this week', value: 'â‚¹32,000' },
+      { label: 'Collected this week', value: 'Ã¢â€šÂ¹32,000' },
       { label: 'Admissions', value: '3 admissions this week' },
       { label: 'Scope', value: 'Payments captured from the current week' },
     ],
   },
   {
     label: 'Pending Payments',
-    value: 'â‚¹1,20,000',
+    value: 'Ã¢â€šÂ¹1,20,000',
     change: null,
     accent: 'orange',
     icon: 'target',
     tooltip: 'Pending Payments shows the outstanding amount that is still waiting to be collected.',
     details: [
-      { label: 'Pending amount', value: 'â‚¹1,20,000' },
+      { label: 'Pending amount', value: 'Ã¢â€šÂ¹1,20,000' },
       { label: 'Collection target', value: 'Target for next week' },
       { label: 'Scope', value: 'Outstanding student balances' },
     ],
-  },
-]
-
-const notificationItems = [
-  {
-    tone: 'red',
-    icon: ReceiptText,
-    title: 'Student fee payment updated',
-    message: 'Varsha’s full payment has been saved and marked as completed.',
-    time: '5 mins ago',
-    featured: false,
-  },
-  {
-    tone: 'yellow',
-    icon: CreditCard,
-    title: 'Installment payment received',
-    message: 'A pending installment for the Next.js course has been collected successfully.',
-    time: '15 mins ago',
-    featured: true,
-  },
-  {
-    tone: 'amber',
-    icon: AlertTriangle,
-    title: 'Overdue fee reminder',
-    message: 'Three student fee payments are still overdue and need review today.',
-    time: '1 hour ago',
-    featured: false,
-  },
-  {
-    tone: 'blue',
-    icon: CalendarDays,
-    title: 'Admission update',
-    message: 'A new student admission has been added to the dashboard successfully.',
-    time: 'Today',
-    featured: false,
   },
 ]
 
@@ -248,7 +214,7 @@ function getStudentStatus(student) {
   const overdueDays = (hasThirdInstallment(student) ? thirdPaid : secondPaid) ? 0 : diffInDays(dueDate, getTodayValue())
 
   if (firstPaid && secondPaid && thirdPaid) return { label: 'Complete', tone: 'success' }
-  if (overdueDays > 0) return { label: `Overdue Â· ${overdueDays} Days`, tone: 'danger' }
+  if (overdueDays > 0) return { label: `Overdue Ã‚Â· ${overdueDays} Days`, tone: 'danger' }
   if (firstPaid) return { label: 'Pending', tone: 'warning' }
 
   return { label: 'Pending', tone: 'warning' }
@@ -615,6 +581,8 @@ function buildRevenueSummaryCards(summary, isLoading) {
       change: null,
       accent: 'blue',
       icon: 'wallet',
+      tooltip:
+        'Total Revenue combines every paid installment collected across active records and gives you the overall income picture.',
       details: [
         { label: 'Collected revenue', value: formatValue(summary?.totalRevenue) },
         { label: 'Students added', value: isLoading ? 'Loading...' : `${summary?.totalStudents || 0} students added` },
@@ -627,6 +595,8 @@ function buildRevenueSummaryCards(summary, isLoading) {
       change: null,
       accent: 'green',
       icon: 'calendar',
+      tooltip:
+        'This Month Revenue tracks all income received during the current calendar month, helping you compare fresh collections against the month goal.',
       details: [
         { label: 'Collected this month', value: formatValue(summary?.thisMonthRevenue) },
         { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisMonthStudents || 0} admissions this month` },
@@ -639,6 +609,8 @@ function buildRevenueSummaryCards(summary, isLoading) {
       change: null,
       accent: 'purple',
       icon: 'trend',
+      tooltip:
+        'This Week Revenue shows how much cash came in during the current week so you can spot short-term momentum quickly.',
       details: [
         { label: 'Collected this week', value: formatValue(summary?.thisWeekRevenue) },
         { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisWeekStudents || 0} admissions this week` },
@@ -651,6 +623,8 @@ function buildRevenueSummaryCards(summary, isLoading) {
       change: null,
       accent: 'orange',
       icon: 'target',
+      tooltip:
+        'Pending Payments highlights the outstanding balance that is still waiting to be collected from active students.',
       details: [
         {
           label: 'Pending amount',
@@ -661,75 +635,6 @@ function buildRevenueSummaryCards(summary, isLoading) {
       ],
     },
   ]
-}
-
-function NotificationBell() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [showAll, setShowAll] = useState(false)
-  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
-
-  return (
-    <div
-      className="notification-menu"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => {
-        setIsOpen(false)
-        setShowAll(false)
-      }}
-    >
-      <button
-        className="icon-chip notification-chip"
-        type="button"
-        aria-label="Notifications"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((current) => !current)}
-      >
-        <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        <b>{notificationItems.length}</b>
-      </button>
-
-      {isOpen ? (
-        <div className="notification-dropdown" role="menu" aria-label="Notifications">
-          <div className="notification-dropdown-head">
-            <strong>Notifications</strong>
-            <button type="button" className="notification-mark-read">
-              Mark all as read
-            </button>
-          </div>
-
-          <div className="notification-dropdown-list">
-            {visibleItems.map((item) => {
-              const Icon = item.icon
-              return (
-                <article
-                  key={`${item.title}-${item.time}`}
-                  className={`notification-dropdown-item ${item.featured ? 'is-highlighted' : ''}`.trim()}
-                >
-                  <span className={`notification-badge ${item.tone}`} aria-hidden="true">
-                    <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-                  </span>
-                  <div className="notification-copy">
-                    <p>{item.title}</p>
-                    <span>{item.message}</span>
-                    <small>{item.time}</small>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-
-          <button
-            className="notification-dropdown-footer"
-            type="button"
-            onClick={() => setShowAll((current) => !current)}
-          >
-            {showAll ? 'Show less' : 'View all notifications'}
-          </button>
-        </div>
-      ) : null}
-    </div>
-  )
 }
 
 function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
@@ -817,24 +722,15 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
             aria-describedby={tooltipId}
             aria-label={`${card.label} details`}
             aria-expanded={isTooltipOpen}
-            onClick={() => setActiveTooltipIndex((current) => (current === index ? null : index))}
-            onMouseEnter={() => setActiveTooltipIndex(index)}
-            onMouseLeave={() => setActiveTooltipIndex(null)}
-            onFocus={() => setActiveTooltipIndex(index)}
-            onBlur={() => setActiveTooltipIndex(null)}
+            onClick={(event) => {
+              event.stopPropagation()
+              setActiveTooltipIndex((current) => (current === index ? null : index))
+            }}
           >
             <Info size={13} strokeWidth={2.5} aria-hidden="true" focusable="false" />
             <div className="revenue-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${card.label} details`}>
               <strong>{card.label}</strong>
               <p>{card.tooltip}</p>
-              <div className="revenue-summary-tooltip-list">
-                {(card.details || []).map((detail) => (
-                  <div key={detail.label} className="revenue-summary-tooltip-item">
-                    <span>{detail.label}</span>
-                    <strong>{detail.value}</strong>
-                  </div>
-                ))}
-              </div>
             </div>
           </button>
         </article>
@@ -1565,7 +1461,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
 
         <div className="business-topbar-actions">
           <label className="dashboard-search">
-            <span aria-hidden="true">âŒ•</span>
+            <span aria-hidden="true">Ã¢Å’â€¢</span>
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
           <NotificationBell />
@@ -1656,5 +1552,6 @@ export function DashboardPage({ role }) {
 
   return <GenericDashboard role={role} />
 }
+
 
 

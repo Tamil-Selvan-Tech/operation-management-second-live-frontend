@@ -8,10 +8,12 @@ import { MobileMenuContext } from './mobileMenuContext'
 
 export function AppShell({
   dashboard,
+  user,
   onNavigateDashboard,
   onNavigateCourses,
   onNavigateStudentManagement,
   onNavigateFacultyManagement,
+  onNavigateNotifications,
   onLogout,
   showCoursesNav = true,
   showStudentManagementNav = true,
@@ -21,37 +23,74 @@ export function AppShell({
 }) {
   const location = useLocation()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const activeNav = location.pathname.startsWith('/courses')
+  const isCoursesPath =
+    location.pathname.startsWith('/courses') ||
+    location.pathname.startsWith('/dashboard/operation-manager/courses')
+  const isStudentManagementPath =
+    location.pathname.startsWith('/student-management') ||
+    location.pathname.startsWith('/dashboard/operation-manager/student-management')
+  const isFacultyManagementPath =
+    location.pathname.startsWith('/faculty-management') ||
+    location.pathname.startsWith('/dashboard/operation-manager/faculty-management')
+  const activeNav = isCoursesPath
     ? 'courses'
-    : location.pathname.startsWith('/student-management')
+    : isStudentManagementPath
       ? 'student-management'
-      : location.pathname.startsWith('/faculty-management')
+      : isFacultyManagementPath
         ? 'faculty-management'
+        : location.pathname.startsWith('/notifications')
+          ? 'notifications'
       : 'dashboard'
   const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
   const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
   const isFlatMainArea =
     isOperationManagerDashboard ||
     isBusinessOwnerDashboard ||
-    location.pathname.startsWith('/student-management') ||
-    location.pathname.startsWith('/faculty-management') ||
-    location.pathname.startsWith('/courses')
+    location.pathname === '/notifications' ||
+    isStudentManagementPath ||
+    isFacultyManagementPath ||
+    isCoursesPath
+
+  const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
 
   const bottomNavItems = [
-    { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, onClick: onNavigateDashboard },
-    { key: 'courses', label: 'Courses', icon: BookOpen, onClick: onNavigateCourses, hidden: !showCoursesNav },
+    {
+      key: 'dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateDashboard?.()
+      },
+    },
+    {
+      key: 'courses',
+      label: 'Courses',
+      icon: BookOpen,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateCourses?.()
+      },
+      hidden: !showCoursesNav,
+    },
     {
       key: 'student-management',
       label: 'Students',
       icon: UsersRound,
-      onClick: onNavigateStudentManagement,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateStudentManagement?.()
+      },
       hidden: !showStudentManagementNav,
     },
     {
       key: 'faculty-management',
       label: 'Faculty',
       icon: GraduationCap,
-      onClick: onNavigateFacultyManagement,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateFacultyManagement?.()
+      },
       hidden: !showFacultyManagementNav,
     },
   ]
@@ -72,14 +111,16 @@ export function AppShell({
         <div
           className={`sidebar-backdrop ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
           role="presentation"
-          onClick={() => setIsMobileSidebarOpen(false)}
+          onClick={closeMobileSidebar}
         />
         <AppSidebar
           activeNav={activeNav}
+          user={user}
           onNavigateDashboard={onNavigateDashboard}
           onNavigateCourses={onNavigateCourses}
           onNavigateStudentManagement={onNavigateStudentManagement}
           onNavigateFacultyManagement={onNavigateFacultyManagement}
+          onNavigateNotifications={onNavigateNotifications}
           onLogout={onLogout}
           onClose={() => setIsMobileSidebarOpen(false)}
           isMobileOpen={isMobileSidebarOpen}

@@ -1,12 +1,48 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import {
+  Bell,
+  GraduationCap,
+  Home,
+  LogOut,
+  UserRound,
+  UsersRound,
+} from 'lucide-react'
+
+import { roleLabels } from '../data/authData'
+import { getUnreadNotificationCount } from '../data/notificationsData'
+
+const defaultAvatarSrc =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 80 80'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230f7bda'/%3E%3Cstop offset='1' stop-color='%234da3ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='40' cy='40' r='40' fill='url(%23g)'/%3E%3Ccircle cx='40' cy='30' r='12' fill='white' fill-opacity='.95'/%3E%3Cpath d='M18 64c4-12 15-18 22-18s18 6 22 18' fill='white' fill-opacity='.95'/%3E%3C/svg%3E"
+
+function SidebarItem({ icon: Icon, label, active = false, onClick, disabled = false, badge = null }) {
+  return (
+    <button
+      type="button"
+      className={`sidebar-menu-item ${active ? 'is-active' : ''}`.trim()}
+      onClick={onClick}
+      disabled={disabled}
+      aria-current={active ? 'page' : undefined}
+      aria-disabled={disabled || undefined}
+      title={disabled ? `${label} coming soon` : undefined}
+    >
+      <span className="sidebar-menu-icon" aria-hidden="true">
+        <Icon size={20} strokeWidth={2.1} focusable="false" />
+      </span>
+      <span className="sidebar-menu-label">{label}</span>
+      {badge ? <span className="sidebar-menu-badge">{badge}</span> : null}
+    </button>
+  )
+}
 
 export function AppSidebar({
   activeNav,
+  user,
   onNavigateDashboard,
   onNavigateCourses,
   onNavigateStudentManagement,
   onNavigateFacultyManagement,
+  onNavigateNotifications,
   onLogout,
   onClose,
   isMobileOpen = false,
@@ -15,6 +51,10 @@ export function AppSidebar({
   showFacultyManagementNav = true,
 }) {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const userRoleLabel = roleLabels[user?.role] || 'Cispro User'
+  const userName = user?.name && !/^\s*user\s*$/i.test(user.name) ? user.name : userRoleLabel
+  const avatarSrc = user?.avatarUrl || defaultAvatarSrc
+  const unreadNotificationCount = useMemo(() => getUnreadNotificationCount(user?.role), [user?.role])
 
   useEffect(() => {
     if (!isLogoutConfirmOpen) return undefined
@@ -39,6 +79,64 @@ export function AppSidebar({
     await onLogout?.()
   }
 
+  const mainMenuItems = [
+    {
+      icon: Home,
+      label: 'Dashboard',
+      active: activeNav === 'dashboard',
+      onClick: () => {
+        onClose?.()
+        onNavigateDashboard?.()
+      },
+    },
+    showCoursesNav
+      ? {
+          icon: GraduationCap,
+          label: 'Courses',
+          active: activeNav === 'courses',
+          onClick: () => {
+            onClose?.()
+            onNavigateCourses?.()
+          },
+        }
+      : null,
+    showStudentManagementNav
+      ? {
+          icon: UsersRound,
+          label: 'Student Management',
+          active: activeNav === 'student-management',
+          onClick: () => {
+            onClose?.()
+            onNavigateStudentManagement?.()
+          },
+        }
+      : null,
+    showFacultyManagementNav
+      ? {
+          icon: UserRound,
+          label: 'Faculty Management',
+          active: activeNav === 'faculty-management',
+          onClick: () => {
+            onClose?.()
+            onNavigateFacultyManagement?.()
+          },
+        }
+      : null,
+  ].filter(Boolean)
+
+  const otherMenuItems = [
+    {
+      icon: Bell,
+      label: 'Notifications',
+      active: activeNav === 'notifications',
+      onClick: () => {
+        onClose?.()
+        onNavigateNotifications?.()
+      },
+      badge: unreadNotificationCount || null,
+    },
+  ]
+
   return (
     <aside className={`sidebar ${isMobileOpen ? 'is-open' : ''}`.trim()}>
       <div className="sidebar-head">
@@ -50,64 +148,48 @@ export function AppSidebar({
           </div>
         </div>
 
-        <button type="button" className="sidebar-close-button" onClick={onClose} aria-label="Close navigation menu">
-          <span aria-hidden="true">×</span>
-        </button>
       </div>
 
-      <nav className="menu">
-        <button
-          type="button"
-          className={activeNav === 'dashboard' ? 'active' : ''}
-          onClick={() => {
-            onClose?.()
-            onNavigateDashboard?.()
-          }}
-        >
-          Dashboard
-        </button>
-        {showCoursesNav ? (
-          <button
-            type="button"
-            className={activeNav === 'courses' ? 'active' : ''}
-            onClick={() => {
-              onClose?.()
-              onNavigateCourses?.()
-            }}
-          >
-            Courses
-          </button>
-        ) : null}
-        {showStudentManagementNav ? (
-          <button
-            type="button"
-            className={activeNav === 'student-management' ? 'active' : ''}
-            onClick={() => {
-              onClose?.()
-              onNavigateStudentManagement?.()
-            }}
-          >
-            Student Management
-          </button>
-        ) : null}
-        {showFacultyManagementNav ? (
-          <button
-            type="button"
-            className={activeNav === 'faculty-management' ? 'active' : ''}
-            onClick={() => {
-              onClose?.()
-              onNavigateFacultyManagement?.()
-            }}
-          >
-            Faculty Management
-          </button>
-        ) : null}
+      <div className="sidebar-divider" aria-hidden="true" />
+
+      <nav className="menu" aria-label="Sidebar navigation">
+        <div className="menu-section">
+          <p className="menu-section-label">Main Menu</p>
+          <div className="menu-group">
+            {mainMenuItems.map((item) => (
+              <SidebarItem key={item.label} {...item} />
+            ))}
+          </div>
+        </div>
+
+        <div className="menu-section">
+          <p className="menu-section-label">Other</p>
+          <div className="menu-group">
+            {otherMenuItems.map((item) => (
+              <SidebarItem key={item.label} {...item} />
+            ))}
+          </div>
+        </div>
       </nav>
 
-      <div className="role-card">
-        <button type="button" className="logout-card-button" onClick={() => setIsLogoutConfirmOpen(true)}>
-          Logout
-        </button>
+      <div className="sidebar-footer">
+        <div className="sidebar-profile-card">
+          <span className="sidebar-profile-avatar-wrap" aria-hidden="true">
+            <img className="sidebar-profile-avatar" src={avatarSrc} alt="" aria-hidden="true" />
+            <span className="sidebar-profile-status" />
+          </span>
+          <span className="sidebar-profile-copy">
+            <strong>{userName}</strong>
+          </span>
+          <button
+            type="button"
+            className="sidebar-profile-logout-icon"
+            onClick={() => setIsLogoutConfirmOpen(true)}
+            aria-label="Logout"
+          >
+            <LogOut size={20} strokeWidth={2.2} focusable="false" />
+          </button>
+        </div>
       </div>
 
       {isLogoutConfirmOpen && typeof document !== 'undefined'
@@ -121,7 +203,12 @@ export function AppSidebar({
                 aria-describedby="logout-modal-description"
                 onClick={(event) => event.stopPropagation()}
               >
-                <button type="button" className="course-modal-close logout-modal-close" onClick={() => setIsLogoutConfirmOpen(false)} aria-label="Close logout confirmation">
+                <button
+                  type="button"
+                  className="course-modal-close logout-modal-close"
+                  onClick={() => setIsLogoutConfirmOpen(false)}
+                  aria-label="Close logout confirmation"
+                >
                   ×
                 </button>
                 <h3 id="logout-modal-title">Are you sure you want to logout?</h3>
