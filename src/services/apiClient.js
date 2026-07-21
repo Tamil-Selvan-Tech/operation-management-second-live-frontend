@@ -18,9 +18,10 @@ function buildRuntimeApiBaseUrl() {
 
 const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim()
 const runtimeApiBaseUrl = buildRuntimeApiBaseUrl()
+const isLocalRuntime = typeof window !== 'undefined' && isLocalhostLike(window.location?.hostname)
 
 export const API_BASE_URL =
-  configuredApiBaseUrl && !isLocalhostLike(configuredApiBaseUrl) ? configuredApiBaseUrl : runtimeApiBaseUrl || configuredApiBaseUrl
+  configuredApiBaseUrl || (isLocalRuntime ? runtimeApiBaseUrl : '')
 
 let accessToken = null
 let refreshToken = null

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  BrowserRouter,
+  HashRouter,
   Navigate,
   Outlet,
   Route,
@@ -268,7 +268,7 @@ function ProfileRedirectRoute() {
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<RootRoute />} />
         <Route path="/loading" element={<LoadingPage />} />
@@ -309,6 +309,6 @@ export function AppRouter() {
 
         <Route path="*" element={<NotFoundRoute />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
