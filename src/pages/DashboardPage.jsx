@@ -472,11 +472,17 @@ function buildWeeklyRevenueComparison(students, referenceDate = new Date()) {
 function useBackendStudents() {
   const [records, setRecords] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const inFlightRef = useRef(null)
 
   useEffect(() => {
     let active = true
 
     const run = async () => {
+      if (inFlightRef.current) {
+        return inFlightRef.current
+      }
+
+      const pending = (async () => {
       try {
         const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
         if (!active) return
@@ -487,6 +493,17 @@ function useBackendStudents() {
       } finally {
         if (active) {
           setIsLoading(false)
+        }
+      }
+      })()
+
+      inFlightRef.current = pending
+
+      try {
+        return await pending
+      } finally {
+        if (inFlightRef.current === pending) {
+          inFlightRef.current = null
         }
       }
     }

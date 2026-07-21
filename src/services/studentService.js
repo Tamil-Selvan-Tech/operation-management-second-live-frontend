@@ -2,17 +2,20 @@ import { request } from './apiClient'
 
 const STUDENT_PAGE_LIMIT = 100
 const STUDENT_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
+const STUDENT_PROFILE_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
 const studentListCache = new Map()
 const studentListInflight = new Map()
+const studentProfileCache = new Map()
+const studentProfileInflight = new Map()
 
 function makeCacheKey(query = {}) {
   return JSON.stringify(query || {})
 }
 
-function getCachedResult(cache, key) {
+function getCachedResult(cache, key, ttlMs = STUDENT_LIST_CACHE_TTL_MS) {
   const entry = cache.get(key)
   if (!entry) return null
-  if (Date.now() - entry.timestamp > STUDENT_LIST_CACHE_TTL_MS) {
+  if (Date.now() - entry.timestamp > ttlMs) {
     cache.delete(key)
     return null
   }
@@ -29,6 +32,11 @@ function setCachedResult(cache, key, value) {
 function clearStudentListCache() {
   studentListCache.clear()
   studentListInflight.clear()
+}
+
+function clearStudentProfileCache() {
+  studentProfileCache.clear()
+  studentProfileInflight.clear()
 }
 
 function unwrapData(response) {
@@ -169,8 +177,29 @@ export async function listStudents(query = {}) {
 }
 
 export async function getCurrentStudentProfile() {
-  const response = await request('/students/me')
-  return normalizeStudent(unwrapData(response))
+  const cacheKey = 'current-student'
+  const cached = getCachedResult(studentProfileCache, cacheKey, STUDENT_PROFILE_CACHE_TTL_MS)
+  if (cached) {
+    return cached
+  }
+
+  if (studentProfileInflight.has(cacheKey)) {
+    return studentProfileInflight.get(cacheKey)
+  }
+
+  const pending = request('/students/me').then((response) => {
+    const result = normalizeStudent(unwrapData(response))
+    setCachedResult(studentProfileCache, cacheKey, result)
+    return result
+  })
+
+  studentProfileInflight.set(cacheKey, pending)
+
+  try {
+    return await pending
+  } finally {
+    studentProfileInflight.delete(cacheKey)
+  }
 }
 
 export async function createStudent(payload) {
@@ -180,6 +209,7 @@ export async function createStudent(payload) {
   })
 
   clearStudentListCache()
+  clearStudentProfileCache()
   return normalizeStudent(unwrapData(response))
 }
 
@@ -190,6 +220,7 @@ export async function updateStudent(studentId, payload) {
   })
 
   clearStudentListCache()
+  clearStudentProfileCache()
   return normalizeStudent(unwrapData(response))
 }
 
@@ -199,5 +230,6 @@ export async function deleteStudent(studentId) {
   })
 
   clearStudentListCache()
+  clearStudentProfileCache()
   return normalizeStudent(unwrapData(response))
 }

@@ -3,17 +3,20 @@ import { request } from './apiClient'
 const FACULTY_PAGE_LIMIT = 100
 const BATCH_NAME_STORAGE_SEPARATOR = '::course::'
 const FACULTY_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
+const FACULTY_PROFILE_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
 const facultyListCache = new Map()
 const facultyListInflight = new Map()
+const facultyProfileCache = new Map()
+const facultyProfileInflight = new Map()
 
 function makeCacheKey(query = {}) {
   return JSON.stringify(query || {})
 }
 
-function getCachedResult(cache, key) {
+function getCachedResult(cache, key, ttlMs = FACULTY_LIST_CACHE_TTL_MS) {
   const entry = cache.get(key)
   if (!entry) return null
-  if (Date.now() - entry.timestamp > FACULTY_LIST_CACHE_TTL_MS) {
+  if (Date.now() - entry.timestamp > ttlMs) {
     cache.delete(key)
     return null
   }
@@ -30,6 +33,11 @@ function setCachedResult(cache, key, value) {
 function clearFacultyListCache() {
   facultyListCache.clear()
   facultyListInflight.clear()
+}
+
+function clearFacultyProfileCache() {
+  facultyProfileCache.clear()
+  facultyProfileInflight.clear()
 }
 
 function getUniqueCourseIdsFromBatchEntries(batchEntries = []) {
@@ -314,8 +322,29 @@ export async function listFacultyRecords(query = {}) {
 }
 
 export async function getCurrentFacultyProfile() {
-  const response = await request('/faculty-management/me')
-  return normalizeFacultyRecord(unwrapData(response))
+  const cacheKey = 'current-faculty'
+  const cached = getCachedResult(facultyProfileCache, cacheKey, FACULTY_PROFILE_CACHE_TTL_MS)
+  if (cached) {
+    return cached
+  }
+
+  if (facultyProfileInflight.has(cacheKey)) {
+    return facultyProfileInflight.get(cacheKey)
+  }
+
+  const pending = request('/faculty-management/me').then((response) => {
+    const result = normalizeFacultyRecord(unwrapData(response))
+    setCachedResult(facultyProfileCache, cacheKey, result)
+    return result
+  })
+
+  facultyProfileInflight.set(cacheKey, pending)
+
+  try {
+    return await pending
+  } finally {
+    facultyProfileInflight.delete(cacheKey)
+  }
 }
 
 export async function createFacultyRecord(payload) {
@@ -326,6 +355,7 @@ export async function createFacultyRecord(payload) {
   })
 
   clearFacultyListCache()
+  clearFacultyProfileCache()
   return normalizeFacultyRecord(unwrapData(response), nextPayload)
 }
 
@@ -337,6 +367,7 @@ export async function updateFacultyRecord(facultyId, payload) {
   })
 
   clearFacultyListCache()
+  clearFacultyProfileCache()
   return normalizeFacultyRecord(unwrapData(response), nextPayload)
 }
 
@@ -346,5 +377,6 @@ export async function deleteFacultyRecord(facultyId) {
   })
 
   clearFacultyListCache()
+  clearFacultyProfileCache()
   return normalizeFacultyRecord(unwrapData(response))
 }
