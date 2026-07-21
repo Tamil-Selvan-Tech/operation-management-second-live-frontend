@@ -121,7 +121,9 @@ export function AppSidebar({
                 aria-describedby="logout-modal-description"
                 onClick={(event) => event.stopPropagation()}
               >
-                <p className="section-kicker">Confirm logout</p>
+                <button type="button" className="course-modal-close logout-modal-close" onClick={() => setIsLogoutConfirmOpen(false)} aria-label="Close logout confirmation">
+                  ×
+                </button>
                 <h3 id="logout-modal-title">Are you sure you want to logout?</h3>
                 <p id="logout-modal-description">You will be sent back to the login page after signing out.</p>
                 <div className="logout-modal-actions">

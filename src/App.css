@@ -2636,48 +2636,72 @@ tbody tr:hover {
 }
 
 .logout-modal {
+  position: relative;
   width: min(100%, 420px);
-  min-height: 280px;
-  padding: 24px 26px 20px;
-  border-radius: 20px;
+  padding: 28px 28px 24px;
+  border-radius: 22px;
   background: #ffffff;
-  border: 1px solid #dce7f3;
-  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  border: 1px solid #e5edf7;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
 }
 
 .logout-modal h3 {
   margin: 0;
-  color: var(--text-strong);
-  font-size: 1.2rem;
-  letter-spacing: -0.02em;
+  color: #0f172a;
+  font-size: 1.15rem;
+  line-height: 1.25;
+  letter-spacing: -0.03em;
+  font-family: 'Poppins', var(--font-sans);
+  font-weight: 800;
 }
 
 .logout-modal p {
-  margin: 10px 0 0;
-  color: var(--muted);
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.55;
 }
 
 .logout-modal-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 12px;
-  margin-top: 28px;
+  margin-top: 6px;
+  flex-wrap: wrap;
 }
 
 .logout-modal-actions .button-ghost,
 .logout-modal-actions .button-solid {
   min-width: 124px;
-  min-height: 46px;
-  padding: 0 20px;
-  font-size: 0.98rem;
-  border-radius: 14px;
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 0.95rem;
+  border-radius: 10px;
 }
 
 .logout-modal-actions .button-ghost {
   border-width: 1.5px;
+}
+
+.logout-modal-close {
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: #f8fafc;
+  color: #475569;
+  box-shadow: none;
+  font-size: 18px;
+}
+
+.logout-modal-close:hover {
+  background: #eef2f7;
 }
 
 .attendance-card {
@@ -4801,10 +4825,46 @@ tbody tr:hover {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 12px 20px;
+  padding: 6px 20px 12px;
   background: transparent;
   border: 0;
   box-shadow: none;
+}
+
+.student-management-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-top: -2px;
+}
+
+.student-management-heading-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #2563eb;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.14) 0%, rgba(37, 99, 235, 0.08) 100%);
+  border: 1px solid rgba(37, 99, 235, 0.08);
+  flex: 0 0 auto;
+}
+
+.student-management-heading-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.student-management-heading h1 {
+  margin: 0;
+  color: #2563eb;
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-family: 'Poppins', var(--font-sans);
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  line-height: 1.1;
 }
 
 .student-management-hero h2,
@@ -4824,8 +4884,13 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 14px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+}
+
+.student-management-search {
+  flex: 1 1 360px;
+  min-width: 260px;
 }
 
 .student-management-stat {
@@ -4853,8 +4918,13 @@ tbody tr:hover {
 
 .student-add-button {
   min-height: 40px;
-   padding: 0 18px;
+  padding: 0 18px;
   white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.student-management-stat {
+  flex: 0 0 160px;
 }
 
 .faculty-management-hero {
@@ -4867,11 +4937,19 @@ tbody tr:hover {
   box-shadow: none;
 }
 
+.faculty-management-hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .faculty-management-heading {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
+  margin-top: 6px;
 }
 
 .faculty-management-heading-icon {
@@ -4894,7 +4972,7 @@ tbody tr:hover {
   margin: 0;
   color: #1f5ee8;
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 700;
   font-family: 'Poppins', var(--font-sans);
   letter-spacing: -0.04em;
   text-transform: uppercase;
@@ -4902,24 +4980,28 @@ tbody tr:hover {
 
 .faculty-management-heading p,
 .faculty-list-header p {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 0.95rem;
-  line-height: 1.45;
+  margin: 6px 0 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .faculty-management-actions {
-  display: grid;
-  grid-template-columns: minmax(300px, 1.05fr) minmax(120px, 0.42fr) minmax(320px, 1.15fr) minmax(140px, 0.52fr);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  flex-wrap: nowrap;
+  width: 100%;
   align-items: center;
 }
 
 .faculty-management-actions .search-bar {
   display: flex;
   align-items: stretch;
-  width: 100%;
+  width: 280px;
   min-width: 0;
+  flex: 0 0 280px;
 }
 
 .faculty-management-actions .search-bar input {
@@ -4971,6 +5053,7 @@ tbody tr:hover {
   width: 100%;
   max-width: 240px;
   justify-self: start;
+  flex: 0 0 auto;
 }
 
 .faculty-management-stat-icon {
@@ -5018,8 +5101,9 @@ tbody tr:hover {
 
 .faculty-add-button {
   min-height: 48px;
-  padding: 0 14px;
+  padding: 0 18px;
   white-space: nowrap;
+  flex: 0 0 auto;
   border-radius: 12px;
 }
 
@@ -8554,10 +8638,11 @@ tbody tr:hover {
 }
 
 .faculty-delete-copy {
-  margin: 6px 0 0;
+  margin: 2px 0 0;
   color: var(--muted);
   font-size: 0.98rem;
   line-height: 1.6;
+  text-align: center;
 }
 
 .faculty-pagination {
@@ -10110,12 +10195,12 @@ tbody tr:hover {
 .course-row-action-menu {
   position: absolute;
   right: 0;
-  min-width: 186px;
-  padding: 10px;
-  border-radius: 18px;
-  border: 1px solid rgba(226, 233, 244, 0.95);
+  min-width: 190px;
+  padding: 10px 10px 12px;
+  border-radius: 22px;
+  border: 1px solid rgba(225, 232, 243, 0.95);
   background: #ffffff;
-  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.14);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
   z-index: 20;
 }
 
@@ -10129,14 +10214,15 @@ tbody tr:hover {
 
 .course-row-action-menu-item {
   width: 100%;
-  min-height: 42px;
+  min-height: 40px;
   padding: 0 14px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 11px;
   background: transparent;
-  color: #273244;
+  color: #1f2937;
   font-size: 15px;
   font-weight: 700;
+  font-family: 'Poppins', var(--font-sans);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -10147,18 +10233,23 @@ tbody tr:hover {
   width: 18px;
   height: 18px;
   flex: 0 0 auto;
+  color: currentColor;
 }
 
 .course-row-action-menu-item:hover {
-  background: #f5f9ff;
+  background: #f7fbff;
 }
 
 .course-row-action-menu-item.danger {
-  color: #ef4444;
+  color: #ff3b30;
+}
+
+.course-row-action-menu-item.danger svg {
+  color: #ff3b30;
 }
 
 .course-row-action-menu-item.danger:hover {
-  background: rgba(239, 68, 68, 0.08);
+  background: rgba(255, 59, 48, 0.08);
 }
 
 .course-row-action svg {
@@ -10189,36 +10280,27 @@ tbody tr:hover {
 
 .course-delete-modal {
   width: min(440px, 100%);
-  padding: 22px 24px 18px;
+  padding: 28px 28px 24px;
+  border-radius: 22px;
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  text-align: center;
 }
 
-.course-delete-icon {
-  width: 50px;
-  height: 50px;
-  margin: 0 auto 12px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: #fef2f2;
-  border: 7px solid rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-  box-sizing: content-box;
-}
-
-.course-delete-icon span {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
+.course-delete-modal,
+.student-delete-modal,
+.faculty-delete-modal,
+.student-installment-confirm-modal,
+.logout-modal {
+  background: #ffffff;
+  border: 1px solid #e5edf7;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.22);
 }
 
 .course-delete-modal .course-modal-header {
-  margin-bottom: 8px;
+  margin-bottom: 0;
   padding-right: 0;
   justify-content: center;
   text-align: center;
@@ -10227,66 +10309,106 @@ tbody tr:hover {
 .course-delete-modal .course-modal-header > div {
   display: grid;
   justify-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
-.course-delete-modal .section-kicker {
-  margin: 0;
+.course-delete-modal .section-kicker,
+.student-delete-modal .section-kicker,
+.faculty-delete-modal .section-kicker,
+.student-installment-confirm-modal .section-kicker,
+.logout-modal .section-kicker {
+  display: none;
 }
 
 .course-delete-modal h3 {
   margin: 0;
-  font-size: clamp(1.5rem, 2.2vw, 1.8rem);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: #2b2f36;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0f172a;
+  font-family: 'Poppins', var(--font-sans);
 }
 
 .course-delete-text {
   margin: 0;
-  color: #6b7280;
-  line-height: 1.25;
+  color: #64748b;
+  line-height: 1.55;
   text-align: center;
-  font-size: 0.96rem;
+  font-size: 0.95rem;
 }
 
 .course-delete-text strong {
   color: inherit;
 }
 
-.course-delete-modal .course-form-actions {
-  margin-top: 16px;
-  justify-content: center;
-  gap: 12px;
-}
-
-.course-delete-modal .course-form-actions .button {
-  min-width: 152px;
-  min-height: 42px;
-  font-size: 0.95rem;
-  border-radius: 8px;
-}
-
-.course-delete-modal .course-modal-close {
+.course-delete-modal .course-delete-icon,
+.student-delete-modal .course-delete-icon,
+.student-installment-confirm-modal .course-delete-icon,
+.faculty-delete-modal .course-delete-icon {
   display: none;
 }
 
+.course-delete-modal .course-form-actions,
+.student-delete-modal .course-form-actions,
+.faculty-delete-modal .faculty-form-actions,
+.student-installment-confirm-modal .course-form-actions {
+  margin-top: 8px;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.course-delete-modal .course-form-actions .button,
+.student-delete-modal .course-form-actions .button,
+.faculty-delete-modal .faculty-form-actions .button,
+.student-installment-confirm-modal .course-form-actions .button {
+  min-width: 152px;
+  min-height: 42px;
+  font-size: 0.95rem;
+  border-radius: 10px;
+}
+
+.course-delete-modal .course-modal-close,
+.student-delete-modal .course-modal-close,
+.faculty-delete-modal .course-modal-close,
+.student-installment-confirm-modal .course-modal-close {
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  border: 0;
+  border-radius: 50%;
+  background: #f8fafc;
+  color: #475569;
+  box-shadow: none;
+  font-size: 18px;
+  place-items: center;
+}
+
+.course-delete-modal .course-modal-close:hover,
+.student-delete-modal .course-modal-close:hover,
+.faculty-delete-modal .course-modal-close:hover,
+.student-installment-confirm-modal .course-modal-close:hover {
+  background: #eef2f7;
+}
+
 .course-delete-confirm {
-  background: #dc2626;
-  box-shadow: 0 6px 14px rgba(220, 38, 38, 0.2);
+  background: linear-gradient(180deg, #57a8ff 0%, #2f80ed 100%);
+  box-shadow: 0 8px 18px rgba(47, 128, 237, 0.18);
 }
 
 .course-delete-confirm:hover {
-  background: #c81e1e;
+  background: linear-gradient(180deg, #4f9dff 0%, #2875dc 100%);
 }
 
 .course-installment-confirm {
-  background: linear-gradient(135deg, #1f7ae0, #2f80ed);
-  box-shadow: 0 6px 14px rgba(47, 128, 237, 0.22);
+  background: linear-gradient(180deg, #57a8ff 0%, #2f80ed 100%);
+  box-shadow: 0 8px 18px rgba(47, 128, 237, 0.18);
 }
 
 .course-installment-confirm:hover {
-  background: linear-gradient(135deg, #196ad0, #1f7ae0);
+  background: linear-gradient(180deg, #4f9dff 0%, #2875dc 100%);
 }
 
 .course-pagination {
@@ -10876,7 +10998,7 @@ tbody tr:hover {
   }
 
   .student-management-hero {
-    gap: 12px;
+    gap: 10px;
   }
 
   .student-management-hero > div:first-child {
@@ -10968,8 +11090,11 @@ tbody tr:hover {
     padding: 0;
   }
 
-  .faculty-management-hero > div:first-child {
+  .faculty-management-hero-top {
     width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
 
   .faculty-management-actions {
@@ -11018,7 +11143,6 @@ tbody tr:hover {
   }
 
   .faculty-management-stat {
-    grid-area: stat;
     min-width: 0;
     width: 100%;
     min-height: 88px;

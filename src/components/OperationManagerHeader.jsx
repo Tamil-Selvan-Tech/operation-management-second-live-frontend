@@ -3,7 +3,7 @@ import { HeaderIdentityChip } from './HeaderIdentityChip'
 
 export function OperationManagerHeader({
   title = 'Operation Manager Dashboard',
-  summary = 'Operations oversight, approvals, and team health.',
+  summary = '',
   eyebrow = 'Operation Manager',
   initials = 'OM',
   profileTitle = 'Operation Manager',
@@ -37,7 +37,7 @@ export function OperationManagerHeader({
       <div className="business-topbar-copy">
         <p className="eyebrow">{eyebrow}</p>
         <h2>{title}</h2>
-        <p>{summary}</p>
+        {summary ? <p>{summary}</p> : null}
       </div>
 
       <div className="business-topbar-actions operation-manager-header-actions">
