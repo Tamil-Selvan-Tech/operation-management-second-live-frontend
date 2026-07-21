@@ -47,17 +47,31 @@ function LoginScreen() {
     rememberMe: false,
   })
   const [errorMessage, setErrorMessage] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({ email: '', password: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const updateForm = (updater) => {
     setErrorMessage('')
+    setFieldErrors({ email: '', password: '' })
     setForm(updater)
   }
 
   const onSubmit = async (event) => {
     event.preventDefault()
     setErrorMessage('')
+    setFieldErrors({ email: '', password: '' })
+
+    const nextFieldErrors = {
+      email: form.email.trim() ? '' : 'Email is required',
+      password: form.password.trim() ? '' : 'Password is required',
+    }
+
+    if (nextFieldErrors.email || nextFieldErrors.password) {
+      setFieldErrors(nextFieldErrors)
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -80,11 +94,12 @@ function LoginScreen() {
   }
 
   return (
-    <LoginPage
+      <LoginPage
       form={form}
       setForm={updateForm}
       onSubmit={onSubmit}
       errorMessage={errorMessage}
+      fieldErrors={fieldErrors}
       isSubmitting={isSubmitting}
     />
   )

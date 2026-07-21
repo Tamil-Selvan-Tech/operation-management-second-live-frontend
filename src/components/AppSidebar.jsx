@@ -105,7 +105,6 @@ export function AppSidebar({
       </nav>
 
       <div className="role-card">
-        <p className="role-card-note">End your current session from here.</p>
         <button type="button" className="logout-card-button" onClick={() => setIsLogoutConfirmOpen(true)}>
           Logout
         </button>

@@ -2370,8 +2370,8 @@ tbody tr:hover {
   grid-template-columns: 42px minmax(0, 1fr) 22px;
   gap: 6px;
   align-items: start;
-  min-height: 92px;
-  padding: 8px 8px 8px 10px;
+  min-height: 76px;
+  padding: 8px 8px 4px 10px;
   border-radius: 14px;
   background: #ffffff;
   border: 1px solid #e4ebf5;
@@ -2419,6 +2419,7 @@ tbody tr:hover {
   color: #ffffff;
   box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
+  margin-top: 6px;
 }
 
 .revenue-summary-info-button {
@@ -2485,7 +2486,7 @@ tbody tr:hover {
   display: grid;
   gap: 2px;
   min-width: 0;
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .revenue-summary-label {
@@ -4857,53 +4858,76 @@ tbody tr:hover {
 }
 
 .faculty-management-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  padding: 12px 20px;
-  background: transparent;
+  display: grid;
+  gap: 16px;
+  padding: 0;
   border: 0;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
-.faculty-management-hero h2,
-.faculty-list-header h3 {
+.faculty-management-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.faculty-management-heading-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, rgba(47, 128, 237, 0.14) 0%, rgba(47, 128, 237, 0.08) 100%);
+  color: #2f80ed;
+  flex: 0 0 auto;
+}
+
+.faculty-management-heading-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.faculty-management-heading h1 {
   margin: 0;
+  color: #1f5ee8;
+  font-size: 1.15rem;
+  font-weight: 800;
+  font-family: 'Poppins', var(--font-sans);
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
 }
 
-.faculty-management-hero p,
+.faculty-management-heading p,
 .faculty-list-header p {
-  margin: 6px 0 0;
-  color: var(--muted);
-}
-
-.faculty-management-hero .faculty-management-title {
-  color: #1f5ee8 !important;
-  opacity: 1;
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
 
 .faculty-management-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(300px, 1.05fr) minmax(120px, 0.42fr) minmax(320px, 1.15fr) minmax(140px, 0.52fr);
+  gap: 8px;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
 }
 
-.faculty-management-search {
+.faculty-management-actions .search-bar {
   display: flex;
   align-items: stretch;
-  min-width: min(100%, 390px);
-  margin-right: 4px;
+  width: 100%;
+  min-width: 0;
 }
 
-.faculty-management-search input {
+.faculty-management-actions .search-bar input {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 54px;
-  padding: 0 16px;
-  border-radius: 14px 0 0 14px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 12px 0 0 12px;
   border: 1px solid #d8e3f0;
   background: #ffffff;
   color: var(--text-strong);
@@ -4912,56 +4936,91 @@ tbody tr:hover {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
-.faculty-management-search input:focus {
+.faculty-management-actions .search-bar input:focus {
   border-color: #5b8def;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
-.faculty-management-search-button {
-  min-width: 112px;
-  min-height: 54px;
-  padding: 0 22px;
-  border-radius: 0 14px 14px 0;
-  border: 1px solid #5b8def;
+.faculty-management-actions .search-bar-button {
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 0 12px 12px 0;
+  border: 1px solid #2f80ed;
   border-left: 0;
   background: linear-gradient(180deg, #57a8ff 0%, #2f80ed 100%);
   color: #ffffff;
-  font-weight: 800;
   box-shadow: none;
 }
 
-.faculty-management-search-button:hover {
+.faculty-management-actions .search-bar-button:hover {
   background: linear-gradient(180deg, #4f9dff 0%, #2875dc 100%);
   color: #ffffff;
 }
 
 .faculty-management-stat {
-  min-width: 160px;
-  padding: 8px 14px;
-  border-radius: 14px;
+  min-height: 84px;
+  padding: 8px 10px;
+  border-radius: 12px;
   background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
   border: 1px solid #e5edf7;
   display: grid;
-  gap: 4px;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  max-width: 240px;
+  justify-self: start;
 }
 
-.faculty-management-stat span {
+.faculty-management-stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: #2f80ed;
+}
+
+.faculty-management-stat-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.faculty-management-stat-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.faculty-management-stat-copy span {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
-.faculty-management-stat strong {
-  font-size: 1.5rem;
-  color: var(--text-strong);
+.faculty-management-stat-copy strong {
+  font-size: 1.65rem;
+  line-height: 1;
+  color: #1d4ed8;
+  font-weight: 900;
+}
+
+.faculty-management-stat-copy small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
 }
 
 .faculty-add-button {
-  min-height: 40px;
-  padding: 0 16px;
+  min-height: 48px;
+  padding: 0 14px;
   white-space: nowrap;
+  border-radius: 12px;
 }
 
 .faculty-list-card {
@@ -4979,6 +5038,16 @@ tbody tr:hover {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.faculty-list-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-family: 'Poppins', var(--font-sans);
 }
 
 .faculty-latest-chip {
@@ -10895,7 +10964,7 @@ tbody tr:hover {
   .faculty-management-hero {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
     padding: 0;
   }
 
@@ -10909,7 +10978,7 @@ tbody tr:hover {
     grid-template-areas:
       'search batch'
       'stat add';
-    gap: 10px;
+    gap: 6px;
     width: 100%;
     align-items: stretch;
     justify-content: stretch;
@@ -10923,26 +10992,26 @@ tbody tr:hover {
   }
 
   .faculty-management-search input {
-    min-height: 44px;
-    padding: 0 12px;
-    border-radius: 14px 0 0 14px;
+    min-height: 40px;
+    padding: 0 10px;
+    border-radius: 10px 0 0 10px;
     width: 100%;
     min-width: 0;
   }
 
   .faculty-management-search-button {
-    min-width: 48px;
-    width: 48px;
-    min-height: 44px;
+    min-width: 40px;
+    width: 40px;
+    min-height: 40px;
     padding: 0;
-    border-radius: 0 14px 14px 0;
-    flex: 0 0 48px;
+    border-radius: 0 10px 10px 0;
+    flex: 0 0 40px;
   }
 
   .faculty-management-actions > .faculty-add-button:first-of-type {
     grid-area: batch;
-    min-height: 44px;
-    padding: 0 14px;
+    min-height: 40px;
+    padding: 0 10px;
     justify-self: stretch;
     align-self: stretch;
     white-space: nowrap;
@@ -10952,24 +11021,27 @@ tbody tr:hover {
     grid-area: stat;
     min-width: 0;
     width: 100%;
-    padding: 8px 10px;
-    border-radius: 12px;
+    min-height: 88px;
+    padding: 7px 9px;
+    border-radius: 10px;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 8px;
   }
 
   .faculty-management-stat span {
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .faculty-management-stat strong {
-    font-size: 1.2rem;
+    font-size: 1rem;
     line-height: 1;
   }
 
   .faculty-management-actions > .faculty-add-button:last-of-type {
     grid-area: add;
     width: 100%;
-    min-height: 44px;
-    padding: 0 14px;
+    min-height: 40px;
+    padding: 0 10px;
     justify-self: stretch;
     white-space: nowrap;
   }

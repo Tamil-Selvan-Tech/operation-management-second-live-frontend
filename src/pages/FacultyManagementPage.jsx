@@ -1539,12 +1539,29 @@ export function FacultyManagementPage() {
       />
 
       <article className="faculty-management-hero">
-        <div>
-          <p className="eyebrow faculty-management-title">Faculty Management</p>
-          <p>Assign faculty to active courses and keep instructor details organized in one place.</p>
+        <div className="faculty-management-heading">
+          <div className="faculty-management-heading-icon" aria-hidden="true">
+            <UsersRound size={28} />
+          </div>
+          <div>
+            <h1>Faculty Management</h1>
+          </div>
         </div>
 
         <div className="faculty-management-actions">
+          <div className="faculty-management-stat">
+            <div className="faculty-management-stat-icon" aria-hidden="true">
+              <UsersRound size={28} />
+            </div>
+            <div className="faculty-management-stat-copy">
+              <span>Total Faculty</span>
+              <strong>{totalFaculty}</strong>
+              <small>Faculty members </small>
+            </div>
+          </div>
+          <Button type="button" className="faculty-add-button" onClick={openCreateModal}>
+            + Add Faculty
+          </Button>
           <SearchBar
             value={searchQuery}
             onChange={(value) => {
@@ -1557,13 +1574,6 @@ export function FacultyManagementPage() {
           <Button type="button" className="faculty-add-button" variant="ghost" onClick={() => navigate(buildFacultyCourseCatalogPath())}>
             <FolderOpen size={18} />
             <span>Batch</span>
-          </Button>
-          <div className="faculty-management-stat">
-            <span>Total Faculty</span>
-            <strong>{totalFaculty}</strong>
-          </div>
-          <Button type="button" className="faculty-add-button" onClick={openCreateModal}>
-            + Add Faculty
           </Button>
         </div>
       </article>

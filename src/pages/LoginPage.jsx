@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -52,51 +53,7 @@ function LockIcon() {
   )
 }
 
-function EyeIcon({ hidden = false }) {
-  if (hidden) {
-    return (
-      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-        <path
-          d="M3 3l18 18"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-        <path
-          d="M6.2 6.6A10.9 10.9 0 0 0 1.9 12c2.1 4.4 6.2 7.2 10.1 7.2 1.5 0 2.9-.3 4.2-.9"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M9.4 9.4A3 3 0 0 1 14.6 14.6"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-      </svg>
-    )
-  }
-
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path
-        d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12z"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  )
-}
-
-export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting = false }) {
+export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors = {}, isSubmitting = false }) {
   const [showPassword, setShowPassword] = useState(false)
   const emailInputRef = useRef(null)
   const passwordInputRef = useRef(null)
@@ -161,10 +118,15 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
                 placeholder="Enter your email"
               />
             </div>
+            {fieldErrors.email ? (
+              <small className="login-error" role="alert" aria-live="polite">
+                {fieldErrors.email}
+              </small>
+            ) : null}
           </FormField>
 
           <FormField label="Password">
-            <div className="field-with-icon">
+            <div className="field-with-icon password-field">
               <span className="field-icon" aria-hidden="true">
                 <LockIcon />
               </span>
@@ -189,9 +151,18 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, isSubmitting 
                 onClick={() => setShowPassword((current) => !current)}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                <EyeIcon hidden={!showPassword} />
+                {showPassword ? (
+                  <Eye aria-hidden="true" focusable="false" />
+                ) : (
+                  <EyeOff aria-hidden="true" focusable="false" />
+                )}
               </button>
             </div>
+            {fieldErrors.password ? (
+              <small className="login-error" role="alert" aria-live="polite">
+                {fieldErrors.password}
+              </small>
+            ) : null}
             {errorMessage ? (
               <small className="login-error" role="alert" aria-live="polite">
                 {errorMessage}

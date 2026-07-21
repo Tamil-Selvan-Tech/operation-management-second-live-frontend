@@ -275,13 +275,18 @@ export function CoursesPage() {
   const visibleCourses = courses
   const totalCourseCount = pagination.total || courses.length || 0
   const drawerInstallmentValues = useMemo(() => getCourseInstallments(viewTarget), [viewTarget])
+  const drawerViewInstallmentCount = useMemo(() => {
+    const explicitCount = normalizeInstallmentCount(viewTarget?.installmentCount)
+    if (explicitCount > 0) return explicitCount
+    return drawerInstallmentValues.length
+  }, [drawerInstallmentValues.length, viewTarget?.installmentCount])
   const drawerInstallmentCount = useMemo(() => {
     const effectiveCount = isCourseInlineEditing
       ? getEffectiveInstallmentCount(form)
-      : drawerInstallmentValues.length || Number(viewTarget?.installmentCount) || 0
+      : drawerViewInstallmentCount
 
-    return Math.max(3, effectiveCount)
-  }, [drawerInstallmentValues, form, isCourseInlineEditing, viewTarget])
+    return Math.max(1, effectiveCount)
+  }, [drawerViewInstallmentCount, form, isCourseInlineEditing])
 
   const loadCourses = useCallback(
     async ({ page = currentPage, search = searchTerm, filter = activeFilter } = {}) => {
@@ -440,8 +445,7 @@ export function CoursesPage() {
   }
 
   const openCreateModal = () => {
-    setEditingCourseId(null)
-    setTouched({})
+    resetForm()
     setViewTarget(null)
     setIsCourseInlineEditing(false)
     setIsModalOpen(true)
@@ -455,10 +459,10 @@ export function CoursesPage() {
     setEditingCourseId(course.id)
     setTouched({})
     setSaveError('')
-    setViewTarget(course)
     setForm(buildCourseFormFromCourse(course))
-    setIsCourseInlineEditing(true)
-    setIsModalOpen(false)
+    setViewTarget(null)
+    setIsCourseInlineEditing(false)
+    setIsModalOpen(true)
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuMode('')
