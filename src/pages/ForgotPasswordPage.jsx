@@ -1,6 +1,7 @@
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
+import '../styles/LoginPage.css'
 
 function EmailIcon() {
   return (
@@ -26,40 +27,18 @@ function EmailIcon() {
 
 export function ForgotPasswordPage({ onSubmit, errorMessage = '', successMessage = '', isSubmitting = false }) {
   return (
-    <Card className="auth-card login-shell forgot-shell">
-      <aside className="login-hero">
-        <div className="login-brand">
-          <div className="login-brand-mark">
-            <img className="login-logo-image" src="/logo.png" alt="CISPRO logo" />
-          </div>
-          <div>
-            <strong>CISPRO</strong>
-            <p>Operation Management System</p>
+    <Card className="auth-card login-shell login-page forgot-page">
+      <section className="login-form-panel forgot-form-panel">
+        <div className="forgot-topbar">
+          <img className="forgot-brand-logo" src="/logo.png" alt="CISPRO logo" />
+          <div className="forgot-brand-copy">
+            {/* <strong>CISPRO</strong>
+            <p>Operation Management System</p> */}
           </div>
         </div>
 
-        <div className="login-hero-copy">
-          <p className="hero-rule" />
-          <h2>Streamline.</h2>
-          <h2 className="accent">Manage.</h2>
-          <h2>Succeed.</h2>
-          <p>
-            A complete management solution for Business Owner, Operation Manager, HR, Faculty,
-            and Students.
-          </p>
-        </div>
-
-        <div className="login-hero-art" aria-hidden="true">
-          <img className="login-hero-image" src="/login.png" alt="" />
-        </div>
-      </aside>
-
-      <section className="login-panel forgot-panel">
-        <div className="forgot-panel-top">
-          {/* <div className="login-shield" aria-hidden="true">
-            <img className="login-logo-image login-logo-image-small" src="/logo.png" alt="" />
-          </div> */}
-          <p className="eyebrow">Recovery</p>
+        <div className="login-copy forgot-copy">
+          <p className="forgot-kicker">Recovery</p>
           <h2>Forgot password</h2>
           <p>
             Enter your registered email address and we&apos;ll send you a link to reset your
@@ -89,6 +68,7 @@ export function ForgotPasswordPage({ onSubmit, errorMessage = '', successMessage
                 name="email"
                 type="email"
                 autoComplete="email"
+                className="login-input"
                 placeholder="name@company.com"
                 disabled={isSubmitting}
               />
@@ -104,6 +84,10 @@ export function ForgotPasswordPage({ onSubmit, errorMessage = '', successMessage
           </a>
         </form>
       </section>
+
+      <aside className="login-visual-panel forgot-visual-panel" aria-hidden="true">
+        <img className="login-visual-image forgot-visual-image" src="/image copy 2.png" alt="" />
+      </aside>
     </Card>
   )
 }

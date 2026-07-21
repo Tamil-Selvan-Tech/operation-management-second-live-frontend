@@ -30,6 +30,7 @@ import { createStudent, deleteStudent, listStudents, updateStudent } from '../se
 import { normalizeCourseList } from '../services/courseService'
 import { savePendingLoginEmail } from '../lib/session'
 import { getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 const statusOptions = ['Student', 'Employee', 'Other']
 const recordStatusOptions = ['Active', 'Inactive']
@@ -369,8 +370,20 @@ function getCourseInstallmentValues(course = null) {
     .filter((value) => value !== '')
 }
 
+function normalizeInstallmentCount(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount < 1) return 0
+  return Math.floor(amount)
+}
+
+function getCourseInstallmentCount(course = null) {
+  const explicitCount = normalizeInstallmentCount(course?.installmentCount)
+  if (explicitCount > 0) return explicitCount
+  return getCourseInstallmentValues(course).length
+}
+
 function getRequiredInstallmentCount(course = null) {
-  return Math.max(getCourseInstallmentValues(course).length, 3)
+  return getCourseInstallmentCount(course)
 }
 
 function validateForm(form, course = null) {
@@ -725,6 +738,7 @@ function DangerIcon() {
 
 export function StudentManagementPage() {
   const { role } = useAuth()
+  const openMenu = useMobileMenu()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [students, setStudents] = useState([])
@@ -761,8 +775,7 @@ export function StudentManagementPage() {
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
 
   const selectedCourse = useMemo(() => findCourseForForm(courseOptions, form), [courseOptions, form])
-  const selectedCourseInstallments = useMemo(() => getCourseInstallmentValues(selectedCourse), [selectedCourse])
-  const visibleInstallmentCount = Math.max(selectedCourseInstallments.length, 3)
+  const visibleInstallmentCount = getCourseInstallmentCount(selectedCourse)
   const selectedCourseFacultyOptions = useMemo(() => {
     const normalizedCourseId = String(form.courseId || '').trim()
     if (!normalizedCourseId) return []
@@ -1609,6 +1622,7 @@ export function StudentManagementPage() {
         initials={headerInitials}
         profileTitle={headerProfileTitle}
         email={headerEmail}
+        onOpenMenu={openMenu}
       />
 
       <article className="student-management-hero">
