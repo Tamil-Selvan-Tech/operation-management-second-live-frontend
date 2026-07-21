@@ -7,6 +7,7 @@ import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
 import { loadStudentRecords } from '../data/studentRecords'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
+import { getRevenueSummary } from '../services/dashboardService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
 import { getCurrentStudentProfile, listStudents } from '../services/studentService'
 
@@ -469,6 +470,32 @@ function buildWeeklyRevenueComparison(students, referenceDate = new Date()) {
   return buckets.map(({ week, actual, expected, isCurrent }) => ({ week, actual, expected, isCurrent }))
 }
 
+function buildFallbackMonthlyRevenueComparison(summary, referenceDate = new Date()) {
+  const currentMonth = MONTH_LABELS[referenceDate.getMonth()]
+  const actualValue = toNumber(summary?.thisMonthRevenue || 0)
+  const expectedValue = toNumber(summary?.expectedNextWeekRevenue || summary?.totalRevenue || 0)
+
+  return MONTH_LABELS.map((month) => ({
+    month,
+    actual: month === currentMonth ? actualValue : 0,
+    expected: month === currentMonth ? expectedValue : 0,
+  }))
+}
+
+function buildFallbackWeeklyRevenueComparison(summary, referenceDate = new Date()) {
+  const currentWeekIndex = getCurrentWeekIndex(referenceDate)
+  const buckets = getWeekBuckets(referenceDate)
+  const actualValue = toNumber(summary?.thisWeekRevenue || 0)
+  const expectedValue = toNumber(summary?.expectedNextWeekRevenue || summary?.thisMonthRevenue || 0)
+
+  return buckets.map((bucket, index) => ({
+    week: index === currentWeekIndex ? `${bucket.label} (Current)` : bucket.label,
+    actual: index === currentWeekIndex ? actualValue : 0,
+    expected: index === currentWeekIndex ? expectedValue : 0,
+    isCurrent: index === currentWeekIndex,
+  }))
+}
+
 function useBackendStudents() {
   const [records, setRecords] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -526,6 +553,38 @@ function useBackendStudents() {
   return { records, isLoading }
 }
 
+function useRevenueSummary() {
+  const [summary, setSummary] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    const run = async () => {
+      try {
+        const result = await getRevenueSummary()
+        if (!active) return
+        setSummary(result || null)
+      } catch {
+        if (!active) return
+        setSummary(null)
+      } finally {
+        if (active) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  return { summary, isLoading }
+}
+
 function useCurrentStudentProfile() {
   const [student, setStudent] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -575,7 +634,7 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, r
       />
 
       <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <RevenueDashboards students={revenueStudents} />
+      <RevenueDashboards students={revenueStudents} summary={revenueSummary} />
       <AttendanceComparisonChart />
     </section>
   )
@@ -1018,9 +1077,18 @@ function ChartInfoTrigger({ label, description }) {
   )
 }
 
-function RevenueDashboards({ students = [] }) {
-  const monthlyRevenueData = useMemo(() => buildMonthlyRevenueComparison(students), [students])
-  const weeklyRevenueData = useMemo(() => buildWeeklyRevenueComparison(students), [students])
+function RevenueDashboards({ students = [], summary = null }) {
+  const monthlyRevenueData = useMemo(() => {
+    const chartData = buildMonthlyRevenueComparison(students)
+    const hasData = chartData.some((item) => item.actual > 0 || item.expected > 0)
+    return hasData ? chartData : buildFallbackMonthlyRevenueComparison(summary)
+  }, [students, summary])
+
+  const weeklyRevenueData = useMemo(() => {
+    const chartData = buildWeeklyRevenueComparison(students)
+    const hasData = chartData.some((item) => item.actual > 0 || item.expected > 0)
+    return hasData ? chartData : buildFallbackWeeklyRevenueComparison(summary)
+  }, [students, summary])
 
   return (
     <div className="revenue-comparison-grid">
@@ -1493,7 +1561,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
       </div>
 
       <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <RevenueDashboards students={revenueStudents} />
+      <RevenueDashboards students={revenueStudents} summary={revenueSummary} />
       <AttendanceComparisonChart />
     </section>
   )
@@ -1525,14 +1593,16 @@ function GenericDashboard({ role }) {
 
 function ManagementDashboard({ role, dashboard }) {
   const { records: revenueStudents, isLoading: isRevenueLoading } = useBackendStudents()
-  const revenueSummary = useMemo(() => calculateRevenueSummary(revenueStudents), [revenueStudents])
+  const { summary: revenueSummaryFromApi, isLoading: isRevenueSummaryLoading } = useRevenueSummary()
+  const revenueSummary = useMemo(() => revenueSummaryFromApi || calculateRevenueSummary(revenueStudents), [revenueSummaryFromApi, revenueStudents])
+  const isSummaryLoading = isRevenueSummaryLoading && !revenueSummaryFromApi
 
   if (role === 'business-owner') {
     return (
       <BusinessOwnerDashboard
         dashboard={dashboard}
         revenueSummary={revenueSummary}
-        isRevenueLoading={isRevenueLoading}
+        isRevenueLoading={isSummaryLoading}
         revenueStudents={revenueStudents}
       />
     )
@@ -1542,7 +1612,7 @@ function ManagementDashboard({ role, dashboard }) {
     <OperationManagerDashboard
       dashboard={dashboard}
       revenueSummary={revenueSummary}
-      isRevenueLoading={isRevenueLoading}
+      isRevenueLoading={isSummaryLoading}
       revenueStudents={revenueStudents}
     />
   )
