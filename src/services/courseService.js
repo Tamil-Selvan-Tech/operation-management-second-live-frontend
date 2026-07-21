@@ -1,6 +1,35 @@
 import { request } from './apiClient'
 
 const COURSE_PAGE_LIMIT = 5
+const COURSE_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
+const courseListCache = new Map()
+const courseListInflight = new Map()
+
+function makeCacheKey(query = {}) {
+  return JSON.stringify(query || {})
+}
+
+function getCachedResult(cache, key) {
+  const entry = cache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.timestamp > COURSE_LIST_CACHE_TTL_MS) {
+    cache.delete(key)
+    return null
+  }
+  return entry.value
+}
+
+function setCachedResult(cache, key, value) {
+  cache.set(key, {
+    timestamp: Date.now(),
+    value,
+  })
+}
+
+function clearCourseListCache() {
+  courseListCache.clear()
+  courseListInflight.clear()
+}
 
 function unwrapData(response) {
   if (!response) return null
@@ -116,12 +145,29 @@ function buildCourseSearchParams(query = {}) {
 
 export async function listCourses(query = {}) {
   const params = buildCourseSearchParams(query)
+  const cacheKey = makeCacheKey(query)
+  const cached = getCachedResult(courseListCache, cacheKey)
+  if (cached) {
+    return cached
+  }
+
+  if (courseListInflight.has(cacheKey)) {
+    return courseListInflight.get(cacheKey)
+  }
+
   try {
-    const response = await request(`/master-setup/courses?${params.toString()}`)
-    return {
+    const pending = request(`/master-setup/courses?${params.toString()}`).then((response) => {
+      const result = {
       data: normalizeCourseList(unwrapData(response)),
       meta: response?.meta ?? response?.data?.meta ?? null,
-    }
+      }
+
+      setCachedResult(courseListCache, cacheKey, result)
+      return result
+    })
+
+    courseListInflight.set(cacheKey, pending)
+    return await pending
   } catch (error) {
     if (error?.status === 401) {
       return {
@@ -131,6 +177,8 @@ export async function listCourses(query = {}) {
     }
 
     throw error
+  } finally {
+    courseListInflight.delete(cacheKey)
   }
 }
 
@@ -140,6 +188,7 @@ export async function createCourse(payload) {
     body: JSON.stringify(payload),
   })
 
+  clearCourseListCache()
   return normalizeCourse(unwrapData(response))
 }
 
@@ -149,6 +198,7 @@ export async function updateCourse(courseId, payload) {
     body: JSON.stringify(payload),
   })
 
+  clearCourseListCache()
   return normalizeCourse(unwrapData(response))
 }
 
@@ -157,5 +207,6 @@ export async function deleteCourse(courseId) {
     method: 'DELETE',
   })
 
+  clearCourseListCache()
   return normalizeCourse(unwrapData(response))
 }

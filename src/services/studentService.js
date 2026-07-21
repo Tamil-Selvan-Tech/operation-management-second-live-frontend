@@ -1,6 +1,35 @@
 import { request } from './apiClient'
 
 const STUDENT_PAGE_LIMIT = 100
+const STUDENT_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
+const studentListCache = new Map()
+const studentListInflight = new Map()
+
+function makeCacheKey(query = {}) {
+  return JSON.stringify(query || {})
+}
+
+function getCachedResult(cache, key) {
+  const entry = cache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.timestamp > STUDENT_LIST_CACHE_TTL_MS) {
+    cache.delete(key)
+    return null
+  }
+  return entry.value
+}
+
+function setCachedResult(cache, key, value) {
+  cache.set(key, {
+    timestamp: Date.now(),
+    value,
+  })
+}
+
+function clearStudentListCache() {
+  studentListCache.clear()
+  studentListInflight.clear()
+}
 
 function unwrapData(response) {
   if (!response) return null
@@ -102,13 +131,29 @@ function buildStudentSearchParams(query = {}) {
 
 export async function listStudents(query = {}) {
   const params = buildStudentSearchParams(query)
-  try {
-    const response = await request(`/students?${params.toString()}`)
+  const cacheKey = makeCacheKey(query)
+  const cached = getCachedResult(studentListCache, cacheKey)
+  if (cached) {
+    return cached
+  }
 
-    return {
+  if (studentListInflight.has(cacheKey)) {
+    return studentListInflight.get(cacheKey)
+  }
+
+  try {
+    const pending = request(`/students?${params.toString()}`).then((response) => {
+      const result = {
       data: normalizeStudentList(unwrapData(response)),
       meta: response?.meta ?? response?.data?.meta ?? null,
-    }
+      }
+
+      setCachedResult(studentListCache, cacheKey, result)
+      return result
+    })
+
+    studentListInflight.set(cacheKey, pending)
+    return await pending
   } catch (error) {
     if (error?.status === 401) {
       return {
@@ -118,6 +163,8 @@ export async function listStudents(query = {}) {
     }
 
     throw error
+  } finally {
+    studentListInflight.delete(cacheKey)
   }
 }
 
@@ -132,6 +179,7 @@ export async function createStudent(payload) {
     body: JSON.stringify(payload),
   })
 
+  clearStudentListCache()
   return normalizeStudent(unwrapData(response))
 }
 
@@ -141,6 +189,7 @@ export async function updateStudent(studentId, payload) {
     body: JSON.stringify(payload),
   })
 
+  clearStudentListCache()
   return normalizeStudent(unwrapData(response))
 }
 
@@ -149,5 +198,6 @@ export async function deleteStudent(studentId) {
     method: 'DELETE',
   })
 
+  clearStudentListCache()
   return normalizeStudent(unwrapData(response))
 }

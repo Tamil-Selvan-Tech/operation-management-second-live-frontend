@@ -2,6 +2,35 @@ import { request } from './apiClient'
 
 const FACULTY_PAGE_LIMIT = 100
 const BATCH_NAME_STORAGE_SEPARATOR = '::course::'
+const FACULTY_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
+const facultyListCache = new Map()
+const facultyListInflight = new Map()
+
+function makeCacheKey(query = {}) {
+  return JSON.stringify(query || {})
+}
+
+function getCachedResult(cache, key) {
+  const entry = cache.get(key)
+  if (!entry) return null
+  if (Date.now() - entry.timestamp > FACULTY_LIST_CACHE_TTL_MS) {
+    cache.delete(key)
+    return null
+  }
+  return entry.value
+}
+
+function setCachedResult(cache, key, value) {
+  cache.set(key, {
+    timestamp: Date.now(),
+    value,
+  })
+}
+
+function clearFacultyListCache() {
+  facultyListCache.clear()
+  facultyListInflight.clear()
+}
 
 function getUniqueCourseIdsFromBatchEntries(batchEntries = []) {
   const seen = new Set()
@@ -255,11 +284,32 @@ function buildFacultyPayload(payload = {}) {
 
 export async function listFacultyRecords(query = {}) {
   const params = buildFacultySearchParams(query)
-  const response = await request(`/faculty-management?${params.toString()}`)
+  const cacheKey = makeCacheKey(query)
+  const cached = getCachedResult(facultyListCache, cacheKey)
+  if (cached) {
+    return cached
+  }
 
-  return {
-    data: normalizeFacultyList(unwrapData(response)),
-    meta: response?.meta ?? response?.data?.meta ?? null,
+  if (facultyListInflight.has(cacheKey)) {
+    return facultyListInflight.get(cacheKey)
+  }
+
+  const pending = request(`/faculty-management?${params.toString()}`).then((response) => {
+    const result = {
+      data: normalizeFacultyList(unwrapData(response)),
+      meta: response?.meta ?? response?.data?.meta ?? null,
+    }
+
+    setCachedResult(facultyListCache, cacheKey, result)
+    return result
+  })
+
+  facultyListInflight.set(cacheKey, pending)
+
+  try {
+    return await pending
+  } finally {
+    facultyListInflight.delete(cacheKey)
   }
 }
 
@@ -275,6 +325,7 @@ export async function createFacultyRecord(payload) {
     body: JSON.stringify(nextPayload),
   })
 
+  clearFacultyListCache()
   return normalizeFacultyRecord(unwrapData(response), nextPayload)
 }
 
@@ -285,6 +336,7 @@ export async function updateFacultyRecord(facultyId, payload) {
     body: JSON.stringify(nextPayload),
   })
 
+  clearFacultyListCache()
   return normalizeFacultyRecord(unwrapData(response), nextPayload)
 }
 
@@ -293,5 +345,6 @@ export async function deleteFacultyRecord(facultyId) {
     method: 'DELETE',
   })
 
+  clearFacultyListCache()
   return normalizeFacultyRecord(unwrapData(response))
 }

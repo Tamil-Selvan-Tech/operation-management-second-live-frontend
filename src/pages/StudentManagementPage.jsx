@@ -954,16 +954,20 @@ export function StudentManagementPage() {
     const start = (currentPageSafe - 1) * studentsPerPage
     return filteredStudents.slice(start, start + studentsPerPage)
   }, [currentPageSafe, filteredStudents])
-  const loadStudents = async () => {
+  const loadStudents = async ({ silent = false } = {}) => {
     setIsStudentsLoading(true)
 
     try {
       const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
       setStudents(result.data || [])
-      setActionError('')
+      if (!silent) {
+        setActionError('')
+      }
     } catch (error) {
-      setStudents([])
-      setActionError(apiErrorMessage(error, 'Failed to load students from the backend.'))
+      if (!silent) {
+        setStudents([])
+        setActionError(apiErrorMessage(error, 'Failed to load students from the backend.'))
+      }
     } finally {
       setIsStudentsLoading(false)
     }
@@ -1494,7 +1498,12 @@ export function StudentManagementPage() {
       }
 
       savePendingLoginEmail(savedStudent?.emailAddress || payload.emailAddress)
-      await loadStudents()
+
+      setStudents((currentStudents) => {
+        const nextStudents = currentStudents.filter((student) => student.id !== savedStudent.id)
+        return [savedStudent, ...nextStudents]
+      })
+
       setCurrentPage(1)
       if (isDrawerEditing) {
         setIsDrawerEditing(false)
@@ -1507,6 +1516,8 @@ export function StudentManagementPage() {
         setEditingStudentId('')
       }
       setOpenActionMenuId('')
+
+      void loadStudents({ silent: true })
     } catch (error) {
       const errorMessage = apiErrorMessage(error, 'Unable to save student details.')
       const normalizedErrorMessage = String(errorMessage || '').toLowerCase()
