@@ -194,7 +194,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
       </section>
 
       <aside className="login-visual-panel" aria-hidden="true">
-        <img className="login-visual-image" src="/image copy 2.png" alt="" />
+        <img className="login-visual-image" src="/cispro.png" alt="" />
       </aside>
     </Card>
   )

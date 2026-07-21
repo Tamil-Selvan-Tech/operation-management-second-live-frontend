@@ -967,7 +967,7 @@ export function FacultyManagementPage() {
   const isBusinessOwner = role === 'business-owner'
   const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
   const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
-  const headerSummary = 'Faculty assignments, active course mapping, and team setup.'
+  const headerSummary = ''
   const headerInitials = isBusinessOwner ? 'BW' : 'OM'
   const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
@@ -984,8 +984,11 @@ export function FacultyManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [openActionMenuId, setOpenActionMenuId] = useState('')
   const [openActionMenuPlacement, setOpenActionMenuPlacement] = useState('bottom')
+  const [openActionMenuMode, setOpenActionMenuMode] = useState('')
   const [openCoursePopoverId, setOpenCoursePopoverId] = useState('')
   const [openCoursePopoverMode, setOpenCoursePopoverMode] = useState('')
+  const actionMenuCloseTimerRef = useRef(null)
+  const actionMenuButtonRefs = useRef(new Map())
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -1218,6 +1221,33 @@ export function FacultyManagementPage() {
       batchTimingCustomEnd: '',
       batchTimingCustomEndMeridiem: 'PM',
     }))
+  }
+
+  const openActionMenu = (recordId) => {
+    if (actionMenuCloseTimerRef.current) {
+      window.clearTimeout(actionMenuCloseTimerRef.current)
+      actionMenuCloseTimerRef.current = null
+    }
+    setOpenActionMenuId(recordId)
+  }
+
+  const closeActionMenu = () => {
+    if (actionMenuCloseTimerRef.current) {
+      window.clearTimeout(actionMenuCloseTimerRef.current)
+      actionMenuCloseTimerRef.current = null
+    }
+    setOpenActionMenuId('')
+  }
+
+  const scheduleCloseActionMenu = () => {
+    if (actionMenuCloseTimerRef.current) {
+      window.clearTimeout(actionMenuCloseTimerRef.current)
+    }
+
+    actionMenuCloseTimerRef.current = window.setTimeout(() => {
+      setOpenActionMenuId('')
+      actionMenuCloseTimerRef.current = null
+    }, 140)
   }
 
   const markTouched = (field) => {
@@ -1539,16 +1569,18 @@ export function FacultyManagementPage() {
       />
 
       <article className="faculty-management-hero">
-        <div className="faculty-management-heading">
-          <div className="faculty-management-heading-icon" aria-hidden="true">
-            <UsersRound size={28} />
-          </div>
-          <div>
-            <h1>Faculty Management</h1>
-          </div>
-        </div>
+        <div className="faculty-management-hero-top">
+          <div className="faculty-management-heading">
+            <div className="faculty-management-heading-icon" aria-hidden="true">
+              <UsersRound size={28} />
+            </div>
+            <div>
+              <h1>Faculty Management</h1>
+              <p>Manage faculty records, courses, and batches.</p>
 
-        <div className="faculty-management-actions">
+            </div>
+          </div>
+
           <div className="faculty-management-stat">
             <div className="faculty-management-stat-icon" aria-hidden="true">
               <UsersRound size={28} />
@@ -1559,6 +1591,9 @@ export function FacultyManagementPage() {
               <small>Faculty members </small>
             </div>
           </div>
+        </div>
+
+        <div className="faculty-management-actions">
           <Button type="button" className="faculty-add-button" onClick={openCreateModal}>
             + Add Faculty
           </Button>
@@ -1696,31 +1731,80 @@ export function FacultyManagementPage() {
                     </td>
                     <td className="faculty-actions-cell">
                       <div className="faculty-row-actions">
-                        <button
-                          type="button"
-                          className={`faculty-row-action faculty-row-action-toggle ${openActionMenuId === record.id ? 'is-open' : ''}`.trim()}
-                          onClick={(event) => {
-                            const nextIsOpen = openActionMenuId !== record.id
-                            if (!nextIsOpen) {
-                              setOpenActionMenuId('')
-                              setOpenActionMenuPlacement('bottom')
+                        <div
+                          className={`faculty-row-actions-wrap ${openActionMenuId === record.id ? 'is-open' : ''}`.trim()}
+                          onMouseEnter={() => {
+                            if (actionMenuCloseTimerRef.current) {
+                              window.clearTimeout(actionMenuCloseTimerRef.current)
+                              actionMenuCloseTimerRef.current = null
+                            }
+                            if (openActionMenuId === record.id) {
                               return
                             }
-
                             setOpenActionMenuId(record.id)
-                            syncOpenActionMenuPlacement(event.currentTarget)
+                            setOpenActionMenuMode('hover')
+                            syncOpenActionMenuPlacement(actionMenuButtonRefs.current?.get?.(record.id))
                           }}
-                          aria-label={`Open actions for ${record.facultyName}`}
-                          aria-haspopup="menu"
-                          aria-expanded={openActionMenuId === record.id}
+                          onMouseLeave={() => {
+                            if (openActionMenuMode === 'hover') {
+                              scheduleCloseActionMenu()
+                            }
+                          }}
                         >
-                          <MoreVertical />
-                        </button>
+                          <button
+                            ref={(node) => {
+                              if (node) actionMenuButtonRefs.current.set(record.id, node)
+                              else actionMenuButtonRefs.current.delete(record.id)
+                            }}
+                            type="button"
+                            className={`faculty-row-action faculty-row-action-toggle ${openActionMenuId === record.id ? 'is-open' : ''}`.trim()}
+                            onMouseEnter={() => {
+                              if (actionMenuCloseTimerRef.current) {
+                                window.clearTimeout(actionMenuCloseTimerRef.current)
+                                actionMenuCloseTimerRef.current = null
+                              }
+                              if (openActionMenuId !== record.id) {
+                                setOpenActionMenuId(record.id)
+                                setOpenActionMenuMode('hover')
+                                syncOpenActionMenuPlacement(actionMenuButtonRefs.current.get(record.id))
+                              }
+                            }}
+                            onClick={(event) => {
+                              const nextIsOpen = openActionMenuId !== record.id || openActionMenuMode !== 'click'
+                              if (!nextIsOpen) {
+                                setOpenActionMenuId('')
+                                setOpenActionMenuPlacement('bottom')
+                                setOpenActionMenuMode('')
+                                return
+                              }
+
+                              setOpenActionMenuId(record.id)
+                              setOpenActionMenuMode('click')
+                              syncOpenActionMenuPlacement(event.currentTarget)
+                            }}
+                            aria-label={`Open actions for ${record.facultyName}`}
+                            aria-haspopup="menu"
+                            aria-expanded={openActionMenuId === record.id}
+                          >
+                            <MoreVertical />
+                          </button>
+                        </div>
                         {openActionMenuId === record.id ? (
                           <div
                             className={`faculty-row-action-menu ${openActionMenuPlacement === 'top' ? 'faculty-row-action-menu-top' : 'faculty-row-action-menu-bottom'}`.trim()}
                             role="menu"
                             aria-label={`${record.facultyName} actions`}
+                            onMouseEnter={() => {
+                              if (actionMenuCloseTimerRef.current) {
+                                window.clearTimeout(actionMenuCloseTimerRef.current)
+                                actionMenuCloseTimerRef.current = null
+                              }
+                            }}
+                            onMouseLeave={() => {
+                              if (openActionMenuMode === 'hover') {
+                                scheduleCloseActionMenu()
+                              }
+                            }}
                           >
                             <button
                               type="button"

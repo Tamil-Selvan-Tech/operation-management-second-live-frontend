@@ -52,6 +52,8 @@ const requiredFieldLabels = {
   status: 'Status',
 }
 
+const MAX_INSTALLMENT_FIELDS = 12
+
 function normalizeInstallmentCount(value) {
   const amount = Number(value)
   if (!Number.isFinite(amount) || amount < 1) return 0
@@ -104,9 +106,12 @@ function getCourseInstallments(course) {
     return storedInstallments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
   }
 
-  return [course?.installment1, course?.installment2, course?.installment3]
-    .map((value) => String(value ?? '').trim())
-    .filter((value) => value !== '')
+  const explicitCount = normalizeInstallmentCount(course?.installmentCount)
+  const fallbackCount = explicitCount > 0 ? Math.min(explicitCount, MAX_INSTALLMENT_FIELDS) : MAX_INSTALLMENT_FIELDS
+
+  return Array.from({ length: fallbackCount }, (_, index) => String(course?.[`installment${index + 1}`] ?? '').trim()).filter(
+    (value) => value !== '',
+  )
 }
 
 function buildCourseFormFromCourse(course) {
@@ -172,6 +177,7 @@ export function CoursesPage() {
   const [openActionMenuId, setOpenActionMenuId] = useState(null)
   const [openActionMenuPlacement, setOpenActionMenuPlacement] = useState('bottom')
   const [openActionMenuMode, setOpenActionMenuMode] = useState('')
+  const actionMenuCloseTimerRef = useRef(null)
   const [form, setForm] = useState({
     name: '',
     mode: '',
@@ -601,6 +607,22 @@ export function CoursesPage() {
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuMode('')
+  }
+
+  const clearActionMenuCloseTimer = () => {
+    if (!actionMenuCloseTimerRef.current) return
+    window.clearTimeout(actionMenuCloseTimerRef.current)
+    actionMenuCloseTimerRef.current = null
+  }
+
+  const scheduleActionMenuClose = () => {
+    clearActionMenuCloseTimer()
+    actionMenuCloseTimerRef.current = window.setTimeout(() => {
+      setOpenActionMenuId(null)
+      setOpenActionMenuPlacement('bottom')
+      setOpenActionMenuMode('')
+      actionMenuCloseTimerRef.current = null
+    }, 140)
   }
 
   const getAfterDiscountValue = (course) => {
@@ -1244,17 +1266,15 @@ export function CoursesPage() {
                           <div
                             className={`course-row-actions-wrap ${openActionMenuId === course.id ? 'is-open' : ''}`.trim()}
                             onMouseEnter={() => {
+                              clearActionMenuCloseTimer()
                               setOpenActionMenuId(course.id)
                               setOpenActionMenuMode((current) => (current === 'click' && openActionMenuId === course.id ? 'click' : 'hover'))
                               syncOpenActionMenuPlacement(actionMenuButtonRefs.current.get(course.id))
                             }}
                             onMouseLeave={() => {
-                              setOpenActionMenuMode((currentMode) => {
-                                if (currentMode !== 'hover') return currentMode
-                                setOpenActionMenuId(null)
-                                setOpenActionMenuPlacement('bottom')
-                                return ''
-                              })
+                              if (openActionMenuMode === 'hover') {
+                                scheduleActionMenuClose()
+                              }
                             }}
                           >
                             <button
@@ -1264,6 +1284,9 @@ export function CoursesPage() {
                               }}
                               type="button"
                               className={`course-row-action course-row-menu-trigger ${openActionMenuId === course.id ? 'is-open' : ''}`.trim()}
+                              onMouseEnter={() => {
+                                clearActionMenuCloseTimer()
+                              }}
                               onClick={(event) => {
                                 const nextIsOpen = openActionMenuId !== course.id || openActionMenuMode !== 'click'
                                 if (!nextIsOpen) {
@@ -1288,6 +1311,12 @@ export function CoursesPage() {
                                 className={`course-row-action-menu ${menuPlacement === 'top' ? 'course-row-action-menu-top' : 'course-row-action-menu-bottom'}`.trim()}
                                 role="menu"
                                 aria-label={`${course.name || 'course'} actions`}
+                                onMouseEnter={clearActionMenuCloseTimer}
+                                onMouseLeave={() => {
+                                  if (openActionMenuMode === 'hover') {
+                                    scheduleActionMenuClose()
+                                  }
+                                }}
                               >
                                 <button
                                   type="button"

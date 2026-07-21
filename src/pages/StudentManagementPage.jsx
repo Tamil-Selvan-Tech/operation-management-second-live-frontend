@@ -1,4 +1,4 @@
-import { isValidElement, useEffect, useMemo, useState } from 'react'
+import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   BadgeCheck,
@@ -36,6 +36,7 @@ const statusOptions = ['Student', 'Employee', 'Other']
 const recordStatusOptions = ['Active', 'Inactive']
 const paymentModeOptions = ['Installment', 'Full Payment']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
+const MAX_INSTALLMENT_FIELDS = 12
 const studentWizardSteps = [
   {
     key: 'basic',
@@ -316,19 +317,20 @@ function StudentBatchDisplay({ student, facultyOptions = [] }) {
 }
 
 function mapCourseToForm(current, course) {
+  const nextForm = { ...current }
+  for (let index = 1; index <= MAX_INSTALLMENT_FIELDS; index += 1) {
+    nextForm[`installment${index}`] = ''
+  }
+
   if (!course) {
     return {
-      ...current,
+      ...nextForm,
       courseId: '',
       courseInterested: '',
       actualFees: '',
       registrationFees: '',
       discount: '',
       afterDiscount: '',
-      installment1: '',
-      installment2: '',
-      installment3: '',
-      installment4: '',
       facultyName: '',
       batch: '',
     }
@@ -341,8 +343,12 @@ function mapCourseToForm(current, course) {
     String(course.afterDiscount ?? '') ||
     (actualFees !== '' && discount !== '' ? String(Math.max(Number(actualFees) - Number(discount), 0)) : '')
 
+  courseInstallments.forEach((value, index) => {
+    nextForm[`installment${index + 1}`] = value
+  })
+
   return {
-    ...current,
+    ...nextForm,
     courseId: course.id,
     courseInterested: course.name,
     facultyName: '',
@@ -351,10 +357,6 @@ function mapCourseToForm(current, course) {
     registrationFees: String(course.registrationFees ?? ''),
     discount,
     afterDiscount,
-    installment1: courseInstallments[0] ?? '',
-    installment2: courseInstallments[1] ?? '',
-    installment3: courseInstallments[2] ?? '',
-    installment4: courseInstallments[3] ?? '',
   }
 }
 
@@ -365,9 +367,10 @@ function getCourseInstallmentValues(course = null) {
     return storedInstallments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
   }
 
-  return [course?.installment1, course?.installment2, course?.installment3, course?.installment4]
-    .map((value) => String(value ?? '').trim())
-    .filter((value) => value !== '')
+  const explicitCount = normalizeInstallmentCount(course?.installmentCount)
+  const fallbackCount = explicitCount > 0 ? Math.min(explicitCount, MAX_INSTALLMENT_FIELDS) : MAX_INSTALLMENT_FIELDS
+
+  return Array.from({ length: fallbackCount }, (_, index) => String(course?.[`installment${index + 1}`] ?? '').trim()).filter((value) => value !== '')
 }
 
 function normalizeInstallmentCount(value) {
@@ -380,6 +383,21 @@ function getCourseInstallmentCount(course = null) {
   const explicitCount = normalizeInstallmentCount(course?.installmentCount)
   if (explicitCount > 0) return explicitCount
   return getCourseInstallmentValues(course).length
+}
+
+function getInstallmentFieldNames(count = MAX_INSTALLMENT_FIELDS) {
+  return Array.from({ length: Math.min(Math.max(Number(count) || 0, 0), MAX_INSTALLMENT_FIELDS) }, (_, index) => `installment${index + 1}`)
+}
+
+function applyInstallmentValues(target = {}, values = []) {
+  const nextTarget = { ...target }
+  getInstallmentFieldNames().forEach((fieldName) => {
+    nextTarget[fieldName] = ''
+  })
+  values.forEach((value, index) => {
+    nextTarget[`installment${index + 1}`] = value
+  })
+  return nextTarget
 }
 
 function getRequiredInstallmentCount(course = null) {
@@ -445,6 +463,9 @@ function validateForm(form, course = null) {
 
 function validateStep(form, stepIndex, course = null) {
   const errors = validateForm(form, course)
+  const installmentFields = isFullPaymentMode(form)
+    ? []
+    : getInstallmentFieldNames(getRequiredInstallmentCount(course))
   const stepFields = {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
     1: [
@@ -462,7 +483,7 @@ function validateStep(form, stepIndex, course = null) {
       'registrationFees',
       'discount',
       'afterDiscount',
-      ...(isFullPaymentMode(form) ? [] : ['installment1', 'installment2', 'installment3', 'installment4']),
+      ...installmentFields,
       'admissionDate',
     ],
   }
@@ -476,7 +497,16 @@ function getStepIndexForField(fieldName) {
   const stepFields = {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
     1: ['courseInterested', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
-    2: ['actualFees', 'registrationFees', 'discount', 'afterDiscount', 'installment1', 'installment2', 'installment3', 'installment4', 'admissionDate', 'remarks', 'paymentMode'],
+    2: [
+      'actualFees',
+      'registrationFees',
+      'discount',
+      'afterDiscount',
+      ...Array.from({ length: MAX_INSTALLMENT_FIELDS }, (_, index) => `installment${index + 1}`),
+      'admissionDate',
+      'remarks',
+      'paymentMode',
+    ],
   }
 
   return Number(
@@ -757,6 +787,7 @@ export function StudentManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [installmentConfirmTarget, setInstallmentConfirmTarget] = useState(null)
   const [openActionMenuId, setOpenActionMenuId] = useState('')
+  const actionMenuCloseTimerRef = useRef(null)
   const [isDrawerEditing, setIsDrawerEditing] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
@@ -769,7 +800,7 @@ export function StudentManagementPage() {
   const isBusinessOwner = role === 'business-owner'
   const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
   const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
-  const headerSummary = 'Operations oversight, approvals, and team health.'
+  const headerSummary = ''
   const headerInitials = isBusinessOwner ? 'BW' : 'OM'
   const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
@@ -960,11 +991,8 @@ export function StudentManagementPage() {
                   registrationFees: course?.registrationFees ?? '',
                   discount: course?.discount ?? '',
                   afterDiscount: course?.afterDiscount ?? '',
-                  installments: Array.isArray(course?.installments)
-                    ? course.installments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
-                    : [course?.installment1, course?.installment2, course?.installment3, course?.installment4]
-                        .map((value) => String(value ?? '').trim())
-                        .filter((value) => value !== ''),
+                  installmentCount: course?.installmentCount ?? '',
+                  installments: getCourseInstallmentValues(course),
                 },
               ]
             })
@@ -1085,7 +1113,7 @@ export function StudentManagementPage() {
   }
 
   const prepareStudentForm = (student) => ({
-    ...createEmptyForm(),
+    ...applyInstallmentValues(createEmptyForm(), getCourseInstallmentValues(findCourseForForm(courseOptions, student))),
     courseId: student.courseId || '',
     studentName: student.studentName || '',
     mobileNumber: student.mobileNumber || '',
@@ -1105,10 +1133,7 @@ export function StudentManagementPage() {
     registrationFees: student.registrationFees || '',
     discount: student.discount || '',
     afterDiscount: student.afterDiscount || '',
-    installment1: student.installment1 || '',
-    installment2: student.installment2 || '',
-    installment3: student.installment3 || '',
-    installment4: student.installment4 || '',
+    ...Object.fromEntries(getInstallmentFieldNames().map((fieldName) => [fieldName, student[fieldName] || ''])),
     firstInstallmentAmount: student.firstInstallmentAmount || student.installment1 || '',
     firstInstallmentDate: student.firstInstallmentDate || student.admissionDate || '',
     firstInstallmentStatus: student.firstInstallmentStatus || 'Pending',
@@ -1179,11 +1204,30 @@ export function StudentManagementPage() {
   }
 
   const openActionMenu = (studentId) => {
+    if (actionMenuCloseTimerRef.current) {
+      window.clearTimeout(actionMenuCloseTimerRef.current)
+      actionMenuCloseTimerRef.current = null
+    }
     setOpenActionMenuId(studentId)
   }
 
   const closeActionMenu = () => {
+    if (actionMenuCloseTimerRef.current) {
+      window.clearTimeout(actionMenuCloseTimerRef.current)
+      actionMenuCloseTimerRef.current = null
+    }
     setOpenActionMenuId('')
+  }
+
+  const scheduleCloseActionMenu = () => {
+    if (actionMenuCloseTimerRef.current) {
+      window.clearTimeout(actionMenuCloseTimerRef.current)
+    }
+
+    actionMenuCloseTimerRef.current = window.setTimeout(() => {
+      setOpenActionMenuId('')
+      actionMenuCloseTimerRef.current = null
+    }, 140)
   }
 
   const closeModal = () => {
@@ -1246,9 +1290,8 @@ export function StudentManagementPage() {
                   registrationFees: course?.registrationFees ?? '',
                   discount: course?.discount ?? '',
                   afterDiscount: course?.afterDiscount ?? '',
-                  installment1: course?.installment1 ?? '',
-                  installment2: course?.installment2 ?? '',
-                  installment3: course?.installment3 ?? '',
+                  installmentCount: course?.installmentCount ?? '',
+                  installments: getCourseInstallmentValues(course),
                 },
               ]
             })
@@ -1303,25 +1346,14 @@ export function StudentManagementPage() {
             secondInstallmentPaidAt: '',
             thirdInstallmentPaidAt: '',
             fourthInstallmentPaidAt: '',
-            ...(current.installment1 || current.installment2 || current.installment3 || current.installment4
+            ...(getInstallmentFieldNames().some((fieldName) => Boolean(current[fieldName]))
               ? {}
-              : (() => {
-                  const installments = getCourseInstallmentValues(findCourseForForm(courseOptions, current))
-                  return {
-                    installment1: installments[0] || '',
-                    installment2: installments[1] || '',
-                    installment3: installments[2] || '',
-                    installment4: installments[3] || '',
-                  }
-                })()),
+              : applyInstallmentValues({}, getCourseInstallmentValues(findCourseForForm(courseOptions, current)))),
           }
         : name === 'paymentMode' && value === 'Full Payment'
           ? {
               paymentMode: value,
-              installment1: '',
-              installment2: '',
-              installment3: '',
-              installment4: '',
+              ...applyInstallmentValues(),
             }
           : {}),
       [name]: value,
@@ -1401,6 +1433,7 @@ export function StudentManagementPage() {
         [firstErrorField]: true,
       }))
       setActionError(Object.values(nextErrors)[0] || 'Please complete the required fields before submitting.')
+      setIsSavingStudent(false)
       return
     }
 
@@ -1413,11 +1446,14 @@ export function StudentManagementPage() {
       setActionError(
         'Email already exists.',
       )
+      setIsSavingStudent(false)
       return
     }
 
     const course = selectedCourse
     const existingStudent = editingStudentId ? students.find((student) => student.id === editingStudentId) : null
+    const isFullPayment = isFullPaymentMode(form)
+    const installmentCount = isFullPayment ? 0 : getCourseInstallmentCount(course)
     const payload = {
       ...form,
       courseId: form.courseId || course?.id || '',
@@ -1427,7 +1463,6 @@ export function StudentManagementPage() {
       status: form.status || existingStudent?.status || 'Active',
     }
 
-    const isFullPayment = isFullPaymentMode(form)
     const paidAtDate = form.admissionDate || existingStudent?.admissionDate || getTodayValue()
     const paidAmount = String(form.afterDiscount || form.actualFees || existingStudent?.afterDiscount || existingStudent?.actualFees || '')
 
@@ -1442,10 +1477,13 @@ export function StudentManagementPage() {
     payload.firstInstallmentAmount = isFullPayment ? paidAmount : form.installment1 || existingStudent?.firstInstallmentAmount || ''
     payload.secondInstallmentAmount = isFullPayment ? '0' : form.installment2 || existingStudent?.secondInstallmentAmount || ''
     payload.thirdInstallmentAmount = isFullPayment ? '0' : form.installment3 || existingStudent?.thirdInstallmentAmount || ''
-    payload.installment4 = isFullPayment ? '0' : form.installment4 || existingStudent?.installment4 || ''
     payload.firstInstallmentDate = isFullPayment ? paidAtDate : form.firstInstallmentDate || existingStudent?.firstInstallmentDate || ''
     payload.secondDueDate = isFullPayment ? '' : form.secondDueDate || existingStudent?.secondDueDate || ''
     payload.thirdDueDate = isFullPayment ? '' : form.thirdDueDate || existingStudent?.thirdDueDate || ''
+    for (let index = 1; index <= Math.min(installmentCount || 0, MAX_INSTALLMENT_FIELDS); index += 1) {
+      const fieldName = `installment${index}`
+      payload[fieldName] = isFullPayment ? '0' : form[fieldName] || existingStudent?.[fieldName] || ''
+    }
 
     try {
       let savedStudent = null
@@ -1626,10 +1664,12 @@ export function StudentManagementPage() {
       />
 
       <article className="student-management-hero">
-        <div>
-          <p className="eyebrow">Student Management</p>
+        <div className="student-management-heading">
+          <div className="student-management-heading-icon" aria-hidden="true">
+            <UserRound size={26} />
+          </div>
+          <h1>Student Management</h1>
           
-          <p>Capture admissions details with a quick popup form and keep new leads organized in one place.</p>
         </div>
 
         <div className="student-management-actions">
@@ -1643,13 +1683,13 @@ export function StudentManagementPage() {
             placeholder="Search student or course"
             ariaLabel="Search students"
           />
+          <Button type="button" className="student-add-button" onClick={openModal}>
+            + Add Student
+          </Button>
           <div className="student-management-stat">
             <span>Total Students</span>
             <strong>{totalStudents}</strong>
           </div>
-          <Button type="button" className="student-add-button" onClick={openModal}>
-            + Add Student
-          </Button>
         </div>
       </article>
 
@@ -1815,11 +1855,12 @@ export function StudentManagementPage() {
                         <div
                           className={`student-action-menu ${openActionMenuId === student.id ? 'is-open' : ''} ${actionMenuDirection === 'up' ? 'is-up' : 'is-down'}`.trim()}
                           onMouseEnter={() => openActionMenu(student.id, actionMenuDirection)}
-                          onMouseLeave={closeActionMenu}
+                          onMouseLeave={scheduleCloseActionMenu}
                         >
                           <button
                             type="button"
                             className="student-row-button student-row-button-more"
+                            onMouseEnter={() => openActionMenu(student.id, actionMenuDirection)}
                             onClick={() => {
                               if (openActionMenuId === student.id) {
                                 closeActionMenu()
