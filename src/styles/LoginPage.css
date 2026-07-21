@@ -96,8 +96,8 @@
 }
 
 .login-brand-icon {
-  width: clamp(132px, 14vw, 182px);
-  height: auto;
+  width: auto;
+  height: clamp(34px, 3.8vw, 42px);
   object-fit: contain;
   object-position: center;
   display: block;
@@ -136,8 +136,8 @@
 }
 
 .forgot-brand-logo {
-  width: 182px;
-  height: auto;
+  width: auto;
+  height: 38px;
   object-fit: contain;
   display: block;
 }
@@ -406,7 +406,7 @@
   width: 100%;
   max-width: 460px;
   min-height: 54px;
-  margin-top: 10px;
+  margin-top: 18px;
   border-radius: 18px;
   background: linear-gradient(180deg, #2b7cff 0%, #0f5fd1 100%);
   color: #ffffff;
@@ -456,6 +456,7 @@
 
   .login-primary {
     max-width: 100%;
+    margin-top: 14px;
   }
 
   .login-visual-panel {
@@ -512,7 +513,7 @@
   }
 
   .login-brand-icon {
-    width: clamp(112px, 34vw, 150px);
+    height: 32px;
   }
 
   .login-copy {
@@ -568,7 +569,7 @@
   }
 
   .forgot-brand-logo {
-    width: 132px;
+    height: 30px;
   }
 
   .forgot-copy {

@@ -26,6 +26,7 @@ import { FacultyCourseFacultyPage } from '../pages/FacultyCourseFacultyPage'
 import { BatchStudentsPage } from '../pages/BatchStudentsPage'
 import { CourseBatchesPage } from '../pages/CourseBatchesPage'
 import { StudentManagementPage } from '../pages/StudentManagementPage'
+import { NotificationsPage } from '../pages/NotificationsPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
 import { SessionExpiredPage } from '../pages/SessionExpiredPage'
 import { UnauthorizedPage } from '../pages/UnauthorizedPage'
@@ -125,6 +126,7 @@ function AppLayout() {
     location.pathname !== '/dashboard/business-owner' &&
     location.pathname !== '/dashboard/operation-manager' &&
     location.pathname !== '/dashboard/student' &&
+    location.pathname !== '/notifications' &&
     location.pathname !== '/courses' &&
     location.pathname !== '/student-management' &&
     location.pathname !== '/faculty-management' &&
@@ -306,6 +308,7 @@ export function AppRouter() {
             <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
             <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
             <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
             <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/student-management" element={<StudentManagementPage />} />

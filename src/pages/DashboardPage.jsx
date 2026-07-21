@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, ChevronDown, ChevronRight, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
-import { Link } from 'react-router-dom'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { Bell, CalendarDays, ChevronDown, ChevronRight, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 
+import { useAuth } from '../auth/useAuth'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
+import { getNotificationItems, getUnreadNotificationCount } from '../data/notificationsData'
 import { loadStudentRecords } from '../data/studentRecords'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { getCurrentFacultyProfile } from '../services/facultyService'
@@ -33,90 +35,55 @@ const revenueFormatter = new Intl.NumberFormat('en-IN', {
 const revenueSummaryCards = [
   {
     label: 'Total Revenue',
-    value: 'â‚¹8,45,000',
+    value: 'Ã¢â€šÂ¹8,45,000',
     change: '+12.5%',
     accent: 'blue',
     icon: 'wallet',
     tooltip: 'Total Revenue shows the total income collected from all student fee payments across all courses and admissions.',
     details: [
-      { label: 'Collected revenue', value: 'â‚¹8,45,000' },
+      { label: 'Collected revenue', value: 'Ã¢â€šÂ¹8,45,000' },
       { label: 'Students added', value: '11 students added' },
       { label: 'Scope', value: 'All paid installments in the dashboard' },
     ],
   },
   {
     label: 'This Month Revenue',
-    value: 'â‚¹95,000',
+    value: 'Ã¢â€šÂ¹95,000',
     change: '+8.4%',
     accent: 'green',
     icon: 'calendar',
     tooltip: 'This Month Revenue shows the total income collected during the current month period.',
     details: [
-      { label: 'Collected this month', value: 'â‚¹95,000' },
+      { label: 'Collected this month', value: 'Ã¢â€šÂ¹95,000' },
       { label: 'Admissions', value: '10 admissions this month' },
       { label: 'Scope', value: 'Payments captured from the current month' },
     ],
   },
   {
     label: 'This Week Revenue',
-    value: 'â‚¹32,000',
+    value: 'Ã¢â€šÂ¹32,000',
     change: '+4.2%',
     accent: 'purple',
     icon: 'trend',
     tooltip: 'This Week Revenue shows the total income collected during the current week.',
     details: [
-      { label: 'Collected this week', value: 'â‚¹32,000' },
+      { label: 'Collected this week', value: 'Ã¢â€šÂ¹32,000' },
       { label: 'Admissions', value: '3 admissions this week' },
       { label: 'Scope', value: 'Payments captured from the current week' },
     ],
   },
   {
     label: 'Pending Payments',
-    value: 'â‚¹1,20,000',
+    value: 'Ã¢â€šÂ¹1,20,000',
     change: null,
     accent: 'orange',
     icon: 'target',
     tooltip: 'Pending Payments shows the outstanding amount that is still waiting to be collected.',
     details: [
-      { label: 'Pending amount', value: 'â‚¹1,20,000' },
+      { label: 'Pending amount', value: 'Ã¢â€šÂ¹1,20,000' },
       { label: 'Collection target', value: 'Target for next week' },
       { label: 'Scope', value: 'Outstanding student balances' },
     ],
-  },
-]
-
-const notificationItems = [
-  {
-    tone: 'red',
-    icon: ReceiptText,
-    title: 'Student fee payment updated',
-    message: 'Varsha’s full payment has been saved and marked as completed.',
-    time: '5 mins ago',
-    featured: false,
-  },
-  {
-    tone: 'yellow',
-    icon: CreditCard,
-    title: 'Installment payment received',
-    message: 'A pending installment for the Next.js course has been collected successfully.',
-    time: '15 mins ago',
-    featured: true,
-  },
-  {
-    tone: 'amber',
-    icon: AlertTriangle,
-    title: 'Overdue fee reminder',
-    message: 'Three student fee payments are still overdue and need review today.',
-    time: '1 hour ago',
-    featured: false,
-  },
-  {
-    tone: 'blue',
-    icon: CalendarDays,
-    title: 'Admission update',
-    message: 'A new student admission has been added to the dashboard successfully.',
-    time: 'Today',
-    featured: false,
   },
 ]
 
@@ -248,7 +215,7 @@ function getStudentStatus(student) {
   const overdueDays = (hasThirdInstallment(student) ? thirdPaid : secondPaid) ? 0 : diffInDays(dueDate, getTodayValue())
 
   if (firstPaid && secondPaid && thirdPaid) return { label: 'Complete', tone: 'success' }
-  if (overdueDays > 0) return { label: `Overdue Â· ${overdueDays} Days`, tone: 'danger' }
+  if (overdueDays > 0) return { label: `Overdue Ã‚Â· ${overdueDays} Days`, tone: 'danger' }
   if (firstPaid) return { label: 'Pending', tone: 'warning' }
 
   return { label: 'Pending', tone: 'warning' }
@@ -664,9 +631,12 @@ function buildRevenueSummaryCards(summary, isLoading) {
 }
 
 function NotificationBell() {
+  const { role } = useAuth()
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
-  const [showAll, setShowAll] = useState(false)
-  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
+  const notificationItems = getNotificationItems(role)
+  const visibleItems = notificationItems.slice(0, 2)
+  const unreadCount = getUnreadNotificationCount(role)
 
   return (
     <div
@@ -674,7 +644,6 @@ function NotificationBell() {
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => {
         setIsOpen(false)
-        setShowAll(false)
       }}
     >
       <button
@@ -686,7 +655,7 @@ function NotificationBell() {
         onClick={() => setIsOpen((current) => !current)}
       >
         <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        <b>{notificationItems.length}</b>
+        <b>{unreadCount}</b>
       </button>
 
       {isOpen ? (
@@ -722,9 +691,12 @@ function NotificationBell() {
           <button
             className="notification-dropdown-footer"
             type="button"
-            onClick={() => setShowAll((current) => !current)}
+            onClick={() => {
+              setIsOpen(false)
+              navigate('/notifications')
+            }}
           >
-            {showAll ? 'Show less' : 'View all notifications'}
+            View all notifications
           </button>
         </div>
       ) : null}
@@ -1565,7 +1537,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
 
         <div className="business-topbar-actions">
           <label className="dashboard-search">
-            <span aria-hidden="true">âŒ•</span>
+            <span aria-hidden="true">Ã¢Å’â€¢</span>
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
           <NotificationBell />
@@ -1656,5 +1628,6 @@ export function DashboardPage({ role }) {
 
   return <GenericDashboard role={role} />
 }
+
 
 

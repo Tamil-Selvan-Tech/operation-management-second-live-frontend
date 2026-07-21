@@ -1,45 +1,17 @@
 import { useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, CreditCard, ReceiptText } from 'lucide-react'
+import { Bell } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
-const notificationItems = [
-  {
-    tone: 'red',
-    icon: ReceiptText,
-    title: 'Student fee payment updated',
-    message: 'Varsha\'s full payment has been saved and marked as completed.',
-    time: '5 mins ago',
-    featured: false,
-  },
-  {
-    tone: 'yellow',
-    icon: CreditCard,
-    title: 'Installment payment received',
-    message: 'A pending installment for the Next.js course has been collected successfully.',
-    time: '15 mins ago',
-    featured: true,
-  },
-  {
-    tone: 'amber',
-    icon: AlertTriangle,
-    title: 'Overdue fee reminder',
-    message: 'Three student fee payments are still overdue and need review today.',
-    time: '1 hour ago',
-    featured: false,
-  },
-  {
-    tone: 'blue',
-    icon: CalendarDays,
-    title: 'Admission update',
-    message: 'A new student admission has been added to the dashboard successfully.',
-    time: 'Today',
-    featured: false,
-  },
-]
+import { useAuth } from '../auth/useAuth'
+import { getNotificationItems, getUnreadNotificationCount } from '../data/notificationsData'
 
 export function NotificationBell() {
+  const { role } = useAuth()
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
-  const [showAll, setShowAll] = useState(false)
-  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
+  const notificationItems = getNotificationItems(role)
+  const visibleItems = notificationItems.slice(0, 2)
+  const unreadCount = getUnreadNotificationCount(role)
 
   return (
     <div
@@ -47,7 +19,6 @@ export function NotificationBell() {
       onMouseEnter={() => setIsOpen(true)}
       onMouseLeave={() => {
         setIsOpen(false)
-        setShowAll(false)
       }}
     >
       <button
@@ -59,7 +30,7 @@ export function NotificationBell() {
         onClick={() => setIsOpen((current) => !current)}
       >
         <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        <b>{notificationItems.length}</b>
+        <b>{unreadCount}</b>
       </button>
 
       {isOpen ? (
@@ -95,9 +66,12 @@ export function NotificationBell() {
           <button
             className="notification-dropdown-footer"
             type="button"
-            onClick={() => setShowAll((current) => !current)}
+            onClick={() => {
+              setIsOpen(false)
+              navigate('/notifications')
+            }}
           >
-            {showAll ? 'Show less' : 'View all notifications'}
+            View all notifications
           </button>
         </div>
       ) : null}

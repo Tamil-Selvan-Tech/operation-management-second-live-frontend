@@ -30,7 +30,7 @@ export function ForgotPasswordPage({ onSubmit, errorMessage = '', successMessage
     <Card className="auth-card login-shell login-page forgot-page">
       <section className="login-form-panel forgot-form-panel">
         <div className="forgot-topbar">
-          <img className="forgot-brand-logo" src="/logo.png" alt="CISPRO logo" />
+          <img className="forgot-brand-logo" src="/logo1.JPG" alt="CISPRO logo" />
           <div className="forgot-brand-copy">
             {/* <strong>CISPRO</strong>
             <p>Operation Management System</p> */}
