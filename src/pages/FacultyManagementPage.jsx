@@ -1223,22 +1223,6 @@ export function FacultyManagementPage() {
     }))
   }
 
-  const openActionMenu = (recordId) => {
-    if (actionMenuCloseTimerRef.current) {
-      window.clearTimeout(actionMenuCloseTimerRef.current)
-      actionMenuCloseTimerRef.current = null
-    }
-    setOpenActionMenuId(recordId)
-  }
-
-  const closeActionMenu = () => {
-    if (actionMenuCloseTimerRef.current) {
-      window.clearTimeout(actionMenuCloseTimerRef.current)
-      actionMenuCloseTimerRef.current = null
-    }
-    setOpenActionMenuId('')
-  }
-
   const scheduleCloseActionMenu = () => {
     if (actionMenuCloseTimerRef.current) {
       window.clearTimeout(actionMenuCloseTimerRef.current)

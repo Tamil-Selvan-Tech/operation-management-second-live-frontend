@@ -1,4 +1,4 @@
-import { isValidElement, useEffect, useMemo, useRef, useState } from 'react'
+import { isValidElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   BadgeCheck,
@@ -775,7 +775,6 @@ export function StudentManagementPage() {
   const [courseOptions, setCourseOptions] = useState([])
   const [facultyOptions, setFacultyOptions] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [isStudentsLoading, setIsStudentsLoading] = useState(true)
   const [isCoursesLoading, setIsCoursesLoading] = useState(true)
   const [isFacultyLoading, setIsFacultyLoading] = useState(true)
@@ -783,7 +782,7 @@ export function StudentManagementPage() {
   const [submitted, setSubmitted] = useState(false)
   const [fieldFocus, setFieldFocus] = useState({})
   const [editingStudentId, setEditingStudentId] = useState('')
-  const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [manualSelectedStudentId, setManualSelectedStudentId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [installmentConfirmTarget, setInstallmentConfirmTarget] = useState(null)
   const [openActionMenuId, setOpenActionMenuId] = useState('')
@@ -883,6 +882,11 @@ export function StudentManagementPage() {
 
     return nextErrors
   }, [batchSelectOptions, editingStudentId, form, selectedCourse, selectedCourseFacultyOptions, students])
+  const courseFilterId = String(searchParams.get('courseId') || '').trim()
+  const facultyFilterId = String(searchParams.get('facultyId') || '').trim()
+  const batchFilterId = String(searchParams.get('batchId') || '').trim()
+  const selectedStudentQueryId = String(searchParams.get('studentId') || '').trim()
+  const selectedStudentId = selectedStudentQueryId || manualSelectedStudentId
   const selectedStudent = useMemo(
     () => students.find((student) => student.id === selectedStudentId) || null,
     [selectedStudentId, students],
@@ -891,10 +895,6 @@ export function StudentManagementPage() {
     () => (selectedStudent ? findCourseForStudent(selectedStudent, courseOptions) : null),
     [courseOptions, selectedStudent],
   )
-  const courseFilterId = String(searchParams.get('courseId') || '').trim()
-  const facultyFilterId = String(searchParams.get('facultyId') || '').trim()
-  const batchFilterId = String(searchParams.get('batchId') || '').trim()
-  const selectedStudentQueryId = String(searchParams.get('studentId') || '').trim()
   const selectedFacultyFilter = useMemo(
     () => facultyOptions.find((faculty) => String(faculty?.id || '').trim() === facultyFilterId) || null,
     [facultyFilterId, facultyOptions],
@@ -907,6 +907,7 @@ export function StudentManagementPage() {
     () => (selectedFacultyFilter ? getFacultyBatchEntryById(selectedFacultyFilter, batchFilterId) : null),
     [batchFilterId, selectedFacultyFilter],
   )
+  const isDrawerOpen = Boolean(selectedStudentId)
   const filteredStudents = useMemo(() => {
     const baseMatches =
       !courseFilterId && !facultyFilterId && !batchFilterId
@@ -935,17 +936,20 @@ export function StudentManagementPage() {
       )
     })
   }, [batchFilterId, courseFilterId, courseOptions, facultyFilterId, searchQuery, selectedCourseFilter, selectedFacultyFilter, selectedBatchFilter, students])
-  const buildStudentManagementUrl = (studentId = '') => {
-    const params = new URLSearchParams()
+  const buildStudentManagementUrl = useCallback(
+    (studentId = '') => {
+      const params = new URLSearchParams()
 
-    if (studentId) params.set('studentId', String(studentId).trim())
-    if (courseFilterId) params.set('courseId', courseFilterId)
-    if (facultyFilterId) params.set('facultyId', facultyFilterId)
-    if (batchFilterId) params.set('batchId', batchFilterId)
+      if (studentId) params.set('studentId', String(studentId).trim())
+      if (courseFilterId) params.set('courseId', courseFilterId)
+      if (facultyFilterId) params.set('facultyId', facultyFilterId)
+      if (batchFilterId) params.set('batchId', batchFilterId)
 
-    const query = params.toString()
-    return query ? `/student-management?${query}` : '/student-management'
-  }
+      const query = params.toString()
+      return query ? `/student-management?${query}` : '/student-management'
+    },
+    [batchFilterId, courseFilterId, facultyFilterId],
+  )
   const totalStudents = filteredStudents.length
   const latestStudent = filteredStudents[0]
   const totalPages = Math.max(1, Math.ceil(totalStudents / studentsPerPage))
@@ -1177,8 +1181,7 @@ export function StudentManagementPage() {
   }
 
   const openDrawer = (student) => {
-    setSelectedStudentId(student.id)
-    setIsDrawerOpen(true)
+    setManualSelectedStudentId(student.id)
     setIsDrawerEditing(false)
     navigate(buildStudentManagementUrl(student.id))
   }
@@ -1188,12 +1191,11 @@ export function StudentManagementPage() {
     setDeleteTarget(student)
   }
 
-  const closeDrawer = () => {
-    setIsDrawerOpen(false)
+  const closeDrawer = useCallback(() => {
     setIsDrawerEditing(false)
-    setSelectedStudentId('')
+    setManualSelectedStudentId('')
     navigate(buildStudentManagementUrl(), { replace: true })
-  }
+  }, [buildStudentManagementUrl, navigate])
 
   const closeDeleteModal = () => {
     setDeleteTarget(null)
@@ -1251,20 +1253,7 @@ export function StudentManagementPage() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isDrawerOpen])
-
-  useEffect(() => {
-    if (!selectedStudentQueryId) {
-      setIsDrawerOpen(false)
-      setIsDrawerEditing(false)
-      setSelectedStudentId('')
-      return
-    }
-
-    setSelectedStudentId(selectedStudentQueryId)
-    setIsDrawerOpen(true)
-    setIsDrawerEditing(false)
-  }, [selectedStudentQueryId])
+  }, [closeDrawer, isDrawerOpen])
 
   useEffect(() => {
     saveStudentRecords(students)

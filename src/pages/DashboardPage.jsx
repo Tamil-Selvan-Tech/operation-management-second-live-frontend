@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { memo } from 'react'
 import {
   BadgeCheck,
   Building2,
@@ -575,9 +576,9 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, r
         onOpenMenu={openMenu}
       />
 
-      <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <RevenueDashboards students={revenueStudents} />
-      <AttendanceComparisonChart />
+      <MemoRevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
+      <MemoRevenueDashboards students={revenueStudents} />
+      <MemoAttendanceComparisonChart />
     </section>
   )
 }
@@ -692,7 +693,10 @@ function SummaryIcon({ kind }) {
 }
 
 function RevenueSummaryRow({ summary = null, isLoading = false }) {
-  const cards = summary || isLoading ? buildRevenueSummaryCards(summary, isLoading) : revenueSummaryCards
+  const cards = useMemo(
+    () => (summary || isLoading ? buildRevenueSummaryCards(summary, isLoading) : revenueSummaryCards),
+    [isLoading, summary],
+  )
   const [activeTooltipIndex, setActiveTooltipIndex] = useState(null)
   const rowRef = useRef(null)
 
@@ -757,6 +761,10 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
     </section>
   )
 }
+
+const MemoBusinessOwnerDashboard = memo(BusinessOwnerDashboard)
+
+const MemoRevenueSummaryRow = memo(RevenueSummaryRow)
 
 function MonthlyRevenueChart({ data = [] }) {
   const [activeIndex, setActiveIndex] = useState(null)
@@ -1031,6 +1039,8 @@ function RevenueDashboards({ students = [] }) {
   )
 }
 
+const MemoRevenueDashboards = memo(RevenueDashboards)
+
 function AttendanceComparisonChart() {
   const isCompactMobile = useMediaQuery('(max-width: 640px)')
   const visibleAttendanceData = useMemo(
@@ -1116,6 +1126,8 @@ function AttendanceComparisonChart() {
     </article>
   )
 }
+
+const MemoAttendanceComparisonChart = memo(AttendanceComparisonChart)
 
 function StudentInfoItem({ label, value, fullWidth = false, valueClassName = '' }) {
   return (
@@ -1523,9 +1535,9 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
         </div>
       </div>
 
-      <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <RevenueDashboards students={revenueStudents} />
-      <AttendanceComparisonChart />
+      <MemoRevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
+      <MemoRevenueDashboards students={revenueStudents} />
+      <MemoAttendanceComparisonChart />
 
       {isProfileOpen && typeof document !== 'undefined'
         ? createPortal(
@@ -1650,6 +1662,8 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
   )
 }
 
+const MemoOperationManagerDashboard = memo(OperationManagerDashboard)
+
 function GenericDashboard({ role }) {
   const dashboard = roleDashboards[role]
 
@@ -1680,7 +1694,7 @@ function ManagementDashboard({ role, dashboard }) {
 
   if (role === 'business-owner') {
     return (
-      <BusinessOwnerDashboard
+      <MemoBusinessOwnerDashboard
         dashboard={dashboard}
         revenueSummary={revenueSummary}
         isRevenueLoading={isRevenueLoading}
@@ -1690,7 +1704,7 @@ function ManagementDashboard({ role, dashboard }) {
   }
 
   return (
-    <OperationManagerDashboard
+    <MemoOperationManagerDashboard
       dashboard={dashboard}
       revenueSummary={revenueSummary}
       isRevenueLoading={isRevenueLoading}
