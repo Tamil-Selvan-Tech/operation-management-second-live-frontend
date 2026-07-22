@@ -881,6 +881,8 @@ function MonthlyRevenueChart({ data = [] }) {
     () => (isCompactMobile ? getRollingWindowData(data, 1, 4) : data),
     [data, isCompactMobile],
   )
+  const topHalfMonths = visibleMonthlyData.slice(0, 6)
+  const bottomHalfMonths = visibleMonthlyData.slice(6, 12)
   const chartMax = getChartMax(visibleMonthlyData, 10000)
   const ticks = buildRevenueTicks(chartMax)
   const activePoint = activeIndex === null ? null : visibleMonthlyData[activeIndex]
@@ -918,57 +920,85 @@ function MonthlyRevenueChart({ data = [] }) {
             ))}
         </div>
 
-        <div className="revenue-plot" onMouseLeave={() => setActiveIndex(null)}>
-          <div className="revenue-grid-lines" aria-hidden="true">
-            {ticks.slice(1).map((tick) => (
-              <span key={tick} />
+        <div className="revenue-monthly-stack">
+          <div
+            className="revenue-month-labels-row revenue-month-labels-top"
+            aria-hidden="true"
+            style={{ gridTemplateColumns: `repeat(${Math.max(topHalfMonths.length, 1)}, minmax(0, 1fr))` }}
+          >
+            {topHalfMonths.map((item) => (
+              <span key={item.month} className="revenue-month-label">
+                {item.month}
+              </span>
             ))}
           </div>
 
-          {activePoint ? (
-            <div className="revenue-tooltip" style={tooltipStyle || undefined}>
-              <strong>{activePoint.month}</strong>
-              <div className="revenue-tooltip-row">
-                <span className="revenue-tooltip-label">
-                  <span className="revenue-tooltip-dot monthly" />
-                  Actual Revenue
-                </span>
-                <span className="revenue-tooltip-value">{formatRevenue(activePoint.actual)}</span>
-              </div>
-              <div className="revenue-tooltip-row">
-                <span className="revenue-tooltip-label">
-                  <span className="revenue-tooltip-dot expected" />
-                  Expected Revenue
-                </span>
-                <span className="revenue-tooltip-value">{formatRevenue(activePoint.expected)}</span>
-              </div>
+          <div className="revenue-plot" onMouseLeave={() => setActiveIndex(null)}>
+            <div className="revenue-grid-lines" aria-hidden="true">
+              {ticks.slice(1).map((tick) => (
+                <span key={tick} />
+              ))}
             </div>
-          ) : null}
 
-          <div className="revenue-groups" style={{ gridTemplateColumns: `repeat(${visibleMonthlyData.length}, minmax(0, 1fr))` }}>
-            {visibleMonthlyData.map((item, index) => {
-              const monthlyHeight = `${chartMax ? (item.actual / chartMax) * 100 : 0}%`
-              const expectedHeight = `${chartMax ? (item.expected / chartMax) * 100 : 0}%`
-              const isActive = index === activeIndex
-
-              return (
-                <button
-                  key={item.month}
-                  type="button"
-                  className={`revenue-month-group ${isActive ? 'is-active' : ''}`}
-                  onMouseEnter={() => setActiveIndex(index)}
-                  onFocus={() => setActiveIndex(index)}
-                  onBlur={() => setActiveIndex(null)}
-                  aria-label={`${item.month}. Actual Revenue ${formatRevenue(item.actual)}. Expected Revenue ${formatRevenue(item.expected)}.`}
-                >
-                  <span className="revenue-bars" aria-hidden="true">
-                    <span className="revenue-bar monthly" style={{ height: monthlyHeight }} />
-                    <span className="revenue-bar expected" style={{ height: expectedHeight }} />
+            {activePoint ? (
+              <div className="revenue-tooltip" style={tooltipStyle || undefined}>
+                <strong>{activePoint.month}</strong>
+                <div className="revenue-tooltip-row">
+                  <span className="revenue-tooltip-label">
+                    <span className="revenue-tooltip-dot monthly" />
+                    Actual Revenue
                   </span>
-                  <span className="revenue-month-label">{item.month}</span>
-                </button>
-              )
-            })}
+                  <span className="revenue-tooltip-value">{formatRevenue(activePoint.actual)}</span>
+                </div>
+                <div className="revenue-tooltip-row">
+                  <span className="revenue-tooltip-label">
+                    <span className="revenue-tooltip-dot expected" />
+                    Expected Revenue
+                  </span>
+                  <span className="revenue-tooltip-value">{formatRevenue(activePoint.expected)}</span>
+                </div>
+              </div>
+            ) : null}
+
+            <div
+              className="revenue-groups"
+              style={{ gridTemplateColumns: `repeat(${visibleMonthlyData.length}, minmax(0, 1fr))` }}
+            >
+              {visibleMonthlyData.map((item, index) => {
+                const monthlyHeight = `${chartMax ? (item.actual / chartMax) * 100 : 0}%`
+                const expectedHeight = `${chartMax ? (item.expected / chartMax) * 100 : 0}%`
+                const isActive = index === activeIndex
+
+                return (
+                  <button
+                    key={item.month}
+                    type="button"
+                    className={`revenue-month-group ${isActive ? 'is-active' : ''}`}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onFocus={() => setActiveIndex(index)}
+                    onBlur={() => setActiveIndex(null)}
+                    aria-label={`${item.month}. Actual Revenue ${formatRevenue(item.actual)}. Expected Revenue ${formatRevenue(item.expected)}.`}
+                  >
+                    <span className="revenue-bars" aria-hidden="true">
+                      <span className="revenue-bar monthly" style={{ height: monthlyHeight }} />
+                      <span className="revenue-bar expected" style={{ height: expectedHeight }} />
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div
+            className="revenue-month-labels-row revenue-month-labels-bottom"
+            aria-hidden="true"
+            style={{ gridTemplateColumns: `repeat(${Math.max(bottomHalfMonths.length, 1)}, minmax(0, 1fr))` }}
+          >
+            {bottomHalfMonths.map((item) => (
+              <span key={item.month} className="revenue-month-label">
+                {item.month}
+              </span>
+            ))}
           </div>
         </div>
       </div>
