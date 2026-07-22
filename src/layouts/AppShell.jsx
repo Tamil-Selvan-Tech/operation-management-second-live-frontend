@@ -50,7 +50,6 @@ export function AppShell({
     isStudentManagementPath ||
     isFacultyManagementPath ||
     isCoursesPath
-
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
 
   const bottomNavItems = [
@@ -107,7 +106,7 @@ export function AppShell({
 
   return (
     <MobileMenuContext.Provider value={() => setIsMobileSidebarOpen(true)}>
-      <div className="app-shell">
+      <div className="app-shell has-fixed-sidebar">
         <div
           className={`sidebar-backdrop ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
           role="presentation"
