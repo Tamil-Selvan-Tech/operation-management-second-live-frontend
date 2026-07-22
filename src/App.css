@@ -724,21 +724,27 @@ tbody tr:hover {
 
 .business-owner-dashboard .revenue-summary-card,
 .operation-manager-dashboard .revenue-summary-card {
-  min-height: 66px;
-  padding: 6px 8px 3px 10px;
+  min-height: 62px;
+  padding: 5px 8px 2px 10px;
 }
 
 .business-owner-dashboard .revenue-summary-icon-button,
 .operation-manager-dashboard .revenue-summary-icon-button,
 .business-owner-dashboard .revenue-summary-icon,
 .operation-manager-dashboard .revenue-summary-icon {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
 }
 
 .business-owner-dashboard .revenue-summary-icon,
 .operation-manager-dashboard .revenue-summary-icon {
-  margin-top: 4px;
+  margin-top: 3px;
+}
+
+.business-owner-dashboard .revenue-summary-info-button svg,
+.operation-manager-dashboard .revenue-summary-info-button svg {
+  width: 17px;
+  height: 17px;
 }
 
 @media (max-width: 1200px) {
@@ -2479,7 +2485,7 @@ tbody tr:hover {
 .revenue-summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
   align-items: stretch;
 }
 
@@ -2506,7 +2512,7 @@ tbody tr:hover {
 }
 
 .business-owner-dashboard .revenue-summary-row {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .revenue-summary-icon-button {
@@ -2602,16 +2608,16 @@ tbody tr:hover {
 
 .revenue-summary-content {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
-  margin-top: 8px;
+  margin-top: 5px;
 }
 
 .revenue-summary-label {
   color: #64748b;
-  font-size: 0.76rem;
-  font-weight: 600;
-  line-height: 1.1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2620,7 +2626,7 @@ tbody tr:hover {
 .revenue-summary-value {
   color: #0f172a;
   font-size: clamp(1.16rem, 1.35vw, 1.5rem);
-  line-height: 1;
+  line-height: 0.98;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
@@ -5496,6 +5502,50 @@ tbody tr:hover {
   border: 0;
   background: transparent;
   box-shadow: none;
+}
+
+@media (min-width: 1201px) and (max-width: 1440px) {
+  .courses-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'copy count'
+      'actions actions';
+    gap: 12px 16px;
+    align-items: start;
+  }
+
+  .courses-topbar-copy {
+    grid-area: copy;
+    min-width: 0;
+  }
+
+  .course-count-pill {
+    grid-area: count;
+    justify-self: end;
+    align-self: start;
+    min-width: 110px;
+    padding: 9px 12px;
+  }
+
+  .courses-topbar-actions {
+    grid-area: actions;
+    width: 100%;
+    margin-left: 0;
+    margin-top: 0;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .courses-topbar-actions .search-bar {
+    width: min(320px, 100%);
+  }
+
+  .course-add-button {
+    min-height: 40px;
+    padding-inline: 16px;
+  }
 }
 
 .course-modal-backdrop {
