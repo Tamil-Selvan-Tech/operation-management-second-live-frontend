@@ -43,6 +43,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 14px;
@@ -57,6 +58,21 @@ button,
 input,
 select {
   font: inherit;
+}
+
+img,
+video,
+canvas,
+picture {
+  max-width: 100%;
+  height: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
 }
 
 button {
@@ -102,11 +118,13 @@ a {
 
 #root {
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 .auth-shell,
 .app-shell {
   min-height: 100vh;
+  min-width: 0;
 }
 
 .auth-shell {
@@ -125,6 +143,7 @@ a {
   grid-template-columns: 290px minmax(0, 1fr);
   gap: 24px;
   padding: 24px;
+  min-width: 0;
 }
 
 .sidebar,
@@ -147,6 +166,10 @@ a {
   position: sticky;
   top: 24px;
   height: calc(100vh - 48px);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  pointer-events: auto;
 }
 
 .sidebar-head {
@@ -227,6 +250,19 @@ a {
 .menu {
   display: grid;
   gap: 10px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.sidebar-menu-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
 }
 
 .mobile-menu-button {
@@ -408,6 +444,19 @@ body {
   border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.dashboard-grid > *,
+.student-dashboard-grid > *,
+.student-dashboard-info-grid > *,
+.revenue-summary-row > *,
+.revenue-comparison-grid > *,
+.form > *,
+.course-form-grid > *,
+.student-form-grid > *,
+.faculty-modal-grid > * {
+  min-width: 0;
 }
 
 .topbar,
@@ -418,6 +467,14 @@ body {
   border: 1px solid var(--line);
   border-radius: 16px;
   box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.topbar > *,
+.business-topbar > *,
+.page-header > *,
+.section-header > * {
+  min-width: 0;
 }
 
 .topbar h1,
@@ -722,14 +779,85 @@ tbody tr:hover {
   border-top: 3px solid #7c3aed;
 }
 
+.business-owner-dashboard .revenue-summary-card,
+.operation-manager-dashboard .revenue-summary-card {
+  min-height: 62px;
+  padding: 5px 8px 2px 10px;
+}
+
+.business-owner-dashboard .revenue-summary-icon-button,
+.operation-manager-dashboard .revenue-summary-icon-button,
+.business-owner-dashboard .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.business-owner-dashboard .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-icon {
+  margin-top: 3px;
+}
+
+.business-owner-dashboard .revenue-summary-info-button svg,
+.operation-manager-dashboard .revenue-summary-info-button svg {
+  width: 17px;
+  height: 17px;
+}
+
 @media (max-width: 1200px) {
   .app-shell {
     padding: 16px;
   }
 
   .sidebar {
-    position: static;
-    height: auto;
+    position: sticky;
+    top: 16px;
+    height: calc(100vh - 32px);
+  }
+
+  .courses-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'copy count'
+      'actions actions';
+    gap: 10px 12px;
+    align-items: start;
+    margin-top: 4px;
+  }
+
+  .courses-topbar-copy {
+    grid-area: copy;
+    min-width: 0;
+  }
+
+  .course-count-pill {
+    grid-area: count;
+    justify-self: end;
+    min-width: 104px;
+    padding: 9px 12px;
+  }
+
+  .courses-topbar-actions {
+    grid-area: actions;
+    width: 100%;
+    margin-left: 0;
+    margin-top: 0;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .course-add-button {
+    min-height: 40px;
+    padding-inline: 16px;
+    flex: 0 0 auto;
+  }
+
+  .courses-topbar-actions .search-bar {
+    flex: 1 1 280px;
+    width: min(360px, 100%);
+    min-width: 260px;
   }
 }
 
@@ -968,6 +1096,12 @@ tbody tr:hover {
   color: var(--muted);
   font-size: 0.95rem;
   padding: 4px 0 8px;
+  min-width: 0;
+}
+
+.breadcrumbs span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .breadcrumb-separator {
@@ -1932,6 +2066,7 @@ tbody tr:hover {
 
 .dashboard-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
 }
 
 .dashboard-grid .hero-card {
@@ -1945,11 +2080,13 @@ tbody tr:hover {
 
 .profile-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
 }
 
 .student-dashboard-page {
   display: grid;
   gap: 18px;
+  min-width: 0;
 }
 
 .student-dashboard-empty {
@@ -2096,6 +2233,7 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  min-width: 0;
 }
 
 .student-section-card {
@@ -2460,7 +2598,7 @@ tbody tr:hover {
 .revenue-summary-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
   align-items: stretch;
 }
 
@@ -2487,7 +2625,7 @@ tbody tr:hover {
 }
 
 .business-owner-dashboard .revenue-summary-row {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .revenue-summary-icon-button {
@@ -2583,16 +2721,16 @@ tbody tr:hover {
 
 .revenue-summary-content {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
-  margin-top: 8px;
+  margin-top: 5px;
 }
 
 .revenue-summary-label {
   color: #64748b;
-  font-size: 0.76rem;
-  font-weight: 600;
-  line-height: 1.1;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2601,7 +2739,7 @@ tbody tr:hover {
 .revenue-summary-value {
   color: #0f172a;
   font-size: clamp(1.16rem, 1.35vw, 1.5rem);
-  line-height: 1;
+  line-height: 0.98;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
@@ -3913,6 +4051,8 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   padding: 14px 16px 12px;
   border-bottom: 1px solid #e8eef8;
 }
@@ -4010,8 +4150,8 @@ tbody tr:hover {
   font-size: 0.93rem;
   font-weight: 800;
   line-height: 1.2;
-  overflow-wrap: normal;
-  word-break: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .notification-dropdown-item span {
@@ -4021,6 +4161,8 @@ tbody tr:hover {
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .notification-dropdown-item small {
@@ -4029,6 +4171,7 @@ tbody tr:hover {
   color: #94a3b8;
   font-size: 0.72rem;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .notification-dropdown-footer {
@@ -4768,6 +4911,11 @@ tbody tr:hover {
   background: rgba(245, 158, 11, 0.14);
 }
 
+.profile-modal-stat.tone-amber strong {
+  display: inline-block;
+  transform: translateY(-6px);
+}
+
 .profile-modal-stat > div {
   min-width: 0;
   display: grid;
@@ -4889,29 +5037,118 @@ tbody tr:hover {
   }
 
   .profile-drawer {
-    width: min(100%, 320px);
+    width: min(calc(100vw - 12px), 390px);
+    height: calc(100vh - 12px);
+    max-height: calc(100vh - 12px);
+    border-radius: 18px 0 0 18px;
   }
 
   .profile-modal-cover {
-    min-height: 132px;
+    min-height: 112px;
+  }
+
+  .profile-modal-cover::before {
+    inset: auto -2% -16px -2%;
+    height: 62px;
+  }
+
+  .profile-modal-avatar-wrap {
+    bottom: -12px;
+  }
+
+  .profile-modal-avatar {
+    width: 56px;
+    height: 56px;
+    border-width: 5px;
+    font-size: 1rem;
+  }
+
+  .profile-modal-status-dot {
+    width: 9px;
+    height: 9px;
+    right: 2px;
+    bottom: 4px;
+    border-width: 2px;
+  }
+
+  .profile-modal-close {
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
   }
 
   .profile-drawer-body {
-    padding: 0 16px 14px;
+    padding: 14px 14px 10px;
     gap: 0;
+  }
+
+  .profile-drawer-body .profile-modal-eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+  }
+
+  .profile-drawer-body h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.14;
+  }
+
+  .profile-drawer-body .profile-modal-email {
+    margin: 6px 0 0;
+    font-size: 0.76rem;
+    line-height: 1.15;
+    word-break: break-word;
+  }
+
+  .profile-drawer-body .profile-modal-grid {
+    margin-top: 12px;
   }
 
   .profile-modal-grid {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .profile-modal-info-row {
     grid-template-columns: 1fr;
     gap: 6px;
+    padding: 8px 0;
   }
 
   .profile-modal-info-row strong {
     text-align: left;
+  }
+
+  .profile-modal-stat {
+    min-height: 54px;
+    padding: 8px 9px;
+    gap: 7px;
+    border-radius: 13px;
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .profile-modal-stat-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .profile-modal-stat span {
+    font-size: 0.64rem;
+  }
+
+  .profile-modal-stat strong {
+    font-size: 0.84rem;
+  }
+
+  .profile-modal-info-label {
+    gap: 7px;
+    font-size: 0.72rem;
+  }
+
+  .profile-modal-info-row strong {
+    font-size: 0.8rem;
+    line-height: 1.15;
   }
 }
 
@@ -5474,6 +5711,50 @@ tbody tr:hover {
   box-shadow: none;
 }
 
+@media (min-width: 1201px) and (max-width: 1440px) {
+  .courses-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'copy count'
+      'actions actions';
+    gap: 12px 16px;
+    align-items: start;
+  }
+
+  .courses-topbar-copy {
+    grid-area: copy;
+    min-width: 0;
+  }
+
+  .course-count-pill {
+    grid-area: count;
+    justify-self: end;
+    align-self: start;
+    min-width: 110px;
+    padding: 9px 12px;
+  }
+
+  .courses-topbar-actions {
+    grid-area: actions;
+    width: 100%;
+    margin-left: 0;
+    margin-top: 0;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .courses-topbar-actions .search-bar {
+    width: min(320px, 100%);
+  }
+
+  .course-add-button {
+    min-height: 40px;
+    padding-inline: 16px;
+  }
+}
+
 .course-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -5667,6 +5948,7 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
+  min-width: 0;
 }
 
 .course-field {
@@ -7967,6 +8249,88 @@ tbody tr:hover {
     grid-column: 2 / -1;
     text-align: left;
     justify-self: start;
+  }
+}
+
+@media (max-width: 768px) {
+  .topbar,
+  .business-topbar {
+    padding: 16px 16px 12px;
+    gap: 12px;
+  }
+
+  .topbar h1,
+  .business-topbar h2 {
+    font-size: 1.45rem;
+    white-space: normal;
+  }
+
+  .courses-topbar {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'copy'
+      'count'
+      'actions';
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .course-count-pill {
+    justify-self: start;
+    width: min(220px, 100%);
+  }
+
+  .courses-topbar-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .courses-topbar-actions .search-bar,
+  .courses-topbar-actions .course-add-button,
+  .course-add-button {
+    width: 100%;
+  }
+
+  .dashboard-grid,
+  .profile-grid,
+  .student-dashboard-grid,
+  .revenue-summary-row,
+  .revenue-comparison-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .course-form-grid,
+  .student-modal .student-form-grid,
+  .faculty-modal-grid,
+  .student-form-grid,
+  .student-form-grid-tight {
+    grid-template-columns: 1fr;
+  }
+
+  .course-form-actions,
+  .button-row,
+  .form-links {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .course-table {
+    min-width: 920px;
+  }
+
+  .course-modal,
+  .student-modal,
+  .faculty-modal,
+  .batch-student-modal,
+  .logout-modal,
+  .profile-drawer {
+    width: min(100%, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+  }
+
+  .attendance-chart {
+    grid-template-columns: 40px minmax(0, 1fr) 34px;
+    min-height: 260px;
   }
 }
 
@@ -10877,6 +11241,14 @@ tbody tr:hover {
   background: #ffffff;
   scrollbar-width: thin;
   scrollbar-color: #3b9bf6 #e5eefb;
+  -webkit-overflow-scrolling: touch;
+}
+
+.faculty-table-wrap,
+.faculty-flow-table-wrap {
+  overflow: auto;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table-wrap::-webkit-scrollbar,
@@ -11406,6 +11778,8 @@ tbody tr:hover {
   background: #ffffff;
   color: var(--muted);
   flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
 }
 
 .pagination-bar-button {
@@ -11439,6 +11813,8 @@ tbody tr:hover {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .pagination-bar-page {
@@ -11476,6 +11852,7 @@ tbody tr:hover {
   color: #64748b;
   font-size: 15px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .course-pagination:not(.app-pagination),
@@ -12941,6 +13318,8 @@ tbody tr:hover {
 .menu button {
   min-height: 46px;
   padding: 11px 14px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .role-card {
@@ -13179,10 +13558,7 @@ tbody tr:hover {
     transform: translateX(calc(-100% - 28px));
     transition: transform 0.24s ease;
     z-index: 100;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+    overflow: hidden;
   }
 
   .sidebar.is-open {
@@ -14139,8 +14515,8 @@ tbody tr:hover {
 
 .menu {
   gap: 8px;
-  overflow: auto;
-  padding-right: 2px;
+  min-height: 0;
+  min-width: 0;
 }
 
 .menu-section {
@@ -14266,6 +14642,7 @@ tbody tr:hover {
   display: grid;
   gap: 6px;
   padding-top: 0;
+  flex: 0 0 auto;
 }
 
 .sidebar-profile-card {
@@ -14353,6 +14730,160 @@ tbody tr:hover {
   }
 }
 
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 18px;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 16px auto 16px 16px;
+    width: min(330px, calc(100vw - 32px));
+    height: calc(100vh - 32px);
+    transform: translateX(calc(-100% - 28px));
+    transition: transform 0.24s ease;
+    z-index: 1200;
+    padding: 20px;
+    overflow: hidden;
+    pointer-events: auto;
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.2);
+    backdrop-filter: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.22s ease, visibility 0.22s ease;
+    z-index: 1100;
+    pointer-events: auto;
+  }
+
+  .sidebar-backdrop.is-open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .mobile-menu-button {
+    display: inline-flex;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 10px;
+  }
+
+  .main-area {
+    padding: 18px;
+    min-width: 0;
+  }
+
+  .topbar,
+  .business-topbar {
+    padding: 18px 18px 14px;
+    gap: 14px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .business-topbar-actions,
+  .courses-topbar-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .business-topbar-actions {
+    gap: 10px;
+  }
+
+  .courses-topbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'copy count'
+      'actions actions';
+    gap: 12px 14px;
+    align-items: start;
+    margin-top: 4px;
+  }
+
+  .courses-topbar-copy {
+    grid-area: copy;
+    min-width: 0;
+  }
+
+  .course-count-pill {
+    grid-area: count;
+    justify-self: end;
+    min-width: 110px;
+    padding: 9px 12px;
+  }
+
+  .courses-topbar-actions {
+    grid-area: actions;
+    margin-top: 0;
+  }
+
+  .courses-topbar-actions .search-bar {
+    width: min(300px, 100%);
+  }
+
+  .course-add-button {
+    min-height: 40px;
+    padding-inline: 16px;
+  }
+
+  .dashboard-grid,
+  .profile-grid,
+  .student-dashboard-grid,
+  .revenue-summary-row,
+  .revenue-comparison-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-dashboard-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .course-form-grid,
+  .student-modal .student-form-grid,
+  .faculty-modal-grid,
+  .student-form-grid,
+  .student-form-grid-tight {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .course-table {
+    min-width: 1040px;
+  }
+
+  .course-table thead th,
+  .course-table tbody td {
+    padding: 12px 10px;
+    font-size: 12px;
+  }
+
+  .attendance-chart {
+    grid-template-columns: 46px minmax(0, 1fr) 42px;
+    min-height: 280px;
+  }
+
+  .revenue-comparison-card {
+    min-height: 0;
+  }
+}
+
 @media (max-width: 960px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -14363,9 +14894,10 @@ tbody tr:hover {
     inset: 16px auto 16px 16px;
     width: min(330px, calc(100vw - 32px));
     max-height: calc(100vh - 32px);
-    z-index: 40;
+    z-index: 1200;
     transform: translateX(-110%);
     transition: transform 0.2s ease;
+    pointer-events: auto;
   }
 
   .sidebar.is-open {
@@ -14374,6 +14906,8 @@ tbody tr:hover {
 
   .sidebar-backdrop {
     display: block;
+    z-index: 1100;
+    pointer-events: auto;
   }
 }
 
@@ -14402,4 +14936,501 @@ tbody tr:hover {
   }
 }
 
+@media (max-width: 480px) {
+  .app-shell {
+    padding: 8px;
+  }
 
+  .main-area,
+  .sidebar,
+  .auth-card,
+  .panel {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .topbar,
+  .business-topbar {
+    padding: 12px 12px 10px;
+  }
+
+  .dashboard-grid,
+  .profile-grid,
+  .student-dashboard-grid,
+  .revenue-summary-row,
+  .revenue-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .course-add-button,
+  .button,
+  .form button,
+  .button-row button {
+    width: 100%;
+  }
+
+  .course-toolbar {
+    gap: 6px;
+  }
+
+  .course-filter-chip {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 11px;
+  }
+
+  .course-table {
+    min-width: 860px;
+  }
+
+  .course-form-actions,
+  .button-row,
+  .form-links {
+    gap: 10px;
+  }
+
+  .profile-drawer {
+    width: calc(100vw - 10px);
+  }
+
+  .profile-drawer-body {
+    padding: 12px 12px 10px;
+  }
+
+  .profile-modal-cover {
+    min-height: 106px;
+  }
+
+  .profile-drawer-body .profile-modal-grid {
+    margin-top: 10px;
+  }
+
+  .student-drawer-table-shell {
+    max-height: calc(100vh - 124px);
+  }
+
+  .course-details-table {
+    table-layout: auto;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
+  .course-details-table tbody tr {
+    display: block;
+    margin: 0;
+    border: 1px solid #d6deea;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #ffffff;
+  }
+
+  .course-details-table th,
+  .course-details-table td {
+    display: block;
+    width: 100% !important;
+    min-width: 0;
+    padding: 10px 12px;
+    font-size: 0.86rem;
+    line-height: 1.3;
+    word-break: normal;
+    overflow-wrap: normal;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .course-details-table th {
+    letter-spacing: 0;
+    white-space: normal;
+    background: #f8fbff;
+    font-size: 0.76rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    border-bottom: 1px solid #dbe5f3;
+  }
+
+  .course-details-table td {
+    border-top: 0;
+    border-bottom: 1px solid #e8eef7;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  .course-details-table tr td:last-child,
+  .course-details-table tr th:last-child {
+    border-bottom: 0;
+  }
+
+  .course-details-table td[colspan='3'] {
+    justify-content: flex-start;
+  }
+
+  .course-drawer-table-header {
+    height: auto;
+    min-height: 0;
+    padding: 12px 12px 10px;
+  }
+
+  .course-drawer-table-header > div:first-child {
+    justify-items: flex-start;
+    text-align: left;
+    gap: 2px;
+  }
+
+  .course-drawer-table-header .section-kicker {
+    font-size: 0.56rem;
+    letter-spacing: 0.16em;
+  }
+
+  .course-drawer-table-header h3 {
+    font-size: 1rem;
+    line-height: 1.08;
+    white-space: normal;
+  }
+
+  .student-drawer-table-actions {
+    position: static;
+    justify-content: flex-end;
+    width: 100%;
+    margin-top: 8px;
+    gap: 6px;
+  }
+
+  .course-drawer-table-header .student-drawer-close-floating {
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+  }
+
+  .student-drawer-edit-button {
+    min-height: 28px;
+    padding: 0 9px;
+    font-size: 0.74rem;
+  }
+
+  .student-drawer-edit-button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .course-row-menu-trigger {
+    width: 36px;
+    height: 36px;
+  }
+
+  .course-row-action-menu {
+    min-width: min(176px, calc(100vw - 20px));
+    padding: 8px;
+    border-radius: 18px;
+  }
+
+  .course-row-action-menu-item {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .course-row-action-menu-item svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .business-owner-dashboard .business-topbar {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .operation-manager-dashboard .business-topbar,
+  .operation-manager-header {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .notifications-page-top-header {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .business-owner-dashboard .business-topbar > div:first-child,
+  .business-owner-dashboard .business-topbar-copy,
+  .operation-manager-dashboard .business-topbar > div:first-child,
+  .operation-manager-dashboard .business-topbar-copy,
+  .operation-manager-header .business-topbar-copy,
+  .notifications-page-top-header .business-topbar-copy {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .business-owner-dashboard .business-topbar-copy,
+  .operation-manager-dashboard .business-topbar-copy,
+  .operation-manager-header .business-topbar-copy,
+  .notifications-page-top-header .business-topbar-copy {
+    display: grid;
+    gap: 2px;
+  }
+
+  .business-owner-dashboard .business-topbar-actions {
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .operation-manager-dashboard .business-topbar-actions,
+  .operation-manager-header .business-topbar-actions {
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .operation-manager-dashboard .notification-menu {
+    margin-top: -1px;
+  }
+
+  .notifications-page-top-header .business-topbar-actions {
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .business-owner-dashboard .notification-menu,
+  .business-owner-dashboard .profile-chip,
+  .operation-manager-dashboard .notification-menu,
+  .operation-manager-dashboard .profile-chip,
+  .operation-manager-header .notification-menu,
+  .operation-manager-header .profile-chip,
+  .notifications-page-top-header .notification-menu,
+  .notifications-page-top-header .profile-chip {
+    flex: 0 0 auto;
+  }
+
+  .business-owner-dashboard .profile-chip {
+    padding: 7px 10px 7px 7px;
+  }
+
+  .operation-manager-dashboard .profile-chip,
+  .operation-manager-header .profile-chip {
+    padding: 7px 10px 7px 7px;
+  }
+
+  .notifications-page-top-header .profile-chip {
+    padding: 7px 10px 7px 7px;
+  }
+
+  .business-owner-dashboard .profile-chip strong {
+    font-size: 0.9rem;
+  }
+
+  .business-owner-dashboard .profile-chip-email {
+    font-size: 0.74rem;
+  }
+
+  .operation-manager-dashboard .profile-chip strong,
+  .operation-manager-header .profile-chip strong {
+    font-size: 0.9rem;
+  }
+
+  .operation-manager-dashboard .profile-chip-email,
+  .operation-manager-header .profile-chip-email {
+    font-size: 0.74rem;
+  }
+
+  .notifications-page-top-header .profile-chip strong {
+    font-size: 0.9rem;
+  }
+
+  .notifications-page-top-header .profile-chip-email {
+    font-size: 0.74rem;
+  }
+
+  .business-owner-dashboard .business-topbar h2,
+  .operation-manager-dashboard .business-topbar h2,
+  .operation-manager-header .business-topbar h2,
+  .notifications-page-top-header .business-topbar h2 {
+    margin: 2px 0 0;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+  }
+
+  .operation-manager-dashboard .business-topbar h2 {
+    width: min(17ch, 100%);
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: normal;
+    overflow-wrap: normal;
+  }
+
+  .business-owner-dashboard .revenue-comparison-card,
+  .operation-manager-dashboard .revenue-comparison-card {
+    min-height: 288px;
+    padding: 12px 12px 10px;
+  }
+
+  .business-owner-dashboard .revenue-comparison-header,
+  .operation-manager-dashboard .revenue-comparison-header {
+    gap: 8px;
+    padding-right: 24px;
+  }
+
+  .business-owner-dashboard .revenue-comparison-header h3,
+  .operation-manager-dashboard .revenue-comparison-header h3 {
+    font-size: 0.86rem;
+    line-height: 1.18;
+  }
+
+  .business-owner-dashboard .revenue-comparison-body,
+  .operation-manager-dashboard .revenue-comparison-body {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .business-owner-dashboard .revenue-axis-y,
+  .operation-manager-dashboard .revenue-axis-y {
+    font-size: 0.72rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    padding-bottom: 10px;
+  }
+
+  .business-owner-dashboard .revenue-plot,
+  .operation-manager-dashboard .revenue-plot {
+    min-height: 214px;
+    padding: 0 8px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .business-owner-dashboard .revenue-groups,
+  .operation-manager-dashboard .revenue-groups {
+    min-width: 520px;
+    gap: 8px;
+  }
+
+  .business-owner-dashboard .revenue-month-group,
+  .operation-manager-dashboard .revenue-month-group {
+    min-width: 44px;
+    gap: 8px;
+  }
+
+  .business-owner-dashboard .revenue-bars,
+  .operation-manager-dashboard .revenue-bars {
+    min-height: 150px;
+    gap: 5px;
+  }
+
+  .business-owner-dashboard .revenue-month-label,
+  .operation-manager-dashboard .revenue-month-label {
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+
+  .profile-drawer {
+    width: min(100%, 420px);
+    height: calc(100vh - 56px);
+    max-height: calc(100vh - 56px);
+  }
+
+  .profile-modal-cover {
+    min-height: 120px;
+  }
+
+  .profile-modal-cover::before {
+    inset: auto -2% -18px -2%;
+    height: 70px;
+  }
+
+  .profile-modal-avatar-wrap {
+    bottom: -14px;
+  }
+
+  .profile-modal-avatar {
+    width: 60px;
+    height: 60px;
+    border-width: 5px;
+    font-size: 1.05rem;
+  }
+
+  .profile-modal-status-dot {
+    width: 10px;
+    height: 10px;
+    border-width: 2px;
+    right: 2px;
+    bottom: 4px;
+  }
+
+  .profile-modal-close {
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .profile-drawer-body {
+    padding: 0 18px 12px;
+  }
+
+  .profile-drawer-body .profile-modal-grid {
+    margin-top: -6px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-modal-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-modal-info-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .profile-modal-info-row strong {
+    text-align: right;
+  }
+
+  .profile-modal-stat {
+    min-height: 60px;
+    padding: 8px 10px;
+    border-radius: 14px;
+    gap: 8px;
+    grid-template-columns: 20px minmax(0, 1fr);
+  }
+
+  .profile-modal-stat-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .profile-modal-stat span {
+    font-size: 0.68rem;
+  }
+
+  .profile-modal-stat strong {
+    font-size: 0.88rem;
+  }
+
+  .profile-modal-info-row {
+    padding: 7px 0;
+    gap: 12px;
+  }
+
+  .profile-modal-info-label {
+    gap: 8px;
+    font-size: 0.74rem;
+  }
+
+  .profile-modal-info-row strong {
+    font-size: 0.84rem;
+  }
+}

@@ -171,7 +171,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
           </FormField>
 
           <div className="login-footer-links">
-            <label className="remember-me">
+            {/* <label className="remember-me">
               <input
                 type="checkbox"
                 checked={Boolean(form.rememberMe)}
@@ -180,7 +180,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
                 }
               />
               <span>Remember me</span>
-            </label>
+            </label> */}
 
             <a href="/forgot-password" className="text-link">
               Forgot password?

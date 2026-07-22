@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import {
   BrowserRouter,
   Navigate,
@@ -9,27 +9,9 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router-dom'
-import { AuthShell } from '../layouts/AuthShell'
-import { AppShell } from '../layouts/AppShell'
 import { useAuth } from '../auth/useAuth'
 import { courseAccessRoles, roleDashboards, dashboardPathByRole } from '../data/authData'
-import { DashboardPage } from '../pages/DashboardPage'
-import { ForgotPasswordPage } from '../pages/ForgotPasswordPage'
-import { LoginPage } from '../pages/LoginPage'
-import { NotFoundPage } from '../pages/NotFoundPage'
 import { LoadingPage } from '../pages/LoadingPage'
-import { CoursesPage } from '../pages/CoursesPage'
-import { FacultyDetailsPage } from '../pages/FacultyDetailsPage'
-import { FacultyManagementPage } from '../pages/FacultyManagementPage'
-import { FacultyCourseCatalogPage } from '../pages/FacultyCourseCatalogPage'
-import { FacultyCourseFacultyPage } from '../pages/FacultyCourseFacultyPage'
-import { BatchStudentsPage } from '../pages/BatchStudentsPage'
-import { CourseBatchesPage } from '../pages/CourseBatchesPage'
-import { StudentManagementPage } from '../pages/StudentManagementPage'
-import { NotificationsPage } from '../pages/NotificationsPage'
-import { ResetPasswordPage } from '../pages/ResetPasswordPage'
-import { SessionExpiredPage } from '../pages/SessionExpiredPage'
-import { UnauthorizedPage } from '../pages/UnauthorizedPage'
 import { requestPasswordReset, resetPassword } from '../services/apiClient'
 import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
 import { PublicRoute } from './PublicRoute'
@@ -38,6 +20,40 @@ import {
   loadPendingLoginEmail,
   savePendingLoginEmail,
 } from '../lib/session'
+
+const lazyNamed = (loader, exportName) =>
+  lazy(() => loader().then((module) => ({ default: module[exportName] })))
+
+const AuthShell = lazyNamed(() => import('../layouts/AuthShell'), 'AuthShell')
+const AppShell = lazyNamed(() => import('../layouts/AppShell'), 'AppShell')
+const DashboardPage = lazyNamed(() => import('../pages/DashboardPage'), 'DashboardPage')
+const ForgotPasswordPage = lazyNamed(() => import('../pages/ForgotPasswordPage'), 'ForgotPasswordPage')
+const LoginPage = lazyNamed(() => import('../pages/LoginPage'), 'LoginPage')
+const NotFoundPage = lazyNamed(() => import('../pages/NotFoundPage'), 'NotFoundPage')
+const CoursesPage = lazyNamed(() => import('../pages/CoursesPage'), 'CoursesPage')
+const FacultyDetailsPage = lazyNamed(() => import('../pages/FacultyDetailsPage'), 'FacultyDetailsPage')
+const FacultyManagementPage = lazyNamed(
+  () => import('../pages/FacultyManagementPage'),
+  'FacultyManagementPage',
+)
+const FacultyCourseCatalogPage = lazyNamed(
+  () => import('../pages/FacultyCourseCatalogPage'),
+  'FacultyCourseCatalogPage',
+)
+const FacultyCourseFacultyPage = lazyNamed(
+  () => import('../pages/FacultyCourseFacultyPage'),
+  'FacultyCourseFacultyPage',
+)
+const BatchStudentsPage = lazyNamed(() => import('../pages/BatchStudentsPage'), 'BatchStudentsPage')
+const CourseBatchesPage = lazyNamed(() => import('../pages/CourseBatchesPage'), 'CourseBatchesPage')
+const StudentManagementPage = lazyNamed(
+  () => import('../pages/StudentManagementPage'),
+  'StudentManagementPage',
+)
+const NotificationsPage = lazyNamed(() => import('../pages/NotificationsPage'), 'NotificationsPage')
+const ResetPasswordPage = lazyNamed(() => import('../pages/ResetPasswordPage'), 'ResetPasswordPage')
+const SessionExpiredPage = lazyNamed(() => import('../pages/SessionExpiredPage'), 'SessionExpiredPage')
+const UnauthorizedPage = lazyNamed(() => import('../pages/UnauthorizedPage'), 'UnauthorizedPage')
 
 const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
 
@@ -305,50 +321,79 @@ function ProfileRedirectRoute() {
 export function AppRouter() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<RootRoute />} />
-        <Route path="/loading" element={<LoadingPage />} />
-        <Route element={<PublicRoute />}>
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<LoginScreen />} />
-            <Route path="/forgot-password" element={<LoginResetRoute title="forgot" />} />
-            <Route path="/reset-password" element={<LoginResetRoute title="reset" />} />
+      <Suspense fallback={<LoadingPage />}>
+        <Routes>
+          <Route path="/" element={<RootRoute />} />
+          <Route path="/loading" element={<LoadingPage />} />
+          <Route element={<PublicRoute />}>
+            <Route element={<AuthLayout />}>
+              <Route path="/login" element={<LoginScreen />} />
+              <Route path="/forgot-password" element={<LoginResetRoute title="forgot" />} />
+              <Route path="/reset-password" element={<LoginResetRoute title="reset" />} />
+            </Route>
           </Route>
-        </Route>
 
-        <Route path="/unauthorized" element={<StatusRoute kind="unauthorized" />} />
-        <Route path="/session-expired" element={<StatusRoute kind="session-expired" />} />
+          <Route path="/unauthorized" element={<StatusRoute kind="unauthorized" />} />
+          <Route path="/session-expired" element={<StatusRoute kind="session-expired" />} />
 
-        <Route element={<ProtectedRoute allowedRoles={['business-owner', 'operation-manager', 'hr', 'faculty', 'student']} />}>
-          <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<RoleDashboardRedirect />} />
-            <Route path="/dashboard/business-owner" element={<DashboardPage role="business-owner" />} />
-            <Route path="/dashboard/operation-manager" element={<DashboardPage role="operation-manager" />} />
-            <Route path="/dashboard/operation-manager/courses" element={<CoursesPage />} />
-            <Route path="/dashboard/operation-manager/student-management" element={<StudentManagementPage />} />
-            <Route path="/dashboard/operation-manager/faculty-management" element={<FacultyManagementPage />} />
-            <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
-            <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
-            <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
-            <Route path="/courses" element={<CoursesPage />} />
-            <Route path="/student-management" element={<StudentManagementPage />} />
-            <Route path="/faculty-management" element={<FacultyManagementPage />} />
-            <Route path="/faculty-management/courses" element={<FacultyCourseCatalogPage />} />
-            <Route path="/faculty-management/course/:courseId" element={<FacultyCourseFacultyPage />} />
-            <Route path="/faculty-management/course/:courseId/faculty/:facultyId/batches" element={<CourseBatchesPage />} />
-            <Route path="/faculty-management/course/:courseId/faculty/:facultyId/batches/:batchId" element={<BatchStudentsPage />} />
-            <Route path="/faculty-management/:facultyId" element={<FacultyDetailsPage />} />
-            <Route path="/faculty-management/:facultyId/courses/:courseId" element={<CourseBatchesPage />} />
-            <Route path="/faculty-management/:facultyId/courses/:courseId/batches/:batchId" element={<BatchStudentsPage />} />
+          <Route
+            element={
+              <ProtectedRoute
+                allowedRoles={['business-owner', 'operation-manager', 'hr', 'faculty', 'student']}
+              />
+            }
+          >
+            <Route element={<AppLayout />}>
+              <Route path="/dashboard" element={<RoleDashboardRedirect />} />
+              <Route path="/dashboard/business-owner" element={<DashboardPage role="business-owner" />} />
+              <Route path="/dashboard/operation-manager" element={<DashboardPage role="operation-manager" />} />
+              <Route path="/dashboard/operation-manager/courses" element={<CoursesPage />} />
+              <Route
+                path="/dashboard/operation-manager/student-management"
+                element={<StudentManagementPage />}
+              />
+              <Route
+                path="/dashboard/operation-manager/faculty-management"
+                element={<FacultyManagementPage />}
+              />
+              <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
+              <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
+              <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
+                <Route path="/courses" element={<CoursesPage />} />
+                <Route path="/student-management" element={<StudentManagementPage />} />
+                <Route path="/faculty-management" element={<FacultyManagementPage />} />
+                <Route path="/faculty-management/courses" element={<FacultyCourseCatalogPage />} />
+                <Route
+                  path="/faculty-management/course/:courseId"
+                  element={<FacultyCourseFacultyPage />}
+                />
+                <Route
+                  path="/faculty-management/course/:courseId/faculty/:facultyId/batches"
+                  element={<CourseBatchesPage />}
+                />
+                <Route
+                  path="/faculty-management/course/:courseId/faculty/:facultyId/batches/:batchId"
+                  element={<BatchStudentsPage />}
+                />
+                <Route path="/faculty-management/:facultyId" element={<FacultyDetailsPage />} />
+                <Route
+                  path="/faculty-management/:facultyId/courses/:courseId"
+                  element={<CourseBatchesPage />}
+                />
+                <Route
+                  path="/faculty-management/:facultyId/courses/:courseId/batches/:batchId"
+                  element={<BatchStudentsPage />}
+                />
+              </Route>
+              <Route path="/profile" element={<ProfileRedirectRoute />} />
+            </Route>
           </Route>
-            <Route path="/profile" element={<ProfileRedirectRoute />} />
-          </Route>
-        </Route>
 
-        <Route path="*" element={<NotFoundRoute />} />
-      </Routes>
+          <Route path="*" element={<NotFoundRoute />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   )
 }

@@ -80,10 +80,9 @@ export function OperationManagerHeader({
         </button>
 
         <div className="operation-manager-mobile-brand" aria-hidden="true">
-          <img className="operation-manager-mobile-brand-logo" src="/logo.png" alt="" />
+          <img className="operation-manager-mobile-brand-logo" src="/logo1.png" alt="" />
           <div className="operation-manager-mobile-brand-copy">
             <strong>Cispro Ops</strong>
-            <p>Role-aware workspace</p>
           </div>
         </div>
 
