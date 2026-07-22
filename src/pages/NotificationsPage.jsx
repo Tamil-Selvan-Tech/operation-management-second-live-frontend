@@ -5,6 +5,7 @@ import { useAuth } from '../auth/useAuth'
 import { dashboardPathByRole, roleLabels } from '../data/authData'
 import { getNotificationSections } from '../data/notificationsData'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function NotificationGroup({ label, items }) {
   return (
@@ -51,6 +52,7 @@ function NotificationGroup({ label, items }) {
 export function NotificationsPage() {
   const { role } = useAuth()
   const navigate = useNavigate()
+  const openMenu = useMobileMenu()
   const filterMenuRef = useRef(null)
   const [activeFilter, setActiveFilter] = useState('all')
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false)
@@ -127,6 +129,7 @@ export function NotificationsPage() {
         initials={headerInitials}
         profileTitle={headerProfileTitle}
         email={headerEmail}
+        onOpenMenu={openMenu}
       />
 
       <header className="notifications-page-header">

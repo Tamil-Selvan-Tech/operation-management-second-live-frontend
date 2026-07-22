@@ -35,6 +35,13 @@ function SidebarItem({ icon: Icon, label, active = false, onClick, disabled = fa
   )
 }
 
+function createNavHandler(onClose, onNavigate) {
+  return () => {
+    onNavigate?.()
+    window.setTimeout(() => onClose?.(), 0)
+  }
+}
+
 export function AppSidebar({
   activeNav,
   user,
@@ -84,20 +91,14 @@ export function AppSidebar({
       icon: Home,
       label: 'Dashboard',
       active: activeNav === 'dashboard',
-      onClick: () => {
-        onClose?.()
-        onNavigateDashboard?.()
-      },
+      onClick: createNavHandler(onClose, onNavigateDashboard),
     },
     showCoursesNav
       ? {
           icon: GraduationCap,
           label: 'Courses',
           active: activeNav === 'courses',
-          onClick: () => {
-            onClose?.()
-            onNavigateCourses?.()
-          },
+          onClick: createNavHandler(onClose, onNavigateCourses),
         }
       : null,
     showStudentManagementNav
@@ -105,10 +106,7 @@ export function AppSidebar({
           icon: UsersRound,
           label: 'Student Management',
           active: activeNav === 'student-management',
-          onClick: () => {
-            onClose?.()
-            onNavigateStudentManagement?.()
-          },
+          onClick: createNavHandler(onClose, onNavigateStudentManagement),
         }
       : null,
     showFacultyManagementNav
@@ -116,10 +114,7 @@ export function AppSidebar({
           icon: UserRound,
           label: 'Faculty Management',
           active: activeNav === 'faculty-management',
-          onClick: () => {
-            onClose?.()
-            onNavigateFacultyManagement?.()
-          },
+          onClick: createNavHandler(onClose, onNavigateFacultyManagement),
         }
       : null,
   ].filter(Boolean)
@@ -129,10 +124,7 @@ export function AppSidebar({
       icon: Bell,
       label: 'Notifications',
       active: activeNav === 'notifications',
-      onClick: () => {
-        onClose?.()
-        onNavigateNotifications?.()
-      },
+      onClick: createNavHandler(onClose, onNavigateNotifications),
       badge: unreadNotificationCount || null,
     },
   ]
@@ -146,30 +138,31 @@ export function AppSidebar({
             <strong>Cispro Ops</strong>
           </div>
         </div>
-
       </div>
 
       <div className="sidebar-divider" aria-hidden="true" />
 
-      <nav className="menu" aria-label="Sidebar navigation">
-        <div className="menu-section">
-          <p className="menu-section-label">Main Menu</p>
-          <div className="menu-group">
-            {mainMenuItems.map((item) => (
-              <SidebarItem key={item.label} {...item} />
-            ))}
+      <div className="sidebar-menu-scroll">
+        <nav className="menu" aria-label="Sidebar navigation">
+          <div className="menu-section">
+            <p className="menu-section-label">Main Menu</p>
+            <div className="menu-group">
+              {mainMenuItems.map((item) => (
+                <SidebarItem key={item.label} {...item} />
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="menu-section">
-          <p className="menu-section-label">Other</p>
-          <div className="menu-group">
-            {otherMenuItems.map((item) => (
-              <SidebarItem key={item.label} {...item} />
-            ))}
+          <div className="menu-section">
+            <p className="menu-section-label">Other</p>
+            <div className="menu-group">
+              {otherMenuItems.map((item) => (
+                <SidebarItem key={item.label} {...item} />
+              ))}
+            </div>
           </div>
-        </div>
-      </nav>
+        </nav>
+      </div>
 
       <div className="sidebar-footer">
         <div className="sidebar-profile-card">
