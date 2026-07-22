@@ -141,10 +141,9 @@ export function AppSidebar({
     <aside className={`sidebar ${isMobileOpen ? 'is-open' : ''}`.trim()}>
       <div className="sidebar-head">
         <div className="brand">
-          <img className="brand-logo" src="/logo.png" alt="Cispro Ops logo" />
+          <img className="brand-logo" src="/logo1.png" alt="Cispro Ops logo" />
           <div>
             <strong>Cispro Ops</strong>
-            <p>Role-aware workspace</p>
           </div>
         </div>
 
@@ -212,7 +211,6 @@ export function AppSidebar({
                   ×
                 </button>
                 <h3 id="logout-modal-title">Are you sure you want to logout?</h3>
-                <p id="logout-modal-description">You will be sent back to the login page after signing out.</p>
                 <div className="logout-modal-actions">
                   <button type="button" className="button-ghost" onClick={() => setIsLogoutConfirmOpen(false)}>
                     Cancel

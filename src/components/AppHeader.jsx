@@ -25,7 +25,6 @@ export function AppHeader({ dashboard, onOpenMenu }) {
         <img className="app-header-mobile-brand-logo" src="/logo.png" alt="" />
         <div className="app-header-mobile-brand-copy">
           <strong>Cispro Ops</strong>
-          <p>Role-aware workspace</p>
         </div>
       </div>
 

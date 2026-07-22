@@ -1,7 +1,25 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ChevronDown, ChevronRight, Info, Target, TrendingUp, Wallet } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import {
+  BadgeCheck,
+  Building2,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  Clock3,
+  Globe,
+  Info,
+  LockKeyhole,
+  RefreshCcw,
+  ShieldCheck,
+  Target,
+  TrendingUp,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 
+import { HeaderIdentityChip } from '../components/HeaderIdentityChip'
 import { NotificationBell } from '../components/NotificationBell'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
@@ -1430,6 +1448,36 @@ function FacultyDashboard({ dashboard }) {
 
 function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   const openMenu = useMobileMenu()
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const profileDetails = {
+    role: 'Operation Manager',
+    status: 'Active',
+    workspace: 'Cispro Ops',
+    accessLevel: 'Operation Manager',
+    primaryEmail: 'operation.manager@cispro.com',
+    passwordMasked: 'ChangeMe123!',
+    resetPasswordText: 'Send Reset Link',
+    lastLogin: 'Today, 10:25 AM',
+    initials: 'OM',
+  }
+
+  useEffect(() => {
+    if (!isProfileOpen) return undefined
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsProfileOpen(false)
+      }
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = ''
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isProfileOpen])
 
   return (
     <section className="business-owner-dashboard operation-manager-dashboard">
@@ -1447,10 +1495,9 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
           </svg>
         </button>
         <div className="operation-manager-mobile-brand" aria-hidden="true">
-          <img className="operation-manager-mobile-brand-logo" src="/logo.png" alt="" />
+          <img className="operation-manager-mobile-brand-logo" src="/logo1.png" alt="" />
           <div className="operation-manager-mobile-brand-copy">
             <strong>Cispro Ops</strong>
-            <p>Role-aware workspace</p>
           </div>
         </div>
         <div className="business-topbar-copy">
@@ -1465,19 +1512,140 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
           <NotificationBell />
-          <div className="profile-chip">
-            <div className="profile-avatar">OM</div>
-            <div>
-              <strong>Operation Manager</strong>
-              <span>operation.manager@cispro.com</span>
-            </div>
-          </div>
+          <HeaderIdentityChip
+            initials={profileDetails.initials}
+            title={profileDetails.role}
+            email={profileDetails.primaryEmail}
+            className="operation-manager-profile-chip"
+            onClick={() => setIsProfileOpen(true)}
+            ariaLabel="Open Operation Manager profile"
+          />
         </div>
       </div>
 
       <RevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
       <RevenueDashboards students={revenueStudents} />
       <AttendanceComparisonChart />
+
+      {isProfileOpen && typeof document !== 'undefined'
+        ? createPortal(
+            <div className="profile-drawer-backdrop" role="presentation">
+              <div
+                className="profile-drawer"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="profile-modal-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="profile-modal-cover profile-drawer-cover">
+                  <button
+                    type="button"
+                    className="course-modal-close profile-modal-close"
+                    onClick={() => setIsProfileOpen(false)}
+                    aria-label="Close profile card"
+                  >
+                    <X size={18} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+                  </button>
+
+                  <div className="profile-modal-cover-dots" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+
+                  <div className="profile-modal-avatar-wrap">
+                    <div className="profile-modal-avatar" aria-hidden="true">
+                      {profileDetails.initials}
+                    </div>
+                    <span className="profile-modal-status-dot" aria-hidden="true" />
+                  </div>
+                </div>
+
+                <div className="profile-modal-body profile-drawer-body">
+                  <p className="profile-modal-eyebrow">Profile</p>
+                  <h3 id="profile-modal-title">{profileDetails.role}</h3>
+                  <p className="profile-modal-email">{profileDetails.primaryEmail}</p>
+
+                  <div className="profile-modal-grid">
+                    <div className="profile-modal-stat tone-blue">
+                      <span className="profile-modal-stat-icon" aria-hidden="true">
+                        <BadgeCheck size={16} />
+                      </span>
+                      <div>
+                        <span>Role</span>
+                        <strong>{profileDetails.role}</strong>
+                      </div>
+                    </div>
+                    <div className="profile-modal-stat tone-green">
+                      <span className="profile-modal-stat-icon" aria-hidden="true">
+                        <ShieldCheck size={16} />
+                      </span>
+                      <div>
+                        <span>Status</span>
+                        <strong>{profileDetails.status}</strong>
+                      </div>
+                    </div>
+                    <div className="profile-modal-stat tone-violet">
+                      <span className="profile-modal-stat-icon" aria-hidden="true">
+                        <Building2 size={16} />
+                      </span>
+                      <div>
+                        <span>Workspace</span>
+                        <strong>{profileDetails.workspace}</strong>
+                      </div>
+                    </div>
+                    <div className="profile-modal-stat tone-amber">
+                      <span className="profile-modal-stat-icon" aria-hidden="true">
+                        <Globe size={16} />
+                      </span>
+                      <div>
+                        <span>Access Level</span>
+                        <strong>{profileDetails.accessLevel}</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="profile-modal-info-list">
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <LockKeyhole size={15} />
+                        Password
+                      </span>
+                      <strong>{profileDetails.passwordMasked}</strong>
+                    </div>
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <RefreshCcw size={15} />
+                        Reset Password
+                      </span>
+                      <strong>{profileDetails.resetPasswordText}</strong>
+                    </div>
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <Clock3 size={15} />
+                        Last Login
+                      </span>
+                      <strong>{profileDetails.lastLogin}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </section>
   )
 }
@@ -1552,6 +1720,7 @@ export function DashboardPage({ role }) {
 
   return <GenericDashboard role={role} />
 }
+
 
 
 

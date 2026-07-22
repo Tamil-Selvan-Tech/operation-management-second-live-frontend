@@ -722,6 +722,25 @@ tbody tr:hover {
   border-top: 3px solid #7c3aed;
 }
 
+.business-owner-dashboard .revenue-summary-card,
+.operation-manager-dashboard .revenue-summary-card {
+  min-height: 66px;
+  padding: 6px 8px 3px 10px;
+}
+
+.business-owner-dashboard .revenue-summary-icon-button,
+.operation-manager-dashboard .revenue-summary-icon-button,
+.business-owner-dashboard .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-icon {
+  width: 38px;
+  height: 38px;
+}
+
+.business-owner-dashboard .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-icon {
+  margin-top: 4px;
+}
+
 @media (max-width: 1200px) {
   .app-shell {
     padding: 16px;
@@ -4766,6 +4785,11 @@ tbody tr:hover {
 .profile-modal-stat.tone-amber .profile-modal-stat-icon {
   color: #f59e0b;
   background: rgba(245, 158, 11, 0.14);
+}
+
+.profile-modal-stat.tone-amber strong {
+  display: inline-block;
+  transform: translateY(-6px);
 }
 
 .profile-modal-stat > div {
