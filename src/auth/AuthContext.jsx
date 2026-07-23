@@ -45,6 +45,7 @@ export function AuthProvider({ children }) {
   const value = useMemo(() => {
     const signIn = async (credentials) => {
       const { session: nextSession, redirectTo } = await signInWithFallback(credentials)
+      setAuthTokens(nextSession.token, nextSession.refreshToken || null)
       setSession(nextSession)
       return redirectTo
     }

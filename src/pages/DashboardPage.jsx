@@ -7,15 +7,18 @@ import {
   AlertTriangle,
   BadgeCheck,
   Building2,
+  Bell,
   CalendarDays,
   Bell,
   ChevronDown,
   ChevronRight,
+  CreditCard,
   Clock3,
   CreditCard,
   Globe,
   Info,
   LockKeyhole,
+  ReceiptText,
   RefreshCcw,
   ReceiptText,
   ShieldCheck,
@@ -657,7 +660,7 @@ function buildRevenueSummaryCards(summary, isLoading) {
   ]
 }
 
-function NotificationBell() {
+function DashboardNotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
@@ -1456,6 +1459,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
           <GlobalNotificationBell />
+          <DashboardNotificationBell />
           <HeaderIdentityChip
             initials={profileDetails.initials}
             title={profileDetails.role}

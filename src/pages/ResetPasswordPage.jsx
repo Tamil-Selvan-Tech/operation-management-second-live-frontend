@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
+import { resetPassword } from '../services/apiClient'
 import '../styles/LoginPage.css'
 
 function ShieldIcon() {
@@ -110,12 +111,22 @@ export function ResetPasswordPage() {
 
     setIsSubmitting(true)
 
-    window.setTimeout(() => {
-      setIsSubmitting(false)
-      setIsUpdated(true)
-      setPassword('')
-      setConfirmPassword('')
-    }, 450)
+    resetPassword({ token, password: nextPassword })
+      .then(() => {
+        setIsUpdated(true)
+        setPassword('')
+        setConfirmPassword('')
+      })
+      .catch((error) => {
+        const message =
+          error?.body?.message ||
+          error?.message ||
+          'Unable to update password right now. Please try again.'
+        setErrorMessage(message)
+      })
+      .finally(() => {
+        setIsSubmitting(false)
+      })
   }
 
   if (expired) {

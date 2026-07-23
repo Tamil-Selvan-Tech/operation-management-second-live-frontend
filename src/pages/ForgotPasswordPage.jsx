@@ -4,6 +4,7 @@ import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
 import { loadPendingLoginEmail, savePendingLoginEmail } from '../lib/session'
+import { requestPasswordReset } from '../services/apiClient'
 import '../styles/LoginPage.css'
 
 function EmailIcon() {
@@ -101,10 +102,20 @@ export function ForgotPasswordPage() {
     setIsSubmitting(true)
     savePendingLoginEmail(nextEmail)
 
-    window.setTimeout(() => {
-      setSentEmail(nextEmail)
-      setIsSubmitting(false)
-    }, 450)
+    requestPasswordReset(nextEmail)
+      .then(() => {
+        setSentEmail(nextEmail)
+      })
+      .catch((error) => {
+        const message =
+          error?.body?.message ||
+          error?.message ||
+          'Unable to send reset link right now. Please try again.'
+        setErrorMessage(message)
+      })
+      .finally(() => {
+        setIsSubmitting(false)
+      })
   }
 
   return (

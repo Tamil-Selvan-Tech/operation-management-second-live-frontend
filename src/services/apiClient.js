@@ -19,10 +19,11 @@ function buildRuntimeApiBaseUrl() {
 const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').trim()
 const runtimeApiBaseUrl = buildRuntimeApiBaseUrl()
 const isLocalRuntime = typeof window !== 'undefined' && isLocalhostLike(window.location?.hostname)
+const productionApiBaseUrl = 'https://cispro-operation-management-backend-m07q.onrender.com/api/v1'
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 20000)
 
 export const API_BASE_URL =
-  configuredApiBaseUrl || (isLocalRuntime ? runtimeApiBaseUrl : '')
+  configuredApiBaseUrl || (isLocalRuntime ? runtimeApiBaseUrl : productionApiBaseUrl)
 
 let accessToken = null
 let refreshToken = null
