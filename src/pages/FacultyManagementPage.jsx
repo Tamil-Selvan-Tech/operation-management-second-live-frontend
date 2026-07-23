@@ -2356,9 +2356,8 @@ export function FacultyManagementPage() {
                 {selectedFacultyBatchGroups.length ? (
                   <div className="faculty-view-batch-group-list">
                     {selectedFacultyBatchGroups.map((group) => (
-                      <section key={group.groupKey} className="faculty-view-batch-group">
-                        <h4 className="faculty-view-batch-course-name">{group.courseName || 'Course'}</h4>
-
+                      <div key={group.groupKey || group.courseId || group.courseName} className="faculty-view-batch-group">
+                        <h4 className="faculty-view-batch-course-name">{group.courseName || 'Unassigned'}</h4>
                         <table className="faculty-batch-details-table">
                           <thead>
                             <tr>
@@ -2369,7 +2368,7 @@ export function FacultyManagementPage() {
                           </thead>
                           <tbody>
                             {group.entries.map((entry, index) => (
-                              <tr key={entry.id || `${group.groupKey}-${index}`}>
+                              <tr key={entry.id || `${group.courseId || 'course'}-${entry.batchName || 'batch'}-${index}`}>
                                 <td>{index + 1}</td>
                                 <td>
                                   <strong>{entry.batchName || '-'}</strong>
@@ -2379,7 +2378,7 @@ export function FacultyManagementPage() {
                             ))}
                           </tbody>
                         </table>
-                      </section>
+                      </div>
                     ))}
                   </div>
                 ) : (

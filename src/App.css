@@ -2337,6 +2337,601 @@ tbody tr:hover {
   color: #ea580c;
 }
 
+.faculty-dashboard-page {
+  gap: 18px;
+}
+
+.faculty-dashboard-header {
+  margin-bottom: 2px;
+}
+
+.faculty-summary-strip {
+  margin-top: 2px;
+}
+
+.faculty-summary-card {
+  padding: 16px 18px;
+}
+
+.faculty-summary-card-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+}
+
+.faculty-summary-card-value {
+  font-size: 1.15rem;
+}
+
+.faculty-summary-card-note {
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+.faculty-summary-card-badge {
+  padding: 5px 11px;
+}
+
+.faculty-attendance-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.faculty-attendance-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.faculty-attendance-head-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.faculty-attendance-head-copy h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.faculty-attendance-head-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.faculty-attendance-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.faculty-batch-dropdown-wrap {
+  position: relative;
+}
+
+.faculty-batch-dropdown-trigger,
+.faculty-range-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #cfe0ff;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  color: #1e293b;
+  font-size: 0.84rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+}
+
+.faculty-batch-dropdown-trigger {
+  color: #1d4ed8;
+}
+
+.faculty-batch-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 230px;
+  padding: 8px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #dbe7f6;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+}
+
+.faculty-batch-dropdown-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #0f172a;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.faculty-batch-dropdown-item:hover,
+.faculty-batch-dropdown-item.is-active {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.faculty-batch-dropdown-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #2563eb;
+}
+
+.faculty-batch-dropdown-item:nth-child(2) .faculty-batch-dropdown-dot {
+  background: #2563eb;
+}
+
+.faculty-batch-dropdown-item:nth-child(3) .faculty-batch-dropdown-dot {
+  background: #16a34a;
+}
+
+.faculty-batch-dropdown-item:nth-child(4) .faculty-batch-dropdown-dot {
+  background: #8b5cf6;
+}
+
+.faculty-batch-dropdown-item:nth-child(5) .faculty-batch-dropdown-dot {
+  background: #f59e0b;
+}
+
+.faculty-batch-dropdown-item:nth-child(6) .faculty-batch-dropdown-dot {
+  background: #f97316;
+}
+
+.faculty-attendance-chart {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.faculty-attendance-axis {
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  padding: 10px 0 30px;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.faculty-attendance-axis-left {
+  text-align: right;
+}
+
+.faculty-attendance-axis-right {
+  text-align: left;
+}
+
+.faculty-attendance-axis span {
+  align-self: center;
+}
+
+.faculty-attendance-plot {
+  position: relative;
+  min-height: 320px;
+  padding: 18px 14px 24px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(255, 255, 255, 0.98));
+  overflow: hidden;
+}
+
+.faculty-attendance-grid-lines {
+  position: absolute;
+  inset: 34px 0 38px;
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.faculty-attendance-grid-lines span {
+  border-top: 1px dashed #dbe5f0;
+}
+
+.faculty-attendance-bars {
+  position: absolute;
+  inset: 18px 0 38px;
+  z-index: 1;
+  display: grid;
+  align-items: end;
+  gap: 18px;
+  padding: 0 18px;
+}
+
+.faculty-attendance-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  height: 100%;
+}
+
+.faculty-attendance-value {
+  color: #334155;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.faculty-attendance-bar-wrap {
+  width: 56px;
+  height: 210px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.faculty-attendance-bar {
+  width: 100%;
+  min-height: 18px;
+  border-radius: 16px 16px 8px 8px;
+  background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.faculty-attendance-months {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  display: grid;
+  gap: 18px;
+  padding: 0 18px;
+  color: #334155;
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.faculty-batch-progress-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.faculty-batch-progress-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.faculty-batch-progress-head-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.faculty-batch-progress-head-copy h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.02rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.faculty-batch-progress-head-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.faculty-batch-progress-list {
+  display: grid;
+  gap: 12px;
+}
+
+.faculty-batch-progress-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.95fr) minmax(0, 1.25fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #f8fbff;
+  border: 1px solid #e3ecf8;
+}
+
+.faculty-batch-progress-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.faculty-batch-progress-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  color: #2563eb;
+}
+
+.faculty-batch-progress-name strong {
+  display: block;
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.faculty-batch-progress-name span {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.faculty-batch-progress-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #e7edf6;
+  overflow: hidden;
+}
+
+.faculty-batch-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 45%, #0f7bda 100%);
+}
+
+.faculty-batch-progress-completion {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-width: 68px;
+  text-align: right;
+}
+
+.faculty-batch-progress-completion strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.faculty-batch-progress-completion span {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.faculty-batch-progress-empty {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f8fbff;
+  border: 1px dashed #d7e3f4;
+}
+
+.faculty-batch-progress-empty strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.faculty-batch-progress-empty p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.faculty-batch-analytics {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.faculty-batch-progress-card-left,
+.faculty-batch-performance-card {
+  min-width: 0;
+}
+
+.faculty-batch-performance-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.faculty-batch-performance-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.faculty-batch-performance-head-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.faculty-batch-performance-head-copy h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.02rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.faculty-batch-performance-head-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.faculty-batch-performance-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.faculty-batch-performance-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.faculty-batch-performance-legend-dot {
+  width: 14px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.faculty-batch-performance-legend-dot.tone-blue {
+  background: #2563eb;
+}
+
+.faculty-batch-performance-legend-dot.tone-green {
+  background: #16a34a;
+}
+
+.faculty-batch-performance-legend-dot.tone-violet {
+  background: #8b5cf6;
+}
+
+.faculty-batch-performance-chart {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  min-height: 310px;
+}
+
+.faculty-batch-performance-axis {
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  padding: 10px 0 30px;
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.faculty-batch-performance-axis-left {
+  text-align: right;
+}
+
+.faculty-batch-performance-axis span {
+  align-self: center;
+}
+
+.faculty-batch-performance-plot {
+  position: relative;
+  min-height: 310px;
+  padding: 18px 14px 24px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(248, 251, 255, 0.98), rgba(255, 255, 255, 0.98));
+  overflow: hidden;
+}
+
+.faculty-batch-performance-grid {
+  position: absolute;
+  inset: 34px 0 38px;
+  display: grid;
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  pointer-events: none;
+}
+
+.faculty-batch-performance-grid span {
+  border-top: 1px dashed #dbe5f0;
+}
+
+.faculty-batch-performance-bars {
+  position: absolute;
+  inset: 14px 0 32px;
+  z-index: 1;
+  display: grid;
+  gap: 14px;
+  align-items: end;
+  padding: 0 12px;
+}
+
+.faculty-batch-performance-group {
+  display: grid;
+  gap: 8px;
+  align-items: end;
+}
+
+.faculty-batch-performance-triple {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  min-height: 220px;
+}
+
+.faculty-batch-performance-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+}
+
+.faculty-batch-performance-bar-wrap strong {
+  color: #334155;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.faculty-batch-performance-bar {
+  width: 100%;
+  max-width: 30px;
+  min-height: 18px;
+  border-radius: 12px 12px 6px 6px;
+}
+
+.faculty-batch-performance-bar.tone-blue {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.faculty-batch-performance-bar.tone-green {
+  background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+}
+
+.faculty-batch-performance-bar.tone-violet {
+  background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 100%);
+}
+
+.faculty-batch-performance-label {
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.2;
+}
+
 .student-attendance-card {
   display: grid;
   gap: 10px;
@@ -10923,18 +11518,13 @@ tbody tr:hover {
 .faculty-view-batch-group {
   display: grid;
   gap: 10px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
 }
 
 .faculty-view-batch-course-name {
-  margin: 0 0 2px;
-  color: #1d4ed8;
+  margin: 0;
+  color: #1e40af;
   font-size: 1rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
 }
 
 .faculty-batch-details-table thead th {
@@ -13283,6 +13873,52 @@ tbody tr:hover {
   .operation-manager-dashboard .revenue-trends-card {
     grid-column: auto;
     grid-row: auto;
+  }
+
+  .faculty-attendance-chart {
+    grid-template-columns: 1fr;
+  }
+
+  .faculty-attendance-axis {
+    display: none;
+  }
+
+  .faculty-attendance-plot {
+    min-height: 300px;
+  }
+
+  .faculty-attendance-bars {
+    gap: 12px;
+  }
+
+  .faculty-batch-analytics {
+    grid-template-columns: 1fr;
+  }
+
+  .faculty-batch-progress-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .faculty-batch-progress-completion {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .faculty-batch-performance-chart {
+    grid-template-columns: 1fr;
+  }
+
+  .faculty-batch-performance-axis {
+    display: none;
+  }
+
+  .faculty-batch-performance-plot {
+    min-height: 280px;
+  }
+
+  .faculty-batch-performance-triple {
+    min-height: 200px;
   }
 
   .operation-manager-dashboard .business-topbar {
