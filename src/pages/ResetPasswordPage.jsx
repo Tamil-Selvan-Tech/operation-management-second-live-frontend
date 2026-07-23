@@ -1,23 +1,176 @@
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
+import '../styles/LoginPage.css'
 
-export function ResetPasswordPage({
-  onSubmit,
-  errorMessage = '',
-  successMessage = '',
-  isSubmitting = false,
-  token = '',
-  temporaryPassword = '',
-}) {
-  const visibleTemporaryPassword = temporaryPassword
+function ShieldIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M12 3.5 19 6.6v5.2c0 4.4-2.9 8.4-7 9.9-4.1-1.5-7-5.5-7-9.9V6.6L12 3.5z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m9.5 12.1 1.8 1.8 3.9-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function WarningIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="m12 4 9 16H3L12 4z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M12 9.2v4.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+      <circle cx="12" cy="16.5" r="1.1" fill="currentColor" />
+    </svg>
+  )
+}
+
+function SuccessIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="m8.5 12.4 2.4 2.5 4.9-5.2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+const isExpiredStatus = (searchParams, token) => {
+  const status = String(searchParams.get('status') || '').trim().toLowerCase()
+  const expired = String(searchParams.get('expired') || '').trim() === '1'
+  return !token || status === 'expired' || status === 'invalid' || expired
+}
+
+export function ResetPasswordPage() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const token = String(searchParams.get('token') || '').trim()
+  const expired = useMemo(() => isExpiredStatus(searchParams, token), [searchParams, token])
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isUpdated, setIsUpdated] = useState(false)
+
+  const goToLogin = () => navigate('/login')
+  const requestNewLink = () => navigate('/forgot-password')
+
+  const onSubmit = (event) => {
+    event.preventDefault()
+
+    if (expired) {
+      setErrorMessage('This reset link has already expired. Please request a new link.')
+      return
+    }
+
+    setErrorMessage('')
+
+    const nextPassword = password.trim()
+    const nextConfirmPassword = confirmPassword.trim()
+
+    if (!nextPassword || !nextConfirmPassword) {
+      setErrorMessage('Both password fields are required.')
+      return
+    }
+
+    if (nextPassword !== nextConfirmPassword) {
+      setErrorMessage('Passwords do not match.')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    window.setTimeout(() => {
+      setIsSubmitting(false)
+      setIsUpdated(true)
+      setPassword('')
+      setConfirmPassword('')
+    }, 450)
+  }
+
+  if (expired) {
+    return (
+      <Card className="panel reset-password-shell reset-password-state">
+        <div className="reset-password-badge reset-password-badge-warn" aria-hidden="true">
+          <WarningIcon />
+        </div>
+        <p className="eyebrow">Password reset</p>
+        <h2>Reset Link Expired</h2>
+        <p>Your password reset link has expired.</p>
+        <div className="reset-password-actions">
+          <Button type="button" onClick={requestNewLink}>
+            Request New Link
+          </Button>
+          <Link to="/login" className="button button-ghost reset-password-link">
+            Back to Login
+          </Link>
+        </div>
+      </Card>
+    )
+  }
+
+  if (isUpdated) {
+    return (
+      <Card className="panel reset-password-shell reset-password-state">
+        <div className="reset-password-badge reset-password-badge-success" aria-hidden="true">
+          <SuccessIcon />
+        </div>
+        <p className="eyebrow">Security</p>
+        <h2>Password Updated Successfully</h2>
+        <p>Your password has been changed successfully.</p>
+        <div className="reset-password-actions">
+          <Button type="button" onClick={goToLogin}>
+            Go to Login
+          </Button>
+        </div>
+      </Card>
+    )
+  }
 
   return (
-    <Card className="auth-panel">
-      <p className="eyebrow">Security</p>
-      <h2>Reset password</h2>
-      <p>Your reset link is already verified. Enter the temporary password and create a new password below.</p>
-      <form className="form compact" onSubmit={onSubmit} autoComplete="off">
+    <Card className="panel reset-password-shell">
+      <div className="reset-password-header">
+        <div className="reset-password-badge" aria-hidden="true">
+          <ShieldIcon />
+        </div>
+        <div className="reset-password-copy">
+          <p className="eyebrow">Security</p>
+          <h2>Reset password</h2>
+          <p>Create a new password below and use it the next time you sign in.</p>
+        </div>
+      </div>
+
+      <form className="form compact reset-password-form" onSubmit={onSubmit} autoComplete="off">
         <input type="hidden" name="token" value={token} />
 
         {errorMessage ? (
@@ -26,28 +179,13 @@ export function ResetPasswordPage({
           </div>
         ) : null}
 
-        {successMessage ? (
-          <div className="form-message form-message-success" role="status" aria-live="polite">
-            {successMessage}
-          </div>
-        ) : null}
-
-        <FormField label="Temporary password">
-          <div
-            className="password-display"
-            role="textbox"
-            aria-readonly="true"
-            aria-label="Temporary password"
-            title="Temporary password"
-          >
-            {visibleTemporaryPassword || '-'}
-          </div>
-        </FormField>
         <FormField label="New password">
           <input
             name="newPassword"
             type="password"
             placeholder="Create a new password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
             disabled={isSubmitting}
             autoComplete="new-password"
             autoCapitalize="none"
@@ -55,11 +193,14 @@ export function ResetPasswordPage({
             spellCheck={false}
           />
         </FormField>
+
         <FormField label="Confirm password">
           <input
             name="confirmNewPassword"
             type="password"
             placeholder="Confirm password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
             disabled={isSubmitting}
             autoComplete="new-password"
             autoCapitalize="none"
@@ -67,12 +208,14 @@ export function ResetPasswordPage({
             spellCheck={false}
           />
         </FormField>
+
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Updating...' : 'Update password'}
+          {isSubmitting ? 'Updating...' : 'Update Password'}
         </Button>
-        <a href="/login" className="text-link">
-          Back to login
-        </a>
+
+        <Link to="/login" className="text-link reset-password-back-link">
+          Back to Login
+        </Link>
       </form>
     </Card>
   )

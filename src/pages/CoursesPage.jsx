@@ -474,6 +474,20 @@ export function CoursesPage() {
     setOpenActionMenuMode('')
   }
 
+  const openDrawerInlineEdit = (course) => {
+    if (!course) return
+    setEditingCourseId(course.id)
+    setTouched({})
+    setSaveError('')
+    setForm(buildCourseFormFromCourse(course))
+    setViewTarget(course)
+    setIsCourseInlineEditing(true)
+    setIsModalOpen(false)
+    setOpenActionMenuId(null)
+    setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuMode('')
+  }
+
   const openViewModal = (course) => {
     setIsModalOpen(false)
     setViewTarget(course)
@@ -487,8 +501,11 @@ export function CoursesPage() {
   }
 
   const cancelInlineEdit = () => {
-    if (viewTarget) {
-      setForm(buildCourseFormFromCourse(viewTarget))
+    const sourceCourse = viewTarget || courses.find((course) => course.id === editingCourseId)
+    if (sourceCourse) {
+      setForm(buildCourseFormFromCourse(sourceCourse))
+    } else {
+      resetForm()
     }
     setIsCourseInlineEditing(false)
     setEditingCourseId(null)
@@ -747,6 +764,12 @@ export function CoursesPage() {
         </div>
       ) : null}
 
+      {saveError ? (
+        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem' }}>
+          {saveError}
+        </div>
+      ) : null}
+
       {isModalOpen ? (
         <div className="course-modal-backdrop" role="presentation">
           <form className="course-modal panel-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()} onSubmit={handleSave}>
@@ -971,7 +994,7 @@ export function CoursesPage() {
                   <button
                     type="button"
                     className="student-drawer-edit-button"
-                    onClick={() => openEditModal(viewTarget)}
+                    onClick={() => openDrawerInlineEdit(viewTarget)}
                   >
                     <PencilLine />
                     <span>Edit</span>
