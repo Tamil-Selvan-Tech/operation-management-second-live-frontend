@@ -7,12 +7,10 @@ import {
   Routes,
   useLocation,
   useNavigate,
-  useSearchParams,
 } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { courseAccessRoles, roleDashboards, dashboardPathByRole } from '../data/authData'
 import { LoadingPage } from '../pages/LoadingPage'
-import { requestPasswordReset, resetPassword } from '../services/apiClient'
 import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
 import { PublicRoute } from './PublicRoute'
 import {
@@ -54,8 +52,6 @@ const NotificationsPage = lazyNamed(() => import('../pages/NotificationsPage'), 
 const ResetPasswordPage = lazyNamed(() => import('../pages/ResetPasswordPage'), 'ResetPasswordPage')
 const SessionExpiredPage = lazyNamed(() => import('../pages/SessionExpiredPage'), 'SessionExpiredPage')
 const UnauthorizedPage = lazyNamed(() => import('../pages/UnauthorizedPage'), 'UnauthorizedPage')
-
-const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
 
 const workspacePathsByRole = {
   'business-owner': {
@@ -124,7 +120,7 @@ function LoginScreen() {
   }
 
   return (
-      <LoginPage
+    <LoginPage
       form={form}
       setForm={updateForm}
       onSubmit={onSubmit}
@@ -188,90 +184,6 @@ function AppLayout() {
   )
 }
 
-function LoginResetRoute({ title }) {
-  const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const token = searchParams.get('token') || ''
-  const temporaryPassword = searchParams.get('temporaryPassword') || ''
-
-  const returnToLogin = async (event) => {
-    event.preventDefault()
-    setErrorMessage('')
-    setSuccessMessage('')
-    setIsSubmitting(true)
-
-    try {
-      const formData = new FormData(event.currentTarget)
-
-      if (title === 'forgot') {
-        const email = String(formData.get('email') || '').trim()
-        if (!isValidEmail(email)) {
-          throw new Error('Email is required')
-        }
-
-        const result = await requestPasswordReset(email)
-        savePendingLoginEmail(email)
-        setSuccessMessage(result?.message || 'Reset link sent successfully.')
-        event.currentTarget.reset()
-        return
-      }
-
-      const password = String(formData.get('newPassword') || formData.get('password') || '')
-      const confirmPassword = String(
-        formData.get('confirmNewPassword') || formData.get('confirmPassword') || '',
-      )
-      const resetToken = String(formData.get('token') || token || '').trim()
-
-      if (!resetToken) {
-        throw new Error('Reset token is missing')
-      }
-
-      if (!password || !confirmPassword) {
-        throw new Error('Both password fields are required')
-      }
-
-      if (password !== confirmPassword) {
-        throw new Error('Passwords do not match')
-      }
-
-      const result = await resetPassword({ token: resetToken, password })
-      setSuccessMessage(result?.message || 'Password updated successfully.')
-      setTimeout(() => {
-        navigate('/login')
-      }, 800)
-    } catch (error) {
-      setErrorMessage(error?.body?.message || error?.message || 'Unable to process request right now.')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  if (title === 'forgot') {
-    return (
-      <ForgotPasswordPage
-        onSubmit={returnToLogin}
-        errorMessage={errorMessage}
-        successMessage={successMessage}
-        isSubmitting={isSubmitting}
-      />
-    )
-  }
-
-  return (
-    <ResetPasswordPage
-      onSubmit={returnToLogin}
-      errorMessage={errorMessage}
-      successMessage={successMessage}
-      isSubmitting={isSubmitting}
-      token={token}
-      temporaryPassword={temporaryPassword}
-    />
-  )
-}
-
 function RootRoute() {
   const { isReady, isAuthenticated, role } = useAuth()
 
@@ -328,8 +240,8 @@ export function AppRouter() {
           <Route element={<PublicRoute />}>
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginScreen />} />
-              <Route path="/forgot-password" element={<LoginResetRoute title="forgot" />} />
-              <Route path="/reset-password" element={<LoginResetRoute title="reset" />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
             </Route>
           </Route>
 

@@ -6332,6 +6332,17 @@ tbody tr:hover {
   border-radius: 12px;
 }
 
+.faculty-batch-button-content {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.faculty-batch-button-content svg {
+  flex: 0 0 auto;
+}
+
 .faculty-list-card {
   display: grid;
   gap: 14px;
