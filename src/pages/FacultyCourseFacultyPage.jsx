@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, ChevronRight, Mail, Phone, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpen, Mail, Phone, UsersRound } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
@@ -293,7 +293,9 @@ export function FacultyCourseFacultyPage() {
                       </div>
                     </div>
                   </div>
-                  <ChevronRight className="faculty-flow-course-chevron" />
+                  <span className="faculty-flow-course-view-label" aria-hidden="true">
+                    View
+                  </span>
                 </button>
               ))
             ) : (

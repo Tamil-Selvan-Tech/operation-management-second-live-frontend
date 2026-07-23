@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Check, Clock3, Eye, FolderOpen, Mail, MoreVertical, PencilLine, Phone, Plus, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
+import { BookOpen, Check, Clock3, Eye, Mail, MoreVertical, PencilLine, Phone, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { SearchBar } from '../components/SearchBar'
@@ -1591,7 +1591,6 @@ export function FacultyManagementPage() {
             ariaLabel="Search faculty records"
           />
           <Button type="button" className="faculty-add-button" variant="ghost" onClick={() => navigate(buildFacultyCourseCatalogPath())}>
-            <FolderOpen size={18} />
             <span>Batch</span>
           </Button>
         </div>
@@ -2213,7 +2212,6 @@ export function FacultyManagementPage() {
                   ) : null}
 
                   <button type="button" className="faculty-batch-add faculty-batch-add-full" onClick={addBatchEntry}>
-                    <Plus />
                     <span>Add Batch</span>
                   </button>
 
