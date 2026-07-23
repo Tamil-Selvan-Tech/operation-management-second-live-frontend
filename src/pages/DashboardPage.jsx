@@ -18,16 +18,16 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 
 import { HeaderIdentityChip } from '../components/HeaderIdentityChip'
 import { NotificationBell } from '../components/NotificationBell'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
-import { loadStudentRecords } from '../data/studentRecords'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { getCurrentFacultyProfile } from '../services/facultyService'
-import { getCurrentStudentProfile, listStudents } from '../services/studentService'
+import { listStudents } from '../services/studentService'
+import { StudentInfoItem, StudentSectionCard } from './studentDashboardUtils.jsx'
+import { StudentDashboard } from './StudentDashboard'
 
 const attendanceComparisonData = [
   { month: 'Jan', attendance: 82, students: 240 },
@@ -526,38 +526,6 @@ function useBackendStudents() {
   }, [])
 
   return { records, isLoading }
-}
-
-function useCurrentStudentProfile() {
-  const [student, setStudent] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-
-    const run = async () => {
-      try {
-        const result = await getCurrentStudentProfile()
-        if (!active) return
-        setStudent(result)
-      } catch {
-        if (!active) return
-        setStudent(loadStudentRecords()[0] || null)
-      } finally {
-        if (active) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    void run()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  return { student, isLoading }
 }
 
 function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
@@ -1158,183 +1126,6 @@ function AttendanceComparisonChart() {
 }
 
 const MemoAttendanceComparisonChart = memo(AttendanceComparisonChart)
-
-function StudentInfoItem({ label, value, fullWidth = false, valueClassName = '' }) {
-  return (
-    <div className={`student-dashboard-info-item ${fullWidth ? 'student-dashboard-info-item-full' : ''}`.trim()}>
-      <span>{label}</span>
-      <strong className={valueClassName}>{value || '-'}</strong>
-    </div>
-  )
-}
-
-function StudentSectionCard({ title, subtitle, kicker = 'Student Data', children }) {
-  return (
-    <article className="student-section-card">
-      <div className="student-section-card-head">
-        <div>
-          <p className="section-kicker">{kicker}</p>
-          <h3>{title}</h3>
-        </div>
-        {subtitle ? <p>{subtitle}</p> : null}
-      </div>
-      {children}
-    </article>
-  )
-}
-
-function StudentDashboard({ dashboard }) {
-  const { student: latestStudent, isLoading } = useCurrentStudentProfile()
-
-  if (isLoading) {
-    return (
-      <section className="student-dashboard-page">
-        <article className="panel-card student-dashboard-empty">
-          <p className="eyebrow">Student Dashboard</p>
-          <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
-          <div className="student-empty-state">
-            <strong>Loading student profile...</strong>
-            <p>Please wait while we fetch your dashboard details.</p>
-          </div>
-        </article>
-      </section>
-    )
-  }
-
-  if (!latestStudent) {
-    return (
-      <section className="student-dashboard-page">
-        <article className="panel-card student-dashboard-empty">
-          <p className="eyebrow">Student Dashboard</p>
-          <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
-          <div className="student-empty-state">
-            <strong>No student record found</strong>
-            <p>Add a student from Student Management to see the profile view here.</p>
-          </div>
-        </article>
-      </section>
-    )
-  }
-
-  const status = getStudentStatus(latestStudent)
-  const totalAmount = Number(latestStudent.totalAmount || latestStudent.afterDiscount || 0)
-  const paidAmount = getPaidAmount(latestStudent)
-  const dueAmount = Math.max(totalAmount - paidAmount, 0)
-
-  return (
-    <section className="student-dashboard-page">
-      <article className="student-dashboard-hero">
-        <div className="student-dashboard-hero-top">
-          <div className="student-dashboard-avatar">{getStudentInitials(latestStudent.studentName)}</div>
-          <div className="student-dashboard-hero-main">
-            <div className="student-dashboard-name-row">
-              <h2>{latestStudent.studentName}</h2>
-              <span className={`student-status-pill ${status.tone}`}>{status.label}</span>
-            </div>
-            <div className="student-dashboard-id-row">
-              <div>
-                <span>Course</span>
-                <strong>{latestStudent.courseInterested || '-'}</strong>
-              </div>
-              <div>
-                <span>Batch</span>
-                <strong>{latestStudent.batch || '-'}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="student-dashboard-hero-side">
-          <div>
-            <span>Email</span>
-            <strong className="student-inline-email">{latestStudent.emailAddress || '-'}</strong>
-          </div>
-          <div>
-            <span>Mobile</span>
-            <strong>{latestStudent.mobileNumber || '-'}</strong>
-          </div>
-          <div>
-            <span>Admission Date</span>
-            <strong>{formatDate(latestStudent.admissionDate)}</strong>
-          </div>
-          <div className="student-dashboard-hero-actions">
-            <span>Need help signing in?</span>
-            <Link to="/forgot-password" className="text-link">
-              Forgot password?
-            </Link>
-            <small>We will send a reset link to your registered email address.</small>
-          </div>
-        </div>
-      </article>
-
-      <div className="student-dashboard-grid">
-        <StudentSectionCard title="Basic Information" subtitle="Primary contact and location details">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="Student Name" value={latestStudent.studentName} />
-            <StudentInfoItem label="Mobile Number" value={latestStudent.mobileNumber} />
-            <StudentInfoItem label="Email Address" value={latestStudent.emailAddress} valueClassName="student-inline-email" />
-            <StudentInfoItem label="Parent / Spouse Number" value={latestStudent.parentSpouseNumber} />
-            <StudentInfoItem label="Location" value={latestStudent.location} fullWidth />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Education Details" subtitle="Course and academic background">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="Course Interested" value={latestStudent.courseInterested} />
-            <StudentInfoItem label="Faculty Name" value={latestStudent.facultyName} />
-            <StudentInfoItem label="Batch" value={latestStudent.batch} />
-            <StudentInfoItem label="Qualification" value={latestStudent.qualification} />
-            <StudentInfoItem label="Passed Out Year" value={latestStudent.passedOutYear} />
-            <StudentInfoItem label="Current Status" value={latestStudent.currentStatus} />
-            <StudentInfoItem label="Designation" value={latestStudent.designation || '-'} />
-            <StudentInfoItem label="Source" value={latestStudent.source || '-'} />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Admission Details" subtitle="Fee setup and enrollment tracking">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="Admission Date" value={formatDate(latestStudent.admissionDate)} />
-            <StudentInfoItem label="Total Course Fee" value={formatCurrency(latestStudent.totalAmount || latestStudent.afterDiscount)} />
-            <StudentInfoItem label="Discount" value={formatCurrency(latestStudent.discount)} />
-            <StudentInfoItem label="Final Fee" value={formatCurrency(latestStudent.afterDiscount)} />
-            <StudentInfoItem label="Counselor Name" value={latestStudent.counselorName || '-'} />
-            <StudentInfoItem label="Remarks" value={latestStudent.remarks || '-'} fullWidth />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Installment Details" subtitle="Payment progress and due dates">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="1st Installment Amount" value={formatCurrency(latestStudent.firstInstallmentAmount || latestStudent.installment1)} />
-            <StudentInfoItem label="1st Installment Date" value={formatDate(latestStudent.firstInstallmentDate || latestStudent.admissionDate)} />
-            <StudentInfoItem label="1st Installment Status" value={latestStudent.firstInstallmentStatus || 'Pending'} />
-            <StudentInfoItem label="2nd Installment Amount" value={formatCurrency(latestStudent.secondInstallmentAmount || latestStudent.installment2)} />
-            <StudentInfoItem label="2nd Due Date" value={formatDate(getSecondDueDate(latestStudent))} />
-            <StudentInfoItem label="2nd Installment Status" value={latestStudent.secondInstallmentStatus || 'Pending'} />
-            {hasThirdInstallment(latestStudent) ? (
-              <>
-                <StudentInfoItem label="3rd Installment Amount" value={formatCurrency(latestStudent.thirdInstallmentAmount || latestStudent.installment3)} />
-                <StudentInfoItem label="3rd Due Date" value={formatDate(getThirdDueDate(latestStudent))} />
-                <StudentInfoItem label="3rd Installment Status" value={latestStudent.thirdInstallmentStatus || 'Pending'} />
-              </>
-            ) : null}
-            <StudentInfoItem label="Paid Amount" value={formatCurrency(paidAmount)} />
-            <StudentInfoItem label="Due Amount" value={formatCurrency(dueAmount)} />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Lead Information" subtitle="Counseling and source tracking">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="How did you know about our Institute?" value={latestStudent.source} />
-            <StudentInfoItem label="Remarks" value={latestStudent.remarks || '-'} fullWidth />
-          </div>
-        </StudentSectionCard>
-      </div>
-    </section>
-  )
-}
-
 function useCurrentFacultyProfile() {
   const [faculty, setFaculty] = useState(null)
   const [isLoading, setIsLoading] = useState(true)

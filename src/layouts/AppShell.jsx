@@ -19,6 +19,7 @@ export function AppShell({
   showStudentManagementNav = true,
   showFacultyManagementNav = true,
   showChrome = true,
+  forceFlatMainArea = false,
   children,
 }) {
   const location = useLocation()
@@ -49,7 +50,9 @@ export function AppShell({
     location.pathname === '/notifications' ||
     isStudentManagementPath ||
     isFacultyManagementPath ||
-    isCoursesPath
+    isCoursesPath ||
+    forceFlatMainArea
+  const isStudentPage = location.pathname === '/dashboard/student'
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
 
   const bottomNavItems = [
@@ -106,7 +109,7 @@ export function AppShell({
 
   return (
     <MobileMenuContext.Provider value={() => setIsMobileSidebarOpen(true)}>
-      <div className="app-shell has-fixed-sidebar">
+      <div className={`app-shell has-fixed-sidebar ${isStudentPage ? 'is-student-page' : ''}`.trim()}>
         <div
           className={`sidebar-backdrop ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
           role="presentation"

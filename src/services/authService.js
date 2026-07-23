@@ -4,6 +4,7 @@ import {
   login as loginRequest,
   logoutSession,
   refreshSession as refreshSessionRequest,
+  setAuthTokens,
 } from './apiClient'
 import { roleLabels, dashboardPathByRole } from '../data/authData'
 
@@ -131,6 +132,7 @@ export async function signInWithFallback(credentials) {
       name: 'User',
     })
     const session = normalizeAuthSession(response, fallbackSession)
+    setAuthTokens(session.token, session.refreshToken)
     return {
       session,
       redirectTo: dashboardPathByRole[session.user.role] || '/dashboard',

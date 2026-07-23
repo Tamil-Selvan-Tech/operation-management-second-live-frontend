@@ -160,6 +160,7 @@ function AppLayout() {
     location.pathname !== '/student-management' &&
     location.pathname !== '/faculty-management' &&
     !location.pathname.startsWith('/faculty-management/')
+  const isFlatMainArea = location.pathname === '/dashboard/student'
 
   return (
     <AppShell
@@ -178,6 +179,7 @@ function AppLayout() {
       showStudentManagementNav={canAccessStudentManagement}
       showFacultyManagementNav={canAccessFacultyManagement}
       showChrome={showChrome}
+      forceFlatMainArea={isFlatMainArea}
     >
       <Outlet />
     </AppShell>
