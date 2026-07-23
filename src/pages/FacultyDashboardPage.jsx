@@ -136,12 +136,17 @@ function getFacultyBatchOptions(faculty) {
   return entries.map((entry, index) => {
     const label = String(entry?.batchName || '').trim()
     const timing = String(entry?.batchTiming || '').trim()
+    const courseId = String(entry?.courseId || '').trim()
+    const courseName = String(entry?.courseName || '').trim()
     const fallbackKey = `${label || 'batch'}-${timing || 'timing'}-${index}`
 
     return {
       id: String(entry?.id || fallbackKey).trim() || fallbackKey,
       label: label || `Batch ${index + 1}`,
       timing,
+      courseId,
+      courseName,
+      sequenceNo: Number(entry?.sequenceNo || index + 1) || index + 1,
     }
   })
 }
@@ -150,6 +155,35 @@ function buildBatchProgressValue(label = '', index = 0) {
   const seed = buildFacultyAttendanceSeed(label) + index * 17
   const values = [100, 92, 84, 76, 68, 60, 88, 80]
   return values[seed % values.length]
+}
+
+function buildBatchStudentCount(label = '', index = 0) {
+  const seed = buildFacultyAttendanceSeed(label) + index * 13
+  return 24 + (seed % 10)
+}
+
+function buildBatchAttendanceSplit(label = '', index = 0) {
+  const seed = buildFacultyAttendanceSeed(label) + index * 19
+  const present = 18 + (seed % 12)
+  const absent = 3 + (seed % 6)
+  return { present, absent }
+}
+
+function buildBatchStartDate(index = 0) {
+  const date = new Date(2024, 6, 10 + index)
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function getBatchGroupKey(batch, index) {
+  return String(batch?.courseId || batch?.courseName || `group-${index}`).trim() || `group-${index}`
+}
+
+function getBatchGroupLabel(batch, index) {
+  return String(batch?.courseName || batch?.courseId || 'My Batches').trim() || `My Batches ${index + 1}`
 }
 
 function buildBatchTestScores(label = '', index = 0) {
@@ -630,13 +664,94 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
 export function FacultyMyBatchesPage() {
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
+  const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const profileName = latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
   const greetingName = getFacultyGreetingName(latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
   const todayLabel = formatFacultyHeaderDate()
+  const facultyCourseIds = getFacultyCourseIds(latestFaculty || {})
   const batchOptions = getFacultyBatchOptions(latestFaculty || {})
   const totalBatchCount = batchOptions.length || Number(latestFaculty?.batchCount || 0) || 0
+  const matchingStudents = useMemo(
+    () =>
+      getMatchingStudents(students, {
+        facultyName: latestFaculty?.facultyName || '',
+        courseId: latestFaculty?.courseId || facultyCourseIds[0] || '',
+        courseName: latestFaculty?.courseName || '',
+      }),
+    [facultyCourseIds, latestFaculty?.courseId, latestFaculty?.courseName, latestFaculty?.facultyName, students],
+  )
+  const averageProgress = batchOptions.length
+    ? Math.round(
+        batchOptions.reduce((sum, batch, index) => sum + buildBatchProgressValue(batch.label, index), 0) /
+          batchOptions.length,
+      )
+    : 0
+  const batchGroups = useMemo(() => {
+    const grouped = new Map()
+
+    batchOptions.forEach((batch, index) => {
+      const key = getBatchGroupKey(batch, index)
+      const entry = grouped.get(key) || {
+        key,
+        label: getBatchGroupLabel(batch, index),
+        batches: [],
+      }
+
+      entry.batches.push({ ...batch, localIndex: index })
+      grouped.set(key, entry)
+    })
+
+    return Array.from(grouped.values()).map((group) => {
+      const progressValues = group.batches.map((batch) => buildBatchProgressValue(batch.label, batch.localIndex))
+      const totalStudents = group.batches.reduce((sum, batch) => sum + buildBatchStudentCount(batch.label, batch.localIndex), 0)
+      const groupProgress = progressValues.length
+        ? Math.round(progressValues.reduce((sum, value) => sum + value, 0) / progressValues.length)
+        : 0
+
+      return {
+        ...group,
+        totalStudents,
+        groupProgress,
+      }
+    })
+  }, [batchOptions])
+  const totalStudents = matchingStudents.length || batchOptions.length * 25
+  const summaryCards = [
+    {
+      icon: GraduationCap,
+      label: 'Courses',
+      value: facultyCourseIds.length || 1,
+      note: 'You teach',
+      tone: 'blue',
+      badge: `${facultyCourseIds.length || 1}`,
+    },
+    {
+      icon: Layers3,
+      label: 'Total Batches',
+      value: totalBatchCount,
+      note: 'Across all courses',
+      tone: 'green',
+      badge: `${totalBatchCount}`,
+    },
+    {
+      icon: UsersRound,
+      label: 'Total Students',
+      value: totalStudents,
+      note: 'Across all batches',
+      tone: 'violet',
+      badge: `${totalStudents}`,
+    },
+    {
+      icon: BookOpen,
+      label: 'Avg Course Progress',
+      value: `${averageProgress}%`,
+      note: 'Overall average',
+      tone: 'orange',
+      badge: isStudentsLoading ? '...' : 'Live',
+    },
+  ]
 
   return (
     <section className="student-dashboard-page faculty-dashboard-page faculty-my-batches-page">
@@ -668,57 +783,130 @@ export function FacultyMyBatchesPage() {
         </div>
       </header>
 
-      <section className="panel-card faculty-my-batches-card">
-        <div className="faculty-my-batches-head">
-          <div>
-            <p className="section-kicker">Faculty Data</p>
-            <h3>My Batches</h3>
-            <p>View your assigned batch schedule and timing details</p>
-          </div>
-          <strong>{totalBatchCount} Batches</strong>
-        </div>
+      <div className="student-summary-strip faculty-summary-strip faculty-my-batches-summary-grid" aria-label="My batches summary cards">
+        {summaryCards.map((card) => (
+          <FacultySummaryCard
+            key={card.label}
+            icon={card.icon}
+            label={card.label}
+            value={card.value}
+            note={card.note}
+            tone={card.tone}
+            badge={card.badge}
+          />
+        ))}
+      </div>
 
+      <div className="faculty-my-batches-groups">
         {isLoading ? (
-          <div className="faculty-my-batches-empty">
+          <section className="panel-card faculty-my-batches-loading-card">
             <strong>Loading batches...</strong>
             <p>Please wait while we fetch your faculty batch list.</p>
-          </div>
-        ) : batchOptions.length ? (
-          <div className="faculty-batch-progress-list faculty-my-batches-list" role="list" aria-label="My batches">
-            {batchOptions.map((batch, index) => {
-              const progress = buildBatchProgressValue(batch.label, index)
-
-              return (
-                <article key={batch.id} className="faculty-batch-progress-row" role="listitem">
-                  <div className="faculty-batch-progress-name">
-                    <span className="faculty-batch-progress-avatar" aria-hidden="true">
-                      <UsersRound size={16} strokeWidth={2.3} />
-                    </span>
-                    <div>
-                      <strong>{batch.label}</strong>
-                      <span>{batch.timing || 'Batch schedule'}</span>
+          </section>
+        ) : batchGroups.length ? (
+          batchGroups.map((group) => (
+            <section key={group.key} className="panel-card faculty-batch-group-card">
+              <div className="faculty-batch-group-head">
+                <div className="faculty-batch-group-brand">
+                  <span className="faculty-batch-group-avatar" aria-hidden="true">
+                    {getInitials(group.label)}
+                  </span>
+                  <div>
+                    <div className="faculty-batch-group-title-row">
+                      <strong>{group.label}</strong>
+                      <span className="faculty-batch-group-pill">{group.batches.length} Batches</span>
+                    </div>
+                    <div className="faculty-batch-group-subcopy">
+                      <span>Total Students: {group.totalStudents}</span>
+                      <span>Course Progress: {group.groupProgress}%</span>
                     </div>
                   </div>
+                </div>
 
-                  <div className="faculty-batch-progress-track" aria-hidden="true">
-                    <div className="faculty-batch-progress-fill" style={{ width: `${progress}%` }} />
-                  </div>
+                <button type="button" className="faculty-course-details-button" aria-label={`${group.label} course details`}>
+                  <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                  <span>Course Details</span>
+                  <ChevronDown size={14} strokeWidth={2.3} aria-hidden="true" focusable="false" />
+                </button>
+              </div>
 
-                  <div className="faculty-batch-progress-completion">
-                    <strong>{progress}%</strong>
-                    <span>{progress >= 90 ? 'Completed' : `Week ${Math.max(1, Math.ceil(progress / 10))} / 12`}</span>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
+              <div className="faculty-batch-table" role="table" aria-label={`${group.label} batch details`}>
+                <div className="faculty-batch-table-head" role="row">
+                  <span>Batch Details</span>
+                  <span>Students</span>
+                  <span>Schedule</span>
+                  <span>Progress</span>
+                  <span>Today&apos;s Attendance</span>
+                  <span>Actions</span>
+                </div>
+
+                {group.batches.map((batch) => {
+                  const progress = buildBatchProgressValue(batch.label, batch.localIndex)
+                  const studentCount = buildBatchStudentCount(batch.label, batch.localIndex)
+                  const { present, absent } = buildBatchAttendanceSplit(batch.label, batch.localIndex)
+                  const startDate = buildBatchStartDate(batch.localIndex)
+
+                  return (
+                    <div key={batch.id} className="faculty-batch-table-row" role="row">
+                      <div className="faculty-batch-table-cell faculty-batch-table-batch" role="cell">
+                        <div>
+                          <strong>{batch.label}</strong>
+                          <span>Active</span>
+                        </div>
+                      </div>
+
+                      <div className="faculty-batch-table-cell faculty-batch-table-students" role="cell">
+                        <UsersRound size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                        <strong>{studentCount}</strong>
+                      </div>
+
+                      <div className="faculty-batch-table-cell faculty-batch-table-schedule" role="cell">
+                        <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                        <div>
+                          <strong>{batch.timing || '-'}</strong>
+                          <span>Started: {startDate}</span>
+                        </div>
+                      </div>
+
+                      <div className="faculty-batch-table-cell faculty-batch-table-progress" role="cell">
+                        <strong>{progress}%</strong>
+                        <div className="faculty-batch-table-track" aria-hidden="true">
+                          <div className="faculty-batch-table-fill" style={{ width: `${progress}%` }} />
+                        </div>
+                      </div>
+
+                      <div className="faculty-batch-table-cell faculty-batch-table-attendance" role="cell">
+                        <span className="faculty-batch-table-present">
+                          <UsersRound size={12} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                          {present} Present
+                        </span>
+                        <span className="faculty-batch-table-absent">{absent} Absent</span>
+                      </div>
+
+                      <div className="faculty-batch-table-cell faculty-batch-table-actions" role="cell">
+                        <button type="button" aria-label={`${batch.label} student details`}>
+                          <UsersRound size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                        </button>
+                        <button type="button" aria-label={`${batch.label} schedule`}>
+                          <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                        </button>
+                        <button type="button" aria-label={`${batch.label} progress`}>
+                          <Check size={14} strokeWidth={2.3} aria-hidden="true" focusable="false" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          ))
         ) : (
-          <div className="faculty-my-batches-empty">
+          <section className="panel-card faculty-my-batches-loading-card">
             <strong>No batches assigned yet</strong>
             <p>Add batches in Faculty Management to show them here.</p>
-          </div>
+          </section>
         )}
-      </section>
+      </div>
     </section>
   )
 }

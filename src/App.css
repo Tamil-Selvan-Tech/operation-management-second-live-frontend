@@ -2364,13 +2364,46 @@ tbody tr:hover {
   gap: 18px;
 }
 
-.faculty-my-batches-card {
+.faculty-my-batches-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.faculty-my-batches-summary-grid > * {
+  min-width: 0;
+}
+
+.faculty-my-batches-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.faculty-my-batches-loading-card {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+}
+
+.faculty-my-batches-loading-card strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.faculty-my-batches-loading-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.faculty-batch-group-card {
   display: grid;
   gap: 14px;
   padding: 16px;
 }
 
-.faculty-my-batches-head {
+.faculty-batch-group-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -2378,29 +2411,245 @@ tbody tr:hover {
   flex-wrap: wrap;
 }
 
-.faculty-my-batches-head h3 {
-  margin: 2px 0 0;
+.faculty-batch-group-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.faculty-batch-group-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
+.faculty-batch-group-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.faculty-batch-group-title-row strong {
   color: #0f172a;
-  font-size: 1.06rem;
+  font-size: 1rem;
   font-weight: 900;
   letter-spacing: -0.03em;
 }
 
-.faculty-my-batches-head p {
-  margin: 6px 0 0;
-  color: #64748b;
-  font-size: 0.84rem;
+.faculty-batch-group-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #e0edff;
+  color: #2563eb;
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
-.faculty-my-batches-head strong {
-  color: #1d4ed8;
-  font-size: 0.9rem;
+.faculty-batch-group-subcopy {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.faculty-batch-group-subcopy span {
+  white-space: nowrap;
+}
+
+.faculty-course-details-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid #d7e5f7;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  color: #334155;
+  font-size: 0.82rem;
   font-weight: 900;
   white-space: nowrap;
 }
 
-.faculty-my-batches-list {
-  gap: 10px;
+.faculty-batch-table {
+  display: grid;
+  gap: 8px;
+}
+
+.faculty-batch-table-head {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) 84px minmax(220px, 1.1fr) 120px 150px 98px;
+  gap: 12px;
+  padding: 0 8px 10px;
+  color: #2563eb;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.faculty-batch-table-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.3fr) 84px minmax(220px, 1.1fr) 120px 150px 98px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 10px;
+  border-radius: 14px;
+  background: #fafcff;
+  border: 1px solid #e2ebf6;
+}
+
+.faculty-batch-table-cell {
+  min-width: 0;
+}
+
+.faculty-batch-table-batch {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.faculty-batch-table-batch strong {
+  display: block;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.faculty-batch-table-batch span {
+  display: block;
+  margin-top: 2px;
+  color: #22c55e;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.faculty-batch-table-students,
+.faculty-batch-table-schedule,
+.faculty-batch-table-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.faculty-batch-table-students strong,
+.faculty-batch-table-schedule strong,
+.faculty-batch-table-progress strong {
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.faculty-batch-table-students {
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.faculty-batch-table-schedule {
+  color: #475569;
+}
+
+.faculty-batch-table-schedule div {
+  min-width: 0;
+}
+
+.faculty-batch-table-schedule span {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.faculty-batch-table-progress {
+  display: grid;
+  gap: 6px;
+}
+
+.faculty-batch-table-track {
+  height: 6px;
+  border-radius: 999px;
+  background: #e7edf6;
+  overflow: hidden;
+}
+
+.faculty-batch-table-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #22c55e 0%, #16a34a 45%, #0f7bda 100%);
+}
+
+.faculty-batch-table-attendance {
+  display: grid;
+  gap: 4px;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.faculty-batch-table-present {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #16a34a;
+}
+
+.faculty-batch-table-absent {
+  color: #ef4444;
+}
+
+.faculty-batch-table-actions {
+  justify-content: flex-start;
+}
+
+.faculty-batch-table-actions button {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid #dbe6f5;
+  background: #ffffff;
+  color: #2563eb;
+}
+
+.faculty-batch-table-actions button:hover {
+  background: #eff6ff;
+}
+
+.faculty-my-batches-loading-card {
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+}
+
+.faculty-my-batches-loading-card strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.faculty-my-batches-loading-card p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.82rem;
 }
 
 .faculty-my-batches-empty {
@@ -2425,26 +2674,27 @@ tbody tr:hover {
 }
 
 .faculty-summary-card {
-  padding: 16px 18px;
+  padding: 12px 14px;
+  gap: 10px;
 }
 
 .faculty-summary-card-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
 }
 
 .faculty-summary-card-value {
-  font-size: 1.15rem;
+  font-size: 1.02rem;
 }
 
 .faculty-summary-card-note {
   color: #475569;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
 }
 
 .faculty-summary-card-badge {
-  padding: 5px 11px;
+  padding: 4px 10px;
 }
 
 .faculty-attendance-card {
@@ -10190,6 +10440,37 @@ tbody tr:hover {
     grid-template-columns: 40px minmax(0, 1fr) 34px;
     min-height: 260px;
   }
+
+  .faculty-my-batches-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .faculty-batch-group-card {
+    padding: 14px;
+  }
+
+  .faculty-batch-group-head {
+    align-items: stretch;
+  }
+
+  .faculty-course-details-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .faculty-batch-table-head {
+    display: none;
+  }
+
+  .faculty-batch-table-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px 10px;
+  }
+
+  .faculty-batch-table-actions {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 640px) {
@@ -14000,6 +14281,21 @@ tbody tr:hover {
 
   .faculty-batch-performance-triple {
     min-height: 200px;
+  }
+
+  .faculty-my-batches-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .faculty-batch-table-head {
+    grid-template-columns: minmax(180px, 1.2fr) 72px minmax(180px, 1fr) 96px 120px 84px;
+    gap: 10px;
+  }
+
+  .faculty-batch-table-row {
+    grid-template-columns: minmax(180px, 1.2fr) 72px minmax(180px, 1fr) 96px 120px 84px;
+    gap: 10px;
+    padding: 10px 8px;
   }
 
   .operation-manager-dashboard .business-topbar {
