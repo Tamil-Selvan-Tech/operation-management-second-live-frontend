@@ -2146,21 +2146,38 @@ tbody tr:hover {
   flex: 0 0 auto;
 }
 
-.student-dashboard-profile-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: #d9e8ef;
-  border: 1px solid #d6e2ee;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+.student-dashboard-profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   flex: 0 0 auto;
+  white-space: nowrap;
 }
 
-.student-dashboard-profile-avatar svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+.student-dashboard-profile-initials {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #102a6b 0%, #1f3f91 100%);
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.student-dashboard-profile-name {
+  color: #1f2937;
+  font-size: 0.96rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .student-dashboard-date-pill {
@@ -2644,6 +2661,367 @@ tbody tr:hover {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
+}
+
+.student-payment-overview {
+  display: grid;
+  gap: 14px;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #dfe8f4;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+  min-width: 0;
+}
+
+.student-payment-overview-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.student-payment-overview-kicker {
+  margin: 0 0 4px;
+  color: #2563eb;
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.student-payment-overview-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.02rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.student-payment-overview-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.student-payment-overview-chip.is-clear {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.student-payment-overview-chip.is-due {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.student-payment-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.92fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+
+.student-payment-overview-ring {
+  width: min(100%, 250px);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  padding: 16px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(#2f80ed 0% 50%, #f97316 50% 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.student-payment-overview-ring-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  padding: 18px;
+  text-align: center;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #e5edf7;
+}
+
+.student-payment-overview-ring-inner span {
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.student-payment-overview-ring-inner strong {
+  color: #0f172a;
+  font-size: clamp(1.18rem, 2vw, 1.7rem);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.student-payment-overview-ring-inner small {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.student-payment-overview-details {
+  display: grid;
+  gap: 12px;
+}
+
+.student-payment-overview-item {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid #e6edf6;
+  background: #f8fbff;
+}
+
+.student-payment-overview-item strong {
+  display: block;
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.student-payment-overview-item span {
+  color: #1f2937;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.student-payment-overview-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #2f80ed;
+}
+
+.student-payment-overview-item.tone-orange .student-payment-overview-dot {
+  background: #f97316;
+}
+
+.student-payment-overview-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid #dbe7f4;
+  background: #f8fbff;
+}
+
+.student-payment-overview-banner svg {
+  flex: 0 0 auto;
+}
+
+.student-payment-overview-banner div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.student-payment-overview-banner strong {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.student-payment-overview-banner span {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.student-payment-overview-banner.is-clear {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #f0fdf4 0%, #f8fff9 100%);
+}
+
+.student-payment-overview-banner.is-clear svg {
+  color: #16a34a;
+}
+
+.student-payment-overview-banner.is-due {
+  border-color: #fed7aa;
+  background: linear-gradient(180deg, #fff7ed 0%, #fffaf4 100%);
+}
+
+.student-payment-overview-banner.is-due svg {
+  color: #f97316;
+}
+
+.student-performance-payment-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 28px;
+  min-width: 0;
+}
+
+.student-test-trend {
+  display: grid;
+  gap: 12px;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background: #ffffff;
+  border: 1px solid #dfe8f4;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.05);
+  min-width: 0;
+}
+
+.student-test-trend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.student-test-trend-head h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.04rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.student-test-trend-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #d6e1ef;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.student-test-trend-chart {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.student-test-trend-chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.student-test-trend-gridline {
+  stroke: #e4ebf4;
+  stroke-width: 1;
+}
+
+.student-test-trend-axis {
+  fill: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.student-test-trend-label {
+  fill: #0f172a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.student-test-trend-month {
+  fill: #475569;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.student-test-trend-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.student-test-trend-metric {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 10px 10px 9px;
+  border-radius: 16px;
+  background: #f8fbff;
+  border: 1px solid #e6edf6;
+}
+
+.student-test-trend-metric-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.student-test-trend-metric-icon svg {
+  display: block;
+}
+
+.student-test-trend-metric strong {
+  display: block;
+  color: #475569;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.student-test-trend-metric b {
+  display: block;
+  color: #0f172a;
+  font-size: 0.98rem;
+  font-weight: 900;
+  line-height: 1.05;
+  margin-top: 1px;
+}
+
+.student-test-trend-metric small {
+  display: block;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.student-test-trend-metric.tone-blue .student-test-trend-metric-icon {
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  color: #2563eb;
+}
+
+.student-test-trend-metric.tone-green .student-test-trend-metric-icon {
+  background: linear-gradient(180deg, #ecfdf5 0%, #dcfce7 100%);
+  color: #16a34a;
+}
+
+.student-test-trend-metric.tone-orange .student-test-trend-metric-icon {
+  background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+  color: #f97316;
+}
+
+.student-test-trend-metric.tone-violet .student-test-trend-metric-icon {
+  background: linear-gradient(180deg, #f5f3ff 0%, #ede9fe 100%);
+  color: #8b5cf6;
+}
+
+.student-test-trend-metric-icon svg {
+  color: currentColor;
 }
 
 .student-dashboard-empty {
@@ -13102,9 +13480,14 @@ tbody tr:hover {
     justify-content: space-between;
   }
 
-  .student-dashboard-profile-avatar {
-    width: 44px;
-    height: 44px;
+  .student-dashboard-profile-chip {
+    gap: 10px;
+  }
+
+  .student-dashboard-profile-initials {
+    width: 34px;
+    height: 34px;
+    font-size: 0.84rem;
   }
 
   .student-dashboard-date-pill {
@@ -13130,6 +13513,40 @@ tbody tr:hover {
 
   .student-attendance-layout {
     grid-template-columns: 1fr;
+  }
+
+  .student-performance-payment-row {
+    grid-template-columns: 1fr;
+  }
+
+  .student-test-trend-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .student-payment-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-test-trend,
+  .student-payment-overview {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .student-test-trend-chart {
+    overflow-x: auto;
+  }
+
+  .student-test-trend-chart svg {
+    min-width: 480px;
+  }
+
+  .student-payment-overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .student-payment-overview-ring {
+    width: min(100%, 220px);
   }
 
   .student-attendance-chart {

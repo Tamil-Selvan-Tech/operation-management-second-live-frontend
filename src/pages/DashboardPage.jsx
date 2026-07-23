@@ -1,20 +1,23 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, ChevronDown, ChevronRight, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { createPortal } from 'react-dom'
 import { memo } from 'react'
 import {
+  AlertTriangle,
   BadgeCheck,
   Building2,
   CalendarDays,
+  Bell,
   ChevronDown,
   ChevronRight,
   Clock3,
+  CreditCard,
   Globe,
   Info,
   LockKeyhole,
   RefreshCcw,
+  ReceiptText,
   ShieldCheck,
   Target,
   TrendingUp,
@@ -23,7 +26,7 @@ import {
 } from 'lucide-react'
 
 import { HeaderIdentityChip } from '../components/HeaderIdentityChip'
-import { NotificationBell } from '../components/NotificationBell'
+import { NotificationBell as GlobalNotificationBell } from '../components/NotificationBell'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
@@ -1452,7 +1455,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
             <span aria-hidden="true">âŒ•</span>
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
-          <NotificationBell />
+          <GlobalNotificationBell />
           <HeaderIdentityChip
             initials={profileDetails.initials}
             title={profileDetails.role}

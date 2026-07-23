@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChevronDown, GraduationCap, TrendingUp, Wallet } from 'lucide-react'
+import { Activity, ArrowUpRight, BookOpen, CalendarDays, ChevronDown, ClipboardList, GraduationCap, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
@@ -171,6 +171,8 @@ function StudentDashboardHeader({ studentName }) {
   const greetingName = getStudentGreetingName(studentName)
   const greetingLabel = getStudentGreetingLabel()
   const todayLabel = formatStudentHeaderDate()
+  const profileName = studentName || 'Student'
+  const profileInitials = getStudentInitials(profileName)
 
   return (
     <header className="student-dashboard-header">
@@ -191,26 +193,12 @@ function StudentDashboardHeader({ studentName }) {
             <span>TODAY</span>
           </div>
         </div>
-        <div className="student-dashboard-profile-avatar" aria-hidden="true">
-          <svg viewBox="0 0 64 64" role="img" aria-hidden="true" focusable="false">
-            <circle cx="32" cy="32" r="30" fill="#d9e8ef" />
-            <path
-              d="M20 27c0-8 5.8-15 12.6-15 7.2 0 13.4 6.8 13.4 15.3 0 4.6-1.4 8.4-3.7 11.4-1.5-2.7-4.1-4.6-7.3-4.6h-3c-3.2 0-5.8 1.9-7.3 4.6C21.4 35.8 20 32 20 27Z"
-              fill="#7a431e"
-            />
-            <path
-              d="M18 43c0-6.4 5.2-11.6 11.6-11.6h4.8C40.8 31.4 46 36.6 46 43v9H18z"
-              fill="#f4b58b"
-            />
-            <path d="M18 43c0-4.7 2.4-8.8 6-11.2v20.4H18z" fill="#2f3138" />
-            <path d="M46 43c0-4.7-2.4-8.8-6-11.2v20.4H46z" fill="#2f3138" />
-            <path
-              d="M24 23c1.6-4.8 5.8-8 10.2-8 3.8 0 7.3 2 9.5 5.2 1.7 2.4 2.2 5.4 1.6 8.4-.5 2.2-1.9 4.8-3.2 6.3-1.1-4.8-3.8-8-8-8h-4c-3.3 0-5.7 1.7-6.1 4.7-1.2-2-1.1-5.1 0-8.6Z"
-              fill="#8a4f24"
-            />
-            <path d="M26 28c2.4-4.9 6.2-7.5 11.8-7.5 3.5 0 6.1 1 8 2.8" fill="none" stroke="#f4b58b" strokeWidth="2" strokeLinecap="round" />
-            <path d="M25 34c2.4 3.8 5.4 5.6 7 5.6s4.6-1.8 7-5.6" fill="none" stroke="#f0a97c" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
-          </svg>
+        <div className="student-dashboard-profile-chip" aria-label={profileName}>
+          <span className="student-dashboard-profile-initials" aria-hidden="true">
+            {profileInitials}
+          </span>
+          <span className="student-dashboard-profile-name">{profileName}</span>
+          <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
         </div>
       </div>
     </header>
@@ -333,6 +321,213 @@ function StudentMonthlyAttendanceChart({ student }) {
   )
 }
 
+function StudentPaymentOverview({ student }) {
+  const payment = useMemo(() => {
+    const totalAmount = Number(student?.afterDiscount || student?.totalAmount || 0)
+    const paidAmount = getPaidAmount(student)
+    const pendingAmount = Math.max(totalAmount - paidAmount, 0)
+    const paidPercent = totalAmount > 0 ? Math.min(100, Math.round((paidAmount / totalAmount) * 100)) : 0
+    const pendingPercent = totalAmount > 0 ? Math.max(0, 100 - paidPercent) : 0
+
+    return {
+      totalAmount,
+      paidAmount,
+      pendingAmount,
+      paidPercent,
+      pendingPercent,
+    }
+  }, [student])
+
+  const ringStyle = {
+    background: `conic-gradient(#2f80ed 0% ${payment.paidPercent}%, #f97316 ${payment.paidPercent}% 100%)`,
+  }
+
+  const statusTone = payment.pendingAmount > 0 ? 'is-due' : 'is-clear'
+
+  return (
+    <article className="student-payment-overview panel-card" aria-label="Payment overview">
+      <div className="student-payment-overview-head">
+        <div>
+          <p className="student-payment-overview-kicker">Payment Overview</p>
+          <h3>Final Fee Breakdown</h3>
+        </div>
+        <span className={`student-payment-overview-chip ${statusTone}`}>
+          {payment.totalAmount > 0 ? `${payment.paidPercent}% paid` : 'No fee data'}
+        </span>
+      </div>
+
+      <div className="student-payment-overview-grid">
+        <div className="student-payment-overview-ring" style={ringStyle} aria-hidden="true">
+          <div className="student-payment-overview-ring-inner">
+            <span>Total Amount</span>
+            <strong>{formatCurrency(payment.totalAmount)}</strong>
+            <small>{payment.pendingPercent}% pending</small>
+          </div>
+        </div>
+
+        <div className="student-payment-overview-details">
+          <div className="student-payment-overview-item tone-blue">
+            <span className="student-payment-overview-dot" />
+            <div>
+              <strong>Paid Amount</strong>
+              <span>{formatCurrency(payment.paidAmount)}</span>
+            </div>
+          </div>
+          <div className="student-payment-overview-item tone-orange">
+            <span className="student-payment-overview-dot" />
+            <div>
+              <strong>Pending Amount</strong>
+              <span>{formatCurrency(payment.pendingAmount)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className={`student-payment-overview-banner ${statusTone}`}>
+        <Wallet size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+        <div>
+          <strong>
+            {payment.pendingAmount > 0
+              ? `${formatCurrency(payment.pendingAmount)} still pending`
+              : 'You are up to date with your payments.'}
+          </strong>
+          <span>
+            {payment.totalAmount > 0
+              ? `Paid ${formatCurrency(payment.paidAmount)} out of ${formatCurrency(payment.totalAmount)} final fee.`
+              : 'Payment data will appear once the student record is available.'}
+          </span>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function StudentTestPerformanceTrend({ student }) {
+  const trend = useMemo(() => {
+    const baseScore = Number(student?.averageScore || 80)
+    const offsets = [-8, -4, 2, -1, 7, 3]
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+    const values = months.map((month, index) => ({
+      month,
+      score: Math.max(60, Math.min(98, baseScore + offsets[index])),
+    }))
+    const highest = values.reduce((top, item) => (item.score > top.score ? item : top), values[0])
+    const lowest = values.reduce((bottom, item) => (item.score < bottom.score ? item : bottom), values[0])
+    const averageScore = Math.round(values.reduce((sum, item) => sum + item.score, 0) / values.length)
+
+    return {
+      values,
+      highest,
+      lowest,
+      averageScore,
+      testsTaken: Number(student?.testCount || 3),
+    }
+  }, [student])
+
+  const chartPoints = trend.values.map((item, index) => {
+    const x = 40 + index * 84
+    const y = 164 - ((item.score - 60) / 38) * 112
+    return { x, y }
+  })
+  const linePoints = chartPoints.map((point) => `${point.x},${point.y}`).join(' ')
+  const areaPath = `M ${chartPoints[0].x} 164 ${chartPoints.map((point) => `L ${point.x} ${point.y}`).join(' ')} L ${chartPoints.at(-1).x} 164 Z`
+
+  return (
+    <article className="student-test-trend panel-card" aria-label="Test performance trend">
+      <div className="student-test-trend-head">
+        <h3>Test Performance Trend</h3>
+        <button type="button" className="student-test-trend-filter" aria-label="Last 3 tests">
+          <span>Last 3 Tests</span>
+          <ChevronDown size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+        </button>
+      </div>
+
+      <div className="student-test-trend-chart" aria-hidden="true">
+        <svg viewBox="0 0 520 230" role="presentation" focusable="false">
+          <defs>
+            <linearGradient id="student-test-trend-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#dbeafe" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#eff6ff" stopOpacity="0.25" />
+            </linearGradient>
+          </defs>
+
+          {[0, 25, 50, 75, 100].map((tick) => {
+            const y = 190 - (tick / 100) * 120
+            return <line key={tick} x1="28" x2="500" y1={y} y2={y} className="student-test-trend-gridline" />
+          })}
+
+          <text x="4" y="194" className="student-test-trend-axis">0%</text>
+          <text x="0" y="164" className="student-test-trend-axis">25%</text>
+          <text x="0" y="134" className="student-test-trend-axis">50%</text>
+          <text x="0" y="104" className="student-test-trend-axis">75%</text>
+          <text x="0" y="74" className="student-test-trend-axis">100%</text>
+
+          <path d={areaPath} fill="url(#student-test-trend-fill)" opacity="0.9" />
+          <polyline points={linePoints} fill="none" stroke="#0f7bda" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+
+          {trend.values.map((item, index) => {
+            const { x, y } = chartPoints[index]
+            return (
+              <g key={item.month}>
+                <circle cx={x} cy={y} r="6.5" fill="#1d4ed8" stroke="#ffffff" strokeWidth="3" />
+                <text x={x} y={y - 16} textAnchor="middle" className="student-test-trend-label">
+                  {item.score}%
+                </text>
+                <text x={x} y={214} textAnchor="middle" className="student-test-trend-month">
+                  {item.month}
+                </text>
+              </g>
+            )
+          })}
+        </svg>
+      </div>
+
+      <div className="student-test-trend-metrics">
+        <div className="student-test-trend-metric tone-blue">
+          <span className="student-test-trend-metric-icon" aria-hidden="true">
+            <Activity size={16} strokeWidth={2.3} />
+          </span>
+          <div>
+            <strong>Highest Score</strong>
+            <b>{trend.highest.score}%</b>
+            <small>{trend.highest.month}</small>
+          </div>
+        </div>
+        <div className="student-test-trend-metric tone-green">
+          <span className="student-test-trend-metric-icon" aria-hidden="true">
+            <ArrowUpRight size={16} strokeWidth={2.4} />
+          </span>
+          <div>
+            <strong>Average Score</strong>
+            <b>{trend.averageScore.toFixed(2)}%</b>
+            <small>Last 3 Tests</small>
+          </div>
+        </div>
+        <div className="student-test-trend-metric tone-orange">
+          <span className="student-test-trend-metric-icon" aria-hidden="true">
+            <TrendingDown size={16} strokeWidth={2.3} />
+          </span>
+          <div>
+            <strong>Lowest Score</strong>
+            <b>{trend.lowest.score}%</b>
+            <small>{trend.lowest.month}</small>
+          </div>
+        </div>
+        <div className="student-test-trend-metric tone-violet">
+          <span className="student-test-trend-metric-icon" aria-hidden="true">
+            <ClipboardList size={16} strokeWidth={2.3} />
+          </span>
+          <div>
+            <strong>Tests Taken</strong>
+            <b>{trend.testsTaken}</b>
+            <small>Total</small>
+          </div>
+        </div>
+      </div>
+    </article>
+  )
+}
+
 function StudentDashboardContent({ dashboard }) {
   const { student: latestStudent, isLoading } = useCurrentStudentProfile()
 
@@ -371,7 +566,7 @@ function StudentDashboardContent({ dashboard }) {
   }
 
   const status = getStudentStatus(latestStudent)
-  const totalAmount = Number(latestStudent.totalAmount || latestStudent.afterDiscount || 0)
+  const totalAmount = Number(latestStudent.afterDiscount || latestStudent.totalAmount || 0)
   const paidAmount = getPaidAmount(latestStudent)
   const dueAmount = Math.max(totalAmount - paidAmount, 0)
   const feeProgress = totalAmount > 0 ? Math.min(100, Math.round((paidAmount / totalAmount) * 100)) : 0
@@ -429,111 +624,9 @@ function StudentDashboardContent({ dashboard }) {
 
       <StudentMonthlyAttendanceChart student={latestStudent} />
 
-      <article className="student-dashboard-hero">
-        <div className="student-dashboard-hero-top">
-          <div className="student-dashboard-avatar">{getStudentInitials(latestStudent.studentName)}</div>
-          <div className="student-dashboard-hero-main">
-            <div className="student-dashboard-name-row">
-              <h2>{latestStudent.studentName}</h2>
-              <span className={`student-status-pill ${status.tone}`}>{status.label}</span>
-            </div>
-            <div className="student-dashboard-id-row">
-              <div>
-                <span>Course</span>
-                <strong>{latestStudent.courseInterested || '-'}</strong>
-              </div>
-              <div>
-                <span>Batch</span>
-                <strong>{latestStudent.batch || '-'}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="student-dashboard-hero-side">
-          <div>
-            <span>Email</span>
-            <strong className="student-inline-email">{latestStudent.emailAddress || '-'}</strong>
-          </div>
-          <div>
-            <span>Mobile</span>
-            <strong>{latestStudent.mobileNumber || '-'}</strong>
-          </div>
-          <div>
-            <span>Admission Date</span>
-            <strong>{formatDate(latestStudent.admissionDate)}</strong>
-          </div>
-          <div className="student-dashboard-hero-actions">
-            <span>Need help signing in?</span>
-            <Link to="/forgot-password" className="text-link">
-              Forgot password?
-            </Link>
-            <small>We will send a reset link to your registered email address.</small>
-          </div>
-        </div>
-      </article>
-
-      <div className="student-dashboard-grid">
-        <StudentSectionCard title="Basic Information" subtitle="Primary contact and location details">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="Student Name" value={latestStudent.studentName} />
-            <StudentInfoItem label="Mobile Number" value={latestStudent.mobileNumber} />
-            <StudentInfoItem label="Email Address" value={latestStudent.emailAddress} valueClassName="student-inline-email" />
-            <StudentInfoItem label="Parent / Spouse Number" value={latestStudent.parentSpouseNumber} />
-            <StudentInfoItem label="Location" value={latestStudent.location} fullWidth />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Education Details" subtitle="Course and academic background">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="Course Interested" value={latestStudent.courseInterested} />
-            <StudentInfoItem label="Faculty Name" value={latestStudent.facultyName} />
-            <StudentInfoItem label="Batch" value={latestStudent.batch} />
-            <StudentInfoItem label="Qualification" value={latestStudent.qualification} />
-            <StudentInfoItem label="Passed Out Year" value={latestStudent.passedOutYear} />
-            <StudentInfoItem label="Current Status" value={latestStudent.currentStatus} />
-            <StudentInfoItem label="Designation" value={latestStudent.designation || '-'} />
-            <StudentInfoItem label="Source" value={latestStudent.source || '-'} />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Admission Details" subtitle="Fee setup and enrollment tracking">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="Admission Date" value={formatDate(latestStudent.admissionDate)} />
-            <StudentInfoItem label="Total Course Fee" value={formatCurrency(latestStudent.totalAmount || latestStudent.afterDiscount)} />
-            <StudentInfoItem label="Discount" value={formatCurrency(latestStudent.discount)} />
-            <StudentInfoItem label="Final Fee" value={formatCurrency(latestStudent.afterDiscount)} />
-            <StudentInfoItem label="Counselor Name" value={latestStudent.counselorName || '-'} />
-            <StudentInfoItem label="Remarks" value={latestStudent.remarks || '-'} fullWidth />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Installment Details" subtitle="Payment progress and due dates">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="1st Installment Amount" value={formatCurrency(latestStudent.firstInstallmentAmount || latestStudent.installment1)} />
-            <StudentInfoItem label="1st Installment Date" value={formatDate(latestStudent.firstInstallmentDate || latestStudent.admissionDate)} />
-            <StudentInfoItem label="1st Installment Status" value={latestStudent.firstInstallmentStatus || 'Pending'} />
-            <StudentInfoItem label="2nd Installment Amount" value={formatCurrency(latestStudent.secondInstallmentAmount || latestStudent.installment2)} />
-            <StudentInfoItem label="2nd Due Date" value={formatDate(getSecondDueDate(latestStudent))} />
-            <StudentInfoItem label="2nd Installment Status" value={latestStudent.secondInstallmentStatus || 'Pending'} />
-            {hasThirdInstallment(latestStudent) ? (
-              <>
-                <StudentInfoItem label="3rd Installment Amount" value={formatCurrency(latestStudent.thirdInstallmentAmount || latestStudent.installment3)} />
-                <StudentInfoItem label="3rd Due Date" value={formatDate(getThirdDueDate(latestStudent))} />
-                <StudentInfoItem label="3rd Installment Status" value={latestStudent.thirdInstallmentStatus || 'Pending'} />
-              </>
-            ) : null}
-            <StudentInfoItem label="Paid Amount" value={formatCurrency(paidAmount)} />
-            <StudentInfoItem label="Due Amount" value={formatCurrency(dueAmount)} />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Lead Information" subtitle="Counseling and source tracking">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="How did you know about our Institute?" value={latestStudent.source} />
-            <StudentInfoItem label="Remarks" value={latestStudent.remarks || '-'} fullWidth />
-          </div>
-        </StudentSectionCard>
+      <div className="student-performance-payment-row">
+        <StudentTestPerformanceTrend student={latestStudent} />
+        <StudentPaymentOverview student={latestStudent} />
       </div>
     </section>
   )

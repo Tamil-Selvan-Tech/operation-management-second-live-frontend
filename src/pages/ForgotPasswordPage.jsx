@@ -161,7 +161,7 @@ export function ForgotPasswordPage() {
                     type="email"
                     autoComplete="email"
                     className="login-input"
-                    placeholder="hema@gmail.com"
+                    placeholder="Enter your email"
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     disabled={isSubmitting}
