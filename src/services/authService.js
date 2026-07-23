@@ -57,6 +57,23 @@ const roleFromBackend = (role) => {
 const loginIdentifier = (credentials) =>
   credentials.identifier || credentials.email || credentials.userCode || ''
 
+function isLocalhostLike(value) {
+  const text = String(value || '').trim().toLowerCase()
+  return (
+    text.includes('localhost') ||
+    text.includes('127.0.0.1') ||
+    text.includes('0.0.0.0')
+  )
+}
+
+function isLocalRuntime() {
+  if (typeof window === 'undefined' || !window.location?.hostname) {
+    return false
+  }
+
+  return isLocalhostLike(window.location.hostname)
+}
+
 export function findFixedAccount({ email, password }) {
   return fixedAccounts.find(
     (account) =>
@@ -108,6 +125,10 @@ export function normalizeAuthSession(response, fallbackSession) {
 
 export async function signInWithFallback(credentials) {
   if (!API_BASE_URL) {
+    if (!isLocalRuntime()) {
+      throw new Error('API base URL is not configured for this environment')
+    }
+
     const matchedAccount = findFixedAccount(credentials)
     if (!matchedAccount) {
       throw new Error('Invalid email or password')
