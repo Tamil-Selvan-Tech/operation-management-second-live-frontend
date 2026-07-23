@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Bell,
+  CalendarDays,
   GraduationCap,
   Home,
   LogOut,
@@ -46,6 +47,7 @@ export function AppSidebar({
   activeNav,
   user,
   onNavigateDashboard,
+  onNavigateFacultyBatches,
   onNavigateCourses,
   onNavigateStudentManagement,
   onNavigateFacultyManagement,
@@ -54,6 +56,7 @@ export function AppSidebar({
   onClose,
   isMobileOpen = false,
   showCoursesNav = true,
+  showFacultyBatchesNav = false,
   showStudentManagementNav = true,
   showFacultyManagementNav = true,
 }) {
@@ -93,6 +96,14 @@ export function AppSidebar({
       active: activeNav === 'dashboard',
       onClick: createNavHandler(onClose, onNavigateDashboard),
     },
+    showFacultyBatchesNav
+      ? {
+          icon: CalendarDays,
+          label: 'My Batches',
+          active: activeNav === 'my-batches',
+          onClick: createNavHandler(onClose, onNavigateFacultyBatches),
+        }
+      : null,
     showCoursesNav
       ? {
           icon: GraduationCap,

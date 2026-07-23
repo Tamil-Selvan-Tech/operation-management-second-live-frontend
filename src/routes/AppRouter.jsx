@@ -16,7 +16,6 @@ import { PublicRoute } from './PublicRoute'
 import {
   clearPendingLoginEmail,
   loadPendingLoginEmail,
-  savePendingLoginEmail,
 } from '../lib/session'
 
 const lazyNamed = (loader, exportName) =>
@@ -52,6 +51,10 @@ const NotificationsPage = lazyNamed(() => import('../pages/NotificationsPage'), 
 const ResetPasswordPage = lazyNamed(() => import('../pages/ResetPasswordPage'), 'ResetPasswordPage')
 const SessionExpiredPage = lazyNamed(() => import('../pages/SessionExpiredPage'), 'SessionExpiredPage')
 const UnauthorizedPage = lazyNamed(() => import('../pages/UnauthorizedPage'), 'UnauthorizedPage')
+const FacultyMyBatchesPage = lazyNamed(
+  () => import('../pages/FacultyDashboardPage'),
+  'FacultyMyBatchesPage',
+)
 
 const workspacePathsByRole = {
   'business-owner': {
@@ -146,6 +149,7 @@ function AppLayout() {
   const dashboard = role ? roleDashboards[role] : null
   const workspacePaths = workspacePathsByRole[role] || workspacePathsByRole['business-owner']
   const canAccessCourses = courseAccessRoles.includes(role)
+  const canAccessFacultyBatches = role === 'faculty'
   const canAccessStudentManagement = courseAccessRoles.includes(role)
   const canAccessFacultyManagement = courseAccessRoles.includes(role)
   const showChrome =
@@ -155,6 +159,7 @@ function AppLayout() {
     location.pathname !== '/dashboard/operation-manager/student-management' &&
     location.pathname !== '/dashboard/operation-manager/faculty-management' &&
     location.pathname !== '/dashboard/faculty' &&
+    location.pathname !== '/dashboard/faculty/my-batches' &&
     location.pathname !== '/dashboard/student' &&
     location.pathname !== '/notifications' &&
     location.pathname !== '/courses' &&
@@ -168,6 +173,7 @@ function AppLayout() {
       dashboard={dashboard}
       user={user}
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
+      onNavigateFacultyBatches={() => navigate('/dashboard/faculty/my-batches')}
       onNavigateCourses={() => navigate(workspacePaths.courses)}
       onNavigateStudentManagement={() => navigate(workspacePaths.studentManagement)}
       onNavigateFacultyManagement={() => navigate(workspacePaths.facultyManagement)}
@@ -177,6 +183,7 @@ function AppLayout() {
         navigate('/login')
       }}
       showCoursesNav={canAccessCourses}
+      showFacultyBatchesNav={canAccessFacultyBatches}
       showStudentManagementNav={canAccessStudentManagement}
       showFacultyManagementNav={canAccessFacultyManagement}
       showChrome={showChrome}
@@ -273,6 +280,7 @@ export function AppRouter() {
               />
               <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
               <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
+              <Route path="/dashboard/faculty/my-batches" element={<FacultyMyBatchesPage />} />
               <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>

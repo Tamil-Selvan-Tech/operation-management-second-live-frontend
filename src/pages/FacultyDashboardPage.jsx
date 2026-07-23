@@ -6,18 +6,6 @@ import { roleDashboards } from '../data/authData'
 import { getFacultyCourseIds, getMatchingStudents } from '../lib/facultyFlow'
 import { getCurrentFacultyProfile } from '../services/facultyService'
 import { listStudents } from '../services/studentService'
-import { StudentInfoItem, StudentSectionCard } from './studentDashboardUtils.jsx'
-
-function formatDate(value) {
-  if (!value) return '-'
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return '-'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date)
-}
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -350,62 +338,67 @@ function FacultyAttendanceCard({ faculty, batches = [] }) {
   )
 }
 
-function FacultyBatchAnalyticsCard({ batches = [] }) {
+function FacultyBatchProgressCard({ batches = [] }) {
+  const visibleBatches = batches.slice(0, 6)
+
+  return (
+    <section className="faculty-batch-progress-card panel-card">
+      <div className="faculty-batch-progress-head">
+        <div className="faculty-batch-progress-head-copy">
+          <h3>Course Completion Progress</h3>
+          <p>Batch name details and progress overview</p>
+        </div>
+        <button type="button" className="faculty-range-chip" aria-label="View by weeks">
+          <span>View By: Weeks</span>
+          <ChevronDown size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+        </button>
+      </div>
+
+      <div className="faculty-batch-progress-list" role="list" aria-label="Batch completion progress">
+        {visibleBatches.length ? (
+          visibleBatches.map((batch, index) => {
+            const progress = buildBatchProgressValue(batch.label, index)
+            return (
+              <article key={batch.id} className="faculty-batch-progress-row" role="listitem">
+                <div className="faculty-batch-progress-name">
+                  <span className="faculty-batch-progress-avatar" aria-hidden="true">
+                    <UsersRound size={16} strokeWidth={2.3} />
+                  </span>
+                  <div>
+                    <strong>{batch.label}</strong>
+                    <span>{batch.timing || 'Batch schedule'}</span>
+                  </div>
+                </div>
+
+                <div className="faculty-batch-progress-track" aria-hidden="true">
+                  <div className="faculty-batch-progress-fill" style={{ width: `${progress}%` }} />
+                </div>
+
+                <div className="faculty-batch-progress-completion">
+                  <strong>{progress}%</strong>
+                  <span>{progress >= 90 ? 'Completed' : `Week ${Math.max(1, Math.ceil(progress / 10))} / 12`}</span>
+                </div>
+              </article>
+            )
+          })
+        ) : (
+          <div className="faculty-batch-progress-empty">
+            <strong>No batches added yet</strong>
+            <p>Add batch names in Faculty Management to show the progress list here.</p>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function FacultyBatchPerformanceCard({ batches = [] }) {
   const visibleBatches = batches.slice(0, 6)
   const testLabels = ['Test 1', 'Test 2', 'Test 3']
   const legendTones = ['blue', 'green', 'violet']
 
   return (
-    <section className="faculty-batch-analytics">
-      <div className="faculty-batch-progress-card panel-card faculty-batch-progress-card-left">
-        <div className="faculty-batch-progress-head">
-          <div className="faculty-batch-progress-head-copy">
-            <h3>Course Completion Progress</h3>
-            <p>Batch name details and progress overview</p>
-          </div>
-          <button type="button" className="faculty-range-chip" aria-label="View by weeks">
-            <span>View By: Weeks</span>
-            <ChevronDown size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
-          </button>
-        </div>
-
-        <div className="faculty-batch-progress-list" role="list" aria-label="Batch completion progress">
-          {visibleBatches.length ? (
-            visibleBatches.map((batch, index) => {
-              const progress = buildBatchProgressValue(batch.label, index)
-              return (
-                <article key={batch.id} className="faculty-batch-progress-row" role="listitem">
-                  <div className="faculty-batch-progress-name">
-                    <span className="faculty-batch-progress-avatar" aria-hidden="true">
-                      <UsersRound size={16} strokeWidth={2.3} />
-                    </span>
-                    <div>
-                      <strong>{batch.label}</strong>
-                      <span>{batch.timing || 'Batch schedule'}</span>
-                    </div>
-                  </div>
-
-                  <div className="faculty-batch-progress-track" aria-hidden="true">
-                    <div className="faculty-batch-progress-fill" style={{ width: `${progress}%` }} />
-                  </div>
-
-                  <div className="faculty-batch-progress-completion">
-                    <strong>{progress}%</strong>
-                    <span>{progress >= 90 ? 'Completed' : `Week ${Math.max(1, Math.ceil(progress / 10))} / 12`}</span>
-                  </div>
-                </article>
-              )
-            })
-          ) : (
-            <div className="faculty-batch-progress-empty">
-              <strong>No batches added yet</strong>
-              <p>Add batch names in Faculty Management to show the progress list here.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <section className="faculty-batch-performance-card panel-card">
+    <section className="faculty-batch-performance-card panel-card">
         <div className="faculty-batch-performance-head">
           <div className="faculty-batch-performance-head-copy">
             <h3>Batch Test Performance (%)</h3>
@@ -462,7 +455,6 @@ function FacultyBatchAnalyticsCard({ batches = [] }) {
             </div>
           </div>
         </div>
-      </section>
     </section>
   )
 }
@@ -625,43 +617,108 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
         ))}
       </div>
 
-      <FacultyAttendanceCard faculty={latestFaculty} batches={batchOptions} />
-      <FacultyBatchAnalyticsCard batches={batchOptions} />
-
-      <div className="student-dashboard-grid">
-        <StudentSectionCard
-          title="Faculty Information"
-          subtitle="Primary faculty profile and contact details"
-          kicker="Faculty Data"
-        >
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="Faculty Name" value={latestFaculty.facultyName} />
-            <StudentInfoItem label="Faculty Email" value={latestFaculty.facultyEmail} />
-            <StudentInfoItem label="Faculty Phone" value={latestFaculty.facultyPhone} />
-            <StudentInfoItem label="Course" value={latestFaculty.courseName || latestFaculty.course?.name || '-'} />
-            <StudentInfoItem label="Status" value={latestFaculty.status} />
-            <StudentInfoItem label="Created On" value={formatDate(latestFaculty.createdAt)} />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Assigned Batches" subtitle="Batch schedule and timing details" kicker="Faculty Data">
-          <div className="student-dashboard-info-grid">
-            {batchOptions.length ? (
-              batchOptions.map((entry, index) => (
-                <div key={entry.id || `${entry.label}-${index}`} className="student-dashboard-info-item">
-                  <span>{entry.label}</span>
-                  <strong>{entry.timing || '-'}</strong>
-                </div>
-              ))
-            ) : (
-              <div className="student-dashboard-info-item student-dashboard-info-item-full">
-                <span>Batch assignments</span>
-                <strong>No batches assigned yet</strong>
-              </div>
-            )}
-          </div>
-        </StudentSectionCard>
+      <div className="faculty-dashboard-analytics-grid">
+        <FacultyAttendanceCard faculty={latestFaculty} batches={batchOptions} />
+        <FacultyBatchProgressCard batches={batchOptions} />
       </div>
+
+      <FacultyBatchPerformanceCard batches={batchOptions} />
+
+    </section>
+  )
+}
+
+export function FacultyMyBatchesPage() {
+  const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
+  const profileName = latestFaculty?.facultyName || 'Faculty'
+  const profileInitials = getInitials(profileName)
+  const greetingName = getFacultyGreetingName(latestFaculty?.facultyName)
+  const greetingLabel = getFacultyGreetingLabel()
+  const todayLabel = formatFacultyHeaderDate()
+  const batchOptions = getFacultyBatchOptions(latestFaculty || {})
+  const totalBatchCount = batchOptions.length || Number(latestFaculty?.batchCount || 0) || 0
+
+  return (
+    <section className="student-dashboard-page faculty-dashboard-page faculty-my-batches-page">
+      <header className="student-dashboard-header faculty-dashboard-header">
+        <div className="student-dashboard-header-copy">
+          <p className="student-dashboard-header-title">
+            {greetingLabel}
+            {greetingName ? `, ${greetingName}!` : '!'}
+          </p>
+          <p className="student-dashboard-header-subtitle">Welcome back to your faculty dashboard.</p>
+        </div>
+
+        <div className="student-dashboard-header-actions">
+          <NotificationBell />
+          <div className="student-dashboard-date-pill" aria-label={todayLabel}>
+            <CalendarDays size={18} strokeWidth={2.15} aria-hidden="true" focusable="false" />
+            <div>
+              <strong>{todayLabel}</strong>
+              <span>TODAY</span>
+            </div>
+          </div>
+          <div className="student-dashboard-profile-chip" aria-label={profileName}>
+            <span className="student-dashboard-profile-initials" aria-hidden="true">
+              {profileInitials}
+            </span>
+            <span className="student-dashboard-profile-name">{profileName}</span>
+            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+          </div>
+        </div>
+      </header>
+
+      <section className="panel-card faculty-my-batches-card">
+        <div className="faculty-my-batches-head">
+          <div>
+            <p className="section-kicker">Faculty Data</p>
+            <h3>My Batches</h3>
+            <p>View your assigned batch schedule and timing details</p>
+          </div>
+          <strong>{totalBatchCount} Batches</strong>
+        </div>
+
+        {isLoading ? (
+          <div className="faculty-my-batches-empty">
+            <strong>Loading batches...</strong>
+            <p>Please wait while we fetch your faculty batch list.</p>
+          </div>
+        ) : batchOptions.length ? (
+          <div className="faculty-batch-progress-list faculty-my-batches-list" role="list" aria-label="My batches">
+            {batchOptions.map((batch, index) => {
+              const progress = buildBatchProgressValue(batch.label, index)
+
+              return (
+                <article key={batch.id} className="faculty-batch-progress-row" role="listitem">
+                  <div className="faculty-batch-progress-name">
+                    <span className="faculty-batch-progress-avatar" aria-hidden="true">
+                      <UsersRound size={16} strokeWidth={2.3} />
+                    </span>
+                    <div>
+                      <strong>{batch.label}</strong>
+                      <span>{batch.timing || 'Batch schedule'}</span>
+                    </div>
+                  </div>
+
+                  <div className="faculty-batch-progress-track" aria-hidden="true">
+                    <div className="faculty-batch-progress-fill" style={{ width: `${progress}%` }} />
+                  </div>
+
+                  <div className="faculty-batch-progress-completion">
+                    <strong>{progress}%</strong>
+                    <span>{progress >= 90 ? 'Completed' : `Week ${Math.max(1, Math.ceil(progress / 10))} / 12`}</span>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="faculty-my-batches-empty">
+            <strong>No batches assigned yet</strong>
+            <p>Add batches in Faculty Management to show them here.</p>
+          </div>
+        )}
+      </section>
     </section>
   )
 }

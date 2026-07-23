@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { BookOpen, Ellipsis, GraduationCap, LayoutDashboard, UsersRound } from 'lucide-react'
+import { BookOpen, CalendarDays, Ellipsis, GraduationCap, LayoutDashboard, UsersRound } from 'lucide-react'
 import { AppBreadcrumbs } from '../components/AppBreadcrumbs'
 import { AppHeader } from '../components/AppHeader'
 import { AppSidebar } from '../components/AppSidebar'
@@ -10,12 +10,14 @@ export function AppShell({
   dashboard,
   user,
   onNavigateDashboard,
+  onNavigateFacultyBatches,
   onNavigateCourses,
   onNavigateStudentManagement,
   onNavigateFacultyManagement,
   onNavigateNotifications,
   onLogout,
   showCoursesNav = true,
+  showFacultyBatchesNav = false,
   showStudentManagementNav = true,
   showFacultyManagementNav = true,
   showChrome = true,
@@ -33,15 +35,19 @@ export function AppShell({
   const isFacultyManagementPath =
     location.pathname.startsWith('/faculty-management') ||
     location.pathname.startsWith('/dashboard/operation-manager/faculty-management')
-  const activeNav = isCoursesPath
-    ? 'courses'
-    : isStudentManagementPath
-      ? 'student-management'
-      : isFacultyManagementPath
-        ? 'faculty-management'
-        : location.pathname.startsWith('/notifications')
-          ? 'notifications'
-      : 'dashboard'
+  const isFacultyBatchesPath = location.pathname.startsWith('/dashboard/faculty/my-batches')
+  let activeNav = 'dashboard'
+  if (isCoursesPath) {
+    activeNav = 'courses'
+  } else if (isStudentManagementPath) {
+    activeNav = 'student-management'
+  } else if (isFacultyManagementPath) {
+    activeNav = 'faculty-management'
+  } else if (isFacultyBatchesPath) {
+    activeNav = 'my-batches'
+  } else if (location.pathname.startsWith('/notifications')) {
+    activeNav = 'notifications'
+  }
   const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
   const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
   const isFacultyDashboard = location.pathname === '/dashboard/faculty'
@@ -49,6 +55,7 @@ export function AppShell({
     isOperationManagerDashboard ||
     isBusinessOwnerDashboard ||
     isFacultyDashboard ||
+    isFacultyBatchesPath ||
     location.pathname === '/notifications' ||
     isStudentManagementPath ||
     isFacultyManagementPath ||
@@ -66,6 +73,16 @@ export function AppShell({
         closeMobileSidebar()
         onNavigateDashboard?.()
       },
+    },
+    {
+      key: 'my-batches',
+      label: 'My Batches',
+      icon: CalendarDays,
+      onClick: () => {
+        closeMobileSidebar()
+        onNavigateFacultyBatches?.()
+      },
+      hidden: !showFacultyBatchesNav,
     },
     {
       key: 'courses',
@@ -121,6 +138,7 @@ export function AppShell({
           activeNav={activeNav}
           user={user}
           onNavigateDashboard={onNavigateDashboard}
+          onNavigateFacultyBatches={onNavigateFacultyBatches}
           onNavigateCourses={onNavigateCourses}
           onNavigateStudentManagement={onNavigateStudentManagement}
           onNavigateFacultyManagement={onNavigateFacultyManagement}
@@ -129,6 +147,7 @@ export function AppShell({
           onClose={() => setIsMobileSidebarOpen(false)}
           isMobileOpen={isMobileSidebarOpen}
           showCoursesNav={showCoursesNav}
+          showFacultyBatchesNav={showFacultyBatchesNav}
           showStudentManagementNav={showStudentManagementNav}
           showFacultyManagementNav={showFacultyManagementNav}
         />
