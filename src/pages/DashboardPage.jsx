@@ -30,10 +30,9 @@ import { NotificationBell as GlobalNotificationBell } from '../components/Notifi
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
-import { getCurrentFacultyProfile } from '../services/facultyService'
 import { listStudents } from '../services/studentService'
-import { StudentInfoItem, StudentSectionCard } from './studentDashboardUtils.jsx'
 import { StudentDashboard } from './StudentDashboard'
+import { FacultyDashboardPage } from './FacultyDashboardPage'
 
 const attendanceComparisonData = [
   { month: 'Jan', attendance: 82, students: 240 },
@@ -200,17 +199,6 @@ function formatCurrency(value) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount)
 }
 
-function formatDate(value) {
-  if (!value) return '-'
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return '-'
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(date)
-}
-
 function addOneMonth(value, months = 1) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return ''
@@ -235,17 +223,6 @@ function getTodayValue() {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
-}
-
-function getStudentInitials(name) {
-  const value = String(name || '').trim()
-  if (!value) return 'ST'
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || '')
-    .join('')
-    .slice(0, 2)
 }
 
 function hasThirdInstallment(student) {
@@ -1237,159 +1214,6 @@ function AttendanceComparisonChart() {
 }
 
 const MemoAttendanceComparisonChart = memo(AttendanceComparisonChart)
-function useCurrentFacultyProfile() {
-  const [faculty, setFaculty] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-
-    const run = async () => {
-      try {
-        const result = await getCurrentFacultyProfile()
-        if (!active) return
-        setFaculty(result)
-      } catch {
-        if (!active) return
-        setFaculty(null)
-      } finally {
-        if (active) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    void run()
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  return { faculty, isLoading }
-}
-
-function getFacultyStatus(record) {
-  const status = String(record?.status || 'Inactive').trim()
-  if (status === 'Active') return { label: 'Active', tone: 'success' }
-  return { label: 'Inactive', tone: 'warning' }
-}
-
-function FacultyDashboard({ dashboard }) {
-  const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
-
-  if (isLoading) {
-    return (
-      <section className="student-dashboard-page">
-        <article className="panel-card student-dashboard-empty">
-          <p className="eyebrow">Faculty Dashboard</p>
-          <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
-          <div className="student-empty-state">
-            <strong>Loading faculty profile...</strong>
-            <p>Please wait while we fetch your dashboard details.</p>
-          </div>
-        </article>
-      </section>
-    )
-  }
-
-  if (!latestFaculty) {
-    return (
-      <section className="student-dashboard-page">
-        <article className="panel-card student-dashboard-empty">
-          <p className="eyebrow">Faculty Dashboard</p>
-          <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
-          <div className="student-empty-state">
-            <strong>No faculty profile found</strong>
-            <p>Please contact the operation manager to create or activate your faculty record.</p>
-          </div>
-        </article>
-      </section>
-    )
-  }
-
-  const status = getFacultyStatus(latestFaculty)
-  const batchNames = Array.isArray(latestFaculty.batchEntries)
-    ? latestFaculty.batchEntries.map((entry) => String(entry.batchName || '').trim()).filter(Boolean)
-    : []
-
-  return (
-    <section className="student-dashboard-page">
-      <article className="student-dashboard-hero">
-        <div className="student-dashboard-hero-top">
-          <div className="student-dashboard-avatar">
-            {getStudentInitials(latestFaculty.facultyName || 'Faculty')}
-          </div>
-          <div className="student-dashboard-hero-main">
-            <div className="student-dashboard-name-row">
-              <h2>{latestFaculty.facultyName}</h2>
-              <span className={`student-status-pill ${status.tone}`}>{status.label}</span>
-            </div>
-            <div className="student-dashboard-id-row">
-              <div>
-                <span>Course</span>
-                <strong>{latestFaculty.courseName || latestFaculty.course?.name || '-'}</strong>
-              </div>
-              <div>
-                <span>Batches</span>
-                <strong>{batchNames.length || 0}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="student-dashboard-hero-side">
-          <div>
-            <span>Email</span>
-            <strong>{latestFaculty.facultyEmail || '-'}</strong>
-          </div>
-          <div>
-            <span>Phone</span>
-            <strong>{latestFaculty.facultyPhone || '-'}</strong>
-          </div>
-          <div>
-            <span>Created On</span>
-            <strong>{formatDate(latestFaculty.createdAt)}</strong>
-          </div>
-        </div>
-      </article>
-
-      <div className="student-dashboard-grid">
-        <StudentSectionCard title="Faculty Information" subtitle="Primary faculty profile and contact details" kicker="Faculty Data">
-          <div className="student-dashboard-info-grid">
-            <StudentInfoItem label="Faculty Name" value={latestFaculty.facultyName} />
-            <StudentInfoItem label="Faculty Email" value={latestFaculty.facultyEmail} />
-            <StudentInfoItem label="Faculty Phone" value={latestFaculty.facultyPhone} />
-            <StudentInfoItem label="Course" value={latestFaculty.courseName || latestFaculty.course?.name || '-'} />
-            <StudentInfoItem label="Status" value={latestFaculty.status} />
-            <StudentInfoItem label="Created On" value={formatDate(latestFaculty.createdAt)} />
-          </div>
-        </StudentSectionCard>
-
-        <StudentSectionCard title="Assigned Batches" subtitle="Batch schedule and timing details" kicker="Faculty Data">
-          <div className="student-dashboard-info-grid">
-            {batchNames.length ? (
-              latestFaculty.batchEntries.map((entry) => (
-                <div key={entry.id || `${entry.batchName}-${entry.batchTiming}`} className="student-dashboard-info-item">
-                  <span>{entry.batchName || 'Batch'}</span>
-                  <strong>{entry.batchTiming || '-'}</strong>
-                </div>
-              ))
-            ) : (
-              <div className="student-dashboard-info-item student-dashboard-info-item-full">
-                <span>Batch assignments</span>
-                <strong>No batches assigned yet</strong>
-              </div>
-            )}
-          </div>
-        </StudentSectionCard>
-      </div>
-    </section>
-  )
-}
-
 function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   const openMenu = useMobileMenu()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
@@ -1662,7 +1486,7 @@ export function DashboardPage({ role }) {
   }
 
   if (role === 'faculty') {
-    return <FacultyDashboard dashboard={dashboard} />
+    return <FacultyDashboardPage dashboard={dashboard} />
   }
 
   return <GenericDashboard role={role} />

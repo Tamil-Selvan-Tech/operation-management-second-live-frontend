@@ -44,9 +44,11 @@ export function AppShell({
       : 'dashboard'
   const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
   const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
+  const isFacultyDashboard = location.pathname === '/dashboard/faculty'
   const isFlatMainArea =
     isOperationManagerDashboard ||
     isBusinessOwnerDashboard ||
+    isFacultyDashboard ||
     location.pathname === '/notifications' ||
     isStudentManagementPath ||
     isFacultyManagementPath ||

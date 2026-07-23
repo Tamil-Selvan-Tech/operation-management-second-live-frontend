@@ -154,6 +154,7 @@ function AppLayout() {
     location.pathname !== '/dashboard/operation-manager/courses' &&
     location.pathname !== '/dashboard/operation-manager/student-management' &&
     location.pathname !== '/dashboard/operation-manager/faculty-management' &&
+    location.pathname !== '/dashboard/faculty' &&
     location.pathname !== '/dashboard/student' &&
     location.pathname !== '/notifications' &&
     location.pathname !== '/courses' &&
