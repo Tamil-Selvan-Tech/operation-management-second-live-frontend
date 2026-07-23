@@ -144,22 +144,18 @@ function buildFacultyAttendanceSeries({ facultyName = '', batchKey = '' } = {}) 
 
 function getFacultyBatchOptions(faculty) {
   const entries = Array.isArray(faculty?.batchEntries) ? faculty.batchEntries : []
-  const seen = new Set()
-  const options = []
 
-  entries.forEach((entry, index) => {
-    const id = String(entry?.id || `${entry?.batchName || 'batch'}-${index}`).trim()
+  return entries.map((entry, index) => {
     const label = String(entry?.batchName || '').trim()
-    if (!id || !label || seen.has(id)) return
-    seen.add(id)
-    options.push({
-      id,
-      label,
-      timing: String(entry?.batchTiming || '').trim(),
-    })
-  })
+    const timing = String(entry?.batchTiming || '').trim()
+    const fallbackKey = `${label || 'batch'}-${timing || 'timing'}-${index}`
 
-  return options
+    return {
+      id: String(entry?.id || fallbackKey).trim() || fallbackKey,
+      label: label || `Batch ${index + 1}`,
+      timing,
+    }
+  })
 }
 
 function buildBatchProgressValue(label = '', index = 0) {
@@ -355,7 +351,7 @@ function FacultyAttendanceCard({ faculty, batches = [] }) {
 }
 
 function FacultyBatchAnalyticsCard({ batches = [] }) {
-  const visibleBatches = batches.slice(0, 5)
+  const visibleBatches = batches.slice(0, 6)
   const testLabels = ['Test 1', 'Test 2', 'Test 3']
   const legendTones = ['blue', 'green', 'violet']
 
@@ -443,8 +439,8 @@ function FacultyBatchAnalyticsCard({ batches = [] }) {
               <span />
             </div>
 
-            <div className="faculty-batch-performance-bars" style={{ gridTemplateColumns: `repeat(${visibleBatches.length || 5}, minmax(0, 1fr))` }}>
-              {(visibleBatches.length ? visibleBatches : Array.from({ length: 5 }, (_, index) => ({ id: `fallback-${index}`, label: `Batch ${index + 1}` }))).map((batch, batchIndex) => {
+            <div className="faculty-batch-performance-bars" style={{ gridTemplateColumns: `repeat(${visibleBatches.length || 6}, minmax(0, 1fr))` }}>
+              {(visibleBatches.length ? visibleBatches : Array.from({ length: 6 }, (_, index) => ({ id: `fallback-${index}`, label: `Batch ${index + 1}` }))).map((batch, batchIndex) => {
                 const scores = buildBatchTestScores(batch.label, batchIndex)
                 return (
                   <div key={batch.id} className="faculty-batch-performance-group">
@@ -483,6 +479,9 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     ? latestFaculty.batchEntries.map((entry) => String(entry.batchName || '').trim()).filter(Boolean)
     : []
   const batchOptions = getFacultyBatchOptions(latestFaculty || {})
+  const totalBatchCount = Array.isArray(latestFaculty?.batchEntries)
+    ? latestFaculty.batchEntries.length
+    : Number(latestFaculty?.batchCount || 0) || 0
   const facultyCourseIds = getFacultyCourseIds(latestFaculty || {})
   const matchingStudents = useMemo(
     () =>
@@ -525,10 +524,10 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     {
       icon: Layers3,
       label: 'Total Batches',
-      value: batchNames.length || Number(latestFaculty?.batchCount || 0) || 0,
+      value: totalBatchCount,
       note: 'Batches running',
       tone: 'violet',
-      badge: `${batchNames.length || Number(latestFaculty?.batchCount || 0) || 0}`,
+      badge: `${totalBatchCount}`,
     },
     {
       icon: BookOpen,
@@ -647,11 +646,11 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
         <StudentSectionCard title="Assigned Batches" subtitle="Batch schedule and timing details" kicker="Faculty Data">
           <div className="student-dashboard-info-grid">
-            {batchNames.length ? (
-              latestFaculty.batchEntries.map((entry) => (
-                <div key={entry.id || `${entry.batchName}-${entry.batchTiming}`} className="student-dashboard-info-item">
-                  <span>{entry.batchName || 'Batch'}</span>
-                  <strong>{entry.batchTiming || '-'}</strong>
+            {batchOptions.length ? (
+              batchOptions.map((entry, index) => (
+                <div key={entry.id || `${entry.label}-${index}`} className="student-dashboard-info-item">
+                  <span>{entry.label}</span>
+                  <strong>{entry.timing || '-'}</strong>
                 </div>
               ))
             ) : (
