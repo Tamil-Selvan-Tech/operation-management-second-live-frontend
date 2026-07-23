@@ -2,6 +2,21 @@ function normalizeText(value = '') {
   return String(value || '').trim().toLowerCase()
 }
 
+function normalizeBatchToken(value = '') {
+  const normalized = normalizeText(value).replace(/\s+/g, ' ')
+  if (!normalized) return ''
+
+  const batchTokenMatch = normalized.match(/\bbatch\s*\d+\b/)
+  if (batchTokenMatch) {
+    return batchTokenMatch[0].replace(/\s+/g, ' ')
+  }
+
+  return normalized
+    .split(' - ')[0]
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function uniqueById(entries = [], selector) {
   const seen = new Set()
   const nextEntries = []
@@ -112,6 +127,7 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
   const normalizedCourseId = String(courseId || '').trim()
   const normalizedCourseName = normalizeText(courseName)
   const normalizedBatchName = normalizeText(batchName)
+  const normalizedBatchToken = normalizeBatchToken(batchName)
 
   return (Array.isArray(students) ? students : []).filter((student) => {
     if (normalizedFacultyName && normalizeText(student?.facultyName || '') !== normalizedFacultyName) {
@@ -119,7 +135,7 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
     }
 
     const studentCourseId = String(student?.courseId || '').trim()
-    const studentCourseName = normalizeText(student?.courseInterested || student?.course?.name || '')
+    const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
 
     if (normalizedCourseId) {
       if (studentCourseId && studentCourseId !== normalizedCourseId) return false
@@ -128,8 +144,18 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
       return false
     }
 
-    if (normalizedBatchName && normalizeText(student?.batchName || student?.batch || '') !== normalizedBatchName) {
-      return false
+    if (normalizedBatchName) {
+      const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
+      const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
+
+      if (
+        studentBatchName !== normalizedBatchName &&
+        studentBatchToken !== normalizedBatchToken &&
+        studentBatchToken !== normalizedBatchName &&
+        studentBatchName !== normalizedBatchToken
+      ) {
+        return false
+      }
     }
 
     return true

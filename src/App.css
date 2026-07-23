@@ -2875,7 +2875,7 @@ tbody tr:hover {
 
 .faculty-attendance-bars {
   position: absolute;
-  inset: 10px 0 32px;
+  inset: 10px 0 44px;
   z-index: 1;
   display: grid;
   align-items: end;
@@ -2900,7 +2900,7 @@ tbody tr:hover {
 }
 
 .faculty-attendance-bar-wrap {
-  width: 56px;
+  width: 42px;
   height: 185px;
   display: flex;
   align-items: flex-end;
@@ -2919,7 +2919,7 @@ tbody tr:hover {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 4px;
+  bottom: 0;
   display: grid;
   gap: 10px;
   padding: 0 12px;

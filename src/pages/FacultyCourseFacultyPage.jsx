@@ -139,16 +139,6 @@ export function FacultyCourseFacultyPage() {
     return filteredFaculty.slice(start, start + pageSize)
   }, [filteredFaculty, safeCurrentPage])
 
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchTerm, courseId])
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages)
-    }
-  }, [currentPage, totalPages])
-
   const pageList = useMemo(() => {
     if (totalPages <= 7) {
       return Array.from({ length: totalPages }, (_, index) => index + 1)
@@ -245,7 +235,10 @@ export function FacultyCourseFacultyPage() {
             </div>
             <SearchBar
               value={searchTerm}
-              onChange={setSearchTerm}
+              onChange={(value) => {
+                setSearchTerm(value)
+                setCurrentPage(1)
+              }}
               placeholder="Search faculty name"
               ariaLabel="Search faculty name"
             />
