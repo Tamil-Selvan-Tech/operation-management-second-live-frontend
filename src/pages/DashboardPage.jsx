@@ -1,19 +1,22 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Bell, CalendarDays, ChevronDown, ChevronRight, CreditCard, Info, ReceiptText, Target, TrendingUp, Wallet } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { createPortal } from 'react-dom'
 import { memo } from 'react'
 import {
+  AlertTriangle,
   BadgeCheck,
   Building2,
+  Bell,
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  CreditCard,
   Clock3,
   Globe,
   Info,
   LockKeyhole,
+  ReceiptText,
   RefreshCcw,
   ShieldCheck,
   Target,
@@ -21,8 +24,6 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
-
 import { HeaderIdentityChip } from '../components/HeaderIdentityChip'
 import { NotificationBell } from '../components/NotificationBell'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
@@ -686,7 +687,7 @@ function buildRevenueSummaryCards(summary, isLoading) {
   ]
 }
 
-function NotificationBell() {
+function DashboardNotificationBell() {
   const [isOpen, setIsOpen] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
@@ -1661,7 +1662,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
             <span aria-hidden="true">âŒ•</span>
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
-          <NotificationBell />
+          <DashboardNotificationBell />
           <HeaderIdentityChip
             initials={profileDetails.initials}
             title={profileDetails.role}
