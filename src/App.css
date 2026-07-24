@@ -1071,7 +1071,7 @@ tbody tr:hover {
 
 .app-shell.business-owner-shell {
   background: #ffffff;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: 20px;
   padding: 8px 24px 24px 12px;
 }
@@ -1128,10 +1128,11 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-item {
+  width: calc(100% - 12px);
   border: 1px solid transparent;
-  border-radius: 16px;
-  padding: 12px 12px;
-  gap: 10px;
+  border-radius: 14px;
+  padding: 8px 8px;
+  gap: 8px;
   color: #1f2937;
 }
 
@@ -1148,17 +1149,16 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-item::before {
-  background: #1d4ed8;
-  width: 2px;
+  display: none;
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-item.is-active::before {
-  opacity: 1;
+  display: none;
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-icon {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 12px;
   background: #f4f6f8;
   color: #374151;
@@ -1171,7 +1171,7 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-label {
-  font-size: 0.94rem;
+  font-size: 0.88rem;
   font-weight: 700;
 }
 
@@ -4652,6 +4652,8 @@ tbody tr:hover {
   padding: 0;
   padding-bottom: 14px;
   margin-bottom: 18px;
+  margin-left: -24px;
+  margin-right: -24px;
   border-bottom: 1px solid #d4dbe6;
 }
 
@@ -4685,6 +4687,7 @@ tbody tr:hover {
 .business-owner-dashboard .notification-menu {
   position: relative;
   z-index: 40;
+  margin-left: -12px;
 }
 
 .business-owner-dashboard .notification-dropdown {
@@ -4744,6 +4747,10 @@ tbody tr:hover {
   min-width: 0;
 }
 
+.business-owner-dashboard .business-topbar-copy {
+  margin-left: 0;
+}
+
 .business-owner-topbar h2 {
   margin: 8px 0 0;
   color: var(--text-strong);
@@ -4753,7 +4760,7 @@ tbody tr:hover {
 
 .business-owner-topbar-actions {
   margin-top: 6px;
-  transform: translateX(-4px);
+  transform: translateX(-10px);
   justify-content: flex-end;
   flex: 0 1 auto;
   flex-wrap: wrap;
