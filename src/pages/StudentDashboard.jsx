@@ -179,7 +179,7 @@ function StudentDashboardHeader({ studentName }) {
       <div className="student-dashboard-header-copy">
         <p className="student-dashboard-header-title">
           {greetingLabel}
-          {greetingName ? `, ${greetingName}! 👋` : '!'}
+          {greetingName ? `, ${greetingName}! ` : '!'}
         </p>
         <p className="student-dashboard-header-subtitle">Welcome back to your student dashboard.</p>
       </div>

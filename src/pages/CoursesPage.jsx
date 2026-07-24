@@ -1006,9 +1006,9 @@ export function CoursesPage() {
               </div>
             </div>
 
-            {isCourseInlineEditing ? (
+            {isCourseInlineEditing && (saveError || Object.values(validationErrors).find(Boolean)) ? (
               <div className="course-validation-note course-drawer-inline-note">
-                {saveError || Object.values(validationErrors)[0] || 'Edit the values below and click Save.'}
+                {saveError || Object.values(validationErrors).find(Boolean)}
               </div>
             ) : null}
 

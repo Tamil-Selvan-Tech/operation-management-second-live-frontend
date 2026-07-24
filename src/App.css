@@ -12941,6 +12941,7 @@ tbody tr:hover {
 }
 
 .course-drawer-table-header h3 {
+  margin-top: 6px;
   font-size: 1rem;
   line-height: 1.05;
 }

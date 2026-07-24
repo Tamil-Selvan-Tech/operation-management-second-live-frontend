@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarDays, ChevronDown, Check, GraduationCap, Layers3, UsersRound } from 'lucide-react'
+import { BookOpen, CalendarDays, ChevronDown, Check, GraduationCap, Layers3, UsersRound, X } from 'lucide-react'
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { loadFacultySnapshot, saveFacultySnapshot } from '../lib/facultySnapshot'
 import { loadStudentSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
-import { buildFacultyCoursePath, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
+import { buildFacultyBatchPath, buildFacultyCoursePath, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
 import { getCurrentFacultyProfile } from '../services/facultyService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
 import { listCourses } from '../services/courseService'
@@ -22,6 +22,19 @@ function getInitials(name) {
     .map((part) => part[0]?.toUpperCase() || '')
     .join('')
     .slice(0, 2)
+}
+
+function formatDisplayDate(value) {
+  if (!value) return '-'
+
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
 }
 
 function useCurrentFacultyProfile() {
@@ -755,7 +768,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
         <div className="student-dashboard-header-copy">
           <p className="student-dashboard-header-title">
             {greetingLabel}
-            {greetingName ? `, ${greetingName}! 👋` : '!'}
+            {greetingName ? `, ${greetingName}!` : '!'}
           </p>
           <p className="student-dashboard-header-subtitle">Welcome back to your faculty dashboard.</p>
         </div>
@@ -810,6 +823,7 @@ export function FacultyMyBatchesPage() {
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { courses: courseOptions, isLoading: isCoursesLoading } = useFacultyCourses()
+  const [selectedBatchContext, setSelectedBatchContext] = useState(null)
   const profileName = latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
   const greetingName = getFacultyGreetingName(latestFaculty?.facultyName)
@@ -967,6 +981,43 @@ export function FacultyMyBatchesPage() {
     },
   ]
 
+  const selectedBatchStudents = useMemo(() => {
+    if (!selectedBatchContext) return []
+
+    return Array.isArray(selectedBatchContext.students)
+      ? selectedBatchContext.students.map((student, index) => ({
+          id: String(student?.id || `${selectedBatchContext.batchName || 'batch'}-${index}`).trim(),
+          studentName: String(student?.studentName || '-').trim(),
+          emailAddress: String(student?.emailAddress || '-').trim(),
+          mobileNumber: String(student?.mobileNumber || '-').trim(),
+          course: String(student?.courseInterested || student?.courseName || selectedBatchContext.courseName || '-').trim(),
+          facultyName: String(student?.facultyName || selectedBatchContext.facultyName || '-').trim(),
+          batchName: String(student?.batchName || student?.batch || selectedBatchContext.batchName || '-').trim(),
+          location: String(student?.location || '-').trim(),
+          qualification: String(student?.qualification || '-').trim(),
+          passedOutYear: String(student?.passedOutYear || '-').trim(),
+          currentStatus: String(student?.currentStatus || '-').trim(),
+          admissionDate: formatDisplayDate(student?.admissionDate),
+          status: String(student?.status || 'Inactive').trim(),
+        }))
+      : []
+  }, [selectedBatchContext])
+
+  const openBatchStudents = (group, batch) => {
+    if (!group || !batch) return
+
+    setSelectedBatchContext({
+      courseId: String(group.courseId || '').trim(),
+      courseName: String(group.courseName || group.courseId || 'Course').trim(),
+      facultyId: String(activeFaculty?.id || '').trim(),
+      facultyName: String(activeFaculty?.facultyName || latestFaculty?.facultyName || '').trim(),
+      batchId: String(batch.id || '').trim(),
+      batchName: String(batch.label || '').trim(),
+      batchTiming: String(batch.timing || '').trim(),
+      students: Array.isArray(batch.studentRecords) ? batch.studentRecords : [],
+    })
+  }
+
   if (isLoading || isCoursesLoading || isStudentsLoading || isFacultyRecordsLoading) {
     return (
       <section className="student-dashboard-page faculty-dashboard-page faculty-my-batches-page">
@@ -1012,7 +1063,7 @@ export function FacultyMyBatchesPage() {
         <div className="student-dashboard-header-copy">
           <p className="student-dashboard-header-title">
             {greetingLabel}
-            {greetingName ? `, ${greetingName}! 👋` : '!'}
+            {greetingName ? `, ${greetingName}!` : '!'}
           </p>
           <p className="student-dashboard-header-subtitle">Welcome back to your faculty dashboard.</p>
         </div>
@@ -1134,7 +1185,7 @@ export function FacultyMyBatchesPage() {
                     </div>
 
                     <div className="faculty-batch-table-cell faculty-batch-table-actions" role="cell">
-                      <button type="button" aria-label={`${batch.label} student details`}>
+                      <button type="button" aria-label={`${batch.label} student details`} onClick={() => openBatchStudents(group, batch)}>
                         <UsersRound size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
                       </button>
                       <button type="button" aria-label={`${batch.label} schedule`}>
@@ -1156,6 +1207,113 @@ export function FacultyMyBatchesPage() {
           </section>
         )}
       </div>
+
+      {selectedBatchContext ? (
+        <div
+          className="course-modal-backdrop student-modal-backdrop batch-student-modal-backdrop"
+          role="presentation"
+          onClick={() => setSelectedBatchContext(null)}
+        >
+          <div
+            className="course-modal panel-card student-modal batch-student-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="course-modal-close batch-student-modal-close"
+              onClick={() => setSelectedBatchContext(null)}
+              aria-label="Close batch students"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="batch-student-modal-header">
+              <div className="batch-student-modal-header-main">
+                <div className="batch-student-avatar" aria-hidden="true">
+                  {getInitials(selectedBatchContext.courseName || 'Course')}
+                </div>
+                <div className="batch-student-modal-header-copy">
+                  <p className="section-kicker">Batch Students</p>
+                  <h3>{selectedBatchContext.courseName}</h3>
+                  <p>
+                    Faculty: {selectedBatchContext.facultyName || '-'} | Batch: {selectedBatchContext.batchName || '-'}
+                    {selectedBatchContext.batchTiming ? ` (${selectedBatchContext.batchTiming})` : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="batch-student-status active">
+                <UsersRound size={16} />
+                <span>{selectedBatchStudents.length} Students</span>
+              </div>
+            </div>
+
+            {selectedBatchStudents.length ? (
+              <div className="faculty-flow-table-wrap">
+                <table className="faculty-flow-table">
+                  <thead>
+                    <tr>
+                      <th>Student Name</th>
+                      <th>Email Address</th>
+                      <th>Mobile Number</th>
+                      <th>Course</th>
+                      <th>Faculty Name</th>
+                      <th>Batch</th>
+                      <th>Location</th>
+                      <th>Qualification</th>
+                      <th>Passed Out Year</th>
+                      <th>Current Status</th>
+                      <th>Admission Date</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {selectedBatchStudents.map((student, index) => (
+                      <tr key={student.id || `${student.studentName}-${index}`}>
+                        <td>
+                          <strong>{student.studentName}</strong>
+                        </td>
+                        <td>{student.emailAddress}</td>
+                        <td>{student.mobileNumber}</td>
+                        <td>{student.course}</td>
+                        <td>{student.facultyName}</td>
+                        <td>{student.batchName}</td>
+                        <td>{student.location}</td>
+                        <td>{student.qualification}</td>
+                        <td>{student.passedOutYear}</td>
+                        <td>{student.currentStatus}</td>
+                        <td>{student.admissionDate}</td>
+                        <td>
+                          <span className={`status-pill ${student.status.toLowerCase()}`.trim()}>{student.status}</span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="faculty-flow-mini-button"
+                            onClick={() => {
+                              if (!selectedBatchContext.facultyId || !selectedBatchContext.courseId || !selectedBatchContext.batchId) return
+                              navigate(buildFacultyBatchPath(selectedBatchContext.facultyId, selectedBatchContext.courseId, selectedBatchContext.batchId))
+                            }}
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="faculty-flow-empty">
+                <strong>No students found for this batch</strong>
+                <p>Try another batch or check whether the student data is mapped correctly.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }
