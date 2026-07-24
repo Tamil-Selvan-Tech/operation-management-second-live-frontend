@@ -1070,7 +1070,7 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell {
-  background: #f4f5f7;
+  background: #ffffff;
   grid-template-columns: 360px minmax(0, 1fr);
   gap: 20px;
   padding: 8px 24px 24px 12px;
@@ -1081,10 +1081,12 @@ tbody tr:hover {
   gap: 12px;
   background: #ffffff;
   border: 0;
+  border-right: 1px solid #d4dbe6;
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
   margin-left: -20px;
+  margin-top: -12px;
 }
 
 .app-shell.business-owner-shell .brand-logo {
@@ -1097,8 +1099,7 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell .sidebar-divider {
-  background: #e8edf4;
-  margin: 0 2px;
+  display: none;
 }
 
 .app-shell.business-owner-shell .sidebar .brand {
@@ -4649,6 +4650,9 @@ tbody tr:hover {
   border-radius: 0;
   box-shadow: none;
   padding: 0;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #d4dbe6;
 }
 
 .business-owner-dashboard .business-topbar,
