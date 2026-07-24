@@ -300,7 +300,7 @@ function FacultySummaryCard({ icon: Icon, label, value, note, tone = 'blue', bad
       </div>
       <div className="student-summary-card-copy faculty-summary-card-copy">
         <span className="student-summary-card-label faculty-summary-card-label">{label}</span>
-        <strong className="student-summary-card-value faculty-summary-card-value">{value || '-'}</strong>
+        <strong className="student-summary-card-value faculty-summary-card-value">{value ?? '-'}</strong>
         {note ? <small className="student-summary-card-note faculty-summary-card-note">{note}</small> : null}
       </div>
       {badge ? <span className="student-summary-card-badge faculty-summary-card-badge">{badge}</span> : null}
@@ -621,14 +621,28 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const greetingName = getFacultyGreetingName(activeFaculty?.facultyName || latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
   const todayLabel = formatFacultyHeaderDate()
-  const batchNames = Array.isArray(activeFaculty?.batchEntries)
-    ? activeFaculty.batchEntries.map((entry) => String(entry.batchName || '').trim()).filter(Boolean)
-    : []
+  const batchNames = useMemo(
+    () =>
+      Array.isArray(activeFaculty?.batchEntries)
+        ? activeFaculty.batchEntries.map((entry) => String(entry.batchName || '').trim()).filter(Boolean)
+        : [],
+    [activeFaculty],
+  )
   const batchOptions = getFacultyBatchOptions(activeFaculty || {})
   const totalBatchCount = Array.isArray(activeFaculty?.batchEntries)
     ? activeFaculty.batchEntries.length
     : Number(activeFaculty?.batchCount || 0) || 0
   const facultyCourseIds = getFacultyCourseIds(activeFaculty || {})
+  const courseScopedStudentCount = useMemo(
+    () =>
+      getUniqueStudentCountForFacultyScope(students, {
+        facultyName: activeFaculty?.facultyName || latestFaculty?.facultyName || '',
+        courseId: activeFaculty?.courseId || facultyCourseIds[0] || '',
+        courseName: activeFaculty?.courseName || '',
+        batchNames,
+      }),
+    [activeFaculty?.courseId, activeFaculty?.courseName, activeFaculty?.facultyName, batchNames, facultyCourseIds, latestFaculty?.facultyName, students],
+  )
   const batchLinkedStudentCount = useMemo(
     () =>
       getUniqueStudentCountForFacultyRecords(students, {
@@ -670,10 +684,10 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     {
       icon: UsersRound,
       label: 'Total Students',
-      value: batchLinkedStudentCount || matchingStudents.length,
+      value: batchLinkedStudentCount || courseScopedStudentCount || matchingStudents.length,
       note: 'Students across all courses',
       tone: 'green',
-      badge: `${batchLinkedStudentCount || matchingStudents.length}`,
+      badge: `${batchLinkedStudentCount || courseScopedStudentCount || matchingStudents.length}`,
     },
     {
       icon: Layers3,
@@ -903,6 +917,13 @@ export function FacultyMyBatchesPage() {
   const totalStudents = getUniqueStudentCountForFacultyRecords(students, {
     facultyName: displayFaculty?.facultyName || '',
     batchEntries: displayFaculty?.batchEntries || [],
+  }) || getUniqueStudentCountForFacultyScope(students, {
+    facultyName: displayFaculty?.facultyName || '',
+    courseId: displayFaculty?.courseId || facultyCourseIds[0] || '',
+    courseName: displayFaculty?.courseName || '',
+    batchNames: Array.isArray(displayFaculty?.batchEntries)
+      ? displayFaculty.batchEntries.map((batch) => String(batch?.batchName || '').trim()).filter(Boolean)
+      : [],
   })
 
   const averageProgress = totalBatchCount

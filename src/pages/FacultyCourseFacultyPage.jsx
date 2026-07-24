@@ -18,7 +18,7 @@ import {
   getFacultyBatchEntriesForCourse,
   getFacultyCourseIds,
   getFacultyCourseName,
-  getUniqueStudentCountForFacultyScope,
+  getUniqueStudentCountForFacultyRecords,
   sortByNameThenTiming,
 } from '../lib/facultyFlow'
 
@@ -101,16 +101,14 @@ export function FacultyCourseFacultyPage() {
     if (!normalizedCourseId) return []
 
     return facultyRecords
-      .filter((record) => getFacultyCourseIds(record).includes(normalizedCourseId))
+      .filter((record) => getFacultyCourseIds(record, courseOptions).includes(normalizedCourseId))
       .map((record) => {
         const mergedRecord = mergeFacultyWithSnapshot(record) || record
-        const batchEntries = getFacultyBatchEntriesForCourse(mergedRecord, normalizedCourseId)
+        const batchEntries = getFacultyBatchEntriesForCourse(mergedRecord, normalizedCourseId, courseOptions)
         const courseName = selectedCourse?.name || getFacultyCourseName(normalizedCourseId, courseOptions) || normalizedCourseId
-        const studentCount = getUniqueStudentCountForFacultyScope(students, {
+        const studentCount = getUniqueStudentCountForFacultyRecords(students, {
           facultyName: mergedRecord.facultyName || '',
-          courseId: normalizedCourseId,
-          courseName,
-          batchNames: batchEntries.map((batch) => batch.batchName),
+          batchEntries,
         })
 
         return {

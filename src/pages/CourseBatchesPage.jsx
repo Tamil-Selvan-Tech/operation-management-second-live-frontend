@@ -101,8 +101,8 @@ export function CourseBatchesPage() {
 
   const courseName = selectedCourse?.name || getFacultyCourseName(courseId, courseOptions) || selectedCourse?.id || '-'
   const batches = useMemo(
-    () => sortByNameThenTiming(getFacultyBatchEntriesForCourse(selectedFaculty || {}, courseId)),
-    [courseId, selectedFaculty],
+    () => sortByNameThenTiming(getFacultyBatchEntriesForCourse(selectedFaculty || {}, courseId, courseOptions)),
+    [courseId, courseOptions, selectedFaculty],
   )
   const batchStudentCounts = useMemo(
     () =>
