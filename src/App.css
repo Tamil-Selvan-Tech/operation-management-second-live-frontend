@@ -6176,7 +6176,7 @@ tbody tr:hover {
 
 .notifications-page-copy h2 {
   margin: 4px 0 8px;
-  color: #0f172a;
+  color: #1d4ed8;
   font-size: clamp(1.7rem, 2.6vw, 2.25rem);
   font-weight: 900;
   letter-spacing: -0.05em;
@@ -6368,17 +6368,6 @@ tbody tr:hover {
   place-items: center;
   position: relative;
   flex: 0 0 auto;
-}
-
-.notifications-item-dot {
-  position: absolute;
-  left: calc(100% + 10px);
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: currentColor;
 }
 
 .notifications-item-icon.tone-red {
@@ -12941,7 +12930,7 @@ tbody tr:hover {
 }
 
 .course-drawer-table-header h3 {
-  margin-top: 6px;
+  margin-top: 2px;
   font-size: 1rem;
   line-height: 1.05;
 }
@@ -13016,8 +13005,16 @@ tbody tr:hover {
 }
 
 .course-drawer-table-shell {
-  margin-top: -32px;
+  margin-top: -48px;
   padding-top: 0;
+}
+
+.course-drawer-table-shell.is-course-view {
+  margin-top: -106px;
+}
+
+.course-drawer-table-shell.is-course-editing {
+  margin-top: -48px;
 }
 
 .course-details-table {

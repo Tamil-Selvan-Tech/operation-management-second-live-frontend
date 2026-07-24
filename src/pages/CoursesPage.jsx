@@ -1012,7 +1012,11 @@ export function CoursesPage() {
               </div>
             ) : null}
 
-            <div className="student-drawer-table-shell course-drawer-table-shell">
+            <div
+              className={`student-drawer-table-shell course-drawer-table-shell ${
+                isCourseInlineEditing ? 'is-course-editing' : 'is-course-view'
+              }`.trim()}
+            >
               <table className="student-details-table course-details-table">
                 <tbody>
                   <tr>

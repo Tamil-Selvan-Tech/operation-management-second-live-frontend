@@ -22,7 +22,6 @@ function NotificationGroup({ label, items }) {
             >
               <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
                 <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-                <span className="notifications-item-dot" aria-hidden="true" />
               </span>
 
               <div className="notifications-item-copy">
