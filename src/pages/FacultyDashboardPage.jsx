@@ -1257,13 +1257,9 @@ export function FacultyMyBatchesPage() {
                   <table className="faculty-flow-table batch-student-table">
                     <thead>
                       <tr>
-                        <th className="batch-student-table-select-head" aria-label="Select student" />
                         <th>Student Name</th>
                         <th>Email Address</th>
                         <th>Mobile Number</th>
-                        <th>Course</th>
-                        <th>Faculty Name</th>
-                        <th>Batch</th>
                         <th>Location</th>
                         <th>Qualification</th>
                         <th>Passed Out Year</th>
@@ -1274,29 +1270,17 @@ export function FacultyMyBatchesPage() {
                     </thead>
                     <tbody>
                       {selectedBatchStudents.map((student, index) => {
-                        const avatarText = getInitials(student.studentName || 'Student')
-
                         return (
                           <tr key={student.id || `${student.studentName}-${index}`}>
-                            <td className="batch-student-table-select-cell" aria-hidden="true">
-                              <span className="batch-student-table-checkbox" />
-                            </td>
                             <td className="batch-student-table-name-cell">
                               <div className="batch-student-table-name">
-                                <div className="batch-student-table-avatar" aria-hidden="true">
-                                  {avatarText}
-                                </div>
                                 <div className="batch-student-table-name-copy">
                                   <strong>{student.studentName}</strong>
-                                  <span>{student.emailAddress}</span>
                                 </div>
                               </div>
                             </td>
                             <td>{student.emailAddress}</td>
                             <td>{student.mobileNumber}</td>
-                            <td>{student.course}</td>
-                            <td>{student.facultyName}</td>
-                            <td>{student.batchName}</td>
                             <td>{student.location}</td>
                             <td>{student.qualification}</td>
                             <td>{student.passedOutYear}</td>
