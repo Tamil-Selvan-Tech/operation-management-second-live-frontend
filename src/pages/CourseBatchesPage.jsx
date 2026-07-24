@@ -5,16 +5,18 @@ import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
-import { loadStudentRecords } from '../data/studentRecords'
+import { mergeFacultyWithSnapshot } from '../lib/facultySnapshot'
+import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { listCourses, normalizeCourseList } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
-import { listStudents, normalizeStudentList } from '../services/studentService'
+import { listStudents } from '../services/studentService'
 import {
   buildFacultyBatchPath,
   buildFacultyCourseListPath,
   getFacultyBatchEntriesForCourse,
   getFacultyBatchStudentRecords,
   getFacultyCourseName,
+  getUniqueStudentCountForFacultyScope,
   sortByNameThenTiming,
 } from '../lib/facultyFlow'
 
@@ -31,7 +33,7 @@ function loadStoredFaculty() {
 }
 
 function loadStoredStudents() {
-  return normalizeStudentList(loadStudentRecords())
+  return loadStudentSnapshot() || []
 }
 
 export function CourseBatchesPage() {
@@ -57,7 +59,9 @@ export function CourseBatchesPage() {
 
         setFacultyRecords(Array.isArray(facultyResult.data) ? facultyResult.data : loadStoredFaculty())
         setCourseOptions(Array.isArray(courseResult.data) ? courseResult.data : loadStoredCourses())
-        setStudents(Array.isArray(studentResult.data) ? studentResult.data : loadStoredStudents())
+        const nextStudents = mergeStudentsWithSnapshot(studentResult.data)
+        saveStudentSnapshot(nextStudents)
+        setStudents(nextStudents.length ? nextStudents : loadStoredStudents())
         setError('')
       } catch (nextError) {
         setFacultyRecords(loadStoredFaculty())
@@ -84,7 +88,7 @@ export function CourseBatchesPage() {
   }, [])
 
   const selectedFaculty = useMemo(
-    () => facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null,
+    () => mergeFacultyWithSnapshot(facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null),
     [facultyId, facultyRecords],
   )
 
@@ -112,7 +116,16 @@ export function CourseBatchesPage() {
       ),
     [batches, courseId, courseName, selectedFaculty, students],
   )
-  const totalStudents = batchStudentCounts.reduce((sum, count) => sum + count, 0)
+  const totalStudents = useMemo(
+    () =>
+      getUniqueStudentCountForFacultyScope(students, {
+        facultyName: selectedFaculty?.facultyName || '',
+        courseId,
+        courseName,
+        batchNames: batches.map((batch) => batch.batchName),
+      }),
+    [batches, courseId, courseName, selectedFaculty?.facultyName, students],
+  )
   const totalBatches = batches.length
 
   return (

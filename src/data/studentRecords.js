@@ -1,3 +1,5 @@
+import { loadStudentSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
+
 export const STUDENT_STORAGE_KEY = 'cispro.student-management.records'
 
 function clearLegacyStudentRecords() {
@@ -11,11 +13,12 @@ function clearLegacyStudentRecords() {
 
 export function loadStudentRecords() {
   clearLegacyStudentRecords()
-  return []
+  return loadStudentSnapshot()
 }
 
 export function saveStudentRecords(records) {
   clearLegacyStudentRecords()
+  saveStudentSnapshot(records)
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('cispro:students-changed'))
   }

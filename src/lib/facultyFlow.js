@@ -180,19 +180,6 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
     const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
     const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
 
-    if (normalizedFacultyName && normalizeText(student?.facultyName || '') !== normalizedFacultyName) {
-      return false
-    }
-
-    if (normalizedCourseId || normalizedCourseName) {
-      const courseIdMatches = !normalizedCourseId || !studentCourseId || studentCourseId === normalizedCourseId
-      const courseNameMatches = !normalizedCourseName || studentCourseName === normalizedCourseName
-
-      if (!courseIdMatches || !courseNameMatches) {
-        return false
-      }
-    }
-
     if (normalizedBatchName) {
       const batchMatches =
         studentBatchName === normalizedBatchName ||
@@ -203,6 +190,18 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
       if (!batchMatches) {
         return false
       }
+    }
+
+    if (normalizedFacultyName && normalizeText(student?.facultyName || '') !== normalizedFacultyName) {
+      return false
+    }
+
+    if (normalizedCourseId && studentCourseId && studentCourseId !== normalizedCourseId) {
+      return false
+    }
+
+    if (normalizedCourseName && studentCourseName && studentCourseName !== normalizedCourseName) {
+      return false
     }
 
     return true
@@ -226,6 +225,55 @@ export function getFacultyBatchStudentRecords(students = [], { facultyName = '',
     courseName,
     batchName,
   }))
+}
+
+export function getUniqueStudentCountForFacultyScope(
+  students = [],
+  { facultyName = '', courseId = '', courseName = '', batchNames = [] } = {},
+) {
+  const normalizedBatchNames = Array.isArray(batchNames)
+    ? batchNames.map((value) => String(value || '').trim()).filter(Boolean)
+    : []
+
+  const studentRecords = normalizedBatchNames.length
+    ? normalizedBatchNames.flatMap((batchName) =>
+        getFacultyBatchStudentRecords(students, {
+          facultyName,
+          courseId,
+          courseName,
+          batchName,
+        }),
+      )
+    : getFacultyBatchStudentRecords(students, {
+        facultyName,
+        courseId,
+        courseName,
+      })
+
+  return dedupeStudents(studentRecords).length
+}
+
+export function getUniqueStudentCountForFacultyRecords(
+  students = [],
+  { facultyName = '', batchEntries = [] } = {},
+) {
+  const normalizedFacultyName = String(facultyName || '').trim()
+  const normalizedBatchEntries = Array.isArray(batchEntries) ? batchEntries : []
+
+  if (!normalizedFacultyName || !normalizedBatchEntries.length) {
+    return 0
+  }
+
+  const studentRecords = normalizedBatchEntries.flatMap((entry) =>
+    getFacultyBatchStudentRecords(students, {
+      facultyName: normalizedFacultyName,
+      courseId: entry?.courseId || '',
+      courseName: entry?.courseName || '',
+      batchName: entry?.batchName || '',
+    }),
+  )
+
+  return dedupeStudents(studentRecords).length
 }
 
 export function buildFacultyDetailsPath(facultyId) {

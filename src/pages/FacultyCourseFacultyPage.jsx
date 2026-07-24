@@ -7,17 +7,18 @@ import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
-import { loadStudentRecords } from '../data/studentRecords'
+import { mergeFacultyWithSnapshot } from '../lib/facultySnapshot'
+import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { listCourses, normalizeCourseList } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
-import { listStudents, normalizeStudentList } from '../services/studentService'
+import { listStudents } from '../services/studentService'
 import {
   buildFacultyCoursePath,
   buildFacultyCourseCatalogPath,
   getFacultyBatchEntriesForCourse,
   getFacultyCourseIds,
   getFacultyCourseName,
-  getFacultyBatchStudentRecords,
+  getUniqueStudentCountForFacultyScope,
   sortByNameThenTiming,
 } from '../lib/facultyFlow'
 
@@ -34,7 +35,7 @@ function loadStoredFaculty() {
 }
 
 function loadStoredStudents() {
-  return normalizeStudentList(loadStudentRecords())
+  return loadStudentSnapshot() || []
 }
 
 export function FacultyCourseFacultyPage() {
@@ -62,7 +63,9 @@ export function FacultyCourseFacultyPage() {
 
         setFacultyRecords(Array.isArray(facultyResult.data) ? facultyResult.data : loadStoredFaculty())
         setCourseOptions(Array.isArray(courseResult.data) ? courseResult.data : loadStoredCourses())
-        setStudents(Array.isArray(studentResult.data) ? studentResult.data : loadStoredStudents())
+        const nextStudents = mergeStudentsWithSnapshot(studentResult.data)
+        saveStudentSnapshot(nextStudents)
+        setStudents(nextStudents.length ? nextStudents : loadStoredStudents())
         setError('')
       } catch (nextError) {
         setFacultyRecords(loadStoredFaculty())
@@ -100,22 +103,18 @@ export function FacultyCourseFacultyPage() {
     return facultyRecords
       .filter((record) => getFacultyCourseIds(record).includes(normalizedCourseId))
       .map((record) => {
-        const batchEntries = getFacultyBatchEntriesForCourse(record, normalizedCourseId)
+        const mergedRecord = mergeFacultyWithSnapshot(record) || record
+        const batchEntries = getFacultyBatchEntriesForCourse(mergedRecord, normalizedCourseId)
         const courseName = selectedCourse?.name || getFacultyCourseName(normalizedCourseId, courseOptions) || normalizedCourseId
-        const studentCount = batchEntries.reduce(
-          (sum, batch) =>
-            sum +
-            getFacultyBatchStudentRecords(students, {
-              facultyName: record.facultyName || '',
-              courseId: normalizedCourseId,
-              courseName,
-              batchName: batch.batchName,
-            }).length,
-          0,
-        )
+        const studentCount = getUniqueStudentCountForFacultyScope(students, {
+          facultyName: mergedRecord.facultyName || '',
+          courseId: normalizedCourseId,
+          courseName,
+          batchNames: batchEntries.map((batch) => batch.batchName),
+        })
 
         return {
-          ...record,
+          ...mergedRecord,
           batchEntries: sortByNameThenTiming(batchEntries),
           studentCount,
           courseName,

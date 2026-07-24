@@ -20,10 +20,11 @@ import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
-import { loadStudentRecords } from '../data/studentRecords'
+import { mergeFacultyWithSnapshot } from '../lib/facultySnapshot'
+import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { listCourses, normalizeCourseList } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
-import { listStudents, normalizeStudentList } from '../services/studentService'
+import { listStudents } from '../services/studentService'
 import {
   buildFacultyCoursePath,
   getFacultyBatchEntryById,
@@ -44,7 +45,7 @@ function loadStoredFaculty() {
 }
 
 function loadStoredStudents() {
-  return normalizeStudentList(loadStudentRecords())
+  return loadStudentSnapshot() || []
 }
 
 function formatDate(value) {
@@ -147,7 +148,9 @@ export function BatchStudentsPage() {
 
         setFacultyRecords(Array.isArray(facultyResult.data) ? facultyResult.data : loadStoredFaculty())
         setCourseOptions(Array.isArray(courseResult.data) ? courseResult.data : loadStoredCourses())
-        setStudents(Array.isArray(studentResult.data) ? studentResult.data : loadStoredStudents())
+        const nextStudents = mergeStudentsWithSnapshot(studentResult.data)
+        saveStudentSnapshot(nextStudents)
+        setStudents(nextStudents.length ? nextStudents : loadStoredStudents())
         setError('')
       } catch (nextError) {
         setFacultyRecords(loadStoredFaculty())
@@ -174,7 +177,7 @@ export function BatchStudentsPage() {
   }, [])
 
   const selectedFaculty = useMemo(
-    () => facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null,
+    () => mergeFacultyWithSnapshot(facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null),
     [facultyId, facultyRecords],
   )
 

@@ -30,6 +30,7 @@ import { createStudent, deleteStudent, listStudents, updateStudent } from '../se
 import { normalizeCourseList } from '../services/courseService'
 import { savePendingLoginEmail } from '../lib/session'
 import { getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
+import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 const statusOptions = ['Student', 'Employee', 'Other']
@@ -771,7 +772,7 @@ export function StudentManagementPage() {
   const openMenu = useMobileMenu()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [students, setStudents] = useState([])
+  const [students, setStudents] = useState(() => loadStudentSnapshot())
   const [courseOptions, setCourseOptions] = useState([])
   const [facultyOptions, setFacultyOptions] = useState([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -963,13 +964,15 @@ export function StudentManagementPage() {
 
     try {
       const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
-      setStudents(result.data || [])
+      const nextStudents = mergeStudentsWithSnapshot(result.data)
+      saveStudentSnapshot(nextStudents)
+      setStudents(nextStudents.length ? nextStudents : loadStudentSnapshot())
       if (!silent) {
         setActionError('')
       }
     } catch (error) {
       if (!silent) {
-        setStudents([])
+        setStudents(loadStudentSnapshot())
         setActionError(apiErrorMessage(error, 'Failed to load students from the backend.'))
       }
     } finally {
@@ -1261,6 +1264,7 @@ export function StudentManagementPage() {
 
   useEffect(() => {
     saveStudentRecords(students)
+    saveStudentSnapshot(students)
   }, [students])
 
   useEffect(() => {

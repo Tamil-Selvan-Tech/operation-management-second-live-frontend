@@ -4,10 +4,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { loadFacultyRecords } from '../data/facultyRecords'
-import { loadStudentRecords } from '../data/studentRecords'
+import { mergeFacultyWithSnapshot } from '../lib/facultySnapshot'
+import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { listCourses, normalizeCourseList } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
-import { listStudents, normalizeStudentList } from '../services/studentService'
+import { listStudents } from '../services/studentService'
 import {
   buildFacultyCoursePath,
   getFacultyBatchEntriesForCourse,
@@ -29,7 +30,7 @@ function loadStoredFaculty() {
 }
 
 function loadStoredStudents() {
-  return loadStudentRecords()
+  return loadStudentSnapshot() || []
 }
 
 export function FacultyDetailsPage() {
@@ -50,12 +51,14 @@ export function FacultyDetailsPage() {
         const [facultyResult, courseResult, studentResult] = await Promise.all([
           listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredFaculty() })),
           listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredCourses() })),
-          listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: normalizeStudentList(loadStoredStudents()) })),
+          listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredStudents() })),
         ])
 
         setFacultyRecords(Array.isArray(facultyResult.data) ? facultyResult.data : loadStoredFaculty())
         setCourseOptions(Array.isArray(courseResult.data) ? courseResult.data : loadStoredCourses())
-        setStudents(Array.isArray(studentResult.data) ? studentResult.data : loadStoredStudents())
+        const nextStudents = mergeStudentsWithSnapshot(studentResult.data)
+        saveStudentSnapshot(nextStudents)
+        setStudents(nextStudents.length ? nextStudents : loadStoredStudents())
         setError('')
       } catch (nextError) {
         setFacultyRecords(loadStoredFaculty())
@@ -82,7 +85,7 @@ export function FacultyDetailsPage() {
   }, [])
 
   const selectedFaculty = useMemo(
-    () => facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null,
+    () => mergeFacultyWithSnapshot(facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null),
     [facultyId, facultyRecords],
   )
 
