@@ -828,12 +828,17 @@ function MonthlyRevenueChart({ data = [] }) {
     () => (isCompactMobile ? getRollingWindowData(data, 1, 4) : data),
     [data, isCompactMobile],
   )
-  const topHalfMonths = visibleMonthlyData.slice(0, 6)
-  const bottomHalfMonths = visibleMonthlyData.slice(6, 12)
+  const splitIndex = Math.ceil(visibleMonthlyData.length / 2)
+  const topHalfMonths = visibleMonthlyData.slice(0, splitIndex)
+  const bottomHalfMonths = visibleMonthlyData.slice(splitIndex)
   const chartMax = getChartMax(visibleMonthlyData, 10000)
   const ticks = buildRevenueTicks(chartMax)
   const activePoint = activeIndex === null ? null : visibleMonthlyData[activeIndex]
   const tooltipStyle = getEdgeAwareTooltipStyle(activeIndex, visibleMonthlyData.length)
+
+  useEffect(() => {
+    setActiveIndex(null)
+  }, [visibleMonthlyData])
 
   return (
     <article className="panel-card revenue-comparison-card revenue-monthly-card">
@@ -871,10 +876,10 @@ function MonthlyRevenueChart({ data = [] }) {
           <div
             className="revenue-month-labels-row revenue-month-labels-top"
             aria-hidden="true"
-            style={{ gridTemplateColumns: `repeat(${Math.max(topHalfMonths.length, 1)}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${Math.max(visibleMonthlyData.length, 1)}, minmax(0, 1fr))` }}
           >
-            {topHalfMonths.map((item) => (
-              <span key={item.month} className="revenue-month-label">
+            {topHalfMonths.map((item, index) => (
+              <span key={item.month} className="revenue-month-label" style={{ gridColumn: index + 1 }}>
                 {item.month}
               </span>
             ))}
@@ -909,7 +914,7 @@ function MonthlyRevenueChart({ data = [] }) {
 
             <div
               className="revenue-groups"
-              style={{ gridTemplateColumns: `repeat(${visibleMonthlyData.length}, minmax(0, 1fr))` }}
+              style={{ gridTemplateColumns: `repeat(${Math.max(visibleMonthlyData.length, 1)}, minmax(0, 1fr))` }}
             >
               {visibleMonthlyData.map((item, index) => {
                 const monthlyHeight = `${chartMax ? (item.actual / chartMax) * 100 : 0}%`
@@ -939,10 +944,10 @@ function MonthlyRevenueChart({ data = [] }) {
           <div
             className="revenue-month-labels-row revenue-month-labels-bottom"
             aria-hidden="true"
-            style={{ gridTemplateColumns: `repeat(${Math.max(bottomHalfMonths.length, 1)}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${Math.max(visibleMonthlyData.length, 1)}, minmax(0, 1fr))` }}
           >
-            {bottomHalfMonths.map((item) => (
-              <span key={item.month} className="revenue-month-label">
+            {bottomHalfMonths.map((item, index) => (
+              <span key={item.month} className="revenue-month-label" style={{ gridColumn: splitIndex + index + 1 }}>
                 {item.month}
               </span>
             ))}

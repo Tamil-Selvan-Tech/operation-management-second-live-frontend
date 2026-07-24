@@ -5225,7 +5225,7 @@ tbody tr:hover {
   z-index: 1;
   height: 100%;
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 10px;
   align-items: end;
 }
