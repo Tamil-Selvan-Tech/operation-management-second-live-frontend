@@ -983,17 +983,27 @@ export function CoursesPage() {
               <div className="student-drawer-table-actions">
                 {isCourseInlineEditing ? (
                   <>
-                    <button type="button" className="student-drawer-edit-button student-drawer-edit-button-ghost" onClick={cancelInlineEdit} disabled={isSaving}>
+                    <button
+                      type="button"
+                      className="student-drawer-edit-button student-drawer-edit-button-ghost course-drawer-edit-button course-drawer-edit-button-ghost"
+                      onClick={cancelInlineEdit}
+                      disabled={isSaving}
+                    >
                       Cancel
                     </button>
-                    <button type="button" className="student-drawer-edit-button" onClick={handleSave} disabled={isSaving}>
+                    <button
+                      type="button"
+                      className="student-drawer-edit-button course-drawer-edit-button"
+                      onClick={handleSave}
+                      disabled={isSaving}
+                    >
                       {isSaving ? 'Saving...' : 'Save'}
                     </button>
                   </>
                 ) : (
                   <button
                     type="button"
-                    className="student-drawer-edit-button"
+                    className="student-drawer-edit-button course-drawer-edit-button"
                     onClick={() => openDrawerInlineEdit(viewTarget)}
                   >
                     <PencilLine />

@@ -12994,6 +12994,34 @@ tbody tr:hover {
   background: rgba(255, 255, 255, 0.24);
 }
 
+.course-drawer-edit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 14px 0 12px;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.1) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  white-space: nowrap;
+}
+
+.course-drawer-edit-button:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.14) 100%);
+}
+
+.course-drawer-edit-button svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.course-drawer-edit-button-ghost {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
 .student-drawer-edit-button-ghost {
   background: rgba(255, 255, 255, 0.08);
 }
@@ -17657,7 +17685,18 @@ tbody tr:hover {
     font-size: 0.74rem;
   }
 
+  .course-drawer-edit-button {
+    min-height: 32px;
+    padding: 0 11px 0 10px;
+    gap: 6px;
+  }
+
   .student-drawer-edit-button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .course-drawer-edit-button svg {
     width: 14px;
     height: 14px;
   }
