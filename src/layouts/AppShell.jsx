@@ -128,7 +128,11 @@ export function AppShell({
 
   return (
     <MobileMenuContext.Provider value={() => setIsMobileSidebarOpen(true)}>
-      <div className={`app-shell has-fixed-sidebar ${isStudentPage ? 'is-student-page' : ''}`.trim()}>
+      <div
+        className={`app-shell has-fixed-sidebar ${isStudentPage ? 'is-student-page' : ''} ${
+          isBusinessOwnerDashboard ? 'business-owner-shell' : ''
+        }`.trim()}
+      >
         <div
           className={`sidebar-backdrop ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
           role="presentation"

@@ -1066,6 +1066,22 @@ tbody tr:hover {
 .main-area.main-area-flat.business-owner-main {
   padding-left: 20px;
   padding-right: 0;
+  background: #ffffff;
+}
+
+.app-shell.business-owner-shell {
+  background: #ffffff;
+}
+
+.app-shell.business-owner-shell .sidebar {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.app-shell.business-owner-shell .brand-logo {
+  box-shadow: none;
 }
 
 .topbar {
@@ -4501,6 +4517,7 @@ tbody tr:hover {
   display: grid;
   gap: 18px;
   min-width: 0;
+  background: #ffffff;
 }
 
 .business-owner-dashboard .business-topbar {
@@ -4513,6 +4530,33 @@ tbody tr:hover {
   padding: 0;
 }
 
+.business-owner-dashboard .business-topbar,
+.business-owner-dashboard .panel-card,
+.business-owner-dashboard .business-kpi,
+.business-owner-dashboard .revenue-summary-card,
+.business-owner-dashboard .profile-chip,
+.business-owner-dashboard .icon-chip {
+  box-shadow: none;
+}
+
+.business-owner-dashboard .panel-card,
+.business-owner-dashboard .business-kpi,
+.business-owner-dashboard .revenue-summary-card,
+.business-owner-dashboard .profile-chip,
+.business-owner-dashboard .icon-chip,
+.business-owner-dashboard .dashboard-search {
+  background: #ffffff;
+}
+
+.business-owner-dashboard .panel-card,
+.business-owner-dashboard .business-kpi,
+.business-owner-dashboard .revenue-summary-card,
+.business-owner-dashboard .profile-chip,
+.business-owner-dashboard .icon-chip,
+.business-owner-dashboard .dashboard-search {
+  border-color: #e5e7eb;
+}
+
 .business-owner-dashboard .notification-menu {
   position: relative;
   z-index: 40;
@@ -4520,6 +4564,19 @@ tbody tr:hover {
 
 .business-owner-dashboard .notification-dropdown {
   z-index: 50;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.business-owner-dashboard .notification-dropdown::before {
+  border-left-color: #e5e7eb;
+  border-top-color: #e5e7eb;
+}
+
+.business-owner-dashboard .notification-dropdown-item:hover,
+.business-owner-dashboard .notification-dropdown-item:focus-visible,
+.business-owner-dashboard .notification-dropdown-item.is-highlighted {
+  background: #ffffff;
 }
 
 .business-owner-hero {
@@ -4579,8 +4636,7 @@ tbody tr:hover {
 }
 
 .business-owner-dashboard .profile-chip {
-  border-color: #e5edf7;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.025);
+  border-color: #e5e7eb;
 }
 
 .business-owner-dashboard .profile-avatar {
@@ -4610,6 +4666,11 @@ tbody tr:hover {
   overflow: visible;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
   min-width: 0;
+}
+
+.business-owner-dashboard .revenue-summary-card {
+  box-shadow: none;
+  border-color: #e5e7eb;
 }
 
 .revenue-summary-card.is-tooltip-open {
@@ -4646,10 +4707,21 @@ tbody tr:hover {
   border-radius: 999px;
   display: grid;
   place-items: center;
-  color: #ffffff;
+  color: #0f7bda;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   box-shadow: 0 16px 28px rgba(15, 23, 42, 0.12);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
   margin-top: 6px;
+}
+
+.business-owner-dashboard .revenue-summary-icon,
+.business-owner-dashboard .revenue-summary-icon-button:hover .revenue-summary-icon,
+.business-owner-dashboard .revenue-summary-icon-button:focus-visible .revenue-summary-icon {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  color: inherit;
+  box-shadow: none;
 }
 
 .revenue-summary-info-button {
@@ -4697,19 +4769,23 @@ tbody tr:hover {
 }
 
 .revenue-summary-icon.blue {
-  background: linear-gradient(180deg, #2f8ef0 0%, #0f7bda 100%);
+  color: #0f7bda;
+  background: #ffffff;
 }
 
 .revenue-summary-icon.green {
-  background: linear-gradient(180deg, #30c26b 0%, #18a957 100%);
+  color: #16a34a;
+  background: #ffffff;
 }
 
 .revenue-summary-icon.purple {
-  background: linear-gradient(180deg, #7c6cf5 0%, #6250e0 100%);
+  color: #7c3aed;
+  background: #ffffff;
 }
 
 .revenue-summary-icon.orange {
-  background: linear-gradient(180deg, #f8b23c 0%, #f59e0b 100%);
+  color: #f59e0b;
+  background: #ffffff;
 }
 
 .revenue-summary-content {
