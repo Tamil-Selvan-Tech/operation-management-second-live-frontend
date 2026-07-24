@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarDays, ChevronDown, Check, GraduationCap, Layers3, UsersRound, X } from 'lucide-react'
+import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, GraduationCap, Layers3, UsersRound, X } from 'lucide-react'
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
@@ -1002,6 +1002,8 @@ export function FacultyMyBatchesPage() {
         }))
       : []
   }, [selectedBatchContext])
+  const selectedBatchStudentCount = selectedBatchStudents.length
+  const selectedBatchVisibleCount = Math.min(selectedBatchStudentCount, 8)
 
   const openBatchStudents = (group, batch) => {
     if (!group || !batch) return
@@ -1245,65 +1247,109 @@ export function FacultyMyBatchesPage() {
               </div>
               <div className="batch-student-status active">
                 <UsersRound size={16} />
-                <span>{selectedBatchStudents.length} Students</span>
+                <span>{selectedBatchStudentCount} Students</span>
               </div>
             </div>
 
             {selectedBatchStudents.length ? (
-              <div className="faculty-flow-table-wrap">
-                <table className="faculty-flow-table">
-                  <thead>
-                    <tr>
-                      <th>Student Name</th>
-                      <th>Email Address</th>
-                      <th>Mobile Number</th>
-                      <th>Course</th>
-                      <th>Faculty Name</th>
-                      <th>Batch</th>
-                      <th>Location</th>
-                      <th>Qualification</th>
-                      <th>Passed Out Year</th>
-                      <th>Current Status</th>
-                      <th>Admission Date</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedBatchStudents.map((student, index) => (
-                      <tr key={student.id || `${student.studentName}-${index}`}>
-                        <td>
-                          <strong>{student.studentName}</strong>
-                        </td>
-                        <td>{student.emailAddress}</td>
-                        <td>{student.mobileNumber}</td>
-                        <td>{student.course}</td>
-                        <td>{student.facultyName}</td>
-                        <td>{student.batchName}</td>
-                        <td>{student.location}</td>
-                        <td>{student.qualification}</td>
-                        <td>{student.passedOutYear}</td>
-                        <td>{student.currentStatus}</td>
-                        <td>{student.admissionDate}</td>
-                        <td>
-                          <span className={`status-pill ${student.status.toLowerCase()}`.trim()}>{student.status}</span>
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className="faculty-flow-mini-button"
-                            onClick={() => {
-                              if (!selectedBatchContext.facultyId || !selectedBatchContext.courseId || !selectedBatchContext.batchId) return
-                              navigate(buildFacultyBatchPath(selectedBatchContext.facultyId, selectedBatchContext.courseId, selectedBatchContext.batchId))
-                            }}
-                          >
-                            View
-                          </button>
-                        </td>
+              <div className="batch-student-table-shell">
+                <div className="faculty-flow-table-wrap batch-student-table-wrap">
+                  <table className="faculty-flow-table batch-student-table">
+                    <thead>
+                      <tr>
+                        <th className="batch-student-table-select-head" aria-label="Select student" />
+                        <th>Student Name</th>
+                        <th>Email Address</th>
+                        <th>Mobile Number</th>
+                        <th>Course</th>
+                        <th>Faculty Name</th>
+                        <th>Batch</th>
+                        <th>Location</th>
+                        <th>Qualification</th>
+                        <th>Passed Out Year</th>
+                        <th>Current Status</th>
+                        <th>Admission Date</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {selectedBatchStudents.map((student, index) => {
+                        const avatarText = getInitials(student.studentName || 'Student')
+
+                        return (
+                          <tr key={student.id || `${student.studentName}-${index}`}>
+                            <td className="batch-student-table-select-cell" aria-hidden="true">
+                              <span className="batch-student-table-checkbox" />
+                            </td>
+                            <td className="batch-student-table-name-cell">
+                              <div className="batch-student-table-name">
+                                <div className="batch-student-table-avatar" aria-hidden="true">
+                                  {avatarText}
+                                </div>
+                                <div className="batch-student-table-name-copy">
+                                  <strong>{student.studentName}</strong>
+                                  <span>{student.emailAddress}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>{student.emailAddress}</td>
+                            <td>{student.mobileNumber}</td>
+                            <td>{student.course}</td>
+                            <td>{student.facultyName}</td>
+                            <td>{student.batchName}</td>
+                            <td>{student.location}</td>
+                            <td>{student.qualification}</td>
+                            <td>{student.passedOutYear}</td>
+                            <td>{student.currentStatus}</td>
+                            <td>{student.admissionDate}</td>
+                            <td>
+                              <span className={`status-pill ${student.status.toLowerCase()}`.trim()}>{student.status}</span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="batch-student-table-footer" aria-label="Batch student pagination">
+                  <div className="batch-student-table-summary">
+                    <strong>Showing {selectedBatchVisibleCount} of {selectedBatchStudentCount}</strong>
+                    <span>students in this batch</span>
+                  </div>
+
+                  <div className="batch-student-pagination" aria-hidden="true">
+                    <button type="button" className="batch-student-pagination-link" disabled>
+                      <ChevronLeft size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+                      <span>Previous</span>
+                    </button>
+                    <div className="batch-student-pagination-pages">
+                      <button type="button" className="batch-student-pagination-page active" aria-current="page" disabled>
+                        1
+                      </button>
+                      <button type="button" className="batch-student-pagination-page" disabled>
+                        2
+                      </button>
+                      <button type="button" className="batch-student-pagination-page" disabled>
+                        3
+                      </button>
+                      <span className="batch-student-pagination-dots">...</span>
+                      <button type="button" className="batch-student-pagination-page" disabled>
+                        8
+                      </button>
+                      <button type="button" className="batch-student-pagination-page" disabled>
+                        9
+                      </button>
+                      <button type="button" className="batch-student-pagination-page" disabled>
+                        10
+                      </button>
+                    </div>
+                    <button type="button" className="batch-student-pagination-link" disabled>
+                      <span>Next</span>
+                      <ChevronRight size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="faculty-flow-empty">

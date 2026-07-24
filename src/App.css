@@ -2697,6 +2697,142 @@ tbody tr:hover {
   padding: 4px 10px;
 }
 
+@media (min-width: 1081px) and (max-width: 1160px) {
+  .faculty-dashboard-page {
+    gap: 14px;
+  }
+
+  .faculty-summary-strip {
+    margin-top: 0;
+    gap: 12px;
+  }
+
+  .faculty-summary-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .faculty-summary-card-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+  }
+
+  .faculty-summary-card-value {
+    font-size: 0.96rem;
+  }
+
+  .faculty-summary-card-note {
+    font-size: 0.72rem;
+  }
+
+  .faculty-summary-card-badge {
+    padding: 3px 8px;
+    font-size: 0.68rem;
+  }
+
+  .faculty-dashboard-analytics-grid {
+    gap: 12px;
+  }
+
+  .faculty-attendance-card,
+  .faculty-batch-performance-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .faculty-batch-progress-card-left {
+    padding: 10px 12px;
+  }
+
+  .faculty-attendance-head-copy h3,
+  .faculty-batch-progress-head-copy h3,
+  .faculty-batch-performance-head-copy h3 {
+    font-size: 0.98rem;
+  }
+
+  .faculty-attendance-head-copy p,
+  .faculty-batch-progress-head-copy p,
+  .faculty-batch-performance-head-copy p {
+    font-size: 0.8rem;
+  }
+
+  .faculty-batch-dropdown-trigger,
+  .faculty-range-chip,
+  .faculty-course-details-button {
+    min-height: 36px;
+    padding-inline: 12px;
+    font-size: 0.8rem;
+  }
+
+  .faculty-attendance-chart {
+    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    gap: 8px;
+  }
+
+  .faculty-attendance-axis {
+    padding: 8px 0 22px;
+    font-size: 0.7rem;
+  }
+
+  .faculty-attendance-plot {
+    min-height: 228px;
+    padding: 8px 6px 10px;
+    border-radius: 16px;
+  }
+
+  .faculty-attendance-grid-lines {
+    inset: 20px 0 28px;
+  }
+
+  .faculty-attendance-bars {
+    inset: 8px 0 36px;
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .faculty-attendance-group {
+    gap: 4px;
+  }
+
+  .faculty-attendance-value {
+    font-size: 0.72rem;
+  }
+
+  .faculty-attendance-bar-wrap {
+    width: 34px;
+    height: 160px;
+  }
+
+  .faculty-attendance-bar {
+    min-height: 16px;
+    border-radius: 14px 14px 8px 8px;
+  }
+
+  .faculty-attendance-months {
+    gap: 6px;
+    padding: 0 8px;
+    font-size: 0.7rem;
+  }
+
+  .faculty-batch-performance-chart {
+    min-height: 270px;
+    gap: 10px;
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .faculty-batch-performance-axis {
+    padding-bottom: 24px;
+    font-size: 0.7rem;
+  }
+
+  .faculty-batch-performance-plot {
+    min-height: 270px;
+    padding: 14px 12px 18px;
+    border-radius: 16px;
+  }
+}
+
 .faculty-attendance-card {
   display: grid;
   gap: 10px;
@@ -6572,8 +6708,8 @@ tbody tr:hover {
 
 .profile-drawer {
   width: min(100%, 440px);
-  height: 100vh;
-  max-height: 100vh;
+  height: calc(100vh - 24px);
+  max-height: calc(100vh - 24px);
   border-radius: 28px 0 0 28px;
   overflow: hidden;
   background: #ffffff;
@@ -6693,16 +6829,15 @@ tbody tr:hover {
 .profile-drawer-body {
   flex: 1;
   overflow: auto;
-  padding: 0 24px 16px;
+  padding: 34px 24px 18px;
   display: grid;
-  gap: 0;
+  gap: 12px;
   justify-items: center;
   text-align: center;
 }
 
 .profile-drawer-body .profile-modal-eyebrow {
   margin: 0;
-  margin-top: 0;
   line-height: 1.1;
   font-size: 0.8rem;
   letter-spacing: 0.14em;
@@ -6710,12 +6845,12 @@ tbody tr:hover {
 }
 
 .profile-drawer-body h3 {
-  margin: -8px 0 0;
+  margin: 0;
   line-height: 1.02;
 }
 
 .profile-drawer-body .profile-modal-email {
-  margin: -38px 0 0;
+  margin: 0;
   line-height: 1.08;
 }
 
@@ -6725,6 +6860,85 @@ tbody tr:hover {
 
 .profile-drawer-body .profile-modal-info-list {
   margin-top: -12px;
+}
+
+@media (min-width: 1440px) and (max-width: 1759px) and (min-height: 820px) and (max-height: 959px) {
+  .profile-drawer {
+    height: calc(100vh - 40px);
+    max-height: calc(100vh - 40px);
+  }
+}
+
+@media (min-width: 1760px) and (max-width: 2299px) and (min-height: 980px) and (max-height: 1199px) {
+  .profile-drawer {
+    height: calc(100vh - 48px);
+    max-height: calc(100vh - 48px);
+  }
+}
+
+@media (min-width: 2300px) and (max-width: 3199px) and (min-height: 1320px) and (max-height: 1599px) {
+  .profile-drawer {
+    height: calc(100vh - 64px);
+    max-height: calc(100vh - 64px);
+  }
+}
+
+@media (min-width: 3200px) and (min-height: 2000px) {
+  .profile-drawer {
+    height: calc(100vh - 84px);
+    max-height: calc(100vh - 84px);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1100px) {
+  .profile-drawer {
+    width: min(100vw - 24px, 420px);
+  }
+
+  .profile-modal-cover {
+    min-height: 132px;
+  }
+
+  .profile-modal-cover::before {
+    inset: auto -2% -20px -2%;
+    height: 76px;
+  }
+
+  .profile-modal-avatar-wrap {
+    bottom: -14px;
+  }
+
+  .profile-modal-avatar {
+    width: 64px;
+    height: 64px;
+    border-width: 5px;
+    font-size: 1.1rem;
+  }
+
+  .profile-drawer-body {
+    padding: 40px 20px 16px;
+    gap: 10px;
+  }
+
+  .profile-drawer-body .profile-modal-eyebrow {
+    margin-top: 2px;
+  }
+
+  .profile-drawer-body h3 {
+    font-size: 1.42rem;
+  }
+
+  .profile-drawer-body .profile-modal-email {
+    font-size: 0.88rem;
+  }
+
+  .profile-drawer-body .profile-modal-grid {
+    margin-top: 0;
+  }
+
+  .profile-drawer-body .profile-modal-info-list {
+    margin-top: 0;
+  }
 }
 
 .profile-modal-eyebrow {
@@ -6803,7 +7017,7 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr);
   gap: 10px;
-  align-items: center;
+  align-items: start;
   min-height: 68px;
 }
 
@@ -6813,6 +7027,7 @@ tbody tr:hover {
   display: grid;
   place-items: center;
   border-radius: 999px;
+  margin-top: 2px;
 }
 
 .profile-modal-stat.tone-blue .profile-modal-stat-icon {
@@ -6833,11 +7048,6 @@ tbody tr:hover {
 .profile-modal-stat.tone-amber .profile-modal-stat-icon {
   color: #f59e0b;
   background: rgba(245, 158, 11, 0.14);
-}
-
-.profile-modal-stat.tone-amber strong {
-  display: inline-block;
-  transform: translateY(-6px);
 }
 
 .profile-modal-stat > div {
@@ -7003,7 +7213,7 @@ tbody tr:hover {
   }
 
   .profile-drawer-body {
-    padding: 14px 12px 10px;
+    padding: 24px 12px 10px;
     gap: 6px;
   }
 
@@ -10183,11 +10393,14 @@ tbody tr:hover {
 }
 
 .batch-student-modal {
-  width: min(980px, calc(100vw - 96px));
+  width: min(1240px, calc(100vw - 48px));
   max-height: min(90vh, 940px);
-  padding: 26px 30px 22px;
-  overflow: auto;
-  border-radius: 32px;
+  padding: 24px 26px 22px;
+  overflow: hidden;
+  border-radius: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
   background:
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 24%),
     radial-gradient(circle at top right, rgba(34, 197, 94, 0.06), transparent 22%),
@@ -10204,9 +10417,10 @@ tbody tr:hover {
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  margin-bottom: 18px;
+  margin-bottom: 0;
   padding: 0 4px 18px;
   border-bottom: 1px solid #e5edf7;
+  flex: 0 0 auto;
 }
 
 .batch-student-modal-header-main {
@@ -10279,6 +10493,248 @@ tbody tr:hover {
 .batch-student-status.inactive {
   background: linear-gradient(180deg, #f2f4f7 0%, #e9edf3 100%);
   color: #64748b;
+}
+
+.batch-student-table-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 14px;
+}
+
+.batch-student-table-wrap {
+  max-height: none;
+  border-radius: 22px;
+  border-color: #dfe8f4;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.04);
+  background: #ffffff;
+}
+
+.batch-student-table {
+  min-width: 1340px;
+}
+
+.batch-student-table thead th {
+  padding: 15px 14px;
+  background: #f8fbff;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.batch-student-table tbody tr:nth-child(even) td {
+  background: rgba(248, 251, 255, 0.52);
+}
+
+.batch-student-table tbody td {
+  padding: 14px 14px;
+  vertical-align: middle;
+  color: #334155;
+}
+
+.batch-student-table tbody td:first-child {
+  width: 58px;
+}
+
+.batch-student-table-select-head {
+  width: 58px;
+}
+
+.batch-student-table-select-cell {
+  text-align: center;
+}
+
+.batch-student-table-checkbox {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  border-radius: 6px;
+  border: 1.5px solid #c8d7e8;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.batch-student-table-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.batch-student-table-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #edf4ff 0%, #dbeafe 100%);
+  color: #1d4ed8;
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+
+.batch-student-table-name-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.batch-student-table-name-copy strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+  line-height: 1.15;
+}
+
+.batch-student-table-name-copy span {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-student-table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 2px 0;
+  flex-wrap: wrap;
+}
+
+.batch-student-table-summary {
+  display: grid;
+  gap: 2px;
+  color: #64748b;
+}
+
+.batch-student-table-summary strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.batch-student-table-summary span {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.batch-student-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.batch-student-pagination-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #d8e6f8;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.batch-student-pagination-page {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: #f6f9ff;
+  color: #475569;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.batch-student-pagination-page.active {
+  background: #185cd9;
+  border-color: #185cd9;
+  color: #ffffff;
+}
+
+.batch-student-pagination-dots {
+  color: #94a3b8;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.batch-student-pagination-link:disabled,
+.batch-student-pagination-page:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
+.batch-student-pagination-link:disabled {
+  color: #64748b;
+}
+
+@media (max-width: 1024px) {
+  .batch-student-modal {
+    width: min(100vw - 24px, 1240px);
+    padding: 20px;
+    gap: 16px;
+  }
+
+  .batch-student-table {
+    min-width: 1320px;
+  }
+}
+
+@media (max-width: 640px) {
+  .batch-student-modal {
+    width: calc(100vw - 16px);
+    padding: 16px;
+    border-radius: 22px;
+  }
+
+  .batch-student-modal-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding-bottom: 14px;
+  }
+
+  .batch-student-modal-header-main {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .batch-student-status {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .batch-student-table {
+    min-width: 1160px;
+  }
+
+  .batch-student-table thead th,
+  .batch-student-table tbody td {
+    padding-inline: 10px;
+  }
+
+  .batch-student-table-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .batch-student-pagination {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .batch-student-modal-grid {
@@ -17968,11 +18424,12 @@ tbody tr:hover {
   }
 
   .profile-drawer-body {
-    padding: 0 18px 12px;
+    padding: 14px 18px 12px;
+    gap: 10px;
   }
 
   .profile-drawer-body .profile-modal-grid {
-    margin-top: -6px;
+    margin-top: 2px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
