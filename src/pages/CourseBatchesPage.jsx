@@ -13,8 +13,8 @@ import {
   buildFacultyBatchPath,
   buildFacultyCourseListPath,
   getFacultyBatchEntriesForCourse,
+  getFacultyBatchStudentRecords,
   getFacultyCourseName,
-  getMatchingStudents,
   sortByNameThenTiming,
 } from '../lib/facultyFlow'
 
@@ -103,7 +103,7 @@ export function CourseBatchesPage() {
   const batchStudentCounts = useMemo(
     () =>
       batches.map((batch) =>
-        getMatchingStudents(students, {
+        getFacultyBatchStudentRecords(students, {
           facultyName: selectedFaculty?.facultyName || '',
           courseId,
           courseName,

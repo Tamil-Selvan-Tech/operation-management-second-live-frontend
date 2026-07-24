@@ -84,6 +84,7 @@ export function normalizeCourse(course) {
 
   const { actualFees, registrationFees } = normalizeFeePair(course)
   const afterDiscount = course.afterDiscount ?? deriveAfterDiscount(course)
+  const courseName = String(course.name || course.courseName || course.title || '').trim()
   const installments = Array.isArray(course.installments)
     ? course.installments.map((value) => String(value ?? '').trim()).filter((value) => value !== '')
     : []
@@ -91,7 +92,8 @@ export function normalizeCourse(course) {
   return {
     ...course,
     id: course.id || '',
-    name: course.name || '',
+    name: courseName,
+    courseName,
     description: course.description || '',
     feeReference: course.feeReference || '',
     mode: course.mode || '',

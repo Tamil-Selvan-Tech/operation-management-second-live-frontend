@@ -28,7 +28,7 @@ import {
   buildFacultyCoursePath,
   getFacultyBatchEntryById,
   getFacultyCourseName,
-  getMatchingStudents,
+  getFacultyBatchStudentRecords,
 } from '../lib/facultyFlow'
 
 function apiErrorMessage(error, fallback) {
@@ -195,7 +195,7 @@ export function BatchStudentsPage() {
   const batchTiming = selectedBatch?.batchTiming || '-'
   const matchingStudents = useMemo(
     () =>
-      getMatchingStudents(students, {
+      getFacultyBatchStudentRecords(students, {
         facultyName: selectedFaculty?.facultyName || '',
         courseId,
         courseName,

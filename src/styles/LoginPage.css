@@ -92,6 +92,8 @@
   align-items: center;
   justify-content: flex-start;
   gap: 12px;
+  margin-top: -14px;
+  margin-left: -4px;
 }
 
 .login-brand-pill {
@@ -105,6 +107,7 @@
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  margin-top: 0;
 }
 
 .login-brand-icon {
@@ -609,6 +612,12 @@
   max-width: 470px;
 }
 
+.login-page {
+  --login-field-height: 50px;
+  --login-icon-width: 48px;
+  --login-toggle-width: 48px;
+}
+
 .login-page .form-field {
   display: grid;
   gap: 6px;
@@ -622,7 +631,7 @@
 }
 
 .login-page .field-with-icon {
-  min-height: 50px;
+  min-height: var(--login-field-height);
   border-radius: 16px;
   border: 1px solid #7fb6ff;
   background: #ffffff;
@@ -635,21 +644,20 @@
 }
 
 .login-page .password-field {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  display: flex;
   align-items: stretch;
   gap: 0;
   padding-right: 0;
 }
 
 .login-page .field-icon {
-  width: 48px;
-  min-width: 48px;
+  width: var(--login-icon-width);
+  min-width: var(--login-icon-width);
   height: 100%;
   color: #2f5fae;
   display: grid;
   place-items: center;
-  flex: 0 0 52px;
+  flex: 0 0 var(--login-icon-width);
 }
 
 .login-page .field-icon svg {
@@ -658,7 +666,7 @@
 }
 
 .login-page .login-input {
-  min-height: 48px;
+  min-height: calc(var(--login-field-height) - 2px);
   height: 100%;
   flex: 1 1 auto;
   min-width: 0;
@@ -666,8 +674,14 @@
   background: transparent;
   color: #0f4fb8;
   padding: 0 12px;
+  line-height: calc(var(--login-field-height) - 2px);
   border-radius: 0;
   box-shadow: none;
+}
+
+.login-page .field-with-icon:not(.password-field) .login-input {
+  padding-left: 0;
+  text-indent: -1px;
 }
 
 .login-page .login-input::placeholder {
@@ -700,17 +714,18 @@
 }
 
 .login-page .login-form .password-toggle {
-  width: 44px;
-  min-width: 44px;
+  width: var(--login-toggle-width);
+  min-width: var(--login-toggle-width);
   height: 100%;
   border: 0;
-  border-radius: 999px;
-  margin-right: 4px;
+  border-radius: 0 16px 16px 0;
+  margin-right: 0;
   background: rgba(15, 95, 209, 0.04) !important;
   color: #5778c8;
   display: grid !important;
   place-items: center;
-  flex: 0 0 48px;
+  flex: 0 0 var(--login-toggle-width);
+  align-self: stretch;
   margin-left: 0;
   box-shadow: none !important;
   opacity: 1;
@@ -955,6 +970,12 @@
   .login-page .password-toggle {
     width: 44px;
     min-width: 44px;
+  }
+
+  .login-page {
+    --login-field-height: 44px;
+    --login-icon-width: 44px;
+    --login-toggle-width: 44px;
   }
 
   .login-page .login-primary {

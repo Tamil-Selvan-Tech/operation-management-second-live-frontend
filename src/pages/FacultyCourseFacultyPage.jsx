@@ -17,7 +17,7 @@ import {
   getFacultyBatchEntriesForCourse,
   getFacultyCourseIds,
   getFacultyCourseName,
-  getMatchingStudents,
+  getFacultyBatchStudentRecords,
   sortByNameThenTiming,
 } from '../lib/facultyFlow'
 
@@ -105,7 +105,7 @@ export function FacultyCourseFacultyPage() {
         const studentCount = batchEntries.reduce(
           (sum, batch) =>
             sum +
-            getMatchingStudents(students, {
+            getFacultyBatchStudentRecords(students, {
               facultyName: record.facultyName || '',
               courseId: normalizedCourseId,
               courseName,

@@ -4,8 +4,10 @@ import { BookOpen, CalendarDays, ChevronDown, Check, GraduationCap, Layers3, Use
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
-import { buildFacultyCoursePath, getFacultyBatchEntriesForCourse, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, sortByNameThenTiming } from '../lib/facultyFlow'
+import { loadFacultyRecords } from '../data/facultyRecords'
+import { buildFacultyCoursePath, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, sortByNameThenTiming } from '../lib/facultyFlow'
 import { getCurrentFacultyProfile } from '../services/facultyService'
+import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
 import { listCourses } from '../services/courseService'
 import { listStudents } from '../services/studentService'
 
@@ -82,6 +84,70 @@ function useFacultyStudents() {
   }, [])
 
   return { students, isLoading }
+}
+
+function loadStoredFaculty() {
+  return normalizeFacultyList(loadFacultyRecords())
+}
+
+function mergeFacultyRecords(primary = null, secondary = null) {
+  if (!primary && !secondary) return null
+  if (!primary) return secondary
+  if (!secondary) return primary
+
+  const mergedBatchEntries = Array.from(
+    new Map(
+      [...(Array.isArray(primary.batchEntries) ? primary.batchEntries : []), ...(Array.isArray(secondary.batchEntries) ? secondary.batchEntries : [])].map((entry) => [
+        String(entry?.id || `${entry?.courseId || ''}-${entry?.batchName || ''}-${entry?.batchTiming || ''}`).trim().toLowerCase(),
+        entry,
+      ]),
+    ).values(),
+  )
+
+  const mergedCourseIds = Array.from(
+    new Set([...(Array.isArray(primary.courseIds) ? primary.courseIds : []), ...(Array.isArray(secondary.courseIds) ? secondary.courseIds : [])].map((courseId) => String(courseId || '').trim()).filter(Boolean)),
+  )
+
+  return {
+    ...primary,
+    ...secondary,
+    batchEntries: mergedBatchEntries.length ? mergedBatchEntries : Array.isArray(secondary.batchEntries) ? secondary.batchEntries : Array.isArray(primary.batchEntries) ? primary.batchEntries : [],
+    courseIds: mergedCourseIds.length ? mergedCourseIds : Array.isArray(secondary.courseIds) ? secondary.courseIds : Array.isArray(primary.courseIds) ? primary.courseIds : [],
+    courseId: secondary.courseId || primary.courseId || '',
+    courseName: secondary.courseName || primary.courseName || '',
+    courseAssignments: Array.isArray(secondary.courseAssignments) && secondary.courseAssignments.length ? secondary.courseAssignments : primary.courseAssignments || [],
+    batchCount: Number(secondary.batchCount || primary.batchCount || mergedBatchEntries.length || 0) || 0,
+  }
+}
+
+function useFacultyRecords() {
+  const [facultyRecords, setFacultyRecords] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+
+    const run = async () => {
+      try {
+        const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+        if (!active) return
+        setFacultyRecords(Array.isArray(result?.data) ? result.data : loadStoredFaculty())
+      } catch {
+        if (!active) return
+        setFacultyRecords(loadStoredFaculty())
+      } finally {
+        if (active) setIsLoading(false)
+      }
+    }
+
+    void run()
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  return { facultyRecords, isLoading }
 }
 
 function useFacultyCourses() {
@@ -182,6 +248,33 @@ function buildFacultyAttendanceSeries({ facultyName = '', batchKey = '' } = {}) 
   }))
 }
 
+function getUniqueStudentCountFromBatches(students, faculty, batches = [], courseId = '', courseName = '') {
+  const seenStudentKeys = new Set()
+
+  batches.forEach((batch) => {
+    const matchingStudents = getFacultyBatchStudentRecords(students, {
+      facultyName: faculty?.facultyName || '',
+      courseId,
+      courseName,
+      batchName: batch?.label || batch?.batchName || '',
+    })
+
+    matchingStudents.forEach((student) => {
+      const studentKey =
+        String(student?.id || '').trim() ||
+        String(student?.emailAddress || '').trim().toLowerCase() ||
+        String(student?.mobileNumber || '').trim() ||
+        `${String(batch?.id || batch?.label || '').trim()}-${String(student?.studentName || '').trim().toLowerCase()}`
+
+      if (studentKey) {
+        seenStudentKeys.add(studentKey)
+      }
+    })
+  })
+
+  return seenStudentKeys.size
+}
+
 function getFacultyBatchOptions(faculty) {
   const entries = Array.isArray(faculty?.batchEntries) ? faculty.batchEntries : []
 
@@ -203,17 +296,8 @@ function getFacultyBatchOptions(faculty) {
   })
 }
 
-function getBatchStudentRecords(students, { facultyName = '', courseId = '', courseName = '', batchName = '' } = {}) {
-  return getMatchingStudents(students, {
-    facultyName,
-    courseId,
-    courseName,
-    batchName,
-  })
-}
-
 function getBatchAttendanceSplit(students, filters = {}) {
-  const studentRecords = getBatchStudentRecords(students, filters)
+  const studentRecords = getFacultyBatchStudentRecords(students, filters)
   const present = studentRecords.filter(isStudentCountedAsPresent).length
   const absent = Math.max(0, studentRecords.length - present)
   return { present, absent, studentRecords }
@@ -222,10 +306,6 @@ function getBatchAttendanceSplit(students, filters = {}) {
 function getBatchProgressValue(studentCount = 0, totalStudents = 0) {
   if (!totalStudents) return 0
   return Math.max(10, Math.min(100, Math.round((studentCount / totalStudents) * 100)))
-}
-
-function getStudentKey(student) {
-  return String(student?.id || student?._id || student?.studentId || student?.email || student?.mobileNumber || student?.admissionNo || '').trim()
 }
 
 function FacultySummaryCard({ icon: Icon, label, value, note, tone = 'blue', badge }) {
@@ -537,6 +617,17 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     ? latestFaculty.batchEntries.length
     : Number(latestFaculty?.batchCount || 0) || 0
   const facultyCourseIds = getFacultyCourseIds(latestFaculty || {})
+  const batchLinkedStudentCount = useMemo(
+    () =>
+      getUniqueStudentCountFromBatches(
+        students,
+        latestFaculty,
+        batchOptions,
+        latestFaculty?.courseId || facultyCourseIds[0] || '',
+        latestFaculty?.courseName || '',
+      ),
+    [batchOptions, facultyCourseIds, latestFaculty, students],
+  )
   const matchingStudents = useMemo(
     () =>
       getMatchingStudents(students, {
@@ -550,14 +641,14 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     ['active', 'present', 'ongoing'].includes(String(student?.status || student?.currentStatus || '').trim().toLowerCase()),
   ).length
   const attendanceValue = useMemo(() => {
-    if (!matchingStudents.length) return 92.5
+    if (!batchLinkedStudentCount) return 92.5
 
     const baseValue = 85.5 + Math.min(4, facultyCourseIds.length * 1.1) + Math.min(3.5, batchNames.length * 0.7)
-    const activityBoost = (activeStudentCount / matchingStudents.length) * 3
-    const studentBoost = Math.min(3, matchingStudents.length / 25)
+    const activityBoost = (activeStudentCount / Math.max(1, batchLinkedStudentCount)) * 3
+    const studentBoost = Math.min(3, batchLinkedStudentCount / 25)
     const value = baseValue + activityBoost + studentBoost
     return Math.max(75, Math.min(99.5, Math.round(value * 10) / 10))
-  }, [activeStudentCount, batchNames.length, facultyCourseIds.length, matchingStudents.length])
+  }, [activeStudentCount, batchLinkedStudentCount, batchNames.length, facultyCourseIds.length])
   const summaryCards = [
     {
       icon: GraduationCap,
@@ -570,10 +661,10 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     {
       icon: UsersRound,
       label: 'Total Students',
-      value: matchingStudents.length,
+      value: batchLinkedStudentCount || matchingStudents.length,
       note: 'Students across all courses',
       tone: 'green',
-      badge: `${matchingStudents.length}`,
+      badge: `${batchLinkedStudentCount || matchingStudents.length}`,
     },
     {
       icon: Layers3,
@@ -693,6 +784,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 export function FacultyMyBatchesPage() {
   const navigate = useNavigate()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
+  const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { courses: courseOptions, isLoading: isCoursesLoading } = useFacultyCourses()
   const profileName = latestFaculty?.facultyName || 'Faculty'
@@ -700,15 +792,37 @@ export function FacultyMyBatchesPage() {
   const greetingName = getFacultyGreetingName(latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
   const todayLabel = formatFacultyHeaderDate()
-  const facultyCourseIds = getFacultyCourseIds(latestFaculty || {}, courseOptions)
+  const activeFaculty = useMemo(() => {
+    const latestId = String(latestFaculty?.id || latestFaculty?._id || latestFaculty?.facultyId || '').trim().toLowerCase()
+    const latestEmail = String(latestFaculty?.facultyEmail || '').trim().toLowerCase()
+    const latestName = String(latestFaculty?.facultyName || '').trim().toLowerCase()
+
+    const matchedFacultyRecords = facultyRecords.filter((record) => {
+      const recordId = String(record?.id || record?._id || record?.facultyId || '').trim().toLowerCase()
+      const recordEmail = String(record?.facultyEmail || '').trim().toLowerCase()
+      const recordName = String(record?.facultyName || '').trim().toLowerCase()
+
+      return (
+        (latestId && recordId === latestId) ||
+        (latestEmail && recordEmail === latestEmail) ||
+        (latestName && recordName === latestName)
+      )
+    })
+
+    const mergedFacultyRecord = matchedFacultyRecords.reduce((accumulator, record) => mergeFacultyRecords(accumulator, record), null)
+
+    return mergeFacultyRecords(latestFaculty, mergedFacultyRecord)
+  }, [facultyRecords, latestFaculty])
+
+  const facultyCourseIds = getFacultyCourseIds(activeFaculty || {}, courseOptions)
 
   const facultyCourseGroups = useMemo(() => {
-    if (!latestFaculty) return []
+    if (!activeFaculty) return []
 
-    const courseRecords = getFacultyCourses(latestFaculty, courseOptions)
-    const fallbackCourseName = String(latestFaculty?.courseName || '').trim()
-    const fallbackCourseId = String(latestFaculty?.courseId || '').trim()
-    const batchEntries = Array.isArray(latestFaculty?.batchEntries) ? latestFaculty.batchEntries : []
+    const courseRecords = getFacultyCourses(activeFaculty, courseOptions)
+    const fallbackCourseName = String(activeFaculty?.courseName || '').trim()
+    const fallbackCourseId = String(activeFaculty?.courseId || '').trim()
+    const batchEntries = Array.isArray(activeFaculty?.batchEntries) ? activeFaculty.batchEntries : []
 
     const resolvedCourses =
       courseRecords.length > 0
@@ -724,11 +838,11 @@ export function FacultyMyBatchesPage() {
           : []
 
     return resolvedCourses.map((course, courseIndex) => {
-      const batches = sortByNameThenTiming(getFacultyBatchEntriesForCourse(latestFaculty, course.courseId, courseOptions)).map((batch, batchIndex) => {
+      const batches = sortByNameThenTiming(getFacultyBatchEntriesForCourse(activeFaculty, course.courseId, courseOptions)).map((batch, batchIndex) => {
         const batchName = String(batch?.batchName || '').trim() || `Batch ${Number(batch?.sequenceNo || batchIndex + 1) || batchIndex + 1}`
         const batchTiming = String(batch?.batchTiming || '').trim()
         const { present, absent, studentRecords: batchStudents } = getBatchAttendanceSplit(students, {
-          facultyName: latestFaculty?.facultyName || '',
+          facultyName: activeFaculty?.facultyName || '',
           courseId: course.courseId,
           courseName: course.courseName,
           batchName,
@@ -750,17 +864,6 @@ export function FacultyMyBatchesPage() {
         }
       })
 
-      const uniqueStudents = []
-      const seenStudentKeys = new Set()
-      batches.forEach((batch) => {
-        batch.studentRecords.forEach((student) => {
-          const key = getStudentKey(student)
-          if (!key || seenStudentKeys.has(key)) return
-          seenStudentKeys.add(key)
-          uniqueStudents.push(student)
-        })
-      })
-
       const groupProgress = batches.length
         ? Math.round(batches.reduce((sum, batch) => sum + batch.progress, 0) / batches.length)
         : 0
@@ -769,30 +872,17 @@ export function FacultyMyBatchesPage() {
         ...course,
         courseIndex,
         batches,
-        totalStudents: uniqueStudents.length,
+        totalStudents: batches.reduce((sum, batch) => sum + batch.studentCount, 0),
         groupProgress,
       }
     })
-  }, [courseOptions, latestFaculty, students])
+  }, [activeFaculty, courseOptions, students])
 
   const totalBatchCount = facultyCourseGroups.reduce((sum, group) => sum + group.batches.length, 0)
-  const totalStudents = useMemo(() => {
-    const seenStudentKeys = new Set()
-    const uniqueStudents = []
-
-    facultyCourseGroups.forEach((group) => {
-      group.batches.forEach((batch) => {
-        batch.studentRecords.forEach((student) => {
-          const key = getStudentKey(student)
-          if (!key || seenStudentKeys.has(key)) return
-          seenStudentKeys.add(key)
-          uniqueStudents.push(student)
-        })
-      })
-    })
-
-    return uniqueStudents.length
-  }, [facultyCourseGroups])
+  const totalStudents = facultyCourseGroups.reduce(
+    (sum, group) => sum + group.batches.reduce((batchSum, batch) => batchSum + batch.studentCount, 0),
+    0,
+  )
 
   const averageProgress = totalBatchCount
     ? Math.round(
@@ -804,10 +894,10 @@ export function FacultyMyBatchesPage() {
     {
       icon: GraduationCap,
       label: 'Courses',
-      value: facultyCourseGroups.length || facultyCourseIds.length || (latestFaculty?.courseName ? 1 : 0),
+      value: facultyCourseGroups.length || facultyCourseIds.length || (activeFaculty?.courseName ? 1 : 0),
       note: 'You teach',
       tone: 'blue',
-      badge: `${facultyCourseGroups.length || facultyCourseIds.length || (latestFaculty?.courseName ? 1 : 0)}`,
+      badge: `${facultyCourseGroups.length || facultyCourseIds.length || (activeFaculty?.courseName ? 1 : 0)}`,
     },
     {
       icon: Layers3,
@@ -831,11 +921,11 @@ export function FacultyMyBatchesPage() {
       value: `${averageProgress}%`,
       note: 'Overall average',
       tone: 'orange',
-      badge: isStudentsLoading || isCoursesLoading ? '...' : 'Live',
+      badge: isStudentsLoading || isCoursesLoading || isFacultyRecordsLoading ? '...' : 'Live',
     },
   ]
 
-  if (isLoading || isCoursesLoading || isStudentsLoading) {
+  if (isLoading || isCoursesLoading || isStudentsLoading || isFacultyRecordsLoading) {
     return (
       <section className="student-dashboard-page faculty-dashboard-page faculty-my-batches-page">
         <header className="student-dashboard-header faculty-dashboard-header">
@@ -944,8 +1034,8 @@ export function FacultyMyBatchesPage() {
                   className="faculty-course-details-button"
                   aria-label={`${group.courseName || 'Course'} details`}
                   onClick={() => {
-                    if (!latestFaculty?.id || !group.courseId) return
-                    navigate(buildFacultyCoursePath(latestFaculty.id, group.courseId))
+                    if (!activeFaculty?.id || !group.courseId) return
+                    navigate(buildFacultyCoursePath(activeFaculty.id, group.courseId))
                   }}
                 >
                   <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />

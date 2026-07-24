@@ -26,7 +26,6 @@ import {
 } from 'lucide-react'
 
 import { HeaderIdentityChip } from '../components/HeaderIdentityChip'
-import { NotificationBell as GlobalNotificationBell } from '../components/NotificationBell'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { roleDashboards } from '../data/authData'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
@@ -1279,7 +1278,6 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
             <span aria-hidden="true">âŒ•</span>
             <input type="search" placeholder="Search..." aria-label="Search dashboard" />
           </label>
-          <GlobalNotificationBell />
           <DashboardNotificationBell />
           <HeaderIdentityChip
             initials={profileDetails.initials}

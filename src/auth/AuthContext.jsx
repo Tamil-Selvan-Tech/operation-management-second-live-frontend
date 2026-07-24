@@ -10,7 +10,7 @@ import { signInWithFallback, signOutSession } from '../services/authService'
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => loadSession())
-  const [isReady, setIsReady] = useState(false)
+  const isReady = true
 
   useEffect(() => {
     if (session) {
@@ -18,12 +18,6 @@ export function AuthProvider({ children }) {
     } else {
       clearAuthTokens()
     }
-
-    const timer = window.setTimeout(() => {
-      setIsReady(true)
-    }, 0)
-
-    return () => window.clearTimeout(timer)
   }, [session])
 
   useEffect(() => {

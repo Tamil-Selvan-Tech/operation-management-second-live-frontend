@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import {
   BrowserRouter,
   Navigate,
@@ -19,7 +19,10 @@ import {
 } from '../lib/session'
 
 const lazyNamed = (loader, exportName) =>
-  lazy(() => loader().then((module) => ({ default: module[exportName] })))
+  Object.assign(
+    lazy(() => loader().then((module) => ({ default: module[exportName] }))),
+    { preload: loader },
+  )
 
 const AuthShell = lazyNamed(() => import('../layouts/AuthShell'), 'AuthShell')
 const AppShell = lazyNamed(() => import('../layouts/AppShell'), 'AppShell')
@@ -55,6 +58,36 @@ const FacultyMyBatchesPage = lazyNamed(
   () => import('../pages/FacultyDashboardPage'),
   'FacultyMyBatchesPage',
 )
+
+const routeChunks = [
+  AuthShell,
+  AppShell,
+  DashboardPage,
+  ForgotPasswordPage,
+  LoginPage,
+  NotFoundPage,
+  CoursesPage,
+  FacultyDetailsPage,
+  FacultyManagementPage,
+  FacultyCourseCatalogPage,
+  FacultyCourseFacultyPage,
+  BatchStudentsPage,
+  CourseBatchesPage,
+  StudentManagementPage,
+  NotificationsPage,
+  ResetPasswordPage,
+  SessionExpiredPage,
+  UnauthorizedPage,
+  FacultyMyBatchesPage,
+]
+
+function preloadRouteChunks() {
+  routeChunks.forEach((chunk) => {
+    if (typeof chunk?.preload === 'function') {
+      void chunk.preload()
+    }
+  })
+}
 
 const workspacePathsByRole = {
   'business-owner': {
@@ -152,6 +185,7 @@ function AppLayout() {
   const canAccessFacultyBatches = role === 'faculty'
   const canAccessStudentManagement = courseAccessRoles.includes(role)
   const canAccessFacultyManagement = courseAccessRoles.includes(role)
+
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
     location.pathname !== '/dashboard/operation-manager' &&
@@ -241,6 +275,26 @@ function ProfileRedirectRoute() {
 }
 
 export function AppRouter() {
+  const { isReady } = useAuth()
+
+  useEffect(() => {
+    if (!isReady || typeof window === 'undefined') {
+      return undefined
+    }
+
+    const runPreload = () => {
+      preloadRouteChunks()
+    }
+
+    if (typeof window.requestIdleCallback === 'function') {
+      const idleId = window.requestIdleCallback(runPreload, { timeout: 1500 })
+      return () => window.cancelIdleCallback(idleId)
+    }
+
+    const timerId = window.setTimeout(runPreload, 0)
+    return () => window.clearTimeout(timerId)
+  }, [isReady])
+
   return (
     <BrowserRouter>
       <Suspense fallback={<LoadingPage />}>
