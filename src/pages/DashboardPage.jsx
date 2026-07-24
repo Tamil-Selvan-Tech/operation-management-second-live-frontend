@@ -968,7 +968,9 @@ function WeeklyRevenueChart({ data = [] }) {
     <article className="panel-card revenue-comparison-card revenue-weekly-card">
       <div className="revenue-comparison-header">
         <div className="revenue-comparison-header-copy">
-          <h3>Weekly Revenue vs Expected Revenue (Current Month)</h3>
+          <h3>
+            Weekly Revenue vs Expected Revenue <span className="revenue-weekly-subtitle">Current Month</span>
+          </h3>
           <div className="revenue-legend revenue-weekly-legend" aria-hidden="true">
             <span className="revenue-legend-item">
               <span className="revenue-legend-swatch monthly" />
@@ -1023,8 +1025,9 @@ function WeeklyRevenueChart({ data = [] }) {
 
           <div className="revenue-weekly-groups">
             {data.map((item, index) => {
-              const weeklyWidth = `${chartMax ? (item.actual / chartMax) * 100 : 0}%`
-              const expectedWidth = `${chartMax ? (item.expected / chartMax) * 100 : 0}%`
+              const widthScale = 0.88
+              const weeklyWidth = `${chartMax ? (item.actual / chartMax) * 100 * widthScale : 0}%`
+              const expectedWidth = `${chartMax ? (item.expected / chartMax) * 100 * widthScale : 0}%`
               const isActive = index === activeIndex
 
               return (

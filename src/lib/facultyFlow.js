@@ -17,6 +17,29 @@ function normalizeBatchToken(value = '') {
     .trim()
 }
 
+function getStudentIdentityKey(student = {}) {
+  return (
+    String(student?.id || '').trim().toLowerCase() ||
+    String(student?.emailAddress || '').trim().toLowerCase() ||
+    String(student?.mobileNumber || '').trim().toLowerCase() ||
+    String(student?.studentCode || '').trim().toLowerCase()
+  )
+}
+
+function dedupeStudents(students = []) {
+  const seen = new Set()
+  const nextStudents = []
+
+  students.forEach((student) => {
+    const key = getStudentIdentityKey(student)
+    if (!key || seen.has(key)) return
+    seen.add(key)
+    nextStudents.push(student)
+  })
+
+  return nextStudents
+}
+
 function uniqueById(entries = [], selector) {
   const seen = new Set()
   const nextEntries = []
@@ -156,28 +179,30 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
     const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
     const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
     const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
-    const batchMatches =
-      Boolean(normalizedBatchName) &&
-      (
-        studentBatchName === normalizedBatchName ||
-        studentBatchToken === normalizedBatchToken ||
-        studentBatchToken === normalizedBatchName ||
-        studentBatchName === normalizedBatchToken
-      )
-
-    if (batchMatches) {
-      return true
-    }
 
     if (normalizedFacultyName && normalizeText(student?.facultyName || '') !== normalizedFacultyName) {
       return false
     }
 
-    if (normalizedCourseId) {
-      if (studentCourseId && studentCourseId !== normalizedCourseId) return false
-      if (!studentCourseId && normalizedCourseName && studentCourseName !== normalizedCourseName) return false
-    } else if (normalizedCourseName && studentCourseName !== normalizedCourseName) {
-      return false
+    if (normalizedCourseId || normalizedCourseName) {
+      const courseIdMatches = !normalizedCourseId || !studentCourseId || studentCourseId === normalizedCourseId
+      const courseNameMatches = !normalizedCourseName || studentCourseName === normalizedCourseName
+
+      if (!courseIdMatches || !courseNameMatches) {
+        return false
+      }
+    }
+
+    if (normalizedBatchName) {
+      const batchMatches =
+        studentBatchName === normalizedBatchName ||
+        studentBatchToken === normalizedBatchToken ||
+        studentBatchToken === normalizedBatchName ||
+        studentBatchName === normalizedBatchToken
+
+      if (!batchMatches) {
+        return false
+      }
     }
 
     return true
@@ -193,14 +218,14 @@ export function getFacultyBatchStudentRecords(students = [], { facultyName = '',
   })
 
   if (exactMatches.length) {
-    return exactMatches
+    return dedupeStudents(exactMatches)
   }
 
-  return getMatchingStudents(students, {
+  return dedupeStudents(getMatchingStudents(students, {
     courseId,
     courseName,
     batchName,
-  })
+  }))
 }
 
 export function buildFacultyDetailsPath(facultyId) {
