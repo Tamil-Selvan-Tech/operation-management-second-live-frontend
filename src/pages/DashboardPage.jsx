@@ -572,6 +572,23 @@ function formatRevenue(value) {
   return revenueFormatter.format(value)
 }
 
+function formatRevenueCompact(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount === 0) return ''
+
+  return `₹${(amount / 100000).toFixed(2)}L`
+}
+
+function formatRevenueAxisLabel(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount)) return ''
+  if (amount === 0) return '₹0'
+
+  const lakhs = amount / 100000
+  const label = Number.isInteger(lakhs) ? `${lakhs}L` : `${lakhs.toFixed(1)}L`
+  return `₹${label}`
+}
+
 function buildRevenueSummaryCards(summary, isLoading) {
   const formatValue = (value) => {
     if (isLoading) return 'Loading...'
@@ -828,9 +845,6 @@ function MonthlyRevenueChart({ data = [] }) {
     () => (isCompactMobile ? getRollingWindowData(data, 1, 4) : data),
     [data, isCompactMobile],
   )
-  const splitIndex = Math.ceil(visibleMonthlyData.length / 2)
-  const topHalfMonths = visibleMonthlyData.slice(0, splitIndex)
-  const bottomHalfMonths = visibleMonthlyData.slice(splitIndex)
   const chartMax = getChartMax(visibleMonthlyData, 10000)
   const ticks = buildRevenueTicks(chartMax)
   const activePoint = activeIndex === null ? null : visibleMonthlyData[activeIndex]
@@ -844,7 +858,8 @@ function MonthlyRevenueChart({ data = [] }) {
     <article className="panel-card revenue-comparison-card revenue-monthly-card">
       <div className="revenue-comparison-header">
         <div className="revenue-comparison-header-copy">
-          <h3>Monthly Revenue vs Expected Revenue (Current Year)</h3>
+          <h3>Monthly Revenue vs Expected Revenue</h3>
+          <p className="revenue-comparison-subtitle">Current Year</p>
           <div className="revenue-legend" aria-hidden="true">
             <span className="revenue-legend-item">
               <span className="revenue-legend-swatch monthly" />
@@ -868,23 +883,11 @@ function MonthlyRevenueChart({ data = [] }) {
             .slice()
             .reverse()
             .map((tick) => (
-              <span key={tick}>{formatRevenue(tick)}</span>
+              <span key={tick}>{formatRevenueAxisLabel(tick)}</span>
             ))}
         </div>
 
         <div className="revenue-monthly-stack">
-          <div
-            className="revenue-month-labels-row revenue-month-labels-top"
-            aria-hidden="true"
-            style={{ gridTemplateColumns: `repeat(${Math.max(visibleMonthlyData.length, 1)}, minmax(0, 1fr))` }}
-          >
-            {topHalfMonths.map((item, index) => (
-              <span key={item.month} className="revenue-month-label" style={{ gridColumn: index + 1 }}>
-                {item.month}
-              </span>
-            ))}
-          </div>
-
           <div className="revenue-plot" onMouseLeave={() => setActiveIndex(null)}>
             <div className="revenue-grid-lines" aria-hidden="true">
               {ticks.slice(1).map((tick) => (
@@ -935,22 +938,11 @@ function MonthlyRevenueChart({ data = [] }) {
                       <span className="revenue-bar monthly" style={{ height: monthlyHeight }} />
                       <span className="revenue-bar expected" style={{ height: expectedHeight }} />
                     </span>
+                    <span className="revenue-month-label">{item.month}</span>
                   </button>
                 )
               })}
             </div>
-          </div>
-
-          <div
-            className="revenue-month-labels-row revenue-month-labels-bottom"
-            aria-hidden="true"
-            style={{ gridTemplateColumns: `repeat(${Math.max(visibleMonthlyData.length, 1)}, minmax(0, 1fr))` }}
-          >
-            {bottomHalfMonths.map((item, index) => (
-              <span key={item.month} className="revenue-month-label" style={{ gridColumn: splitIndex + index + 1 }}>
-                {item.month}
-              </span>
-            ))}
           </div>
         </div>
       </div>
