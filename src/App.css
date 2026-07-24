@@ -1073,7 +1073,7 @@ tbody tr:hover {
   background: #f4f5f7;
   grid-template-columns: 360px minmax(0, 1fr);
   gap: 20px;
-  padding: 24px 24px 24px 12px;
+  padding: 8px 24px 24px 12px;
 }
 
 .app-shell.business-owner-shell .sidebar {
@@ -1084,6 +1084,7 @@ tbody tr:hover {
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
+  margin-left: -20px;
 }
 
 .app-shell.business-owner-shell .brand-logo {
