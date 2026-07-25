@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { createPortal } from 'react-dom'
@@ -338,9 +338,27 @@ function getInstallmentEntries(student) {
 
 function calculateRevenueSummary(students) {
   const now = new Date()
+  const today = getTodayValue()
   const monthStart = getMonthStartValue(now)
   const weekStart = getWeekStartValue(now)
-  const today = getTodayValue()
+
+  // Last week range
+  const weekStartRef = new Date(weekStart + 'T00:00:00')
+  const lastWeekStartObj = new Date(weekStartRef)
+  lastWeekStartObj.setDate(lastWeekStartObj.getDate() - 7)
+  const lastWeekStart = getLocalDateValue(lastWeekStartObj)
+  const lastWeekEndObj = new Date(weekStartRef)
+  lastWeekEndObj.setDate(lastWeekEndObj.getDate() - 1)
+  const lastWeekEnd = getLocalDateValue(lastWeekEndObj)
+
+  // Last month range
+  const monthStartRef = new Date(monthStart + 'T00:00:00')
+  const lastMonthStartObj = new Date(monthStartRef)
+  lastMonthStartObj.setMonth(lastMonthStartObj.getMonth() - 1)
+  const lastMonthStart = getLocalDateValue(lastMonthStartObj)
+  const lastMonthEndObj = new Date(monthStartRef)
+  lastMonthEndObj.setDate(lastMonthEndObj.getDate() - 1)
+  const lastMonthEnd = getLocalDateValue(lastMonthEndObj)
 
   return students.reduce(
     (summary, student) => {
@@ -359,6 +377,7 @@ function calculateRevenueSummary(students) {
       }
 
       let paidTotalForStudent = 0
+      let paidTotalBeforeWeekStart = 0
 
       for (const entry of entries) {
         if (String(entry.status || '').trim() !== 'Paid') continue
@@ -367,6 +386,19 @@ function calculateRevenueSummary(students) {
         summary.totalRevenue += entry.amount
 
         const paymentDate = entry.paidAt || admissionDate || entry.dueDate
+
+        if (paymentDate < weekStart) {
+          paidTotalBeforeWeekStart += entry.amount
+          summary.lastWeekCumulativeRevenue += entry.amount
+        }
+
+        if (isWithinRange(paymentDate, lastMonthStart, lastMonthEnd)) {
+          summary.lastMonthRevenue += entry.amount
+        }
+
+        if (isWithinRange(paymentDate, lastWeekStart, lastWeekEnd)) {
+          summary.lastWeekRevenue += entry.amount
+        }
 
         if (isWithinRange(paymentDate, monthStart, today)) {
           summary.thisMonthRevenue += entry.amount
@@ -378,6 +410,7 @@ function calculateRevenueSummary(students) {
       }
 
       summary.pendingPayments += Math.max(plannedTotal - paidTotalForStudent, 0)
+      summary.lastWeekPendingPayments += Math.max(plannedTotal - paidTotalBeforeWeekStart, 0)
 
       return summary
     },
@@ -389,6 +422,10 @@ function calculateRevenueSummary(students) {
       totalStudents: 0,
       thisMonthStudents: 0,
       thisWeekStudents: 0,
+      lastWeekCumulativeRevenue: 0,
+      lastMonthRevenue: 0,
+      lastWeekRevenue: 0,
+      lastWeekPendingPayments: 0,
     },
   )
 }
@@ -595,13 +632,56 @@ function buildRevenueSummaryCards(summary, isLoading) {
     return formatRevenue(value ?? 0)
   }
 
+  // 1. Total Revenue comparison
+  const lastWeekCum = summary?.lastWeekCumulativeRevenue || 0
+  const currentTotal = summary?.totalRevenue || 0
+  const totalRevenueDiff = currentTotal - lastWeekCum
+  const totalRevenuePct = lastWeekCum > 0 ? (totalRevenueDiff / lastWeekCum) * 100 : 0
+  const totalChangeVal = lastWeekCum > 0 || totalRevenueDiff > 0
+    ? (totalRevenuePct >= 0 ? '+' : '') + totalRevenuePct.toFixed(1) + '%'
+    : '0.0%'
+  const totalTone = totalRevenuePct >= 0 ? 'positive' : 'negative'
+
+  // 2. This Month Revenue comparison
+  const lastMonthVal = summary?.lastMonthRevenue || 0
+  const currentMonthVal = summary?.thisMonthRevenue || 0
+  const monthRevenueDiff = currentMonthVal - lastMonthVal
+  const monthRevenuePct = lastMonthVal > 0 ? (monthRevenueDiff / lastMonthVal) * 100 : 0
+  const monthChangeVal = lastMonthVal > 0 || monthRevenueDiff > 0
+    ? (monthRevenuePct >= 0 ? '+' : '') + monthRevenuePct.toFixed(1) + '%'
+    : '0.0%'
+  const monthTone = monthRevenuePct >= 0 ? 'positive' : 'negative'
+
+  // 3. This Week Revenue comparison
+  const lastWeekVal = summary?.lastWeekRevenue || 0
+  const currentWeekVal = summary?.thisWeekRevenue || 0
+  const weekRevenueDiff = currentWeekVal - lastWeekVal
+  const weekRevenuePct = lastWeekVal > 0 ? (weekRevenueDiff / lastWeekVal) * 100 : 0
+  const weekChangeVal = lastWeekVal > 0 || weekRevenueDiff > 0
+    ? (weekRevenuePct >= 0 ? '+' : '') + weekRevenuePct.toFixed(1) + '%'
+    : '0.0%'
+  const weekTone = weekRevenuePct >= 0 ? 'positive' : 'negative'
+
+  // 4. Pending Payments comparison
+  const lastWeekPendingVal = summary?.lastWeekPendingPayments || 0
+  const currentPendingVal = summary?.pendingPayments || 0
+  const pendingDiff = currentPendingVal - lastWeekPendingVal
+  const pendingPct = lastWeekPendingVal > 0 ? (pendingDiff / lastWeekPendingVal) * 100 : 0
+  const pendingChangeVal = lastWeekPendingVal > 0 || pendingDiff !== 0
+    ? (pendingPct >= 0 ? '+' : '') + pendingPct.toFixed(1) + '%'
+    : '0.0%'
+  const pendingTone = pendingPct <= 0 ? 'positive' : 'negative'
+
   return [
     {
       label: 'Total Revenue',
       value: formatValue(summary?.totalRevenue),
-      change: null,
+      change: totalChangeVal,
+      changeText: 'Than last week',
+      changeTone: totalTone,
       accent: 'blue',
       icon: 'wallet',
+      tooltip: 'Total Revenue shows the total income collected from all student fee payments across all courses and admissions.',
       details: [
         { label: 'Collected revenue', value: formatValue(summary?.totalRevenue) },
         { label: 'Students added', value: isLoading ? 'Loading...' : `${summary?.totalStudents || 0} students added` },
@@ -611,9 +691,12 @@ function buildRevenueSummaryCards(summary, isLoading) {
     {
       label: 'This Month Revenue',
       value: formatValue(summary?.thisMonthRevenue),
-      change: null,
-      accent: 'green',
+      change: monthChangeVal,
+      changeText: 'Than last month',
+      changeTone: monthTone,
+      accent: 'purple',
       icon: 'calendar',
+      tooltip: 'This Month Revenue shows the total income collected during the current month period.',
       details: [
         { label: 'Collected this month', value: formatValue(summary?.thisMonthRevenue) },
         { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisMonthStudents || 0} admissions this month` },
@@ -623,9 +706,12 @@ function buildRevenueSummaryCards(summary, isLoading) {
     {
       label: 'This Week Revenue',
       value: formatValue(summary?.thisWeekRevenue),
-      change: null,
-      accent: 'purple',
+      change: weekChangeVal,
+      changeText: 'Than last week',
+      changeTone: weekTone,
+      accent: 'amber',
       icon: 'trend',
+      tooltip: 'This Week Revenue shows the total income collected during the current week.',
       details: [
         { label: 'Collected this week', value: formatValue(summary?.thisWeekRevenue) },
         { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisWeekStudents || 0} admissions this week` },
@@ -635,9 +721,12 @@ function buildRevenueSummaryCards(summary, isLoading) {
     {
       label: 'Pending Payments',
       value: formatValue(summary?.pendingPayments ?? summary?.expectedNextWeekRevenue),
-      change: null,
-      accent: 'orange',
+      change: pendingChangeVal,
+      changeText: 'Than last week',
+      changeTone: pendingTone,
+      accent: 'green',
       icon: 'target',
+      tooltip: 'Pending Payments shows the outstanding amount that is still waiting to be collected.',
       details: [
         {
           label: 'Pending amount',
@@ -735,23 +824,23 @@ function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
 
 function SummaryIcon({ kind }) {
   if (kind === 'wallet') {
-    return <Wallet size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+    return <Wallet size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'calendar') {
-    return <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+    return <CalendarDays size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'trend') {
-    return <TrendingUp size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+    return <TrendingUp size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   }
 
   if (kind === 'target') {
-    return <Target size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+    return <Target size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   }
 
   return (
-    <Info size={20} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+    <Info size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   )
 }
 
@@ -794,40 +883,47 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
 
         return (
           <article key={card.label} className={`revenue-summary-card ${isTooltipOpen ? 'is-tooltip-open' : ''}`}>
-          <div className={`revenue-summary-icon ${card.accent}`} aria-hidden="true">
-            <SummaryIcon kind={card.icon} />
-          </div>
-          <div className="revenue-summary-content">
-            <strong className="revenue-summary-label">{card.label}</strong>
-            <div className="revenue-summary-value">{card.value}</div>
-          </div>
-          <button
-            type="button"
-            className={`revenue-summary-info-button ${isTooltipOpen ? 'is-open' : ''}`}
-            aria-describedby={tooltipId}
-            aria-label={`${card.label} details`}
-            aria-expanded={isTooltipOpen}
-            onClick={() => setActiveTooltipIndex((current) => (current === index ? null : index))}
-            onMouseEnter={() => setActiveTooltipIndex(index)}
-            onMouseLeave={() => setActiveTooltipIndex(null)}
-            onFocus={() => setActiveTooltipIndex(index)}
-            onBlur={() => setActiveTooltipIndex(null)}
-          >
-            <Info size={13} strokeWidth={2.5} aria-hidden="true" focusable="false" />
-            <div className="revenue-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${card.label} details`}>
-              <strong>{card.label}</strong>
-              <p>{card.tooltip}</p>
-              <div className="revenue-summary-tooltip-list">
-                {(card.details || []).map((detail) => (
-                  <div key={detail.label} className="revenue-summary-tooltip-item">
-                    <span>{detail.label}</span>
-                    <strong>{detail.value}</strong>
-                  </div>
-                ))}
+            <div className="revenue-summary-card-header">
+              <div className="revenue-summary-header-left">
+                <div className={`revenue-summary-icon ${card.accent}`} aria-hidden="true">
+                  <SummaryIcon kind={card.icon} />
+                </div>
+                <strong className="revenue-summary-label">{card.label}</strong>
               </div>
+              <button
+                type="button"
+                className={`revenue-summary-info-button ${isTooltipOpen ? 'is-open' : ''}`}
+                aria-describedby={tooltipId}
+                aria-label={`${card.label} details`}
+                aria-expanded={isTooltipOpen}
+                onClick={() => setActiveTooltipIndex((current) => (current === index ? null : index))}
+                onMouseEnter={() => setActiveTooltipIndex(index)}
+                onMouseLeave={() => setActiveTooltipIndex(null)}
+                onFocus={() => setActiveTooltipIndex(index)}
+                onBlur={() => setActiveTooltipIndex(null)}
+              >
+                <Info size={13} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+                <div className="revenue-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${card.label} details`}>
+                  <strong>{card.label}</strong>
+                  <p>{card.tooltip}</p>
+                </div>
+              </button>
             </div>
-          </button>
-        </article>
+            <div className="revenue-summary-value-row">
+              <div className="revenue-summary-value">{card.value}</div>
+            </div>
+            {card.change ? (
+              <>
+                <div className="revenue-summary-card-divider" />
+                <div className="revenue-summary-trend-row">
+                  <span className={`revenue-summary-trend-badge ${card.changeTone || 'positive'}`}>
+                    {card.change}
+                  </span>
+                  <span className="revenue-summary-trend-label">{card.changeText}</span>
+                </div>
+              </>
+            ) : null}
+          </article>
         )
       })}
     </section>
@@ -858,15 +954,16 @@ function MonthlyRevenueChart({ data = [] }) {
     <article className="panel-card revenue-comparison-card revenue-monthly-card">
       <div className="revenue-comparison-header">
         <div className="revenue-comparison-header-copy">
-          <h3>Monthly Revenue vs Expected Revenue</h3>
-          <p className="revenue-comparison-subtitle">Current Year</p>
-          <div className="revenue-legend" aria-hidden="true">
-            <span className="revenue-legend-item">
-              <span className="revenue-legend-swatch monthly" />
+          <div className="revenue-card-title-row">
+            <h3>Monthly Revenue vs Expected Revenue</h3>
+          </div>
+          <div className="revenue-legend customer-satisfaction-legend" aria-hidden="true">
+            <span className="revenue-legend-item tone-blue">
+              <span className="revenue-legend-dot blue" />
               Actual Revenue
             </span>
-            <span className="revenue-legend-item">
-              <span className="revenue-legend-swatch expected" />
+            <span className="revenue-legend-item tone-yellow">
+              <span className="revenue-legend-dot yellow" />
               Expected Revenue
             </span>
           </div>
@@ -968,16 +1065,16 @@ function WeeklyRevenueChart({ data = [] }) {
     <article className="panel-card revenue-comparison-card revenue-weekly-card">
       <div className="revenue-comparison-header">
         <div className="revenue-comparison-header-copy">
-          <h3>
-            Weekly Revenue vs Expected Revenue <span className="revenue-weekly-subtitle">Current Month</span>
-          </h3>
-          <div className="revenue-legend revenue-weekly-legend" aria-hidden="true">
-            <span className="revenue-legend-item">
-              <span className="revenue-legend-swatch monthly" />
+          <div className="revenue-card-title-row">
+            <h3>Weekly Revenue vs Expected Revenue</h3>
+          </div>
+          <div className="revenue-legend customer-satisfaction-legend" aria-hidden="true">
+            <span className="revenue-legend-item tone-blue">
+              <span className="revenue-legend-dot blue" />
               Actual Revenue
             </span>
-            <span className="revenue-legend-item">
-              <span className="revenue-legend-swatch expected" />
+            <span className="revenue-legend-item tone-yellow">
+              <span className="revenue-legend-dot yellow" />
               Expected Revenue
             </span>
           </div>

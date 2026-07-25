@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom'
 import {
   BadgeCheck,
   Building2,
+  ChevronDown,
   Globe,
   Clock3,
   LockKeyhole,
   RefreshCcw,
+  Search,
   ShieldCheck,
   X,
 } from 'lucide-react'
@@ -43,6 +45,7 @@ export function OperationManagerHeader({
   onOpenMenu,
 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const isBusinessOwner = eyebrow === 'Business Owner'
   const profileDetails = buildProfileDetails({ eyebrow, profileTitle, email, initials })
 
   useEffect(() => {
@@ -65,7 +68,7 @@ export function OperationManagerHeader({
 
   return (
     <>
-      <header className={`business-topbar operation-manager-header ${className}`.trim()}>
+      <header className={`business-topbar operation-manager-header ${isBusinessOwner ? 'is-business-owner-header' : ''} ${className}`.trim()}>
         <button
           type="button"
           className="mobile-menu-button dashboard-mobile-menu-button"
@@ -89,7 +92,7 @@ export function OperationManagerHeader({
         <div className="business-topbar-copy">
           <p className="eyebrow">{eyebrow}</p>
           <h2>{title}</h2>
-          {summary ? <p>{summary}</p> : null}
+          {summary ? <p>{summary}</p> : isBusinessOwner ? <p className="business-header-subtitle">Welcome back! Here&apos;s what&apos;s happening with your business today.</p> : null}
         </div>
 
         <div className="business-topbar-actions operation-manager-header-actions">

@@ -141,6 +141,7 @@ export function AppShell({
         <AppSidebar
           activeNav={activeNav}
           user={user}
+          isBusinessOwner={isBusinessOwnerDashboard}
           onNavigateDashboard={onNavigateDashboard}
           onNavigateFacultyBatches={onNavigateFacultyBatches}
           onNavigateCourses={onNavigateCourses}

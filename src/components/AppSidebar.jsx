@@ -5,6 +5,7 @@ import {
   CalendarDays,
   GraduationCap,
   Home,
+  LayoutGrid,
   LogOut,
   UserRound,
   UsersRound,
@@ -46,6 +47,7 @@ function createNavHandler(onClose, onNavigate) {
 export function AppSidebar({
   activeNav,
   user,
+  isBusinessOwner = false,
   onNavigateDashboard,
   onNavigateFacultyBatches,
   onNavigateCourses,
@@ -91,7 +93,7 @@ export function AppSidebar({
 
   const mainMenuItems = [
     {
-      icon: Home,
+      icon: isBusinessOwner ? LayoutGrid : Home,
       label: 'Dashboard',
       active: activeNav === 'dashboard',
       onClick: createNavHandler(onClose, onNavigateDashboard),
@@ -141,7 +143,7 @@ export function AppSidebar({
   ]
 
   return (
-    <aside className={`sidebar ${isMobileOpen ? 'is-open' : ''}`.trim()}>
+    <aside className={`sidebar ${isMobileOpen ? 'is-open' : ''} ${isBusinessOwner ? 'is-business-owner-sidebar' : ''}`.trim()}>
       <div className="sidebar-head">
         <div className="brand">
           <img className="brand-logo" src="/logo1.png" alt="Cispro Ops logo" />
@@ -156,7 +158,7 @@ export function AppSidebar({
       <div className="sidebar-menu-scroll">
         <nav className="menu" aria-label="Sidebar navigation">
           <div className="menu-section">
-            <p className="menu-section-label">Main Menu</p>
+            <p className="menu-section-label">{isBusinessOwner ? 'Main Navigation' : 'Main Menu'}</p>
             <div className="menu-group">
               {mainMenuItems.map((item) => (
                 <SidebarItem key={item.label} {...item} />
@@ -183,6 +185,9 @@ export function AppSidebar({
           </span>
           <span className="sidebar-profile-copy">
             <strong>{userName}</strong>
+            {isBusinessOwner ? (
+              <small className="sidebar-profile-email">{user?.email || 'business.owner@cispro.com'}</small>
+            ) : null}
           </span>
           <button
             type="button"
@@ -190,7 +195,7 @@ export function AppSidebar({
             onClick={() => setIsLogoutConfirmOpen(true)}
             aria-label="Logout"
           >
-            <LogOut size={20} strokeWidth={2.2} focusable="false" />
+            <LogOut size={18} strokeWidth={2} focusable="false" />
           </button>
         </div>
       </div>
