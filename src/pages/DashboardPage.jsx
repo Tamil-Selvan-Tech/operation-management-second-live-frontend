@@ -227,9 +227,9 @@ function getTodayValue() {
 function hasThirdInstallment(student) {
   return Boolean(
     String(student?.course?.installmentCount ?? '') === '3' ||
-      student?.installment3 ||
-      student?.thirdInstallmentAmount ||
-      student?.thirdDueDate,
+    student?.installment3 ||
+    student?.thirdInstallmentAmount ||
+    student?.thirdDueDate,
   )
 }
 
@@ -955,7 +955,11 @@ function MonthlyRevenueChart({ data = [] }) {
       <div className="revenue-comparison-header">
         <div className="revenue-comparison-header-copy">
           <div className="revenue-card-title-row">
-            <h3>Monthly Revenue vs Expected Revenue</h3>
+            <div className="revenue-title-group">
+              <TrendingUp size={18} strokeWidth={2.4} className="revenue-title-icon" aria-hidden="true" />
+              <h3>Monthly Revenue vs Expected Revenue</h3>
+            </div>
+            {/* existing info icon button already renders separately via ChartInfoTrigger, leave as is */}
           </div>
           <div className="revenue-legend customer-satisfaction-legend" aria-hidden="true">
             <span className="revenue-legend-item tone-blue">
@@ -1066,7 +1070,10 @@ function WeeklyRevenueChart({ data = [] }) {
       <div className="revenue-comparison-header">
         <div className="revenue-comparison-header-copy">
           <div className="revenue-card-title-row">
-            <h3>Weekly Revenue vs Expected Revenue</h3>
+            <div className="revenue-title-group">
+              <Wallet size={18} strokeWidth={2.4} className="revenue-title-icon" aria-hidden="true" />
+              <h3>Weekly Revenue vs Expected Revenue</h3>
+            </div>
           </div>
           <div className="revenue-legend customer-satisfaction-legend" aria-hidden="true">
             <span className="revenue-legend-item tone-blue">
@@ -1393,122 +1400,122 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
 
       {isProfileOpen && typeof document !== 'undefined'
         ? createPortal(
-            <div className="profile-drawer-backdrop" role="presentation">
-              <div
-                className="profile-drawer"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="profile-modal-title"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="profile-modal-cover profile-drawer-cover">
-                  <button
-                    type="button"
-                    className="course-modal-close profile-modal-close"
-                    onClick={() => setIsProfileOpen(false)}
-                    aria-label="Close profile card"
-                  >
-                    <X size={18} strokeWidth={2.5} aria-hidden="true" focusable="false" />
-                  </button>
+          <div className="profile-drawer-backdrop" role="presentation">
+            <div
+              className="profile-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="profile-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="profile-modal-cover profile-drawer-cover">
+                <button
+                  type="button"
+                  className="course-modal-close profile-modal-close"
+                  onClick={() => setIsProfileOpen(false)}
+                  aria-label="Close profile card"
+                >
+                  <X size={18} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+                </button>
 
-                  <div className="profile-modal-cover-dots" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
+                <div className="profile-modal-cover-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+
+                <div className="profile-modal-avatar-wrap">
+                  <div className="profile-modal-avatar" aria-hidden="true">
+                    {profileDetails.initials}
                   </div>
+                  <span className="profile-modal-status-dot" aria-hidden="true" />
+                </div>
+              </div>
 
-                  <div className="profile-modal-avatar-wrap">
-                    <div className="profile-modal-avatar" aria-hidden="true">
-                      {profileDetails.initials}
+              <div className="profile-modal-body profile-drawer-body">
+                <p className="profile-modal-eyebrow">Profile</p>
+                <h3 id="profile-modal-title">{profileDetails.role}</h3>
+                <p className="profile-modal-email">{profileDetails.primaryEmail}</p>
+
+                <div className="profile-modal-grid">
+                  <div className="profile-modal-stat tone-blue">
+                    <span className="profile-modal-stat-icon" aria-hidden="true">
+                      <BadgeCheck size={16} />
+                    </span>
+                    <div>
+                      <span>Role</span>
+                      <strong>{profileDetails.role}</strong>
                     </div>
-                    <span className="profile-modal-status-dot" aria-hidden="true" />
+                  </div>
+                  <div className="profile-modal-stat tone-green">
+                    <span className="profile-modal-stat-icon" aria-hidden="true">
+                      <ShieldCheck size={16} />
+                    </span>
+                    <div>
+                      <span>Status</span>
+                      <strong>{profileDetails.status}</strong>
+                    </div>
+                  </div>
+                  <div className="profile-modal-stat tone-violet">
+                    <span className="profile-modal-stat-icon" aria-hidden="true">
+                      <Building2 size={16} />
+                    </span>
+                    <div>
+                      <span>Workspace</span>
+                      <strong>{profileDetails.workspace}</strong>
+                    </div>
+                  </div>
+                  <div className="profile-modal-stat tone-amber">
+                    <span className="profile-modal-stat-icon" aria-hidden="true">
+                      <Globe size={16} />
+                    </span>
+                    <div>
+                      <span>Access Level</span>
+                      <strong>{profileDetails.accessLevel}</strong>
+                    </div>
                   </div>
                 </div>
 
-                <div className="profile-modal-body profile-drawer-body">
-                  <p className="profile-modal-eyebrow">Profile</p>
-                  <h3 id="profile-modal-title">{profileDetails.role}</h3>
-                  <p className="profile-modal-email">{profileDetails.primaryEmail}</p>
-
-                  <div className="profile-modal-grid">
-                    <div className="profile-modal-stat tone-blue">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <BadgeCheck size={16} />
-                      </span>
-                      <div>
-                        <span>Role</span>
-                        <strong>{profileDetails.role}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-green">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <ShieldCheck size={16} />
-                      </span>
-                      <div>
-                        <span>Status</span>
-                        <strong>{profileDetails.status}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-violet">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <Building2 size={16} />
-                      </span>
-                      <div>
-                        <span>Workspace</span>
-                        <strong>{profileDetails.workspace}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-amber">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <Globe size={16} />
-                      </span>
-                      <div>
-                        <span>Access Level</span>
-                        <strong>{profileDetails.accessLevel}</strong>
-                      </div>
-                    </div>
+                <div className="profile-modal-info-list">
+                  <div className="profile-modal-info-row">
+                    <span className="profile-modal-info-label">
+                      <LockKeyhole size={15} />
+                      Password
+                    </span>
+                    <strong>{profileDetails.passwordMasked}</strong>
                   </div>
-
-                  <div className="profile-modal-info-list">
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <LockKeyhole size={15} />
-                        Password
-                      </span>
-                      <strong>{profileDetails.passwordMasked}</strong>
-                    </div>
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <RefreshCcw size={15} />
-                        Reset Password
-                      </span>
-                      <strong>{profileDetails.resetPasswordText}</strong>
-                    </div>
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <Clock3 size={15} />
-                        Last Login
-                      </span>
-                      <strong>{profileDetails.lastLogin}</strong>
-                    </div>
+                  <div className="profile-modal-info-row">
+                    <span className="profile-modal-info-label">
+                      <RefreshCcw size={15} />
+                      Reset Password
+                    </span>
+                    <strong>{profileDetails.resetPasswordText}</strong>
+                  </div>
+                  <div className="profile-modal-info-row">
+                    <span className="profile-modal-info-label">
+                      <Clock3 size={15} />
+                      Last Login
+                    </span>
+                    <strong>{profileDetails.lastLogin}</strong>
                   </div>
                 </div>
               </div>
-            </div>,
-            document.body,
-          )
+            </div>
+          </div>,
+          document.body,
+        )
         : null}
     </section>
   )
