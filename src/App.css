@@ -140,7 +140,7 @@ a {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
+  grid-template-columns: 250px minmax(0, 1fr);
   gap: 24px;
   padding: 24px;
   min-width: 0;
@@ -1070,7 +1070,7 @@ tbody tr:hover {
 
 .app-shell.business-owner-shell {
   background: #ffffff;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: 250px minmax(0, 1fr);
   gap: 20px;
   padding: 8px 24px 24px 12px;
 }
@@ -1156,8 +1156,8 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-icon {
-  width: 36px;
-  height: 36px;
+  width: 26px;
+  height: 26px;
   border-radius: 12px;
   background: transparent;
   color: #374151;
@@ -19133,7 +19133,7 @@ tbody tr:hover {
   align-items: center;
   gap: 12px;
   border-radius: 10px;
-  padding: 9px 12px;
+  padding: 2px 12px;
   color: #475569;
   font-weight: 500;
   font-size: 0.88rem;
