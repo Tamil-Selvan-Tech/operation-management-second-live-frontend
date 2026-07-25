@@ -1159,13 +1159,13 @@ tbody tr:hover {
   width: 36px;
   height: 36px;
   border-radius: 12px;
-  background: #f4f6f8;
+  background: transparent;
   color: #374151;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-item.is-active .sidebar-menu-icon {
-  background: #dbeafe;
+  background: transparent;
   color: #1d4ed8;
 }
 
@@ -5319,7 +5319,7 @@ tbody tr:hover {
 
 .attendance-bar {
   width: 16px;
-  border-radius: 6px 6px 3px 3px;
+  border-radius: 9999px;
   box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.22);
 }
 
@@ -5619,7 +5619,7 @@ tbody tr:hover {
   width: 14px;
   min-width: 14px;
   max-width: 14px;
-  border-radius: 10px 10px 4px 4px;
+  border-radius: 9999px;
   transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
   box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.22);
 }
@@ -5837,7 +5837,7 @@ tbody tr:hover {
 
 .revenue-week-bar {
   min-height: 18px;
-  border-radius: 999px;
+  border-radius: 4px;
   transition: transform 0.18s ease, filter 0.18s ease, opacity 0.18s ease;
   box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.2);
 }
@@ -19053,16 +19053,24 @@ tbody tr:hover {
   background: #cbd5e1;
 }
 
-.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-bar.monthly,
-.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-week-bar.monthly {
+.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-bar.monthly {
   background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
-  border-radius: 6px 6px 0 0;
+  border-radius: 9999px;
 }
 
-.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-bar.expected,
+.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-week-bar.monthly {
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+  border-radius: 4px;
+}
+
+.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-bar.expected {
+  background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+  border-radius: 9999px;
+}
+
 .business-owner-dashboard:not(.operation-manager-dashboard) .revenue-week-bar.expected {
   background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
-  border-radius: 6px 6px 0 0;
+  border-radius: 4px;
 }
 
 .business-owner-dashboard:not(.operation-manager-dashboard) .attendance-card {
@@ -19075,12 +19083,12 @@ tbody tr:hover {
 
 .business-owner-dashboard:not(.operation-manager-dashboard) .attendance-bar.attendance {
   background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-  border-radius: 6px 6px 0 0;
+  border-radius: 9999px;
 }
 
 .business-owner-dashboard:not(.operation-manager-dashboard) .attendance-bar.students {
   background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
-  border-radius: 6px 6px 0 0;
+  border-radius: 9999px;
 }
 
 .business-owner-dashboard:not(.operation-manager-dashboard) .attendance-legend-swatch.attendance {
@@ -19149,6 +19157,8 @@ tbody tr:hover {
 
 .is-business-owner-sidebar .sidebar-menu-item.is-active .sidebar-menu-icon {
   color: #0f172a !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .is-business-owner-sidebar .sidebar-menu-icon {
@@ -19156,6 +19166,8 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   color: #64748b;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .is-business-owner-sidebar .sidebar-footer {
