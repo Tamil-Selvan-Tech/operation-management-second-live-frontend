@@ -19328,3 +19328,490 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+.operation-manager-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 0 24px;
+  min-width: 0;
+  background: #ffffff;
+}
+
+.operation-manager-dashboard .business-topbar {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 4px 0 16px 0 !important;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  min-width: 0;
+  border-bottom: 1.5px solid #cbd5e1 !important;
+}
+
+.operation-manager-dashboard .business-topbar > div:first-child {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.operation-manager-dashboard .business-topbar-copy {
+  padding-left: 12px;
+  margin: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+  width: auto;
+}
+
+.operation-manager-dashboard .business-topbar-copy .eyebrow {
+  color: #3b82f6;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.operation-manager-dashboard .business-topbar-copy h2 {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.operation-manager-dashboard .business-topbar-copy p:last-child {
+  color: #64748b;
+  font-size: 0.86rem;
+  margin: 0;
+  padding-top: 2px;
+}
+
+.operation-manager-dashboard .business-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding-right: 0;
+  justify-content: flex-end;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+}
+
+.operation-manager-dashboard .notification-menu {
+  position: relative;
+  z-index: 40;
+  margin-left: -12px;
+}
+
+.operation-manager-dashboard .notification-dropdown {
+  z-index: 50;
+  box-shadow: none;
+  border-color: #e5e7eb;
+}
+
+.operation-manager-dashboard .notification-dropdown::before {
+  border-left-color: #e5e7eb;
+  border-top-color: #e5e7eb;
+}
+
+.operation-manager-dashboard .notification-dropdown-item:hover,
+.operation-manager-dashboard .notification-dropdown-item:focus-visible,
+.operation-manager-dashboard .notification-dropdown-item.is-highlighted {
+  background: #ffffff;
+}
+
+.operation-manager-dashboard .profile-chip {
+  border-color: #e5e7eb;
+}
+
+.operation-manager-dashboard .revenue-summary-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  min-width: 0;
+}
+
+.operation-manager-dashboard .revenue-summary-card {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 16px;
+  padding: 10px 16px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 88px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.operation-manager-dashboard .revenue-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.06);
+}
+
+.revenue-summary-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.revenue-summary-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.operation-manager-dashboard .revenue-summary-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.operation-manager-dashboard .revenue-summary-icon.blue {
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.operation-manager-dashboard .revenue-summary-icon.green {
+  background: #f0fdf4;
+  color: #22c55e;
+}
+
+.operation-manager-dashboard .revenue-summary-icon.orange {
+  background: #fefce8;
+  color: #eab308;
+}
+
+.operation-manager-dashboard .revenue-summary-icon.purple {
+  background: #faf5ff;
+  color: #a855f7;
+}
+
+.operation-manager-dashboard .revenue-summary-icon-button:hover .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-icon-button:focus-visible .revenue-summary-icon {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.operation-manager-dashboard .revenue-summary-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  line-height: 1.2 !important;
+}
+
+.operation-manager-dashboard .revenue-summary-value-row {
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.operation-manager-dashboard .revenue-summary-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+}
+
+.revenue-summary-card-divider {
+  height: 1px;
+  width: 100%;
+  background-color: #cbd5e1;
+  margin: 8px 0;
+  border: none;
+}
+
+.revenue-summary-trend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.revenue-summary-trend-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.revenue-summary-trend-badge.positive {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.revenue-summary-trend-badge.negative {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+.revenue-summary-trend-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.revenue-summary-status-val {
+  font-weight: 700;
+}
+
+.revenue-summary-status-txt {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.operation-manager-dashboard .revenue-summary-tooltip {
+  border-color: #dbe6f2;
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.14);
+}
+
+.operation-manager-dashboard .revenue-comparison-grid {
+  display: grid;
+  grid-template-columns: 1.08fr 0.92fr;
+  gap: 16px;
+  min-width: 0;
+}
+
+.operation-manager-dashboard .revenue-comparison-card {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 20px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+}
+
+.operation-manager-dashboard .revenue-comparison-body {
+  min-height: 260px;
+}
+
+.operation-manager-dashboard .revenue-comparison-header {
+  gap: 10px;
+  padding-right: 24px;
+}
+
+.operation-manager-dashboard .revenue-comparison-header h3 {
+  color: #0f172a;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.operation-manager-dashboard .revenue-comparison-subtitle,
+.operation-manager-dashboard .revenue-weekly-subtitle {
+  color: #64748b;
+}
+
+.operation-manager-dashboard .revenue-plot {
+  min-height: 210px;
+  padding: 2px 8px 10px;
+}
+
+.operation-manager-dashboard .revenue-bars {
+  min-height: 170px;
+}
+
+.operation-manager-dashboard .revenue-weekly-card {
+  min-height: 400px;
+}
+
+.operation-manager-dashboard .revenue-weekly-body {
+  min-height: 300px;
+}
+
+.operation-manager-dashboard .revenue-weekly-plot {
+  min-height: 300px;
+}
+
+.operation-manager-dashboard .revenue-weekly-groups {
+  gap: 14px;
+  padding: 6px 0;
+}
+
+.operation-manager-dashboard .revenue-week-bar.monthly {
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+  border-radius: 999px;
+}
+
+.operation-manager-dashboard .revenue-week-bar.expected {
+  background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+  border-radius: 999px;
+}
+
+.operation-manager-dashboard .revenue-bar.monthly {
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+  border-radius: 999px;
+}
+
+.operation-manager-dashboard .revenue-bar.expected {
+  background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+  border-radius: 999px;
+}
+
+.operation-manager-dashboard .attendance-card {
+  background: #ffffff;
+  border: 1px solid #f1f5f9;
+  border-radius: 20px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+}
+
+.operation-manager-dashboard .attendance-header-title {
+  color: #1d4ed8;
+}
+
+.operation-manager-dashboard .attendance-bar.attendance {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  border-radius: 999px;
+}
+
+.operation-manager-dashboard .attendance-bar.students {
+  background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
+  border-radius: 999px;
+}
+
+.operation-manager-dashboard .attendance-legend-swatch.attendance {
+  background: #3b82f6;
+}
+
+.operation-manager-dashboard .attendance-legend-swatch.students {
+  background: #eab308;
+}
+
+.operation-manager-dashboard .business-topbar h2 {
+  margin: 0 0 4px 0;
+  color: #0f172a;
+  font-size: clamp(1.65rem, 2.15vw, 2.1rem);
+  letter-spacing: -0.03em;
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .operation-manager-dashboard .business-topbar {
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 12px;
+  }
+
+  .operation-manager-dashboard .business-topbar > div:first-child,
+  .operation-manager-dashboard .business-topbar-copy {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+
+  .operation-manager-dashboard .business-topbar-copy {
+    display: grid;
+    gap: 2px;
+  }
+
+  .operation-manager-dashboard .business-topbar-actions {
+    width: auto;
+    margin-left: auto;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .operation-manager-dashboard .profile-chip,
+  .operation-manager-dashboard .notification-menu {
+    flex: 0 0 auto;
+  }
+
+  .operation-manager-dashboard .profile-chip {
+    padding: 7px 10px 7px 7px;
+  }
+
+  .operation-manager-dashboard .profile-chip strong {
+    font-size: 0.9rem;
+  }
+
+  .operation-manager-dashboard .profile-chip-email {
+    font-size: 0.74rem;
+  }
+
+  .operation-manager-dashboard .business-topbar h2 {
+    margin: 2px 0 0;
+    line-height: 1.05;
+    letter-spacing: -0.04em;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-card {
+    min-height: 288px;
+    padding: 12px 12px 10px;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-header {
+    gap: 8px;
+    padding-right: 24px;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-header h3 {
+    font-size: 0.86rem;
+    line-height: 1.18;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-body {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .operation-manager-dashboard .revenue-plot {
+    min-height: 214px;
+    padding: 0 8px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .operation-manager-dashboard .revenue-groups {
+    min-width: 520px;
+    gap: 8px;
+  }
+
+  .operation-manager-dashboard .revenue-month-group {
+    min-width: 44px;
+    gap: 8px;
+  }
+
+  .operation-manager-dashboard .revenue-bars {
+    min-height: 150px;
+    gap: 5px;
+  }
+
+  .operation-manager-dashboard .revenue-month-label {
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 1024px) {
+  .operation-manager-dashboard .revenue-summary-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .operation-manager-dashboard .revenue-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .operation-manager-dashboard .revenue-summary-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -50,6 +50,7 @@ export function AppShell({
   }
   const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
   const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
+  const isPremiumDashboard = isBusinessOwnerDashboard || isOperationManagerDashboard
   const isFacultyDashboard = location.pathname === '/dashboard/faculty'
   const isFlatMainArea =
     isOperationManagerDashboard ||
@@ -130,7 +131,7 @@ export function AppShell({
     <MobileMenuContext.Provider value={() => setIsMobileSidebarOpen(true)}>
       <div
         className={`app-shell has-fixed-sidebar ${isStudentPage ? 'is-student-page' : ''} ${
-          isBusinessOwnerDashboard ? 'business-owner-shell' : ''
+          isPremiumDashboard ? 'business-owner-shell' : ''
         }`.trim()}
       >
         <div
@@ -141,7 +142,7 @@ export function AppShell({
         <AppSidebar
           activeNav={activeNav}
           user={user}
-          isBusinessOwner={isBusinessOwnerDashboard}
+          isBusinessOwner={isPremiumDashboard}
           onNavigateDashboard={onNavigateDashboard}
           onNavigateFacultyBatches={onNavigateFacultyBatches}
           onNavigateCourses={onNavigateCourses}
@@ -160,7 +161,7 @@ export function AppShell({
         <div
           className={`main-area ${showChrome ? '' : 'main-area-compact'} ${
             isFlatMainArea ? 'main-area-flat' : ''
-          } ${isBusinessOwnerDashboard ? 'business-owner-main' : ''}`}
+          } ${isPremiumDashboard ? 'business-owner-main' : ''}`}
         >
           {showChrome ? (
             <>
