@@ -599,7 +599,7 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, r
       />
 
       <MemoRevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <MemoRevenueDashboards students={revenueStudents} />
+      <MemoRevenueDashboards students={revenueStudents} reverse={true} />
       <MemoAttendanceComparisonChart />
     </section>
   )
@@ -1056,6 +1056,34 @@ function MonthlyRevenueChart({ data = [] }) {
   )
 }
 
+function getWeeklyTicks(chartMax) {
+  let step = 50000
+  if (chartMax > 300000) {
+    step = 100000
+  } else if (chartMax > 150000) {
+    step = 100000
+  } else if (chartMax > 80000) {
+    step = 50000
+  } else if (chartMax > 40000) {
+    step = 25000
+  } else {
+    step = 10000
+  }
+  const ticksList = []
+  for (let val = 0; val <= chartMax; val += step) {
+    ticksList.push(val)
+  }
+  return ticksList
+}
+
+function formatWeeklyAxisLabel(value) {
+  if (value === 0) return '0'
+  if (value % 1000 === 0) {
+    return `${value / 1000}K`
+  }
+  return new Intl.NumberFormat('en-IN').format(value)
+}
+
 function WeeklyRevenueChart({ data = [] }) {
   const [activeIndex, setActiveIndex] = useState(null)
   const chartMax = getChartMax(data, 10000)
@@ -1064,6 +1092,9 @@ function WeeklyRevenueChart({ data = [] }) {
     activeIndex === null
       ? '50%'
       : `${Math.min(82, Math.max(18, ((activeIndex + 0.5) / Math.max(data.length, 1)) * 100))}%`
+
+  const widthScale = 1
+  const ticks = getWeeklyTicks(chartMax)
 
   return (
     <article className="panel-card revenue-comparison-card revenue-weekly-card">
@@ -1101,10 +1132,21 @@ function WeeklyRevenueChart({ data = [] }) {
 
         <div className="revenue-weekly-plot" onMouseLeave={() => setActiveIndex(null)}>
           <div className="revenue-weekly-grid-lines" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
+            {ticks.map((tick) => {
+              if (tick === 0) return null
+              return (
+                <span
+                  key={tick}
+                  style={{
+                    position: 'absolute',
+                    left: `${(tick / chartMax) * 100 * widthScale}%`,
+                    top: 0,
+                    bottom: 0,
+                    borderLeft: '1px dashed #dde5ef',
+                  }}
+                />
+              )
+            })}
           </div>
 
           {activePoint ? (
@@ -1129,7 +1171,6 @@ function WeeklyRevenueChart({ data = [] }) {
 
           <div className="revenue-weekly-groups">
             {data.map((item, index) => {
-              const widthScale = 0.88
               const weeklyWidth = `${chartMax ? (item.actual / chartMax) * 100 * widthScale : 0}%`
               const expectedWidth = `${chartMax ? (item.expected / chartMax) * 100 * widthScale : 0}%`
               const isActive = index === activeIndex
@@ -1145,17 +1186,35 @@ function WeeklyRevenueChart({ data = [] }) {
                   aria-label={`${item.week}. Actual Revenue ${formatRevenue(item.actual)}. Expected Revenue ${formatRevenue(item.expected)}.`}
                 >
                   <span className="revenue-week-bars" aria-hidden="true">
-                    <span className="revenue-week-bar monthly" style={{ width: weeklyWidth }} />
-                    <span className="revenue-week-bar expected" style={{ width: expectedWidth }} />
-                  </span>
-                  <span className="revenue-week-values">
-                    <strong>{formatRevenue(item.actual)}</strong>
-                    <span>{formatRevenue(item.expected)}</span>
+                    <span className="revenue-week-bar-group">
+                      <span className="revenue-week-bar-label">Actual Revenue</span>
+                      <span className="revenue-week-bar monthly" style={{ width: weeklyWidth }} />
+                    </span>
+                    <span className="revenue-week-bar-group">
+                      <span className="revenue-week-bar-label">Expected Revenue</span>
+                      <span className="revenue-week-bar expected" style={{ width: expectedWidth }} />
+                    </span>
                   </span>
                 </button>
               )
             })}
           </div>
+        </div>
+
+        <div />
+        <div className="revenue-weekly-axis-x" aria-hidden="true">
+          {ticks.map((tick) => (
+            <span
+              key={tick}
+              style={{
+                position: 'absolute',
+                left: `${(tick / chartMax) * 100 * widthScale}%`,
+                transform: 'translateX(-50%)',
+              }}
+            >
+              {formatWeeklyAxisLabel(tick)}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -1216,14 +1275,23 @@ function ChartInfoTrigger({ label, description }) {
   )
 }
 
-function RevenueDashboards({ students = [] }) {
+function RevenueDashboards({ students = [], reverse = false }) {
   const monthlyRevenueData = useMemo(() => buildMonthlyRevenueComparison(students), [students])
   const weeklyRevenueData = useMemo(() => buildWeeklyRevenueComparison(students), [students])
 
   return (
     <div className="revenue-comparison-grid">
-      <WeeklyRevenueChart data={weeklyRevenueData} />
-      <MonthlyRevenueChart data={monthlyRevenueData} />
+      {reverse ? (
+        <>
+          <MonthlyRevenueChart data={monthlyRevenueData} />
+          <WeeklyRevenueChart data={weeklyRevenueData} />
+        </>
+      ) : (
+        <>
+          <WeeklyRevenueChart data={weeklyRevenueData} />
+          <MonthlyRevenueChart data={monthlyRevenueData} />
+        </>
+      )}
     </div>
   )
 }
