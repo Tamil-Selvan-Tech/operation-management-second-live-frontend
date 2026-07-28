@@ -1004,8 +1004,6 @@ export function FacultyMyBatchesPage() {
   }, [selectedBatchContext])
   const selectedBatchStudentCount = selectedBatchStudents.length
   const selectedBatchVisibleCount = Math.min(selectedBatchStudentCount, 8)
-  const selectedBatchVisibleStart = selectedBatchStudentCount ? 1 : 0
-  const selectedBatchVisibleEnd = Math.min(selectedBatchVisibleCount, selectedBatchStudentCount)
 
   const openBatchStudents = (group, batch) => {
     if (!group || !batch) return
@@ -1300,16 +1298,9 @@ export function FacultyMyBatchesPage() {
 
                 <div className="batch-student-table-footer" aria-label="Batch student pagination">
                   <div className="batch-student-table-summary">
-                    <strong>
-                      Showing {selectedBatchVisibleStart} to {selectedBatchVisibleEnd} of {selectedBatchStudentCount} results
-                    </strong>
+                    <strong>Showing {selectedBatchVisibleCount} of {selectedBatchStudentCount}</strong>
                     <span>students in this batch</span>
                   </div>
-
-                  <button type="button" className="batch-student-page-size" disabled aria-label="Rows per page">
-                    <span>10 per page</span>
-                    <ChevronDown size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
-                  </button>
 
                   <div className="batch-student-pagination" aria-hidden="true">
                     <button type="button" className="batch-student-pagination-link" disabled>
