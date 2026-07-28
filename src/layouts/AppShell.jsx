@@ -177,10 +177,10 @@ export function AppShell({
           onLogout={onLogout}
           onClose={() => setIsMobileSidebarOpen(false)}
           isMobileOpen={isMobileSidebarOpen}
-          showCoursesNav={isDashboardWorkspace ? true : showCoursesNav}
-          showFacultyBatchesNav={isDashboardWorkspace ? false : showFacultyBatchesNav}
-          showStudentManagementNav={isDashboardWorkspace ? true : showStudentManagementNav}
-          showFacultyManagementNav={isDashboardWorkspace ? true : showFacultyManagementNav}
+          showCoursesNav={showCoursesNav}
+          showFacultyBatchesNav={showFacultyBatchesNav}
+          showStudentManagementNav={showStudentManagementNav}
+          showFacultyManagementNav={showFacultyManagementNav}
         />
 
         <div

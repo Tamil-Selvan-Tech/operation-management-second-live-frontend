@@ -339,7 +339,7 @@ function StudentPaymentOverview({ student }) {
   }, [student])
 
   const ringStyle = {
-    background: `conic-gradient(#2f80ed 0% ${payment.paidPercent}%, #f97316 ${payment.paidPercent}% 100%)`,
+    background: `conic-gradient(#5ea1ff 0% ${payment.paidPercent}%, #FFC107 ${payment.paidPercent}% 100%)`,
   }
 
   const statusTone = payment.pendingAmount > 0 ? 'is-due' : 'is-clear'
