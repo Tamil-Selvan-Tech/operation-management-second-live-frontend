@@ -26,32 +26,47 @@ export function AppShell({
 }) {
   const location = useLocation()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-  const isCoursesPath =
-    location.pathname.startsWith('/courses') ||
-    location.pathname.startsWith('/dashboard/operation-manager/courses')
-  const isStudentManagementPath =
-    location.pathname.startsWith('/student-management') ||
-    location.pathname.startsWith('/dashboard/operation-manager/student-management')
-  const isFacultyManagementPath =
-    location.pathname.startsWith('/faculty-management') ||
-    location.pathname.startsWith('/dashboard/operation-manager/faculty-management')
+  const userRole = user?.role
+  const isBusinessOwnerRole = userRole === 'business-owner'
+  const isOperationManagerRole = userRole === 'operation-manager'
+  const isDashboardWorkspace = location.pathname.startsWith('/dashboard')
+  const isBusinessOwnerWorkspace = location.pathname.startsWith('/dashboard/business-owner')
+  const isOperationManagerWorkspace = location.pathname.startsWith('/dashboard/operation-manager')
+  const isCoursesWorkspace =
+    location.pathname === '/courses' || location.pathname === '/dashboard/operation-manager/courses'
+  const isStudentManagementWorkspace =
+    location.pathname === '/student-management' ||
+    location.pathname === '/dashboard/operation-manager/student-management'
+  const isFacultyManagementWorkspace =
+    location.pathname === '/faculty-management' ||
+    location.pathname === '/dashboard/operation-manager/faculty-management'
+  const isNotificationsWorkspace = location.pathname === '/notifications'
+  const useDashboardShell = isDashboardWorkspace && !isBusinessOwnerWorkspace && !isOperationManagerWorkspace
+  const isPremiumSidebarWorkspace =
+    isDashboardWorkspace ||
+    isBusinessOwnerWorkspace ||
+    isOperationManagerWorkspace ||
+    (isBusinessOwnerRole &&
+      (isCoursesWorkspace || isStudentManagementWorkspace || isFacultyManagementWorkspace || isNotificationsWorkspace)) ||
+    (isOperationManagerRole &&
+      (isCoursesWorkspace || isStudentManagementWorkspace || isFacultyManagementWorkspace || isNotificationsWorkspace))
+  const isSidebarPremium = isPremiumSidebarWorkspace
   const isFacultyBatchesPath = location.pathname.startsWith('/dashboard/faculty/my-batches')
   let activeNav = 'dashboard'
-  if (isCoursesPath) {
+  if (isCoursesWorkspace) {
     activeNav = 'courses'
-  } else if (isStudentManagementPath) {
+  } else if (isStudentManagementWorkspace) {
     activeNav = 'student-management'
-  } else if (isFacultyManagementPath) {
+  } else if (isFacultyManagementWorkspace) {
     activeNav = 'faculty-management'
   } else if (isFacultyBatchesPath) {
     activeNav = 'my-batches'
-  } else if (location.pathname.startsWith('/notifications')) {
+  } else if (isNotificationsWorkspace) {
     activeNav = 'notifications'
   }
-  const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
-  const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
+  const isBusinessOwnerDashboard = isBusinessOwnerWorkspace
+  const isOperationManagerDashboard = isOperationManagerWorkspace
   const isPremiumDashboard = isBusinessOwnerDashboard || isOperationManagerDashboard
-  const isOperationManagerShell = isOperationManagerDashboard
   const isFacultyDashboard = location.pathname === '/dashboard/faculty'
   const isFlatMainArea =
     isOperationManagerDashboard ||
@@ -59,12 +74,22 @@ export function AppShell({
     isFacultyDashboard ||
     isFacultyBatchesPath ||
     location.pathname === '/notifications' ||
-    isStudentManagementPath ||
-    isFacultyManagementPath ||
-    isCoursesPath ||
+    isStudentManagementWorkspace ||
+    isFacultyManagementWorkspace ||
+    isCoursesWorkspace ||
+    isNotificationsWorkspace ||
     forceFlatMainArea
   const isStudentPage = location.pathname === '/dashboard/student'
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
+  const shellClassName = [
+    'app-shell has-fixed-sidebar',
+    isStudentPage ? 'is-student-page' : '',
+    isBusinessOwnerWorkspace || (isBusinessOwnerRole && isPremiumSidebarWorkspace) ? 'business-owner-shell' : '',
+    isOperationManagerWorkspace || (isOperationManagerRole && isPremiumSidebarWorkspace) ? 'operation-manager-shell' : '',
+    useDashboardShell ? 'dashboard-shell' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   const bottomNavItems = [
     {
@@ -130,11 +155,7 @@ export function AppShell({
 
   return (
     <MobileMenuContext.Provider value={() => setIsMobileSidebarOpen(true)}>
-      <div
-        className={`app-shell has-fixed-sidebar ${isStudentPage ? 'is-student-page' : ''} ${
-          isPremiumDashboard ? 'business-owner-shell' : ''
-        } ${isOperationManagerShell ? 'operation-manager-shell' : ''}`.trim()}
-      >
+      <div className={shellClassName}>
         <div
           className={`sidebar-backdrop ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
           role="presentation"
@@ -143,7 +164,7 @@ export function AppShell({
         <AppSidebar
           activeNav={activeNav}
           user={user}
-          isBusinessOwner={isPremiumDashboard}
+          isBusinessOwner={isSidebarPremium}
           onNavigateDashboard={onNavigateDashboard}
           onNavigateFacultyBatches={onNavigateFacultyBatches}
           onNavigateCourses={onNavigateCourses}
@@ -153,10 +174,10 @@ export function AppShell({
           onLogout={onLogout}
           onClose={() => setIsMobileSidebarOpen(false)}
           isMobileOpen={isMobileSidebarOpen}
-          showCoursesNav={showCoursesNav}
-          showFacultyBatchesNav={showFacultyBatchesNav}
-          showStudentManagementNav={showStudentManagementNav}
-          showFacultyManagementNav={showFacultyManagementNav}
+          showCoursesNav={isDashboardWorkspace ? true : showCoursesNav}
+          showFacultyBatchesNav={isDashboardWorkspace ? false : showFacultyBatchesNav}
+          showStudentManagementNav={isDashboardWorkspace ? true : showStudentManagementNav}
+          showFacultyManagementNav={isDashboardWorkspace ? true : showFacultyManagementNav}
         />
 
         <div
