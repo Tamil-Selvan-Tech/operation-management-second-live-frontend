@@ -18948,19 +18948,23 @@ tbody tr:hover {
 .business-topbar.is-business-owner-header::after {
   content: '';
   position: absolute;
-  left: -20px;
-  right: -20px;
+  left: -8px;
+  right: -32px;
   bottom: 0;
   height: 1px;
   background: rgba(15, 23, 42, 0.08);
 }
 
 .is-business-owner-header .business-topbar-copy {
-  padding-left: 24px;
+  padding-left: 0;
   margin: 0;
   padding-bottom: 0;
   border-bottom: none;
   width: auto;
+}
+
+.business-owner-dashboard .is-business-owner-header .business-topbar-copy {
+  padding-left: 12px;
 }
 
 .is-business-owner-header .business-topbar-copy .eyebrow {
@@ -19641,8 +19645,8 @@ tbody tr:hover {
 .operation-manager-dashboard .business-topbar::after {
   content: '';
   position: absolute;
-  left: -20px;
-  right: -20px;
+  left: -8px;
+  right: -32px;
   bottom: 0;
   height: 1px;
   background: rgba(15, 23, 42, 0.08);
@@ -19658,6 +19662,11 @@ tbody tr:hover {
   width: auto;
   flex: 1 1 320px;
   min-width: 0;
+}
+
+.business-owner-dashboard.operation-manager-dashboard .business-topbar-copy {
+  padding-left: 12px;
+  margin-left: 0;
 }
 
 .operation-manager-dashboard .business-topbar-copy .eyebrow {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { roleDashboards } from '../data/authData'
+import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
@@ -710,8 +711,8 @@ export function CoursesPage() {
 
   return (
     <section className="courses-page">
-      <div className={isBusinessOwner ? 'business-owner-dashboard' : 'operation-manager-dashboard'}>
-        <OperationManagerWorkspaceHeader
+      {isBusinessOwner ? (
+        <OperationManagerHeader
           eyebrow={headerEyebrow}
           title={headerTitle}
           summary={headerSummary}
@@ -720,7 +721,19 @@ export function CoursesPage() {
           email={headerEmail}
           onOpenMenu={openMenu}
         />
-      </div>
+      ) : (
+        <div className="operation-manager-dashboard">
+          <OperationManagerWorkspaceHeader
+            eyebrow={headerEyebrow}
+            title={headerTitle}
+            summary={headerSummary}
+            initials={headerInitials}
+            profileTitle={headerProfileTitle}
+            email={headerEmail}
+            onOpenMenu={openMenu}
+          />
+        </div>
+      )}
 
       <div className="courses-topbar">
         <div className="courses-topbar-copy">

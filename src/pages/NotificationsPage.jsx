@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { dashboardPathByRole, roleDashboards, roleLabels } from '../data/authData'
 import { getNotificationSections } from '../data/notificationsData'
+import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
@@ -82,7 +83,9 @@ export function NotificationsPage() {
   const isBusinessOwner = role === 'business-owner'
   const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
   const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
-  const headerSummary = isBusinessOwner ? '' : roleDashboards['operation-manager'].summary
+  const headerSummary = isBusinessOwner
+    ? "Welcome back! Here's what's happening with your business today."
+    : roleDashboards['operation-manager'].summary
   const headerInitials = isBusinessOwner ? 'BW' : 'OM'
   const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
@@ -120,8 +123,8 @@ export function NotificationsPage() {
 
   return (
     <section className="notifications-page">
-      <div className={isBusinessOwner ? 'business-owner-dashboard' : 'operation-manager-dashboard'}>
-        <OperationManagerWorkspaceHeader
+      {isBusinessOwner ? (
+        <OperationManagerHeader
           eyebrow={headerEyebrow}
           title={headerTitle}
           summary={headerSummary}
@@ -130,7 +133,19 @@ export function NotificationsPage() {
           email={headerEmail}
           onOpenMenu={openMenu}
         />
-      </div>
+      ) : (
+        <div className="operation-manager-dashboard">
+          <OperationManagerWorkspaceHeader
+            eyebrow={headerEyebrow}
+            title={headerTitle}
+            summary={headerSummary}
+            initials={headerInitials}
+            profileTitle={headerProfileTitle}
+            email={headerEmail}
+            onOpenMenu={openMenu}
+          />
+        </div>
+      )}
 
       <header className="notifications-page-header">
         <div className="notifications-page-copy">
