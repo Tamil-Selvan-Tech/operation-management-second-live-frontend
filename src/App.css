@@ -1121,17 +1121,32 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell .sidebar .menu-section-label {
-  color: #6b7280;
-  font-size: 0.74rem;
-  letter-spacing: 0.08em;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-bottom: 8px;
+  padding-left: 0;
+}
+
+.app-shell.operation-manager-shell .sidebar .menu-section-label {
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-bottom: 8px;
+  padding-left: 0;
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-item {
   width: calc(100% - 12px);
   border: 1px solid transparent;
   border-radius: 14px;
-  padding: 8px 8px;
-  gap: 8px;
+  padding: 6px 8px;
+  gap: 6px;
+  min-height: 40px;
   color: #1f2937;
 }
 
@@ -1156,8 +1171,8 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-icon {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: 12px;
   background: transparent;
   color: #374151;
@@ -1170,8 +1185,15 @@ tbody tr:hover {
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-label {
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.app-shell.operation-manager-shell .sidebar .sidebar-menu-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e293b;
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-badge {
@@ -5162,16 +5184,17 @@ tbody tr:hover {
 }
 
 .attendance-header-title {
-  color: #1d4ed8;
-  font-size: 1rem;
-  font-weight: 800;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .attendance-axis-title {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1;
+  color: #64748b;
 }
 
 .attendance-axis-left {
@@ -5254,6 +5277,9 @@ tbody tr:hover {
 .attendance-left-axis span,
 .attendance-right-axis span {
   align-self: center;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .attendance-plot {
@@ -5382,10 +5408,11 @@ tbody tr:hover {
 
 .revenue-comparison-header h3 {
   margin: 0;
-  color: #172554;
-  font-size: clamp(1rem, 1.45vw, 1.35rem);
-  line-height: 1.1;
-  letter-spacing: -0.04em;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
   white-space: normal;
   overflow: visible;
   text-overflow: unset;
@@ -5510,6 +5537,9 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
 }
 
 .revenue-legend-swatch,
@@ -5640,9 +5670,9 @@ tbody tr:hover {
 }
 
 .revenue-month-label {
-  color: #475569;
-  font-size: 0.9rem;
-  font-weight: 600;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.1;
   width: 100%;
   text-align: center;
@@ -5847,9 +5877,9 @@ tbody tr:hover {
 }
 
 .revenue-week-bar-label {
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
   margin-bottom: 4px;
   line-height: 1.1;
   text-align: left;
@@ -18525,8 +18555,10 @@ tbody tr:hover {
 
   .business-owner-dashboard .revenue-comparison-header h3,
   .operation-manager-dashboard .revenue-comparison-header h3 {
-    font-size: 0.86rem;
-    line-height: 1.18;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
   }
 
   .business-owner-dashboard .revenue-comparison-body,
@@ -18538,7 +18570,8 @@ tbody tr:hover {
 
   .business-owner-dashboard .revenue-axis-y,
   .operation-manager-dashboard .revenue-axis-y {
-    font-size: 0.72rem;
+    font-size: 13px;
+    font-weight: 500;
     line-height: 1.1;
     white-space: nowrap;
     padding-bottom: 10px;
@@ -18572,7 +18605,8 @@ tbody tr:hover {
 
   .business-owner-dashboard .revenue-month-label,
   .operation-manager-dashboard .revenue-month-label {
-    font-size: 0.74rem;
+    font-size: 13px;
+    font-weight: 500;
     white-space: nowrap;
   }
 
@@ -18723,19 +18757,21 @@ tbody tr:hover {
 }
 
 .is-business-owner-header .business-topbar-copy h2 {
-  font-size: 1.65rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-size: clamp(1.85rem, 2.8vw, 2.2rem);
+  font-weight: 700;
+  color: #111827;
   margin: 0 0 4px 0;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
 }
 
 .is-business-owner-header .business-header-subtitle {
   color: #64748b;
-  font-size: 0.86rem;
+  font-size: 16px;
+  font-weight: 400;
   margin: 0;
   padding-top: 2px;
+  line-height: 1.45;
 }
 
 .is-business-owner-header .business-topbar-actions {
@@ -18803,12 +18839,12 @@ tbody tr:hover {
   background: #ffffff;
   border: 1px solid #f1f5f9;
   border-radius: 16px;
-  padding: 10px 16px;
+  padding: 16px 16px 14px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 88px;
+  min-height: 132px;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -18862,14 +18898,38 @@ tbody tr:hover {
   color: #22c55e;
 }
 
+.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-summary-card:nth-child(1) .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-card:nth-child(1) .revenue-summary-icon {
+  background: #eaf3ff;
+  color: #3b82f6;
+}
+
+.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-summary-card:nth-child(2) .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-card:nth-child(2) .revenue-summary-icon {
+  background: #f4e8ff;
+  color: #a855f7;
+}
+
+.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-summary-card:nth-child(3) .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-card:nth-child(3) .revenue-summary-icon {
+  background: #eef2f7;
+  color: #64748b;
+}
+
+.business-owner-dashboard:not(.operation-manager-dashboard) .revenue-summary-card:nth-child(4) .revenue-summary-icon,
+.operation-manager-dashboard .revenue-summary-card:nth-child(4) .revenue-summary-icon {
+  background: #eafbf1;
+  color: #22c55e;
+}
+
 .business-owner-dashboard:not(.operation-manager-dashboard) .revenue-summary-label {
-  font-size: 0.88rem;
+  font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: #111827;
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
-  line-height: 1.2 !important;
+  line-height: 1.25 !important;
 }
 
 .revenue-summary-value-row {
@@ -18878,10 +18938,10 @@ tbody tr:hover {
 }
 
 .business-owner-dashboard:not(.operation-manager-dashboard) .revenue-summary-value {
-  font-size: 1.65rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.03em;
+  font-size: clamp(1.75rem, 2.6vw, 2rem);
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.04em;
 }
 
 .revenue-summary-status-pill {
@@ -19372,27 +19432,29 @@ tbody tr:hover {
 
 .operation-manager-dashboard .business-topbar-copy .eyebrow {
   color: #3b82f6;
-  font-size: 0.76rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   margin-bottom: 4px;
 }
 
 .operation-manager-dashboard .business-topbar-copy h2 {
-  font-size: 1.65rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-size: clamp(1.9rem, 3vw, 2.25rem);
+  font-weight: 700;
+  color: #111827;
   margin: 0 0 4px 0;
-  letter-spacing: -0.025em;
-  line-height: 1.2;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
 .operation-manager-dashboard .business-topbar-copy p:last-child {
   color: #64748b;
-  font-size: 0.86rem;
+  font-size: 16px;
+  font-weight: 400;
   margin: 0;
   padding-top: 2px;
+  line-height: 1.4;
 }
 
 .operation-manager-dashboard .business-topbar-actions {
@@ -19444,12 +19506,12 @@ tbody tr:hover {
   background: #ffffff;
   border: 1px solid #f1f5f9;
   border-radius: 16px;
-  padding: 10px 16px;
+  padding: 16px 16px 14px;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 88px;
+  min-height: 132px;
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
@@ -19503,6 +19565,26 @@ tbody tr:hover {
   color: #a855f7;
 }
 
+.operation-manager-dashboard .revenue-summary-card:nth-child(1) .revenue-summary-icon {
+  background: #eaf3ff;
+  color: #3b82f6;
+}
+
+.operation-manager-dashboard .revenue-summary-card:nth-child(2) .revenue-summary-icon {
+  background: #f4e8ff;
+  color: #a855f7;
+}
+
+.operation-manager-dashboard .revenue-summary-card:nth-child(3) .revenue-summary-icon {
+  background: #eef2f7;
+  color: #64748b;
+}
+
+.operation-manager-dashboard .revenue-summary-card:nth-child(4) .revenue-summary-icon {
+  background: #eafbf1;
+  color: #22c55e;
+}
+
 .operation-manager-dashboard .revenue-summary-icon-button:hover .revenue-summary-icon,
 .operation-manager-dashboard .revenue-summary-icon-button:focus-visible .revenue-summary-icon {
   transform: translateY(-1px);
@@ -19510,13 +19592,13 @@ tbody tr:hover {
 }
 
 .operation-manager-dashboard .revenue-summary-label {
-  font-size: 0.88rem;
+  font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: #111827;
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
-  line-height: 1.2 !important;
+  line-height: 1.25 !important;
 }
 
 .operation-manager-dashboard .revenue-summary-value-row {
@@ -19525,10 +19607,10 @@ tbody tr:hover {
 }
 
 .operation-manager-dashboard .revenue-summary-value {
-  font-size: 1.65rem;
-  font-weight: 800;
-  color: #0f172a;
-  letter-spacing: -0.03em;
+  font-size: clamp(1.75rem, 2.6vw, 2rem);
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.04em;
 }
 
 .revenue-summary-card-divider {
@@ -19567,7 +19649,7 @@ tbody tr:hover {
 }
 
 .revenue-summary-trend-label {
-  font-size: 0.78rem;
+  font-size: 14px;
   color: #64748b;
   font-weight: 500;
 }
@@ -19611,10 +19693,11 @@ tbody tr:hover {
 }
 
 .operation-manager-dashboard .revenue-comparison-header h3 {
-  color: #0f172a;
-  font-size: 1.05rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .operation-manager-dashboard .revenue-comparison-subtitle,
@@ -19677,7 +19760,10 @@ tbody tr:hover {
 }
 
 .operation-manager-dashboard .attendance-header-title {
-  color: #1d4ed8;
+  color: #111827;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .operation-manager-dashboard .attendance-bar.attendance {
@@ -19700,9 +19786,11 @@ tbody tr:hover {
 
 .operation-manager-dashboard .business-topbar h2 {
   margin: 0 0 4px 0;
-  color: #0f172a;
-  font-size: clamp(1.65rem, 2.15vw, 2.1rem);
+  color: #111827;
+  font-size: clamp(1.9rem, 3vw, 2.25rem);
+  font-weight: 700;
   letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
 @media (min-width: 768px) and (max-width: 1024px) {

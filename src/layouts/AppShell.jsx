@@ -51,6 +51,7 @@ export function AppShell({
   const isOperationManagerDashboard = location.pathname === '/dashboard/operation-manager'
   const isBusinessOwnerDashboard = location.pathname === '/dashboard/business-owner'
   const isPremiumDashboard = isBusinessOwnerDashboard || isOperationManagerDashboard
+  const isOperationManagerShell = isOperationManagerDashboard
   const isFacultyDashboard = location.pathname === '/dashboard/faculty'
   const isFlatMainArea =
     isOperationManagerDashboard ||
@@ -132,7 +133,7 @@ export function AppShell({
       <div
         className={`app-shell has-fixed-sidebar ${isStudentPage ? 'is-student-page' : ''} ${
           isPremiumDashboard ? 'business-owner-shell' : ''
-        }`.trim()}
+        } ${isOperationManagerShell ? 'operation-manager-shell' : ''}`.trim()}
       >
         <div
           className={`sidebar-backdrop ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
