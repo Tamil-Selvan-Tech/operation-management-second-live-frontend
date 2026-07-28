@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Check, Clock3, Eye, Layers3, Mail, MoreVertical, PencilLine, Phone, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
-import { OperationManagerHeader } from '../components/OperationManagerHeader'
+import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -14,6 +14,7 @@ import {
   normalizeFacultyList,
   updateFacultyRecord,
 } from '../services/facultyService'
+import { roleDashboards } from '../data/authData'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
 import { buildFacultyCourseCatalogPath, getFacultyCourseIds } from '../lib/facultyFlow'
@@ -967,7 +968,7 @@ export function FacultyManagementPage() {
   const isBusinessOwner = role === 'business-owner'
   const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
   const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
-  const headerSummary = ''
+  const headerSummary = isBusinessOwner ? '' : roleDashboards['operation-manager'].summary
   const headerInitials = isBusinessOwner ? 'BW' : 'OM'
   const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
@@ -1541,16 +1542,17 @@ export function FacultyManagementPage() {
 
   return (
     <section className="faculty-management-page">
-      <OperationManagerHeader
-        className="operation-manager-header-plain"
-        eyebrow={headerEyebrow}
-        title={headerTitle}
-        summary={headerSummary}
-        initials={headerInitials}
-        profileTitle={headerProfileTitle}
-        email={headerEmail}
-        onOpenMenu={openMenu}
-      />
+      <div className={isBusinessOwner ? 'business-owner-dashboard' : 'operation-manager-dashboard'}>
+        <OperationManagerWorkspaceHeader
+          eyebrow={headerEyebrow}
+          title={headerTitle}
+          summary={headerSummary}
+          initials={headerInitials}
+          profileTitle={headerProfileTitle}
+          email={headerEmail}
+          onOpenMenu={openMenu}
+        />
+      </div>
 
       <article className="faculty-management-hero">
         <div className="faculty-management-hero-top">

@@ -18,9 +18,10 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
-import { OperationManagerHeader } from '../components/OperationManagerHeader'
+import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
+import { roleDashboards } from '../data/authData'
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -800,7 +801,7 @@ export function StudentManagementPage() {
   const isBusinessOwner = role === 'business-owner'
   const headerTitle = isBusinessOwner ? 'Business Owner Dashboard' : 'Operation Manager Dashboard'
   const headerEyebrow = isBusinessOwner ? 'Business Owner' : 'Operation Manager'
-  const headerSummary = ''
+  const headerSummary = isBusinessOwner ? '' : roleDashboards['operation-manager'].summary
   const headerInitials = isBusinessOwner ? 'BW' : 'OM'
   const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
@@ -1656,16 +1657,17 @@ export function StudentManagementPage() {
 
   return (
     <section className="student-management-page">
-      <OperationManagerHeader
-        className="operation-manager-header-plain"
-        eyebrow={headerEyebrow}
-        title={headerTitle}
-        summary={headerSummary}
-        initials={headerInitials}
-        profileTitle={headerProfileTitle}
-        email={headerEmail}
-        onOpenMenu={openMenu}
-      />
+      <div className={isBusinessOwner ? 'business-owner-dashboard' : 'operation-manager-dashboard'}>
+        <OperationManagerWorkspaceHeader
+          eyebrow={headerEyebrow}
+          title={headerTitle}
+          summary={headerSummary}
+          initials={headerInitials}
+          profileTitle={headerProfileTitle}
+          email={headerEmail}
+          onOpenMenu={openMenu}
+        />
+      </div>
 
       <article className="student-management-hero">
         <div className="student-management-heading">

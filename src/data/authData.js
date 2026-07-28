@@ -18,7 +18,7 @@ export const roleDashboards = {
   },
   'operation-manager': {
     title: 'Operation Manager Dashboard',
-    summary: 'Operations oversight, approvals, and team health.',
+    summary: "Welcome back! Here's what's happening with your business today.",
     accent: 'Amber',
     color: '#f59e0b',
     cards: ['Approvals', 'Team queue', 'Daily KPIs'],

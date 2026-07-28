@@ -6176,7 +6176,7 @@ tbody tr:hover {
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  padding: 12px 6px 0;
+  padding: 12px 0 0;
 }
 
 .operation-manager-dashboard .dashboard-layout.operation-manager-hero-layout {
@@ -18948,8 +18948,8 @@ tbody tr:hover {
 .business-topbar.is-business-owner-header::after {
   content: '';
   position: absolute;
-  left: 12px;
-  right: 0;
+  left: -20px;
+  right: -20px;
   bottom: 0;
   height: 1px;
   background: rgba(15, 23, 42, 0.08);
@@ -19641,16 +19641,17 @@ tbody tr:hover {
 .operation-manager-dashboard .business-topbar::after {
   content: '';
   position: absolute;
-  left: 12px;
-  right: 0;
+  left: -20px;
+  right: -20px;
   bottom: 0;
   height: 1px;
   background: rgba(15, 23, 42, 0.08);
 }
 
 .operation-manager-dashboard .business-topbar-copy {
-  padding-left: 20px;
+  padding-left: 0;
   margin: 0;
+  margin-left: -12px;
   margin-top: 8px;
   padding-bottom: 0;
   border-bottom: none;
