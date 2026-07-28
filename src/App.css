@@ -11020,26 +11020,49 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 12px 2px 0;
+  gap: 14px 16px;
+  padding: 16px 12px 8px;
+  border-top: 1px solid #eef2f7;
+  background: #ffffff;
   flex-wrap: wrap;
 }
 
 .batch-student-table-summary {
   display: grid;
-  gap: 2px;
+  gap: 4px;
   color: #64748b;
 }
 
 .batch-student-table-summary strong {
-  color: #0f172a;
-  font-size: 0.95rem;
-  font-weight: 800;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .batch-student-table-summary span {
   font-size: 0.82rem;
   font-weight: 600;
+}
+
+.batch-student-page-size {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid #d8e6f8;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.9rem;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.batch-student-page-size:disabled {
+  opacity: 1;
+  cursor: default;
 }
 
 .batch-student-pagination {
@@ -11054,36 +11077,39 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
   border: 1px solid #d8e6f8;
   background: #ffffff;
-  color: #475569;
-  font-size: 0.84rem;
+  color: #2456d3;
+  font-size: 0.9rem;
   font-weight: 700;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
 }
 
 .batch-student-pagination-page {
-  min-width: 34px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 10px;
-  border: 1px solid transparent;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 0;
   background: #f6f9ff;
-  color: #475569;
-  font-size: 0.88rem;
+  color: #334155;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
 .batch-student-pagination-page.active {
   background: #185cd9;
-  border-color: #185cd9;
   color: #ffffff;
+  box-shadow: 0 8px 16px rgba(15, 123, 218, 0.24);
 }
 
 .batch-student-pagination-dots {
   color: #94a3b8;
+  min-width: 18px;
+  text-align: center;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -11147,11 +11173,20 @@ tbody tr:hover {
   .batch-student-table-footer {
     flex-direction: column;
     align-items: flex-start;
+    padding: 14px 10px 8px;
   }
 
   .batch-student-pagination {
     width: 100%;
     justify-content: flex-start;
+  }
+
+  .batch-student-page-size,
+  .batch-student-pagination-link,
+  .batch-student-pagination-page {
+    min-height: 36px;
+    height: 36px;
+    border-radius: 11px;
   }
 }
 
@@ -13075,6 +13110,110 @@ tbody tr:hover {
   margin-top: 4px;
   color: var(--muted);
   font-size: 12px;
+}
+
+@media (max-width: 1140px) and (min-width: 641px) {
+  .student-management-page {
+    gap: 12px;
+  }
+
+  .student-management-hero {
+    padding: 4px 12px 10px;
+    gap: 14px;
+  }
+
+  .student-management-heading {
+    gap: 8px;
+  }
+
+  .student-management-heading-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+
+  .student-management-heading-icon svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .student-management-heading h1 {
+    font-size: 1rem;
+  }
+
+  .student-management-actions {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .student-management-search {
+    flex: 1 1 300px;
+    min-width: 220px;
+  }
+
+  .student-management-search .search-bar {
+    height: 40px;
+  }
+
+  .student-management-search input,
+  .student-management-search .search-bar-button {
+    height: 40px;
+    min-height: 40px;
+  }
+
+  .student-management-stat {
+    min-width: 142px;
+    padding: 7px 12px;
+    border-radius: 12px;
+  }
+
+  .student-management-stat span {
+    font-size: 11px;
+  }
+
+  .student-management-stat strong {
+    font-size: 1.25rem;
+  }
+
+  .student-add-button {
+    min-height: 40px;
+    padding: 0 14px;
+  }
+
+  .student-list-card {
+    gap: 12px;
+  }
+
+  .student-list-header {
+    gap: 8px;
+  }
+
+  .student-latest-chip {
+    padding: 7px 10px;
+    font-size: 12px;
+  }
+
+  .student-table-wrap {
+    border-radius: 14px;
+  }
+
+  .student-table {
+    min-width: 1080px;
+  }
+
+  .student-table thead th,
+  .student-table tbody td {
+    padding: 8px 8px;
+    font-size: 13px;
+  }
+
+  .student-table tbody td strong {
+    font-size: 13px;
+  }
+
+  .student-table tbody td small {
+    font-size: 11px;
+  }
 }
 
 .student-empty-state {
