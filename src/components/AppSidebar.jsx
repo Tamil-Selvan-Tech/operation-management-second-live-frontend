@@ -195,7 +195,7 @@ export function AppSidebar({
             onClick={() => setIsLogoutConfirmOpen(true)}
             aria-label="Logout"
           >
-            <LogOut size={18} strokeWidth={2} focusable="false" />
+            <LogOut size={22} strokeWidth={2} focusable="false" />
           </button>
         </div>
       </div>
