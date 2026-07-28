@@ -1,0 +1,899 @@
+:root {
+  --ds-primary: #4f8ef7;
+  --ds-primary-hover: #3b82f6;
+  --ds-primary-active: #2563eb;
+  --ds-bg: #f8fafc;
+  --ds-surface: #ffffff;
+  --ds-surface-alt: #fafafa;
+  --ds-border: #e5e7eb;
+  --ds-border-soft: #eceff3;
+  --ds-text: #111827;
+  --ds-heading: #1f2937;
+  --ds-muted: #6b7280;
+  --ds-muted-2: #9ca3af;
+  --ds-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  --ds-shadow-lg: 0 12px 28px rgba(15, 23, 42, 0.08);
+  --ds-radius-lg: 16px;
+  --ds-radius-md: 12px;
+  --ds-radius-sm: 10px;
+}
+
+html {
+  background: var(--ds-bg);
+}
+
+body {
+  color: var(--ds-text);
+  background: var(--ds-bg);
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  border: 0;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--ds-primary);
+  outline-offset: 2px;
+}
+
+.auth-shell,
+.app-shell {
+  background: transparent;
+}
+
+.app-shell {
+  padding: 24px;
+  gap: 24px;
+}
+
+.sidebar,
+.main-area,
+.auth-card,
+.panel,
+.panel-card,
+.hero-card,
+.info-card,
+.metric,
+.role-card,
+.summary-card,
+.stats-card,
+.content-card,
+.section-card,
+.table-shell,
+.table-card,
+.course-table-card,
+.faculty-flow-section,
+.faculty-flow-catalog-card,
+.course-modal,
+.student-drawer,
+.logout-modal,
+.notification-dropdown,
+.reset-password-shell,
+.login-shell.login-page,
+.forgot-page {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow);
+}
+
+.sidebar {
+  padding: 20px;
+  gap: 20px;
+}
+
+.main-area {
+  min-width: 0;
+}
+
+.topbar,
+.business-topbar,
+.page-header,
+.section-header,
+.faculty-course-catalog-header,
+.courses-topbar,
+.operation-manager-header-plain {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow);
+}
+
+.topbar,
+.business-topbar,
+.page-header,
+.section-header,
+.faculty-course-catalog-header,
+.courses-topbar {
+  padding: 20px 24px;
+}
+
+.topbar h1,
+.business-topbar h2,
+.page-header h1,
+.section-header h2,
+.faculty-course-catalog-header h2,
+.app-loading-copy h2,
+.panel h2,
+.auth-copy h2,
+.reset-password-copy h2,
+.login-copy h2 {
+  color: var(--ds-heading);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.eyebrow,
+.section-kicker,
+.card-kicker,
+.menu-section-label,
+.faculty-course-catalog-kicker,
+.forgot-kicker {
+  color: var(--ds-primary-active);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.breadcrumbs {
+  margin: 0 24px 16px;
+  padding: 10px 14px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  color: var(--ds-muted);
+  box-shadow: var(--ds-shadow);
+}
+
+.breadcrumb-separator {
+  color: var(--ds-muted-2);
+}
+
+.mobile-menu-button,
+.icon-chip,
+.profile-chip,
+.notification-chip,
+.sidebar-profile-logout-icon,
+.mobile-bottom-nav-item,
+.sidebar-menu-item,
+.sidebar-close-button,
+.course-modal-close,
+.student-drawer-close,
+.logout-modal-close,
+.password-toggle {
+  border-radius: var(--ds-radius-sm);
+}
+
+.button,
+.button-solid,
+.button-ghost,
+.form button,
+.button-row button,
+.pagination-link,
+.pagination-page,
+.pagination-bar-button,
+.pagination-bar-page,
+.search-bar-button,
+.course-filter-chip,
+.faculty-flow-link-button,
+.faculty-flow-catalog-view-button,
+.notification-mark-read,
+.notification-dropdown-footer,
+.mobile-bottom-nav-item,
+.sidebar-menu-item,
+.sidebar-profile-logout-icon,
+.password-toggle {
+  min-height: 40px;
+  font-weight: 500;
+}
+
+.button,
+.button-solid,
+.form button:not(.button-ghost),
+.pagination-bar-button,
+.search-bar-button,
+.faculty-flow-catalog-view-button,
+.course-filter-chip.active,
+.menu button.active,
+.mobile-bottom-nav-item.is-active {
+  background: var(--ds-primary);
+  color: #ffffff;
+}
+
+.button:hover,
+.button-solid:hover,
+.form button:not(.button-ghost):hover,
+.pagination-bar-button:hover,
+.search-bar-button:hover,
+.faculty-flow-catalog-view-button:hover,
+.course-filter-chip.active:hover,
+.menu button.active:hover,
+.mobile-bottom-nav-item.is-active:hover {
+  background: var(--ds-primary-hover);
+  color: #ffffff;
+}
+
+.button:active,
+.button-solid:active,
+.form button:not(.button-ghost):active,
+.pagination-bar-button:active,
+.search-bar-button:active {
+  background: var(--ds-primary-active);
+}
+
+.button,
+.button-solid,
+.form button:not(.button-ghost),
+.pagination-bar-button,
+.search-bar-button {
+  border-radius: var(--ds-radius-sm);
+}
+
+.button-ghost,
+.pagination-link,
+.pagination-page,
+.pagination-bar-page,
+.search-bar,
+.search-bar input,
+.course-filter-chip,
+.menu button,
+.mobile-bottom-nav-item,
+.sidebar-menu-item,
+.profile-chip,
+.notification-chip,
+.notification-mark-read,
+.notification-dropdown-footer,
+.faculty-flow-link-button,
+.faculty-flow-catalog-view-button,
+.sidebar-profile-logout-icon,
+.password-toggle {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-heading);
+}
+
+.button-ghost:hover,
+.pagination-link:hover,
+.pagination-page:hover,
+.pagination-bar-page:hover,
+.search-bar-button:hover,
+.menu button:hover,
+.mobile-bottom-nav-item:hover,
+.sidebar-menu-item:hover,
+.profile-chip:hover,
+.notification-chip:hover,
+.faculty-flow-link-button:hover,
+.sidebar-profile-logout-icon:hover,
+.password-toggle:hover {
+  background: #f9fafb;
+  color: var(--ds-text);
+}
+
+.form,
+.login-form,
+.forgot-form,
+.reset-password-form,
+.course-form-grid,
+.student-form-grid,
+.faculty-modal-grid {
+  gap: 16px;
+}
+
+.form-field,
+.course-field,
+.student-field {
+  display: grid;
+  gap: 6px;
+}
+
+.form-field > span,
+.course-field > span,
+.student-field > span,
+.login-page .form-field > span {
+  color: var(--ds-heading);
+  font-weight: 600;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea,
+.search-bar,
+.faculty-course-catalog-search,
+.dashboard-search,
+.student-drawer-inline-control,
+.course-input-with-suffix input,
+.course-input-with-suffix select,
+.course-input-with-suffix textarea {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-text);
+  min-height: 40px;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea,
+.search-bar input,
+.dashboard-search input,
+.faculty-course-catalog-search input,
+.student-drawer-inline-control {
+  padding: 0.75rem 0.95rem;
+}
+
+input::placeholder,
+textarea::placeholder,
+.search-bar input::placeholder,
+.dashboard-search input::placeholder,
+.faculty-course-catalog-search input::placeholder {
+  color: var(--ds-muted-2);
+}
+
+input:not([type='checkbox']):not([type='radio']):focus,
+select:focus,
+textarea:focus,
+.search-bar:focus-within,
+.dashboard-search:focus-within,
+.faculty-course-catalog-search:focus-within {
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 4px rgba(79, 142, 247, 0.12);
+}
+
+table,
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-md);
+  overflow: hidden;
+  box-shadow: var(--ds-shadow);
+}
+
+thead th {
+  background: var(--ds-surface-alt);
+  color: var(--ds-heading);
+  border-bottom: 1px solid var(--ds-border);
+  font-weight: 600;
+}
+
+tbody td,
+tbody th {
+  border-bottom: 1px solid var(--ds-border);
+}
+
+tbody tr:hover {
+  background: #f9fafb;
+}
+
+.badge,
+.status-badge,
+.status-pill,
+.pill,
+.chip,
+[class*='status-pill'] {
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.status-success,
+.badge-success,
+.pill-success,
+.status-pill.active,
+.status-pill.completed,
+.status-pill.success {
+  background: #ecfdf5;
+  color: #16a34a;
+}
+
+.status-warning,
+.badge-warning,
+.pill-warning,
+.status-pill.pending {
+  background: #fefce8;
+  color: #ca8a04;
+}
+
+.status-error,
+.badge-danger,
+.pill-danger,
+.status-pill.inactive,
+.status-pill.failed,
+.status-pill.rejected {
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.status-info,
+.badge-info,
+.pill-info {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.app-loading-state {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  gap: 18px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(79, 142, 247, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.08), transparent 22%),
+    var(--ds-bg);
+}
+
+.app-loading-copy {
+  display: grid;
+  gap: 6px;
+  text-align: center;
+  max-width: 440px;
+}
+
+.app-loading-copy h2 {
+  margin: 0;
+  font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
+.app-loading-copy p,
+.panel p,
+.auth-copy p,
+.reset-password-copy p,
+.login-copy p,
+.faculty-course-catalog-header-copy p,
+.faculty-flow-empty p {
+  color: var(--ds-muted);
+}
+
+.app-loading-hero {
+  position: relative;
+  width: 128px;
+  height: 128px;
+}
+
+.app-loading-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 2px solid rgba(79, 142, 247, 0.18);
+  box-shadow: inset 0 0 0 10px rgba(255, 255, 255, 0.65);
+}
+
+.app-loading-orb {
+  position: absolute;
+  inset: 16px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  color: var(--ds-primary);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+.app-loading-bars {
+  display: flex;
+  gap: 10px;
+}
+
+.app-loading-bars span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(79, 142, 247, 0.35);
+}
+
+.panel-center,
+.faculty-flow-empty,
+.logout-modal,
+.course-modal,
+.student-drawer,
+.reset-password-state {
+  text-align: center;
+}
+
+.panel-center,
+.faculty-flow-empty {
+  display: grid;
+  gap: 10px;
+  padding: 24px;
+}
+
+.button-row,
+.reset-password-actions,
+.logout-modal-actions,
+.course-form-actions,
+.pagination-bar,
+.faculty-course-pagination,
+.login-footer-links,
+.notification-dropdown-head,
+.notification-dropdown-footer {
+  gap: 12px;
+}
+
+.button-row,
+.reset-password-actions,
+.logout-modal-actions,
+.course-form-actions,
+.login-footer-links,
+.faculty-course-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.pagination-bar,
+.pagination-link,
+.pagination-page,
+.pagination-bar-button,
+.pagination-bar-page,
+.faculty-course-pagination {
+  justify-content: center;
+}
+
+.pagination-bar-summary,
+.course-count-pill,
+.detail-badge,
+.notification-mark-read {
+  color: var(--ds-muted);
+}
+
+.notification-menu,
+.profile-chip,
+.icon-chip {
+  position: relative;
+}
+
+.notification-dropdown {
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+.sidebar {
+  position: sticky;
+  top: 24px;
+  height: calc(100vh - 48px);
+}
+
+.sidebar-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  color: #374151;
+}
+
+.sidebar-menu-icon {
+  color: #6b7280;
+}
+
+.sidebar-menu-item.is-active {
+  background: #eef4ff;
+  color: var(--ds-primary-active);
+  border-color: rgba(79, 142, 247, 0.16);
+}
+
+.sidebar-menu-item.is-active .sidebar-menu-icon {
+  color: var(--ds-primary-active);
+}
+
+.sidebar-profile-card,
+.profile-chip,
+.notification-chip,
+.icon-chip {
+  border-radius: var(--ds-radius-md);
+}
+
+.profile-avatar,
+.sidebar-profile-avatar,
+.student-dashboard-avatar,
+.avatar {
+  background: linear-gradient(135deg, var(--ds-primary), var(--ds-primary-hover));
+  color: #ffffff;
+}
+
+.dashboard-search,
+.search-bar,
+.faculty-course-catalog-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.search-bar input {
+  border: 0;
+  min-height: 38px;
+  flex: 1 1 auto;
+}
+
+.search-bar-button {
+  min-width: 40px;
+  padding: 0 12px;
+}
+
+.course-filter-chip {
+  padding: 0 14px;
+  border-radius: 999px;
+}
+
+.mobile-bottom-nav {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--ds-border);
+  border-radius: 18px;
+  box-shadow: var(--ds-shadow-lg);
+}
+
+.mobile-bottom-nav-item {
+  color: #6b7280;
+}
+
+.mobile-bottom-nav-item.is-active {
+  background: #eef4ff;
+  color: var(--ds-primary-active);
+}
+
+.mobile-bottom-nav-item svg {
+  color: inherit;
+}
+
+.mobile-menu-button,
+.sidebar-close-button {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-heading);
+}
+
+.mobile-menu-button:hover,
+.sidebar-close-button:hover {
+  background: #f9fafb;
+}
+
+.logout-modal,
+.course-modal,
+.student-drawer {
+  width: min(100%, 720px);
+  padding: 24px;
+}
+
+.course-modal,
+.student-drawer,
+.logout-modal {
+  background: var(--ds-surface);
+}
+
+.course-modal-backdrop,
+.student-drawer-backdrop,
+.logout-modal-backdrop,
+.sidebar-backdrop {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+.app-shell .content {
+  padding: 0;
+}
+
+.operation-manager-dashboard,
+.business-owner-dashboard,
+.student-dashboard-page,
+.dashboard-grid,
+.student-dashboard-grid,
+.student-dashboard-hero {
+  color: var(--ds-text);
+}
+
+.operation-manager-dashboard,
+.business-owner-dashboard {
+  background: transparent;
+}
+
+.revenue-summary-card,
+.revenue-comparison-card,
+.attendance-card,
+.course-card,
+.faculty-flow-catalog-card,
+.faculty-flow-section,
+.student-drawer-table-shell,
+.course-drawer-table-shell {
+  border-radius: var(--ds-radius-lg);
+  border: 1px solid var(--ds-border-soft);
+  box-shadow: var(--ds-shadow);
+  background: var(--ds-surface);
+}
+
+.revenue-summary-card:hover,
+.faculty-flow-catalog-card:hover {
+  box-shadow: var(--ds-shadow-lg);
+  transform: translateY(-2px);
+}
+
+.faculty-flow-status-pill,
+.detail-badge,
+.course-count-pill,
+.faculty-flow-link-button,
+.pagination-bar-summary {
+  font-weight: 600;
+}
+
+.operation-manager-dashboard .business-topbar,
+.business-owner-dashboard .business-topbar {
+  background: var(--ds-surface) !important;
+  border: 1px solid var(--ds-border) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  box-shadow: var(--ds-shadow) !important;
+  padding: 20px 24px !important;
+}
+
+.operation-manager-dashboard .business-topbar::after,
+.business-owner-dashboard .business-topbar::after {
+  display: none !important;
+}
+
+.operation-manager-dashboard .business-topbar-copy,
+.business-owner-dashboard .business-topbar-copy {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.operation-manager-dashboard .business-topbar-copy h2,
+.business-owner-dashboard .business-topbar-copy h2,
+.operation-manager-dashboard .business-topbar h2,
+.business-owner-dashboard .business-topbar h2 {
+  color: var(--ds-heading) !important;
+  font-weight: 700 !important;
+}
+
+.operation-manager-dashboard .business-topbar-copy p:last-child,
+.business-owner-dashboard .business-topbar-copy p:last-child {
+  color: var(--ds-muted) !important;
+}
+
+.operation-manager-dashboard .revenue-summary-card,
+.business-owner-dashboard .revenue-summary-card,
+.operation-manager-dashboard .revenue-comparison-card,
+.business-owner-dashboard .revenue-comparison-card,
+.operation-manager-dashboard .attendance-card,
+.business-owner-dashboard .attendance-card {
+  background: var(--ds-surface) !important;
+  border: 1px solid var(--ds-border-soft) !important;
+  border-radius: var(--ds-radius-lg) !important;
+  box-shadow: var(--ds-shadow) !important;
+}
+
+.operation-manager-dashboard .revenue-summary-card:hover,
+.business-owner-dashboard .revenue-summary-card:hover {
+  box-shadow: var(--ds-shadow-lg) !important;
+}
+
+.operation-manager-dashboard .revenue-summary-label,
+.operation-manager-dashboard .revenue-summary-value,
+.business-owner-dashboard .revenue-summary-label,
+.business-owner-dashboard .revenue-summary-value,
+.operation-manager-dashboard .revenue-comparison-header h3,
+.business-owner-dashboard .revenue-comparison-header h3,
+.operation-manager-dashboard .attendance-header-title,
+.business-owner-dashboard .attendance-header-title {
+  color: var(--ds-heading) !important;
+}
+
+.operation-manager-dashboard .revenue-summary-trend-label,
+.operation-manager-dashboard .revenue-comparison-subtitle,
+.operation-manager-dashboard .revenue-weekly-subtitle,
+.business-owner-dashboard .revenue-summary-trend-label,
+.business-owner-dashboard .revenue-comparison-subtitle,
+.business-owner-dashboard .revenue-weekly-subtitle,
+.operation-manager-dashboard .attendance-legend-label,
+.business-owner-dashboard .attendance-legend-label {
+  color: var(--ds-muted) !important;
+}
+
+.is-business-owner-sidebar,
+.operation-manager-dashboard .sidebar,
+.business-owner-dashboard .sidebar {
+  background: var(--ds-surface) !important;
+  border-color: var(--ds-border) !important;
+}
+
+.is-business-owner-sidebar .sidebar-menu-item,
+.operation-manager-dashboard .sidebar-menu-item,
+.business-owner-dashboard .sidebar-menu-item {
+  color: #374151 !important;
+}
+
+.is-business-owner-sidebar .sidebar-menu-item:hover,
+.operation-manager-dashboard .sidebar-menu-item:hover,
+.business-owner-dashboard .sidebar-menu-item:hover {
+  background: #f3f4f6 !important;
+  color: var(--ds-text) !important;
+}
+
+.is-business-owner-sidebar .sidebar-menu-item.is-active,
+.operation-manager-dashboard .sidebar-menu-item.is-active,
+.business-owner-dashboard .sidebar-menu-item.is-active {
+  background: #eef4ff !important;
+  color: var(--ds-primary-active) !important;
+}
+
+.is-business-owner-sidebar .sidebar-menu-icon,
+.operation-manager-dashboard .sidebar-menu-icon,
+.business-owner-dashboard .sidebar-menu-icon {
+  color: #6b7280 !important;
+}
+
+.is-business-owner-sidebar .sidebar-menu-item.is-active .sidebar-menu-icon,
+.operation-manager-dashboard .sidebar-menu-item.is-active .sidebar-menu-icon,
+.business-owner-dashboard .sidebar-menu-item.is-active .sidebar-menu-icon {
+  color: var(--ds-primary-active) !important;
+}
+
+.is-business-owner-sidebar .sidebar-profile-card,
+.operation-manager-dashboard .sidebar-profile-card,
+.business-owner-dashboard .sidebar-profile-card {
+  background: var(--ds-surface) !important;
+  border: 1px solid var(--ds-border) !important;
+  border-radius: var(--ds-radius-md) !important;
+  box-shadow: var(--ds-shadow) !important;
+}
+
+.is-business-owner-sidebar .sidebar-profile-logout-icon,
+.operation-manager-dashboard .sidebar-profile-logout-icon,
+.business-owner-dashboard .sidebar-profile-logout-icon {
+  color: #6b7280 !important;
+}
+
+@media (max-width: 1200px) {
+  .app-shell {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .sidebar {
+    top: 16px;
+    height: calc(100vh - 32px);
+  }
+}
+
+@media (max-width: 1024px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding: 12px;
+  }
+
+  .topbar,
+  .business-topbar,
+  .page-header,
+  .section-header,
+  .faculty-course-catalog-header,
+  .courses-topbar {
+    padding: 16px;
+  }
+}

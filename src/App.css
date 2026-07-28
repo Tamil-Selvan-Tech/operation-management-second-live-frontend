@@ -1062,6 +1062,10 @@ tbody tr:hover {
   padding: 0;
 }
 
+.main-area.main-area-flat.faculty-flow-white-main {
+  background: #ffffff;
+}
+
 .main-area.main-area-flat.business-owner-main {
   padding-left: 0;
   padding-right: 0;
@@ -8610,6 +8614,7 @@ tbody tr:hover {
 .faculty-management-page {
   display: grid;
   gap: 16px;
+  background: #ffffff;
 }
 
 .student-management-hero {
@@ -9549,6 +9554,7 @@ tbody tr:hover {
 .faculty-flow-page {
   display: grid;
   gap: 16px;
+  background: #ffffff;
 }
 
 .faculty-flow-toolbar {
@@ -9581,7 +9587,7 @@ tbody tr:hover {
   padding: 20px 22px;
   border-radius: 18px;
   border: 1px solid #e5edf7;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  background: #ffffff;
   box-shadow: var(--shadow);
 }
 
@@ -9716,7 +9722,7 @@ tbody tr:hover {
   padding: 16px;
   border-radius: 18px;
   border: 1px solid #dbe8f7;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  background: #ffffff;
   box-shadow: var(--shadow);
   text-align: left;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;

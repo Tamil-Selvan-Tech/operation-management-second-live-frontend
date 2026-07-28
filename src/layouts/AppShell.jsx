@@ -39,7 +39,10 @@ export function AppShell({
     location.pathname === '/dashboard/operation-manager/student-management'
   const isFacultyManagementWorkspace =
     location.pathname === '/faculty-management' ||
-    location.pathname === '/dashboard/operation-manager/faculty-management'
+    location.pathname.startsWith('/faculty-management/') ||
+    location.pathname === '/dashboard/operation-manager/faculty-management' ||
+    location.pathname.startsWith('/dashboard/operation-manager/faculty-management/')
+  const isFacultyFlowWhiteWorkspace = isFacultyManagementWorkspace
   const isNotificationsWorkspace = location.pathname === '/notifications'
   const useDashboardShell = isDashboardWorkspace && !isBusinessOwnerWorkspace && !isOperationManagerWorkspace
   const isPremiumSidebarWorkspace =
@@ -183,7 +186,9 @@ export function AppShell({
         <div
           className={`main-area ${showChrome ? '' : 'main-area-compact'} ${
             isFlatMainArea ? 'main-area-flat' : ''
-          } ${isPremiumDashboard ? 'business-owner-main' : ''}`}
+          } ${isPremiumDashboard ? 'business-owner-main' : ''} ${
+            isFacultyFlowWhiteWorkspace ? 'faculty-flow-white-main' : ''
+          }`}
         >
           {showChrome ? (
             <>
