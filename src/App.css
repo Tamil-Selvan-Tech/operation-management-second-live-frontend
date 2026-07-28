@@ -1082,7 +1082,7 @@ tbody tr:hover {
   gap: 8px;
   background: #ffffff;
   border: 0;
-  border-right: 1px solid #d4dbe6;
+  border-right: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
@@ -18760,7 +18760,7 @@ tbody tr:hover {
   right: 0;
   bottom: 0;
   height: 1px;
-  background: #e8edf5;
+  background: rgba(15, 23, 42, 0.08);
 }
 
 .is-business-owner-header .business-topbar-copy {
@@ -18804,6 +18804,7 @@ tbody tr:hover {
   gap: 14px;
   margin: 0;
   padding-right: 0;
+  transform: translateX(-8px);
 }
 
 .business-header-search {
@@ -19449,7 +19450,7 @@ tbody tr:hover {
   right: 0;
   bottom: 0;
   height: 1px;
-  background: #e8edf5;
+  background: rgba(15, 23, 42, 0.08);
 }
 
 .operation-manager-dashboard .business-topbar-copy {
@@ -19499,6 +19500,7 @@ tbody tr:hover {
   justify-content: flex-end;
   flex: 0 1 auto;
   flex-wrap: wrap;
+  transform: translateX(-8px);
 }
 
 .operation-manager-dashboard .notification-menu {
