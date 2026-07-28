@@ -17658,6 +17658,10 @@ tbody tr:hover {
   gap: 24px;
 }
 
+.app-shell.business-owner-shell {
+  grid-template-columns: 284px minmax(0, 1fr);
+}
+
 .sidebar {
   padding: 10px 10px 12px;
   gap: 8px;
@@ -19175,7 +19179,7 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .sidebar-head {
-  padding: 8px 20px 16px;
+  padding: 8px 4px 16px;
 }
 
 .is-business-owner-sidebar .sidebar-divider {
@@ -19183,7 +19187,7 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .menu-section {
-  padding: 8px 12px;
+  padding: 8px 2px;
 }
 
 .is-business-owner-sidebar .menu-section-label {
@@ -19193,7 +19197,7 @@ tbody tr:hover {
   letter-spacing: 0.01em;
   text-transform: none;
   margin-bottom: 8px;
-  padding-left: 8px;
+  padding-left: 0;
 }
 
 .is-business-owner-sidebar .sidebar-menu-item {
@@ -19201,7 +19205,7 @@ tbody tr:hover {
   align-items: center;
   gap: 12px;
   border-radius: 10px;
-  padding: 2px 12px;
+  padding: 2px 4px;
   color: #475569;
   font-weight: 500;
   font-size: 0.88rem;
@@ -19239,7 +19243,7 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .sidebar-footer {
-  padding: 14px 16px;
+  padding: 14px 6px;
   border-top: none;
 }
 
@@ -19247,12 +19251,12 @@ tbody tr:hover {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
-  padding: 10px 12px 10px 6px;
+  padding: 10px 4px 10px 6px;
   display: flex;
   align-items: center;
   gap: 6px;
   box-shadow: none;
-  margin-left: -6px;
+  margin-left: -12px;
 }
 
 .is-business-owner-sidebar .sidebar-profile-avatar-wrap {
@@ -19359,7 +19363,7 @@ tbody tr:hover {
 }
 
 .operation-manager-dashboard .business-topbar-copy {
-  padding-left: 12px;
+  padding-left: 20px;
   margin: 0;
   padding-bottom: 0;
   border-bottom: none;
