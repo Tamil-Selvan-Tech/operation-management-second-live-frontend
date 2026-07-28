@@ -1463,7 +1463,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
       </div>
 
       <MemoRevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <MemoRevenueDashboards students={revenueStudents} />
+      <MemoRevenueDashboards students={revenueStudents} reverse={true} />
       <MemoAttendanceComparisonChart />
 
       {isProfileOpen && typeof document !== 'undefined'
