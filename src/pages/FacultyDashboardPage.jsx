@@ -7,7 +7,7 @@ import { roleDashboards } from '../data/authData'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { loadFacultySnapshot, saveFacultySnapshot } from '../lib/facultySnapshot'
 import { loadStudentSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
-import { buildFacultyBatchPath, buildFacultyCoursePath, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
+import { buildFacultyCoursePath, enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
 import { getCurrentFacultyProfile } from '../services/facultyService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
 import { listCourses } from '../services/courseService'
@@ -629,6 +629,16 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     saveFacultySnapshot(activeFaculty)
   }, [activeFaculty])
 
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyRecords),
+    [facultyRecords, students],
+  )
+
+  useEffect(() => {
+    if (backfilledStudents === students) return
+    saveStudentSnapshot(backfilledStudents)
+  }, [backfilledStudents, students])
+
   const profileName = activeFaculty?.facultyName || latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
   const greetingName = getFacultyGreetingName(activeFaculty?.facultyName || latestFaculty?.facultyName)
@@ -648,30 +658,34 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const facultyCourseIds = getFacultyCourseIds(activeFaculty || {})
   const courseScopedStudentCount = useMemo(
     () =>
-      getUniqueStudentCountForFacultyScope(students, {
+      getUniqueStudentCountForFacultyScope(backfilledStudents, {
         facultyName: activeFaculty?.facultyName || latestFaculty?.facultyName || '',
+        facultyId: activeFaculty?.id || latestFaculty?.id || '',
         courseId: activeFaculty?.courseId || facultyCourseIds[0] || '',
         courseName: activeFaculty?.courseName || '',
         batchNames,
+        batchIds: Array.isArray(activeFaculty?.batchEntries) ? activeFaculty.batchEntries.map((entry) => String(entry?.id || '').trim()).filter(Boolean) : [],
       }),
-    [activeFaculty?.courseId, activeFaculty?.courseName, activeFaculty?.facultyName, batchNames, facultyCourseIds, latestFaculty?.facultyName, students],
+    [activeFaculty, latestFaculty, backfilledStudents, facultyCourseIds, batchNames],
   )
   const batchLinkedStudentCount = useMemo(
     () =>
-      getUniqueStudentCountForFacultyRecords(students, {
+      getUniqueStudentCountForFacultyRecords(backfilledStudents, {
         facultyName: activeFaculty?.facultyName || latestFaculty?.facultyName || '',
+        facultyId: activeFaculty?.id || latestFaculty?.id || '',
         batchEntries: activeFaculty?.batchEntries || latestFaculty?.batchEntries || [],
       }),
-    [activeFaculty?.batchEntries, activeFaculty?.facultyName, latestFaculty?.batchEntries, latestFaculty?.facultyName, students],
+    [activeFaculty, latestFaculty, backfilledStudents],
   )
   const matchingStudents = useMemo(
     () =>
-      getMatchingStudents(students, {
+      getMatchingStudents(backfilledStudents, {
         facultyName: activeFaculty?.facultyName || '',
+        facultyId: activeFaculty?.id || latestFaculty?.id || '',
         courseId: activeFaculty?.courseId || facultyCourseIds[0] || '',
         courseName: activeFaculty?.courseName || '',
       }),
-    [activeFaculty?.courseId, activeFaculty?.courseName, activeFaculty?.facultyName, facultyCourseIds, students],
+    [activeFaculty, latestFaculty, facultyCourseIds, backfilledStudents],
   )
   const activeStudentCount = matchingStudents.filter((student) =>
     ['active', 'present', 'ongoing'].includes(String(student?.status || student?.currentStatus || '').trim().toLowerCase()),
@@ -824,6 +838,16 @@ export function FacultyMyBatchesPage() {
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { courses: courseOptions, isLoading: isCoursesLoading } = useFacultyCourses()
   const [selectedBatchContext, setSelectedBatchContext] = useState(null)
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyRecords, courseOptions),
+    [courseOptions, facultyRecords, students],
+  )
+
+  useEffect(() => {
+    if (backfilledStudents === students) return
+    saveStudentSnapshot(backfilledStudents)
+  }, [backfilledStudents, students])
+
   const profileName = latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
   const greetingName = getFacultyGreetingName(latestFaculty?.facultyName)
@@ -887,9 +911,11 @@ export function FacultyMyBatchesPage() {
         const batchTiming = String(batch?.batchTiming || '').trim()
         const { present, absent, studentRecords: batchStudents } = getBatchAttendanceSplit(students, {
           facultyName: displayFaculty?.facultyName || '',
+          facultyId: displayFaculty?.id || '',
           courseId: course.courseId,
           courseName: course.courseName,
           batchName,
+          batchId: batch.id,
         })
         const progress = getBatchProgressValue(present, batchStudents.length)
 
@@ -918,9 +944,11 @@ export function FacultyMyBatchesPage() {
         batches,
         totalStudents: getUniqueStudentCountForFacultyScope(students, {
           facultyName: displayFaculty?.facultyName || '',
+          facultyId: displayFaculty?.id || '',
           courseId: course.courseId,
           courseName: course.courseName,
           batchNames: batches.map((batch) => batch.label),
+          batchIds: batches.map((batch) => batch.id),
         }),
         groupProgress,
       }
@@ -930,13 +958,18 @@ export function FacultyMyBatchesPage() {
   const totalBatchCount = facultyCourseGroups.reduce((sum, group) => sum + group.batches.length, 0)
   const totalStudents = getUniqueStudentCountForFacultyRecords(students, {
     facultyName: displayFaculty?.facultyName || '',
+    facultyId: displayFaculty?.id || '',
     batchEntries: displayFaculty?.batchEntries || [],
   }) || getUniqueStudentCountForFacultyScope(students, {
     facultyName: displayFaculty?.facultyName || '',
+    facultyId: displayFaculty?.id || '',
     courseId: displayFaculty?.courseId || facultyCourseIds[0] || '',
     courseName: displayFaculty?.courseName || '',
     batchNames: Array.isArray(displayFaculty?.batchEntries)
       ? displayFaculty.batchEntries.map((batch) => String(batch?.batchName || '').trim()).filter(Boolean)
+      : [],
+    batchIds: Array.isArray(displayFaculty?.batchEntries)
+      ? displayFaculty.batchEntries.map((batch) => String(batch?.id || '').trim()).filter(Boolean)
       : [],
   })
 

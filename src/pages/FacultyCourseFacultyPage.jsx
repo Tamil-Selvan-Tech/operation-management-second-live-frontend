@@ -15,6 +15,7 @@ import { listStudents } from '../services/studentService'
 import {
   buildFacultyCoursePath,
   buildFacultyCourseCatalogPath,
+  enrichStudentsWithFacultyReferences,
   getFacultyBatchEntriesForCourse,
   getFacultyCourseIds,
   getFacultyCourseName,
@@ -91,6 +92,16 @@ export function FacultyCourseFacultyPage() {
     }
   }, [])
 
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyRecords, courseOptions),
+    [courseOptions, facultyRecords, students],
+  )
+
+  useEffect(() => {
+    if (backfilledStudents === students) return
+    saveStudentSnapshot(backfilledStudents)
+  }, [backfilledStudents, students])
+
   const selectedCourse = useMemo(
     () => courseOptions.find((course) => String(course?.id || '').trim() === String(courseId || '').trim()) || null,
     [courseId, courseOptions],
@@ -106,7 +117,8 @@ export function FacultyCourseFacultyPage() {
         const mergedRecord = mergeFacultyWithSnapshot(record) || record
         const batchEntries = getFacultyBatchEntriesForCourse(mergedRecord, normalizedCourseId, courseOptions)
         const courseName = selectedCourse?.name || getFacultyCourseName(normalizedCourseId, courseOptions) || normalizedCourseId
-        const studentCount = getUniqueStudentCountForFacultyRecords(students, {
+        const studentCount = getUniqueStudentCountForFacultyRecords(backfilledStudents, {
+          facultyId: mergedRecord.id || '',
           facultyName: mergedRecord.facultyName || '',
           batchEntries,
         })
@@ -119,7 +131,7 @@ export function FacultyCourseFacultyPage() {
         }
       })
       .sort((left, right) => String(left.facultyName || '').localeCompare(String(right.facultyName || '')))
-  }, [courseOptions, courseId, facultyRecords, selectedCourse, students])
+  }, [backfilledStudents, courseOptions, courseId, facultyRecords, selectedCourse])
 
   const filteredFaculty = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase()

@@ -11,6 +11,7 @@ import { listFacultyRecords, normalizeFacultyList } from '../services/facultySer
 import { listStudents } from '../services/studentService'
 import {
   buildFacultyCoursePath,
+  enrichStudentsWithFacultyReferences,
   getFacultyBatchEntriesForCourse,
   getFacultyCourses,
   getFacultyTotals,
@@ -84,6 +85,16 @@ export function FacultyDetailsPage() {
     }
   }, [])
 
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyRecords, courseOptions),
+    [courseOptions, facultyRecords, students],
+  )
+
+  useEffect(() => {
+    if (backfilledStudents === students) return
+    saveStudentSnapshot(backfilledStudents)
+  }, [backfilledStudents, students])
+
   const selectedFaculty = useMemo(
     () => mergeFacultyWithSnapshot(facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null),
     [facultyId, facultyRecords],
@@ -97,11 +108,13 @@ export function FacultyDetailsPage() {
       const courseStudents = courseBatches.reduce(
         (sum, batch) =>
           sum +
-          getMatchingStudents(students, {
+          getMatchingStudents(backfilledStudents, {
+            facultyId: selectedFaculty?.id || '',
             facultyName: selectedFaculty?.facultyName || '',
             courseId: course.courseId,
             courseName: course.courseName,
             batchName: batch.batchName,
+            batchId: batch.id,
           }).length,
         0,
       )
@@ -112,7 +125,7 @@ export function FacultyDetailsPage() {
         batchTiming: courseBatches[0]?.batchTiming || '-',
       }
     })
-  }, [courseOptions, selectedFaculty, students])
+  }, [backfilledStudents, courseOptions, selectedFaculty])
   const totals = useMemo(() => getFacultyTotals(selectedFaculty || {}, courseOptions), [courseOptions, selectedFaculty])
   const isActive = String(selectedFaculty?.status || 'Active').toLowerCase() === 'active'
 

@@ -31,7 +31,7 @@ import { listFacultyRecords, normalizeFacultyList } from '../services/facultySer
 import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
 import { normalizeCourseList } from '../services/courseService'
 import { savePendingLoginEmail } from '../lib/session'
-import { getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
+import { enrichStudentsWithFacultyReferences, getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
 import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
@@ -82,6 +82,8 @@ function getTodayValue() {
 
 function createEmptyForm() {
   return {
+    facultyId: '',
+    batchId: '',
     courseId: '',
     studentName: '',
     mobileNumber: '',
@@ -251,10 +253,12 @@ function findCourseForForm(courseOptions, form) {
 }
 
 function findFacultyForForm(facultyOptions, form) {
+  const normalizedFacultyId = String(form.facultyId || '').trim().toLowerCase()
   const normalizedFacultyName = String(form.facultyName || '').trim().toLowerCase()
   const normalizedCourseId = String(form.courseId || '').trim()
 
   return (
+    facultyOptions.find((faculty) => String(faculty?.id || '').trim().toLowerCase() === normalizedFacultyId) ||
     facultyOptions.find(
       (faculty) =>
         facultyMatchesCourse(faculty, normalizedCourseId) &&
@@ -328,6 +332,8 @@ function mapCourseToForm(current, course) {
   if (!course) {
     return {
       ...nextForm,
+      facultyId: '',
+      batchId: '',
       courseId: '',
       courseInterested: '',
       actualFees: '',
@@ -352,6 +358,8 @@ function mapCourseToForm(current, course) {
 
   return {
     ...nextForm,
+    facultyId: '',
+    batchId: '',
     courseId: course.id,
     courseInterested: course.name,
     facultyName: '',
@@ -824,6 +832,22 @@ export function StudentManagementPage() {
 
     return findFacultyForForm(facultyOptions, form)
   }, [facultyOptions, form, selectedCourseFacultyOptions])
+  const selectedFormBatchEntry = useMemo(() => {
+    const normalizedBatchId = String(form.batchId || '').trim().toLowerCase()
+    const normalizedCourseId = String(form.courseId || '').trim()
+    const normalizedBatchName = String(form.batch || '').trim().toLowerCase()
+    const batchEntries = Array.isArray(selectedFaculty?.batchEntries) ? selectedFaculty.batchEntries : []
+
+    return (
+      batchEntries.find((entry) => String(entry?.id || '').trim().toLowerCase() === normalizedBatchId) ||
+      batchEntries.find(
+        (entry) =>
+          String(entry?.courseId || '').trim() === normalizedCourseId &&
+          String(entry?.batchName || '').trim().toLowerCase() === normalizedBatchName,
+      ) ||
+      null
+    )
+  }, [form.batch, form.batchId, form.courseId, selectedFaculty])
   const facultySelectOptions = useMemo(() => {
     const nextOptions = selectedCourseFacultyOptions.map((faculty) => ({
       value: faculty.facultyName,
@@ -887,14 +911,24 @@ export function StudentManagementPage() {
 
     return nextErrors
   }, [batchSelectOptions, editingStudentId, form, selectedCourse, selectedCourseFacultyOptions, students])
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyOptions, courseOptions),
+    [courseOptions, facultyOptions, students],
+  )
+
+  useEffect(() => {
+    if (backfilledStudents === students) return
+    saveStudentSnapshot(backfilledStudents)
+  }, [backfilledStudents, students])
+
   const courseFilterId = String(searchParams.get('courseId') || '').trim()
   const facultyFilterId = String(searchParams.get('facultyId') || '').trim()
   const batchFilterId = String(searchParams.get('batchId') || '').trim()
   const selectedStudentQueryId = String(searchParams.get('studentId') || '').trim()
   const selectedStudentId = selectedStudentQueryId || manualSelectedStudentId
   const selectedStudent = useMemo(
-    () => students.find((student) => student.id === selectedStudentId) || null,
-    [selectedStudentId, students],
+    () => backfilledStudents.find((student) => student.id === selectedStudentId) || null,
+    [backfilledStudents, selectedStudentId],
   )
   const selectedStudentCourse = useMemo(
     () => (selectedStudent ? findCourseForStudent(selectedStudent, courseOptions) : null),
@@ -912,15 +946,18 @@ export function StudentManagementPage() {
     () => (selectedFacultyFilter ? getFacultyBatchEntryById(selectedFacultyFilter, batchFilterId) : null),
     [batchFilterId, selectedFacultyFilter],
   )
+
   const isDrawerOpen = Boolean(selectedStudentId)
   const filteredStudents = useMemo(() => {
     const baseMatches =
       !courseFilterId && !facultyFilterId && !batchFilterId
-        ? students
-        : getMatchingStudents(students, {
+        ? backfilledStudents
+        : getMatchingStudents(backfilledStudents, {
+            facultyId: facultyFilterId,
             facultyName: selectedFacultyFilter?.facultyName || '',
             courseId: courseFilterId,
             courseName: selectedCourseFilter?.name || getFacultyCourseName(courseFilterId, courseOptions) || '',
+            batchId: batchFilterId,
             batchName: selectedBatchFilter?.batchName || '',
           })
 
@@ -940,7 +977,7 @@ export function StudentManagementPage() {
         batchName.includes(normalizedSearch)
       )
     })
-  }, [batchFilterId, courseFilterId, courseOptions, facultyFilterId, searchQuery, selectedCourseFilter, selectedFacultyFilter, selectedBatchFilter, students])
+  }, [backfilledStudents, batchFilterId, courseFilterId, courseOptions, facultyFilterId, searchQuery, selectedCourseFilter, selectedFacultyFilter, selectedBatchFilter])
   const buildStudentManagementUrl = useCallback(
     (studentId = '') => {
       const params = new URLSearchParams()
@@ -1129,6 +1166,8 @@ export function StudentManagementPage() {
 
   const prepareStudentForm = (student) => ({
     ...applyInstallmentValues(createEmptyForm(), getCourseInstallmentValues(findCourseForForm(courseOptions, student))),
+    facultyId: student.facultyId || '',
+    batchId: student.batchId || student.batchEntryId || '',
     courseId: student.courseId || '',
     studentName: student.studentName || '',
     mobileNumber: student.mobileNumber || '',
@@ -1372,22 +1411,35 @@ export function StudentManagementPage() {
     setForm((current) => ({
       ...mapCourseToForm(current, course),
       facultyName: '',
+      facultyId: '',
       batch: '',
+      batchId: '',
     }))
   }
 
   const applyFacultyDetails = (facultyName) => {
+    const faculty = selectedCourseFacultyOptions.find((item) => item.facultyName === facultyName) || null
     setForm((current) => ({
       ...current,
       facultyName,
+      facultyId: faculty?.id || '',
       batch: '',
+      batchId: '',
     }))
   }
 
   const applyBatchDetails = (batch) => {
+    const matchedBatch = Array.isArray(selectedFaculty?.batchEntries)
+      ? selectedFaculty.batchEntries.find(
+          (entry) =>
+            String(entry?.batchName || '').trim() === String(batch || '').trim() &&
+            String(entry?.courseId || '').trim() === String(form.courseId || '').trim(),
+        )
+      : null
     setForm((current) => ({
       ...current,
       batch,
+      batchId: matchedBatch?.id || '',
     }))
   }
 
@@ -1425,7 +1477,7 @@ export function StudentManagementPage() {
     setServerFieldErrors({})
 
     const nextErrors = validateForm(form, selectedCourse)
-    const duplicateStudent = findDuplicateStudent(form, students, editingStudentId)
+    const duplicateStudent = findDuplicateStudent(form, backfilledStudents, editingStudentId)
     if (Object.keys(nextErrors).length > 0) {
       const firstErrorField = Object.keys(nextErrors)[0]
       setCurrentStep(getStepIndexForField(firstErrorField))
@@ -1452,7 +1504,7 @@ export function StudentManagementPage() {
     }
 
     const course = selectedCourse
-    const existingStudent = editingStudentId ? students.find((student) => student.id === editingStudentId) : null
+    const existingStudent = editingStudentId ? backfilledStudents.find((student) => student.id === editingStudentId) : null
     const isFullPayment = isFullPaymentMode(form)
     const installmentCount = isFullPayment ? 0 : getCourseInstallmentCount(course)
     const payload = {
@@ -1460,7 +1512,9 @@ export function StudentManagementPage() {
       courseId: form.courseId || course?.id || '',
       courseInterested: form.courseInterested || course?.name || '',
       facultyName: form.facultyName || '',
+      facultyId: form.facultyId || selectedFaculty?.id || existingStudent?.facultyId || '',
       batchName: form.batch || '',
+      batchId: form.batchId || selectedFormBatchEntry?.id || existingStudent?.batchId || '',
       status: form.status || existingStudent?.status || 'Active',
     }
 

@@ -1198,6 +1198,8 @@ tbody tr:hover {
 .app-shell.business-owner-shell .sidebar .menu-section,
 .app-shell.operation-manager-shell .sidebar .menu-section {
   gap: 6px;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .app-shell.dashboard-shell .sidebar .menu-section {
@@ -1236,7 +1238,7 @@ tbody tr:hover {
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-item,
 .app-shell.operation-manager-shell .sidebar .sidebar-menu-item {
-  width: calc(100% - 12px);
+  width: 100%;
   border: 0;
   border-radius: 12px;
   padding: 10px 12px;
@@ -2734,6 +2736,334 @@ tbody tr:hover {
   color: #ea580c;
 }
 
+@media (min-width: 1081px) and (max-width: 1160px) {
+  .student-dashboard-page {
+    gap: 12px;
+  }
+
+  .student-dashboard-page .student-dashboard-header {
+    padding-bottom: 12px;
+  }
+
+  .student-dashboard-header-copy {
+    gap: 2px;
+  }
+
+  .student-dashboard-header-title {
+    font-size: clamp(1rem, 1.2vw, 1.22rem);
+  }
+
+  .student-dashboard-header-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .student-dashboard-header-actions {
+    gap: 8px;
+  }
+
+  .student-dashboard-profile-chip {
+    gap: 8px;
+  }
+
+  .student-dashboard-profile-initials {
+    width: 34px;
+    height: 34px;
+    font-size: 0.82rem;
+  }
+
+  .student-dashboard-profile-name {
+    font-size: 0.88rem;
+  }
+
+  .student-dashboard-date-pill {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .student-dashboard-date-pill strong {
+    font-size: 0.8rem;
+  }
+
+  .student-dashboard-date-pill span {
+    font-size: 0.62rem;
+  }
+
+  .student-summary-strip {
+    gap: 8px;
+  }
+
+  .student-summary-card {
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 11px;
+    border-radius: 14px;
+  }
+
+  .student-summary-card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+  }
+
+  .student-summary-card-label {
+    font-size: 0.68rem;
+  }
+
+  .student-summary-card-value {
+    font-size: 0.92rem;
+  }
+
+  .student-summary-card-note {
+    font-size: 0.69rem;
+  }
+
+  .student-summary-card-badge {
+    padding: 3px 8px;
+    font-size: 0.67rem;
+  }
+
+  .student-attendance-layout {
+    gap: 10px;
+  }
+
+  .student-attendance-card {
+    padding: 12px 12px 10px;
+  }
+
+  .student-attendance-title {
+    font-size: 0.9rem;
+  }
+
+  .student-attendance-chip {
+    min-height: 28px;
+    padding: 6px 9px;
+    font-size: 0.69rem;
+  }
+
+  .student-attendance-chart {
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 9px;
+    min-height: 190px;
+  }
+
+  .student-attendance-axis {
+    padding: 4px 0 16px;
+    font-size: 0.7rem;
+  }
+
+  .student-attendance-plot {
+    min-height: 190px;
+    padding: 8px 6px 0;
+    border-radius: 14px;
+  }
+
+  .student-attendance-grid-lines {
+    inset: 30px 0 26px;
+  }
+
+  .student-attendance-bars {
+    top: 12px;
+    left: 6px;
+    right: 6px;
+    bottom: 24px;
+    gap: 10px;
+    padding: 0 6px;
+  }
+
+  .student-attendance-group {
+    gap: 4px;
+  }
+
+  .student-attendance-value {
+    font-size: 0.72rem;
+  }
+
+  .student-attendance-bar {
+    max-width: 34px;
+    min-width: 22px;
+  }
+
+  .student-attendance-months {
+    gap: 8px;
+    padding: 2px 6px 2px;
+    font-size: 0.7rem;
+  }
+
+  .student-attendance-side-title {
+    font-size: 0.84rem;
+  }
+
+  .student-attendance-today-card,
+  .student-attendance-week-card {
+    padding: 10px;
+    gap: 8px;
+    border-radius: 14px;
+  }
+
+  .student-attendance-today-status {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 8px;
+    padding: 8px;
+    border-radius: 12px;
+  }
+
+  .student-attendance-today-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 0.88rem;
+  }
+
+  .student-attendance-today-copy strong {
+    font-size: 0.9rem;
+  }
+
+  .student-attendance-today-copy span,
+  .student-attendance-today-date,
+  .student-attendance-week-range {
+    font-size: 0.7rem;
+  }
+
+  .student-attendance-week-stats {
+    gap: 6px;
+  }
+
+  .student-attendance-mini-stat {
+    padding: 8px;
+    border-radius: 10px;
+  }
+
+  .student-attendance-mini-stat strong {
+    font-size: 0.96rem;
+  }
+
+  .student-attendance-mini-stat span {
+    font-size: 0.68rem;
+  }
+
+  .student-attendance-progress-labels span {
+    font-size: 0.7rem;
+  }
+
+  .student-attendance-progress-labels strong {
+    font-size: 0.82rem;
+  }
+
+  .student-attendance-progress-track {
+    height: 7px;
+  }
+
+  .student-performance-payment-row {
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .student-test-trend,
+  .student-payment-overview {
+    padding: 12px 12px 10px;
+    border-radius: 18px;
+  }
+
+  .student-test-trend-head h3,
+  .student-payment-overview-head h3 {
+    font-size: 0.96rem;
+  }
+
+  .student-test-trend-filter,
+  .student-payment-overview-chip {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 0.7rem;
+  }
+
+  .student-test-trend-chart svg {
+    min-width: 400px;
+  }
+
+  .student-test-trend-metrics {
+    gap: 6px;
+  }
+
+  .student-test-trend-metric {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 7px;
+    padding: 8px 9px;
+    border-radius: 14px;
+  }
+
+  .student-test-trend-metric-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+
+  .student-test-trend-metric strong {
+    font-size: 0.64rem;
+  }
+
+  .student-test-trend-metric b {
+    font-size: 0.88rem;
+  }
+
+  .student-test-trend-metric small {
+    font-size: 0.66rem;
+  }
+
+  .student-payment-overview-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    justify-items: center;
+  }
+
+  .student-payment-overview-ring {
+    width: 158px;
+    padding: 12px;
+  }
+
+  .student-payment-overview-ring-inner strong {
+    font-size: 0.98rem;
+  }
+
+  .student-payment-overview-ring-inner small {
+    font-size: 0.68rem;
+  }
+
+  .student-payment-overview-details {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .student-payment-overview-item {
+    padding: 10px 11px;
+    border-radius: 14px;
+    gap: 8px;
+    grid-template-columns: 10px minmax(0, 1fr);
+  }
+
+  .student-payment-overview-item strong {
+    font-size: 0.8rem;
+  }
+
+  .student-payment-overview-item span {
+    font-size: 0.9rem;
+    word-break: break-word;
+  }
+
+  .student-payment-overview-banner {
+    padding: 12px 14px;
+    gap: 10px;
+    border-radius: 16px;
+  }
+
+  .student-payment-overview-banner strong {
+    font-size: 0.86rem;
+  }
+
+  .student-payment-overview-banner span {
+    font-size: 0.7rem;
+  }
+}
+
 .faculty-dashboard-page {
   gap: 18px;
   background: #ffffff;
@@ -3048,6 +3378,44 @@ tbody tr:hover {
   background: #eff6ff;
 }
 
+@media (min-width: 1081px) and (max-width: 1140px) {
+  .faculty-my-batches-page .faculty-batch-group-card {
+    padding: 14px;
+  }
+
+  .faculty-my-batches-page .faculty-batch-group-head {
+    gap: 12px;
+  }
+
+  .faculty-my-batches-page .faculty-course-details-button {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 0.78rem;
+  }
+
+  .faculty-my-batches-page .faculty-batch-table-head,
+  .faculty-my-batches-page .faculty-batch-table-row {
+    grid-template-columns: minmax(170px, 1.1fr) 68px minmax(168px, 0.95fr) 92px 118px 88px;
+    gap: 8px;
+  }
+
+  .faculty-my-batches-page .faculty-batch-table-head {
+    padding-inline: 4px;
+  }
+
+  .faculty-my-batches-page .faculty-batch-table-row {
+    padding: 11px 8px;
+  }
+
+  .faculty-my-batches-page .faculty-batch-table-attendance {
+    font-size: 0.69rem;
+  }
+
+  .faculty-my-batches-page .faculty-batch-table-actions {
+    gap: 6px;
+  }
+}
+
 .faculty-my-batches-loading-card {
   display: grid;
   gap: 4px;
@@ -3113,137 +3481,167 @@ tbody tr:hover {
 
 @media (min-width: 1081px) and (max-width: 1160px) {
   .faculty-dashboard-page {
-    gap: 14px;
+    gap: 12px;
   }
 
   .faculty-summary-strip {
     margin-top: 0;
-    gap: 12px;
-  }
-
-  .faculty-summary-card {
-    padding: 10px 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
   }
 
+  .faculty-summary-card {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
   .faculty-summary-card-icon {
-    width: 46px;
-    height: 46px;
-    border-radius: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
   }
 
   .faculty-summary-card-value {
-    font-size: 0.96rem;
+    font-size: 0.93rem;
   }
 
   .faculty-summary-card-note {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
   }
 
   .faculty-summary-card-badge {
-    padding: 3px 8px;
+    padding: 3px 7px;
     font-size: 0.68rem;
   }
 
   .faculty-dashboard-analytics-grid {
-    gap: 12px;
+    gap: 10px;
   }
 
   .faculty-attendance-card,
   .faculty-batch-performance-card {
-    padding: 10px 12px;
-    gap: 8px;
+    padding: 9px 11px;
+    gap: 7px;
   }
 
   .faculty-batch-progress-card-left {
-    padding: 10px 12px;
+    padding: 9px 11px;
   }
 
   .faculty-attendance-head-copy h3,
   .faculty-batch-progress-head-copy h3,
   .faculty-batch-performance-head-copy h3 {
-    font-size: 0.98rem;
+    font-size: 0.95rem;
   }
 
   .faculty-attendance-head-copy p,
   .faculty-batch-progress-head-copy p,
   .faculty-batch-performance-head-copy p {
-    font-size: 0.8rem;
+    font-size: 0.76rem;
   }
 
   .faculty-batch-dropdown-trigger,
   .faculty-range-chip,
   .faculty-course-details-button {
-    min-height: 36px;
-    padding-inline: 12px;
-    font-size: 0.8rem;
+    min-height: 34px;
+    padding-inline: 10px;
+    font-size: 0.76rem;
   }
 
   .faculty-attendance-chart {
-    grid-template-columns: 42px minmax(0, 1fr) 42px;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
     gap: 8px;
   }
 
   .faculty-attendance-axis {
-    padding: 8px 0 22px;
-    font-size: 0.7rem;
+    padding: 8px 0 18px;
+    font-size: 0.66rem;
   }
 
   .faculty-attendance-plot {
-    min-height: 228px;
-    padding: 8px 6px 10px;
-    border-radius: 16px;
+    min-height: 210px;
+    padding: 8px 6px 9px;
+    border-radius: 14px;
   }
 
   .faculty-attendance-grid-lines {
-    inset: 20px 0 28px;
+    inset: 18px 0 26px;
   }
 
   .faculty-attendance-bars {
-    inset: 8px 0 36px;
-    gap: 6px;
+    inset: 8px 0 32px;
+    gap: 5px;
     padding: 0 8px;
   }
 
   .faculty-attendance-group {
-    gap: 4px;
+    gap: 3px;
   }
 
   .faculty-attendance-value {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
   }
 
   .faculty-attendance-bar-wrap {
-    width: 34px;
-    height: 160px;
+    width: 30px;
+    height: 146px;
   }
 
   .faculty-attendance-bar {
-    min-height: 16px;
-    border-radius: 14px 14px 8px 8px;
+    min-height: 14px;
+    border-radius: 12px 12px 8px 8px;
   }
 
   .faculty-attendance-months {
-    gap: 6px;
+    gap: 4px;
     padding: 0 8px;
-    font-size: 0.7rem;
+    font-size: 0.66rem;
   }
 
   .faculty-batch-performance-chart {
-    min-height: 270px;
-    gap: 10px;
-    grid-template-columns: 32px minmax(0, 1fr);
+    min-height: 240px;
+    gap: 8px;
+    grid-template-columns: 28px minmax(0, 1fr);
   }
 
   .faculty-batch-performance-axis {
-    padding-bottom: 24px;
-    font-size: 0.7rem;
+    padding-bottom: 20px;
+    font-size: 0.66rem;
   }
 
   .faculty-batch-performance-plot {
-    min-height: 270px;
-    padding: 14px 12px 18px;
-    border-radius: 16px;
+    min-height: 240px;
+    padding: 12px 10px 16px;
+    border-radius: 14px;
+  }
+
+  .faculty-batch-progress-row {
+    grid-template-columns: minmax(150px, 0.95fr) minmax(0, 1.05fr) auto;
+    gap: 10px;
+    padding: 7px 9px;
+    border-radius: 14px;
+  }
+
+  .faculty-batch-progress-name strong {
+    font-size: 0.84rem;
+  }
+
+  .faculty-batch-progress-name span,
+  .faculty-batch-progress-completion span {
+    font-size: 0.68rem;
+  }
+
+  .faculty-batch-progress-completion strong {
+    font-size: 0.84rem;
+  }
+
+  .faculty-batch-progress-track {
+    height: 7px;
+  }
+
+  .faculty-batch-performance-legend {
+    gap: 10px;
+    font-size: 0.75rem;
   }
 }
 
@@ -19690,7 +20088,7 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .menu-section {
-  padding: 8px 2px;
+  padding: 8px 0;
 }
 
 .is-business-owner-sidebar .menu-section-label {
@@ -20461,11 +20859,11 @@ tbody tr:hover {
 }
 
 .business-owner-dashboard .is-business-owner-header .business-topbar-copy {
-  padding-left: 0;
+  padding-left: 16px;
 }
 
 .is-business-owner-header .business-topbar-actions {
-  transform: none;
+  transform: translateX(-8px);
 }
 
 @media (min-width: 961px) and (max-width: 1080px) {
@@ -20633,5 +21031,1313 @@ tbody tr:hover {
   .course-table {
     width: 100%;
     min-width: 0;
+  }
+}
+
+@media (min-width: 1081px) and (max-width: 1160px) and (max-height: 700px) {
+  .operation-manager-dashboard {
+    gap: 10px;
+  }
+
+  .operation-manager-dashboard .business-topbar {
+    padding: 2px 0 12px 0 !important;
+  }
+
+  .operation-manager-dashboard .business-topbar-copy {
+    margin-top: 4px;
+  }
+
+  .operation-manager-dashboard .business-topbar-copy h2 {
+    font-size: clamp(1.6rem, 2.4vw, 2rem);
+    line-height: 1.08;
+  }
+
+  .operation-manager-dashboard .business-topbar-copy p:last-child {
+    font-size: 0.82rem;
+  }
+
+  .operation-manager-dashboard .business-topbar-actions {
+    margin-top: 4px;
+    gap: 10px;
+    transform: none;
+  }
+
+  .operation-manager-dashboard .revenue-summary-row {
+    gap: 10px;
+  }
+
+  .operation-manager-dashboard .revenue-summary-card {
+    min-height: 108px;
+    padding: 10px 10px 9px;
+    border-radius: 14px;
+  }
+
+  .operation-manager-dashboard .revenue-summary-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+  }
+
+  .operation-manager-dashboard .revenue-summary-label {
+    font-size: 0.88rem;
+    line-height: 1.15;
+  }
+
+  .operation-manager-dashboard .revenue-summary-value {
+    font-size: clamp(1.2rem, 2vw, 1.55rem);
+  }
+
+  .operation-manager-dashboard .revenue-summary-trend-row {
+    gap: 6px;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-grid {
+    gap: 12px;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-card {
+    padding: 12px 12px 10px;
+    border-radius: 18px;
+    min-height: 0;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-header {
+    gap: 8px;
+    padding-right: 12px;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-header h3 {
+    font-size: 0.94rem;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .operation-manager-dashboard .customer-satisfaction-legend {
+    gap: 8px 10px;
+    margin-top: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .operation-manager-dashboard .revenue-legend-item {
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .operation-manager-dashboard .revenue-comparison-body {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .operation-manager-dashboard .revenue-axis-y {
+    padding-bottom: 10px;
+    font-size: 0.7rem;
+  }
+
+  .operation-manager-dashboard .revenue-plot {
+    min-height: 168px;
+    padding: 2px 6px 10px;
+    border-radius: 14px;
+  }
+
+  .operation-manager-dashboard .revenue-grid-lines {
+    inset: 14px 0 18px;
+  }
+
+  .operation-manager-dashboard .revenue-groups {
+    gap: 8px;
+  }
+
+  .operation-manager-dashboard .revenue-bars {
+    min-height: 140px;
+    gap: 6px;
+  }
+
+  .operation-manager-dashboard .revenue-month-label {
+    font-size: 0.68rem;
+    line-height: 1;
+  }
+
+  .operation-manager-dashboard .revenue-weekly-card {
+    min-height: 0;
+    gap: 6px;
+  }
+
+  .operation-manager-dashboard .revenue-weekly-body {
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .operation-manager-dashboard .revenue-weekly-axis-y {
+    gap: 6px;
+    padding: 0 0 4px;
+    font-size: 0.72rem;
+  }
+
+  .operation-manager-dashboard .revenue-weekly-plot {
+    min-height: 220px;
+    padding: 6px 10px 10px 0;
+    border-radius: 14px;
+  }
+
+  .operation-manager-dashboard .revenue-weekly-grid-lines {
+    inset: 12px 0 16px 0;
+  }
+
+  .operation-manager-dashboard .revenue-weekly-groups {
+    gap: 10px;
+    padding: 6px 0;
+  }
+
+  .operation-manager-dashboard .revenue-week-row {
+    gap: 8px;
+  }
+
+  .operation-manager-dashboard .revenue-week-bars {
+    gap: 8px;
+  }
+
+  .operation-manager-dashboard .revenue-week-bar-group {
+    gap: 2px;
+  }
+
+  .operation-manager-dashboard .revenue-week-bar-label {
+    font-size: 0.66rem;
+    margin-bottom: 2px;
+  }
+
+  .operation-manager-dashboard .revenue-week-bar {
+    min-height: 12px;
+    height: 12px;
+  }
+
+  .operation-manager-dashboard .revenue-weekly-axis-x {
+    height: 18px;
+    margin-top: 2px;
+    font-size: 0.72rem;
+  }
+
+  .operation-manager-dashboard .revenue-weekly-tooltip {
+    right: 4px;
+    min-width: 152px;
+    padding: 8px 10px;
+  }
+}
+
+@media (min-width: 1081px) and (max-width: 1160px) and (max-height: 700px) {
+  .operation-manager-dashboard .student-management-page {
+    gap: 12px;
+  }
+
+  .operation-manager-dashboard .student-management-hero {
+    align-items: flex-start;
+    padding: 2px 16px 8px;
+    gap: 14px;
+  }
+
+  .operation-manager-dashboard .student-management-heading {
+    margin-top: -8px;
+    align-items: flex-start;
+  }
+
+  .operation-manager-dashboard .student-management-heading-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .operation-manager-dashboard .student-management-heading-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .operation-manager-dashboard .student-management-heading h1 {
+    font-size: 0.98rem;
+    line-height: 1.02;
+  }
+
+  .operation-manager-dashboard .student-management-actions {
+    gap: 10px;
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 1081px) and (max-width: 1160px) and (max-height: 700px) {
+  .business-owner-dashboard,
+  .operation-manager-dashboard {
+    gap: 10px;
+  }
+
+  .business-owner-dashboard .business-topbar,
+  .operation-manager-dashboard .business-topbar {
+    padding: 2px 0 12px 0 !important;
+  }
+
+  .business-owner-dashboard .business-topbar-copy,
+  .operation-manager-dashboard .business-topbar-copy {
+    margin-top: 4px;
+  }
+
+  .business-owner-dashboard .business-topbar-copy h2,
+  .operation-manager-dashboard .business-topbar-copy h2 {
+    font-size: clamp(1.55rem, 2.3vw, 1.95rem);
+    line-height: 1.08;
+  }
+
+  .business-owner-dashboard .business-topbar-copy p:last-child,
+  .operation-manager-dashboard .business-topbar-copy p:last-child {
+    font-size: 0.8rem;
+  }
+
+  .business-owner-dashboard .business-topbar-actions,
+  .operation-manager-dashboard .business-topbar-actions {
+    margin-top: 4px;
+    gap: 10px;
+    transform: none;
+  }
+
+  .business-owner-dashboard .revenue-summary-row,
+  .operation-manager-dashboard .revenue-summary-row {
+    gap: 10px;
+  }
+
+  .business-owner-dashboard .revenue-summary-card,
+  .operation-manager-dashboard .revenue-summary-card {
+    min-height: 108px;
+    padding: 10px 10px 9px;
+    border-radius: 14px;
+  }
+
+  .business-owner-dashboard .revenue-summary-icon,
+  .operation-manager-dashboard .revenue-summary-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+  }
+
+  .business-owner-dashboard .revenue-summary-label,
+  .operation-manager-dashboard .revenue-summary-label {
+    font-size: 0.88rem;
+    line-height: 1.15;
+  }
+
+  .business-owner-dashboard .revenue-summary-value,
+  .operation-manager-dashboard .revenue-summary-value {
+    font-size: clamp(1.2rem, 2vw, 1.55rem);
+  }
+
+  .business-owner-dashboard .revenue-summary-trend-row,
+  .operation-manager-dashboard .revenue-summary-trend-row {
+    gap: 6px;
+  }
+
+  .business-owner-dashboard .revenue-comparison-grid,
+  .operation-manager-dashboard .revenue-comparison-grid {
+    gap: 12px;
+  }
+
+  .business-owner-dashboard .revenue-comparison-card,
+  .operation-manager-dashboard .revenue-comparison-card {
+    padding: 12px 12px 10px;
+    border-radius: 18px;
+    min-height: 0;
+  }
+
+  .business-owner-dashboard .revenue-comparison-header,
+  .operation-manager-dashboard .revenue-comparison-header {
+    gap: 8px;
+    padding-right: 12px;
+  }
+
+  .business-owner-dashboard .revenue-comparison-header h3,
+  .operation-manager-dashboard .revenue-comparison-header h3 {
+    font-size: 0.92rem;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .business-owner-dashboard .customer-satisfaction-legend,
+  .operation-manager-dashboard .customer-satisfaction-legend {
+    gap: 8px 10px;
+    margin-top: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .business-owner-dashboard .revenue-legend-item,
+  .operation-manager-dashboard .revenue-legend-item {
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .business-owner-dashboard .revenue-comparison-body,
+  .operation-manager-dashboard .revenue-comparison-body {
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .business-owner-dashboard .revenue-axis-y,
+  .operation-manager-dashboard .revenue-axis-y {
+    padding-bottom: 10px;
+    font-size: 0.68rem;
+  }
+
+  .business-owner-dashboard .revenue-plot,
+  .operation-manager-dashboard .revenue-plot {
+    min-height: 168px;
+    padding: 2px 6px 10px;
+    border-radius: 14px;
+  }
+
+  .business-owner-dashboard .revenue-grid-lines,
+  .operation-manager-dashboard .revenue-grid-lines {
+    inset: 14px 0 18px;
+  }
+
+  .business-owner-dashboard .revenue-groups,
+  .operation-manager-dashboard .revenue-groups {
+    gap: 8px;
+  }
+
+  .business-owner-dashboard .revenue-bars,
+  .operation-manager-dashboard .revenue-bars {
+    min-height: 138px;
+    gap: 6px;
+  }
+
+  .business-owner-dashboard .revenue-month-label,
+  .operation-manager-dashboard .revenue-month-label {
+    font-size: 0.66rem;
+    line-height: 1;
+  }
+
+  .business-owner-dashboard .revenue-weekly-card,
+  .operation-manager-dashboard .revenue-weekly-card {
+    min-height: 0;
+    gap: 6px;
+  }
+
+  .business-owner-dashboard .revenue-weekly-body,
+  .operation-manager-dashboard .revenue-weekly-body {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+    min-height: 0;
+  }
+
+  .business-owner-dashboard .revenue-weekly-axis-y,
+  .operation-manager-dashboard .revenue-weekly-axis-y {
+    gap: 6px;
+    padding: 0 0 4px;
+    font-size: 0.7rem;
+  }
+
+  .business-owner-dashboard .revenue-weekly-plot,
+  .operation-manager-dashboard .revenue-weekly-plot {
+    min-height: 220px;
+    padding: 6px 10px 10px 0;
+    border-radius: 14px;
+  }
+
+  .business-owner-dashboard .revenue-weekly-grid-lines,
+  .operation-manager-dashboard .revenue-weekly-grid-lines {
+    inset: 12px 0 16px 0;
+  }
+
+  .business-owner-dashboard .revenue-weekly-groups,
+  .operation-manager-dashboard .revenue-weekly-groups {
+    gap: 10px;
+    padding: 6px 0;
+  }
+
+  .business-owner-dashboard .revenue-week-row,
+  .operation-manager-dashboard .revenue-week-row {
+    gap: 8px;
+  }
+
+  .business-owner-dashboard .revenue-week-bars,
+  .operation-manager-dashboard .revenue-week-bars {
+    gap: 8px;
+  }
+
+  .business-owner-dashboard .revenue-week-bar-group,
+  .operation-manager-dashboard .revenue-week-bar-group {
+    gap: 2px;
+  }
+
+  .business-owner-dashboard .revenue-week-bar-label,
+  .operation-manager-dashboard .revenue-week-bar-label {
+    font-size: 0.64rem;
+    margin-bottom: 2px;
+  }
+
+  .business-owner-dashboard .revenue-week-bar,
+  .operation-manager-dashboard .revenue-week-bar {
+    min-height: 12px;
+    height: 12px;
+  }
+
+  .business-owner-dashboard .revenue-weekly-axis-x,
+  .operation-manager-dashboard .revenue-weekly-axis-x {
+    height: 18px;
+    margin-top: 2px;
+    font-size: 0.7rem;
+  }
+
+  .business-owner-dashboard .revenue-weekly-tooltip,
+  .operation-manager-dashboard .revenue-weekly-tooltip {
+    right: 4px;
+    min-width: 152px;
+    padding: 8px 10px;
+  }
+}
+
+@media (min-width: 1081px) and (max-width: 1160px) and (max-height: 700px) {
+  .student-management-page {
+    gap: 12px;
+  }
+
+  .student-management-page .student-management-hero {
+    align-items: flex-start;
+    padding: 4px 18px 8px;
+    gap: 14px;
+  }
+
+  .student-management-page .student-management-heading {
+    align-items: flex-start;
+    margin-top: -6px;
+  }
+
+  .student-management-page .student-management-heading-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .student-management-page .student-management-heading-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .student-management-page .student-management-heading h1 {
+    font-size: 0.98rem;
+    line-height: 1.02;
+  }
+
+  .operation-manager-dashboard .student-management-page .student-management-hero {
+    padding-top: 4px;
+  }
+
+  .operation-manager-dashboard .student-management-page .student-management-heading {
+    margin-top: -8px;
+  }
+
+  .operation-manager-dashboard .student-management-page .student-management-heading h1 {
+    margin-top: 0;
+  }
+}
+
+@media (min-width: 1081px) and (max-width: 1160px) and (max-height: 700px) {
+  .faculty-management-page {
+    gap: 12px;
+  }
+
+  .faculty-management-page .faculty-management-hero {
+    gap: 12px;
+  }
+
+  .faculty-management-page .faculty-management-heading {
+    align-items: flex-start;
+  }
+
+  .faculty-management-page .faculty-management-heading h1 {
+    margin-top: -2px;
+  }
+
+  .faculty-management-page .faculty-table {
+    min-width: 900px;
+    font-size: 11px;
+  }
+
+  .faculty-management-page .faculty-table thead th,
+  .faculty-management-page .faculty-table tbody td {
+    padding: 9px 7px;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(1),
+  .faculty-management-page .faculty-table tbody td:nth-child(1) {
+    width: 20%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(2),
+  .faculty-management-page .faculty-table tbody td:nth-child(2) {
+    width: 19%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(3),
+  .faculty-management-page .faculty-table tbody td:nth-child(3) {
+    width: 11%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(4),
+  .faculty-management-page .faculty-table tbody td:nth-child(4) {
+    width: 8%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(5),
+  .faculty-management-page .faculty-table tbody td:nth-child(5) {
+    width: 24%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(6),
+  .faculty-management-page .faculty-table tbody td:nth-child(6) {
+    width: 8%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(7),
+  .faculty-management-page .faculty-table tbody td:nth-child(7) {
+    width: 10%;
+  }
+
+  .faculty-management-page .faculty-table thead th {
+    font-size: 10px;
+  }
+
+  .faculty-management-page .faculty-table tbody td {
+    font-size: 11px;
+  }
+
+  .faculty-management-page .faculty-table tbody td small {
+    font-size: 10px;
+  }
+
+  .faculty-management-page .faculty-course-chip-list {
+    gap: 3px;
+    flex-wrap: nowrap;
+    min-width: 0;
+  }
+
+  .faculty-management-page .faculty-course-chip-list > .faculty-course-popover {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .faculty-management-page .faculty-course-chip {
+    min-height: 22px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .faculty-management-page .faculty-course-chip-primary {
+    max-width: calc(100% - 34px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .faculty-management-page .faculty-course-chip-more {
+    min-height: 24px;
+    padding: 0 8px;
+    flex: 0 0 auto;
+  }
+
+  .faculty-management-page .faculty-course-popover-panel {
+    min-width: 160px;
+    padding: 10px 12px;
+  }
+
+  .faculty-management-page .faculty-course-popover-list {
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .faculty-management-page .faculty-actions-cell {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .faculty-management-page .faculty-row-action-toggle {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (min-width: 1081px) and (max-width: 1160px) and (max-height: 700px) {
+  .faculty-course-faculty-page {
+    gap: 10px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-hero {
+    padding: 14px 16px;
+    gap: 12px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-hero-copy h2 {
+    font-size: clamp(1.2rem, 1.8vw, 1.6rem);
+  }
+
+  .faculty-course-faculty-page .faculty-flow-hero-copy p:last-child {
+    font-size: 0.8rem;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-stats {
+    gap: 10px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-stat {
+    min-width: 132px;
+    padding: 10px 12px;
+    border-radius: 14px;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-toolbar {
+    gap: 12px;
+    margin-top: 0;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-summary h3 {
+    font-size: 0.98rem;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-summary p:last-child {
+    font-size: 0.8rem;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-search {
+    width: min(320px, 100%);
+    min-height: 40px;
+    padding: 0 10px;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-search input {
+    font-size: 0.86rem;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-card {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    min-height: 0;
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-left {
+    border-right: 0;
+    padding-right: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5edf7;
+    gap: 10px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy {
+    gap: 4px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy strong {
+    font-size: 0.94rem;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-badge {
+    padding: 4px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy p {
+    font-size: 0.74rem;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card {
+    min-height: 46px;
+    padding: 7px 8px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card span {
+    font-size: 7px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card strong {
+    font-size: 0.66rem;
+    white-space: nowrap;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 7px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-chevron {
+    min-height: 16px;
+    padding-top: 0;
+    font-size: 0.56rem;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-view-label {
+    min-height: 24px;
+    padding: 0 10px;
+    font-size: 0.62rem;
+  }
+}
+
+@media (min-width: 1081px) and (max-width: 1160px) {
+  .student-dashboard-page {
+    gap: 10px;
+  }
+
+  .student-dashboard-page .student-summary-strip {
+    gap: 8px;
+  }
+
+  .student-dashboard-page .student-summary-card {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 14px;
+  }
+
+  .student-dashboard-page .student-summary-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+  }
+
+  .student-dashboard-page .student-summary-card-label {
+    font-size: 0.66rem;
+  }
+
+  .student-dashboard-page .student-summary-card-value {
+    font-size: 0.9rem;
+  }
+
+  .student-dashboard-page .student-summary-card-note {
+    font-size: 0.67rem;
+  }
+
+  .student-dashboard-page .student-summary-card-badge {
+    padding: 3px 7px;
+    font-size: 0.66rem;
+  }
+
+  .student-dashboard-page .student-performance-payment-row {
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .student-dashboard-page .student-test-trend,
+  .student-dashboard-page .student-payment-overview {
+    padding: 12px 12px 10px;
+    border-radius: 18px;
+  }
+
+  .student-dashboard-page .student-test-trend-head h3,
+  .student-dashboard-page .student-payment-overview-head h3 {
+    font-size: 0.96rem;
+  }
+
+  .student-dashboard-page .student-test-trend-filter,
+  .student-dashboard-page .student-payment-overview-chip {
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 0.7rem;
+  }
+
+  .student-dashboard-page .student-test-trend-chart svg {
+    min-width: 400px;
+  }
+
+  .student-dashboard-page .student-test-trend-metrics {
+    gap: 6px;
+  }
+
+  .student-dashboard-page .student-test-trend-metric {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 6px;
+    padding: 8px;
+    border-radius: 14px;
+  }
+
+  .student-dashboard-page .student-test-trend-metric-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+  }
+
+  .student-dashboard-page .student-test-trend-metric strong {
+    font-size: 0.63rem;
+  }
+
+  .student-dashboard-page .student-test-trend-metric b {
+    font-size: 0.88rem;
+  }
+
+  .student-dashboard-page .student-test-trend-metric small {
+    font-size: 0.64rem;
+  }
+
+  .student-dashboard-page .student-payment-overview-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    justify-items: center;
+  }
+
+  .student-dashboard-page .student-payment-overview-ring {
+    width: 150px;
+    padding: 12px;
+  }
+
+  .student-dashboard-page .student-payment-overview-ring-inner {
+    padding: 14px;
+  }
+
+  .student-dashboard-page .student-payment-overview-ring-inner strong {
+    font-size: 0.96rem;
+  }
+
+  .student-dashboard-page .student-payment-overview-details {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .student-dashboard-page .student-payment-overview-item {
+    grid-template-columns: 10px minmax(0, 1fr);
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: 14px;
+  }
+
+  .student-dashboard-page .student-payment-overview-item strong {
+    font-size: 0.78rem;
+  }
+
+  .student-dashboard-page .student-payment-overview-item span {
+    font-size: 0.84rem;
+    word-break: break-word;
+  }
+
+  .student-dashboard-page .student-payment-overview-banner {
+    padding: 11px 12px;
+    gap: 10px;
+    border-radius: 14px;
+  }
+
+  .student-dashboard-page .student-payment-overview-banner strong {
+    font-size: 0.84rem;
+  }
+
+  .student-dashboard-page .student-payment-overview-banner span {
+    font-size: 0.68rem;
+  }
+}
+
+@media (min-width: 1090px) and (max-width: 1125px) and (max-height: 640px) {
+  .faculty-course-faculty-page {
+    gap: 8px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-hero {
+    padding: 10px 12px;
+    min-height: 104px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-hero-main {
+    gap: 6px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-avatar svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-hero-copy h2 {
+    font-size: 1.08rem;
+    line-height: 1.08;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-hero-copy p:last-child {
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-stats {
+    gap: 8px;
+    min-width: 250px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-stat {
+    min-width: 102px;
+    padding: 6px 8px;
+    min-height: 44px;
+    border-radius: 12px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-stat strong {
+    font-size: 0.98rem;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-stat span {
+    font-size: 7px;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-toolbar {
+    gap: 10px;
+    margin-top: 0;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-summary h3 {
+    font-size: 0.96rem;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-summary p:last-child {
+    font-size: 0.74rem;
+    line-height: 1.25;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-search {
+    width: min(285px, 100%);
+    min-height: 40px;
+    padding: 0 10px;
+  }
+
+  .faculty-course-faculty-page .faculty-course-faculty-search input {
+    font-size: 0.84rem;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-card {
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr) auto;
+    gap: 8px;
+    padding: 10px 11px;
+    min-height: 128px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-left {
+    gap: 8px;
+    padding-right: 4px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy {
+    gap: 3px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy strong {
+    font-size: 0.96rem;
+    line-height: 1.1;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-badge {
+    min-height: 24px;
+    padding: 0 8px;
+    font-size: 0.64rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy p {
+    font-size: 0.68rem;
+    max-width: 100%;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card {
+    min-height: 48px;
+    padding: 7px 8px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-icon svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card span {
+    font-size: 7px;
+    line-height: 1;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card strong {
+    font-size: 0.7rem;
+    line-height: 1.05;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-chevron {
+    min-height: 16px;
+    padding-top: 0;
+    font-size: 0.56rem;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-view-label {
+    min-height: 22px;
+    padding: 0 8px;
+    font-size: 0.6rem;
+  }
+}
+
+@media (min-width: 1090px) and (max-width: 1125px) and (max-height: 640px) {
+  .faculty-course-batches-page .faculty-flow-hero {
+    padding: 10px 12px;
+    min-height: 102px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-hero-main {
+    gap: 6px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-avatar svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-hero-copy h2 {
+    font-size: 1.08rem;
+    line-height: 1.08;
+  }
+
+  .faculty-course-batches-page .faculty-flow-contact {
+    gap: 4px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-contact span {
+    min-height: 22px;
+    padding: 0 7px;
+    font-size: 0.66rem;
+  }
+
+  .faculty-course-batches-page .faculty-flow-stats {
+    min-width: 236px;
+    gap: 8px;
+    padding-left: 10px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-stat {
+    min-width: 100px;
+    min-height: 44px;
+    padding: 6px 8px;
+    border-radius: 12px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-stat span {
+    font-size: 7px;
+    line-height: 1;
+  }
+
+  .faculty-course-batches-page .faculty-flow-stat strong {
+    font-size: 0.96rem;
+    line-height: 1;
+  }
+
+  .faculty-course-batches-page .faculty-flow-section {
+    gap: 10px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-section-header h3 {
+    font-size: 0.96rem;
+  }
+
+  .faculty-course-batches-page .faculty-flow-section-header p {
+    font-size: 0.74rem;
+  }
+
+  .faculty-course-batches-page .faculty-flow-table thead th,
+  .faculty-course-batches-page .faculty-flow-table tbody td {
+    padding: 9px 10px;
+  }
+
+  .faculty-course-batches-page .faculty-flow-mini-button {
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 0.72rem;
+  }
+}
+
+@media (min-width: 1090px) and (max-width: 1125px) and (max-height: 640px) {
+  .faculty-management-page {
+    gap: 10px;
+  }
+
+  .faculty-management-page .faculty-management-hero {
+    gap: 10px;
+  }
+
+  .faculty-management-page .faculty-table {
+    min-width: 820px;
+    font-size: 10px;
+  }
+
+  .faculty-management-page .faculty-table thead th,
+  .faculty-management-page .faculty-table tbody td {
+    padding: 8px 6px;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(1),
+  .faculty-management-page .faculty-table tbody td:nth-child(1) {
+    width: 18%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(2),
+  .faculty-management-page .faculty-table tbody td:nth-child(2) {
+    width: 19%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(3),
+  .faculty-management-page .faculty-table tbody td:nth-child(3) {
+    width: 11%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(4),
+  .faculty-management-page .faculty-table tbody td:nth-child(4) {
+    width: 8%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(5),
+  .faculty-management-page .faculty-table tbody td:nth-child(5) {
+    width: 27%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(6),
+  .faculty-management-page .faculty-table tbody td:nth-child(6) {
+    width: 8%;
+  }
+
+  .faculty-management-page .faculty-table thead th:nth-child(7),
+  .faculty-management-page .faculty-table tbody td:nth-child(7) {
+    width: 8%;
+  }
+
+  .faculty-management-page .faculty-table thead th {
+    font-size: 9px;
+  }
+
+  .faculty-management-page .faculty-table tbody td {
+    font-size: 10px;
+  }
+
+  .faculty-management-page .faculty-table tbody td small {
+    font-size: 9px;
+  }
+
+  .faculty-management-page .faculty-course-chip-list {
+    gap: 3px;
+    flex-wrap: nowrap;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .faculty-management-page .faculty-course-popover {
+    gap: 4px;
+    max-width: 100%;
+  }
+
+  .faculty-management-page .faculty-course-chip {
+    min-height: 19px;
+    padding: 0 5px;
+    font-size: 9px;
+    max-width: none;
+  }
+
+  .faculty-management-page .faculty-course-chip-primary {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .faculty-management-page .faculty-course-chip-more {
+    min-height: 19px;
+    padding: 0 6px;
+  }
+
+  .faculty-management-page .faculty-course-popover-panel {
+    min-width: 150px;
+    padding: 9px 10px;
+  }
+
+  .faculty-management-page .faculty-course-popover-list {
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .faculty-management-page .faculty-actions-cell {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .faculty-management-page .faculty-row-action-toggle {
+    width: 30px;
+    height: 30px;
+  }
+
+  .faculty-management-page .status-pill {
+    min-height: 24px;
+    padding: 0 8px;
+    font-size: 11px;
   }
 }

@@ -167,7 +167,148 @@ export function getFacultyTotals(record = {}, courseOptions = []) {
   }
 }
 
-export function getMatchingStudents(students = [], { facultyName = '', courseId = '', courseName = '', batchName = '' } = {}) {
+function getFacultyRecordBackfillScore(student = {}, record = {}, courseOptions = []) {
+  const studentFacultyId = String(student?.facultyId || '').trim()
+  const studentFacultyName = normalizeText(student?.facultyName || '')
+  const studentCourseId = String(student?.courseId || '').trim()
+  const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
+  const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim()
+  const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
+  const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
+
+  const recordId = String(record?.id || record?._id || record?.facultyId || '').trim()
+  const recordName = normalizeText(record?.facultyName || '')
+  const recordCourseIds = getFacultyCourseIds(record, courseOptions)
+  const recordCourses = getFacultyCourses(record, courseOptions)
+
+  let score = 0
+  if (studentFacultyId && recordId && studentFacultyId === recordId) score += 12
+  if (studentFacultyName && recordName && studentFacultyName === recordName) score += 8
+  if (studentCourseId && recordCourseIds.includes(studentCourseId)) score += 5
+  if (studentCourseName && recordCourses.some((course) => normalizeText(course?.courseName || '') === studentCourseName)) score += 3
+
+  let matchedBatchEntry = null
+  let batchScore = 0
+  const batchEntries = Array.isArray(record?.batchEntries) ? record.batchEntries : []
+
+  batchEntries.forEach((entry) => {
+    const entryId = String(entry?.id || '').trim()
+    const entryCourseId = String(entry?.courseId || '').trim()
+    const entryCourseName = normalizeText(entry?.courseName || '')
+    const entryBatchName = normalizeText(entry?.batchName || entry?.batch || '')
+    const entryBatchToken = normalizeBatchToken(entry?.batchName || entry?.batch || '')
+    let candidateScore = 0
+
+    if (studentBatchId && entryId && studentBatchId === entryId) candidateScore += 12
+    if (studentBatchName && entryBatchName && studentBatchName === entryBatchName) candidateScore += 8
+    else if (studentBatchToken && entryBatchToken && studentBatchToken === entryBatchToken) candidateScore += 7
+    if (studentCourseId && entryCourseId && studentCourseId === entryCourseId) candidateScore += 4
+    if (studentCourseName && entryCourseName && studentCourseName === entryCourseName) candidateScore += 2
+    if (candidateScore > batchScore) {
+      batchScore = candidateScore
+      matchedBatchEntry = entry
+    }
+  })
+
+  return {
+    score: score + batchScore,
+    matchedBatchEntry,
+  }
+}
+
+export function enrichStudentsWithFacultyReferences(students = [], facultyRecords = [], courseOptions = []) {
+  const studentList = Array.isArray(students) ? students : []
+  const records = Array.isArray(facultyRecords) ? facultyRecords : []
+
+  if (!studentList.length || !records.length) {
+    return studentList
+  }
+
+  let didChange = false
+
+  const nextStudents = studentList.map((student) => {
+    if (!student) return student
+
+    const hasFacultyId = Boolean(String(student?.facultyId || '').trim())
+    const hasBatchId = Boolean(String(student?.batchId || student?.batchEntryId || '').trim())
+    const hasFacultyName = Boolean(String(student?.facultyName || '').trim())
+    const hasBatchName = Boolean(String(student?.batchName || student?.batch || '').trim())
+    const hasCourseId = Boolean(String(student?.courseId || '').trim())
+    const hasCourseName = Boolean(String(student?.courseInterested || student?.courseName || student?.course?.name || '').trim())
+
+    if (hasFacultyId && hasBatchId && hasFacultyName && hasBatchName) {
+      return student
+    }
+
+    let bestMatch = null
+
+    records.forEach((record) => {
+      const result = getFacultyRecordBackfillScore(student, record, courseOptions)
+      if (!result || result.score <= 0) return
+
+      if (!bestMatch || result.score > bestMatch.score) {
+        bestMatch = {
+          score: result.score,
+          record,
+          matchedBatchEntry: result.matchedBatchEntry,
+        }
+      }
+    })
+
+    if (!bestMatch) return student
+
+    const nextStudent = { ...student }
+    const nextFacultyId = String(bestMatch.record?.id || bestMatch.record?._id || bestMatch.record?.facultyId || '').trim()
+    const nextFacultyName = String(bestMatch.record?.facultyName || '').trim()
+    const nextBatchId = String(bestMatch.matchedBatchEntry?.id || '').trim()
+    const nextBatchName = String(bestMatch.matchedBatchEntry?.batchName || bestMatch.matchedBatchEntry?.batch || '').trim()
+    const nextCourseId = String(bestMatch.matchedBatchEntry?.courseId || bestMatch.record?.courseId || '').trim()
+    const nextCourseName = String(bestMatch.matchedBatchEntry?.courseName || bestMatch.record?.courseName || '').trim()
+
+    if (!hasFacultyId && nextFacultyId) {
+      nextStudent.facultyId = nextFacultyId
+      didChange = true
+    }
+
+    if (!hasFacultyName && nextFacultyName) {
+      nextStudent.facultyName = nextFacultyName
+      didChange = true
+    }
+
+    if (!hasBatchId && nextBatchId) {
+      nextStudent.batchId = nextBatchId
+      nextStudent.batchEntryId = nextBatchId
+      didChange = true
+    }
+
+    if (!hasBatchName && nextBatchName) {
+      nextStudent.batchName = nextBatchName
+      nextStudent.batch = nextBatchName
+      didChange = true
+    }
+
+    if (!hasCourseId && nextCourseId) {
+      nextStudent.courseId = nextCourseId
+      didChange = true
+    }
+
+    if (!hasCourseName && nextCourseName) {
+      nextStudent.courseInterested = nextCourseName
+      didChange = true
+    }
+
+    return nextStudent
+  })
+
+  return didChange ? nextStudents : studentList
+}
+
+export function getMatchingStudents(
+  students = [],
+  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '' } = {},
+) {
+  const normalizedFacultyId = String(facultyId || '').trim()
+  const normalizedBatchId = String(batchId || '').trim()
   const normalizedFacultyName = normalizeText(facultyName)
   const normalizedCourseId = String(courseId || '').trim()
   const normalizedCourseName = normalizeText(courseName)
@@ -177,8 +318,15 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
   return (Array.isArray(students) ? students : []).filter((student) => {
     const studentCourseId = String(student?.courseId || '').trim()
     const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
+    const studentFacultyId = String(student?.facultyId || '').trim()
+    const studentFacultyName = normalizeText(student?.facultyName || '')
+    const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim()
     const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
     const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
+
+    if (normalizedFacultyId && studentFacultyId && studentFacultyId !== normalizedFacultyId) {
+      return false
+    }
 
     if (normalizedBatchName) {
       const batchMatches =
@@ -192,7 +340,22 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
       }
     }
 
-    if (normalizedFacultyName && normalizeText(student?.facultyName || '') !== normalizedFacultyName) {
+    if (normalizedBatchId && studentBatchId && studentBatchId !== normalizedBatchId) {
+      return false
+    }
+
+    if (normalizedFacultyName && studentFacultyName && studentFacultyName !== normalizedFacultyName) {
+      return false
+    }
+
+    if (
+      normalizedFacultyName &&
+      !studentFacultyName &&
+      !normalizedCourseId &&
+      !normalizedCourseName &&
+      !normalizedBatchName &&
+      !normalizedBatchId
+    ) {
       return false
     }
 
@@ -208,12 +371,17 @@ export function getMatchingStudents(students = [], { facultyName = '', courseId 
   })
 }
 
-export function getFacultyBatchStudentRecords(students = [], { facultyName = '', courseId = '', courseName = '', batchName = '' } = {}) {
+export function getFacultyBatchStudentRecords(
+  students = [],
+  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '' } = {},
+) {
   const exactMatches = getMatchingStudents(students, {
     facultyName,
+    facultyId,
     courseId,
     courseName,
     batchName,
+    batchId,
   })
 
   if (exactMatches.length) {
@@ -221,55 +389,74 @@ export function getFacultyBatchStudentRecords(students = [], { facultyName = '',
   }
 
   return dedupeStudents(getMatchingStudents(students, {
+    facultyId,
     courseId,
     courseName,
     batchName,
+    batchId,
   }))
 }
 
 export function getUniqueStudentCountForFacultyScope(
   students = [],
-  { facultyName = '', courseId = '', courseName = '', batchNames = [] } = {},
+  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchNames = [], batchIds = [] } = {},
 ) {
   const normalizedBatchNames = Array.isArray(batchNames)
     ? batchNames.map((value) => String(value || '').trim()).filter(Boolean)
     : []
+  const normalizedBatchIds = Array.isArray(batchIds)
+    ? batchIds.map((value) => String(value || '').trim()).filter(Boolean)
+    : []
 
-  const studentRecords = normalizedBatchNames.length
+  const studentRecords = normalizedBatchNames.length || normalizedBatchIds.length
     ? normalizedBatchNames.flatMap((batchName) =>
         getFacultyBatchStudentRecords(students, {
           facultyName,
+          facultyId,
           courseId,
           courseName,
           batchName,
         }),
       )
+      .concat(
+        normalizedBatchIds.flatMap((batchId) =>
+          getFacultyBatchStudentRecords(students, {
+            facultyName,
+            facultyId,
+            courseId,
+            courseName,
+            batchId,
+          }),
+        ),
+      )
     : getFacultyBatchStudentRecords(students, {
-        facultyName,
-        courseId,
-        courseName,
-      })
+      facultyName,
+      facultyId,
+      courseId,
+      courseName,
+    })
 
   return dedupeStudents(studentRecords).length
 }
 
 export function getUniqueStudentCountForFacultyRecords(
   students = [],
-  { facultyName = '', batchEntries = [] } = {},
+  { facultyName = '', facultyId = '', batchEntries = [] } = {},
 ) {
-  const normalizedFacultyName = String(facultyName || '').trim()
   const normalizedBatchEntries = Array.isArray(batchEntries) ? batchEntries : []
 
-  if (!normalizedFacultyName || !normalizedBatchEntries.length) {
+  if (!normalizedBatchEntries.length) {
     return 0
   }
 
   const studentRecords = normalizedBatchEntries.flatMap((entry) =>
     getFacultyBatchStudentRecords(students, {
-      facultyName: normalizedFacultyName,
+      facultyName,
+      facultyId,
       courseId: entry?.courseId || '',
       courseName: entry?.courseName || '',
       batchName: entry?.batchName || '',
+      batchId: entry?.id || '',
     }),
   )
 

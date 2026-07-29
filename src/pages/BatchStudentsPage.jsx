@@ -27,6 +27,7 @@ import { listFacultyRecords, normalizeFacultyList } from '../services/facultySer
 import { listStudents } from '../services/studentService'
 import {
   buildFacultyCoursePath,
+  enrichStudentsWithFacultyReferences,
   getFacultyBatchEntryById,
   getFacultyCourseName,
   getFacultyBatchStudentRecords,
@@ -176,6 +177,16 @@ export function BatchStudentsPage() {
     }
   }, [])
 
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyRecords, courseOptions),
+    [courseOptions, facultyRecords, students],
+  )
+
+  useEffect(() => {
+    if (backfilledStudents === students) return
+    saveStudentSnapshot(backfilledStudents)
+  }, [backfilledStudents, students])
+
   const selectedFaculty = useMemo(
     () => mergeFacultyWithSnapshot(facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null),
     [facultyId, facultyRecords],
@@ -198,13 +209,15 @@ export function BatchStudentsPage() {
   const batchTiming = selectedBatch?.batchTiming || '-'
   const matchingStudents = useMemo(
     () =>
-      getFacultyBatchStudentRecords(students, {
+      getFacultyBatchStudentRecords(backfilledStudents, {
+        facultyId: selectedFaculty?.id || '',
         facultyName: selectedFaculty?.facultyName || '',
         courseId,
         courseName,
         batchName,
+        batchId: selectedBatch?.id || '',
       }),
-    [batchName, courseId, courseName, selectedFaculty, students],
+    [backfilledStudents, batchName, courseId, courseName, selectedBatch?.id, selectedFaculty],
   )
   const visibleStudents = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase()
