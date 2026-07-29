@@ -18,12 +18,24 @@ function normalizeBatchToken(value = '') {
 }
 
 function getStudentIdentityKey(student = {}) {
-  return (
+  const primaryKey =
     String(student?.id || '').trim().toLowerCase() ||
     String(student?.emailAddress || '').trim().toLowerCase() ||
     String(student?.mobileNumber || '').trim().toLowerCase() ||
     String(student?.studentCode || '').trim().toLowerCase()
-  )
+
+  if (primaryKey) return primaryKey
+
+  return [
+    student?.studentName,
+    student?.courseId,
+    student?.facultyId,
+    student?.batchId || student?.batchEntryId,
+    student?.admissionDate,
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean)
+    .join('|')
 }
 
 function dedupeStudents(students = []) {

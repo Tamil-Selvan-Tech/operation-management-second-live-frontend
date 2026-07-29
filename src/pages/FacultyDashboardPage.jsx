@@ -838,15 +838,6 @@ export function FacultyMyBatchesPage() {
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { courses: courseOptions, isLoading: isCoursesLoading } = useFacultyCourses()
   const [selectedBatchContext, setSelectedBatchContext] = useState(null)
-  const backfilledStudents = useMemo(
-    () => enrichStudentsWithFacultyReferences(students, facultyRecords, courseOptions),
-    [courseOptions, facultyRecords, students],
-  )
-
-  useEffect(() => {
-    if (backfilledStudents === students) return
-    saveStudentSnapshot(backfilledStudents)
-  }, [backfilledStudents, students])
 
   const profileName = latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
@@ -880,6 +871,23 @@ export function FacultyMyBatchesPage() {
     saveFacultySnapshot(activeFaculty)
   }, [activeFaculty])
 
+  const facultyBackfillPool = useMemo(() => {
+    const pool = []
+    if (activeFaculty) pool.push(activeFaculty)
+    if (Array.isArray(facultyRecords) && facultyRecords.length) pool.push(...facultyRecords)
+    return pool
+  }, [activeFaculty, facultyRecords])
+
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyBackfillPool, courseOptions),
+    [courseOptions, facultyBackfillPool, students],
+  )
+
+  useEffect(() => {
+    if (backfilledStudents === students) return
+    saveStudentSnapshot(backfilledStudents)
+  }, [backfilledStudents, students])
+
   const displayFaculty = activeFaculty || latestFaculty
 
   const facultyCourseIds = getFacultyCourseIds(displayFaculty || {}, courseOptions)
@@ -909,7 +917,7 @@ export function FacultyMyBatchesPage() {
       const batches = sortByNameThenTiming(getFacultyBatchEntriesForCourse(displayFaculty, course.courseId, courseOptions)).map((batch, batchIndex) => {
         const batchName = String(batch?.batchName || '').trim() || `Batch ${Number(batch?.sequenceNo || batchIndex + 1) || batchIndex + 1}`
         const batchTiming = String(batch?.batchTiming || '').trim()
-        const { present, absent, studentRecords: batchStudents } = getBatchAttendanceSplit(students, {
+        const { present, absent, studentRecords: batchStudents } = getBatchAttendanceSplit(backfilledStudents, {
           facultyName: displayFaculty?.facultyName || '',
           facultyId: displayFaculty?.id || '',
           courseId: course.courseId,
@@ -942,7 +950,7 @@ export function FacultyMyBatchesPage() {
         ...course,
         courseIndex,
         batches,
-        totalStudents: getUniqueStudentCountForFacultyScope(students, {
+        totalStudents: getUniqueStudentCountForFacultyScope(backfilledStudents, {
           facultyName: displayFaculty?.facultyName || '',
           facultyId: displayFaculty?.id || '',
           courseId: course.courseId,
@@ -953,14 +961,14 @@ export function FacultyMyBatchesPage() {
         groupProgress,
       }
     })
-  }, [courseOptions, displayFaculty, students])
+  }, [backfilledStudents, courseOptions, displayFaculty])
 
   const totalBatchCount = facultyCourseGroups.reduce((sum, group) => sum + group.batches.length, 0)
-  const totalStudents = getUniqueStudentCountForFacultyRecords(students, {
+  const totalStudents = getUniqueStudentCountForFacultyRecords(backfilledStudents, {
     facultyName: displayFaculty?.facultyName || '',
     facultyId: displayFaculty?.id || '',
     batchEntries: displayFaculty?.batchEntries || [],
-  }) || getUniqueStudentCountForFacultyScope(students, {
+  }) || getUniqueStudentCountForFacultyScope(backfilledStudents, {
     facultyName: displayFaculty?.facultyName || '',
     facultyId: displayFaculty?.id || '',
     courseId: displayFaculty?.courseId || facultyCourseIds[0] || '',

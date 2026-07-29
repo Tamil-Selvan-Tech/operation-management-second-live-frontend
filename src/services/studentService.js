@@ -44,12 +44,28 @@ function unwrapData(response) {
   return response.data ?? response
 }
 
+function extractStudentListPayload(payload) {
+  if (!payload) return []
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.data)) return payload.data
+  if (Array.isArray(payload?.items)) return payload.items
+  if (Array.isArray(payload?.results)) return payload.results
+  if (Array.isArray(payload?.docs)) return payload.docs
+  if (Array.isArray(payload?.records)) return payload.records
+
+  if (payload?.data && typeof payload.data === 'object') {
+    return extractStudentListPayload(payload.data)
+  }
+
+  return []
+}
+
 export function normalizeStudent(student) {
   if (!student) return null
 
   return {
     ...student,
-    id: student.id || '',
+    id: student.id || student._id || student.studentId || '',
     studentCode: student.studentCode || '',
     studentName: student.studentName || '',
     mobileNumber: student.mobileNumber || '',
@@ -153,9 +169,10 @@ export async function listStudents(query = {}) {
 
   try {
     const pending = request(`/students?${params.toString()}`).then((response) => {
+      const payload = unwrapData(response)
       const result = {
-      data: normalizeStudentList(unwrapData(response)),
-      meta: response?.meta ?? response?.data?.meta ?? null,
+        data: normalizeStudentList(extractStudentListPayload(payload)),
+        meta: response?.meta ?? payload?.meta ?? payload?.pagination ?? payload?.pageInfo ?? null,
       }
 
       setCachedResult(studentListCache, cacheKey, result)

@@ -31,6 +31,751 @@
   --font-mono: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
 }
 
+@media (max-width: 360px) and (max-height: 600px) {
+  .business-owner-dashboard .business-topbar,
+  .operation-manager-dashboard .business-topbar,
+  .business-topbar.is-business-owner-header {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'menu spacer actions'
+      'copy copy copy';
+    column-gap: 8px !important;
+    row-gap: 8px !important;
+    padding: 10px 10px 8px !important;
+    gap: 8px !important;
+    align-items: flex-start !important;
+  }
+
+  .business-owner-dashboard .operation-manager-mobile-brand,
+  .operation-manager-dashboard .operation-manager-mobile-brand,
+  .operation-manager-header .operation-manager-mobile-brand,
+  .business-topbar.is-business-owner-header .operation-manager-mobile-brand {
+    display: none !important;
+  }
+
+  .business-owner-dashboard .business-topbar > .mobile-menu-button,
+  .operation-manager-dashboard .business-topbar > .mobile-menu-button,
+  .business-topbar.is-business-owner-header > .mobile-menu-button {
+    grid-area: menu;
+    align-self: start;
+    justify-self: start;
+    margin-top: 2px;
+  }
+
+  .business-owner-dashboard .business-topbar-copy,
+  .operation-manager-dashboard .business-topbar-copy,
+  .is-business-owner-header .business-topbar-copy {
+    grid-area: copy;
+    display: grid !important;
+    gap: 2px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .business-owner-dashboard .business-topbar-copy .eyebrow,
+  .operation-manager-dashboard .business-topbar-copy .eyebrow,
+  .is-business-owner-header .business-topbar-copy .eyebrow {
+    font-size: 0.68rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .business-owner-dashboard .business-topbar h2,
+  .operation-manager-dashboard .business-topbar h2,
+  .business-topbar.is-business-owner-header h2 {
+    font-size: 1.15rem !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    margin: 0 !important;
+  }
+
+  .business-owner-dashboard .business-header-subtitle,
+  .business-owner-dashboard .business-topbar-copy p:last-child,
+  .operation-manager-dashboard .business-topbar-copy p:last-child {
+    display: none !important;
+  }
+
+  .business-owner-dashboard .business-topbar-actions,
+  .operation-manager-dashboard .business-topbar-actions,
+  .is-business-owner-header .business-topbar-actions {
+    grid-area: actions;
+    width: auto !important;
+    margin: 0 !important;
+    transform: none !important;
+    justify-content: flex-end !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    align-self: start;
+    justify-self: end;
+  }
+
+  .dashboard-search {
+    display: none !important;
+  }
+
+  .business-owner-dashboard .profile-chip,
+  .operation-manager-dashboard .profile-chip,
+  .is-business-owner-header .profile-chip {
+    width: auto !important;
+    flex: 0 0 auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    gap: 0 !important;
+  }
+
+  .business-owner-dashboard .profile-chip > div:last-child,
+  .operation-manager-dashboard .profile-chip > div:last-child,
+  .is-business-owner-header .profile-chip > div:last-child {
+    display: none !important;
+  }
+
+  .business-owner-dashboard .profile-avatar,
+  .operation-manager-dashboard .profile-avatar,
+  .is-business-owner-header .profile-avatar,
+  .business-owner-dashboard .icon-chip,
+  .operation-manager-dashboard .icon-chip {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .business-owner-dashboard .dashboard-layout,
+  .business-owner-dashboard .revenue-summary-row,
+  .operation-manager-dashboard .dashboard-layout.operation-manager-hero-layout,
+  .operation-manager-dashboard .kpi-row,
+  .operation-manager-dashboard .revenue-summary-row,
+  .business-owner-dashboard .revenue-comparison-grid,
+  .operation-manager-dashboard .revenue-comparison-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .business-owner-dashboard .revenue-summary-card,
+  .operation-manager-dashboard .revenue-summary-card,
+  .business-owner-dashboard .revenue-comparison-card,
+  .operation-manager-dashboard .revenue-comparison-card,
+  .operation-manager-dashboard .attendance-card {
+    min-height: 0 !important;
+    padding: 12px !important;
+    border-radius: 14px !important;
+  }
+
+  .revenue-summary-card-header,
+  .revenue-card-title-row,
+  .attendance-header-row {
+    gap: 6px !important;
+    align-items: flex-start !important;
+  }
+
+  .business-owner-dashboard .revenue-summary-label,
+  .operation-manager-dashboard .revenue-summary-label,
+  .revenue-card-title-row h3,
+  .revenue-title-group h3,
+  .attendance-header-title {
+    font-size: 0.84rem !important;
+    line-height: 1.18 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .business-owner-dashboard .revenue-summary-value,
+  .operation-manager-dashboard .revenue-summary-value {
+    font-size: 1.08rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .business-owner-dashboard .revenue-summary-icon,
+  .operation-manager-dashboard .revenue-summary-icon {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .revenue-comparison-body {
+    grid-template-columns: 34px minmax(0, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .revenue-plot {
+    min-height: 150px !important;
+    padding: 2px 4px 8px !important;
+  }
+
+  .revenue-weekly-body {
+    grid-template-columns: 58px minmax(0, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .revenue-weekly-plot {
+    min-height: 180px !important;
+    padding: 4px 8px 8px 0 !important;
+  }
+
+  .attendance-chart {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .attendance-left-axis,
+  .attendance-right-axis {
+    display: none !important;
+  }
+
+  .attendance-header {
+    gap: 6px !important;
+  }
+
+  .attendance-header-row {
+    align-items: center !important;
+  }
+
+  .attendance-header-title {
+    font-size: 0.88rem !important;
+  }
+
+  .attendance-period-chip {
+    min-height: 32px !important;
+    padding: 0 10px !important;
+    font-size: 0.72rem !important;
+  }
+
+  .attendance-legend {
+    justify-content: flex-start !important;
+    gap: 6px 10px !important;
+    font-size: 0.66rem !important;
+  }
+
+  .attendance-plot {
+    min-height: 168px !important;
+    padding: 4px 4px 6px !important;
+  }
+
+  .attendance-grid-lines {
+    inset: 20px 0 18px !important;
+  }
+
+  .attendance-bars-row {
+    top: 8px !important;
+    bottom: 16px !important;
+    gap: 3px !important;
+    padding: 0 4px !important;
+  }
+
+  .attendance-group {
+    gap: 4px !important;
+  }
+
+  .attendance-series {
+    gap: 3px !important;
+    min-width: 12px !important;
+  }
+
+  .attendance-series-value {
+    font-size: 0.6rem !important;
+    line-height: 1 !important;
+  }
+
+  .attendance-bar {
+    width: 9px !important;
+  }
+
+  .attendance-months-row {
+    gap: 4px !important;
+    padding: 0 2px !important;
+    font-size: 0.58rem !important;
+  }
+
+  .courses-page .app-pagination.pagination-bar {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'back pages next'
+      'summary summary summary';
+    width: 100% !important;
+    gap: 8px 6px !important;
+    padding: 10px 0 4px !important;
+    align-items: center !important;
+    justify-content: stretch !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .courses-page .app-pagination .pagination-bar-button:first-child {
+    grid-area: back;
+  }
+
+  .courses-page .app-pagination .pagination-bar-pages {
+    grid-area: pages;
+    min-width: 0 !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+
+  .courses-page .app-pagination .pagination-bar-button:last-child {
+    grid-area: next;
+  }
+
+  .courses-page .app-pagination .pagination-bar-button {
+    min-height: 32px !important;
+    min-width: 64px !important;
+    padding: 0 6px !important;
+    border-radius: 10px !important;
+    font-size: 0.72rem !important;
+    gap: 4px !important;
+    flex: 0 0 auto !important;
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06) !important;
+    white-space: nowrap !important;
+  }
+
+  .courses-page .app-pagination .pagination-bar-page {
+    min-width: 28px !important;
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+    border-radius: 9px !important;
+    font-size: 0.78rem !important;
+    flex: 0 0 auto !important;
+  }
+
+  .courses-page .app-pagination .pagination-bar-summary {
+    grid-area: summary;
+    width: 100% !important;
+    margin-top: 2px !important;
+    text-align: center !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    flex-basis: 100% !important;
+  }
+
+  .courses-page .app-pagination .pagination-bar-dots {
+    min-width: 12px !important;
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 360px) and (max-height: 600px) {
+  .app-shell {
+    padding: 6px;
+  }
+
+  .main-area {
+    padding: 10px;
+  }
+
+  .business-owner-dashboard,
+  .operation-manager-dashboard {
+    gap: 10px;
+  }
+
+  .business-owner-dashboard .business-topbar,
+  .operation-manager-dashboard .business-topbar,
+  .business-topbar.is-business-owner-header {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'menu spacer actions'
+      'copy copy copy';
+    padding: 10px 10px 8px !important;
+    gap: 8px !important;
+    column-gap: 8px !important;
+    row-gap: 8px !important;
+    align-items: flex-start !important;
+  }
+
+  .business-owner-dashboard .business-topbar::after,
+  .operation-manager-dashboard .business-topbar::after,
+  .business-topbar.is-business-owner-header::after {
+    left: 0;
+    right: 0;
+  }
+
+  .business-owner-dashboard .business-topbar > div:first-child,
+  .operation-manager-dashboard .business-topbar > div:first-child,
+  .business-owner-dashboard .business-topbar-copy,
+  .operation-manager-dashboard .business-topbar-copy,
+  .is-business-owner-header .business-topbar-copy {
+    width: 100%;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .business-owner-dashboard .business-topbar > .mobile-menu-button,
+  .operation-manager-dashboard .business-topbar > .mobile-menu-button,
+  .business-topbar.is-business-owner-header > .mobile-menu-button {
+    grid-area: menu;
+    align-self: start;
+    justify-self: start;
+    margin-top: 2px;
+  }
+
+  .business-owner-dashboard .business-topbar-copy,
+  .operation-manager-dashboard .business-topbar-copy,
+  .is-business-owner-header .business-topbar-copy {
+    grid-area: copy;
+    display: grid;
+    gap: 2px;
+    margin: 0;
+  }
+
+  .business-owner-dashboard .business-topbar-copy .eyebrow,
+  .operation-manager-dashboard .business-topbar-copy .eyebrow,
+  .is-business-owner-header .business-topbar-copy .eyebrow {
+    margin-bottom: 2px;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+  }
+
+  .business-owner-dashboard .business-topbar h2,
+  .operation-manager-dashboard .business-topbar h2,
+  .business-topbar.is-business-owner-header h2 {
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.15;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    letter-spacing: -0.03em;
+  }
+
+  .business-owner-dashboard .business-header-subtitle,
+  .business-owner-dashboard .business-topbar-copy p:last-child,
+  .operation-manager-dashboard .business-topbar-copy p:last-child {
+    display: none;
+  }
+
+  .business-owner-dashboard .business-topbar-actions,
+  .operation-manager-dashboard .business-topbar-actions,
+  .is-business-owner-header .business-topbar-actions {
+    grid-area: actions;
+    width: auto;
+    margin: 0;
+    transform: none;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 6px;
+    align-self: start;
+    justify-self: end;
+  }
+
+  .dashboard-search {
+    display: none;
+  }
+
+  .business-owner-dashboard .notification-menu,
+  .operation-manager-dashboard .notification-menu {
+    margin-left: 0;
+  }
+
+  .business-owner-dashboard .profile-chip,
+  .operation-manager-dashboard .profile-chip,
+  .is-business-owner-header .profile-chip {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    gap: 0;
+  }
+
+  .business-owner-dashboard .profile-chip > div:last-child,
+  .operation-manager-dashboard .profile-chip > div:last-child,
+  .is-business-owner-header .profile-chip > div:last-child {
+    display: none;
+  }
+
+  .business-owner-dashboard .profile-avatar,
+  .operation-manager-dashboard .profile-avatar,
+  .is-business-owner-header .profile-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 11px;
+  }
+
+  .business-owner-dashboard .icon-chip,
+  .operation-manager-dashboard .icon-chip {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .business-owner-dashboard .icon-chip svg,
+  .operation-manager-dashboard .icon-chip svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .business-owner-dashboard .dashboard-layout,
+  .business-owner-dashboard .revenue-summary-row,
+  .operation-manager-dashboard .dashboard-layout.operation-manager-hero-layout,
+  .operation-manager-dashboard .kpi-row,
+  .operation-manager-dashboard .revenue-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .business-owner-dashboard .visitor-card,
+  .business-owner-dashboard .revenue-trends-card,
+  .business-owner-dashboard .revenue-card,
+  .operation-manager-dashboard .visitor-card,
+  .operation-manager-dashboard .revenue-trends-card,
+  .operation-manager-dashboard .revenue-card,
+  .operation-manager-dashboard .business-kpi {
+    min-width: 0;
+  }
+
+  .business-owner-dashboard .revenue-summary-card,
+  .operation-manager-dashboard .revenue-summary-card {
+    min-height: 0;
+    padding: 12px 12px 10px;
+    border-radius: 14px;
+    gap: 8px;
+  }
+
+  .revenue-summary-card-header {
+    gap: 4px;
+    align-items: flex-start;
+  }
+
+  .revenue-summary-header-left {
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .business-owner-dashboard .revenue-summary-icon,
+  .operation-manager-dashboard .revenue-summary-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    flex: 0 0 auto;
+  }
+
+  .business-owner-dashboard .revenue-summary-label,
+  .operation-manager-dashboard .revenue-summary-label {
+    font-size: 0.84rem;
+    line-height: 1.2;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .business-owner-dashboard .revenue-summary-value,
+  .operation-manager-dashboard .revenue-summary-value {
+    font-size: 1.08rem;
+    line-height: 1.05;
+  }
+
+  .revenue-summary-card-divider {
+    margin: 6px 0;
+  }
+
+  .revenue-summary-trend-row {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .revenue-summary-trend-badge {
+    padding: 3px 7px;
+    font-size: 0.7rem;
+  }
+
+  .revenue-summary-trend-label {
+    font-size: 0.7rem;
+  }
+
+  .business-owner-dashboard .revenue-comparison-grid,
+  .operation-manager-dashboard .revenue-comparison-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .business-owner-dashboard .revenue-comparison-card,
+  .operation-manager-dashboard .revenue-comparison-card,
+  .operation-manager-dashboard .attendance-card {
+    padding: 12px;
+    border-radius: 16px;
+    gap: 10px;
+  }
+
+  .revenue-comparison-header {
+    gap: 8px;
+    align-items: flex-start;
+  }
+
+  .revenue-card-title-row,
+  .revenue-title-group,
+  .attendance-header-row {
+    gap: 6px;
+    align-items: flex-start;
+  }
+
+  .revenue-card-title-row h3,
+  .revenue-title-group h3,
+  .attendance-header-title {
+    font-size: 0.96rem;
+    line-height: 1.18;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .revenue-legend,
+  .attendance-legend {
+    gap: 6px 8px;
+    flex-wrap: wrap;
+    font-size: 0.68rem;
+    line-height: 1.2;
+    white-space: normal;
+  }
+
+  .revenue-legend-item {
+    gap: 4px;
+  }
+
+  .revenue-comparison-body {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .revenue-axis-y {
+    padding-bottom: 8px;
+    font-size: 0.66rem;
+  }
+
+  .revenue-plot {
+    min-height: 150px;
+    padding: 2px 4px 8px;
+    border-radius: 14px;
+  }
+
+  .revenue-grid-lines {
+    inset: 18px 0 18px;
+  }
+
+  .revenue-groups {
+    gap: 4px;
+  }
+
+  .revenue-month-group {
+    gap: 4px;
+  }
+
+  .revenue-bars {
+    min-height: 120px;
+    gap: 2px;
+  }
+
+  .revenue-month-label {
+    font-size: 0.64rem;
+    line-height: 1;
+  }
+
+  .revenue-weekly-body {
+    grid-template-columns: 58px minmax(0, 1fr);
+    gap: 6px;
+  }
+
+  .revenue-weekly-axis-y {
+    gap: 6px;
+    padding: 0 0 4px;
+    font-size: 0.66rem;
+  }
+
+  .revenue-weekly-plot {
+    min-height: 180px;
+    padding: 4px 8px 8px 0;
+    border-radius: 14px;
+  }
+
+  .revenue-weekly-grid-lines {
+    inset: 10px 0 14px 0;
+  }
+
+  .revenue-weekly-groups {
+    gap: 8px;
+    padding: 4px 0;
+  }
+
+  .revenue-week-row {
+    gap: 6px;
+  }
+
+  .revenue-week-bars {
+    gap: 6px;
+  }
+
+  .revenue-week-bar-group {
+    gap: 2px;
+  }
+
+  .revenue-week-bar-label {
+    font-size: 0.58rem;
+    line-height: 1.1;
+  }
+
+  .revenue-weekly-axis-x {
+    height: 16px;
+    margin-top: 2px;
+    font-size: 0.66rem;
+  }
+
+  .attendance-chart {
+    grid-template-columns: 34px minmax(0, 1fr) 30px;
+    gap: 6px;
+    min-height: 0;
+  }
+
+  .attendance-left-axis,
+  .attendance-right-axis {
+    padding: 4px 0 18px;
+    font-size: 0.66rem;
+  }
+
+  .attendance-plot {
+    min-height: 220px;
+    padding: 6px 6px 4px;
+    border-radius: 14px;
+  }
+
+  .attendance-grid-lines {
+    inset: 28px 0 28px;
+  }
+
+  .attendance-bars-row {
+    top: 12px;
+    bottom: 22px;
+    gap: 4px;
+    padding: 0 6px;
+  }
+
+  .attendance-series {
+    gap: 4px;
+    min-width: 14px;
+  }
+
+  .attendance-series-value {
+    font-size: 0.64rem;
+  }
+
+  .attendance-bar {
+    width: 11px;
+    border-radius: 999px;
+  }
+
+  .attendance-months-row {
+    gap: 4px;
+    padding: 0 4px;
+    font-size: 0.62rem;
+  }
+
+  .chart-card-footer {
+    font-size: 0.68rem;
+  }
+
+  .business-owner-dashboard .dashboard-layout.operation-manager-hero-layout {
+    gap: 10px;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -18167,52 +18912,126 @@ tbody tr:hover {
   }
 
   .app-pagination.pagination-bar {
-    gap: 10px 8px;
-    padding: 16px 0 10px;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'back pages next'
+      'summary summary summary';
+    gap: 8px 6px;
+    padding: 12px 0 8px;
     align-items: center;
+    justify-content: stretch;
+    flex-wrap: nowrap;
+  }
+
+  .app-pagination .pagination-bar-button:first-child {
+    grid-area: back;
+  }
+
+  .app-pagination .pagination-bar-pages {
+    grid-area: pages;
+    min-width: 0;
+    gap: 4px;
+    justify-content: center;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
+  }
+
+  .app-pagination .pagination-bar-button:last-child {
+    grid-area: next;
   }
 
   .app-pagination .pagination-bar-button {
-    min-height: 36px;
-    padding: 0 12px;
-    border-radius: 11px;
-    font-size: 0.88rem;
-    gap: 5px;
+    min-height: 32px;
+    min-width: 72px;
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 0.74rem;
+    gap: 4px;
     white-space: nowrap;
     flex: 0 0 auto;
   }
 
-  .app-pagination .pagination-bar-pages {
-    gap: 8px;
-    justify-content: center;
-    flex: 0 0 auto;
-  }
-
   .app-pagination .pagination-bar-page {
-    min-width: 36px;
-    height: 36px;
-    padding: 0 10px;
-    border-radius: 11px;
-    font-size: 0.92rem;
+    min-width: 28px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 9px;
+    font-size: 0.78rem;
     flex: 0 0 auto;
   }
 
   .app-pagination .pagination-bar-summary {
+    grid-area: summary;
     width: 100%;
     text-align: center;
-    font-size: 0.92rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    order: 4;
+    margin-top: 2px;
     flex-basis: 100%;
   }
 
   .app-pagination .pagination-bar-dots {
-    min-width: 14px;
-    font-size: 15px;
+    min-width: 10px;
+    font-size: 13px;
     flex: 0 0 auto;
+  }
+
+  .courses-topbar-actions {
+    grid-template-columns: minmax(0, 1fr) 112px !important;
+    gap: 8px 8px !important;
+  }
+
+  .courses-topbar-actions .course-add-button {
+    min-height: 42px !important;
+    padding: 0 12px !important;
+    font-size: 0.82rem !important;
+    border-radius: 12px !important;
+  }
+
+  .courses-topbar-actions .search-bar {
+    width: 100% !important;
+    min-height: 42px !important;
+    border-radius: 14px !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .courses-topbar-actions .search-bar input {
+    padding: 0 10px !important;
+    font-size: 0.78rem !important;
+    min-width: 0 !important;
+  }
+
+  .courses-topbar-actions .search-bar-button {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    border-radius: 0 14px 14px 0 !important;
+  }
+
+  .course-toolbar {
+    margin-top: 0 !important;
+    padding-bottom: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .course-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .course-filter-chip {
+    box-shadow: 0 4px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .course-filter-chip.active {
+    box-shadow: 0 4px 8px rgba(15, 23, 42, 0.04) !important;
   }
 
   .business-owner-dashboard .revenue-summary-row {
@@ -20601,12 +21420,14 @@ tbody tr:hover {
 
 .operation-manager-dashboard .revenue-week-bar.monthly {
   background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
-  border-radius: 999px;
+  border-radius: 3px;
+  box-shadow: none;
 }
 
 .operation-manager-dashboard .revenue-week-bar.expected {
   background: linear-gradient(180deg, #facc15 0%, #eab308 100%);
-  border-radius: 999px;
+  border-radius: 3px;
+  box-shadow: none;
 }
 
 .operation-manager-dashboard .revenue-bar.monthly {
