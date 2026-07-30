@@ -40,7 +40,7 @@ function createEmptyForm() {
   }
 }
 
-const BATCH_TIMING_OPTIONS = ['09.30 AM - 6.30 PM', '10.00 AM - 7.00 PM', '10.30 AM - 7.30 PM', '11.00 AM - 8.00 PM']
+const BATCH_TIMING_OPTIONS = ['09.30 AM - 11.30 PM', '12.00 AM - 2.00 PM', '2.30 PM - 3.30 PM', '4.00 PM - 6.00 PM', '6.30 PM - 7.30 PM']
 const FACULTY_WIZARD_STEPS = [
   {
     key: 'faculty',

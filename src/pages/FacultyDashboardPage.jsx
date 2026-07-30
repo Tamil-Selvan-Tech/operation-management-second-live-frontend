@@ -14,6 +14,7 @@ import { listFacultyRecords, normalizeFacultyList } from '../services/facultySer
 import { listCourses } from '../services/courseService'
 import { listStudents } from '../services/studentService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
+import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -251,15 +252,6 @@ function getFacultyGreetingLabel() {
   if (hour < 12) return 'Good Morning'
   if (hour < 17) return 'Good Afternoon'
   return 'Good Evening'
-}
-
-function FacultyAttendanceChip() {
-  return (
-    <div className="faculty-attendance-chip" role="img" aria-label="Attendance">
-      <CalendarDays size={18} strokeWidth={2.15} aria-hidden="true" focusable="false" />
-      <span>Attendance</span>
-    </div>
-  )
 }
 
 function formatFacultyMonthYear(date) {
@@ -766,6 +758,16 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
             <p className="student-dashboard-header-title">Loading Faculty Dashboard...</p>
             <p className="student-dashboard-header-subtitle">Please wait while we fetch your dashboard details.</p>
           </div>
+          <div className="student-dashboard-header-actions">
+            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
+            <div className="student-dashboard-profile-chip" aria-label={profileName}>
+              <span className="student-dashboard-profile-initials" aria-hidden="true">
+                {profileInitials}
+              </span>
+              <span className="student-dashboard-profile-name">{profileName}</span>
+              <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+            </div>
+          </div>
         </header>
         <article className="panel-card student-dashboard-empty">
           <h2>{dashboard.title}</h2>
@@ -786,6 +788,16 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
           <div className="student-dashboard-header-copy">
             <p className="student-dashboard-header-title">Faculty Dashboard</p>
             <p className="student-dashboard-header-subtitle">Welcome back to your faculty dashboard.</p>
+          </div>
+          <div className="student-dashboard-header-actions">
+            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
+            <div className="student-dashboard-profile-chip" aria-label={profileName}>
+              <span className="student-dashboard-profile-initials" aria-hidden="true">
+                {profileInitials}
+              </span>
+              <span className="student-dashboard-profile-name">{profileName}</span>
+              <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+            </div>
           </div>
         </header>
         <article className="panel-card student-dashboard-empty">
@@ -821,7 +833,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
         <div className="student-dashboard-header-actions">
           <NotificationBell />
-          <FacultyAttendanceChip />
+          <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
           <div className="student-dashboard-profile-chip" aria-label={profileName}>
             <span className="student-dashboard-profile-initials" aria-hidden="true">
               {profileInitials}
@@ -1120,7 +1132,7 @@ export function FacultyMyBatchesPage() {
 
           <div className="student-dashboard-header-actions">
             <NotificationBell />
-            <FacultyAttendanceChip />
+            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
             <div className="student-dashboard-profile-chip" aria-label={profileName}>
               <span className="student-dashboard-profile-initials" aria-hidden="true">
                 {profileInitials}
@@ -1160,7 +1172,7 @@ export function FacultyMyBatchesPage() {
 
         <div className="student-dashboard-header-actions">
           <NotificationBell />
-          <FacultyAttendanceChip />
+          <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
           <div className="student-dashboard-profile-chip" aria-label={profileName}>
             <span className="student-dashboard-profile-initials" aria-hidden="true">
               {profileInitials}
