@@ -657,6 +657,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
   const profileName = activeFaculty?.facultyName || latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
+  const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
   const greetingName = getFacultyGreetingName(activeFaculty?.facultyName || latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
   const batchNames = useMemo(
@@ -759,7 +760,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
             <p className="student-dashboard-header-subtitle">Please wait while we fetch your dashboard details.</p>
           </div>
           <div className="student-dashboard-header-actions">
-            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
+            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
             <div className="student-dashboard-profile-chip" aria-label={profileName}>
               <span className="student-dashboard-profile-initials" aria-hidden="true">
                 {profileInitials}
@@ -790,7 +791,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
             <p className="student-dashboard-header-subtitle">Welcome back to your faculty dashboard.</p>
           </div>
           <div className="student-dashboard-header-actions">
-            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
+            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
             <div className="student-dashboard-profile-chip" aria-label={profileName}>
               <span className="student-dashboard-profile-initials" aria-hidden="true">
                 {profileInitials}
@@ -833,7 +834,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
         <div className="student-dashboard-header-actions">
           <NotificationBell />
-          <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
+          <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
           <div className="student-dashboard-profile-chip" aria-label={profileName}>
             <span className="student-dashboard-profile-initials" aria-hidden="true">
               {profileInitials}
@@ -904,6 +905,7 @@ export function FacultyMyBatchesPage() {
 
     return mergeFacultyRecords(latestFaculty, mergedFacultyRecord)
   }, [facultyRecords, latestFaculty])
+  const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
 
   useEffect(() => {
     if (!activeFaculty) return
@@ -1132,7 +1134,7 @@ export function FacultyMyBatchesPage() {
 
           <div className="student-dashboard-header-actions">
             <NotificationBell />
-            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
+            <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
             <div className="student-dashboard-profile-chip" aria-label={profileName}>
               <span className="student-dashboard-profile-initials" aria-hidden="true">
                 {profileInitials}
@@ -1172,7 +1174,7 @@ export function FacultyMyBatchesPage() {
 
         <div className="student-dashboard-header-actions">
           <NotificationBell />
-          <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} />
+          <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
           <div className="student-dashboard-profile-chip" aria-label={profileName}>
             <span className="student-dashboard-profile-initials" aria-hidden="true">
               {profileInitials}

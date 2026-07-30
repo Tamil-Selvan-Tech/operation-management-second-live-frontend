@@ -1,23 +1,42 @@
-import { Activity, ArrowUpRight, BookOpen, CalendarDays, ChevronDown, ClipboardList, GraduationCap, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
-import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+﻿import { Activity, ArrowUpRight, BookOpen, ChevronDown, ClipboardList, GraduationCap, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 
+import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { NotificationBell } from '../components/NotificationBell'
+import { resolveStudentAttendanceStatus } from '../lib/facultyAttendanceStore'
 import {
   formatCurrency,
   formatDate,
   getPaidAmount,
   getSecondDueDate,
   getStudentInitials,
-  getStudentStatus,
-  getThirdDueDate,
-  hasThirdInstallment,
   useCurrentStudentProfile,
-  StudentSectionCard,
-  StudentInfoItem,
 } from './studentDashboardUtils.jsx'
 
 const attendanceValuePattern = [92, 96, 88, 93, 90, 94, 91, 95, 89, 92, 94, 90]
+
+function useFacultyRecordsSnapshot() {
+  const [facultyRecords, setFacultyRecords] = useState(() => loadFacultyRecords())
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const syncFacultyRecords = () => {
+      setFacultyRecords(loadFacultyRecords())
+    }
+
+    syncFacultyRecords()
+    window.addEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyRecords)
+    window.addEventListener('storage', syncFacultyRecords)
+
+    return () => {
+      window.removeEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyRecords)
+      window.removeEventListener('storage', syncFacultyRecords)
+    }
+  }, [])
+
+  return facultyRecords
+}
 
 function parseDateValue(value) {
   const date = new Date(`${value}T00:00:00`)
@@ -105,7 +124,7 @@ function getStartOfWeek(date) {
   return start
 }
 
-function buildWeeklyAttendanceOverview(student) {
+function buildWeeklyAttendanceOverview(student, todayAttendanceStatus = null) {
   const today = new Date()
   const seed = getAttendanceSeed(student)
   const startOfWeek = getStartOfWeek(today)
@@ -122,6 +141,14 @@ function buildWeeklyAttendanceOverview(student) {
       isToday: date.toDateString() === today.toDateString(),
     }
   })
+
+  const todayIndex = days.findIndex((day) => day.isToday)
+  if (todayIndex >= 0 && (todayAttendanceStatus === 'Present' || todayAttendanceStatus === 'Absent')) {
+    days[todayIndex] = {
+      ...days[todayIndex],
+      present: todayAttendanceStatus === 'Present',
+    }
+  }
 
   const presentCount = days.filter((day) => day.present).length
   const absentCount = days.length - presentCount
@@ -158,21 +185,16 @@ function getStudentGreetingLabel() {
   return 'Good Evening'
 }
 
-function formatStudentHeaderDate(date = new Date()) {
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
+function getAttendanceStatusTone(status) {
+  return status === 'Present' ? 'is-present' : 'is-absent'
 }
 
-function StudentDashboardHeader({ studentName }) {
+function StudentDashboardHeader({ studentName, facultyAttendanceStatus }) {
   const greetingName = getStudentGreetingName(studentName)
   const greetingLabel = getStudentGreetingLabel()
-  const todayLabel = formatStudentHeaderDate()
   const profileName = studentName || 'Student'
   const profileInitials = getStudentInitials(profileName)
+  const statusLabel = facultyAttendanceStatus?.status || 'Absent'
 
   return (
     <header className="student-dashboard-header">
@@ -186,11 +208,20 @@ function StudentDashboardHeader({ studentName }) {
 
       <div className="student-dashboard-header-actions">
         <NotificationBell />
-        <div className="student-dashboard-date-pill" aria-label={todayLabel}>
-          <CalendarDays size={18} strokeWidth={2.15} aria-hidden="true" focusable="false" />
-          <div>
-            <strong>{todayLabel}</strong>
-            <span>TODAY</span>
+        <div
+          className={`student-attendance-today-status ${getAttendanceStatusTone(statusLabel)}`.trim()}
+          style={{ width: 'fit-content', marginLeft: '0.5rem', padding: '0.75rem 1rem' }}
+        >
+          <div className="student-attendance-today-icon" aria-hidden="true">
+            {statusLabel === 'Present' ? 'P' : 'A'}
+          </div>
+          <div className="student-attendance-today-copy">
+            <strong>{`Faculty ${statusLabel}`}</strong>
+            <span>
+              {facultyAttendanceStatus?.facultyName
+                ? `${facultyAttendanceStatus.facultyName}${facultyAttendanceStatus?.batchName ? ` • ${facultyAttendanceStatus.batchName}` : ''}`
+                : 'Faculty attendance status for today'}
+            </span>
           </div>
         </div>
         <div className="student-dashboard-profile-chip" aria-label={profileName}>
@@ -205,7 +236,7 @@ function StudentDashboardHeader({ studentName }) {
   )
 }
 
-function StudentSummaryCard({ icon: Icon, label, value, note, tone = 'blue', badge }) {
+function StudentSummaryCard({ icon: Icon, label, value, note, tone = 'blue', badge, status }) {
   return (
     <article className={`student-summary-card tone-${tone}`}>
       <div className="student-summary-card-icon" aria-hidden="true">
@@ -216,14 +247,15 @@ function StudentSummaryCard({ icon: Icon, label, value, note, tone = 'blue', bad
         <strong className="student-summary-card-value">{value || '-'}</strong>
         {note ? <small className="student-summary-card-note">{note}</small> : null}
       </div>
+      {status ? <span className={`student-summary-card-badge ${getAttendanceStatusTone(status)}`.trim()}>{status}</span> : null}
       {badge ? <span className="student-summary-card-badge">{badge}</span> : null}
     </article>
   )
 }
 
-function StudentMonthlyAttendanceChart({ student }) {
+function StudentMonthlyAttendanceChart({ student, facultyAttendanceStatus }) {
   const attendance = useMemo(() => buildStudentAttendanceData(student), [student])
-  const weekly = useMemo(() => buildWeeklyAttendanceOverview(student), [student])
+  const weekly = useMemo(() => buildWeeklyAttendanceOverview(student, facultyAttendanceStatus?.status), [student, facultyAttendanceStatus?.status])
 
   return (
     <article className="student-attendance-layout">
@@ -530,11 +562,16 @@ function StudentTestPerformanceTrend({ student }) {
 
 function StudentDashboardContent({ dashboard }) {
   const { student: latestStudent, isLoading } = useCurrentStudentProfile()
+  const facultyRecords = useFacultyRecordsSnapshot()
+  const facultyAttendance = useMemo(
+    () => resolveStudentAttendanceStatus(latestStudent || {}, facultyRecords),
+    [latestStudent, facultyRecords],
+  )
 
   if (isLoading) {
     return (
       <section className="student-dashboard-page">
-        <StudentDashboardHeader studentName={null} />
+        <StudentDashboardHeader studentName={null} facultyAttendanceStatus={null} />
         <article className="panel-card student-dashboard-empty">
           <p className="eyebrow">Student Dashboard</p>
           <h2>{dashboard.title}</h2>
@@ -551,7 +588,7 @@ function StudentDashboardContent({ dashboard }) {
   if (!latestStudent) {
     return (
       <section className="student-dashboard-page">
-        <StudentDashboardHeader studentName={null} />
+        <StudentDashboardHeader studentName={null} facultyAttendanceStatus={null} />
         <article className="panel-card student-dashboard-empty">
           <p className="eyebrow">Student Dashboard</p>
           <h2>{dashboard.title}</h2>
@@ -565,7 +602,6 @@ function StudentDashboardContent({ dashboard }) {
     )
   }
 
-  const status = getStudentStatus(latestStudent)
   const totalAmount = Number(latestStudent.afterDiscount || latestStudent.totalAmount || 0)
   const paidAmount = getPaidAmount(latestStudent)
   const dueAmount = Math.max(totalAmount - paidAmount, 0)
@@ -593,7 +629,7 @@ function StudentDashboardContent({ dashboard }) {
       value: latestStudent.facultyName || '-',
       note: latestStudent.batch || 'Asha batch 2',
       tone: 'violet',
-      badge: 'View',
+      status: facultyAttendance.status,
     },
     {
       icon: TrendingUp,
@@ -606,7 +642,7 @@ function StudentDashboardContent({ dashboard }) {
 
   return (
     <section className="student-dashboard-page">
-      <StudentDashboardHeader studentName={latestStudent.studentName} />
+      <StudentDashboardHeader studentName={latestStudent.studentName} facultyAttendanceStatus={facultyAttendance} />
 
       <div className="student-summary-strip" aria-label="Student summary cards">
         {summaryCards.map((card) => (
@@ -618,11 +654,12 @@ function StudentDashboardContent({ dashboard }) {
             note={card.note}
             tone={card.tone}
             badge={card.badge}
+            status={card.status}
           />
         ))}
       </div>
 
-      <StudentMonthlyAttendanceChart student={latestStudent} />
+      <StudentMonthlyAttendanceChart student={latestStudent} facultyAttendanceStatus={facultyAttendance} />
 
       <div className="student-performance-payment-row">
         <StudentTestPerformanceTrend student={latestStudent} />
@@ -635,3 +672,7 @@ function StudentDashboardContent({ dashboard }) {
 export function StudentDashboard({ dashboard }) {
   return <StudentDashboardContent dashboard={dashboard} />
 }
+
+
+
+

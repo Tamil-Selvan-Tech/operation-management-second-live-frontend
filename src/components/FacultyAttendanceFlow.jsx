@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CalendarDays, CheckCircle2, Clock3, FileText, LogIn, LogOut, X } from 'lucide-react'
 
-const ATTENDANCE_STORAGE_PREFIX = 'cispro.faculty.attendance'
+import {
+  clearFacultyAttendanceState,
+  getAttendanceDateKey,
+  loadFacultyAttendanceState,
+  saveFacultyAttendanceState,
+} from '../lib/facultyAttendanceStore'
 
 function formatOrdinalDay(day) {
   const suffix = day % 10 === 1 && day % 100 !== 11 ? 'st' : day % 10 === 2 && day % 100 !== 12 ? 'nd' : day % 10 === 3 && day % 100 !== 13 ? 'rd' : 'th'
@@ -14,63 +19,6 @@ function formatAttendanceDate(date = new Date()) {
   const month = date.toLocaleString('en-GB', { month: 'long' })
   const year = date.getFullYear()
   return `${day} ${month}, ${year}`
-}
-
-function getAttendanceDateKey(date = new Date()) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function normalizeStorageSlug(value = '') {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || 'faculty'
-}
-
-function buildAttendanceStorageKey(profileName, profileInitials) {
-  return `${ATTENDANCE_STORAGE_PREFIX}.${normalizeStorageSlug(profileName || profileInitials)}`
-}
-
-function loadStoredAttendanceState(storageKey) {
-  if (typeof window === 'undefined') return null
-
-  try {
-    const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return null
-
-    const parsed = JSON.parse(raw)
-    if (!parsed || parsed.dateKey !== getAttendanceDateKey()) return null
-
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-function saveStoredAttendanceState(storageKey, payload) {
-  if (typeof window === 'undefined') return
-
-  try {
-    window.localStorage.setItem(storageKey, JSON.stringify(payload))
-  } catch {
-    // Ignore storage failures and keep the UI functional.
-  }
-}
-
-function clearStoredAttendanceState(storageKey) {
-  if (typeof window === 'undefined') return
-
-  try {
-    window.localStorage.removeItem(storageKey)
-  } catch {
-    // Ignore storage failures and keep the UI functional.
-  }
 }
 
 function formatAttendanceTime(date = new Date()) {
@@ -126,9 +74,8 @@ function AttendanceStatusPill({ status }) {
   )
 }
 
-export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials = 'FA' }) {
-  const storageKey = buildAttendanceStorageKey(profileName, profileInitials)
-  const initialAttendance = loadStoredAttendanceState(storageKey)
+export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials = 'FA', facultyId = '' }) {
+  const initialAttendance = loadFacultyAttendanceState(facultyId, profileName, profileInitials)
   const [isOpen, setIsOpen] = useState(false)
   const [viewState, setViewState] = useState(() => initialAttendance?.viewState || 'idle')
   const [logoutType, setLogoutType] = useState(() => initialAttendance?.logoutType || 'normal')
@@ -186,12 +133,15 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     activeDateKeyRef.current = todayKey
 
     if (initialAttendance?.dateKey && initialAttendance.dateKey !== todayKey) {
-      clearStoredAttendanceState(storageKey)
+      clearFacultyAttendanceState(facultyId, profileName, profileInitials)
     }
-  }, [initialAttendance?.dateKey, storageKey])
+  }, [facultyId, initialAttendance?.dateKey, profileName, profileInitials])
 
   useEffect(() => {
     const payload = {
+      facultyId,
+      facultyName: profileName,
+      profileInitials,
       dateKey: getAttendanceDateKey(),
       viewState,
       logoutType,
@@ -203,8 +153,8 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     }
 
     activeDateKeyRef.current = payload.dateKey
-    saveStoredAttendanceState(storageKey, payload)
-  }, [loginTime, logoutReason, logoutTime, logoutType, storageKey, viewState, workCompleted, workReport])
+    saveFacultyAttendanceState(facultyId, profileName, profileInitials, payload)
+  }, [facultyId, loginTime, logoutReason, logoutTime, logoutType, profileName, profileInitials, viewState, workCompleted, workReport])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -214,7 +164,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
       if (nextDateKey === activeDateKeyRef.current) return
 
       activeDateKeyRef.current = nextDateKey
-      clearStoredAttendanceState(storageKey)
+      clearFacultyAttendanceState(facultyId, profileName, profileInitials)
       setIsOpen(false)
       setViewState('idle')
       setLogoutType('normal')
@@ -227,7 +177,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     }, 60000)
 
     return () => window.clearInterval(intervalId)
-  }, [storageKey])
+  }, [facultyId, profileName, profileInitials])
 
   const openPanel = () => setIsOpen(true)
 
