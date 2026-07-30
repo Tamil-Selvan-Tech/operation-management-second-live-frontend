@@ -77,12 +77,15 @@ export function mergeFacultyWithSnapshot(record) {
     ...snapshot,
     ...record,
     courseId: record.courseId || snapshot.courseId || '',
-    courseIds: Array.isArray(record.courseIds) && record.courseIds.length ? record.courseIds : snapshot.courseIds || [],
+    courseIds: Array.isArray(record.courseIds) && record.courseIds.length ? record.courseIds : Array.isArray(snapshot.courseIds) ? snapshot.courseIds : [],
     courseAssignments:
       Array.isArray(record.courseAssignments) && record.courseAssignments.length
         ? record.courseAssignments
-        : snapshot.courseAssignments || [],
-    batchEntries: Array.isArray(record.batchEntries) && record.batchEntries.length ? record.batchEntries : snapshot.batchEntries || [],
+        : Array.isArray(snapshot.courseAssignments)
+          ? snapshot.courseAssignments
+          : [],
+    batchEntries:
+      Array.isArray(record.batchEntries) && record.batchEntries.length ? record.batchEntries : Array.isArray(snapshot.batchEntries) ? snapshot.batchEntries : [],
     batchCount: Number(record.batchCount || snapshot.batchCount || 0) || 0,
   })
 }

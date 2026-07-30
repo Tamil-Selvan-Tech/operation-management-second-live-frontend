@@ -52,7 +52,7 @@ function useCurrentFacultyProfile() {
         const result = await getCurrentFacultyProfile()
         if (!active) return
         setFaculty((current) => {
-          const nextFaculty = mergeFacultyRecords(current, result)
+          const nextFaculty = preferFacultyProfileSnapshot(current, result)
           saveFacultySnapshot(nextFaculty)
           return nextFaculty
         })
@@ -176,6 +176,22 @@ function mergeFacultyRecords(primary = null, secondary = null) {
     courseName: secondary.courseName || primary.courseName || '',
     courseAssignments: Array.isArray(secondary.courseAssignments) && secondary.courseAssignments.length ? secondary.courseAssignments : primary.courseAssignments || [],
     batchCount: Number(secondary.batchCount || primary.batchCount || mergedBatchEntries.length || 0) || 0,
+  }
+}
+
+function preferFacultyProfileSnapshot(current = null, next = null) {
+  if (!current && !next) return null
+  if (!current) return next
+  if (!next) return current
+
+  return {
+    ...current,
+    ...next,
+    batchEntries: Array.isArray(next.batchEntries) && next.batchEntries.length ? next.batchEntries : Array.isArray(current.batchEntries) ? current.batchEntries : [],
+    courseIds: Array.isArray(next.courseIds) && next.courseIds.length ? next.courseIds : Array.isArray(current.courseIds) ? current.courseIds : [],
+    courseAssignments:
+      Array.isArray(next.courseAssignments) && next.courseAssignments.length ? next.courseAssignments : Array.isArray(current.courseAssignments) ? current.courseAssignments : [],
+    batchCount: Number(next.batchCount || current.batchCount || 0) || 0,
   }
 }
 
@@ -618,27 +634,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
-  const activeFaculty = useMemo(() => {
-    const latestId = String(latestFaculty?.id || latestFaculty?._id || latestFaculty?.facultyId || '').trim().toLowerCase()
-    const latestEmail = String(latestFaculty?.facultyEmail || '').trim().toLowerCase()
-    const latestName = String(latestFaculty?.facultyName || '').trim().toLowerCase()
-
-    const matchedFacultyRecords = facultyRecords.filter((record) => {
-      const recordId = String(record?.id || record?._id || record?.facultyId || '').trim().toLowerCase()
-      const recordEmail = String(record?.facultyEmail || '').trim().toLowerCase()
-      const recordName = String(record?.facultyName || '').trim().toLowerCase()
-
-      return (
-        (latestId && recordId === latestId) ||
-        (latestEmail && recordEmail === latestEmail) ||
-        (latestName && recordName === latestName)
-      )
-    })
-
-    const mergedFacultyRecord = matchedFacultyRecords.reduce((accumulator, record) => mergeFacultyRecords(accumulator, record), null)
-
-    return mergeFacultyRecords(latestFaculty, mergedFacultyRecord)
-  }, [facultyRecords, latestFaculty])
+  const activeFaculty = latestFaculty || null
 
   useEffect(() => {
     if (!activeFaculty) return
@@ -884,27 +880,7 @@ export function FacultyMyBatchesPage() {
   const profileInitials = getInitials(profileName)
   const greetingName = getFacultyGreetingName(latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
-  const activeFaculty = useMemo(() => {
-    const latestId = String(latestFaculty?.id || latestFaculty?._id || latestFaculty?.facultyId || '').trim().toLowerCase()
-    const latestEmail = String(latestFaculty?.facultyEmail || '').trim().toLowerCase()
-    const latestName = String(latestFaculty?.facultyName || '').trim().toLowerCase()
-
-    const matchedFacultyRecords = facultyRecords.filter((record) => {
-      const recordId = String(record?.id || record?._id || record?.facultyId || '').trim().toLowerCase()
-      const recordEmail = String(record?.facultyEmail || '').trim().toLowerCase()
-      const recordName = String(record?.facultyName || '').trim().toLowerCase()
-
-      return (
-        (latestId && recordId === latestId) ||
-        (latestEmail && recordEmail === latestEmail) ||
-        (latestName && recordName === latestName)
-      )
-    })
-
-    const mergedFacultyRecord = matchedFacultyRecords.reduce((accumulator, record) => mergeFacultyRecords(accumulator, record), null)
-
-    return mergeFacultyRecords(latestFaculty, mergedFacultyRecord)
-  }, [facultyRecords, latestFaculty])
+  const activeFaculty = latestFaculty || null
   const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
 
   useEffect(() => {

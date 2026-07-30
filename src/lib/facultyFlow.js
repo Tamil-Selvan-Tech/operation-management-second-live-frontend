@@ -74,25 +74,35 @@ export function getFacultyCourseIds(record = {}, courseOptions = []) {
     ]),
   )
 
-  const ids = [
-    ...(Array.isArray(record.courseIds) ? record.courseIds : []),
-    record.courseId || '',
-    ...(Array.isArray(record.batchEntries)
-      ? record.batchEntries.flatMap((entry) => {
-          const directCourseId = String(entry?.courseId || '').trim()
-          if (directCourseId) return [directCourseId]
+  const batchEntries = Array.isArray(record.batchEntries) ? record.batchEntries : []
+  const batchEntryCourseIds = batchEntries
+    .flatMap((entry) => {
+      const directCourseId = String(entry?.courseId || '').trim()
+      if (directCourseId) return [directCourseId]
 
-          const courseName = normalizeText(entry?.courseName || '')
-          const resolvedCourseId = courseName ? optionLookup.get(courseName) || '' : ''
-          return resolvedCourseId ? [resolvedCourseId] : []
-        })
-      : []),
-    ...(Array.isArray(record.courseAssignments)
-      ? record.courseAssignments.map((assignment) => String(assignment?.courseId || '').trim())
-      : []),
-  ]
+      const courseName = normalizeText(entry?.courseName || '')
+      const resolvedCourseId = courseName ? optionLookup.get(courseName) || '' : ''
+      return resolvedCourseId ? [resolvedCourseId] : []
+    })
     .map((courseId) => String(courseId || '').trim())
     .filter(Boolean)
+
+  const ids = batchEntryCourseIds.length
+    ? [
+        ...batchEntryCourseIds,
+        ...(Array.isArray(record.courseAssignments)
+          ? record.courseAssignments.map((assignment) => String(assignment?.courseId || '').trim())
+          : []),
+      ]
+    : [
+        ...(Array.isArray(record.courseIds) ? record.courseIds : []),
+        record.courseId || '',
+        ...(Array.isArray(record.courseAssignments)
+          ? record.courseAssignments.map((assignment) => String(assignment?.courseId || '').trim())
+          : []),
+      ]
+        .map((courseId) => String(courseId || '').trim())
+        .filter(Boolean)
 
   return Array.from(new Set(ids))
 }
