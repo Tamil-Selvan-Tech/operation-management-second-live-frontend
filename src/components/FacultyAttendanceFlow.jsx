@@ -6,6 +6,7 @@ import {
   clearFacultyAttendanceState,
   getAttendanceDateKey,
   loadFacultyAttendanceState,
+  normalizeAttendanceSessions,
   saveFacultyAttendanceState,
 } from '../lib/facultyAttendanceStore'
 
@@ -47,6 +48,11 @@ function getGreetingLabel() {
   return 'Good Evening'
 }
 
+function getLatestAttendanceSession(sessions = []) {
+  if (!Array.isArray(sessions) || !sessions.length) return null
+  return sessions[sessions.length - 1] || null
+}
+
 function AttendanceStatusPill({ status }) {
   const toneClass =
     status === 'logged-in'
@@ -76,11 +82,17 @@ function AttendanceStatusPill({ status }) {
 
 export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials = 'FA', facultyId = '' }) {
   const initialAttendance = loadFacultyAttendanceState(facultyId, profileName, profileInitials)
+  const [attendanceSessions, setAttendanceSessions] = useState(() => normalizeAttendanceSessions(initialAttendance))
   const [isOpen, setIsOpen] = useState(false)
-  const [viewState, setViewState] = useState(() => initialAttendance?.viewState || 'idle')
-  const [logoutType, setLogoutType] = useState(() => initialAttendance?.logoutType || 'normal')
-  const [loginTime, setLoginTime] = useState(() => (initialAttendance?.loginTimestamp ? new Date(initialAttendance.loginTimestamp) : null))
-  const [logoutTime, setLogoutTime] = useState(() => (initialAttendance?.logoutTimestamp ? new Date(initialAttendance.logoutTimestamp) : null))
+  const latestStoredSession = getLatestAttendanceSession(attendanceSessions)
+  const [viewState, setViewState] = useState(() => initialAttendance?.viewState || (latestStoredSession?.logoutTimestamp ? 'logged-out' : latestStoredSession ? 'logged-in' : 'idle'))
+  const [logoutType, setLogoutType] = useState(() => latestStoredSession?.logoutType || initialAttendance?.logoutType || 'normal')
+  const [loginTime, setLoginTime] = useState(() =>
+    latestStoredSession?.loginTimestamp ? new Date(latestStoredSession.loginTimestamp) : initialAttendance?.loginTimestamp ? new Date(initialAttendance.loginTimestamp) : null,
+  )
+  const [logoutTime, setLogoutTime] = useState(() =>
+    latestStoredSession?.logoutTimestamp ? new Date(latestStoredSession.logoutTimestamp) : initialAttendance?.logoutTimestamp ? new Date(initialAttendance.logoutTimestamp) : null,
+  )
   const [workReport, setWorkReport] = useState(() => initialAttendance?.workReport || '')
   const [logoutReason, setLogoutReason] = useState(() => initialAttendance?.logoutReason || '')
   const [workCompleted, setWorkCompleted] = useState(() => initialAttendance?.workCompleted || '')
@@ -138,6 +150,12 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   }, [facultyId, initialAttendance?.dateKey, profileName, profileInitials])
 
   useEffect(() => {
+    const normalizedSessions = attendanceSessions.map((session) => ({
+      ...session,
+      loginTimestamp: session?.loginTimestamp || null,
+      logoutTimestamp: session?.logoutTimestamp || null,
+    }))
+    const currentSession = getLatestAttendanceSession(normalizedSessions)
     const payload = {
       facultyId,
       facultyName: profileName,
@@ -145,16 +163,17 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
       dateKey: getAttendanceDateKey(),
       viewState,
       logoutType,
-      loginTimestamp: loginTime ? loginTime.getTime() : null,
-      logoutTimestamp: logoutTime ? logoutTime.getTime() : null,
+      loginTimestamp: currentSession?.loginTimestamp || loginTime?.getTime() || null,
+      logoutTimestamp: currentSession?.logoutTimestamp || logoutTime?.getTime() || null,
       workReport,
       logoutReason,
       workCompleted,
+      sessions: normalizedSessions,
     }
 
     activeDateKeyRef.current = payload.dateKey
     saveFacultyAttendanceState(facultyId, profileName, profileInitials, payload)
-  }, [facultyId, loginTime, logoutReason, logoutTime, logoutType, profileName, profileInitials, viewState, workCompleted, workReport])
+  }, [attendanceSessions, facultyId, loginTime, logoutReason, logoutTime, logoutType, profileName, profileInitials, viewState, workCompleted, workReport])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -170,6 +189,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
       setLogoutType('normal')
       setLoginTime(null)
       setLogoutTime(null)
+      setAttendanceSessions([])
       setWorkReport('')
       setLogoutReason('')
       setWorkCompleted('')
@@ -190,8 +210,23 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   }
 
   const handleLogin = () => {
+    if (viewState === 'logged-in' || viewState === 'logout-form') {
+      return
+    }
+
     const now = new Date()
     activeDateKeyRef.current = getAttendanceDateKey(now)
+    setAttendanceSessions((current) => [
+      ...current,
+      {
+        loginTimestamp: now.getTime(),
+        logoutTimestamp: null,
+        logoutType: 'normal',
+        workReport: '',
+        logoutReason: '',
+        workCompleted: '',
+      },
+    ])
     setLoginTime(now)
     setLogoutTime(null)
     setWorkReport('')
@@ -221,7 +256,27 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
       }
     }
 
-    setLogoutTime(new Date())
+    const now = new Date()
+    setAttendanceSessions((current) => {
+      const nextSessions = [...current]
+      const latestIndex = nextSessions.length - 1
+      if (latestIndex < 0) return current
+
+      const latestSession = nextSessions[latestIndex]
+      if (!latestSession || latestSession.logoutTimestamp) return current
+
+      nextSessions[latestIndex] = {
+        ...latestSession,
+        logoutTimestamp: now.getTime(),
+        logoutType,
+        logoutReason,
+        workReport,
+        workCompleted,
+      }
+
+      return nextSessions
+    })
+    setLogoutTime(now)
     setErrorMessage('')
     setViewState('logged-out')
   }

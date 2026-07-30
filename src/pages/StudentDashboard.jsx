@@ -3,7 +3,12 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { NotificationBell } from '../components/NotificationBell'
-import { resolveStudentAttendanceStatus } from '../lib/facultyAttendanceStore'
+import {
+  FACULTY_ATTENDANCE_SYNC_EVENT,
+  FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
+  resolveFacultyBatchAttendanceStatus,
+  resolveStudentBatchAttendanceStatus,
+} from '../lib/facultyAttendanceStore'
 import {
   formatCurrency,
   formatDate,
@@ -36,6 +41,30 @@ function useFacultyRecordsSnapshot() {
   }, [])
 
   return facultyRecords
+}
+
+function useFacultyAttendanceRefreshToken() {
+  const [refreshToken, setRefreshToken] = useState(0)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const syncFacultyAttendance = () => {
+      setRefreshToken((current) => current + 1)
+    }
+
+    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+    window.addEventListener(FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+    window.addEventListener('storage', syncFacultyAttendance)
+
+    return () => {
+      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+      window.removeEventListener(FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+      window.removeEventListener('storage', syncFacultyAttendance)
+    }
+  }, [])
+
+  return refreshToken
 }
 
 function parseDateValue(value) {
@@ -253,9 +282,9 @@ function StudentSummaryCard({ icon: Icon, label, value, note, tone = 'blue', bad
   )
 }
 
-function StudentMonthlyAttendanceChart({ student, facultyAttendanceStatus }) {
+function StudentMonthlyAttendanceChart({ student, studentAttendanceStatus }) {
   const attendance = useMemo(() => buildStudentAttendanceData(student), [student])
-  const weekly = useMemo(() => buildWeeklyAttendanceOverview(student, facultyAttendanceStatus?.status), [student, facultyAttendanceStatus?.status])
+  const weekly = useMemo(() => buildWeeklyAttendanceOverview(student, studentAttendanceStatus?.status), [student, studentAttendanceStatus?.status])
 
   return (
     <article className="student-attendance-layout">
@@ -563,10 +592,68 @@ function StudentTestPerformanceTrend({ student }) {
 function StudentDashboardContent({ dashboard }) {
   const { student: latestStudent, isLoading } = useCurrentStudentProfile()
   const facultyRecords = useFacultyRecordsSnapshot()
-  const facultyAttendance = useMemo(
-    () => resolveStudentAttendanceStatus(latestStudent || {}, facultyRecords),
-    [latestStudent, facultyRecords],
-  )
+  const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
+  void attendanceRefreshToken
+
+  const studentBatchName = String(latestStudent?.batchName || latestStudent?.batch || '').trim()
+  const studentBatchTiming = String(latestStudent?.batchTiming || latestStudent?.batchTime || '').trim()
+  const studentFacultyName = String(latestStudent?.facultyName || '').trim()
+  const studentFacultyId = String(latestStudent?.facultyId || '').trim()
+
+  const facultyAttendance = (() => {
+    try {
+      return resolveFacultyBatchAttendanceStatus(
+        {
+          id: studentFacultyId,
+          facultyId: studentFacultyId,
+          facultyName: studentFacultyName,
+        },
+        {
+          batchName: studentBatchName,
+          batchTiming: studentBatchTiming,
+        },
+      )
+    } catch {
+      return {
+        status: 'Absent',
+        reason: 'Attendance data could not be loaded.',
+        facultyName: studentFacultyName || '-',
+        batchName: studentBatchName || '-',
+        batchTiming: studentBatchTiming || '',
+        loginDateTime: null,
+        batchStartDateTime: null,
+        sessions: [],
+      }
+    }
+  })()
+
+  const studentAttendance = (() => {
+    try {
+      return (
+        resolveStudentBatchAttendanceStatus(latestStudent || {}, facultyRecords) || {
+          status: 'Absent',
+          reason: 'No batch attendance saved yet.',
+          facultyName: latestStudent?.facultyName || '-',
+          batchName: latestStudent?.batchName || latestStudent?.batch || '-',
+          batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
+          dateKey: null,
+          updatedAt: null,
+          records: {},
+        }
+      )
+    } catch {
+      return {
+        status: 'Absent',
+        reason: 'Attendance data could not be loaded.',
+        facultyName: latestStudent?.facultyName || '-',
+        batchName: latestStudent?.batchName || latestStudent?.batch || '-',
+        batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
+        dateKey: null,
+        updatedAt: null,
+        records: {},
+      }
+    }
+  })()
 
   if (isLoading) {
     return (
@@ -659,7 +746,7 @@ function StudentDashboardContent({ dashboard }) {
         ))}
       </div>
 
-      <StudentMonthlyAttendanceChart student={latestStudent} facultyAttendanceStatus={facultyAttendance} />
+      <StudentMonthlyAttendanceChart student={latestStudent} studentAttendanceStatus={studentAttendance} />
 
       <div className="student-performance-payment-row">
         <StudentTestPerformanceTrend student={latestStudent} />

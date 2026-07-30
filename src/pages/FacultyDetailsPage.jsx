@@ -17,6 +17,7 @@ import {
   getFacultyTotals,
   getMatchingStudents,
 } from '../lib/facultyFlow'
+import { FACULTY_ATTENDANCE_SYNC_EVENT, resolveAnyCurrentFacultyAttendanceStatus } from '../lib/facultyAttendanceStore'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function apiErrorMessage(error, fallback) {
@@ -35,10 +36,33 @@ function loadStoredStudents() {
   return loadStudentSnapshot() || []
 }
 
+function useFacultyAttendanceRefreshToken() {
+  const [refreshToken, setRefreshToken] = useState(0)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const syncFacultyAttendance = () => {
+      setRefreshToken((current) => current + 1)
+    }
+
+    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+    window.addEventListener('storage', syncFacultyAttendance)
+
+    return () => {
+      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+      window.removeEventListener('storage', syncFacultyAttendance)
+    }
+  }, [])
+
+  return refreshToken
+}
+
 export function FacultyDetailsPage() {
   const { facultyId = '' } = useParams()
   const navigate = useNavigate()
   const openMenu = useMobileMenu()
+  const facultyAttendanceRefreshToken = useFacultyAttendanceRefreshToken()
 
   const [facultyRecords, setFacultyRecords] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
@@ -130,6 +154,8 @@ export function FacultyDetailsPage() {
   }, [backfilledStudents, courseOptions, selectedFaculty])
   const totals = useMemo(() => getFacultyTotals(selectedFaculty || {}, courseOptions), [courseOptions, selectedFaculty])
   const isActive = String(selectedFaculty?.status || 'Active').toLowerCase() === 'active'
+  void facultyAttendanceRefreshToken
+  const facultyAttendance = resolveAnyCurrentFacultyAttendanceStatus(selectedFaculty?.facultyName || '')
 
   return (
     <section className="faculty-flow-page">
@@ -176,9 +202,17 @@ export function FacultyDetailsPage() {
                 <p className="faculty-flow-kicker">Faculty Details</p>
                 <div className="faculty-flow-title-row">
                   <h2>{selectedFaculty.facultyName || '-'}</h2>
-                  <span className={`faculty-flow-status-pill ${isActive ? 'is-active' : 'is-inactive'}`.trim()}>
-                    {selectedFaculty.status || 'Active'}
-                  </span>
+                  <div className="faculty-attendance-stack">
+                    <span className={`faculty-flow-status-pill ${isActive ? 'is-active' : 'is-inactive'}`.trim()}>
+                      {selectedFaculty.status || 'Active'}
+                    </span>
+                    <div className="faculty-attendance-inline">
+                      <span className="faculty-attendance-inline-label">Today&apos;s Attendance</span>
+                      <span className={`status-pill faculty-attendance-pill ${facultyAttendance.status === 'Present' ? 'is-present' : 'is-absent'}`.trim()}>
+                        {facultyAttendance.status || 'Absent'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div className="faculty-flow-contact">
                   <span>

@@ -18,6 +18,7 @@ import {
 import { roleDashboards } from '../data/authData'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
+import { FACULTY_ATTENDANCE_SYNC_EVENT, resolveAnyCurrentFacultyAttendanceStatus } from '../lib/facultyAttendanceStore'
 import { buildFacultyCourseCatalogPath, getFacultyCourseIds } from '../lib/facultyFlow'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
@@ -215,6 +216,28 @@ function getCourseNameById(courseId, courseOptions = []) {
   const normalizedCourseId = String(courseId || '').trim()
   if (!normalizedCourseId) return ''
   return courseOptions.find((course) => String(course?.id || '').trim() === normalizedCourseId)?.name || ''
+}
+
+function useFacultyAttendanceRefreshToken() {
+  const [refreshToken, setRefreshToken] = useState(0)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const syncFacultyAttendance = () => {
+      setRefreshToken((current) => current + 1)
+    }
+
+    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+    window.addEventListener('storage', syncFacultyAttendance)
+
+    return () => {
+      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+      window.removeEventListener('storage', syncFacultyAttendance)
+    }
+  }, [])
+
+  return refreshToken
 }
 
 function getGroupedBatchEntriesByCourse(batchEntries = [], courseOptions = [], courseIds = []) {
@@ -993,6 +1016,7 @@ export function FacultyManagementPage() {
   const [openCoursePopoverMode, setOpenCoursePopoverMode] = useState('')
   const actionMenuCloseTimerRef = useRef(null)
   const actionMenuButtonRefs = useRef(new Map())
+  const facultyAttendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -1016,6 +1040,8 @@ export function FacultyManagementPage() {
       getFacultyCourseIds(selectedFacultyRecord, activeCourseOptions),
     )
   }, [activeCourseOptions, selectedFacultyRecord])
+  void facultyAttendanceRefreshToken
+  const selectedFacultyAttendance = resolveAnyCurrentFacultyAttendanceStatus(selectedFacultyRecord?.facultyName || '')
 
   const validationErrors = useMemo(() => {
     const nextErrors = {}
@@ -2328,9 +2354,19 @@ export function FacultyManagementPage() {
                     <td>{selectedFacultyRecord.facultyName || '-'}</td>
                     <th>Status</th>
                     <td>
-                      <span className={`status-pill ${String(selectedFacultyRecord.status || 'Active').toLowerCase()}`}>
-                        {selectedFacultyRecord.status || 'Active'}
-                      </span>
+                      <div className="faculty-attendance-stack">
+                        <span className={`status-pill ${String(selectedFacultyRecord.status || 'Active').toLowerCase()}`}>
+                          {selectedFacultyRecord.status || 'Active'}
+                        </span>
+                        <div className="faculty-attendance-inline">
+                          <span className="faculty-attendance-inline-label">Today&apos;s Attendance</span>
+                          <span
+                            className={`status-pill faculty-attendance-pill ${selectedFacultyAttendance.status === 'Present' ? 'is-present' : 'is-absent'}`.trim()}
+                          >
+                            {selectedFacultyAttendance.status || 'Absent'}
+                          </span>
+                        </div>
+                      </div>
                     </td>
                   </tr>
                   <tr>

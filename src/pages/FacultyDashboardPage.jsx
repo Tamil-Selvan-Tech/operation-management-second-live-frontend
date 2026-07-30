@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, GraduationCap, Layers3, Menu, UsersRound, X } from 'lucide-react'
+import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, GraduationCap, Layers3, Menu, Save, UsersRound, X } from 'lucide-react'
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { loadFacultySnapshot, saveFacultySnapshot } from '../lib/facultySnapshot'
 import { loadStudentSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
+import {
+  FACULTY_ATTENDANCE_SYNC_EVENT,
+  getAttendanceDateKey,
+  loadFacultyBatchAttendanceState,
+  resolveBatchAttendanceWindow,
+  resolveFacultyBatchAttendanceStatus,
+  saveFacultyBatchAttendanceState,
+} from '../lib/facultyAttendanceStore'
 import { buildFacultyCoursePath, enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
@@ -149,36 +157,6 @@ function loadStoredFaculty() {
   return normalizeFacultyList(loadFacultyRecords())
 }
 
-function mergeFacultyRecords(primary = null, secondary = null) {
-  if (!primary && !secondary) return null
-  if (!primary) return secondary
-  if (!secondary) return primary
-
-  const mergedBatchEntries = Array.from(
-    new Map(
-      [...(Array.isArray(primary.batchEntries) ? primary.batchEntries : []), ...(Array.isArray(secondary.batchEntries) ? secondary.batchEntries : [])].map((entry) => [
-        String(entry?.id || `${entry?.courseId || ''}-${entry?.batchName || ''}-${entry?.batchTiming || ''}`).trim().toLowerCase(),
-        entry,
-      ]),
-    ).values(),
-  )
-
-  const mergedCourseIds = Array.from(
-    new Set([...(Array.isArray(primary.courseIds) ? primary.courseIds : []), ...(Array.isArray(secondary.courseIds) ? secondary.courseIds : [])].map((courseId) => String(courseId || '').trim()).filter(Boolean)),
-  )
-
-  return {
-    ...primary,
-    ...secondary,
-    batchEntries: mergedBatchEntries.length ? mergedBatchEntries : Array.isArray(secondary.batchEntries) ? secondary.batchEntries : Array.isArray(primary.batchEntries) ? primary.batchEntries : [],
-    courseIds: mergedCourseIds.length ? mergedCourseIds : Array.isArray(secondary.courseIds) ? secondary.courseIds : Array.isArray(primary.courseIds) ? primary.courseIds : [],
-    courseId: secondary.courseId || primary.courseId || '',
-    courseName: secondary.courseName || primary.courseName || '',
-    courseAssignments: Array.isArray(secondary.courseAssignments) && secondary.courseAssignments.length ? secondary.courseAssignments : primary.courseAssignments || [],
-    batchCount: Number(secondary.batchCount || primary.batchCount || mergedBatchEntries.length || 0) || 0,
-  }
-}
-
 function preferFacultyProfileSnapshot(current = null, next = null) {
   if (!current && !next) return null
   if (!current) return next
@@ -223,6 +201,28 @@ function useFacultyRecords() {
   }, [])
 
   return { facultyRecords, isLoading }
+}
+
+function useFacultyAttendanceRefreshToken() {
+  const [refreshToken, setRefreshToken] = useState(0)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const syncFacultyAttendance = () => {
+      setRefreshToken((current) => current + 1)
+    }
+
+    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+    window.addEventListener('storage', syncFacultyAttendance)
+
+    return () => {
+      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
+      window.removeEventListener('storage', syncFacultyAttendance)
+    }
+  }, [])
+
+  return refreshToken
 }
 
 function useFacultyCourses() {
@@ -333,6 +333,39 @@ function getFacultyBatchOptions(faculty) {
 function getBatchProgressValue(studentCount = 0, totalStudents = 0) {
   if (!totalStudents) return 0
   return Math.max(10, Math.min(100, Math.round((studentCount / totalStudents) * 100)))
+}
+
+function normalizeAttendanceChoice(value = '') {
+  const normalized = String(value || '').trim().toLowerCase()
+  if (normalized === 'present') return 'Present'
+  if (normalized === 'absent') return 'Absent'
+  return ''
+}
+
+function buildBatchAttendanceDraft(students = [], savedRecords = {}) {
+  return Array.isArray(students)
+    ? students.reduce((accumulator, student, index) => {
+        const studentId = String(student?.id || `${student?.studentName || 'student'}-${index}`).trim()
+        if (!studentId) return accumulator
+        accumulator[studentId] = normalizeAttendanceChoice(savedRecords?.[studentId] || student?.attendance || '')
+        return accumulator
+      }, {})
+    : {}
+}
+
+function getBatchAttendanceProgress(attendanceDraft = {}) {
+  const statuses = Object.values(attendanceDraft || {})
+  const markedCount = statuses.filter(Boolean).length
+  const presentCount = statuses.filter((status) => status === 'Present').length
+  const absentCount = statuses.filter((status) => status === 'Absent').length
+
+  return {
+    markedCount,
+    presentCount,
+    absentCount,
+    totalCount: statuses.length,
+    isComplete: statuses.length > 0 && markedCount === statuses.length,
+  }
 }
 
 function FacultySummaryCard({ icon: Icon, label, value, note, tone = 'blue', badge }) {
@@ -871,10 +904,16 @@ export function FacultyMyBatchesPage() {
   const navigate = useNavigate()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
+  const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
   const { courses: courseOptions, isLoading: isCoursesLoading } = useFacultyCourses()
   const [selectedBatchContext, setSelectedBatchContext] = useState(null)
+  const [selectedBatchView, setSelectedBatchView] = useState('details')
+  const [selectedBatchAttendanceDraft, setSelectedBatchAttendanceDraft] = useState({})
+  const [selectedBatchAttendanceMessage, setSelectedBatchAttendanceMessage] = useState('')
+  const [attendanceSavePopup, setAttendanceSavePopup] = useState(null)
+  const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
 
   const profileName = latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
@@ -882,6 +921,16 @@ export function FacultyMyBatchesPage() {
   const greetingLabel = getFacultyGreetingLabel()
   const activeFaculty = latestFaculty || null
   const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
+
+  useEffect(() => {
+    const tick = () => setCurrentDateTime(new Date())
+    tick()
+
+    const intervalId = window.setInterval(tick, 30000)
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   useEffect(() => {
     if (!activeFaculty) return
@@ -944,6 +993,8 @@ export function FacultyMyBatchesPage() {
   }, [batchSummaryEntries])
 
   const facultyCourseGroups = useMemo(() => {
+    void attendanceRefreshToken
+
     if (!displayFaculty) return []
 
     const courseRecords = getFacultyCourses(displayFaculty, courseOptions)
@@ -969,6 +1020,13 @@ export function FacultyMyBatchesPage() {
         const batchName = String(batch?.batchName || '').trim() || `Batch ${Number(batch?.sequenceNo || batchIndex + 1) || batchIndex + 1}`
         const batchTiming = String(batch?.batchTiming || '').trim()
         const batchSummary = getBatchSummaryForRow(batch, batchIndex)
+        const batchAttendance = resolveFacultyBatchAttendanceStatus(displayFaculty || {}, {
+          batchName,
+          batchTiming,
+          id: batch?.id || '',
+          label: batchName,
+          timing: batchTiming,
+        })
         const localStudentRecords = getFacultyBatchStudentRecords(backfilledStudents, {
           facultyName: displayFaculty?.facultyName || latestFaculty?.facultyName || '',
           facultyId: displayFaculty?.id || latestFaculty?.id || '',
@@ -979,8 +1037,8 @@ export function FacultyMyBatchesPage() {
         })
         const studentRecords = Array.isArray(batchSummary.studentRecords) && batchSummary.studentRecords.length ? batchSummary.studentRecords : localStudentRecords
         const studentCount = Number(batchSummary.studentCount || studentRecords.length || localStudentRecords.length || 0) || 0
-        const present = 0
-        const absent = 0
+        const present = batchAttendance.status === 'Present' ? studentCount : 0
+        const absent = batchAttendance.status === 'Present' ? 0 : studentCount
         const progress = getBatchProgressValue(present, studentCount)
 
         return {
@@ -1010,7 +1068,7 @@ export function FacultyMyBatchesPage() {
         groupProgress,
       }
     })
-  }, [backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id])
+  }, [attendanceRefreshToken, backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id])
 
   const totalBatchCount = Number(batchesSummary?.totalBatches || 0) || facultyCourseGroups.reduce((sum, group) => sum + group.batches.length, 0)
   const totalStudents = Number(batchesSummary?.totalStudents || 0) || facultyCourseGroups.reduce((sum, group) => sum + Number(group.totalStudents || 0), 0)
@@ -1080,11 +1138,23 @@ export function FacultyMyBatchesPage() {
   }, [selectedBatchContext])
   const selectedBatchStudentCount = selectedBatchStudents.length
   const selectedBatchVisibleCount = Math.min(selectedBatchStudentCount, 8)
+  const selectedBatchWindow = useMemo(
+    () => resolveBatchAttendanceWindow(selectedBatchContext?.batchTiming || '', currentDateTime),
+    [currentDateTime, selectedBatchContext?.batchTiming],
+  )
+  const selectedBatchAttendanceSummary = useMemo(
+    () => getBatchAttendanceProgress(selectedBatchAttendanceDraft),
+    [selectedBatchAttendanceDraft],
+  )
+  const isSelectedBatchAttendanceEditable = Boolean(selectedBatchContext) && selectedBatchWindow.isEditable
+  const selectedBatchWindowMessage = isSelectedBatchAttendanceEditable
+    ? selectedBatchAttendanceMessage || selectedBatchWindow.reason
+    : selectedBatchWindow.reason
 
   const openBatchStudents = (group, batch) => {
     if (!group || !batch) return
 
-    setSelectedBatchContext({
+    const nextContext = {
       courseId: String(group.courseId || '').trim(),
       courseName: String(group.courseName || group.courseId || 'Course').trim(),
       facultyId: String(activeFaculty?.id || '').trim(),
@@ -1093,6 +1163,103 @@ export function FacultyMyBatchesPage() {
       batchName: String(batch.label || '').trim(),
       batchTiming: String(batch.timing || '').trim(),
       students: Array.isArray(batch.studentRecords) ? batch.studentRecords : [],
+    }
+
+    const savedState = loadFacultyBatchAttendanceState(
+      nextContext.facultyId || facultyAttendanceId,
+      nextContext.facultyName || latestFaculty?.facultyName || '',
+      profileInitials,
+      nextContext.batchId || '',
+      nextContext.batchName || '',
+      nextContext.batchTiming || '',
+    )
+
+    const batchWindow = resolveBatchAttendanceWindow(nextContext.batchTiming || '', currentDateTime)
+
+    setSelectedBatchContext(nextContext)
+    setSelectedBatchView('details')
+    setSelectedBatchAttendanceDraft(buildBatchAttendanceDraft(nextContext.students || [], savedState?.records || savedState?.attendance || {}))
+    setAttendanceSavePopup(null)
+    setSelectedBatchAttendanceMessage(
+      savedState
+        ? batchWindow.isEditable
+          ? 'Saved attendance loaded. You can still update it until the batch window closes.'
+          : 'Saved attendance loaded for this batch.'
+        : batchWindow.isEditable
+          ? 'Attendance is open for this batch.'
+          : batchWindow.reason,
+    )
+  }
+
+  const closeBatchStudents = () => {
+    setSelectedBatchContext(null)
+    setSelectedBatchView('details')
+    setSelectedBatchAttendanceDraft({})
+    setSelectedBatchAttendanceMessage('')
+    setAttendanceSavePopup(null)
+  }
+
+  const updateStudentAttendance = (studentId, status) => {
+    if (!selectedBatchContext || !isSelectedBatchAttendanceEditable) return
+
+    const normalizedStatus = normalizeAttendanceChoice(status)
+    if (!normalizedStatus) return
+
+    setSelectedBatchAttendanceDraft((current) => ({
+      ...current,
+      [studentId]: normalizedStatus,
+    }))
+    setSelectedBatchAttendanceMessage('')
+  }
+
+  const setBulkAttendance = (status) => {
+    if (!selectedBatchContext || !isSelectedBatchAttendanceEditable) return
+
+    const normalizedStatus = normalizeAttendanceChoice(status)
+    if (!normalizedStatus) return
+
+    const nextDraft = {}
+    selectedBatchStudents.forEach((student) => {
+      nextDraft[student.id] = normalizedStatus
+    })
+
+    setSelectedBatchAttendanceDraft(nextDraft)
+    setSelectedBatchAttendanceMessage(`${normalizedStatus} has been applied to all students.`)
+  }
+
+  const saveBatchAttendance = () => {
+    if (!selectedBatchContext || !isSelectedBatchAttendanceEditable) return
+
+    const progress = getBatchAttendanceProgress(selectedBatchAttendanceDraft)
+    if (!progress.isComplete) {
+      setSelectedBatchAttendanceMessage('Please mark Present or Absent for every student before saving.')
+      return
+    }
+
+    saveFacultyBatchAttendanceState(
+      selectedBatchContext.facultyId || facultyAttendanceId,
+      selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
+      profileInitials,
+      selectedBatchContext.batchId || '',
+      selectedBatchContext.batchName || '',
+      selectedBatchContext.batchTiming || '',
+      {
+        dateKey: getAttendanceDateKey(currentDateTime),
+        facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
+        facultyName: selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
+        profileInitials,
+        batchId: selectedBatchContext.batchId || '',
+        batchName: selectedBatchContext.batchName || '',
+        batchTiming: selectedBatchContext.batchTiming || '',
+        records: selectedBatchAttendanceDraft,
+        updatedAt: currentDateTime.getTime(),
+      },
+    )
+
+    setSelectedBatchAttendanceMessage('Attendance saved successfully for today.')
+    setAttendanceSavePopup({
+      title: 'Attendance Saved',
+      message: 'Attendance has been saved successfully for today.',
     })
   }
 
@@ -1286,7 +1453,7 @@ export function FacultyMyBatchesPage() {
         <div
           className="course-modal-backdrop student-modal-backdrop batch-student-modal-backdrop"
           role="presentation"
-          onClick={() => setSelectedBatchContext(null)}
+          onClick={closeBatchStudents}
         >
           <div
             className="course-modal panel-card student-modal batch-student-modal"
@@ -1297,7 +1464,7 @@ export function FacultyMyBatchesPage() {
             <button
               type="button"
               className="course-modal-close batch-student-modal-close"
-              onClick={() => setSelectedBatchContext(null)}
+              onClick={closeBatchStudents}
               aria-label="Close batch students"
             >
               <X size={16} />
@@ -1317,14 +1484,52 @@ export function FacultyMyBatchesPage() {
                   </p>
                 </div>
               </div>
-              <div className="batch-student-status active">
-                <UsersRound size={16} />
-                <span>{selectedBatchStudentCount} Students</span>
+
+              <div className="batch-student-modal-header-actions">
+                <div className={`batch-student-status ${isSelectedBatchAttendanceEditable ? 'active' : 'locked'}`.trim()}>
+                  <Clock3 size={16} />
+                  <span>{isSelectedBatchAttendanceEditable ? 'Attendance Open' : 'Attendance Locked'}</span>
+                </div>
+                <button
+                  type="button"
+                  className={`batch-student-view-button ${selectedBatchView === 'attendance' ? 'is-active' : ''}`.trim()}
+                  onClick={() => setSelectedBatchView('attendance')}
+                  disabled={!selectedBatchStudents.length}
+                >
+                  <Check size={16} />
+                  <span>Attendance</span>
+                </button>
+                <button
+                  type="button"
+                  className={`batch-student-view-button secondary ${selectedBatchView === 'details' ? 'is-active' : ''}`.trim()}
+                  onClick={() => setSelectedBatchView('details')}
+                  disabled={!selectedBatchStudents.length}
+                >
+                  <UsersRound size={16} />
+                  <span>Details</span>
+                </button>
               </div>
             </div>
 
+            <p className={`batch-student-window-note ${isSelectedBatchAttendanceEditable ? 'is-open' : 'is-locked'}`.trim()}>
+              {selectedBatchWindowMessage}
+            </p>
+
             {selectedBatchStudents.length ? (
               <div className="batch-student-table-shell">
+                {selectedBatchView === 'attendance' ? (
+                  <div className="batch-student-attendance-actions" aria-label="Attendance shortcuts">
+                    <button type="button" className="batch-student-attendance-action" onClick={() => setBulkAttendance('Present')} disabled={!isSelectedBatchAttendanceEditable}>
+                      <Check size={14} />
+                      <span>Select All Present</span>
+                    </button>
+                    <button type="button" className="batch-student-attendance-action" onClick={() => setBulkAttendance('Absent')} disabled={!isSelectedBatchAttendanceEditable}>
+                      <X size={14} />
+                      <span>Select All Absent</span>
+                    </button>
+                  </div>
+                ) : null}
+
                 <div className="faculty-flow-table-wrap batch-student-table-wrap">
                   <table className="faculty-flow-table batch-student-table">
                     <thead>
@@ -1338,12 +1543,14 @@ export function FacultyMyBatchesPage() {
                         <th>Current Status</th>
                         <th>Admission Date</th>
                         <th>Status</th>
+                        {selectedBatchView === 'attendance' ? <th className="batch-student-attendance-header">Attendance</th> : null}
                       </tr>
                     </thead>
-                  <tbody>
+                    <tbody>
                       {selectedBatchStudents.map((student, index) => {
                         const studentStatus = String(student.status || 'Inactive').trim()
                         const studentStatusClass = studentStatus.toLowerCase().replace(/\s+/g, '-')
+                        const attendanceValue = normalizeAttendanceChoice(selectedBatchAttendanceDraft?.[student.id] || '')
 
                         return (
                           <tr key={student.id || `${student.studentName}-${index}`}>
@@ -1367,6 +1574,30 @@ export function FacultyMyBatchesPage() {
                             <td>
                               <span className={`status-pill ${studentStatusClass}`.trim()}>{studentStatus}</span>
                             </td>
+                            {selectedBatchView === 'attendance' ? (
+                              <td className="batch-student-attendance-cell">
+                                <label className={`batch-student-attendance-option ${attendanceValue === 'Present' ? 'is-selected' : ''}`.trim()}>
+                                  <input
+                                    type="checkbox"
+                                    checked={attendanceValue === 'Present'}
+                                    disabled={!isSelectedBatchAttendanceEditable}
+                                    onChange={() => updateStudentAttendance(student.id, 'Present')}
+                                    aria-label={`Mark ${student.studentName} present`}
+                                  />
+                                  <span>Present</span>
+                                </label>
+                                <label className={`batch-student-attendance-option ${attendanceValue === 'Absent' ? 'is-selected' : ''}`.trim()}>
+                                  <input
+                                    type="checkbox"
+                                    checked={attendanceValue === 'Absent'}
+                                    disabled={!isSelectedBatchAttendanceEditable}
+                                    onChange={() => updateStudentAttendance(student.id, 'Absent')}
+                                    aria-label={`Mark ${student.studentName} absent`}
+                                  />
+                                  <span>Absent</span>
+                                </label>
+                              </td>
+                            ) : null}
                           </tr>
                         )
                       })}
@@ -1376,40 +1607,59 @@ export function FacultyMyBatchesPage() {
 
                 <div className="batch-student-table-footer" aria-label="Batch student pagination">
                   <div className="batch-student-table-summary">
-                    <strong>Showing {selectedBatchVisibleCount} of {selectedBatchStudentCount}</strong>
-                    <span>students in this batch</span>
+                    <strong>
+                      {selectedBatchAttendanceSummary.markedCount} / {selectedBatchStudentCount} marked
+                    </strong>
+                    <span>
+                      {selectedBatchAttendanceSummary.presentCount} present, {selectedBatchAttendanceSummary.absentCount} absent
+                      {selectedBatchView === 'attendance' ? ` | Showing ${selectedBatchVisibleCount} of ${selectedBatchStudentCount}` : ''}
+                    </span>
                   </div>
 
-                  <div className="batch-student-pagination" aria-hidden="true">
-                    <button type="button" className="batch-student-pagination-link" disabled>
-                      <ChevronLeft size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
-                      <span>Previous</span>
-                    </button>
-                    <div className="batch-student-pagination-pages">
-                      <button type="button" className="batch-student-pagination-page active" aria-current="page" disabled>
-                        1
+                  <div className="batch-student-table-footer-actions">
+                    <div className="batch-student-pagination" aria-hidden="true">
+                      <button type="button" className="batch-student-pagination-link" disabled>
+                        <ChevronLeft size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+                        <span>Previous</span>
                       </button>
-                      <button type="button" className="batch-student-pagination-page" disabled>
-                        2
-                      </button>
-                      <button type="button" className="batch-student-pagination-page" disabled>
-                        3
-                      </button>
-                      <span className="batch-student-pagination-dots">...</span>
-                      <button type="button" className="batch-student-pagination-page" disabled>
-                        8
-                      </button>
-                      <button type="button" className="batch-student-pagination-page" disabled>
-                        9
-                      </button>
-                      <button type="button" className="batch-student-pagination-page" disabled>
-                        10
+                      <div className="batch-student-pagination-pages">
+                        <button type="button" className="batch-student-pagination-page active" aria-current="page" disabled>
+                          1
+                        </button>
+                        <button type="button" className="batch-student-pagination-page" disabled>
+                          2
+                        </button>
+                        <button type="button" className="batch-student-pagination-page" disabled>
+                          3
+                        </button>
+                        <span className="batch-student-pagination-dots">...</span>
+                        <button type="button" className="batch-student-pagination-page" disabled>
+                          8
+                        </button>
+                        <button type="button" className="batch-student-pagination-page" disabled>
+                          9
+                        </button>
+                        <button type="button" className="batch-student-pagination-page" disabled>
+                          10
+                        </button>
+                      </div>
+                      <button type="button" className="batch-student-pagination-link" disabled>
+                        <span>Next</span>
+                        <ChevronRight size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
                       </button>
                     </div>
-                    <button type="button" className="batch-student-pagination-link" disabled>
-                      <span>Next</span>
-                      <ChevronRight size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
-                    </button>
+
+                    {selectedBatchView === 'attendance' ? (
+                      <button
+                        type="button"
+                        className="batch-student-save-button"
+                        onClick={saveBatchAttendance}
+                        disabled={!isSelectedBatchAttendanceEditable || !selectedBatchAttendanceSummary.isComplete}
+                      >
+                        <Save size={14} />
+                        <span>Save</span>
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -1419,6 +1669,29 @@ export function FacultyMyBatchesPage() {
                 <p>Try another batch or check whether the student data is mapped correctly.</p>
               </div>
             )}
+          </div>
+        </div>
+      ) : null}
+
+      {attendanceSavePopup ? (
+        <div className="batch-attendance-popup-backdrop" role="presentation" onClick={() => setAttendanceSavePopup(null)}>
+          <div
+            className="batch-attendance-popup panel-card"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="batch-attendance-popup-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="batch-attendance-popup-icon" aria-hidden="true">
+              <Check size={20} strokeWidth={2.6} />
+            </div>
+            <div className="batch-attendance-popup-copy">
+              <h3 id="batch-attendance-popup-title">{attendanceSavePopup.title}</h3>
+              <p>{attendanceSavePopup.message}</p>
+            </div>
+            <button type="button" className="batch-attendance-popup-button" onClick={() => setAttendanceSavePopup(null)}>
+              OK
+            </button>
           </div>
         </div>
       ) : null}
