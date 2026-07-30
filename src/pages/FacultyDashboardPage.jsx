@@ -1499,15 +1499,6 @@ export function FacultyMyBatchesPage() {
                   <Check size={16} />
                   <span>Attendance</span>
                 </button>
-                <button
-                  type="button"
-                  className={`batch-student-view-button secondary ${selectedBatchView === 'details' ? 'is-active' : ''}`.trim()}
-                  onClick={() => setSelectedBatchView('details')}
-                  disabled={!selectedBatchStudents.length}
-                >
-                  <UsersRound size={16} />
-                  <span>Details</span>
-                </button>
               </div>
             </div>
 
