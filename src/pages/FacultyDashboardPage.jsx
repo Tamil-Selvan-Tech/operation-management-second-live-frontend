@@ -16,6 +16,7 @@ import {
   saveFacultyBatchAttendanceState,
 } from '../lib/facultyAttendanceStore'
 import { buildFacultyCoursePath, enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
+import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
@@ -1227,7 +1228,7 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchAttendanceMessage(`${normalizedStatus} has been applied to all students.`)
   }
 
-  const saveBatchAttendance = () => {
+  const saveBatchAttendance = async () => {
     if (!selectedBatchContext || !isSelectedBatchAttendanceEditable) return
 
     const progress = getBatchAttendanceProgress(selectedBatchAttendanceDraft)
@@ -1236,31 +1237,48 @@ export function FacultyMyBatchesPage() {
       return
     }
 
-    saveFacultyBatchAttendanceState(
-      selectedBatchContext.facultyId || facultyAttendanceId,
-      selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
-      profileInitials,
-      selectedBatchContext.batchId || '',
-      selectedBatchContext.batchName || '',
-      selectedBatchContext.batchTiming || '',
-      {
-        dateKey: getAttendanceDateKey(currentDateTime),
-        facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
-        facultyName: selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
-        profileInitials,
-        batchId: selectedBatchContext.batchId || '',
-        batchName: selectedBatchContext.batchName || '',
-        batchTiming: selectedBatchContext.batchTiming || '',
-        records: selectedBatchAttendanceDraft,
-        updatedAt: currentDateTime.getTime(),
-      },
-    )
+    const students = selectedBatchStudents.map((student) => ({
+      studentId: student.id,
+      status: String(selectedBatchAttendanceDraft?.[student.id] || '').trim().toUpperCase(),
+    }))
 
-    setSelectedBatchAttendanceMessage('Attendance saved successfully for today.')
-    setAttendanceSavePopup({
-      title: 'Attendance Saved',
-      message: 'Attendance has been saved successfully for today.',
-    })
+    try {
+      await markFacultyStudentAttendance({
+        date: getAttendanceDateKey(currentDateTime),
+        facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
+        courseId: selectedBatchContext.courseId || '',
+        batchName: selectedBatchContext.batchName || '',
+        students,
+      })
+
+      saveFacultyBatchAttendanceState(
+        selectedBatchContext.facultyId || facultyAttendanceId,
+        selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
+        profileInitials,
+        selectedBatchContext.batchId || '',
+        selectedBatchContext.batchName || '',
+        selectedBatchContext.batchTiming || '',
+        {
+          dateKey: getAttendanceDateKey(currentDateTime),
+          facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
+          facultyName: selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
+          profileInitials,
+          batchId: selectedBatchContext.batchId || '',
+          batchName: selectedBatchContext.batchName || '',
+          batchTiming: selectedBatchContext.batchTiming || '',
+          records: selectedBatchAttendanceDraft,
+          updatedAt: currentDateTime.getTime(),
+        },
+      )
+
+      setSelectedBatchAttendanceMessage('Attendance saved successfully for today.')
+      setAttendanceSavePopup({
+        title: 'Attendance Saved',
+        message: 'Attendance has been saved successfully for today.',
+      })
+    } catch (error) {
+      setSelectedBatchAttendanceMessage(error?.body?.message || error?.message || 'Unable to save attendance right now.')
+    }
   }
 
   if (isLoading || isCoursesLoading || isBatchesSummaryLoading || isFacultyRecordsLoading || isStudentsLoading) {

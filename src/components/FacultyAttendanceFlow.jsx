@@ -9,6 +9,11 @@ import {
   normalizeAttendanceSessions,
   saveFacultyAttendanceState,
 } from '../lib/facultyAttendanceStore'
+import {
+  getCurrentFacultyAttendanceOverview,
+  recordFacultyAttendanceLogin,
+  recordFacultyAttendanceLogout,
+} from '../services/attendanceService'
 
 function formatOrdinalDay(day) {
   const suffix = day % 10 === 1 && day % 100 !== 11 ? 'st' : day % 10 === 2 && day % 100 !== 12 ? 'nd' : day % 10 === 3 && day % 100 !== 13 ? 'rd' : 'th'
@@ -51,6 +56,30 @@ function getGreetingLabel() {
 function getLatestAttendanceSession(sessions = []) {
   if (!Array.isArray(sessions) || !sessions.length) return null
   return sessions[sessions.length - 1] || null
+}
+
+function mapBackendSession(session = {}) {
+  const loginTimestamp = session?.loginAt ? new Date(session.loginAt).getTime() : null
+  if (!Number.isFinite(loginTimestamp)) return null
+
+  const logoutTimestamp = session?.logoutAt ? new Date(session.logoutAt).getTime() : null
+
+  return {
+    loginTimestamp,
+    logoutTimestamp: Number.isFinite(logoutTimestamp) ? logoutTimestamp : null,
+    logoutType: String(session?.logoutType || 'normal').trim().toLowerCase() || 'normal',
+    logoutReason: String(session?.logoutReason || ''),
+    workReport: String(session?.workReport || ''),
+    workCompleted: String(session?.workCompleted || ''),
+  }
+}
+
+function getOverviewSessions(overview = null) {
+  const sessions = Array.isArray(overview?.facultySession?.sessions)
+    ? overview.facultySession.sessions.map(mapBackendSession).filter(Boolean)
+    : []
+
+  return sessions
 }
 
 function AttendanceStatusPill({ status }) {
@@ -97,6 +126,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   const [logoutReason, setLogoutReason] = useState(() => initialAttendance?.logoutReason || '')
   const [workCompleted, setWorkCompleted] = useState(() => initialAttendance?.workCompleted || '')
   const [errorMessage, setErrorMessage] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
   const activeDateKeyRef = useRef(initialAttendance?.dateKey || getAttendanceDateKey())
 
   const greetingLabel = getGreetingLabel()
@@ -110,6 +140,21 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   const isLoggedIn = viewState === 'logged-in' || viewState === 'logout-form'
   const primaryLabel = isLoggedIn ? 'Log Out' : 'Log In'
   const primaryTone = isLoggedIn ? 'logout' : 'login'
+
+  const syncAttendanceFromOverview = (overview) => {
+    const nextSessions = getOverviewSessions(overview)
+    const latestSession = getLatestAttendanceSession(nextSessions)
+
+    setAttendanceSessions(nextSessions)
+    setLogoutType(latestSession?.logoutType || 'normal')
+    setLoginTime(latestSession?.loginTimestamp ? new Date(latestSession.loginTimestamp) : null)
+    setLogoutTime(latestSession?.logoutTimestamp ? new Date(latestSession.logoutTimestamp) : null)
+    setWorkReport(latestSession?.workReport || '')
+    setLogoutReason(latestSession?.logoutReason || '')
+    setWorkCompleted(latestSession?.workCompleted || '')
+    setViewState(latestSession ? (latestSession.logoutTimestamp ? 'logged-out' : 'logged-in') : 'idle')
+    setErrorMessage('')
+  }
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return undefined
@@ -148,6 +193,29 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
       clearFacultyAttendanceState(facultyId, profileName, profileInitials)
     }
   }, [facultyId, initialAttendance?.dateKey, profileName, profileInitials])
+
+  useEffect(() => {
+    let active = true
+
+    const loadAttendance = async () => {
+      try {
+        const overview = await getCurrentFacultyAttendanceOverview({
+          date: getAttendanceDateKey(),
+          facultyId,
+        })
+        if (!active || !overview) return
+        syncAttendanceFromOverview(overview)
+      } catch {
+        // Keep existing local state if backend attendance is not available yet.
+      }
+    }
+
+    void loadAttendance()
+
+    return () => {
+      active = false
+    }
+  }, [facultyId])
 
   useEffect(() => {
     const normalizedSessions = attendanceSessions.map((session) => ({
@@ -209,33 +277,26 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     }
   }
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (viewState === 'logged-in' || viewState === 'logout-form') {
       return
     }
 
-    const now = new Date()
-    activeDateKeyRef.current = getAttendanceDateKey(now)
-    setAttendanceSessions((current) => [
-      ...current,
-      {
-        loginTimestamp: now.getTime(),
-        logoutTimestamp: null,
-        logoutType: 'normal',
-        workReport: '',
-        logoutReason: '',
-        workCompleted: '',
-      },
-    ])
-    setLoginTime(now)
-    setLogoutTime(null)
-    setWorkReport('')
-    setLogoutReason('')
-    setWorkCompleted('')
-    setLogoutType('normal')
-    setErrorMessage('')
-    setViewState('logged-in')
-    setIsOpen(true)
+    try {
+      setIsSaving(true)
+      const date = getAttendanceDateKey()
+      activeDateKeyRef.current = date
+      const overview = await recordFacultyAttendanceLogin({
+        date,
+        facultyId,
+      })
+      syncAttendanceFromOverview(overview)
+      setIsOpen(true)
+    } catch (error) {
+      setErrorMessage(error?.body?.message || error?.message || 'Failed to save faculty attendance login.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const openLogoutForm = () => {
@@ -246,7 +307,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     }
   }
 
-  const submitLogout = (event) => {
+  const submitLogout = async (event) => {
     event.preventDefault()
 
     if (logoutType === 'early') {
@@ -256,29 +317,22 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
       }
     }
 
-    const now = new Date()
-    setAttendanceSessions((current) => {
-      const nextSessions = [...current]
-      const latestIndex = nextSessions.length - 1
-      if (latestIndex < 0) return current
-
-      const latestSession = nextSessions[latestIndex]
-      if (!latestSession || latestSession.logoutTimestamp) return current
-
-      nextSessions[latestIndex] = {
-        ...latestSession,
-        logoutTimestamp: now.getTime(),
+    try {
+      setIsSaving(true)
+      const overview = await recordFacultyAttendanceLogout({
+        date: getAttendanceDateKey(),
+        facultyId,
         logoutType,
         logoutReason,
         workReport,
         workCompleted,
-      }
-
-      return nextSessions
-    })
-    setLogoutTime(now)
-    setErrorMessage('')
-    setViewState('logged-out')
+      })
+      syncAttendanceFromOverview(overview)
+    } catch (error) {
+      setErrorMessage(error?.body?.message || error?.message || 'Failed to save faculty attendance logout.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handlePrimaryAction = () => {
@@ -291,7 +345,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
       return
     }
 
-    handleLogin()
+    void handleLogin()
   }
 
   const renderMainAction = () => {
@@ -305,6 +359,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
         className={`faculty-attendance-action faculty-attendance-action-${primaryTone}`.trim()}
         onClick={handlePrimaryAction}
         aria-label={primaryLabel}
+        disabled={isSaving}
       >
         {primaryTone === 'login' ? <LogIn size={36} strokeWidth={2.1} aria-hidden="true" focusable="false" /> : <LogOut size={36} strokeWidth={2.1} aria-hidden="true" focusable="false" />}
         <span>{primaryLabel}</span>
@@ -336,6 +391,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
                 type="button"
                 className={`faculty-attendance-segment ${!isLoggedIn && !isLogoutMode ? 'is-active' : ''}`.trim()}
                 onClick={handleLogin}
+                disabled={isSaving}
               >
                 Log In
               </button>
@@ -343,7 +399,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
                 type="button"
                 className={`faculty-attendance-segment ${isLoggedIn ? 'is-active' : ''}`.trim()}
                 onClick={openLogoutForm}
-                disabled={!isLoggedIn}
+                disabled={!isLoggedIn || isSaving}
               >
                 Log Out
               </button>
@@ -455,8 +511,8 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
                   <button type="button" className="faculty-attendance-secondary" onClick={closePanel}>
                     Cancel
                   </button>
-                  <button type="submit" className="faculty-attendance-submit">
-                    Confirm Logout
+                  <button type="submit" className="faculty-attendance-submit" disabled={isSaving}>
+                    {isSaving ? 'Saving...' : 'Confirm Logout'}
                   </button>
                 </div>
               </form>
