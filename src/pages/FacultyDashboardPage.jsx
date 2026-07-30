@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, GraduationCap, Layers3, UsersRound, X } from 'lucide-react'
+import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, GraduationCap, Layers3, Menu, UsersRound, X } from 'lucide-react'
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
@@ -13,6 +13,7 @@ import { getCurrentFacultyProfile } from '../services/facultyService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
 import { listCourses } from '../services/courseService'
 import { listStudents } from '../services/studentService'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -252,13 +253,13 @@ function getFacultyGreetingLabel() {
   return 'Good Evening'
 }
 
-function formatFacultyHeaderDate(date = new Date()) {
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
+function FacultyAttendanceChip() {
+  return (
+    <div className="faculty-attendance-chip" role="img" aria-label="Attendance">
+      <CalendarDays size={18} strokeWidth={2.15} aria-hidden="true" focusable="false" />
+      <span>Attendance</span>
+    </div>
+  )
 }
 
 function formatFacultyMonthYear(date) {
@@ -620,6 +621,7 @@ function FacultyBatchPerformanceCard({ batches = [] }) {
 }
 
 export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
+  const openMenu = useMobileMenu()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
@@ -665,11 +667,10 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const profileInitials = getInitials(profileName)
   const greetingName = getFacultyGreetingName(activeFaculty?.facultyName || latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
-  const todayLabel = formatFacultyHeaderDate()
   const batchNames = useMemo(
     () =>
       Array.isArray(activeFaculty?.batchEntries)
-        ? activeFaculty.batchEntries.map((entry) => String(entry.batchName || '').trim()).filter(Boolean)
+        ? activeFaculty.batchEntries.map((entry) => String(entry?.batchName || '').trim()).filter(Boolean)
         : [],
     [activeFaculty],
   )
@@ -802,6 +803,14 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   return (
     <section className="student-dashboard-page faculty-dashboard-page">
       <header className="student-dashboard-header faculty-dashboard-header">
+        <button
+          type="button"
+          className="mobile-menu-button faculty-dashboard-mobile-menu-button"
+          onClick={openMenu}
+          aria-label="Open navigation menu"
+        >
+          <Menu />
+        </button>
         <div className="student-dashboard-header-copy">
           <p className="student-dashboard-header-title">
             {greetingLabel}
@@ -812,13 +821,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
         <div className="student-dashboard-header-actions">
           <NotificationBell />
-          <div className="student-dashboard-date-pill" aria-label={todayLabel}>
-            <CalendarDays size={18} strokeWidth={2.15} aria-hidden="true" focusable="false" />
-            <div>
-              <strong>{todayLabel}</strong>
-              <span>TODAY</span>
-            </div>
-          </div>
+          <FacultyAttendanceChip />
           <div className="student-dashboard-profile-chip" aria-label={profileName}>
             <span className="student-dashboard-profile-initials" aria-hidden="true">
               {profileInitials}
@@ -855,6 +858,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 }
 
 export function FacultyMyBatchesPage() {
+  const openMenu = useMobileMenu()
   const navigate = useNavigate()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
@@ -867,7 +871,6 @@ export function FacultyMyBatchesPage() {
   const profileInitials = getInitials(profileName)
   const greetingName = getFacultyGreetingName(latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
-  const todayLabel = formatFacultyHeaderDate()
   const activeFaculty = useMemo(() => {
     const latestId = String(latestFaculty?.id || latestFaculty?._id || latestFaculty?.facultyId || '').trim().toLowerCase()
     const latestEmail = String(latestFaculty?.facultyEmail || '').trim().toLowerCase()
@@ -1070,6 +1073,7 @@ export function FacultyMyBatchesPage() {
       ? selectedBatchContext.students.map((student, index) => ({
           id: String(student?.id || `${selectedBatchContext.batchName || 'batch'}-${index}`).trim(),
           studentName: String(student?.studentName || '-').trim(),
+          initials: getInitials(student?.studentName),
           emailAddress: String(student?.emailAddress || '-').trim(),
           mobileNumber: String(student?.mobileNumber || '-').trim(),
           course: String(student?.courseInterested || student?.courseName || selectedBatchContext.courseName || '-').trim(),
@@ -1116,13 +1120,7 @@ export function FacultyMyBatchesPage() {
 
           <div className="student-dashboard-header-actions">
             <NotificationBell />
-            <div className="student-dashboard-date-pill" aria-label={todayLabel}>
-              <CalendarDays size={18} strokeWidth={2.15} aria-hidden="true" focusable="false" />
-              <div>
-                <strong>{todayLabel}</strong>
-                <span>TODAY</span>
-              </div>
-            </div>
+            <FacultyAttendanceChip />
             <div className="student-dashboard-profile-chip" aria-label={profileName}>
               <span className="student-dashboard-profile-initials" aria-hidden="true">
                 {profileInitials}
@@ -1144,6 +1142,14 @@ export function FacultyMyBatchesPage() {
   return (
     <section className="student-dashboard-page faculty-dashboard-page faculty-my-batches-page">
       <header className="student-dashboard-header faculty-dashboard-header">
+        <button
+          type="button"
+          className="mobile-menu-button faculty-dashboard-mobile-menu-button"
+          onClick={openMenu}
+          aria-label="Open navigation menu"
+        >
+          <Menu />
+        </button>
         <div className="student-dashboard-header-copy">
           <p className="student-dashboard-header-title">
             {greetingLabel}
@@ -1154,13 +1160,7 @@ export function FacultyMyBatchesPage() {
 
         <div className="student-dashboard-header-actions">
           <NotificationBell />
-          <div className="student-dashboard-date-pill" aria-label={todayLabel}>
-            <CalendarDays size={18} strokeWidth={2.15} aria-hidden="true" focusable="false" />
-            <div>
-              <strong>{todayLabel}</strong>
-              <span>TODAY</span>
-            </div>
-          </div>
+          <FacultyAttendanceChip />
           <div className="student-dashboard-profile-chip" aria-label={profileName}>
             <span className="student-dashboard-profile-initials" aria-hidden="true">
               {profileInitials}
@@ -1350,18 +1350,24 @@ export function FacultyMyBatchesPage() {
                         <th>Status</th>
                       </tr>
                     </thead>
-                    <tbody>
+                  <tbody>
                       {selectedBatchStudents.map((student, index) => {
+                        const studentStatus = String(student.status || 'Inactive').trim()
+                        const studentStatusClass = studentStatus.toLowerCase().replace(/\s+/g, '-')
+
                         return (
                           <tr key={student.id || `${student.studentName}-${index}`}>
                             <td className="batch-student-table-name-cell">
                               <div className="batch-student-table-name">
+                                <div className="batch-student-table-avatar" aria-hidden="true">
+                                  {student.initials}
+                                </div>
                                 <div className="batch-student-table-name-copy">
                                   <strong>{student.studentName}</strong>
                                 </div>
                               </div>
                             </td>
-                            <td>{student.emailAddress}</td>
+                            <td className="batch-student-table-email-cell">{student.emailAddress}</td>
                             <td>{student.mobileNumber}</td>
                             <td>{student.location}</td>
                             <td>{student.qualification}</td>
@@ -1369,7 +1375,7 @@ export function FacultyMyBatchesPage() {
                             <td>{student.currentStatus}</td>
                             <td>{student.admissionDate}</td>
                             <td>
-                              <span className={`status-pill ${student.status.toLowerCase()}`.trim()}>{student.status}</span>
+                              <span className={`status-pill ${studentStatusClass}`.trim()}>{studentStatus}</span>
                             </td>
                           </tr>
                         )

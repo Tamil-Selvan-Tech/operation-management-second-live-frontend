@@ -7,6 +7,7 @@ import {
   Home,
   LayoutGrid,
   LogOut,
+  X,
   UserRound,
   UsersRound,
 } from 'lucide-react'
@@ -144,6 +145,15 @@ export function AppSidebar({
 
   return (
     <aside className={`sidebar ${isMobileOpen ? 'is-open' : ''} ${isBusinessOwner ? 'is-business-owner-sidebar' : ''}`.trim()}>
+      <button
+        type="button"
+        className="sidebar-close-button"
+        onClick={onClose}
+        aria-label="Close sidebar"
+      >
+        <X size={20} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+      </button>
+
       <div className="sidebar-head">
         <div className="brand">
           <img className="brand-logo" src="/logo1.png" alt="Cispro Ops logo" />

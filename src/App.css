@@ -354,6 +354,330 @@
   }
 }
 
+@media (max-width: 320px) and (max-height: 558px) {
+  .mobile-bottom-nav {
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    gap: 2px;
+    padding: 8px 4px 10px;
+    border-radius: 24px;
+  }
+
+  .mobile-bottom-nav-item {
+    gap: 2px;
+    min-height: 50px;
+    padding: 5px 2px 3px;
+    border-radius: 14px;
+    font-size: 0.62rem;
+    line-height: 1;
+  }
+
+  .mobile-bottom-nav-item span {
+    display: block;
+    width: 100%;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-bottom-nav-item svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .mobile-bottom-nav-more svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .main-area {
+    padding-bottom: 100px;
+  }
+
+  .courses-page .app-pagination .pagination-bar-button {
+    min-width: 58px !important;
+    padding: 0 5px !important;
+  }
+
+  .faculty-flow-toolbar {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  .faculty-flow-mobile-menu-button {
+    display: inline-flex !important;
+    width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 auto !important;
+    margin-right: 0 !important;
+  }
+
+  .faculty-flow-mobile-menu-button svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .faculty-flow-back-button,
+  .faculty-flow-toolbar-link {
+    flex: 0 0 auto;
+  }
+
+  .faculty-dashboard-page,
+  .faculty-my-batches-page {
+    gap: 10px !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header,
+  .faculty-my-batches-page .student-dashboard-header {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'menu copy actions';
+    align-items: start !important;
+    gap: 8px !important;
+    padding: 10px 10px 8px !important;
+    width: 100% !important;
+    margin-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .faculty-dashboard-mobile-menu-button {
+    display: inline-flex !important;
+    grid-area: menu;
+    align-self: start;
+    justify-self: start;
+    width: 40px !important;
+    height: 40px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .faculty-dashboard-mobile-menu-button svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-copy,
+  .faculty-my-batches-page .student-dashboard-header-copy {
+    grid-area: copy;
+    gap: 2px !important;
+    min-width: 0 !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-actions,
+  .faculty-my-batches-page .student-dashboard-header-actions {
+    grid-area: actions;
+    gap: 6px !important;
+    align-items: center;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    min-width: 0;
+    width: auto !important;
+    justify-self: end;
+  }
+
+  .faculty-dashboard-page .student-dashboard-profile-name,
+  .faculty-my-batches-page .student-dashboard-profile-name {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex: 0 0 0 !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-profile-initials,
+  .faculty-my-batches-page .student-dashboard-profile-initials {
+    width: 34px;
+    height: 34px;
+    font-size: 0.82rem;
+  }
+
+  .faculty-dashboard-page .faculty-attendance-chip,
+  .faculty-my-batches-page .faculty-attendance-chip {
+    min-height: 34px;
+    padding: 0 12px;
+    gap: 6px;
+    border-radius: 9px;
+    font-size: 0.74rem;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-title,
+  .faculty-my-batches-page .student-dashboard-header-title {
+    font-size: 1rem;
+    line-height: 1.1;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-actions > .notification-bell {
+    display: none !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-profile-chip > svg {
+    display: none !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-actions {
+    gap: 0 !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-subtitle,
+  .faculty-my-batches-page .student-dashboard-header-subtitle {
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  .faculty-summary-strip {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .faculty-summary-strip .student-summary-card {
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 10px 11px;
+    border-radius: 14px;
+  }
+
+  .faculty-summary-strip .student-summary-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  .faculty-summary-strip .student-summary-card-label {
+    font-size: 0.66rem;
+  }
+
+  .faculty-summary-strip .student-summary-card-value {
+    font-size: 0.92rem;
+  }
+
+  .faculty-summary-strip .student-summary-card-note {
+    font-size: 0.66rem;
+  }
+
+  .faculty-dashboard-analytics-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-card {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    min-height: 0 !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-left {
+    border-right: 0 !important;
+    border-bottom: 1px solid #e5edf7 !important;
+    padding: 0 0 8px !important;
+    gap: 8px !important;
+    align-items: flex-start !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-icon {
+    width: 36px !important;
+    height: 36px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-icon svg {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy {
+    gap: 2px !important;
+    min-width: 0 !important;
+    align-items: start !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy strong {
+    font-size: 0.92rem !important;
+    line-height: 1.08 !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-badge {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 22px !important;
+    padding: 0 7px !important;
+    font-size: 0.6rem !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-copy p {
+    margin: 0 !important;
+    font-size: 0.68rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-badge svg {
+    width: 12px !important;
+    height: 12px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-overview {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card {
+    min-height: 42px !important;
+    padding: 6px 8px !important;
+    gap: 6px !important;
+    border-radius: 12px !important;
+    align-items: center !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card span {
+    font-size: 0.5rem !important;
+    line-height: 1 !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-card strong {
+    font-size: 0.7rem !important;
+    line-height: 1.05 !important;
+    white-space: normal !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-icon {
+    width: 22px !important;
+    height: 22px !important;
+    border-radius: 8px !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-overview-icon svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .faculty-course-faculty-page .faculty-flow-course-view-label {
+    margin-top: 0 !important;
+    min-height: 24px !important;
+    padding: 0 10px !important;
+    font-size: 0.62rem !important;
+  }
+}
+
 @media (max-width: 360px) and (max-height: 600px) {
   .app-shell {
     padding: 6px;
@@ -381,6 +705,26 @@
     column-gap: 8px !important;
     row-gap: 8px !important;
     align-items: flex-start !important;
+  }
+
+  .sidebar-close-button {
+    display: inline-flex !important;
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    z-index: 2 !important;
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 10px !important;
+    background: #ffffff !important;
+    border: 1px solid #d8e4f4 !important;
+    color: #475569 !important;
+    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .sidebar-head {
+    position: relative !important;
+    padding-right: 42px !important;
   }
 
   .business-owner-dashboard .business-topbar::after,
@@ -3831,6 +4175,28 @@ tbody tr:hover {
 
 .faculty-dashboard-header {
   margin-bottom: 2px;
+}
+
+.faculty-attendance-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #2b66ea 0%, #1f57d6 100%);
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  box-shadow: 0 8px 18px rgba(31, 87, 214, 0.24);
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.faculty-attendance-chip svg {
+  flex: 0 0 auto;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.16));
 }
 
 .faculty-summary-strip {
@@ -12048,6 +12414,125 @@ tbody tr:hover {
   color: #1742b4;
 }
 
+.faculty-batch-students-page .faculty-flow-section {
+  gap: 16px;
+}
+
+.faculty-batch-students-page .faculty-flow-section-header {
+  align-items: center;
+  gap: 16px;
+}
+
+.faculty-batch-students-page .faculty-flow-section-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.faculty-batch-students-page .faculty-flow-section-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.faculty-batch-students-page .faculty-flow-table-wrap {
+  border-radius: 24px;
+  border: 1px solid #dce7f3;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+  background: #ffffff;
+}
+
+.faculty-batch-students-page .faculty-flow-table {
+  min-width: 1060px;
+}
+
+.faculty-batch-students-page .faculty-flow-table thead th {
+  padding: 16px 16px;
+  background: #f8fbff;
+  color: #334155;
+  font-size: 0.83rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.faculty-batch-students-page .faculty-flow-table tbody td {
+  padding: 16px 16px;
+  vertical-align: middle;
+  color: #334155;
+}
+
+.faculty-batch-students-page .faculty-flow-table tbody tr:nth-child(even) td {
+  background: rgba(248, 251, 255, 0.58);
+}
+
+.faculty-batch-students-page .faculty-flow-table tbody tr:hover td {
+  background: #f7fbff;
+}
+
+.batch-student-list-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.batch-student-list-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 30%, #edf4ff 0%, #dbeafe 100%);
+  color: #2563eb;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.batch-student-list-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.batch-student-list-copy strong {
+  color: #0f172a;
+  font-size: 0.96rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.batch-student-list-email {
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.faculty-batch-students-page .status-pill {
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.faculty-batch-students-page .app-pagination {
+  margin-top: 2px;
+}
+
+.faculty-batch-students-page .app-pagination .pagination-button,
+.faculty-batch-students-page .app-pagination .pagination-page,
+.faculty-batch-students-page .app-pagination button {
+  min-height: 42px;
+  border-radius: 14px;
+}
+
 .batch-student-modal-backdrop {
   z-index: 70;
 }
@@ -12479,6 +12964,173 @@ tbody tr:hover {
   color: #b45309;
 }
 
+.faculty-my-batches-page .batch-student-modal {
+  width: min(1320px, calc(100vw - 40px));
+  max-height: min(88vh, 920px);
+  padding: 28px 30px 24px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 26%),
+    radial-gradient(circle at top right, rgba(16, 185, 129, 0.06), transparent 22%),
+    linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.16);
+}
+
+.faculty-my-batches-page .batch-student-modal-header {
+  padding: 0 6px 18px;
+}
+
+.faculty-my-batches-page .batch-student-modal-header-copy h3 {
+  font-size: clamp(2rem, 2.8vw, 3rem);
+}
+
+.faculty-my-batches-page .batch-student-modal-header-copy p {
+  max-width: 780px;
+}
+
+.faculty-my-batches-page .batch-student-status {
+  min-height: 44px;
+  padding: 0 18px;
+  background: linear-gradient(180deg, #e8f9ef 0%, #dbf6e4 100%);
+  border: 1px solid rgba(22, 163, 74, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.faculty-my-batches-page .batch-student-table-shell {
+  gap: 16px;
+}
+
+.faculty-my-batches-page .batch-student-table-wrap {
+  border-radius: 24px;
+  border: 1px solid #dce7f3;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
+  background: #ffffff;
+}
+
+.faculty-my-batches-page .batch-student-table {
+  min-width: 1180px;
+}
+
+.faculty-my-batches-page .batch-student-table thead th {
+  padding: 16px 16px;
+  background: #f8fbff;
+  color: #334155;
+  font-size: 0.83rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.faculty-my-batches-page .batch-student-table tbody td {
+  padding: 16px 16px;
+  vertical-align: middle;
+  color: #334155;
+}
+
+.faculty-my-batches-page .batch-student-table tbody tr {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.faculty-my-batches-page .batch-student-table tbody tr:nth-child(even) td {
+  background: rgba(248, 251, 255, 0.58);
+}
+
+.faculty-my-batches-page .batch-student-table tbody tr:hover td {
+  background: #f7fbff;
+}
+
+.batch-student-table-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.batch-student-table-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 35% 30%, #edf4ff 0%, #dbeafe 100%);
+  color: #2563eb;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.batch-student-table-name-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.batch-student-table-name-copy strong {
+  color: #0f172a;
+  font-size: 0.96rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.batch-student-table-email-cell {
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
+
+.faculty-my-batches-page .batch-student-table-email-cell,
+.faculty-batch-students-page .batch-student-list-email {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+}
+
+.faculty-my-batches-page .batch-student-table .status-pill {
+  min-height: 30px;
+  padding: 0 12px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.faculty-my-batches-page .batch-student-table-footer {
+  padding: 14px 8px 0;
+  border-top: 1px solid #edf2f7;
+}
+
+.faculty-my-batches-page .batch-student-table-summary strong {
+  font-size: 0.95rem;
+}
+
+.faculty-my-batches-page .batch-student-table-summary span {
+  font-size: 0.84rem;
+}
+
+.faculty-my-batches-page .batch-student-pagination-link {
+  min-height: 42px;
+  padding-inline: 16px;
+  border-radius: 14px;
+}
+
+.faculty-my-batches-page .batch-student-pagination-page {
+  min-width: 42px;
+  height: 42px;
+  border-radius: 14px;
+}
+
+.faculty-my-batches-page .batch-student-pagination-page.active {
+  box-shadow: 0 10px 18px rgba(37, 99, 235, 0.22);
+}
+
 @media (max-width: 900px) {
   .batch-student-modal-header {
     flex-direction: column;
@@ -12499,6 +13151,45 @@ tbody tr:hover {
     grid-column: 2 / -1;
     text-align: left;
     justify-self: start;
+  }
+
+  .faculty-my-batches-page .batch-student-modal {
+    width: min(100vw - 20px, 1320px);
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .faculty-my-batches-page .batch-student-modal-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .faculty-my-batches-page .batch-student-status {
+    min-height: 40px;
+    padding: 0 14px;
+  }
+
+  .faculty-my-batches-page .batch-student-table {
+    min-width: 980px;
+  }
+
+  .faculty-my-batches-page .batch-student-table thead th,
+  .faculty-my-batches-page .batch-student-table tbody td {
+    padding-inline: 12px;
+  }
+
+  .faculty-my-batches-page .batch-student-table-footer {
+    padding-top: 12px;
+  }
+
+  .faculty-batch-students-page .faculty-flow-table {
+    min-width: 920px;
+  }
+
+  .faculty-batch-students-page .faculty-flow-table thead th,
+  .faculty-batch-students-page .faculty-flow-table tbody td {
+    padding-inline: 12px;
   }
 }
 
@@ -12567,6 +13258,19 @@ tbody tr:hover {
 
   .course-table {
     min-width: 920px;
+  }
+
+  .faculty-batch-students-page .faculty-flow-section-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .faculty-batch-students-page .faculty-flow-table-wrap {
+    border-radius: 20px;
+  }
+
+  .faculty-batch-students-page .faculty-flow-table {
+    min-width: 880px;
   }
 
   .course-modal,
@@ -19369,7 +20073,7 @@ tbody tr:hover {
 }
 
 .sidebar .sidebar-close-button {
-  display: grid;
+  display: none;
   place-items: center;
   width: 34px;
   height: 34px;
@@ -23156,9 +23860,36 @@ tbody tr:hover {
     height: 30px;
   }
 
-  .faculty-management-page .status-pill {
-    min-height: 24px;
-    padding: 0 8px;
-    font-size: 11px;
+.faculty-management-page .status-pill {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+}
+
+@media (max-width: 320px) and (max-height: 558px) {
+  .faculty-dashboard-page .student-dashboard-header-actions > .notification-menu,
+  .faculty-dashboard-page .student-dashboard-header-actions > .student-dashboard-date-pill,
+  .faculty-dashboard-page .student-dashboard-header-actions > .student-dashboard-profile-chip > svg,
+  .faculty-dashboard-page .student-dashboard-header-actions > .student-dashboard-profile-chip .student-dashboard-profile-name {
+    display: none !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-actions {
+    width: auto !important;
+    justify-content: flex-end !important;
+    gap: 0 !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-profile-chip {
+    gap: 0 !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+  }
+
+  .faculty-dashboard-page .student-dashboard-profile-initials {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 0.82rem !important;
   }
 }

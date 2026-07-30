@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, ChevronRight, Mail, Phone, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChevronRight, Mail, Menu, Phone, UsersRound } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
@@ -20,6 +20,7 @@ import {
   getUniqueStudentCountForFacultyScope,
   sortByNameThenTiming,
 } from '../lib/facultyFlow'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
@@ -40,6 +41,7 @@ function loadStoredStudents() {
 export function CourseBatchesPage() {
   const { facultyId = '', courseId = '' } = useParams()
   const navigate = useNavigate()
+  const openMenu = useMobileMenu()
 
   const [facultyRecords, setFacultyRecords] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
@@ -142,6 +144,14 @@ export function CourseBatchesPage() {
   return (
     <section className="faculty-flow-page faculty-course-batches-page">
       <div className="faculty-flow-toolbar">
+        <button
+          type="button"
+          className="mobile-menu-button faculty-flow-mobile-menu-button"
+          onClick={openMenu}
+          aria-label="Open navigation menu"
+        >
+          <Menu />
+        </button>
         <Button type="button" variant="ghost" className="faculty-flow-back-button" onClick={() => navigate(buildFacultyCourseListPath(courseId))}>
           <ArrowLeft size={18} />
           <span>Back</span>

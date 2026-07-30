@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, GraduationCap, Mail, Phone, UsersRound, ChevronRight } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChevronRight, GraduationCap, Mail, Menu, Phone, UsersRound } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -17,6 +17,7 @@ import {
   getFacultyTotals,
   getMatchingStudents,
 } from '../lib/facultyFlow'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
@@ -37,6 +38,7 @@ function loadStoredStudents() {
 export function FacultyDetailsPage() {
   const { facultyId = '' } = useParams()
   const navigate = useNavigate()
+  const openMenu = useMobileMenu()
 
   const [facultyRecords, setFacultyRecords] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
@@ -132,6 +134,14 @@ export function FacultyDetailsPage() {
   return (
     <section className="faculty-flow-page">
       <div className="faculty-flow-toolbar">
+        <button
+          type="button"
+          className="mobile-menu-button faculty-flow-mobile-menu-button"
+          onClick={openMenu}
+          aria-label="Open navigation menu"
+        >
+          <Menu />
+        </button>
         <Button type="button" variant="ghost" className="faculty-flow-back-button" onClick={() => navigate('/faculty-management')}>
           <ArrowLeft size={18} />
           <span>Back</span>

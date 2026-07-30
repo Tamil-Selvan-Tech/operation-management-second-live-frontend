@@ -708,3 +708,185 @@
     font-size: 0.82rem;
   }
 }
+
+@media (max-width: 320px) and (max-height: 558px) {
+  .faculty-course-catalog-page .faculty-flow-section {
+    padding-inline: 8px;
+  }
+
+  .faculty-course-catalog-page .faculty-flow-toolbar {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .faculty-course-catalog-page .faculty-flow-back-button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 0 12px;
+    gap: 6px;
+    border-bottom: 0 !important;
+    border-top: 1px solid #dbe6f3 !important;
+    border-right: 1px solid #dbe6f3 !important;
+    border-left: 1px solid #dbe6f3 !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.06) !important;
+    background-clip: padding-box;
+    background-image: none !important;
+    outline: none !important;
+    text-decoration: none !important;
+    overflow: hidden !important;
+  }
+
+  .faculty-course-catalog-page .faculty-flow-back-button::before,
+  .faculty-course-catalog-page .faculty-flow-back-button::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .faculty-course-catalog-page .faculty-flow-toolbar-link {
+    flex: 0 1 auto;
+    min-height: auto;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #2563eb;
+    font-size: 0.9rem;
+    font-weight: 800;
+    line-height: 1.08;
+    white-space: nowrap;
+  }
+
+  .faculty-course-catalog-header {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .faculty-course-catalog-header-copy h2 {
+    font-size: 1.28rem;
+    line-height: 1.08;
+  }
+
+  .faculty-course-catalog-header-copy p:last-child {
+    font-size: 0.8rem;
+    line-height: 1.35;
+  }
+
+  .faculty-course-catalog-search {
+    min-height: 42px;
+    padding: 0 10px;
+    border-radius: 13px;
+  }
+
+  .faculty-course-catalog-search input {
+    font-size: 0.86rem;
+  }
+
+  .faculty-flow-catalog-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .faculty-flow-catalog-card {
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .faculty-flow-catalog-card-head {
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .faculty-flow-catalog-card-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .faculty-flow-catalog-card-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .faculty-flow-catalog-card-label {
+    font-size: 0.65rem;
+  }
+
+  .faculty-flow-catalog-card-copy strong {
+    font-size: 0.96rem;
+    line-height: 1.06;
+  }
+
+  .faculty-flow-catalog-card-copy p {
+    font-size: 0.68rem;
+    line-height: 1.28;
+    max-width: 100%;
+  }
+
+  .faculty-flow-catalog-divider {
+    margin: 8px 0;
+  }
+
+  .faculty-flow-catalog-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .faculty-flow-catalog-meta-item {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 6px;
+    min-height: 42px;
+  }
+
+  .faculty-flow-catalog-meta-item-icon-only {
+    grid-template-columns: 1fr;
+    min-height: 42px;
+  }
+
+  .faculty-flow-catalog-meta-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+  }
+
+  .faculty-flow-catalog-meta-icon svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .faculty-flow-catalog-meta-copy {
+    gap: 0;
+  }
+
+  .faculty-flow-catalog-meta-copy span {
+    font-size: 0.6rem;
+  }
+
+  .faculty-flow-catalog-meta-copy strong {
+    font-size: 0.82rem;
+    line-height: 1.1;
+  }
+
+  .faculty-flow-catalog-meta-copy small {
+    font-size: 0.6rem;
+    line-height: 1.18;
+  }
+
+  .faculty-flow-catalog-card-footer {
+    margin-top: 10px;
+  }
+
+  .faculty-flow-catalog-view-button {
+    min-height: 32px;
+    width: 100%;
+    padding: 0 10px;
+    font-size: 0.78rem;
+  }
+
+  .faculty-course-pagination {
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 10px;
+  }
+}

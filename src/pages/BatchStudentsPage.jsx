@@ -9,6 +9,7 @@ import {
   GraduationCap,
   Mail,
   MapPin,
+  Menu,
   Phone,
   UserRound,
   UsersRound,
@@ -32,6 +33,7 @@ import {
   getFacultyCourseName,
   getFacultyBatchStudentRecords,
 } from '../lib/facultyFlow'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
@@ -125,6 +127,7 @@ function getBatchStudentDetailItems(selectedStudent, selectedStudentCourse, sele
 export function BatchStudentsPage() {
   const { facultyId = '', courseId = '', batchId = '' } = useParams()
   const navigate = useNavigate()
+  const openMenu = useMobileMenu()
 
   const [facultyRecords, setFacultyRecords] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
@@ -243,6 +246,14 @@ export function BatchStudentsPage() {
   return (
     <section className="faculty-flow-page faculty-batch-students-page">
       <div className="faculty-flow-toolbar">
+        <button
+          type="button"
+          className="mobile-menu-button faculty-flow-mobile-menu-button"
+          onClick={openMenu}
+          aria-label="Open navigation menu"
+        >
+          <Menu />
+        </button>
         <Button
           type="button"
           variant="ghost"
@@ -348,31 +359,41 @@ export function BatchStudentsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginatedStudents.map((student, index) => (
-                    <tr key={student.id || `${student.studentName}-${index}`}>
-                      <td>{index + 1}</td>
-                      <td>
-                        <strong>{student.studentName || '-'}</strong>
-                      </td>
-                      <td>{student.emailAddress || '-'}</td>
-                      <td>{student.mobileNumber || '-'}</td>
-                      <td>{formatDate(student.admissionDate)}</td>
-                      <td>
-                        <span className={`status-pill ${String(student.status || 'Inactive').toLowerCase()}`}>
-                          {student.status || 'Inactive'}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="faculty-flow-mini-button"
-                          onClick={() => setSelectedStudent(student)}
-                        >
-                          View Details
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {paginatedStudents.map((student, index) => {
+                    const studentStatus = String(student.status || 'Inactive').trim()
+                    const studentStatusClass = studentStatus.toLowerCase().replace(/\s+/g, '-')
+
+                    return (
+                      <tr key={student.id || `${student.studentName}-${index}`}>
+                        <td>{index + 1}</td>
+                        <td>
+                          <div className="batch-student-list-name">
+                            <div className="batch-student-list-avatar" aria-hidden="true">
+                              {getStudentInitials(student.studentName)}
+                            </div>
+                            <div className="batch-student-list-copy">
+                              <strong>{student.studentName || '-'}</strong>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="batch-student-list-email">{student.emailAddress || '-'}</td>
+                        <td>{student.mobileNumber || '-'}</td>
+                        <td>{formatDate(student.admissionDate)}</td>
+                        <td>
+                          <span className={`status-pill ${studentStatusClass}`.trim()}>{studentStatus}</span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="faculty-flow-mini-button"
+                            onClick={() => setSelectedStudent(student)}
+                          >
+                            View Details
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, CheckCircle2, Clock3, Globe2, IndianRupee, Monitor, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpen, CheckCircle2, Clock3, Globe2, IndianRupee, Menu, Monitor, UsersRound } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { SearchBar } from '../components/SearchBar'
@@ -10,6 +10,7 @@ import { loadFacultyRecords } from '../data/facultyRecords'
 import { listCourses, normalizeCourseList } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
 import { buildFacultyCourseListPath } from '../lib/facultyFlow'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
@@ -63,6 +64,7 @@ function buildPageList(totalPages, currentPage) {
 
 export function FacultyCourseCatalogPage() {
   const navigate = useNavigate()
+  const openMenu = useMobileMenu()
   const [courses, setCourses] = useState(() => loadStoredCourses())
   const [facultyRecords, setFacultyRecords] = useState(() => loadStoredFaculty())
   const [isLoading, setIsLoading] = useState(true)
@@ -156,6 +158,14 @@ export function FacultyCourseCatalogPage() {
   return (
     <section className="faculty-flow-page faculty-course-catalog-page">
       <div className="faculty-flow-toolbar">
+        <button
+          type="button"
+          className="mobile-menu-button faculty-flow-mobile-menu-button"
+          onClick={openMenu}
+          aria-label="Open navigation menu"
+        >
+          <Menu />
+        </button>
         <Button type="button" variant="ghost" className="faculty-flow-back-button" onClick={() => navigate('/faculty-management')}>
           <ArrowLeft size={18} />
           <span>Back</span>
