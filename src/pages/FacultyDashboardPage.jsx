@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, GraduationCap, Layers3, Menu, Save, UsersRound, X } from 'lucide-react'
+import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, FileDown, GraduationCap, Layers3, Menu, Save, UsersRound, X } from 'lucide-react'
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
@@ -24,6 +24,7 @@ import { listCourses } from '../services/courseService'
 import { listStudents } from '../services/studentService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
+import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -915,6 +916,7 @@ export function FacultyMyBatchesPage() {
   const [selectedBatchAttendanceMessage, setSelectedBatchAttendanceMessage] = useState('')
   const [selectedBulkAttendance, setSelectedBulkAttendance] = useState('')
   const [attendanceSavePopup, setAttendanceSavePopup] = useState(null)
+  const [attendanceReportRequest, setAttendanceReportRequest] = useState(null)
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
 
   const profileName = latestFaculty?.facultyName || 'Faculty'
@@ -1072,6 +1074,23 @@ export function FacultyMyBatchesPage() {
     })
   }, [attendanceRefreshToken, backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id])
 
+  const openCourseAttendanceReport = (group) => {
+    if (!group) return
+
+    const nextStudents = Array.isArray(group.batches)
+      ? group.batches.flatMap((batch) => (Array.isArray(batch.studentRecords) ? batch.studentRecords : []))
+      : []
+
+    setAttendanceReportRequest({
+      mode: 'course',
+      courseId: String(group.courseId || '').trim(),
+      courseName: String(group.courseName || group.courseId || 'Course').trim(),
+      batchId: '',
+      batchName: '',
+      students: nextStudents,
+    })
+  }
+
   const totalBatchCount = Number(batchesSummary?.totalBatches || 0) || facultyCourseGroups.reduce((sum, group) => sum + group.batches.length, 0)
   const totalStudents = Number(batchesSummary?.totalStudents || 0) || facultyCourseGroups.reduce((sum, group) => sum + Number(group.totalStudents || 0), 0)
 
@@ -1193,6 +1212,7 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchAttendanceMessage('')
     setSelectedBulkAttendance('')
     setAttendanceSavePopup(null)
+    setAttendanceReportRequest(null)
   }
 
   const updateStudentAttendance = (studentId, status) => {
@@ -1383,19 +1403,30 @@ export function FacultyMyBatchesPage() {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  className="faculty-course-details-button"
-                  aria-label={`${group.courseName || 'Course'} details`}
-                  onClick={() => {
-                    if (!activeFaculty?.id || !group.courseId) return
-                    navigate(buildFacultyCoursePath(activeFaculty.id, group.courseId))
-                  }}
-                >
-                  <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
-                  <span>Course Details</span>
-                  <ChevronDown size={14} strokeWidth={2.3} aria-hidden="true" focusable="false" />
-                </button>
+                <div className="faculty-batch-group-actions">
+                  <button
+                    type="button"
+                    className="faculty-course-report-button"
+                    aria-label={`${group.courseName || 'Course'} attendance report`}
+                    onClick={() => openCourseAttendanceReport(group)}
+                  >
+                    <FileDown size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                    <span>Generate Attendance Report</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="faculty-course-details-button"
+                    aria-label={`${group.courseName || 'Course'} details`}
+                    onClick={() => {
+                      if (!activeFaculty?.id || !group.courseId) return
+                      navigate(buildFacultyCoursePath(activeFaculty.id, group.courseId))
+                    }}
+                  >
+                    <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                    <span>Course Details</span>
+                    <ChevronDown size={14} strokeWidth={2.3} aria-hidden="true" focusable="false" />
+                  </button>
+                </div>
               </div>
 
               <div className="faculty-batch-table" role="table" aria-label={`${group.courseName || 'Course'} batch details`}>
@@ -1506,6 +1537,23 @@ export function FacultyMyBatchesPage() {
               </div>
 
               <div className="batch-student-modal-header-actions">
+                <button
+                  type="button"
+                  className="batch-student-report-button"
+                  onClick={() =>
+                    setAttendanceReportRequest({
+                      mode: 'batch',
+                      courseId: String(selectedBatchContext.courseId || '').trim(),
+                      courseName: String(selectedBatchContext.courseName || 'Course').trim(),
+                      batchId: String(selectedBatchContext.batchId || '').trim(),
+                      batchName: String(selectedBatchContext.batchName || '').trim(),
+                      students: Array.isArray(selectedBatchContext.students) ? selectedBatchContext.students : [],
+                    })
+                  }
+                >
+                  <FileDown size={16} />
+                  <span>Generate Attendance Report</span>
+                </button>
                 <div className={`batch-student-status ${isSelectedBatchAttendanceEditable ? 'active' : 'locked'}`.trim()}>
                   <Clock3 size={16} />
                   <span>{isSelectedBatchAttendanceEditable ? 'Attendance Open' : 'Attendance Locked'}</span>
@@ -1712,6 +1760,20 @@ export function FacultyMyBatchesPage() {
             </button>
           </div>
         </div>
+      ) : null}
+
+      {attendanceReportRequest ? (
+        <StudentAttendanceReportModal
+          isOpen={Boolean(attendanceReportRequest)}
+          mode={attendanceReportRequest.mode}
+          facultyId={facultyAttendanceId}
+          courseId={attendanceReportRequest.courseId}
+          courseName={attendanceReportRequest.courseName}
+          batchId={attendanceReportRequest.batchId}
+          batchName={attendanceReportRequest.batchName}
+          students={attendanceReportRequest.students}
+          onClose={() => setAttendanceReportRequest(null)}
+        />
       ) : null}
     </section>
   )

@@ -4665,6 +4665,15 @@ tbody tr:hover {
   flex-wrap: wrap;
 }
 
+.faculty-batch-group-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
 .faculty-batch-group-brand {
   display: flex;
   align-items: flex-start;
@@ -4739,6 +4748,29 @@ tbody tr:hover {
   font-size: 0.82rem;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.faculty-course-report-button,
+.batch-student-report-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid #d7e5f7;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+  color: #1d4ed8;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.faculty-course-report-button svg,
+.batch-student-report-button svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
 }
 
 .faculty-batch-table {
@@ -13453,6 +13485,12 @@ tbody tr:hover {
   flex-wrap: wrap;
   gap: 10px;
   margin-right: 24px;
+}
+
+.faculty-my-batches-page .batch-student-report-button {
+  min-height: 44px;
+  padding: 0 16px;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
 }
 
 .faculty-my-batches-page .batch-student-modal-header-copy h3 {
