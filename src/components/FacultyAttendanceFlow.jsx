@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CalendarDays, CheckCircle2, Clock3, FileText, LogIn, LogOut, X } from 'lucide-react'
+import { CalendarDays, Clock3, FileText, LogIn, LogOut, X } from 'lucide-react'
 
 import {
   clearFacultyAttendanceState,
@@ -113,6 +113,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   const initialAttendance = loadFacultyAttendanceState(facultyId, profileName, profileInitials)
   const [attendanceSessions, setAttendanceSessions] = useState(() => normalizeAttendanceSessions(initialAttendance))
   const [isOpen, setIsOpen] = useState(false)
+  const [currentTime, setCurrentTime] = useState(() => new Date())
   const latestStoredSession = getLatestAttendanceSession(attendanceSessions)
   const [viewState, setViewState] = useState(() => initialAttendance?.viewState || (latestStoredSession?.logoutTimestamp ? 'logged-out' : latestStoredSession ? 'logged-in' : 'idle'))
   const [logoutType, setLogoutType] = useState(() => latestStoredSession?.logoutType || initialAttendance?.logoutType || 'normal')
@@ -135,7 +136,8 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   const displayTimeLabel = formatAttendanceTime(displayTime)
   const loginLabel = loginTime ? formatAttendanceTime(loginTime) : 'N/A'
   const logoutLabel = logoutTime ? formatAttendanceTime(logoutTime) : 'N/A'
-  const workedDuration = loginTime && logoutTime ? formatDuration(loginTime, logoutTime) : '-'
+  const durationEndTime = viewState === 'logged-out' ? logoutTime : currentTime
+  const workedDuration = loginTime && durationEndTime ? formatDuration(loginTime, durationEndTime) : '-'
   const isLogoutMode = viewState === 'logout-form'
   const isLoggedIn = viewState === 'logged-in' || viewState === 'logout-form'
   const primaryLabel = isLoggedIn ? 'Log Out' : 'Log In'
@@ -165,6 +167,16 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     return () => {
       document.body.style.overflow = originalOverflow
     }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return undefined
+
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => window.clearInterval(intervalId)
   }, [isOpen])
 
   useEffect(() => {
@@ -267,7 +279,10 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     return () => window.clearInterval(intervalId)
   }, [facultyId, profileName, profileInitials])
 
-  const openPanel = () => setIsOpen(true)
+  const openPanel = () => {
+    setCurrentTime(new Date())
+    setIsOpen(true)
+  }
 
   const closePanel = () => {
     setIsOpen(false)
@@ -438,14 +453,12 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
                     <span>Log Out</span>
                     <strong className={logoutTime ? 'is-error' : ''}>{logoutLabel}</strong>
                   </div>
+                  <div className="faculty-attendance-worked-time">
+                    <span>Worked Time</span>
+                    <strong className={loginTime ? 'is-success' : ''}>{workedDuration}</strong>
+                  </div>
                 </div>
 
-                {viewState === 'logged-out' ? (
-                  <div className="faculty-attendance-note">
-                    <CheckCircle2 size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-                    <span>Duration worked: {workedDuration}.</span>
-                  </div>
-                ) : null}
               </>
             ) : (
               <form className="faculty-attendance-form" onSubmit={submitLogout}>

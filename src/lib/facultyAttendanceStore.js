@@ -59,6 +59,38 @@ export function listFacultyAttendanceStates() {
   }
 }
 
+function normalizeAttendanceIdentity(identity = '', facultyName = '', profileInitials = '') {
+  if (identity && typeof identity === 'object') {
+    return {
+      facultyId: String(identity?.facultyId || identity?.id || '').trim(),
+      facultyName: String(identity?.facultyName || '').trim(),
+      profileInitials: String(identity?.profileInitials || '').trim(),
+    }
+  }
+
+  return {
+    facultyId: String(identity || '').trim(),
+    facultyName: String(facultyName || '').trim(),
+    profileInitials: String(profileInitials || '').trim(),
+  }
+}
+
+function isMatchingAttendanceIdentity(record = {}, identity = {}) {
+  const normalizedFacultyId = normalizeText(identity?.facultyId || '')
+  const normalizedFacultyName = normalizeText(identity?.facultyName || '')
+  const normalizedProfileInitials = normalizeText(identity?.profileInitials || '')
+
+  const recordFacultyId = normalizeText(record?.facultyId || record?.id || '')
+  const recordFacultyName = normalizeText(record?.facultyName || '')
+  const recordProfileInitials = normalizeText(record?.profileInitials || '')
+
+  return Boolean(
+    (normalizedFacultyId && recordFacultyId && normalizedFacultyId === recordFacultyId) ||
+      (normalizedFacultyName && recordFacultyName && normalizedFacultyName === recordFacultyName) ||
+      (normalizedProfileInitials && recordProfileInitials && normalizedProfileInitials === recordProfileInitials),
+  )
+}
+
 export function getFacultyAttendanceStorageKey(facultyId = '', facultyName = '', profileInitials = '') {
   return buildFacultyAttendanceStorageKey(facultyId || facultyName || profileInitials)
 }
@@ -108,6 +140,8 @@ export function clearFacultyAttendanceState(facultyId = '', facultyName = '', pr
 }
 
 function normalizeAttendanceTimestamp(value) {
+  if (value === null || value === undefined || value === '') return null
+
   const timestamp = Number(value)
   return Number.isFinite(timestamp) ? timestamp : null
 }
@@ -643,6 +677,13 @@ function getActiveSessionFromAttendanceRecord(attendanceRecord = {}, now = new D
   return sessions.find((session) => isSessionActiveNow(session, now)) || null
 }
 
+function getLatestSessionFromAttendanceRecord(attendanceRecord = {}) {
+  const sessions = normalizeAttendanceSessions(attendanceRecord)
+  if (!sessions.length) return null
+
+  return sessions[sessions.length - 1] || null
+}
+
 export function resolveFacultyBatchAttendanceStatus(facultyRecord = {}, batch = {}, dateKey = getAttendanceDateKey()) {
   const attendanceRecord = findFacultyAttendanceRecord(
     facultyRecord?.id || facultyRecord?.facultyId || '',
@@ -749,20 +790,20 @@ export function resolveCurrentFacultyAttendanceStatus(student = {}, facultyRecor
 }
 
 export function resolveAnyCurrentFacultyAttendanceStatus(facultyName = '', now = new Date()) {
-  const normalizedFacultyName = normalizeText(facultyName)
+  const identity = normalizeAttendanceIdentity(facultyName)
+  const attendanceStates = listFacultyAttendanceStates()
+  const matchingStates = attendanceStates.filter((record) => isMatchingAttendanceIdentity(record, identity))
   const attendanceRecord =
-    listFacultyAttendanceStates().find((record) => {
-      const recordFacultyName = normalizeText(record?.facultyName || '')
-      return normalizedFacultyName ? recordFacultyName === normalizedFacultyName : Boolean(getActiveSessionFromAttendanceRecord(record, now))
-    }) ||
-    listFacultyAttendanceStates().find((record) => getActiveSessionFromAttendanceRecord(record, now)) ||
+    matchingStates.find((record) => getActiveSessionFromAttendanceRecord(record, now)) ||
+    matchingStates[0] ||
+    attendanceStates.find((record) => getActiveSessionFromAttendanceRecord(record, now)) ||
     null
 
   if (!attendanceRecord) {
     return {
       status: 'Absent',
       reason: 'No faculty login recorded for today.',
-      facultyName: facultyName || '-',
+      facultyName: identity.facultyName || identity.facultyId || '-',
       batchName: '-',
       batchTiming: '',
       loginDateTime: null,
@@ -775,10 +816,65 @@ export function resolveAnyCurrentFacultyAttendanceStatus(facultyName = '', now =
   return {
     status: activeSession ? 'Present' : 'Absent',
     reason: activeSession ? 'Faculty is currently logged in.' : 'Faculty is not logged in right now.',
-    facultyName: attendanceRecord?.facultyName || facultyName || '-',
+    facultyName: attendanceRecord?.facultyName || identity.facultyName || identity.facultyId || '-',
     batchName: '-',
     batchTiming: '',
     loginDateTime: activeSession?.loginTimestamp ? new Date(Number(activeSession.loginTimestamp)) : null,
+    batchStartDateTime: null,
+    sessions: normalizeAttendanceSessions(attendanceRecord),
+  }
+}
+
+export function resolveTodayFacultyAttendanceStatus(facultyIdentity = '', now = new Date()) {
+  const identity = normalizeAttendanceIdentity(facultyIdentity)
+  const attendanceStates = listFacultyAttendanceStates()
+  const matchingStates = attendanceStates.filter((record) => isMatchingAttendanceIdentity(record, identity))
+  const attendanceRecord =
+    matchingStates.find((record) => Boolean(getLatestSessionFromAttendanceRecord(record))) ||
+    attendanceStates.find((record) => Boolean(getLatestSessionFromAttendanceRecord(record))) ||
+    null
+
+  if (!attendanceRecord) {
+    return {
+      status: 'Absent',
+      reason: 'No faculty login recorded for today.',
+      facultyName: identity.facultyName || identity.facultyId || '-',
+      batchName: '-',
+      batchTiming: '',
+      loginDateTime: null,
+      logoutDateTime: null,
+      logoutType: 'normal',
+      logoutReason: '',
+      workCompleted: '',
+      batchStartDateTime: null,
+      sessions: [],
+    }
+  }
+
+  const latestSession = getLatestSessionFromAttendanceRecord(attendanceRecord)
+  const loginDateTime = latestSession?.loginTimestamp ? new Date(Number(latestSession.loginTimestamp)) : null
+  const logoutDateTime = latestSession?.logoutTimestamp ? new Date(Number(latestSession.logoutTimestamp)) : null
+  const isLoggedToday = Boolean(loginDateTime && !Number.isNaN(loginDateTime.getTime()) && loginDateTime.getTime() <= now.getTime())
+  const hasValidLogout = Boolean(logoutDateTime && !Number.isNaN(logoutDateTime.getTime()))
+  const logoutType = String(latestSession?.logoutType || 'normal').trim().toLowerCase() || 'normal'
+  const logoutReason = String(latestSession?.logoutReason || '').trim()
+  const workCompleted = String(latestSession?.workCompleted || '').trim()
+
+  return {
+    status: isLoggedToday ? 'Present' : 'Absent',
+    reason: hasValidLogout
+      ? `Faculty logged out at ${formatAttendanceTimeLabel(logoutDateTime)} today.`
+      : isLoggedToday
+        ? 'Faculty is currently logged in.'
+        : 'Faculty is not logged in right now.',
+    facultyName: attendanceRecord?.facultyName || identity.facultyName || identity.facultyId || '-',
+    batchName: '-',
+    batchTiming: '',
+    loginDateTime,
+    logoutDateTime: hasValidLogout ? logoutDateTime : null,
+    logoutType,
+    logoutReason,
+    workCompleted,
     batchStartDateTime: null,
     sessions: normalizeAttendanceSessions(attendanceRecord),
   }

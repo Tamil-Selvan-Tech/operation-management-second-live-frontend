@@ -18,7 +18,7 @@ import {
 import { roleDashboards } from '../data/authData'
 import { loadFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
-import { FACULTY_ATTENDANCE_SYNC_EVENT, resolveAnyCurrentFacultyAttendanceStatus } from '../lib/facultyAttendanceStore'
+import { FACULTY_ATTENDANCE_SYNC_EVENT, resolveTodayFacultyAttendanceStatus, formatAttendanceTimeLabel } from '../lib/facultyAttendanceStore'
 import { buildFacultyCourseCatalogPath, getFacultyCourseIds } from '../lib/facultyFlow'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
@@ -297,6 +297,46 @@ function getCourseIdByName(courseName, courseOptions = []) {
   const normalizedCourseName = String(courseName || '').trim().toLowerCase()
   if (!normalizedCourseName) return ''
   return courseOptions.find((course) => String(course?.name || '').trim().toLowerCase() === normalizedCourseName)?.id || ''
+}
+
+function getFacultyAttendanceReasonLabel(attendance = {}) {
+  if (String(attendance?.logoutType || '').trim().toLowerCase() !== 'early') return ''
+  const reason = String(attendance?.logoutReason || '').trim()
+  return reason ? `Reason: ${reason}` : ''
+}
+
+function getFacultyAttendanceWorkedDurationLabel(attendance = {}) {
+  const loginDateTime = attendance?.loginDateTime instanceof Date ? attendance.loginDateTime : attendance?.loginDateTime ? new Date(attendance.loginDateTime) : null
+  if (!loginDateTime || Number.isNaN(loginDateTime.getTime())) return '-'
+
+  const logoutDateTime = attendance?.logoutDateTime instanceof Date ? attendance.logoutDateTime : attendance?.logoutDateTime ? new Date(attendance.logoutDateTime) : null
+  const endDateTime = logoutDateTime && !Number.isNaN(logoutDateTime.getTime()) ? logoutDateTime : new Date()
+  const diffMs = Math.max(0, endDateTime.getTime() - loginDateTime.getTime())
+  const totalMinutes = Math.max(1, Math.floor(diffMs / 60000))
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  return `${hours}h ${minutes}m`
+}
+
+function getFacultyAttendanceCellBadgeLabel(attendance = {}) {
+  if (attendance?.logoutDateTime) return 'Logout'
+  if (attendance?.loginDateTime) return 'Login'
+  return 'Login'
+}
+
+function getFacultyAttendanceCellBadgeTone(attendance = {}) {
+  return attendance?.logoutDateTime ? 'is-absent' : 'is-present'
+}
+
+function getFacultyAttendanceOverviewBadgeLabel(attendance = {}) {
+  if (attendance?.logoutDateTime) return 'Logout'
+  if (attendance?.loginDateTime) return 'Login'
+  return 'Login'
+}
+
+function getFacultyAttendanceOverviewBadgeTone(attendance = {}) {
+  return attendance?.logoutDateTime ? 'is-absent' : 'is-present'
 }
 
 function apiErrorMessage(error, fallback) {
@@ -1041,7 +1081,11 @@ export function FacultyManagementPage() {
     )
   }, [activeCourseOptions, selectedFacultyRecord])
   void facultyAttendanceRefreshToken
-  const selectedFacultyAttendance = resolveAnyCurrentFacultyAttendanceStatus(selectedFacultyRecord?.facultyName || '')
+  const selectedFacultyAttendance = resolveTodayFacultyAttendanceStatus({
+    facultyId: selectedFacultyRecord?.id || selectedFacultyRecord?.facultyId || '',
+    facultyName: selectedFacultyRecord?.facultyName || '',
+  })
+  const selectedFacultyAttendanceReasonLabel = getFacultyAttendanceReasonLabel(selectedFacultyAttendance)
 
   const validationErrors = useMemo(() => {
     const nextErrors = {}
@@ -2352,18 +2396,14 @@ export function FacultyManagementPage() {
                   <tr>
                     <th>Faculty Name</th>
                     <td>{selectedFacultyRecord.facultyName || '-'}</td>
-                    <th>Attendance</th>
+                    <th>Status</th>
                     <td>
-                      <div className="faculty-attendance-stack">
-                        <div className="faculty-attendance-inline">
-                          <span className="faculty-attendance-inline-label">Today&apos;s Attendance</span>
-                          <span
-                            className={`status-pill faculty-attendance-pill ${selectedFacultyAttendance.status === 'Present' ? 'is-present' : 'is-absent'}`.trim()}
-                          >
-                            {selectedFacultyAttendance.status || 'Absent'}
-                          </span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const facultyStatus = String(selectedFacultyRecord.status || 'Active').trim()
+                        const statusTone = facultyStatus.toLowerCase() === 'inactive' ? 'inactive' : 'active'
+
+                        return <span className={`status-pill ${statusTone}`.trim()}>{facultyStatus}</span>
+                      })()}
                     </td>
                   </tr>
                   <tr>
@@ -2394,6 +2434,39 @@ export function FacultyManagementPage() {
                   </tr>
                 </tbody>
               </table>
+
+              <section className="faculty-attendance-overview-card faculty-attendance-overview-panel">
+                <div className="faculty-attendance-overview-head">
+                  <div>
+                    <span className="faculty-attendance-overview-kicker">Today&apos;s Attendance</span>
+                    <span className={`status-pill faculty-attendance-pill ${getFacultyAttendanceOverviewBadgeTone(selectedFacultyAttendance)}`.trim()}>
+                      {getFacultyAttendanceOverviewBadgeLabel(selectedFacultyAttendance)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="faculty-attendance-overview-grid">
+                  <div>
+                    <span>Login Time</span>
+                    <strong>{selectedFacultyAttendance?.loginDateTime ? formatAttendanceTimeLabel(selectedFacultyAttendance.loginDateTime) : '-'}</strong>
+                  </div>
+                  <div>
+                    <span>Logout Time</span>
+                    <strong>{selectedFacultyAttendance?.logoutDateTime ? formatAttendanceTimeLabel(selectedFacultyAttendance.logoutDateTime) : '-'}</strong>
+                  </div>
+                  <div>
+                    <span>Worked Duration</span>
+                    <strong>{getFacultyAttendanceWorkedDurationLabel(selectedFacultyAttendance)}</strong>
+                  </div>
+                </div>
+
+                {selectedFacultyAttendanceReasonLabel ? (
+                  <div className="faculty-attendance-overview-reason">
+                    <span className="faculty-attendance-inline-label">Early Logout Reason</span>
+                    <strong>{selectedFacultyAttendanceReasonLabel.replace(/^Reason:\s*/i, '')}</strong>
+                  </div>
+                ) : null}
+              </section>
 
               <div className="faculty-view-batch-section">
                 <div className="faculty-view-batch-header">

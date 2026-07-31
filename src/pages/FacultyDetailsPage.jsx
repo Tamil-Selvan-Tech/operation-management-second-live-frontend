@@ -17,11 +17,39 @@ import {
   getFacultyTotals,
   getMatchingStudents,
 } from '../lib/facultyFlow'
-import { FACULTY_ATTENDANCE_SYNC_EVENT, resolveAnyCurrentFacultyAttendanceStatus } from '../lib/facultyAttendanceStore'
+import { FACULTY_ATTENDANCE_SYNC_EVENT, formatAttendanceTimeLabel, resolveTodayFacultyAttendanceStatus } from '../lib/facultyAttendanceStore'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
+}
+
+function getFacultyAttendanceTimeLabel(attendance = {}) {
+  if (attendance?.logoutDateTime) {
+    return `Logout Time: ${formatAttendanceTimeLabel(attendance.logoutDateTime)}`
+  }
+
+  if (attendance?.loginDateTime) {
+    return `Login Time: ${formatAttendanceTimeLabel(attendance.loginDateTime)}`
+  }
+
+  return ''
+}
+
+function getFacultyAttendanceReasonLabel(attendance = {}) {
+  if (String(attendance?.logoutType || '').trim().toLowerCase() !== 'early') return ''
+  const reason = String(attendance?.logoutReason || '').trim()
+  return reason ? `Reason: ${reason}` : ''
+}
+
+function getFacultyAttendanceBadgeLabel(attendance = {}) {
+  if (attendance?.logoutDateTime) return 'Logout'
+  if (attendance?.loginDateTime) return 'Login'
+  return 'Login'
+}
+
+function getFacultyAttendanceBadgeTone(attendance = {}) {
+  return attendance?.logoutDateTime ? 'is-absent' : 'is-present'
 }
 
 function loadStoredCourses() {
@@ -155,7 +183,12 @@ export function FacultyDetailsPage() {
   const totals = useMemo(() => getFacultyTotals(selectedFaculty || {}, courseOptions), [courseOptions, selectedFaculty])
   const isActive = String(selectedFaculty?.status || 'Active').toLowerCase() === 'active'
   void facultyAttendanceRefreshToken
-  const facultyAttendance = resolveAnyCurrentFacultyAttendanceStatus(selectedFaculty?.facultyName || '')
+  const facultyAttendance = resolveTodayFacultyAttendanceStatus({
+    facultyId: selectedFaculty?.id || selectedFaculty?.facultyId || '',
+    facultyName: selectedFaculty?.facultyName || '',
+  })
+  const facultyAttendanceTimeLabel = getFacultyAttendanceTimeLabel(facultyAttendance)
+  const facultyAttendanceReasonLabel = getFacultyAttendanceReasonLabel(facultyAttendance)
 
   return (
     <section className="faculty-flow-page">
@@ -208,10 +241,22 @@ export function FacultyDetailsPage() {
                     </span>
                     <div className="faculty-attendance-inline">
                       <span className="faculty-attendance-inline-label">Today&apos;s Attendance</span>
-                      <span className={`status-pill faculty-attendance-pill ${facultyAttendance.status === 'Present' ? 'is-present' : 'is-absent'}`.trim()}>
-                        {facultyAttendance.status || 'Absent'}
+                      <span className={`status-pill faculty-attendance-pill ${getFacultyAttendanceBadgeTone(facultyAttendance)}`.trim()}>
+                        {getFacultyAttendanceBadgeLabel(facultyAttendance)}
                       </span>
                     </div>
+                    {facultyAttendanceTimeLabel ? (
+                      <div className="faculty-attendance-inline">
+                        <span className="faculty-attendance-inline-label">Time</span>
+                        <span>{facultyAttendanceTimeLabel}</span>
+                      </div>
+                    ) : null}
+                    {facultyAttendanceReasonLabel ? (
+                      <div className="faculty-attendance-inline">
+                        <span className="faculty-attendance-inline-label">Early Logout Reason</span>
+                        <span>{facultyAttendanceReasonLabel}</span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="faculty-flow-contact">

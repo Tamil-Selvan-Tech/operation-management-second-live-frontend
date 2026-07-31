@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, GraduationCap, Layers3, Menu, Save, UsersRound, X } from 'lucide-react'
 
@@ -913,6 +913,7 @@ export function FacultyMyBatchesPage() {
   const [selectedBatchView, setSelectedBatchView] = useState('details')
   const [selectedBatchAttendanceDraft, setSelectedBatchAttendanceDraft] = useState({})
   const [selectedBatchAttendanceMessage, setSelectedBatchAttendanceMessage] = useState('')
+  const [selectedBulkAttendance, setSelectedBulkAttendance] = useState('')
   const [attendanceSavePopup, setAttendanceSavePopup] = useState(null)
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
 
@@ -1149,7 +1150,7 @@ export function FacultyMyBatchesPage() {
   )
   const isSelectedBatchAttendanceEditable = Boolean(selectedBatchContext) && selectedBatchWindow.isEditable
   const selectedBatchWindowMessage = isSelectedBatchAttendanceEditable
-    ? selectedBatchAttendanceMessage || selectedBatchWindow.reason
+    ? selectedBatchAttendanceMessage
     : selectedBatchWindow.reason
 
   const openBatchStudents = (group, batch) => {
@@ -1180,16 +1181,9 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchContext(nextContext)
     setSelectedBatchView('details')
     setSelectedBatchAttendanceDraft(buildBatchAttendanceDraft(nextContext.students || [], savedState?.records || savedState?.attendance || {}))
+    setSelectedBulkAttendance('')
     setAttendanceSavePopup(null)
-    setSelectedBatchAttendanceMessage(
-      savedState
-        ? batchWindow.isEditable
-          ? 'Saved attendance loaded. You can still update it until the batch window closes.'
-          : 'Saved attendance loaded for this batch.'
-        : batchWindow.isEditable
-          ? 'Attendance is open for this batch.'
-          : batchWindow.reason,
-    )
+    setSelectedBatchAttendanceMessage(savedState ? '' : batchWindow.isEditable ? 'Attendance is open for this batch.' : batchWindow.reason)
   }
 
   const closeBatchStudents = () => {
@@ -1197,6 +1191,7 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchView('details')
     setSelectedBatchAttendanceDraft({})
     setSelectedBatchAttendanceMessage('')
+    setSelectedBulkAttendance('')
     setAttendanceSavePopup(null)
   }
 
@@ -1225,6 +1220,7 @@ export function FacultyMyBatchesPage() {
     })
 
     setSelectedBatchAttendanceDraft(nextDraft)
+    setSelectedBulkAttendance(normalizedStatus)
     setSelectedBatchAttendanceMessage(`${normalizedStatus} has been applied to all students.`)
   }
 
@@ -1272,6 +1268,7 @@ export function FacultyMyBatchesPage() {
       )
 
       setSelectedBatchAttendanceMessage('Attendance saved successfully for today.')
+      setSelectedBulkAttendance('')
       setAttendanceSavePopup({
         title: 'Attendance Saved',
         message: 'Attendance has been saved successfully for today.',
@@ -1279,6 +1276,11 @@ export function FacultyMyBatchesPage() {
     } catch (error) {
       setSelectedBatchAttendanceMessage(error?.body?.message || error?.message || 'Unable to save attendance right now.')
     }
+  }
+
+  const closeAttendanceSavePopup = () => {
+    setAttendanceSavePopup(null)
+    setSelectedBatchView('details')
   }
 
   if (isLoading || isCoursesLoading || isBatchesSummaryLoading || isFacultyRecordsLoading || isStudentsLoading) {
@@ -1520,21 +1522,35 @@ export function FacultyMyBatchesPage() {
               </div>
             </div>
 
-            <p className={`batch-student-window-note ${isSelectedBatchAttendanceEditable ? 'is-open' : 'is-locked'}`.trim()}>
-              {selectedBatchWindowMessage}
-            </p>
+            {selectedBatchWindowMessage ? (
+              <p className={`batch-student-window-note ${isSelectedBatchAttendanceEditable ? 'is-open' : 'is-locked'}`.trim()}>
+                {selectedBatchWindowMessage}
+              </p>
+            ) : null}
 
             {selectedBatchStudents.length ? (
               <div className="batch-student-table-shell">
                 {selectedBatchView === 'attendance' ? (
                   <div className="batch-student-attendance-actions" aria-label="Attendance shortcuts">
-                    <button type="button" className="batch-student-attendance-action" onClick={() => setBulkAttendance('Present')} disabled={!isSelectedBatchAttendanceEditable}>
-                      <Check size={14} />
-                      <span>Select All Present</span>
+                    <button
+                      type="button"
+                      className={`batch-student-attendance-action ${selectedBulkAttendance === 'Present' ? 'is-selected' : ''}`.trim()}
+                      onClick={() => setBulkAttendance('Present')}
+                      disabled={!isSelectedBatchAttendanceEditable}
+                      aria-pressed={selectedBulkAttendance === 'Present'}
+                    >
+                      <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: selectedBulkAttendance === 'Present' ? '&#9745;' : '&#9744;' }} />
+                      <span>Mark All as Present</span>
                     </button>
-                    <button type="button" className="batch-student-attendance-action" onClick={() => setBulkAttendance('Absent')} disabled={!isSelectedBatchAttendanceEditable}>
-                      <X size={14} />
-                      <span>Select All Absent</span>
+                    <button
+                      type="button"
+                      className={`batch-student-attendance-action ${selectedBulkAttendance === 'Absent' ? 'is-selected' : ''}`.trim()}
+                      onClick={() => setBulkAttendance('Absent')}
+                      disabled={!isSelectedBatchAttendanceEditable}
+                      aria-pressed={selectedBulkAttendance === 'Absent'}
+                    >
+                      <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: selectedBulkAttendance === 'Absent' ? '&#9745;' : '&#9744;' }} />
+                      <span>Mark All as Absent</span>
                     </button>
                   </div>
                 ) : null}
@@ -1565,9 +1581,6 @@ export function FacultyMyBatchesPage() {
                           <tr key={student.id || `${student.studentName}-${index}`}>
                             <td className="batch-student-table-name-cell">
                               <div className="batch-student-table-name">
-                                <div className="batch-student-table-avatar" aria-hidden="true">
-                                  {student.initials}
-                                </div>
                                 <div className="batch-student-table-name-copy">
                                   <strong>{student.studentName}</strong>
                                 </div>
@@ -1587,7 +1600,8 @@ export function FacultyMyBatchesPage() {
                               <td className="batch-student-attendance-cell">
                                 <label className={`batch-student-attendance-option ${attendanceValue === 'Present' ? 'is-selected' : ''}`.trim()}>
                                   <input
-                                    type="checkbox"
+                                    type="radio"
+                                    name={`attendance-${student.id}`}
                                     checked={attendanceValue === 'Present'}
                                     disabled={!isSelectedBatchAttendanceEditable}
                                     onChange={() => updateStudentAttendance(student.id, 'Present')}
@@ -1597,7 +1611,8 @@ export function FacultyMyBatchesPage() {
                                 </label>
                                 <label className={`batch-student-attendance-option ${attendanceValue === 'Absent' ? 'is-selected' : ''}`.trim()}>
                                   <input
-                                    type="checkbox"
+                                    type="radio"
+                                    name={`attendance-${student.id}`}
                                     checked={attendanceValue === 'Absent'}
                                     disabled={!isSelectedBatchAttendanceEditable}
                                     onChange={() => updateStudentAttendance(student.id, 'Absent')}
@@ -1629,7 +1644,7 @@ export function FacultyMyBatchesPage() {
                     <div className="batch-student-pagination" aria-hidden="true">
                       <button type="button" className="batch-student-pagination-link" disabled>
                         <ChevronLeft size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
-                        <span>Previous</span>
+                        <span>Back</span>
                       </button>
                       <div className="batch-student-pagination-pages">
                         <button type="button" className="batch-student-pagination-page active" aria-current="page" disabled>
@@ -1641,21 +1656,15 @@ export function FacultyMyBatchesPage() {
                         <button type="button" className="batch-student-pagination-page" disabled>
                           3
                         </button>
-                        <span className="batch-student-pagination-dots">...</span>
                         <button type="button" className="batch-student-pagination-page" disabled>
-                          8
-                        </button>
-                        <button type="button" className="batch-student-pagination-page" disabled>
-                          9
-                        </button>
-                        <button type="button" className="batch-student-pagination-page" disabled>
-                          10
+                          4
                         </button>
                       </div>
                       <button type="button" className="batch-student-pagination-link" disabled>
                         <span>Next</span>
                         <ChevronRight size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
                       </button>
+                      <span className="batch-student-pagination-count">1 of 4</span>
                     </div>
 
                     {selectedBatchView === 'attendance' ? (
@@ -1683,7 +1692,7 @@ export function FacultyMyBatchesPage() {
       ) : null}
 
       {attendanceSavePopup ? (
-        <div className="batch-attendance-popup-backdrop" role="presentation" onClick={() => setAttendanceSavePopup(null)}>
+        <div className="batch-attendance-popup-backdrop" role="presentation" onClick={closeAttendanceSavePopup}>
           <div
             className="batch-attendance-popup panel-card"
             role="alertdialog"
@@ -1698,7 +1707,7 @@ export function FacultyMyBatchesPage() {
               <h3 id="batch-attendance-popup-title">{attendanceSavePopup.title}</h3>
               <p>{attendanceSavePopup.message}</p>
             </div>
-            <button type="button" className="batch-attendance-popup-button" onClick={() => setAttendanceSavePopup(null)}>
+            <button type="button" className="batch-attendance-popup-button" onClick={closeAttendanceSavePopup}>
               OK
             </button>
           </div>
@@ -1707,3 +1716,5 @@ export function FacultyMyBatchesPage() {
     </section>
   )
 }
+
+
