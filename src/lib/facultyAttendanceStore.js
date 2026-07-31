@@ -565,6 +565,67 @@ function findFacultyRecordForStudent(student = {}, facultyRecords = []) {
   )
 }
 
+function findMatchedBatchEntryForStudent(student = {}, facultyRecord = {}) {
+  const batchEntries = Array.isArray(facultyRecord?.batchEntries) ? facultyRecord.batchEntries : []
+  if (!batchEntries.length) return null
+
+  const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+  const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
+  const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
+  const studentBatchTiming = normalizeText(student?.batchTiming || student?.batchTime || '')
+  const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
+  const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
+
+  const exactBatchMatch =
+    batchEntries.find((entry) => {
+      const entryBatchId = String(entry?.id || '').trim().toLowerCase()
+      const entryBatchName = normalizeText(entry?.batchName || entry?.batch || '')
+      const entryBatchToken = normalizeBatchToken(entry?.batchName || entry?.batch || '')
+      const entryBatchTiming = normalizeText(entry?.batchTiming || '')
+
+      return (
+        (studentBatchId && entryBatchId && studentBatchId === entryBatchId) ||
+        (studentBatchName && entryBatchName && studentBatchName === entryBatchName) ||
+        (studentBatchToken && entryBatchToken && studentBatchToken === entryBatchToken) ||
+        (studentBatchTiming && entryBatchTiming && studentBatchTiming === entryBatchTiming)
+      )
+    }) || null
+
+  if (exactBatchMatch) return exactBatchMatch
+
+  if (!studentCourseId && !studentCourseName) {
+    return null
+  }
+
+  const courseMatches = batchEntries.filter((entry) => {
+    const entryCourseId = String(entry?.courseId || '').trim().toLowerCase()
+    const entryCourseName = normalizeText(entry?.courseName || '')
+    return (
+      (studentCourseId && entryCourseId && studentCourseId === entryCourseId) ||
+      (studentCourseName && entryCourseName && studentCourseName === entryCourseName)
+    )
+  })
+
+  return courseMatches.length === 1 ? courseMatches[0] : null
+}
+
+export function resolveFacultyBatchContextForStudent(student = {}, facultyRecords = []) {
+  const facultyRecord = findFacultyRecordForStudent(student, facultyRecords)
+  const matchedBatchEntry = facultyRecord ? findMatchedBatchEntryForStudent(student, facultyRecord) : null
+
+  return {
+    facultyRecord,
+    batchEntry: matchedBatchEntry,
+    facultyId: String(facultyRecord?.id || facultyRecord?._id || facultyRecord?.facultyId || student?.facultyId || '').trim(),
+    facultyName: String(facultyRecord?.facultyName || student?.facultyName || '').trim(),
+    batchId: String(matchedBatchEntry?.id || student?.batchId || student?.batchEntryId || '').trim(),
+    batchName: String(matchedBatchEntry?.batchName || student?.batchName || student?.batch || '').trim(),
+    batchTiming: String(matchedBatchEntry?.batchTiming || student?.batchTiming || student?.batchTime || '').trim(),
+    courseId: String(matchedBatchEntry?.courseId || student?.courseId || '').trim(),
+    courseName: String(matchedBatchEntry?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '').trim(),
+  }
+}
+
 function findFacultyAttendanceRecord(facultyId = '', facultyName = '', profileInitials = '') {
   if (typeof window === 'undefined') return null
 

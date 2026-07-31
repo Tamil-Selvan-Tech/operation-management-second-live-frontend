@@ -6,7 +6,7 @@ import { NotificationBell } from '../components/NotificationBell'
 import {
   FACULTY_ATTENDANCE_SYNC_EVENT,
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
-  resolveFacultyBatchAttendanceStatus,
+  resolveStudentAttendanceStatus,
   resolveStudentBatchAttendanceStatus,
 } from '../lib/facultyAttendanceStore'
 import {
@@ -238,7 +238,7 @@ function StudentDashboardHeader({ studentName, facultyAttendanceStatus }) {
       <div className="student-dashboard-header-actions">
         <NotificationBell />
         <div
-          className={`student-attendance-today-status ${getAttendanceStatusTone(statusLabel)}`.trim()}
+          className={`student-attendance-today-status student-attendance-today-status-header ${getAttendanceStatusTone(statusLabel)}`.trim()}
           style={{ width: 'fit-content', marginLeft: '0.5rem', padding: '0.75rem 1rem' }}
         >
           <div className="student-attendance-today-icon" aria-hidden="true">
@@ -595,31 +595,22 @@ function StudentDashboardContent({ dashboard }) {
   const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   void attendanceRefreshToken
 
-  const studentBatchName = String(latestStudent?.batchName || latestStudent?.batch || '').trim()
-  const studentBatchTiming = String(latestStudent?.batchTiming || latestStudent?.batchTime || '').trim()
-  const studentFacultyName = String(latestStudent?.facultyName || '').trim()
-  const studentFacultyId = String(latestStudent?.facultyId || '').trim()
-
   const facultyAttendance = (() => {
     try {
-      return resolveFacultyBatchAttendanceStatus(
-        {
-          id: studentFacultyId,
-          facultyId: studentFacultyId,
-          facultyName: studentFacultyName,
-        },
-        {
-          batchName: studentBatchName,
-          batchTiming: studentBatchTiming,
-        },
-      )
+      return resolveStudentAttendanceStatus(latestStudent || {}, facultyRecords) || {
+        status: 'Absent',
+        reason: 'No faculty login recorded for today.',
+        facultyName: latestStudent?.facultyName || '-',
+        batchName: latestStudent?.batchName || latestStudent?.batch || '-',
+        batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
+      }
     } catch {
       return {
         status: 'Absent',
         reason: 'Attendance data could not be loaded.',
-        facultyName: studentFacultyName || '-',
-        batchName: studentBatchName || '-',
-        batchTiming: studentBatchTiming || '',
+        facultyName: latestStudent?.facultyName || '-',
+        batchName: latestStudent?.batchName || latestStudent?.batch || '-',
+        batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
         loginDateTime: null,
         batchStartDateTime: null,
         sessions: [],
