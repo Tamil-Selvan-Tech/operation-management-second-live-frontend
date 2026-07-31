@@ -32,6 +32,7 @@ import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { listCourses } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
+import { downloadBatchAttendanceReport, downloadStudentAttendanceReport } from '../services/reportService'
 import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
 import { normalizeCourseList } from '../services/courseService'
 import { savePendingLoginEmail } from '../lib/session'
@@ -262,6 +263,18 @@ function addOneMonth(value, months = 1) {
 
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
+}
+
+function resolveSingleBatchId(students = []) {
+  const uniqueBatchIds = Array.from(
+    new Set(
+      (Array.isArray(students) ? students : [])
+        .map((student) => String(student?.batchId || student?.batchEntryId || '').trim())
+        .filter(Boolean),
+    ),
+  )
+
+  return uniqueBatchIds.length === 1 ? uniqueBatchIds[0] : ''
 }
 
 function diffInDays(a, b) {
@@ -1787,7 +1800,7 @@ export function StudentManagementPage() {
     updateAttendanceReportField('courseId', courseId)
   }
 
-  const handleAttendanceReportDownload = () => {
+  const handleAttendanceReportDownload = async () => {
     if (attendanceReportSubmitting) return
 
     const validationErrors = {
@@ -1819,26 +1832,37 @@ export function StudentManagementPage() {
     setAttendanceReportSubmitting(true)
 
     try {
-      const rows = attendanceReportTargetStudents.map((student) => {
-        const attendanceMeta = getAttendanceStatusMeta(student)
-        return [
-          student.studentName || '-',
-          student.courseInterested || student.courseName || '-',
-          student.batchName || student.batch || '-',
-          student.facultyName || '-',
-          attendanceMeta.label,
-          student.remarks || '-',
-        ]
-      })
+      if (attendanceReportModal?.mode === 'single') {
+        const studentId = String(attendanceReportStudent?.id || attendanceReportModal?.studentId || '').trim()
 
-      downloadAttendanceReportFile({
-        title: 'Student Attendance Report',
-        subtitle: 'Generated from the current student management snapshot.',
-        fromDate: attendanceReportForm.fromDate,
-        toDate: attendanceReportForm.toDate,
-        scopeLabel: attendanceReportScopeLabel,
-        rows,
-      })
+        if (!studentId) {
+          throw new Error('Student attendance report download requires a valid student record.')
+        }
+
+        await downloadStudentAttendanceReport({
+          studentId,
+          fromDate: attendanceReportForm.fromDate,
+          toDate: attendanceReportForm.toDate,
+        })
+      } else {
+        const resolvedBatchId = String(attendanceReportForm.batchId || resolveSingleBatchId(attendanceReportTargetStudents)).trim()
+
+        if (!resolvedBatchId) {
+          throw new Error('Please select a batch before downloading the attendance report.')
+        }
+
+        await downloadBatchAttendanceReport({
+          batchId: resolvedBatchId,
+          batchName:
+            reportBatchOptions.find((batch) => String(batch.value || '').trim() === String(resolvedBatchId).trim())?.batchName ||
+            attendanceReportTargetStudents[0]?.batchName ||
+            attendanceReportTargetStudents[0]?.batch ||
+            '',
+          courseId: String(attendanceReportForm.courseId || attendanceReportTargetStudents[0]?.courseId || '').trim(),
+          fromDate: attendanceReportForm.fromDate,
+          toDate: attendanceReportForm.toDate,
+        })
+      }
 
       setAttendanceReportError('')
     } catch (error) {

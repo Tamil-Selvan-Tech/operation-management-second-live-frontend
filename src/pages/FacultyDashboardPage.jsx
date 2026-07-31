@@ -1077,13 +1077,25 @@ export function FacultyMyBatchesPage() {
     const nextStudents = Array.isArray(group.batches)
       ? group.batches.flatMap((batch) => (Array.isArray(batch.studentRecords) ? batch.studentRecords : []))
       : []
+    const uniqueBatchIds = Array.from(
+      new Set(
+        (Array.isArray(group.batches) ? group.batches : [])
+          .map((batch) => String(batch?.batchId || batch?.id || '').trim())
+          .filter(Boolean),
+      ),
+    )
+    const singleBatchRecord = uniqueBatchIds.length === 1
+      ? (Array.isArray(group.batches)
+          ? group.batches.find((batch) => String(batch?.batchId || batch?.id || '').trim() === uniqueBatchIds[0]) || null
+          : null)
+      : null
 
     setAttendanceReportRequest({
-      mode: 'course',
+      mode: singleBatchRecord ? 'batch' : 'course',
       courseId: String(group.courseId || '').trim(),
       courseName: String(group.courseName || group.courseId || 'Course').trim(),
-      batchId: '',
-      batchName: '',
+      batchId: String(singleBatchRecord?.batchId || singleBatchRecord?.id || '').trim(),
+      batchName: String(singleBatchRecord?.batchName || '').trim(),
       students: nextStudents,
     })
   }
