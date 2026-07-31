@@ -32,6 +32,7 @@ import { createStudent, deleteStudent, listStudents, updateStudent } from '../se
 import { normalizeCourseList } from '../services/courseService'
 import { savePendingLoginEmail } from '../lib/session'
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
+import { FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, resolveStudentBatchAttendanceStatus } from '../lib/facultyAttendanceStore'
 import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
@@ -574,6 +575,35 @@ function PaymentStatusBadge({ student }) {
   return <span className={className}>{status}</span>
 }
 
+function getAttendanceStatusMeta(student = {}) {
+  const attendance = resolveStudentBatchAttendanceStatus(student)
+
+  if (!attendance) {
+    return {
+      label: 'Unmarked',
+      toneClass: 'inactive',
+    }
+  }
+
+  if (attendance.status === 'Present') {
+    return {
+      label: 'Present',
+      toneClass: 'is-present',
+    }
+  }
+
+  return {
+    label: 'Absent',
+    toneClass: 'is-absent',
+  }
+}
+
+function AttendanceStatusBadge({ student }) {
+  const attendanceMeta = getAttendanceStatusMeta(student)
+
+  return <span className={`status-pill ${attendanceMeta.toneClass}`.trim()}>{attendanceMeta.label}</span>
+}
+
 function SectionIcon({ kind }) {
   if (kind === 'basic') {
     return (
@@ -777,6 +807,28 @@ function DangerIcon() {
   )
 }
 
+function useFacultyBatchAttendanceRefreshToken() {
+  const [refreshToken, setRefreshToken] = useState(0)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const syncAttendance = () => {
+      setRefreshToken((current) => current + 1)
+    }
+
+    window.addEventListener(FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, syncAttendance)
+    window.addEventListener('storage', syncAttendance)
+
+    return () => {
+      window.removeEventListener(FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, syncAttendance)
+      window.removeEventListener('storage', syncAttendance)
+    }
+  }, [])
+
+  return refreshToken
+}
+
 export function StudentManagementPage() {
   const { role } = useAuth()
   const openMenu = useMobileMenu()
@@ -805,6 +857,7 @@ export function StudentManagementPage() {
   const [actionError, setActionError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSavingStudent, setIsSavingStudent] = useState(false)
+  const attendanceRefreshToken = useFacultyBatchAttendanceRefreshToken()
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
   const isBusinessOwner = role === 'business-owner'
@@ -915,6 +968,17 @@ export function StudentManagementPage() {
     () => enrichStudentsWithFacultyReferences(students, facultyOptions, courseOptions),
     [courseOptions, facultyOptions, students],
   )
+  const studentsWithAttendance = useMemo(
+    () => {
+      void attendanceRefreshToken
+
+      return backfilledStudents.map((student) => ({
+        ...student,
+        attendanceStatusMeta: getAttendanceStatusMeta(student),
+      }))
+    },
+    [attendanceRefreshToken, backfilledStudents],
+  )
 
   useEffect(() => {
     if (backfilledStudents === students) return
@@ -927,8 +991,12 @@ export function StudentManagementPage() {
   const selectedStudentQueryId = String(searchParams.get('studentId') || '').trim()
   const selectedStudentId = selectedStudentQueryId || manualSelectedStudentId
   const selectedStudent = useMemo(
-    () => backfilledStudents.find((student) => student.id === selectedStudentId) || null,
-    [backfilledStudents, selectedStudentId],
+    () => studentsWithAttendance.find((student) => student.id === selectedStudentId) || null,
+    [selectedStudentId, studentsWithAttendance],
+  )
+  const selectedStudentAttendanceMeta = useMemo(
+    () => (selectedStudent ? getAttendanceStatusMeta(selectedStudent) : { label: 'Unmarked', toneClass: 'inactive' }),
+    [selectedStudent],
   )
   const selectedStudentCourse = useMemo(
     () => (selectedStudent ? findCourseForStudent(selectedStudent, courseOptions) : null),
@@ -951,8 +1019,8 @@ export function StudentManagementPage() {
   const filteredStudents = useMemo(() => {
     const baseMatches =
       !courseFilterId && !facultyFilterId && !batchFilterId
-        ? backfilledStudents
-        : getMatchingStudents(backfilledStudents, {
+        ? studentsWithAttendance
+        : getMatchingStudents(studentsWithAttendance, {
             facultyId: facultyFilterId,
             facultyName: selectedFacultyFilter?.facultyName || '',
             courseId: courseFilterId,
@@ -977,7 +1045,17 @@ export function StudentManagementPage() {
         batchName.includes(normalizedSearch)
       )
     })
-  }, [backfilledStudents, batchFilterId, courseFilterId, courseOptions, facultyFilterId, searchQuery, selectedCourseFilter, selectedFacultyFilter, selectedBatchFilter])
+  }, [
+    batchFilterId,
+    courseFilterId,
+    courseOptions,
+    facultyFilterId,
+    searchQuery,
+    selectedBatchFilter,
+    selectedCourseFilter,
+    selectedFacultyFilter,
+    studentsWithAttendance,
+  ])
   const buildStudentManagementUrl = useCallback(
     (studentId = '') => {
       const params = new URLSearchParams()
@@ -1805,6 +1883,7 @@ export function StudentManagementPage() {
                   <th>Current Installment</th>
                   <th>Installment Due Date</th>
                   <th>Status</th>
+                  <th>Attendance</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -1925,6 +2004,9 @@ export function StudentManagementPage() {
                       </td>
                       <td>
                         <PaymentStatusBadge student={student} />
+                      </td>
+                      <td>
+                        <AttendanceStatusBadge student={student} />
                       </td>
                       <td>
                         <div
@@ -2779,28 +2861,35 @@ export function StudentManagementPage() {
                         rightValue={selectedStudent.qualification}
                       />
                       <DrawerTableRow
-                        leftLabel="Passed Out Year"
-                        leftValue={selectedStudent.passedOutYear}
-                        rightLabel="Current Status"
-                        rightValue={selectedStudent.currentStatus}
+                        leftLabel="Attendance"
+                        leftValue={selectedStudentAttendanceMeta.label}
+                        rightLabel="Passed Out Year"
+                        rightValue={selectedStudent.passedOutYear}
+                        leftTone={selectedStudentAttendanceMeta.label === 'Present' ? 'success' : selectedStudentAttendanceMeta.label === 'Absent' ? 'warning' : ''}
                       />
                       <DrawerTableRow
-                        leftLabel="Designation"
-                        leftValue={selectedStudent.designation || '-'}
-                        rightLabel="Admission Date"
-                        rightValue={formatDate(selectedStudent.admissionDate)}
+                        leftLabel="Current Status"
+                        leftValue={selectedStudent.currentStatus}
+                        rightLabel="Designation"
+                        rightValue={selectedStudent.designation || '-'}
                       />
                       <DrawerTableRow
-                        leftLabel="Total Course Fee"
-                        leftValue={formatCurrency(selectedStudent.actualFees || selectedStudent.totalAmount || selectedStudent.afterDiscount)}
-                        rightLabel="Discount"
-                        rightValue={formatCurrency(selectedStudent.discount)}
+                        leftLabel="Admission Date"
+                        leftValue={formatDate(selectedStudent.admissionDate)}
+                        rightLabel="Total Course Fee"
+                        rightValue={formatCurrency(selectedStudent.actualFees || selectedStudent.totalAmount || selectedStudent.afterDiscount)}
                       />
                       <DrawerTableRow
-                        leftLabel="Final Fee"
-                        leftValue={formatCurrency(selectedStudent.afterDiscount)}
-                        rightLabel="Payment Mode"
-                        rightValue={getPaymentModeLabel(selectedStudent)}
+                        leftLabel="Discount"
+                        leftValue={formatCurrency(selectedStudent.discount)}
+                        rightLabel="Final Fee"
+                        rightValue={formatCurrency(selectedStudent.afterDiscount)}
+                      />
+                      <DrawerTableRow
+                        leftLabel="Payment Mode"
+                        leftValue={getPaymentModeLabel(selectedStudent)}
+                        rightLabel="How did you know about our Institute?"
+                        rightValue={selectedStudent.source}
                       />
                       {isFullPaymentRecord(selectedStudent) ? (
                         <>
@@ -2808,14 +2897,8 @@ export function StudentManagementPage() {
                             leftLabel="Payment Status"
                             leftValue="Paid"
                             leftTone="success"
-                            rightLabel="How did you know about our Institute?"
-                            rightValue={selectedStudent.source}
-                          />
-                          <DrawerTableRow
-                            leftLabel="Remarks"
-                            leftValue={getDrawerValue(selectedStudent.remarks, 'No remarks added')}
-                            rightLabel="Payment Type"
-                            rightValue="Full Payment"
+                            rightLabel="Remarks"
+                            rightValue={getDrawerValue(selectedStudent.remarks, 'No remarks added')}
                           />
                         </>
                       ) : (
