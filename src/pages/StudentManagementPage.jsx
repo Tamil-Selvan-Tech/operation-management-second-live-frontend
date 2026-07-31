@@ -4,17 +4,21 @@ import {
   BadgeCheck,
   BookOpen,
   CalendarDays,
+  CalendarRange,
   CircleDollarSign,
   CreditCard,
+  Download,
   FileText,
   GraduationCap,
   Landmark,
   Layers3,
   Mail,
   MapPin,
+  LoaderCircle,
   Percent,
   Phone,
   UserRound,
+  FileDown,
 } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
@@ -141,6 +145,109 @@ function formatDate(value) {
     month: 'short',
     year: 'numeric',
   }).format(date)
+}
+
+function formatReportDate(value) {
+  if (!value) return ''
+
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatReportFileDate(value) {
+  if (!value) return ''
+
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+
+  return `${day}-${month}-${year}`
+}
+
+function escapeHtml(value = '') {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function getAttendanceReportFileName(fromDate, toDate) {
+  const fromLabel = formatReportFileDate(fromDate)
+  const toLabel = formatReportFileDate(toDate)
+  return `Attendance_Report_${fromLabel || 'from-date'}_to_${toLabel || 'to-date'}.xls`
+}
+
+function downloadAttendanceReportFile({
+  title,
+  subtitle,
+  fromDate,
+  toDate,
+  scopeLabel,
+  rows = [],
+}) {
+  const tableRows = rows.length
+    ? rows
+    : [['No students matched the selected filters.', '', '', '', '', '']]
+
+  const html = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; color: #0f172a; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: #eff6ff; font-weight: 700; }
+    .title { font-size: 18px; font-weight: 700; }
+    .meta { color: #475569; }
+  </style>
+</head>
+<body>
+  <table>
+    <tr><td class="title" colspan="6">${escapeHtml(title)}</td></tr>
+    <tr><td class="meta" colspan="6">${escapeHtml(subtitle)}</td></tr>
+    <tr><td colspan="6"><strong>Scope:</strong> ${escapeHtml(scopeLabel)}</td></tr>
+    <tr><td colspan="6"><strong>From:</strong> ${escapeHtml(formatReportDate(fromDate) || '-')} | <strong>To:</strong> ${escapeHtml(formatReportDate(toDate) || '-')}</td></tr>
+    <tr>
+      <th>Student Name</th>
+      <th>Course</th>
+      <th>Batch</th>
+      <th>Faculty</th>
+      <th>Attendance Status</th>
+      <th>Remarks</th>
+    </tr>
+    ${tableRows
+      .map(
+        (row) => `
+          <tr>
+            ${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}
+          </tr>`,
+      )
+      .join('')}
+  </table>
+</body>
+</html>`
+
+  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = getAttendanceReportFileName(fromDate, toDate)
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(url)
 }
 
 function addOneMonth(value, months = 1) {
@@ -807,6 +914,202 @@ function DangerIcon() {
   )
 }
 
+function getReportBatchOptions(courseId, facultyOptions = []) {
+  const normalizedCourseId = String(courseId || '').trim()
+  if (!normalizedCourseId) return []
+
+  const batchOptions = []
+  const seen = new Set()
+
+  facultyOptions.forEach((faculty) => {
+    if (!facultyMatchesCourse(faculty, normalizedCourseId)) return
+
+    const batches = Array.isArray(faculty?.batchEntries) ? faculty.batchEntries : []
+    batches.forEach((entry) => {
+      if (String(entry?.courseId || '').trim() !== normalizedCourseId) return
+
+      const value = String(entry?.id || entry?.batchName || '').trim()
+      if (!value || seen.has(value)) return
+
+      seen.add(value)
+      batchOptions.push({
+        value,
+        batchName: String(entry?.batchName || '').trim(),
+        label: getBatchTimingLabel(entry) || String(entry?.batchName || '').trim(),
+      })
+    })
+  })
+
+  return batchOptions
+}
+
+function AttendanceReportModal({
+  isOpen,
+  mode = 'all',
+  student = null,
+  form,
+  errors,
+  generalError = '',
+  isDownloading = false,
+  courseOptions = [],
+  batchOptions = [],
+  onChangeField,
+  onClose,
+  onDownload,
+  onCourseChange,
+}) {
+  if (!isOpen) return null
+
+  const isSingleStudent = mode === 'single'
+  const studentName = String(student?.studentName || '').trim() || 'Selected student'
+  const scopeLabel = isSingleStudent
+    ? `${studentName}${student?.courseInterested ? ` - ${student.courseInterested}` : ''}${student?.batch ? ` - ${student.batch}` : ''}`
+    : 'All students'
+  const canDownload = Boolean(form.fromDate && form.toDate && form.toDate >= form.fromDate && !isDownloading)
+
+  return (
+    <div className="course-modal-backdrop student-modal-backdrop attendance-report-backdrop" role="presentation">
+      <form
+        className="course-modal panel-card student-modal attendance-report-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="attendance-report-title"
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (canDownload) {
+            onDownload()
+          }
+        }}
+      >
+        <button type="button" className="course-modal-close" onClick={onClose} aria-label="Close attendance report modal">
+          X
+        </button>
+
+        <div className="course-modal-header student-modal-header attendance-report-header">
+          <div>
+            <p className="section-kicker">Attendance Report</p>
+            <h3 id="attendance-report-title">Generate Attendance Report</h3>
+            {!isSingleStudent ? <p>Choose a date range and optional course and batch filters before downloading.</p> : null}
+          </div>
+          <div className="attendance-report-summary">
+            {!isSingleStudent ? (
+              <div className="attendance-report-summary-chip">
+                <CalendarRange size={16} />
+                <span>{scopeLabel}</span>
+              </div>
+            ) : null}
+            {!isSingleStudent ? (
+              <div className="attendance-report-summary-chip is-muted">
+                <Download size={16} />
+                <span>All students export</span>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="attendance-report-card">
+          {!isSingleStudent ? (
+            <div className="attendance-report-student-card">
+              <span>Report Scope</span>
+              <strong>All Students</strong>
+              <small>Use the filters below to narrow the exported rows.</small>
+            </div>
+          ) : null}
+
+          <div className="course-form-grid student-form-grid student-form-grid-tight attendance-report-grid">
+              <Field
+              label="From Date"
+              required
+              icon={<FieldIcon kind="calendar" />}
+              error={errors.fromDate}
+            >
+              <input
+                type="date"
+                value={form.fromDate}
+                onChange={(event) => onChangeField('fromDate', event.target.value)}
+              />
+            </Field>
+
+              <Field
+              label="To Date"
+              required
+              icon={<FieldIcon kind="calendar" />}
+              error={errors.toDate}
+            >
+              <input
+                type="date"
+                value={form.toDate}
+                onChange={(event) => onChangeField('toDate', event.target.value)}
+                min={form.fromDate || undefined}
+              />
+            </Field>
+
+            {!isSingleStudent ? (
+              <>
+                <Field label="Course (Optional)" icon={<FieldIcon kind="course" />}>
+                  <select
+                    value={form.courseId}
+                    onChange={(event) => onCourseChange(event.target.value)}
+                    disabled={!courseOptions.length}
+                  >
+                    <option value="">{courseOptions.length ? 'Select Course' : 'No courses available'}</option>
+                    {courseOptions.map((course) => (
+                      <option key={course.id} value={course.id}>
+                        {course.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Batch (Optional)" icon={<FieldIcon kind="batch" />}>
+                  <select
+                    value={form.batchId}
+                    onChange={(event) => onChangeField('batchId', event.target.value)}
+                    disabled={!form.courseId || !batchOptions.length}
+                  >
+                    <option value="">{form.courseId ? 'Select Batch' : 'Select Course first'}</option>
+                    {batchOptions.map((batch) => (
+                      <option key={batch.value} value={batch.value}>
+                        {batch.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </>
+            ) : null}
+          </div>
+
+          {generalError ? (
+            <div className="attendance-report-error" role="alert">
+              {generalError}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="course-form-actions attendance-report-actions">
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!canDownload}>
+            {isDownloading ? (
+              <>
+                <LoaderCircle className="attendance-report-spinner" />
+                Generating Attendance Report...
+              </>
+            ) : (
+              <>
+                <Download />
+                Download Excel
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 function useFacultyBatchAttendanceRefreshToken() {
   const [refreshToken, setRefreshToken] = useState(0)
 
@@ -857,6 +1160,16 @@ export function StudentManagementPage() {
   const [actionError, setActionError] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSavingStudent, setIsSavingStudent] = useState(false)
+  const [attendanceReportModal, setAttendanceReportModal] = useState(null)
+  const [attendanceReportForm, setAttendanceReportForm] = useState({
+    fromDate: '',
+    toDate: '',
+    courseId: '',
+    batchId: '',
+  })
+  const [attendanceReportTouched, setAttendanceReportTouched] = useState({})
+  const [attendanceReportSubmitting, setAttendanceReportSubmitting] = useState(false)
+  const [attendanceReportError, setAttendanceReportError] = useState('')
   const attendanceRefreshToken = useFacultyBatchAttendanceRefreshToken()
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
@@ -1014,6 +1327,46 @@ export function StudentManagementPage() {
     () => (selectedFacultyFilter ? getFacultyBatchEntryById(selectedFacultyFilter, batchFilterId) : null),
     [batchFilterId, selectedFacultyFilter],
   )
+  const reportBatchOptions = useMemo(
+    () => getReportBatchOptions(attendanceReportForm.courseId, facultyOptions),
+    [attendanceReportForm.courseId, facultyOptions],
+  )
+  const attendanceReportStudent =
+    attendanceReportModal?.mode === 'single'
+      ? studentsWithAttendance.find((student) => student.id === attendanceReportModal.studentId) || selectedStudent || null
+      : null
+  const attendanceReportTargetStudents =
+    attendanceReportModal?.mode === 'single'
+      ? attendanceReportStudent
+        ? [attendanceReportStudent]
+        : []
+      : getMatchingStudents(studentsWithAttendance, {
+          courseId: attendanceReportForm.courseId,
+          courseName:
+            courseOptions.find((course) => String(course?.id || '').trim() === String(attendanceReportForm.courseId || '').trim())
+              ?.name || '',
+          batchId: attendanceReportForm.batchId,
+          batchName:
+            reportBatchOptions.find((batch) => String(batch.value || '').trim() === String(attendanceReportForm.batchId || '').trim())
+              ?.batchName || '',
+        })
+  const attendanceReportValidationErrors = useMemo(() => {
+    const nextErrors = {}
+
+    if (attendanceReportTouched.fromDate && !attendanceReportForm.fromDate) {
+      nextErrors.fromDate = 'From Date is required.'
+    }
+
+    if (attendanceReportTouched.toDate && !attendanceReportForm.toDate) {
+      nextErrors.toDate = 'To Date is required.'
+    }
+
+    if (attendanceReportForm.fromDate && attendanceReportForm.toDate && attendanceReportForm.toDate < attendanceReportForm.fromDate) {
+      nextErrors.toDate = 'To Date cannot be before From Date.'
+    }
+
+    return nextErrors
+  }, [attendanceReportForm.fromDate, attendanceReportForm.toDate, attendanceReportTouched.fromDate, attendanceReportTouched.toDate])
 
   const isDrawerOpen = Boolean(selectedStudentId)
   const filteredStudents = useMemo(() => {
@@ -1072,6 +1425,11 @@ export function StudentManagementPage() {
   )
   const totalStudents = filteredStudents.length
   const latestStudent = filteredStudents[0]
+  const attendanceReportScopeLabel = attendanceReportModal?.mode === 'single'
+    ? attendanceReportStudent
+      ? `${attendanceReportStudent.studentName}${attendanceReportStudent.courseInterested ? ` - ${attendanceReportStudent.courseInterested}` : ''}${attendanceReportStudent.batch ? ` - ${attendanceReportStudent.batch}` : ''}`
+      : 'Selected student'
+    : 'All students'
   const totalPages = Math.max(1, Math.ceil(totalStudents / studentsPerPage))
   const currentPageSafe = Math.min(currentPage, totalPages)
   const paginatedStudents = useMemo(() => {
@@ -1370,6 +1728,126 @@ export function StudentManagementPage() {
     setCurrentStep(0)
   }
 
+  const openAttendanceReportModal = (mode = 'all', student = null) => {
+    setAttendanceReportModal({
+      mode,
+      studentId: student?.id || '',
+    })
+    setAttendanceReportForm({
+      fromDate: '',
+      toDate: '',
+      courseId: mode === 'single' ? student?.courseId || '' : '',
+      batchId: mode === 'single' ? student?.batchId || student?.batchEntryId || '' : '',
+    })
+    setAttendanceReportTouched({})
+    setAttendanceReportError('')
+    setAttendanceReportSubmitting(false)
+  }
+
+  const closeAttendanceReportModal = useCallback(() => {
+    setAttendanceReportModal(null)
+    setAttendanceReportForm({
+      fromDate: '',
+      toDate: '',
+      courseId: '',
+      batchId: '',
+    })
+    setAttendanceReportTouched({})
+    setAttendanceReportError('')
+    setAttendanceReportSubmitting(false)
+  }, [])
+
+  const updateAttendanceReportField = (field, value) => {
+    setAttendanceReportForm((current) => {
+      if (field === 'courseId') {
+        return {
+          ...current,
+          courseId: value,
+          batchId: '',
+        }
+      }
+
+      return {
+        ...current,
+        [field]: value,
+      }
+    })
+
+    if (field === 'fromDate' || field === 'toDate') {
+      setAttendanceReportTouched((current) => ({
+        ...current,
+        [field]: true,
+      }))
+    }
+
+    setAttendanceReportError('')
+  }
+
+  const handleAttendanceReportCourseChange = (courseId) => {
+    updateAttendanceReportField('courseId', courseId)
+  }
+
+  const handleAttendanceReportDownload = () => {
+    if (attendanceReportSubmitting) return
+
+    const validationErrors = {
+      ...attendanceReportValidationErrors,
+    }
+
+    if (!attendanceReportForm.fromDate) {
+      validationErrors.fromDate = 'From Date is required.'
+    }
+
+    if (!attendanceReportForm.toDate) {
+      validationErrors.toDate = 'To Date is required.'
+    }
+
+    if (attendanceReportForm.fromDate && attendanceReportForm.toDate && attendanceReportForm.toDate < attendanceReportForm.fromDate) {
+      validationErrors.toDate = 'To Date cannot be before From Date.'
+    }
+
+    setAttendanceReportTouched({
+      fromDate: true,
+      toDate: true,
+    })
+
+    if (Object.keys(validationErrors).length > 0) {
+      setAttendanceReportError(validationErrors.fromDate || validationErrors.toDate || 'Please select a valid date range.')
+      return
+    }
+
+    setAttendanceReportSubmitting(true)
+
+    try {
+      const rows = attendanceReportTargetStudents.map((student) => {
+        const attendanceMeta = getAttendanceStatusMeta(student)
+        return [
+          student.studentName || '-',
+          student.courseInterested || student.courseName || '-',
+          student.batchName || student.batch || '-',
+          student.facultyName || '-',
+          attendanceMeta.label,
+          student.remarks || '-',
+        ]
+      })
+
+      downloadAttendanceReportFile({
+        title: 'Student Attendance Report',
+        subtitle: 'Generated from the current student management snapshot.',
+        fromDate: attendanceReportForm.fromDate,
+        toDate: attendanceReportForm.toDate,
+        scopeLabel: attendanceReportScopeLabel,
+        rows,
+      })
+
+      setAttendanceReportError('')
+    } catch (error) {
+      setAttendanceReportError(apiErrorMessage(error, 'Unable to generate attendance report right now.'))
+    } finally {
+      setAttendanceReportSubmitting(false)
+    }
+  }
+
   useEffect(() => {
     if (!isDrawerOpen) return undefined
 
@@ -1382,6 +1860,19 @@ export function StudentManagementPage() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [closeDrawer, isDrawerOpen])
+
+  useEffect(() => {
+    if (!attendanceReportModal) return undefined
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeAttendanceReportModal()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [attendanceReportModal, closeAttendanceReportModal])
 
   useEffect(() => {
     saveStudentRecords(students)
@@ -1852,11 +2343,17 @@ export function StudentManagementPage() {
             <h3>Student List</h3>
             <p>Newly added records appear here immediately.</p>
           </div>
-          {latestStudent ? (
-            <div className="student-latest-chip">
-              Latest: <strong>{latestStudent.studentName}</strong>
-            </div>
-          ) : null}
+          <div className="student-list-header-actions">
+            <Button type="button" variant="ghost" className="student-report-button" onClick={() => openAttendanceReportModal('all')}>
+              <FileDown />
+              <span>Generate Attendance Report</span>
+            </Button>
+            {latestStudent ? (
+              <div className="student-latest-chip">
+                Latest: <strong>{latestStudent.studentName}</strong>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {actionError ? (
@@ -2548,6 +3045,22 @@ export function StudentManagementPage() {
         </div>
       ) : null}
 
+      <AttendanceReportModal
+        isOpen={Boolean(attendanceReportModal)}
+        mode={attendanceReportModal?.mode || 'all'}
+        student={attendanceReportStudent}
+        form={attendanceReportForm}
+        errors={attendanceReportValidationErrors}
+        generalError={attendanceReportError}
+        isDownloading={attendanceReportSubmitting}
+        courseOptions={courseOptions}
+        batchOptions={reportBatchOptions}
+        onChangeField={updateAttendanceReportField}
+        onClose={closeAttendanceReportModal}
+        onDownload={handleAttendanceReportDownload}
+        onCourseChange={handleAttendanceReportCourseChange}
+      />
+
       {isDrawerOpen && selectedStudent ? (
         <div className="student-drawer-backdrop" role="presentation">
           <aside className="student-drawer student-drawer-table-view" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
@@ -2561,6 +3074,14 @@ export function StudentManagementPage() {
                   <span className="student-drawer-attendance-pill-dot" aria-hidden="true" />
                   <span>{selectedStudentAttendanceMeta.label}</span>
                 </div>
+                <button
+                  type="button"
+                  className="student-drawer-edit-button student-drawer-report-button"
+                  onClick={() => openAttendanceReportModal('single', selectedStudent)}
+                >
+                  <FileDown />
+                  <span>Generate Report</span>
+                </button>
                 {isDrawerEditing ? (
                   <>
                     <button type="button" className="student-drawer-edit-button" onClick={handleSubmit} disabled={isSavingStudent}>
