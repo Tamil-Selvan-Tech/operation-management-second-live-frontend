@@ -3,11 +3,14 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { NotificationBell } from '../components/NotificationBell'
+import { getCurrentStudentAttendanceOverview } from '../services/attendanceService'
 import {
   FACULTY_ATTENDANCE_SYNC_EVENT,
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
+  getAttendanceDateKey,
   resolveStudentAttendanceStatus,
   resolveStudentBatchAttendanceStatus,
+  resolveTodayFacultyAttendanceStatus,
 } from '../lib/facultyAttendanceStore'
 import {
   formatCurrency,
@@ -216,6 +219,28 @@ function getStudentGreetingLabel() {
 
 function getAttendanceStatusTone(status) {
   return status === 'Present' ? 'is-present' : 'is-absent'
+}
+
+function normalizeAttendanceStatus(value) {
+  const status = String(value || '').trim().toLowerCase()
+  if (status === 'present') return 'Present'
+  if (status === 'absent') return 'Absent'
+  return ''
+}
+
+function preferAttendanceState(...states) {
+  const validStates = states.filter(Boolean)
+  if (!validStates.length) return null
+
+  const presentState = validStates.find((state) => normalizeAttendanceStatus(state?.status) === 'Present')
+  if (presentState) {
+    return {
+      ...presentState,
+      status: 'Present',
+    }
+  }
+
+  return validStates[0]
 }
 
 function StudentDashboardHeader({ studentName, facultyAttendanceStatus }) {
@@ -593,41 +618,86 @@ function StudentDashboardContent({ dashboard }) {
   const { student: latestStudent, isLoading } = useCurrentStudentProfile()
   const facultyRecords = useFacultyRecordsSnapshot()
   const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
-  void attendanceRefreshToken
+  const [studentTodayAttendance, setStudentTodayAttendance] = useState(null)
 
-  const facultyAttendance = (() => {
-    try {
-      return resolveStudentAttendanceStatus(latestStudent || {}, facultyRecords) || {
-        status: 'Absent',
-        reason: 'No faculty login recorded for today.',
-        facultyName: latestStudent?.facultyName || '-',
-        batchName: latestStudent?.batchName || latestStudent?.batch || '-',
-        batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
+  useEffect(() => {
+    let active = true
+
+    const run = async () => {
+      if (!latestStudent) {
+        if (active) {
+          setStudentTodayAttendance(null)
+        }
+        return
       }
+
+      try {
+        const result = await getCurrentStudentAttendanceOverview(getAttendanceDateKey())
+        if (!active) return
+        setStudentTodayAttendance(result || null)
+      } catch {
+        if (!active) return
+        setStudentTodayAttendance(null)
+      }
+    }
+
+    void run()
+
+    return () => {
+      active = false
+    }
+  }, [attendanceRefreshToken, latestStudent?.id, latestStudent?.studentName])
+
+  const facultyAttendance = useMemo(() => {
+    try {
+      return (
+        resolveTodayFacultyAttendanceStatus(latestStudent?.facultyName || '') || {
+          status: 'Absent',
+          reason: 'No faculty login recorded for today.',
+          facultyName: latestStudent?.facultyName || '-',
+          batchName: '-',
+          batchTiming: '',
+        }
+      )
     } catch {
       return {
         status: 'Absent',
         reason: 'Attendance data could not be loaded.',
         facultyName: latestStudent?.facultyName || '-',
-        batchName: latestStudent?.batchName || latestStudent?.batch || '-',
-        batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
+        batchName: '-',
+        batchTiming: '',
         loginDateTime: null,
         batchStartDateTime: null,
         sessions: [],
       }
     }
-  })()
+  }, [latestStudent?.facultyName])
 
-  const studentAttendance = (() => {
+  const studentBatchAttendance = useMemo(() => {
     try {
+      return resolveStudentBatchAttendanceStatus(latestStudent || {}, facultyRecords)
+    } catch {
+      return null
+    }
+  }, [attendanceRefreshToken, facultyRecords, latestStudent])
+
+  const studentAttendance = useMemo(() => {
+    try {
+      const apiAttendance = normalizeAttendanceStatus(studentTodayAttendance?.status)
+        ? {
+            ...studentTodayAttendance,
+            status: normalizeAttendanceStatus(studentTodayAttendance.status),
+          }
+        : null
+
       return (
-        resolveStudentBatchAttendanceStatus(latestStudent || {}, facultyRecords) || {
+        preferAttendanceState(studentBatchAttendance, apiAttendance) || {
           status: 'Absent',
-          reason: 'No batch attendance saved yet.',
+          reason: 'No attendance data found for today.',
           facultyName: latestStudent?.facultyName || '-',
           batchName: latestStudent?.batchName || latestStudent?.batch || '-',
           batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
-          dateKey: null,
+          dateKey: getAttendanceDateKey(),
           updatedAt: null,
           records: {},
         }
@@ -639,12 +709,16 @@ function StudentDashboardContent({ dashboard }) {
         facultyName: latestStudent?.facultyName || '-',
         batchName: latestStudent?.batchName || latestStudent?.batch || '-',
         batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
-        dateKey: null,
+        dateKey: getAttendanceDateKey(),
         updatedAt: null,
         records: {},
       }
     }
-  })()
+  }, [
+    latestStudent,
+    studentBatchAttendance,
+    studentTodayAttendance,
+  ])
 
   if (isLoading) {
     return (

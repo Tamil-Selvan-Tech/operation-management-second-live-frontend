@@ -483,11 +483,62 @@ function isSavedBatchAttendanceRelevantToStudent(state = {}, student = {}) {
   )
 }
 
+function getSavedBatchAttendanceMatchScore(state = {}, student = {}) {
+  const facultyName = normalizeText(state?.facultyName || '')
+  const studentFacultyName = normalizeText(student?.facultyName || '')
+  const facultyId = String(state?.facultyId || '').trim().toLowerCase()
+  const studentFacultyId = String(student?.facultyId || '').trim().toLowerCase()
+  const batchName = normalizeText(state?.batchName || '')
+  const batchTiming = normalizeText(state?.batchTiming || '')
+  const batchId = String(state?.batchId || '').trim().toLowerCase()
+  const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
+  const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
+  const studentBatchTiming = normalizeText(student?.batchTiming || student?.batchTime || '')
+  const studentBatchId = String(student?.batchId || '').trim().toLowerCase()
+  const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
+  const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
+  const stateCourseId = String(state?.courseId || '').trim().toLowerCase()
+  const stateCourseName = normalizeText(state?.courseName || '')
+
+  let score = 0
+
+  if (facultyId && studentFacultyId && facultyId === studentFacultyId) score += 100
+  if (facultyName && studentFacultyName && facultyName === studentFacultyName) score += 90
+  if (batchId && studentBatchId && batchId === studentBatchId) score += 80
+  if (batchName && studentBatchName && batchName === studentBatchName) score += 70
+  if (batchName && studentBatchToken && batchName === studentBatchToken) score += 65
+  if (batchTiming && studentBatchTiming && batchTiming === studentBatchTiming) score += 60
+  if (stateCourseId && studentCourseId && stateCourseId === studentCourseId) score += 40
+  if (stateCourseName && studentCourseName && stateCourseName === studentCourseName) score += 30
+
+  return score
+}
+
 export function resolveStudentBatchAttendanceStatus(student = {}, facultyRecords = [], now = new Date()) {
   void facultyRecords
   void now
 
-  const attendanceRecord = listFacultyBatchAttendanceStates().find((state) => isSavedBatchAttendanceRelevantToStudent(state, student)) || null
+  const attendanceRecord = listFacultyBatchAttendanceStates()
+    .map((state) => ({
+      state,
+      score: getSavedBatchAttendanceMatchScore(state, student),
+      status: getBatchAttendanceRecordStatus(state, student),
+    }))
+    .filter((candidate) => candidate.score > 0)
+    .sort((left, right) => {
+      const leftStatusRank = left.status === 'Present' ? 1 : left.status === 'Absent' ? 0 : -1
+      const rightStatusRank = right.status === 'Present' ? 1 : right.status === 'Absent' ? 0 : -1
+
+      if (leftStatusRank !== rightStatusRank) {
+        return rightStatusRank - leftStatusRank
+      }
+
+      if (right.score !== left.score) {
+        return right.score - left.score
+      }
+
+      return 0
+    })[0]?.state || null
   if (!attendanceRecord) {
     return null
   }
@@ -920,12 +971,13 @@ export function resolveTodayFacultyAttendanceStatus(facultyIdentity = '', now = 
   const logoutType = String(latestSession?.logoutType || 'normal').trim().toLowerCase() || 'normal'
   const logoutReason = String(latestSession?.logoutReason || '').trim()
   const workCompleted = String(latestSession?.workCompleted || '').trim()
+  const isCurrentlyLoggedIn = isLoggedToday && !hasValidLogout
 
   return {
-    status: isLoggedToday ? 'Present' : 'Absent',
+    status: hasValidLogout ? 'Logout' : isCurrentlyLoggedIn ? 'Present' : 'Absent',
     reason: hasValidLogout
       ? `Faculty logged out at ${formatAttendanceTimeLabel(logoutDateTime)} today.`
-      : isLoggedToday
+      : isCurrentlyLoggedIn
         ? 'Faculty is currently logged in.'
         : 'Faculty is not logged in right now.',
     facultyName: attendanceRecord?.facultyName || identity.facultyName || identity.facultyId || '-',

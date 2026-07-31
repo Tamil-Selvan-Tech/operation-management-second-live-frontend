@@ -13,6 +13,7 @@ import {
   loadFacultyBatchAttendanceState,
   resolveBatchAttendanceWindow,
   resolveFacultyBatchAttendanceStatus,
+  resolveTodayFacultyAttendanceStatus,
   saveFacultyBatchAttendanceState,
 } from '../lib/facultyAttendanceStore'
 import { buildFacultyCoursePath, enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
@@ -669,6 +670,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
+  const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const activeFaculty = latestFaculty || null
 
   useEffect(() => {
@@ -738,15 +740,10 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const dashboardTotalBatchCount = Number(batchesSummary?.totalBatches || 0) || (Array.isArray(activeFaculty?.batchEntries)
     ? activeFaculty.batchEntries.length
     : Number(activeFaculty?.batchCount || 0) || 0)
-  const attendanceValue = useMemo(() => {
-    if (!batchLinkedStudentCount) return 92.5
-
-    const baseValue = 85.5 + Math.min(4, facultyCourseIds.length * 1.1) + Math.min(3.5, batchNames.length * 0.7)
-    const activityBoost = (activeStudentCount / Math.max(1, batchLinkedStudentCount)) * 3
-    const studentBoost = Math.min(3, batchLinkedStudentCount / 25)
-    const value = baseValue + activityBoost + studentBoost
-    return Math.max(75, Math.min(99.5, Math.round(value * 10) / 10))
-  }, [activeStudentCount, batchLinkedStudentCount, batchNames.length, facultyCourseIds.length])
+  const facultyAttendanceStatus = useMemo(
+    () => resolveTodayFacultyAttendanceStatus(facultyAttendanceId || profileName),
+    [facultyAttendanceId, profileName, attendanceRefreshToken],
+  )
   const summaryCards = [
     {
       icon: GraduationCap,
@@ -775,9 +772,9 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     {
       icon: BookOpen,
       label: 'Attendance',
-      value: `${attendanceValue.toFixed(1)}%`,
-      note: 'Average Attendance',
-      tone: 'violet',
+      value: facultyAttendanceStatus.status,
+      note: facultyAttendanceStatus.reason,
+      tone: facultyAttendanceStatus.status === 'Present' ? 'green' : 'orange',
       badge: isStudentsLoading || isFacultyRecordsLoading || isBatchesSummaryLoading ? '...' : 'Live',
     },
   ]
