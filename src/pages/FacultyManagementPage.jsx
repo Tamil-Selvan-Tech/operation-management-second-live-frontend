@@ -2352,12 +2352,9 @@ export function FacultyManagementPage() {
                   <tr>
                     <th>Faculty Name</th>
                     <td>{selectedFacultyRecord.facultyName || '-'}</td>
-                    <th>Status</th>
+                    <th>Attendance</th>
                     <td>
                       <div className="faculty-attendance-stack">
-                        <span className={`status-pill ${String(selectedFacultyRecord.status || 'Active').toLowerCase()}`}>
-                          {selectedFacultyRecord.status || 'Active'}
-                        </span>
                         <div className="faculty-attendance-inline">
                           <span className="faculty-attendance-inline-label">Today&apos;s Attendance</span>
                           <span

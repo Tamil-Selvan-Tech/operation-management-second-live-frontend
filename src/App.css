@@ -4233,9 +4233,9 @@ tbody tr:hover {
 .faculty-attendance-kicker {
   margin: 0 0 6px;
   color: #0f7bda;
-  font-size: 0.72rem;
+  font-size: 0.92rem;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
