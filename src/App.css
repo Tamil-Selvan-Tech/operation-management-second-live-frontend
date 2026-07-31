@@ -10918,6 +10918,15 @@ tbody tr:hover {
   flex-wrap: wrap;
 }
 
+.faculty-list-header-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
 .faculty-list-header h3 {
   margin: 0;
   color: #0f172a;
@@ -10936,6 +10945,23 @@ tbody tr:hover {
   color: #475569;
   font-size: 13px;
   white-space: nowrap;
+}
+
+.faculty-report-button,
+.faculty-flow-report-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  gap: 8px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.faculty-report-button svg,
+.faculty-flow-report-button svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
 }
 
 .faculty-table-wrap {
@@ -11977,6 +12003,12 @@ tbody tr:hover {
 .faculty-flow-contact-dot-blue {
   color: #2463eb;
   background: rgba(36, 99, 235, 0.1);
+}
+
+.faculty-flow-report-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-top: 14px;
 }
 
 .faculty-flow-stats {
@@ -18029,6 +18061,10 @@ tbody tr:hover {
   gap: 4px;
 }
 
+.faculty-attendance-inline-actions {
+  margin-top: 2px;
+}
+
 .faculty-attendance-inline-label {
   color: #64748b;
   font-size: 11px;
@@ -18059,6 +18095,13 @@ tbody tr:hover {
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
+}
+
+.faculty-attendance-overview-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .faculty-attendance-overview-head > div:first-child {

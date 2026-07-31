@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BookOpen, ChevronRight, GraduationCap, Mail, Menu, Phone, UsersRound } from 'lucide-react'
+import { ArrowLeft, BookOpen, ChevronRight, FileDown, GraduationCap, Mail, Menu, Phone, UsersRound } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
@@ -18,6 +18,7 @@ import {
   getMatchingStudents,
 } from '../lib/facultyFlow'
 import { FACULTY_ATTENDANCE_SYNC_EVENT, formatAttendanceTimeLabel, resolveTodayFacultyAttendanceStatus } from '../lib/facultyAttendanceStore'
+import { FacultyAttendanceReportModal } from '../components/FacultyAttendanceReportModal'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function apiErrorMessage(error, fallback) {
@@ -91,6 +92,7 @@ export function FacultyDetailsPage() {
   const navigate = useNavigate()
   const openMenu = useMobileMenu()
   const facultyAttendanceRefreshToken = useFacultyAttendanceRefreshToken()
+  const [isAttendanceReportOpen, setIsAttendanceReportOpen] = useState(false)
 
   const [facultyRecords, setFacultyRecords] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
@@ -245,6 +247,12 @@ export function FacultyDetailsPage() {
                         {getFacultyAttendanceBadgeLabel(facultyAttendance)}
                       </span>
                     </div>
+                    <div className="faculty-attendance-inline faculty-attendance-inline-actions">
+                      <Button type="button" variant="ghost" className="faculty-flow-report-button" onClick={() => setIsAttendanceReportOpen(true)}>
+                        <FileDown />
+                        <span>Generate Attendance Report</span>
+                      </Button>
+                    </div>
                     {facultyAttendanceTimeLabel ? (
                       <div className="faculty-attendance-inline">
                         <span className="faculty-attendance-inline-label">Time</span>
@@ -362,6 +370,15 @@ export function FacultyDetailsPage() {
             )}
           </article>
         </>
+      ) : null}
+
+      {isAttendanceReportOpen ? (
+        <FacultyAttendanceReportModal
+          isOpen={isAttendanceReportOpen}
+          mode="single"
+          faculty={selectedFaculty}
+          onClose={() => setIsAttendanceReportOpen(false)}
+        />
       ) : null}
     </section>
   )

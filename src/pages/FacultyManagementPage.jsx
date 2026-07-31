@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Check, Clock3, Eye, Layers3, Mail, MoreVertical, PencilLine, Phone, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
+import { BookOpen, Check, Clock3, Eye, FileDown, Layers3, Mail, MoreVertical, PencilLine, Phone, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
@@ -20,6 +20,7 @@ import { loadFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
 import { FACULTY_ATTENDANCE_SYNC_EVENT, resolveTodayFacultyAttendanceStatus, formatAttendanceTimeLabel } from '../lib/facultyAttendanceStore'
 import { buildFacultyCourseCatalogPath, getFacultyCourseIds } from '../lib/facultyFlow'
+import { FacultyAttendanceReportModal } from '../components/FacultyAttendanceReportModal'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function createEmptyForm() {
@@ -317,16 +318,6 @@ function getFacultyAttendanceWorkedDurationLabel(attendance = {}) {
   const minutes = totalMinutes % 60
 
   return `${hours}h ${minutes}m`
-}
-
-function getFacultyAttendanceCellBadgeLabel(attendance = {}) {
-  if (attendance?.logoutDateTime) return 'Logout'
-  if (attendance?.loginDateTime) return 'Login'
-  return 'Login'
-}
-
-function getFacultyAttendanceCellBadgeTone(attendance = {}) {
-  return attendance?.logoutDateTime ? 'is-absent' : 'is-present'
 }
 
 function getFacultyAttendanceOverviewBadgeLabel(attendance = {}) {
@@ -1057,6 +1048,7 @@ export function FacultyManagementPage() {
   const actionMenuCloseTimerRef = useRef(null)
   const actionMenuButtonRefs = useRef(new Map())
   const facultyAttendanceRefreshToken = useFacultyAttendanceRefreshToken()
+  const [attendanceReportRequest, setAttendanceReportRequest] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [searchQuery, setSearchQuery] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -1692,11 +1684,22 @@ export function FacultyManagementPage() {
             <h3>Faculty List</h3>
             <p>New faculty records appear here after submit.</p>
           </div>
-          {latestFaculty ? (
-            <div className="faculty-latest-chip">
-              Latest: <strong>{latestFaculty.facultyName}</strong>
-            </div>
-          ) : null}
+          <div className="faculty-list-header-actions">
+            <Button
+              type="button"
+              variant="ghost"
+              className="faculty-report-button"
+              onClick={() => setAttendanceReportRequest({ mode: 'all', faculty: null })}
+            >
+              <FileDown />
+              <span>Generate Attendance Report</span>
+            </Button>
+            {latestFaculty ? (
+              <div className="faculty-latest-chip">
+                Latest: <strong>{latestFaculty.facultyName}</strong>
+              </div>
+            ) : null}
+          </div>
         </div>
 
         {actionError ? (
@@ -2443,6 +2446,17 @@ export function FacultyManagementPage() {
                       {getFacultyAttendanceOverviewBadgeLabel(selectedFacultyAttendance)}
                     </span>
                   </div>
+                  <div className="faculty-attendance-overview-actions">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="faculty-report-button faculty-attendance-report-button"
+                      onClick={() => setAttendanceReportRequest({ mode: 'single', faculty: selectedFacultyRecord })}
+                    >
+                      <FileDown />
+                      <span>Generate Attendance Report</span>
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="faculty-attendance-overview-grid">
@@ -2584,6 +2598,15 @@ export function FacultyManagementPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {attendanceReportRequest ? (
+        <FacultyAttendanceReportModal
+          isOpen={Boolean(attendanceReportRequest)}
+          mode={attendanceReportRequest.mode}
+          faculty={attendanceReportRequest.faculty}
+          onClose={() => setAttendanceReportRequest(null)}
+        />
       ) : null}
     </section>
   )
