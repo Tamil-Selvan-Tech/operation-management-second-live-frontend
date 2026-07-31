@@ -581,7 +581,7 @@ function getAttendanceStatusMeta(student = {}) {
   if (!attendance) {
     return {
       label: 'Unmarked',
-      toneClass: 'inactive',
+      toneClass: 'is-unmarked',
     }
   }
 
@@ -995,7 +995,7 @@ export function StudentManagementPage() {
     [selectedStudentId, studentsWithAttendance],
   )
   const selectedStudentAttendanceMeta = useMemo(
-    () => (selectedStudent ? getAttendanceStatusMeta(selectedStudent) : { label: 'Unmarked', toneClass: 'inactive' }),
+    () => (selectedStudent ? getAttendanceStatusMeta(selectedStudent) : { label: 'Unmarked', toneClass: 'is-unmarked' }),
     [selectedStudent],
   )
   const selectedStudentCourse = useMemo(
@@ -2554,6 +2554,13 @@ export function StudentManagementPage() {
             <div className="student-drawer-table-header">
               <h3>Student Details</h3>
               <div className="student-drawer-table-actions">
+                <div
+                  className={`student-drawer-attendance-pill ${selectedStudentAttendanceMeta.toneClass}`.trim()}
+                  aria-label={`Attendance ${selectedStudentAttendanceMeta.label}`}
+                >
+                  <span className="student-drawer-attendance-pill-dot" aria-hidden="true" />
+                  <span>{selectedStudentAttendanceMeta.label}</span>
+                </div>
                 {isDrawerEditing ? (
                   <>
                     <button type="button" className="student-drawer-edit-button" onClick={handleSubmit} disabled={isSavingStudent}>
@@ -2861,35 +2868,28 @@ export function StudentManagementPage() {
                         rightValue={selectedStudent.qualification}
                       />
                       <DrawerTableRow
-                        leftLabel="Attendance"
-                        leftValue={selectedStudentAttendanceMeta.label}
-                        rightLabel="Passed Out Year"
-                        rightValue={selectedStudent.passedOutYear}
-                        leftTone={selectedStudentAttendanceMeta.label === 'Present' ? 'success' : selectedStudentAttendanceMeta.label === 'Absent' ? 'warning' : ''}
+                        leftLabel="Passed Out Year"
+                        leftValue={selectedStudent.passedOutYear}
+                        rightLabel="Current Status"
+                        rightValue={selectedStudent.currentStatus}
                       />
                       <DrawerTableRow
-                        leftLabel="Current Status"
-                        leftValue={selectedStudent.currentStatus}
-                        rightLabel="Designation"
-                        rightValue={selectedStudent.designation || '-'}
+                        leftLabel="Designation"
+                        leftValue={selectedStudent.designation || '-'}
+                        rightLabel="Admission Date"
+                        rightValue={formatDate(selectedStudent.admissionDate)}
                       />
                       <DrawerTableRow
-                        leftLabel="Admission Date"
-                        leftValue={formatDate(selectedStudent.admissionDate)}
-                        rightLabel="Total Course Fee"
-                        rightValue={formatCurrency(selectedStudent.actualFees || selectedStudent.totalAmount || selectedStudent.afterDiscount)}
+                        leftLabel="Total Course Fee"
+                        leftValue={formatCurrency(selectedStudent.actualFees || selectedStudent.totalAmount || selectedStudent.afterDiscount)}
+                        rightLabel="Discount"
+                        rightValue={formatCurrency(selectedStudent.discount)}
                       />
                       <DrawerTableRow
-                        leftLabel="Discount"
-                        leftValue={formatCurrency(selectedStudent.discount)}
-                        rightLabel="Final Fee"
-                        rightValue={formatCurrency(selectedStudent.afterDiscount)}
-                      />
-                      <DrawerTableRow
-                        leftLabel="Payment Mode"
-                        leftValue={getPaymentModeLabel(selectedStudent)}
-                        rightLabel="How did you know about our Institute?"
-                        rightValue={selectedStudent.source}
+                        leftLabel="Final Fee"
+                        leftValue={formatCurrency(selectedStudent.afterDiscount)}
+                        rightLabel="Payment Mode"
+                        rightValue={getPaymentModeLabel(selectedStudent)}
                       />
                       {isFullPaymentRecord(selectedStudent) ? (
                         <>
