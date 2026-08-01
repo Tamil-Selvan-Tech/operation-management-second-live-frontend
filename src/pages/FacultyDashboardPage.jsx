@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
 import { loadFacultyRecords } from '../data/facultyRecords'
-import { loadFacultySnapshot, saveFacultySnapshot } from '../lib/facultySnapshot'
+import { loadFacultySnapshot, mergeFacultyWithSnapshot, saveFacultySnapshot } from '../lib/facultySnapshot'
 import { loadStudentSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import {
   FACULTY_ATTENDANCE_SYNC_EVENT,
@@ -128,16 +128,7 @@ function FacultyProfileDrawer({ faculty, batchOptions = [], isOpen, onClose }) {
   const courseIds = Array.isArray(faculty?.courseIds) ? faculty.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean) : []
   const courseName = String(faculty?.courseName || faculty?.course?.name || '').trim()
   const courseLabel = courseName || (courseIds.length ? courseIds.join(', ') : 'Not assigned')
-  const joinedLabel = formatDisplayDate(faculty?.createdOn || faculty?.createdAt || faculty?.updatedOn || '')
   const batchCount = Number(faculty?.batchCount || batchOptions.length || 0) || (Array.isArray(faculty?.batchEntries) ? faculty.batchEntries.length : 0)
-  const batchLabel =
-    batchOptions.length > 0
-      ? batchOptions
-          .slice(0, 3)
-          .map((batch) => batch.label)
-          .join(', ')
-          .concat(batchOptions.length > 3 ? '...' : '')
-      : 'No batches assigned'
   const attendanceState = loadFacultyAttendanceState(facultyId, profileName, initials)
   const attendanceSessions = normalizeAttendanceSessions(attendanceState)
   const latestSession = attendanceSessions.length ? attendanceSessions[attendanceSessions.length - 1] : null
@@ -445,6 +436,25 @@ function buildBatchTestScores(seed = '', index = 0) {
   return [first, second, third]
 }
 
+function getFacultyIdentityKey(record = {}) {
+  return {
+    id: String(record?.id || record?._id || record?.facultyId || '').trim().toLowerCase(),
+    email: String(record?.facultyEmail || record?.email || '').trim().toLowerCase(),
+    name: String(record?.facultyName || '').trim().toLowerCase(),
+  }
+}
+
+function isSameFacultyRecord(left = {}, right = {}) {
+  const leftKey = getFacultyIdentityKey(left)
+  const rightKey = getFacultyIdentityKey(right)
+
+  return Boolean(
+    (leftKey.id && leftKey.id === rightKey.id) ||
+      (leftKey.email && leftKey.email === rightKey.email) ||
+      (leftKey.name && leftKey.name === rightKey.name),
+  )
+}
+
 function buildFacultyAttendanceSeries({ facultyName = '', batchKey = '' } = {}) {
   const months = Array.from({ length: 6 }, (_, index) => {
     const date = new Date(2026, 6 + index, 1)
@@ -462,8 +472,28 @@ function buildFacultyAttendanceSeries({ facultyName = '', batchKey = '' } = {}) 
 
 function getFacultyBatchOptions(faculty) {
   const entries = Array.isArray(faculty?.batchEntries) ? faculty.batchEntries : []
+  const seen = new Set()
 
-  return entries.map((entry, index) => {
+  return sortByNameThenTiming(
+    entries.filter((entry) => {
+      const batchName = String(entry?.batchName || '').trim()
+      const batchTiming = String(entry?.batchTiming || '').trim()
+      const courseId = String(entry?.courseId || '').trim()
+      const courseName = String(entry?.courseName || '').trim()
+      const batchId = String(entry?.id || '').trim()
+      const uniqueKey = [batchId || batchName, batchTiming, courseId || courseName]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean)
+        .join('|')
+
+      if (!uniqueKey || seen.has(uniqueKey)) {
+        return false
+      }
+
+      seen.add(uniqueKey)
+      return true
+    }),
+  ).map((entry, index) => {
     const label = String(entry?.batchName || '').trim()
     const timing = String(entry?.batchTiming || '').trim()
     const courseId = String(entry?.courseId || '').trim()
@@ -822,11 +852,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const activeFaculty = latestFaculty || null
   const [isProfileOpen, setIsProfileOpen] = useState(false)
 
-  useEffect(() => {
-    if (!activeFaculty) return
-    saveFacultySnapshot(activeFaculty)
-  }, [activeFaculty])
-
   const backfilledStudents = useMemo(
     () => enrichStudentsWithFacultyReferences(students, facultyRecords),
     [facultyRecords, students],
@@ -840,21 +865,34 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const profileName = activeFaculty?.facultyName || latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
   const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
-  const profileFaculty = activeFaculty || latestFaculty || null
+  const resolvedFaculty = useMemo(() => {
+    const matchingRecord = Array.isArray(facultyRecords)
+      ? facultyRecords.find((record) => isSameFacultyRecord(record, latestFaculty || activeFaculty || {})) || null
+      : null
+
+    return mergeFacultyWithSnapshot(matchingRecord || latestFaculty || activeFaculty || null)
+  }, [activeFaculty, facultyRecords, latestFaculty])
+  const profileFaculty = resolvedFaculty || activeFaculty || latestFaculty || null
+
+  useEffect(() => {
+    if (!profileFaculty) return
+    saveFacultySnapshot(profileFaculty)
+  }, [profileFaculty])
+
   const facultyAttendanceStatus = useMemo(
     () => resolveTodayFacultyAttendanceStatus(facultyAttendanceId || profileName),
     [attendanceRefreshToken, facultyAttendanceId, profileName],
   )
-  const greetingName = getFacultyGreetingName(activeFaculty?.facultyName || latestFaculty?.facultyName)
+  const greetingName = getFacultyGreetingName(profileFaculty?.facultyName || activeFaculty?.facultyName || latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
   const batchNames = useMemo(
     () =>
-      Array.isArray(activeFaculty?.batchEntries)
-        ? activeFaculty.batchEntries.map((entry) => String(entry?.batchName || '').trim()).filter(Boolean)
+      Array.isArray(profileFaculty?.batchEntries)
+        ? profileFaculty.batchEntries.map((entry) => String(entry?.batchName || '').trim()).filter(Boolean)
         : [],
-    [activeFaculty],
+    [profileFaculty],
   )
-  const batchOptions = getFacultyBatchOptions(activeFaculty || {})
+  const batchOptions = getFacultyBatchOptions(profileFaculty || {})
   const profileDrawer = (
     <FacultyProfileDrawer
       faculty={profileFaculty}
@@ -879,50 +917,50 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
     </button>
   )
-  const facultyCourseIds = getFacultyCourseIds(activeFaculty || {})
+  const facultyCourseIds = getFacultyCourseIds(profileFaculty || {})
   const courseScopedStudentCount = useMemo(
     () =>
       getUniqueStudentCountForFacultyScope(backfilledStudents, {
-        facultyName: activeFaculty?.facultyName || latestFaculty?.facultyName || '',
-        facultyId: activeFaculty?.id || latestFaculty?.id || '',
-        courseId: activeFaculty?.courseId || facultyCourseIds[0] || '',
-        courseName: activeFaculty?.courseName || '',
+        facultyName: profileFaculty?.facultyName || activeFaculty?.facultyName || latestFaculty?.facultyName || '',
+        facultyId: profileFaculty?.id || activeFaculty?.id || latestFaculty?.id || '',
+        courseId: profileFaculty?.courseId || facultyCourseIds[0] || '',
+        courseName: profileFaculty?.courseName || '',
         batchNames,
-        batchIds: Array.isArray(activeFaculty?.batchEntries) ? activeFaculty.batchEntries.map((entry) => String(entry?.id || '').trim()).filter(Boolean) : [],
+        batchIds: Array.isArray(profileFaculty?.batchEntries) ? profileFaculty.batchEntries.map((entry) => String(entry?.id || '').trim()).filter(Boolean) : [],
       }),
-    [activeFaculty, latestFaculty, backfilledStudents, facultyCourseIds, batchNames],
+    [activeFaculty, backfilledStudents, batchNames, facultyCourseIds, latestFaculty, profileFaculty],
   )
   const batchLinkedStudentCount = useMemo(
     () =>
       getUniqueStudentCountForFacultyRecords(backfilledStudents, {
-        facultyName: activeFaculty?.facultyName || latestFaculty?.facultyName || '',
-        facultyId: activeFaculty?.id || latestFaculty?.id || '',
-        batchEntries: activeFaculty?.batchEntries || latestFaculty?.batchEntries || [],
+        facultyName: profileFaculty?.facultyName || activeFaculty?.facultyName || latestFaculty?.facultyName || '',
+        facultyId: profileFaculty?.id || activeFaculty?.id || latestFaculty?.id || '',
+        batchEntries: profileFaculty?.batchEntries || activeFaculty?.batchEntries || latestFaculty?.batchEntries || [],
       }),
-    [activeFaculty, latestFaculty, backfilledStudents],
+    [activeFaculty, backfilledStudents, latestFaculty, profileFaculty],
   )
   const matchingStudents = useMemo(
     () =>
       getMatchingStudents(backfilledStudents, {
-        facultyName: activeFaculty?.facultyName || '',
-        facultyId: activeFaculty?.id || latestFaculty?.id || '',
-        courseId: activeFaculty?.courseId || facultyCourseIds[0] || '',
-        courseName: activeFaculty?.courseName || '',
+        facultyName: profileFaculty?.facultyName || activeFaculty?.facultyName || '',
+        facultyId: profileFaculty?.id || activeFaculty?.id || latestFaculty?.id || '',
+        courseId: profileFaculty?.courseId || facultyCourseIds[0] || '',
+        courseName: profileFaculty?.courseName || '',
       }),
-    [activeFaculty, latestFaculty, facultyCourseIds, backfilledStudents],
+    [activeFaculty, backfilledStudents, facultyCourseIds, latestFaculty, profileFaculty],
   )
   const totalStudents = Number(batchesSummary?.totalStudents || 0) || batchLinkedStudentCount || courseScopedStudentCount || matchingStudents.length
-  const dashboardTotalBatchCount = Number(batchesSummary?.totalBatches || 0) || (Array.isArray(activeFaculty?.batchEntries)
-    ? activeFaculty.batchEntries.length
-    : Number(activeFaculty?.batchCount || 0) || 0)
+  const dashboardTotalBatchCount = Number(batchesSummary?.totalBatches || 0) || (Array.isArray(profileFaculty?.batchEntries)
+    ? profileFaculty.batchEntries.length
+    : Number(profileFaculty?.batchCount || 0) || 0)
   const summaryCards = [
     {
       icon: GraduationCap,
       label: 'Total Courses',
-      value: facultyCourseIds.length || (activeFaculty?.courseName ? 1 : 0),
+      value: facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0),
       note: 'Courses you are teaching',
       tone: 'blue',
-      badge: `${facultyCourseIds.length || (activeFaculty?.courseName ? 1 : 0)}`,
+      badge: `${facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0)}`,
     },
     {
       icon: UsersRound,
@@ -1042,7 +1080,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       </div>
 
       <div className="faculty-dashboard-analytics-grid">
-        <FacultyAttendanceCard faculty={activeFaculty || latestFaculty} batches={batchOptions} />
+        <FacultyAttendanceCard faculty={profileFaculty || activeFaculty || latestFaculty} batches={batchOptions} />
         <FacultyBatchProgressCard batches={batchOptions} />
       </div>
 
@@ -1081,7 +1119,14 @@ export function FacultyMyBatchesPage() {
   const greetingLabel = getFacultyGreetingLabel()
   const activeFaculty = latestFaculty || null
   const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
-  const profileFaculty = activeFaculty || latestFaculty || null
+  const resolvedFaculty = useMemo(() => {
+    const matchingRecord = Array.isArray(facultyRecords)
+      ? facultyRecords.find((record) => isSameFacultyRecord(record, latestFaculty || activeFaculty || {})) || null
+      : null
+
+    return mergeFacultyWithSnapshot(matchingRecord || latestFaculty || activeFaculty || null)
+  }, [activeFaculty, facultyRecords, latestFaculty])
+  const profileFaculty = resolvedFaculty || activeFaculty || latestFaculty || null
 
   useEffect(() => {
     const tick = () => setCurrentDateTime(new Date())
@@ -1094,11 +1139,11 @@ export function FacultyMyBatchesPage() {
   }, [])
 
   useEffect(() => {
-    if (!activeFaculty) return
-    saveFacultySnapshot(activeFaculty)
-  }, [activeFaculty])
+    if (!profileFaculty) return
+    saveFacultySnapshot(profileFaculty)
+  }, [profileFaculty])
 
-  const displayFaculty = activeFaculty || latestFaculty
+  const displayFaculty = profileFaculty || activeFaculty || latestFaculty
   const profileDrawer = (
     <FacultyProfileDrawer
       faculty={profileFaculty}
@@ -1347,10 +1392,10 @@ export function FacultyMyBatchesPage() {
     {
       icon: GraduationCap,
       label: 'Courses',
-      value: facultyCourseGroups.length || facultyCourseIds.length || (activeFaculty?.courseName ? 1 : 0),
+      value: facultyCourseGroups.length || facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0),
       note: 'You teach',
       tone: 'blue',
-      badge: `${facultyCourseGroups.length || facultyCourseIds.length || (activeFaculty?.courseName ? 1 : 0)}`,
+      badge: `${facultyCourseGroups.length || facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0)}`,
     },
     {
       icon: Layers3,
@@ -1869,11 +1914,7 @@ export function FacultyMyBatchesPage() {
       {profileDrawer}
 
       {selectedBatchContext ? (
-        <div
-          className="course-modal-backdrop student-modal-backdrop batch-student-modal-backdrop"
-          role="presentation"
-          onClick={closeBatchStudents}
-        >
+        <div className="course-modal-backdrop student-modal-backdrop batch-student-modal-backdrop" role="presentation">
           <div
             className="course-modal panel-card student-modal batch-student-modal"
             role="dialog"
@@ -2158,7 +2199,7 @@ export function FacultyMyBatchesPage() {
       ) : null}
 
       {attendanceSavePopup ? (
-        <div className="batch-attendance-popup-backdrop" role="presentation" onClick={closeAttendanceSavePopup}>
+        <div className="batch-attendance-popup-backdrop" role="presentation">
           <div
             className="batch-attendance-popup panel-card"
             role="alertdialog"
@@ -2181,7 +2222,7 @@ export function FacultyMyBatchesPage() {
       ) : null}
 
       {attendanceReminderPopup ? (
-        <div className="batch-attendance-popup-backdrop" role="presentation" onClick={() => setAttendanceReminderPopup(null)}>
+        <div className="batch-attendance-popup-backdrop" role="presentation">
           <div
             className="batch-attendance-popup panel-card batch-attendance-reminder-popup"
             role="alertdialog"

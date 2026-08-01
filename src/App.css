@@ -5723,19 +5723,23 @@ tbody tr:hover {
 
   .faculty-my-batches-page .faculty-batch-table-head,
   .faculty-my-batches-page .faculty-batch-table-row {
-    grid-template-columns: minmax(140px, 0.88fr) 64px minmax(168px, 1.1fr) 92px 120px 84px;
-    gap: 10px;
+    grid-template-columns: minmax(136px, 0.84fr) 60px minmax(176px, 1.08fr) minmax(98px, 0.72fr) 112px 80px;
+    gap: 8px;
   }
 
   .faculty-my-batches-page .faculty-batch-table-head > span:nth-child(3),
   .faculty-my-batches-page .faculty-batch-table-schedule {
-    padding-left: 22px;
+    padding-left: 18px;
   }
 
-.faculty-my-batches-page .faculty-batch-table-head > span:nth-child(4),
-.faculty-my-batches-page .faculty-batch-table-progress {
-  margin-left: -18px;
-}
+  .faculty-my-batches-page .faculty-batch-table-head > span:nth-child(4),
+  .faculty-my-batches-page .faculty-batch-table-progress {
+    margin-left: 0;
+  }
+
+  .faculty-my-batches-page .faculty-batch-table-head > span:nth-child(4) {
+    padding-left: 4px;
+  }
 
   .faculty-my-batches-page .faculty-batch-table-head {
     padding-inline: 4px;

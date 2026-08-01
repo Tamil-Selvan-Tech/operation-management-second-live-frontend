@@ -537,8 +537,8 @@ export function BatchStudentsPage() {
       ) : null}
 
       {selectedStudent ? (
-        <div className="course-modal-backdrop student-modal-backdrop batch-student-modal-backdrop" role="presentation" onClick={() => setSelectedStudent(null)}>
-          <div className="course-modal panel-card student-modal batch-student-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="course-modal-backdrop student-modal-backdrop batch-student-modal-backdrop" role="presentation">
+          <div className="course-modal panel-card student-modal batch-student-modal" role="dialog" aria-modal="true">
             <button
               type="button"
               className="course-modal-close batch-student-modal-close"
