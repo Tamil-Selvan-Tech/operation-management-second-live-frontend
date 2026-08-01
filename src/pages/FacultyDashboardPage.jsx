@@ -1773,6 +1773,7 @@ export function FacultyMyBatchesPage() {
 
       {attendanceReportRequest ? (
         <StudentAttendanceReportModal
+          key={`${attendanceReportRequest.mode || 'all'}-${attendanceReportRequest.courseId || ''}-${attendanceReportRequest.batchId || ''}-${attendanceReportRequest.courseName || ''}-${attendanceReportRequest.batchName || ''}`}
           isOpen={Boolean(attendanceReportRequest)}
           mode={attendanceReportRequest.mode}
           facultyId={facultyAttendanceId}

@@ -110,12 +110,6 @@ export function FacultyAttendanceReportModal({
         </div>
 
         <div className="attendance-report-card">
-          <div className="attendance-report-student-card faculty-attendance-report-card">
-            <span>Report Scope</span>
-            <strong>{mode === 'single' ? 'Selected Faculty' : 'All Faculty'}</strong>
-            <small>{mode === 'single' ? facultyLabel : 'The export will include every faculty attendance session in the selected date range.'}</small>
-          </div>
-
           <div className="course-form-grid student-form-grid student-form-grid-tight attendance-report-grid faculty-attendance-report-grid">
             <label className="course-field student-field student-field-has-icon">
               <span>

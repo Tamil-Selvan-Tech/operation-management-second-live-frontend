@@ -16069,34 +16069,6 @@ tbody tr:hover {
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
 }
 
-.attendance-report-student-card {
-  display: grid;
-  gap: 3px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.03));
-  border: 1px solid rgba(37, 99, 235, 0.12);
-}
-
-.attendance-report-student-card span {
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.attendance-report-student-card strong {
-  color: #0f172a;
-  font-size: 1.08rem;
-  font-weight: 800;
-}
-
-.attendance-report-student-card small {
-  color: #475569;
-  font-size: 0.92rem;
-}
-
 .attendance-report-grid {
   margin-top: 0;
 }
