@@ -20,6 +20,7 @@ export function AppShell({
   showFacultyBatchesNav = false,
   showStudentManagementNav = true,
   showFacultyManagementNav = true,
+  showNotificationsNav = true,
   showChrome = true,
   forceFlatMainArea = false,
   children,
@@ -45,6 +46,7 @@ export function AppShell({
   const isFacultyFlowWhiteWorkspace = isFacultyManagementWorkspace
   const isNotificationsWorkspace = location.pathname === '/notifications'
   const useDashboardShell = isDashboardWorkspace && !isBusinessOwnerWorkspace && !isOperationManagerWorkspace
+  const usePremiumSidebarShell = !isNotificationsWorkspace
   const isPremiumSidebarWorkspace =
     isDashboardWorkspace ||
     isBusinessOwnerWorkspace ||
@@ -53,7 +55,7 @@ export function AppShell({
       (isCoursesWorkspace || isStudentManagementWorkspace || isFacultyManagementWorkspace || isNotificationsWorkspace)) ||
     (isOperationManagerRole &&
       (isCoursesWorkspace || isStudentManagementWorkspace || isFacultyManagementWorkspace || isNotificationsWorkspace))
-  const isSidebarPremium = isPremiumSidebarWorkspace
+  const isSidebarPremium = isPremiumSidebarWorkspace && usePremiumSidebarShell
   const isFacultyBatchesPath = location.pathname.startsWith('/dashboard/faculty/my-batches')
   let activeNav = 'dashboard'
   if (isCoursesWorkspace) {
@@ -87,8 +89,8 @@ export function AppShell({
   const shellClassName = [
     'app-shell has-fixed-sidebar',
     isStudentPage ? 'is-student-page' : '',
-    isBusinessOwnerWorkspace || (isBusinessOwnerRole && isPremiumSidebarWorkspace) ? 'business-owner-shell' : '',
-    isOperationManagerWorkspace || (isOperationManagerRole && isPremiumSidebarWorkspace) ? 'operation-manager-shell' : '',
+    isBusinessOwnerWorkspace || (isBusinessOwnerRole && isPremiumSidebarWorkspace && usePremiumSidebarShell) ? 'business-owner-shell' : '',
+    isOperationManagerWorkspace || (isOperationManagerRole && isPremiumSidebarWorkspace && usePremiumSidebarShell) ? 'operation-manager-shell' : '',
     useDashboardShell ? 'dashboard-shell' : '',
   ]
     .filter(Boolean)
@@ -181,6 +183,7 @@ export function AppShell({
           showFacultyBatchesNav={showFacultyBatchesNav}
           showStudentManagementNav={showStudentManagementNav}
           showFacultyManagementNav={showFacultyManagementNav}
+          showNotificationsNav={showNotificationsNav}
         />
 
         <div

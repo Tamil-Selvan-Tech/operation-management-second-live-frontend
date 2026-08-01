@@ -62,6 +62,7 @@ export function AppSidebar({
   showFacultyBatchesNav = false,
   showStudentManagementNav = true,
   showFacultyManagementNav = true,
+  showNotificationsNav = true,
 }) {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const userRoleLabel = roleLabels[user?.role] || 'Cispro User'
@@ -134,14 +135,16 @@ export function AppSidebar({
   ].filter(Boolean)
 
   const otherMenuItems = [
-    {
-      icon: Bell,
-      label: 'Notifications',
-      active: activeNav === 'notifications',
-      onClick: createNavHandler(onClose, onNavigateNotifications),
-      badge: unreadNotificationCount || null,
-    },
-  ]
+    showNotificationsNav
+      ? {
+          icon: Bell,
+          label: 'Notifications',
+          active: activeNav === 'notifications',
+          onClick: createNavHandler(onClose, onNavigateNotifications),
+          badge: unreadNotificationCount || null,
+        }
+      : null,
+  ].filter(Boolean)
 
   return (
     <aside className={`sidebar ${isMobileOpen ? 'is-open' : ''} ${isBusinessOwner ? 'is-business-owner-sidebar' : ''}`.trim()}>
