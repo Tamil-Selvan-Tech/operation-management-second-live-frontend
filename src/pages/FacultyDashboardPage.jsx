@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BadgeCheck, BookOpen, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, FileDown, GraduationCap, Layers3, LogOut, Mail, Menu, Phone, Save, ShieldCheck, UsersRound, X } from 'lucide-react'
+import { BadgeCheck, BookOpen, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, FileDown, GraduationCap, Info, Layers3, LogOut, Mail, Menu, Phone, Save, ShieldCheck, UsersRound, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
 
 import { NotificationBell } from '../components/NotificationBell'
@@ -470,6 +470,17 @@ function buildFacultyAttendanceSeries({ facultyName = '', batchKey = '' } = {}) 
   }))
 }
 
+function formatBatchOptionLabel(batchName = '', courseName = '') {
+  const normalizedBatchName = String(batchName || '').trim()
+  const normalizedCourseName = String(courseName || '').trim()
+
+  if (!normalizedBatchName && !normalizedCourseName) return 'Batch'
+  if (!normalizedCourseName) return normalizedBatchName || 'Batch'
+  if (!normalizedBatchName) return normalizedCourseName
+
+  return `${normalizedBatchName} - ${normalizedCourseName}`
+}
+
 function getFacultyBatchOptions(faculty) {
   const entries = Array.isArray(faculty?.batchEntries) ? faculty.batchEntries : []
   const seen = new Set()
@@ -502,7 +513,8 @@ function getFacultyBatchOptions(faculty) {
 
     return {
       id: String(entry?.id || fallbackKey).trim() || fallbackKey,
-      label: label || `Batch ${index + 1}`,
+      label: formatBatchOptionLabel(label || `Batch ${index + 1}`, courseName),
+      batchName: label || `Batch ${index + 1}`,
       timing,
       courseId,
       courseName,
@@ -549,9 +561,22 @@ function getBatchAttendanceProgress(attendanceDraft = {}) {
   }
 }
 
-function FacultySummaryCard({ icon: Icon, label, value, note, tone = 'blue', badge }) {
+function FacultySummaryCard({
+  icon: Icon,
+  label,
+  value,
+  note,
+  tone = 'blue',
+  badge,
+  tooltip,
+  tooltipId,
+  isTooltipOpen,
+  onToggleTooltip,
+  onOpenTooltip,
+  onCloseTooltip,
+}) {
   return (
-    <article className={`student-summary-card faculty-summary-card tone-${tone}`.trim()}>
+    <article className={`student-summary-card faculty-summary-card tone-${tone} ${isTooltipOpen ? 'is-tooltip-open' : ''}`.trim()}>
       <div className="student-summary-card-icon faculty-summary-card-icon" aria-hidden="true">
         <Icon size={26} strokeWidth={2.2} />
       </div>
@@ -560,8 +585,82 @@ function FacultySummaryCard({ icon: Icon, label, value, note, tone = 'blue', bad
         <strong className="student-summary-card-value faculty-summary-card-value">{value ?? '-'}</strong>
         {note ? <small className="student-summary-card-note faculty-summary-card-note">{note}</small> : null}
       </div>
-      {badge ? <span className="student-summary-card-badge faculty-summary-card-badge">{badge}</span> : null}
+      <div className="faculty-summary-card-actions">
+        <button
+          type="button"
+          className={`faculty-summary-info-button ${isTooltipOpen ? 'is-open' : ''}`.trim()}
+          aria-label={`${label} details`}
+          aria-describedby={tooltipId}
+          aria-expanded={isTooltipOpen}
+          onClick={onToggleTooltip}
+          onMouseEnter={onOpenTooltip}
+          onMouseLeave={onCloseTooltip}
+          onFocus={onOpenTooltip}
+          onBlur={onCloseTooltip}
+        >
+          <Info size={13} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+          <div className="faculty-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${label} details`}>
+            <strong>{label}</strong>
+            <p>{tooltip}</p>
+          </div>
+        </button>
+      </div>
     </article>
+  )
+}
+
+function FacultySummaryStrip({ cards = [], ariaLabel = 'Faculty summary cards', className = '' }) {
+  const [activeTooltipIndex, setActiveTooltipIndex] = useState(null)
+  const stripRef = useRef(null)
+
+  useEffect(() => {
+    if (activeTooltipIndex === null) return undefined
+
+    const handlePointerDown = (event) => {
+      if (stripRef.current?.contains(event.target)) return
+      setActiveTooltipIndex(null)
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActiveTooltipIndex(null)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [activeTooltipIndex])
+
+  return (
+    <div ref={stripRef} className={`student-summary-strip faculty-summary-strip ${className}`.trim()} aria-label={ariaLabel}>
+      {cards.map((card, index) => {
+        const tooltipId = `faculty-summary-tooltip-${index}`
+        const isTooltipOpen = activeTooltipIndex === index
+
+        return (
+          <FacultySummaryCard
+            key={card.label}
+            icon={card.icon}
+            label={card.label}
+            value={card.value}
+            note={card.note}
+            tone={card.tone}
+            badge={card.badge}
+            tooltip={card.tooltip}
+            tooltipId={tooltipId}
+            isTooltipOpen={isTooltipOpen}
+            onToggleTooltip={() => setActiveTooltipIndex((current) => (current === index ? null : index))}
+            onOpenTooltip={() => setActiveTooltipIndex(index)}
+            onCloseTooltip={() => setActiveTooltipIndex((current) => (current === index ? null : current))}
+          />
+        )
+      })}
+    </div>
   )
 }
 
@@ -961,6 +1060,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       note: 'Courses you are teaching',
       tone: 'blue',
       badge: `${facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0)}`,
+      tooltip: 'Shows how many courses are assigned to your faculty profile and currently visible in your dashboard.',
     },
     {
       icon: UsersRound,
@@ -969,6 +1069,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       note: 'Students across all courses',
       tone: 'green',
       badge: `${totalStudents}`,
+      tooltip: 'Shows the total unique students linked to your courses and batches.',
     },
     {
       icon: Layers3,
@@ -977,6 +1078,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       note: 'Batches running',
       tone: 'violet',
       badge: `${dashboardTotalBatchCount}`,
+      tooltip: 'Shows the batch groups currently running under your assigned courses.',
     },
     {
       icon: BookOpen,
@@ -985,6 +1087,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       note: facultyAttendanceStatus.reason,
       tone: facultyAttendanceStatus.status === 'Present' ? 'green' : 'orange',
       badge: isStudentsLoading || isFacultyRecordsLoading || isBatchesSummaryLoading ? '...' : 'Live',
+      tooltip: 'Shows your live attendance state for today. Present means you are currently logged in and active.',
     },
   ]
 
@@ -1065,19 +1168,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
         </div>
       </header>
 
-      <div className="student-summary-strip faculty-summary-strip" aria-label="Faculty summary cards">
-        {summaryCards.map((card) => (
-          <FacultySummaryCard
-            key={card.label}
-            icon={card.icon}
-            label={card.label}
-            value={card.value}
-            note={card.note}
-            tone={card.tone}
-            badge={card.badge}
-          />
-        ))}
-      </div>
+      <FacultySummaryStrip cards={summaryCards} ariaLabel="Faculty summary cards" />
 
       <div className="faculty-dashboard-analytics-grid">
         <FacultyAttendanceCard faculty={profileFaculty || activeFaculty || latestFaculty} batches={batchOptions} />
@@ -1147,7 +1238,7 @@ export function FacultyMyBatchesPage() {
   const profileDrawer = (
     <FacultyProfileDrawer
       faculty={profileFaculty}
-      batchOptions={Array.isArray(displayFaculty?.batchEntries) ? displayFaculty.batchEntries.map((entry) => ({ label: String(entry?.batchName || '').trim() || 'Batch' })) : []}
+      batchOptions={getFacultyBatchOptions(displayFaculty || {})}
       isOpen={isProfileOpen}
       onClose={() => setIsProfileOpen(false)}
     />
@@ -1396,6 +1487,7 @@ export function FacultyMyBatchesPage() {
       note: 'You teach',
       tone: 'blue',
       badge: `${facultyCourseGroups.length || facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0)}`,
+      tooltip: 'Shows the courses that have one or more batches assigned to you in this workspace.',
     },
     {
       icon: Layers3,
@@ -1404,6 +1496,7 @@ export function FacultyMyBatchesPage() {
       note: 'Across all courses',
       tone: 'green',
       badge: `${totalBatchCount}`,
+      tooltip: 'Shows all active batches that belong to your assigned courses.',
     },
     {
       icon: UsersRound,
@@ -1412,6 +1505,7 @@ export function FacultyMyBatchesPage() {
       note: 'Across all batches',
       tone: 'violet',
       badge: `${totalStudents}`,
+      tooltip: 'Shows the total unique students linked to the batches you can manage here.',
     },
     {
       icon: BookOpen,
@@ -1420,6 +1514,7 @@ export function FacultyMyBatchesPage() {
       note: 'Overall average',
       tone: 'orange',
       badge: isBatchesSummaryLoading || isCoursesLoading || isFacultyRecordsLoading || isStudentsLoading ? '...' : 'Live',
+      tooltip: 'Shows the average completion progress across all of your batches.',
     },
   ]
 
@@ -1795,19 +1890,7 @@ export function FacultyMyBatchesPage() {
         </div>
       ) : null}
 
-      <div className="student-summary-strip faculty-summary-strip faculty-my-batches-summary-grid" aria-label="My batches summary cards">
-        {summaryCards.map((card) => (
-          <FacultySummaryCard
-            key={card.label}
-            icon={card.icon}
-            label={card.label}
-            value={card.value}
-            note={card.note}
-            tone={card.tone}
-            badge={card.badge}
-          />
-        ))}
-      </div>
+      <FacultySummaryStrip cards={summaryCards} ariaLabel="My batches summary cards" className="faculty-my-batches-summary-grid" />
 
       <div className="faculty-my-batches-groups">
         {facultyCourseGroups.length ? (
