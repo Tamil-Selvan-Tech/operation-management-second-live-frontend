@@ -1,5 +1,7 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, FileDown, GraduationCap, Layers3, Menu, Save, UsersRound, X } from 'lucide-react'
+import { BadgeCheck, BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, FileDown, FileText, GraduationCap, Layers3, Menu, Save, UsersRound, X } from 'lucide-react'
+
+import { createPortal } from 'react-dom'
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
@@ -63,6 +65,174 @@ function formatDisplayTime(value) {
 function formatMinutesLabel(value = 0) {
   const count = Math.max(0, Math.floor(Number(value) || 0))
   return `${count} minute${count === 1 ? '' : 's'}`
+}
+
+function formatSessionDateTime(value) {
+  const date = value instanceof Date ? value : value ? new Date(value) : null
+  if (!date || Number.isNaN(date.getTime())) return '-'
+
+  const dateLabel = date.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+  const timeLabel = date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
+
+  return `${dateLabel}, ${timeLabel}`
+}
+
+function getLatestSessionValue(sessions = [], predicate = () => true) {
+  if (!Array.isArray(sessions) || !sessions.length) return null
+
+  for (let index = sessions.length - 1; index >= 0; index -= 1) {
+    const session = sessions[index]
+    if (predicate(session)) return session
+  }
+
+  return null
+}
+
+function buildFacultyProfileDetails(faculty = null, courseOptions = [], attendanceStatus = null) {
+  const courses = getFacultyCourses(faculty || {}, courseOptions)
+  const courseNames = courses.map((course) => String(course?.courseName || course?.courseId || '').trim()).filter(Boolean)
+  const batchEntries = Array.isArray(faculty?.batchEntries) ? faculty.batchEntries : []
+  const primaryBatch = batchEntries[0] || null
+  const sessions = Array.isArray(attendanceStatus?.sessions) ? attendanceStatus.sessions : []
+  const latestLoginSession = getLatestSessionValue(sessions, (session) => Boolean(session?.loginTimestamp))
+  const latestLogoutSession = getLatestSessionValue(sessions, (session) => Boolean(session?.logoutTimestamp))
+  const latestEarlyLogoutSession = getLatestSessionValue(
+    sessions,
+    (session) => Boolean(session?.logoutTimestamp) && String(session?.logoutType || '').trim().toLowerCase() === 'early',
+  )
+  const latestWorkReportSession = getLatestSessionValue(sessions, (session) => Boolean(String(session?.workReport || '').trim()))
+
+  return {
+    name: String(faculty?.facultyName || 'Faculty').trim() || 'Faculty',
+    email: String(faculty?.facultyEmail || '-').trim() || '-',
+    phone: String(faculty?.facultyPhone || '').trim(),
+    avatarUrl: String(faculty?.avatarUrl || faculty?.profileImage || faculty?.photoUrl || '').trim(),
+    roleLabel: 'Faculty Mentor',
+    statusLabel: attendanceStatus?.status === 'Present' ? 'Active' : 'Inactive',
+    courseNames,
+    courseCount: courses.length,
+    aboutText:
+      String(faculty?.bio || '').trim() ||
+      (courseNames.length
+        ? `Teaching ${courseNames.join(', ')} and mentoring students across the faculty batches.`
+        : 'Teaching assigned courses and mentoring students across the faculty batches.'),
+    lastLogin: formatSessionDateTime(latestLoginSession?.loginTimestamp ? new Date(Number(latestLoginSession.loginTimestamp)) : attendanceStatus?.loginDateTime),
+    lastLogout: formatSessionDateTime(latestLogoutSession?.logoutTimestamp ? new Date(Number(latestLogoutSession.logoutTimestamp)) : attendanceStatus?.logoutDateTime),
+    lastEarlyLogout: formatSessionDateTime(
+      latestEarlyLogoutSession?.logoutTimestamp ? new Date(Number(latestEarlyLogoutSession.logoutTimestamp)) : null,
+    ),
+    workReport: String(latestWorkReportSession?.workReport || attendanceStatus?.workReport || '').trim() || '-',
+    primaryBatchName: String(primaryBatch?.batchName || primaryBatch?.label || '').trim() || '-',
+    primaryBatchStudents: Number(primaryBatch?.studentCount || primaryBatch?.studentsCount || primaryBatch?.count || 0) || 0,
+    departmentName: courseNames[0] || 'Faculty Department',
+  }
+}
+
+function FacultyProfileDrawer({ isOpen, onClose, faculty, courseOptions = [], attendanceStatus = null }) {
+  const profileDetails = useMemo(() => buildFacultyProfileDetails(faculty, courseOptions, attendanceStatus), [attendanceStatus, courseOptions, faculty])
+
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return undefined
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, onClose])
+
+  if (!isOpen || typeof document === 'undefined') return null
+
+  return createPortal(
+    <div className="profile-drawer-backdrop faculty-profile-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="profile-drawer faculty-profile-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="faculty-profile-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="profile-modal-cover faculty-profile-hero">
+          <button type="button" className="course-modal-close profile-modal-close" onClick={onClose} aria-label="Close profile card">
+            <X size={18} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+          </button>
+
+          <div className="faculty-profile-title-block">
+            <h3 id="faculty-profile-modal-title">{profileDetails.name}</h3>
+            <div className="faculty-profile-role-row">
+              <span className="faculty-profile-role">{profileDetails.roleLabel}</span>
+              <span className="faculty-profile-state">{profileDetails.statusLabel}</span>
+            </div>
+            <p className="profile-modal-email faculty-profile-email">
+              <span className="faculty-profile-email-icon" aria-hidden="true">✉</span>
+              {profileDetails.email}
+            </p>
+          </div>
+
+        </div>
+
+        <div className="profile-modal-body faculty-profile-body">
+          <div className="faculty-profile-about">
+            <h4>About</h4>
+          </div>
+
+          <div className="faculty-profile-divider" />
+
+          <div className="profile-modal-info-list faculty-profile-info-list">
+            <div className="profile-modal-info-row faculty-profile-info-row">
+              <span className="faculty-profile-row-icon tone-violet" aria-hidden="true">
+                <BadgeCheck size={16} strokeWidth={2.2} />
+              </span>
+              <span className="profile-modal-info-label faculty-profile-info-label">Courses Teaching</span>
+              <strong>{profileDetails.courseNames.length ? profileDetails.courseNames.join(', ') : '-'}</strong>
+            </div>
+            <div className="profile-modal-info-row faculty-profile-info-row">
+              <span className="faculty-profile-row-icon tone-blue" aria-hidden="true">
+                <CalendarDays size={16} strokeWidth={2.2} />
+              </span>
+              <span className="profile-modal-info-label faculty-profile-info-label">Last Login</span>
+              <strong>{profileDetails.lastLogin}</strong>
+            </div>
+            <div className="profile-modal-info-row faculty-profile-info-row">
+              <span className="faculty-profile-row-icon tone-red" aria-hidden="true">
+                <Clock3 size={16} strokeWidth={2.2} />
+              </span>
+              <span className="profile-modal-info-label faculty-profile-info-label">Last Logout</span>
+              <strong>{profileDetails.lastLogout}</strong>
+            </div>
+            <div className="profile-modal-info-row faculty-profile-info-row faculty-profile-work-report">
+              <span className="faculty-profile-row-icon tone-amber" aria-hidden="true">
+                <FileText size={16} strokeWidth={2.2} />
+              </span>
+              <span className="profile-modal-info-label faculty-profile-info-label">Work Report (Last Logout)</span>
+              <strong>{profileDetails.workReport}</strong>
+              <span className="faculty-profile-chevron" aria-hidden="true">›</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
 }
 
 function useCurrentFacultyProfile() {
@@ -682,9 +852,11 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const openMenu = useMobileMenu()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
+  const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
   const activeFaculty = latestFaculty || null
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   useEffect(() => {
     if (!activeFaculty) return
@@ -704,8 +876,28 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const profileName = activeFaculty?.facultyName || latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
   const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
+  const facultyAttendanceStatus = useMemo(
+    () => resolveTodayFacultyAttendanceStatus(facultyAttendanceId || profileName),
+    [attendanceRefreshToken, facultyAttendanceId, profileName],
+  )
   const greetingName = getFacultyGreetingName(activeFaculty?.facultyName || latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
+  const profileChip = (
+    <button
+      type="button"
+      className="student-dashboard-profile-chip"
+      aria-label={profileName}
+      aria-haspopup="dialog"
+      aria-expanded={isProfileOpen}
+      onClick={() => setIsProfileOpen(true)}
+    >
+      <span className="student-dashboard-profile-initials" aria-hidden="true">
+        {profileInitials}
+      </span>
+      <span className="student-dashboard-profile-name">{profileName}</span>
+      <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+    </button>
+  )
   const batchNames = useMemo(
     () =>
       Array.isArray(activeFaculty?.batchEntries)
@@ -750,10 +942,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const dashboardTotalBatchCount = Number(batchesSummary?.totalBatches || 0) || (Array.isArray(activeFaculty?.batchEntries)
     ? activeFaculty.batchEntries.length
     : Number(activeFaculty?.batchCount || 0) || 0)
-  const facultyAttendanceStatus = useMemo(
-    () => resolveTodayFacultyAttendanceStatus(facultyAttendanceId || profileName),
-    [facultyAttendanceId, profileName],
-  )
   const summaryCards = [
     {
       icon: GraduationCap,
@@ -799,13 +987,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
           </div>
           <div className="student-dashboard-header-actions">
             <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
-            <div className="student-dashboard-profile-chip" aria-label={profileName}>
-              <span className="student-dashboard-profile-initials" aria-hidden="true">
-                {profileInitials}
-              </span>
-              <span className="student-dashboard-profile-name">{profileName}</span>
-              <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-            </div>
+            {profileChip}
           </div>
         </header>
         <article className="panel-card student-dashboard-empty">
@@ -830,13 +1012,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
           </div>
           <div className="student-dashboard-header-actions">
             <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
-            <div className="student-dashboard-profile-chip" aria-label={profileName}>
-              <span className="student-dashboard-profile-initials" aria-hidden="true">
-                {profileInitials}
-              </span>
-              <span className="student-dashboard-profile-name">{profileName}</span>
-              <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-            </div>
+            {profileChip}
           </div>
         </header>
         <article className="panel-card student-dashboard-empty">
@@ -873,13 +1049,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
         <div className="student-dashboard-header-actions">
           <NotificationBell />
           <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
-          <div className="student-dashboard-profile-chip" aria-label={profileName}>
-            <span className="student-dashboard-profile-initials" aria-hidden="true">
-              {profileInitials}
-            </span>
-            <span className="student-dashboard-profile-name">{profileName}</span>
-            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-          </div>
+          {profileChip}
         </div>
       </header>
 
@@ -904,6 +1074,14 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
       <FacultyBatchPerformanceCard batches={batchOptions} />
 
+      <FacultyProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        faculty={activeFaculty || latestFaculty}
+        courseOptions={[]}
+        attendanceStatus={facultyAttendanceStatus}
+      />
+
     </section>
   )
 }
@@ -916,6 +1094,7 @@ export function FacultyMyBatchesPage() {
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
   const { courses: courseOptions, isLoading: isCoursesLoading } = useFacultyCourses()
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [selectedBatchContext, setSelectedBatchContext] = useState(null)
   const [selectedBatchView, setSelectedBatchView] = useState('details')
   const [selectedBatchAttendanceDraft, setSelectedBatchAttendanceDraft] = useState({})
@@ -935,6 +1114,26 @@ export function FacultyMyBatchesPage() {
   const greetingLabel = getFacultyGreetingLabel()
   const activeFaculty = latestFaculty || null
   const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
+  const facultyAttendanceStatus = useMemo(
+    () => resolveTodayFacultyAttendanceStatus(facultyAttendanceId || profileName),
+    [attendanceRefreshToken, facultyAttendanceId, profileName],
+  )
+  const profileChip = (
+    <button
+      type="button"
+      className="student-dashboard-profile-chip"
+      aria-label={profileName}
+      aria-haspopup="dialog"
+      aria-expanded={isProfileOpen}
+      onClick={() => setIsProfileOpen(true)}
+    >
+      <span className="student-dashboard-profile-initials" aria-hidden="true">
+        {profileInitials}
+      </span>
+      <span className="student-dashboard-profile-name">{profileName}</span>
+      <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+    </button>
+  )
 
   useEffect(() => {
     const tick = () => setCurrentDateTime(new Date())
@@ -1450,13 +1649,7 @@ export function FacultyMyBatchesPage() {
           <div className="student-dashboard-header-actions">
             <NotificationBell />
             <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
-            <div className="student-dashboard-profile-chip" aria-label={profileName}>
-              <span className="student-dashboard-profile-initials" aria-hidden="true">
-                {profileInitials}
-              </span>
-              <span className="student-dashboard-profile-name">{profileName}</span>
-              <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-            </div>
+            {profileChip}
           </div>
         </header>
 
@@ -1490,13 +1683,7 @@ export function FacultyMyBatchesPage() {
         <div className="student-dashboard-header-actions">
           <NotificationBell />
           <FacultyAttendanceFlow profileName={profileName} profileInitials={profileInitials} facultyId={facultyAttendanceId} />
-          <div className="student-dashboard-profile-chip" aria-label={profileName}>
-            <span className="student-dashboard-profile-initials" aria-hidden="true">
-              {profileInitials}
-            </span>
-            <span className="student-dashboard-profile-name">{profileName}</span>
-            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-          </div>
+          {profileChip}
         </div>
       </header>
 
@@ -1983,6 +2170,14 @@ export function FacultyMyBatchesPage() {
           onClose={() => setAttendanceReportRequest(null)}
         />
       ) : null}
+
+      <FacultyProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        faculty={displayFaculty}
+        courseOptions={courseOptions}
+        attendanceStatus={facultyAttendanceStatus}
+      />
     </section>
   )
 }
