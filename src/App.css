@@ -2340,7 +2340,7 @@ tbody tr:hover {
 }
 
 .app-shell.dashboard-shell .sidebar .sidebar-menu-item {
-  width: calc(100% - 12px);
+  width: 100%;
   border: 0;
   border-radius: 12px;
   padding: 10px 12px;
