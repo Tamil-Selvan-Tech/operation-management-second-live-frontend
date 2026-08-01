@@ -60,6 +60,20 @@ function extractStudentListPayload(payload) {
   return []
 }
 
+function buildStudentMutationPayload(payload = {}) {
+  const nextPayload = { ...payload }
+  const courseId = String(nextPayload.courseId || nextPayload.course?.connect?.id || '').trim()
+
+  if (courseId) {
+    nextPayload.course = { connect: { id: courseId } }
+  } else {
+    delete nextPayload.course
+  }
+
+  delete nextPayload.courseId
+  return nextPayload
+}
+
 export function normalizeStudent(student) {
   if (!student) return null
 
@@ -73,7 +87,7 @@ export function normalizeStudent(student) {
     parentSpouseNumber: student.parentSpouseNumber || '',
     location: student.location || '',
     facultyId: student.facultyId || '',
-    courseId: student.courseId || '',
+    courseId: student.courseId || student.course?.id || '',
     courseInterested: student.courseInterested || student.course?.name || '',
     facultyName: student.facultyName || '',
     batchId: student.batchId || student.batchEntryId || '',
@@ -224,7 +238,7 @@ export async function getCurrentStudentProfile() {
 export async function createStudent(payload) {
   const response = await request('/students', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(buildStudentMutationPayload(payload)),
   })
 
   clearStudentListCache()
@@ -235,7 +249,7 @@ export async function createStudent(payload) {
 export async function updateStudent(studentId, payload) {
   const response = await request(`/students/${studentId}`, {
     method: 'PATCH',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(buildStudentMutationPayload(payload)),
   })
 
   clearStudentListCache()

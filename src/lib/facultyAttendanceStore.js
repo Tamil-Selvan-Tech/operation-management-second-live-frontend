@@ -4,6 +4,8 @@ export const FACULTY_ATTENDANCE_SYNC_EVENT = 'cispro:faculty-attendance-changed'
 const BATCH_ATTENDANCE_STORAGE_PREFIX = 'cispro.faculty.batch-attendance'
 export const FACULTY_BATCH_ATTENDANCE_SYNC_EVENT = 'cispro:faculty-batch-attendance-changed'
 
+const BATCH_ATTENDANCE_HISTORY_STORAGE_PREFIX = 'cispro.faculty.batch-attendance-history'
+
 export function getAttendanceDateKey(date = new Date()) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -383,6 +385,15 @@ export function saveFacultyBatchAttendanceState(
 
   try {
     window.localStorage.setItem(storageKey, JSON.stringify(payload))
+    saveFacultyBatchAttendanceHistoryState(
+      facultyId,
+      facultyName,
+      profileInitials,
+      batchId,
+      batchName,
+      batchTiming,
+      payload,
+    )
     window.dispatchEvent(new CustomEvent(FACULTY_BATCH_ATTENDANCE_SYNC_EVENT))
   } catch {
     // Ignore storage failures and keep the UI functional.
@@ -436,6 +447,142 @@ export function listFacultyBatchAttendanceStates() {
     }
 
     return states
+  } catch {
+    return []
+  }
+}
+
+function getFacultyBatchAttendanceHistoryStorageKey(
+  facultyId = '',
+  facultyName = '',
+  profileInitials = '',
+  batchId = '',
+  batchName = '',
+  batchTiming = '',
+) {
+  const facultySlug = normalizeStorageSlug(facultyId || facultyName || profileInitials)
+  const batchSlug = normalizeBatchAttendanceSlug(batchId || batchName || batchTiming)
+  return `${BATCH_ATTENDANCE_HISTORY_STORAGE_PREFIX}.${facultySlug}.${batchSlug}`
+}
+
+function normalizeBatchAttendanceHistoryEntry(entry = {}) {
+  const dateKey = String(entry?.dateKey || '').trim()
+  if (!dateKey) return null
+
+  return {
+    ...entry,
+    dateKey,
+    facultyId: String(entry?.facultyId || '').trim(),
+    facultyName: String(entry?.facultyName || '').trim(),
+    profileInitials: String(entry?.profileInitials || '').trim(),
+    batchId: String(entry?.batchId || '').trim(),
+    batchName: String(entry?.batchName || '').trim(),
+    batchTiming: String(entry?.batchTiming || '').trim(),
+    submittedAt: String(entry?.submittedAt || '').trim(),
+    submissionMode: String(entry?.submissionMode || '').trim(),
+    updatedAt: Number(entry?.updatedAt || 0) || null,
+    records: entry?.records && typeof entry.records === 'object' ? entry.records : {},
+  }
+}
+
+function loadBatchAttendanceHistory(storageKey = '') {
+  if (typeof window === 'undefined' || !storageKey) return []
+
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) return []
+
+    const parsed = JSON.parse(raw)
+    const entries = Array.isArray(parsed) ? parsed : []
+    return entries.map(normalizeBatchAttendanceHistoryEntry).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function saveBatchAttendanceHistory(storageKey = '', nextEntries = []) {
+  if (typeof window === 'undefined' || !storageKey) return
+
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(nextEntries))
+  } catch {
+    // Ignore storage failures and keep the UI functional.
+  }
+}
+
+function upsertBatchAttendanceHistoryEntry(existingEntries = [], nextEntry = {}) {
+  const normalizedEntry = normalizeBatchAttendanceHistoryEntry(nextEntry)
+  if (!normalizedEntry) return existingEntries
+
+  const nextEntries = Array.isArray(existingEntries) ? [...existingEntries] : []
+  const existingIndex = nextEntries.findIndex((entry) => String(entry?.dateKey || '').trim() === normalizedEntry.dateKey)
+
+  if (existingIndex >= 0) {
+    nextEntries[existingIndex] = {
+      ...nextEntries[existingIndex],
+      ...normalizedEntry,
+    }
+  } else {
+    nextEntries.push(normalizedEntry)
+  }
+
+  return nextEntries.sort((left, right) => String(left?.dateKey || '').localeCompare(String(right?.dateKey || '')))
+}
+
+function saveFacultyBatchAttendanceHistoryState(
+  facultyId = '',
+  facultyName = '',
+  profileInitials = '',
+  batchId = '',
+  batchName = '',
+  batchTiming = '',
+  payload = {},
+) {
+  if (typeof window === 'undefined') return
+
+  const storageKey = getFacultyBatchAttendanceHistoryStorageKey(facultyId, facultyName, profileInitials, batchId, batchName, batchTiming)
+  const history = loadBatchAttendanceHistory(storageKey)
+  const nextEntry = {
+    ...payload,
+    facultyId,
+    facultyName,
+    profileInitials,
+    batchId,
+    batchName,
+    batchTiming,
+  }
+
+  saveBatchAttendanceHistory(storageKey, upsertBatchAttendanceHistoryEntry(history, nextEntry))
+}
+
+export function listFacultyBatchAttendanceHistoryStates() {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const historyStates = []
+    const storage = window.localStorage
+    const length = Number(storage?.length || 0) || 0
+
+    for (let index = 0; index < length; index += 1) {
+      const storageKey = storage.key(index)
+      if (!storageKey || !storageKey.startsWith(`${BATCH_ATTENDANCE_HISTORY_STORAGE_PREFIX}.`)) continue
+
+      try {
+        const raw = storage.getItem(storageKey)
+        if (!raw) continue
+
+        const parsed = JSON.parse(raw)
+        const entries = Array.isArray(parsed) ? parsed : []
+        entries
+          .map(normalizeBatchAttendanceHistoryEntry)
+          .filter(Boolean)
+          .forEach((entry) => historyStates.push(entry))
+      } catch {
+        // Skip malformed records.
+      }
+    }
+
+    return historyStates
   } catch {
     return []
   }
