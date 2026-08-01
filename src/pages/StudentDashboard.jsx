@@ -369,7 +369,6 @@ function StudentDashboardHeader({ studentName, facultyAttendanceStatus, onProfil
             <span>Faculty Mentor</span>
             <span className={`student-faculty-status-pill ${getAttendanceStatusTone(statusLabel)}`.trim()}>{badgeLabel}</span>
           </div>
-          <ChevronDown size={18} strokeWidth={2.4} aria-hidden="true" focusable="false" className="student-faculty-status-chevron" />
         </div>
         {onProfileClick ? (
           <button
@@ -383,7 +382,6 @@ function StudentDashboardHeader({ studentName, facultyAttendanceStatus, onProfil
               {profileInitials}
             </span>
             <span className="student-dashboard-profile-name">{profileName}</span>
-            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
           </button>
         ) : (
           <div className="student-dashboard-profile-chip" aria-label={profileName}>
@@ -391,7 +389,6 @@ function StudentDashboardHeader({ studentName, facultyAttendanceStatus, onProfil
               {profileInitials}
             </span>
             <span className="student-dashboard-profile-name">{profileName}</span>
-            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
           </div>
         )}
       </div>
