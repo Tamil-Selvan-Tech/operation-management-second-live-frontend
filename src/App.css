@@ -17080,7 +17080,7 @@ tbody tr:hover {
 }
 
 .student-drawer {
-  width: min(1120px, 100%);
+  width: min(1360px, calc(100vw - 24px));
   background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
   box-shadow: -28px 0 80px rgba(15, 23, 42, 0.16);
   padding: 22px;
@@ -17319,6 +17319,14 @@ tbody tr:hover {
   table-layout: fixed;
 }
 
+.student-details-col-label {
+  width: 20%;
+}
+
+.student-details-col-value {
+  width: 30%;
+}
+
 .student-details-table th,
 .student-details-table td {
   border: 1px solid #d6deea;
@@ -17327,7 +17335,6 @@ tbody tr:hover {
 }
 
 .student-details-table th {
-  width: 25%;
   background: #ffffff;
   color: #172036;
   font-size: 0.98rem;
@@ -17336,7 +17343,6 @@ tbody tr:hover {
 }
 
 .student-details-table td {
-  width: 25%;
   background: #ffffff;
   color: #1f2d5c;
   font-size: 0.98rem;

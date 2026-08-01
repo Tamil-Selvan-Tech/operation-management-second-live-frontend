@@ -2280,6 +2280,52 @@ export function StudentManagementPage() {
     const nextStatus = currentStudent[installmentField] === 'Paid' ? 'Pending' : 'Paid'
     const nextPaidAt = nextStatus === 'Paid' ? getTodayValue() : ''
     const previousStudents = students
+    const updatePayload = {
+      studentCode: currentStudent.studentCode || '',
+      studentName: currentStudent.studentName || '',
+      mobileNumber: currentStudent.mobileNumber || '',
+      emailAddress: currentStudent.emailAddress || '',
+      parentSpouseNumber: currentStudent.parentSpouseNumber || '',
+      location: currentStudent.location || '',
+      facultyId: currentStudent.facultyId || '',
+      facultyName: currentStudent.facultyName || '',
+      courseId: currentStudent.courseId || '',
+      courseInterested: currentStudent.courseInterested || '',
+      batchId: currentStudent.batchId || '',
+      batchName: currentStudent.batchName || currentStudent.batch || '',
+      qualification: currentStudent.qualification || '',
+      passedOutYear: currentStudent.passedOutYear || '',
+      currentStatus: currentStudent.currentStatus || '',
+      designation: currentStudent.designation || '',
+      source: currentStudent.source || '',
+      status: currentStudent.status || 'Active',
+      paymentMode: currentStudent.paymentMode || 'Installment',
+      actualFees: currentStudent.actualFees || '',
+      registrationFees: currentStudent.registrationFees || '',
+      discount: currentStudent.discount || '',
+      afterDiscount: currentStudent.afterDiscount || '',
+      installment1: currentStudent.installment1 || '',
+      installment2: currentStudent.installment2 || '',
+      installment3: currentStudent.installment3 || '',
+      installment4: currentStudent.installment4 || '',
+      totalAmount: currentStudent.totalAmount || '',
+      admissionDate: currentStudent.admissionDate || '',
+      firstInstallmentAmount: currentStudent.firstInstallmentAmount || '',
+      firstInstallmentDate: currentStudent.firstInstallmentDate || '',
+      firstInstallmentStatus: currentStudent.firstInstallmentStatus || 'Pending',
+      firstInstallmentPaidAt: currentStudent.firstInstallmentPaidAt || '',
+      secondInstallmentAmount: currentStudent.secondInstallmentAmount || '',
+      secondDueDate: currentStudent.secondDueDate || '',
+      secondInstallmentStatus: currentStudent.secondInstallmentStatus || 'Pending',
+      secondInstallmentPaidAt: currentStudent.secondInstallmentPaidAt || '',
+      thirdInstallmentAmount: currentStudent.thirdInstallmentAmount || '',
+      thirdDueDate: currentStudent.thirdDueDate || '',
+      thirdInstallmentStatus: currentStudent.thirdInstallmentStatus || 'Pending',
+      thirdInstallmentPaidAt: currentStudent.thirdInstallmentPaidAt || '',
+      remarks: currentStudent.remarks || '',
+      [installmentField]: nextStatus,
+      [paidAtField]: nextStatus === 'Paid' ? nextPaidAt : '',
+    }
 
     setStudents((currentStudents) =>
       currentStudents.map((student) =>
@@ -2294,10 +2340,7 @@ export function StudentManagementPage() {
     )
 
     try {
-      await updateStudent(studentId, {
-        [installmentField]: nextStatus,
-        [paidAtField]: nextPaidAt,
-      })
+      await updateStudent(studentId, updatePayload)
       setOpenActionMenuId('')
     } catch (error) {
       setStudents(previousStudents)
@@ -3141,6 +3184,12 @@ export function StudentManagementPage() {
 
             <div className="student-drawer-table-shell">
               <table className="student-details-table">
+                <colgroup>
+                  <col className="student-details-col-label" />
+                  <col className="student-details-col-value" />
+                  <col className="student-details-col-label" />
+                  <col className="student-details-col-value" />
+                </colgroup>
                 <tbody>
                   {isDrawerEditing ? (
                     <>
