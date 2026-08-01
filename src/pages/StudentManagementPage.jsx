@@ -1832,16 +1832,22 @@ export function StudentManagementPage() {
           toDate: attendanceReportForm.toDate,
         })
       } else {
+        const courseIdForDownload = String(attendanceReportForm.courseId || attendanceReportTargetStudents[0]?.courseId || '').trim()
+
+        if (attendanceReportUsesAllBatches && !courseIdForDownload) {
+          throw new Error('Please select a course before downloading all batches attendance report.')
+        }
+
         await downloadBatchAttendanceReport({
           batchId: attendanceReportUsesAllBatches ? '' : attendanceReportSelectedBatchId,
           batchName:
             attendanceReportUsesAllBatches
-              ? 'All Batches'
+              ? ''
               : reportBatchOptions.find((batch) => String(batch.value || '').trim() === attendanceReportSelectedBatchId)?.batchName ||
                 attendanceReportTargetStudents[0]?.batchName ||
                 attendanceReportTargetStudents[0]?.batch ||
                 '',
-          courseId: String(attendanceReportForm.courseId || attendanceReportTargetStudents[0]?.courseId || '').trim(),
+          courseId: courseIdForDownload,
           fromDate: attendanceReportForm.fromDate,
           toDate: attendanceReportForm.toDate,
         })

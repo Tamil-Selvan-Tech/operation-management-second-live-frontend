@@ -128,6 +128,12 @@ export function StudentAttendanceReportModal({
     }
 
     const batchIdForDownload = isCourseMode ? (activeBatchId === 'all' ? '' : activeBatchId) : resolvedBatchId
+    const courseIdForDownload = String(courseId || '').trim()
+
+    if (isCourseMode && activeBatchId === 'all' && !courseIdForDownload) {
+      setErrorMessage('Please select a course before downloading all batches attendance report.')
+      return
+    }
 
     if (isCourseMode && !batchIdForDownload && activeBatchId !== 'all') {
       setErrorMessage(
@@ -146,10 +152,10 @@ export function StudentAttendanceReportModal({
         batchId: batchIdForDownload,
         batchName: isCourseMode
           ? activeBatchId === 'all'
-            ? 'All Batches'
+            ? ''
             : activeBatchOption?.batchName || activeBatchOption?.label || ''
           : fixedBatchName,
-        courseId: String(courseId || '').trim(),
+        courseId: courseIdForDownload,
         fromDate: form.fromDate,
         toDate: form.toDate,
       })
