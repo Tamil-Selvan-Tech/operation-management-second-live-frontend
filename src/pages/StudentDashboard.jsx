@@ -1,4 +1,4 @@
-﻿import { Activity, ArrowUpRight, BookOpen, ChevronDown, ClipboardList, GraduationCap, TrendingDown, TrendingUp, Wallet } from 'lucide-react'
+import { Activity, ArrowUpRight, BookOpen, ChevronDown, ClipboardList, GraduationCap, TrendingDown, TrendingUp, UserCheck, UserMinus, UserX, Wallet } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
@@ -8,7 +8,7 @@ import {
   FACULTY_ATTENDANCE_SYNC_EVENT,
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
   getAttendanceDateKey,
-  resolveStudentAttendanceStatus,
+  resolveBatchAttendanceWindow,
   resolveStudentBatchAttendanceStatus,
   resolveTodayFacultyAttendanceStatus,
 } from '../lib/facultyAttendanceStore'
@@ -156,37 +156,55 @@ function getStartOfWeek(date) {
   return start
 }
 
-function buildWeeklyAttendanceOverview(student, todayAttendanceStatus = null) {
-  const today = new Date()
-  const seed = getAttendanceSeed(student)
+function buildWeeklyAttendanceOverview(weeklyAttendanceEntries = [], todayAttendanceStatus = null, batchWindow = null, today = new Date()) {
   const startOfWeek = getStartOfWeek(today)
-  const dailyPattern = [true, true, false, true, true, false, true]
-  const offset = seed % dailyPattern.length
+  const todayKey = getAttendanceDateKey(today)
+  const attendanceByDateKey = new Map(
+    (Array.isArray(weeklyAttendanceEntries) ? weeklyAttendanceEntries : []).map((entry) => [
+      String(entry?.dateKey || '').trim(),
+      normalizeAttendanceDisplayStatus(entry?.status),
+    ]),
+  )
+
   const days = Array.from({ length: 7 }, (_, index) => {
     const date = new Date(startOfWeek)
     date.setDate(startOfWeek.getDate() + index)
-    const present = dailyPattern[(offset + index) % dailyPattern.length]
+    const dateKey = getAttendanceDateKey(date)
+    const isFuture = dateKey > todayKey
+    const statusFromData = attendanceByDateKey.get(dateKey) || 'Unmarked'
+    const status =
+      dateKey === todayKey && batchWindow?.phase === 'pre-open'
+        ? 'Unmarked'
+        : isFuture
+          ? 'Unmarked'
+          : statusFromData
 
     return {
       date,
-      present,
-      isToday: date.toDateString() === today.toDateString(),
+      dateKey,
+      status,
+      isToday: dateKey === todayKey,
+      isFuture,
     }
   })
 
   const todayIndex = days.findIndex((day) => day.isToday)
-  if (todayIndex >= 0 && (todayAttendanceStatus === 'Present' || todayAttendanceStatus === 'Absent')) {
+  if (todayIndex >= 0 && todayAttendanceStatus) {
+    const normalizedTodayStatus = normalizeAttendanceDisplayStatus(todayAttendanceStatus)
     days[todayIndex] = {
       ...days[todayIndex],
-      present: todayAttendanceStatus === 'Present',
+      status:
+        batchWindow?.phase === 'pre-open' && normalizedTodayStatus !== 'Present' && normalizedTodayStatus !== 'Absent'
+          ? 'Unmarked'
+          : normalizedTodayStatus,
     }
   }
 
-  const presentCount = days.filter((day) => day.present).length
-  const absentCount = days.length - presentCount
-  const weeklyPercentage = Math.round((presentCount / days.length) * 100)
+  const presentCount = days.filter((day) => day.status === 'Present').length
+  const absentCount = days.filter((day) => day.status === 'Absent').length
+  const markedCount = presentCount + absentCount
+  const weeklyPercentage = markedCount > 0 ? Math.round((presentCount / markedCount) * 100) : 0
   const todayEntry = days.find((day) => day.isToday) || days[days.length - 1]
-  const todayStatus = todayEntry?.present ? 'Present' : 'Absent'
   const formatDayMonth = (date) =>
     new Intl.DateTimeFormat('en-GB', {
       day: 'numeric',
@@ -194,12 +212,14 @@ function buildWeeklyAttendanceOverview(student, todayAttendanceStatus = null) {
     }).format(date)
 
   return {
-    todayStatus,
+    todayStatus: todayEntry?.status || 'Unmarked',
     todayDateLabel: formatVerboseDate(todayEntry?.date || today),
     weekRangeLabel: `${formatDayMonth(days[0].date)} - ${formatDayMonth(days[6].date)}`,
     presentCount,
     absentCount,
     weeklyPercentage,
+    markedCount,
+    unmarkedCount: days.filter((day) => day.status === 'Unmarked').length,
     days,
   }
 }
@@ -218,7 +238,28 @@ function getStudentGreetingLabel() {
 }
 
 function getAttendanceStatusTone(status) {
-  return status === 'Present' ? 'is-present' : 'is-absent'
+  if (status === 'Present') return 'is-present'
+  if (status === 'Unmarked') return 'is-unmarked'
+  return 'is-absent'
+}
+
+function normalizeAttendanceDisplayStatus(value) {
+  const status = String(value || '').trim().toLowerCase()
+  if (status === 'present') return 'Present'
+  if (status === 'absent') return 'Absent'
+  return 'Unmarked'
+}
+
+function getTodayAttendanceIcon(status) {
+  if (status === 'Present') {
+    return <UserCheck size={24} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+  }
+
+  if (status === 'Unmarked') {
+    return <UserMinus size={24} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+  }
+
+  return <UserX size={24} strokeWidth={2.4} aria-hidden="true" focusable="false" />
 }
 
 function normalizeAttendanceStatus(value) {
@@ -243,12 +284,50 @@ function preferAttendanceState(...states) {
   return validStates[0]
 }
 
+function FacultyStatusIcon({ status }) {
+  if (status === 'Present') {
+    return (
+      <svg viewBox="0 0 72 72" aria-hidden="true" focusable="false" className="student-faculty-status-icon-svg">
+        <circle cx="36" cy="36" r="34" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.22" />
+        <circle cx="36" cy="25" r="10" fill="none" stroke="currentColor" strokeWidth="4" />
+        <path d="M18 56c2.4-10.2 10-16 18-16s15.6 5.8 18 16" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="52" cy="36" r="11" fill="currentColor" opacity="0.18" />
+        <path d="m47.5 36.2 3.2 3.2 6-6.2" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (status === 'Absent') {
+    return (
+      <svg viewBox="0 0 72 72" aria-hidden="true" focusable="false" className="student-faculty-status-icon-svg">
+        <circle cx="36" cy="36" r="34" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.22" />
+        <circle cx="36" cy="25" r="10" fill="none" stroke="currentColor" strokeWidth="4" />
+        <path d="M18 56c2.4-10.2 10-16 18-16s15.6 5.8 18 16" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+        <circle cx="52" cy="36" r="11" fill="currentColor" opacity="0.18" />
+        <path d="m47.6 31.8 8.8 8.8m0-8.8-8.8 8.8" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 72 72" aria-hidden="true" focusable="false" className="student-faculty-status-icon-svg">
+      <circle cx="36" cy="36" r="34" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.22" />
+      <circle cx="36" cy="25" r="10" fill="none" stroke="currentColor" strokeWidth="4" />
+      <path d="M18 56c2.4-10.2 10-16 18-16s15.6 5.8 18 16" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+      <circle cx="52" cy="36" r="11" fill="currentColor" opacity="0.18" />
+      <path d="M47.2 36h9" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function StudentDashboardHeader({ studentName, facultyAttendanceStatus }) {
   const greetingName = getStudentGreetingName(studentName)
   const greetingLabel = getStudentGreetingLabel()
   const profileName = studentName || 'Student'
   const profileInitials = getStudentInitials(profileName)
   const statusLabel = facultyAttendanceStatus?.status || 'Absent'
+  const facultyName = String(facultyAttendanceStatus?.facultyName || 'HEMA').trim() || 'HEMA'
+  const badgeLabel = statusLabel === 'Present' ? 'Present' : statusLabel === 'Unmarked' ? 'Unmarked' : 'Absent'
 
   return (
     <header className="student-dashboard-header">
@@ -262,21 +341,16 @@ function StudentDashboardHeader({ studentName, facultyAttendanceStatus }) {
 
       <div className="student-dashboard-header-actions">
         <NotificationBell />
-        <div
-          className={`student-attendance-today-status student-attendance-today-status-header ${getAttendanceStatusTone(statusLabel)}`.trim()}
-          style={{ width: 'fit-content', marginLeft: '0.5rem', padding: '0.75rem 1rem' }}
-        >
-          <div className="student-attendance-today-icon" aria-hidden="true">
-            {statusLabel === 'Present' ? 'P' : 'A'}
+        <div className={`student-faculty-status-card ${getAttendanceStatusTone(statusLabel)}`.trim()} aria-label={`Faculty ${badgeLabel}`}>
+          <div className="student-faculty-status-icon" aria-hidden="true">
+            <FacultyStatusIcon status={statusLabel} />
           </div>
-          <div className="student-attendance-today-copy">
-            <strong>{`Faculty ${statusLabel}`}</strong>
-            <span>
-              {facultyAttendanceStatus?.facultyName
-                ? `${facultyAttendanceStatus.facultyName}${facultyAttendanceStatus?.batchName ? ` • ${facultyAttendanceStatus.batchName}` : ''}`
-                : 'Faculty attendance status for today'}
-            </span>
+          <div className="student-faculty-status-copy">
+            <strong>{facultyName}</strong>
+            <span>Faculty Mentor</span>
+            <span className={`student-faculty-status-pill ${getAttendanceStatusTone(statusLabel)}`.trim()}>{badgeLabel}</span>
           </div>
+          <ChevronDown size={18} strokeWidth={2.4} aria-hidden="true" focusable="false" className="student-faculty-status-chevron" />
         </div>
         <div className="student-dashboard-profile-chip" aria-label={profileName}>
           <span className="student-dashboard-profile-initials" aria-hidden="true">
@@ -307,9 +381,12 @@ function StudentSummaryCard({ icon: Icon, label, value, note, tone = 'blue', bad
   )
 }
 
-function StudentMonthlyAttendanceChart({ student, studentAttendanceStatus }) {
+function StudentMonthlyAttendanceChart({ student, studentAttendanceStatus, weeklyAttendanceEntries, batchWindow }) {
   const attendance = useMemo(() => buildStudentAttendanceData(student), [student])
-  const weekly = useMemo(() => buildWeeklyAttendanceOverview(student, studentAttendanceStatus?.status), [student, studentAttendanceStatus?.status])
+  const weekly = useMemo(
+    () => buildWeeklyAttendanceOverview(weeklyAttendanceEntries, studentAttendanceStatus?.status, batchWindow),
+    [batchWindow, studentAttendanceStatus?.status, weeklyAttendanceEntries],
+  )
 
   return (
     <article className="student-attendance-layout">
@@ -365,13 +442,19 @@ function StudentMonthlyAttendanceChart({ student, studentAttendanceStatus }) {
       <div className="student-attendance-side">
         <article className="student-attendance-today-card">
           <div className="student-attendance-side-title">Today's Attendance</div>
-          <div className={`student-attendance-today-status ${weekly.todayStatus === 'Present' ? 'is-present' : 'is-absent'}`}>
+          <div className={`student-attendance-today-status ${getAttendanceStatusTone(weekly.todayStatus)}`}>
             <div className="student-attendance-today-icon" aria-hidden="true">
-              {weekly.todayStatus === 'Present' ? 'P' : 'A'}
+              {getTodayAttendanceIcon(weekly.todayStatus)}
             </div>
             <div className="student-attendance-today-copy">
               <strong>{weekly.todayStatus}</strong>
-              <span>{weekly.todayStatus === 'Present' ? 'You are marked present today' : 'You are marked absent today'}</span>
+              <span>
+                {weekly.todayStatus === 'Present'
+                  ? 'You are marked present today'
+                  : weekly.todayStatus === 'Unmarked'
+                    ? 'Attendance has not been marked yet'
+                    : 'You are marked absent today'}
+              </span>
             </div>
           </div>
           <div className="student-attendance-today-date">{weekly.todayDateLabel}</div>
@@ -392,6 +475,10 @@ function StudentMonthlyAttendanceChart({ student, studentAttendanceStatus }) {
             <div className="student-attendance-mini-stat is-absent">
               <strong>{weekly.absentCount}</strong>
               <span>Absent</span>
+            </div>
+            <div className="student-attendance-mini-stat is-unmarked">
+              <strong>{weekly.unmarkedCount}</strong>
+              <span>Unmarked</span>
             </div>
           </div>
           <div className="student-attendance-progress-labels">
@@ -619,6 +706,11 @@ function StudentDashboardContent({ dashboard }) {
   const facultyRecords = useFacultyRecordsSnapshot()
   const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const [studentTodayAttendance, setStudentTodayAttendance] = useState(null)
+  const [studentWeeklyAttendanceEntries, setStudentWeeklyAttendanceEntries] = useState([])
+  const currentBatchWindow = useMemo(
+    () => resolveBatchAttendanceWindow(latestStudent?.batchTiming || latestStudent?.batchTime || ''),
+    [latestStudent?.batchTiming, latestStudent?.batchTime],
+  )
 
   useEffect(() => {
     let active = true
@@ -646,7 +738,63 @@ function StudentDashboardContent({ dashboard }) {
     return () => {
       active = false
     }
-  }, [attendanceRefreshToken, latestStudent?.id, latestStudent?.studentName])
+  }, [attendanceRefreshToken, latestStudent])
+
+  useEffect(() => {
+    let active = true
+
+    const run = async () => {
+      if (!latestStudent) {
+        if (active) {
+          setStudentWeeklyAttendanceEntries([])
+        }
+        return
+      }
+
+      const today = new Date()
+      const todayKey = getAttendanceDateKey(today)
+      const startOfWeek = getStartOfWeek(today)
+      const weekDates = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(startOfWeek)
+        date.setDate(startOfWeek.getDate() + index)
+        return date
+      })
+
+      const entries = await Promise.all(
+        weekDates.map(async (date) => {
+          const dateKey = getAttendanceDateKey(date)
+          if (dateKey > todayKey) {
+            return {
+              dateKey,
+              status: 'Unmarked',
+            }
+          }
+
+          try {
+            const result = await getCurrentStudentAttendanceOverview(dateKey)
+            return {
+              dateKey,
+              status: normalizeAttendanceDisplayStatus(result?.status),
+            }
+          } catch {
+            return {
+              dateKey,
+              status: 'Unmarked',
+            }
+          }
+        }),
+      )
+
+      if (!active) return
+      setStudentWeeklyAttendanceEntries(entries)
+    }
+
+    void run()
+
+    return () => {
+      active = false
+    }
+  }, [attendanceRefreshToken, latestStudent])
 
   const facultyAttendance = useMemo(() => {
     try {
@@ -671,7 +819,7 @@ function StudentDashboardContent({ dashboard }) {
         sessions: [],
       }
     }
-  }, [latestStudent?.facultyName])
+  }, [latestStudent])
 
   const studentBatchAttendance = useMemo(() => {
     try {
@@ -679,21 +827,30 @@ function StudentDashboardContent({ dashboard }) {
     } catch {
       return null
     }
-  }, [attendanceRefreshToken, facultyRecords, latestStudent])
+  }, [facultyRecords, latestStudent])
 
   const studentAttendance = useMemo(() => {
     try {
-      const apiAttendance = normalizeAttendanceStatus(studentTodayAttendance?.status)
-        ? {
-            ...studentTodayAttendance,
-            status: normalizeAttendanceStatus(studentTodayAttendance.status),
-          }
-        : null
+      const apiAttendanceStatus = normalizeAttendanceDisplayStatus(studentTodayAttendance?.status)
+      const currentDayAttendance =
+        currentBatchWindow.phase === 'pre-open'
+          ? 'Unmarked'
+          : apiAttendanceStatus === 'Present' || apiAttendanceStatus === 'Absent'
+            ? apiAttendanceStatus
+            : 'Unmarked'
+
+      const apiAttendance =
+        currentDayAttendance === 'Present' || currentDayAttendance === 'Absent'
+          ? {
+              ...studentTodayAttendance,
+              status: currentDayAttendance,
+            }
+          : null
 
       return (
         preferAttendanceState(studentBatchAttendance, apiAttendance) || {
-          status: 'Absent',
-          reason: 'No attendance data found for today.',
+          status: 'Unmarked',
+          reason: 'Attendance has not been marked yet.',
           facultyName: latestStudent?.facultyName || '-',
           batchName: latestStudent?.batchName || latestStudent?.batch || '-',
           batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
@@ -715,6 +872,7 @@ function StudentDashboardContent({ dashboard }) {
       }
     }
   }, [
+    currentBatchWindow.phase,
     latestStudent,
     studentBatchAttendance,
     studentTodayAttendance,
@@ -811,7 +969,12 @@ function StudentDashboardContent({ dashboard }) {
         ))}
       </div>
 
-      <StudentMonthlyAttendanceChart student={latestStudent} studentAttendanceStatus={studentAttendance} />
+      <StudentMonthlyAttendanceChart
+        student={latestStudent}
+        studentAttendanceStatus={studentAttendance}
+        weeklyAttendanceEntries={studentWeeklyAttendanceEntries}
+        batchWindow={currentBatchWindow}
+      />
 
       <div className="student-performance-payment-row">
         <StudentTestPerformanceTrend student={latestStudent} />
@@ -824,6 +987,7 @@ function StudentDashboardContent({ dashboard }) {
 export function StudentDashboard({ dashboard }) {
   return <StudentDashboardContent dashboard={dashboard} />
 }
+
 
 
 

@@ -3634,6 +3634,138 @@ tbody tr:hover {
   flex: 0 0 auto;
 }
 
+.student-faculty-status-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 260px;
+  padding: 9px 12px;
+  border-radius: 20px;
+  border: 1px solid #dfe8f4;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfefd 100%);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.06);
+}
+
+.student-faculty-status-card.is-present {
+  border-color: rgba(34, 197, 94, 0.22);
+  background: linear-gradient(180deg, #fbfffc 0%, #f7fff8 100%);
+}
+
+.student-faculty-status-card.is-absent {
+  border-color: rgba(248, 113, 113, 0.18);
+  background: linear-gradient(180deg, #fffafa 0%, #fffefe 100%);
+}
+
+.student-faculty-status-card.is-unmarked {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+}
+
+.student-faculty-status-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.student-faculty-status-icon-svg {
+  width: 84%;
+  height: 84%;
+  display: block;
+}
+
+.student-faculty-status-icon-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.98);
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+  color: currentColor;
+}
+
+.student-faculty-status-icon-badge.is-neutral {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.student-faculty-status-card.is-present .student-faculty-status-icon {
+  background: linear-gradient(180deg, #61c86f 0%, #16a34a 100%);
+}
+
+.student-faculty-status-card.is-absent .student-faculty-status-icon {
+  background: linear-gradient(180deg, #fb7185 0%, #ef4444 100%);
+}
+
+.student-faculty-status-card.is-unmarked .student-faculty-status-icon {
+  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+}
+
+.student-faculty-status-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.student-faculty-status-copy strong {
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.student-faculty-status-copy span {
+  color: #64748b;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.student-faculty-status-pill {
+  align-self: start;
+  min-height: 26px;
+  padding: 0 11px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.76rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.student-faculty-status-pill.is-present {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.student-faculty-status-pill.is-absent {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.student-faculty-status-pill.is-unmarked {
+  color: #475569;
+  background: #e2e8f0;
+}
+
+.student-faculty-status-chevron {
+  color: #64748b;
+  margin-left: 2px;
+}
+
 .student-dashboard-profile-chip {
   display: inline-flex;
   align-items: center;
@@ -4735,21 +4867,6 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-.faculty-course-details-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid #d7e5f7;
-  background: linear-gradient(180deg, #ffffff, #f8fbff);
-  color: #334155;
-  font-size: 0.82rem;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
 .faculty-course-report-button,
 .batch-student-report-button {
   display: inline-flex;
@@ -4780,7 +4897,7 @@ tbody tr:hover {
 
 .faculty-batch-table-head {
   display: grid;
-  grid-template-columns: minmax(220px, 1.3fr) 84px minmax(220px, 1.1fr) 120px 150px 98px;
+  grid-template-columns: minmax(150px, 0.9fr) 72px minmax(190px, 1.12fr) 104px 132px 88px;
   gap: 12px;
   padding: 0 8px 10px;
   color: #2563eb;
@@ -4790,9 +4907,17 @@ tbody tr:hover {
   letter-spacing: 0.04em;
 }
 
+.faculty-batch-table-head > span:nth-child(3) {
+  padding-left: 28px;
+}
+
+.faculty-batch-table-head > span:nth-child(4) {
+  margin-left: -26px;
+}
+
 .faculty-batch-table-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.3fr) 84px minmax(220px, 1.1fr) 120px 150px 98px;
+  grid-template-columns: minmax(150px, 0.9fr) 72px minmax(190px, 1.12fr) 104px 132px 88px;
   gap: 12px;
   align-items: center;
   padding: 12px 10px;
@@ -4850,6 +4975,7 @@ tbody tr:hover {
 
 .faculty-batch-table-schedule {
   color: #475569;
+  padding-left: 28px;
 }
 
 .faculty-batch-table-schedule div {
@@ -4867,6 +4993,7 @@ tbody tr:hover {
 .faculty-batch-table-progress {
   display: grid;
   gap: 6px;
+  margin-left: -26px;
 }
 
 .faculty-batch-table-track {
@@ -4884,7 +5011,10 @@ tbody tr:hover {
 
 .faculty-batch-table-attendance {
   display: grid;
-  gap: 4px;
+  gap: 6px;
+  justify-items: start;
+  align-content: center;
+  min-height: 42px;
   color: #475569;
   font-size: 0.72rem;
   font-weight: 800;
@@ -4894,15 +5024,31 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 16px;
   color: #16a34a;
+  line-height: 1.1;
 }
 
 .faculty-batch-table-absent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 16px;
+  color: #ef4444;
+  line-height: 1.1;
+}
+
+.faculty-batch-table-absent svg {
   color: #ef4444;
 }
 
+.faculty-batch-table-present svg,
+.faculty-batch-table-absent svg {
+  flex: 0 0 auto;
+}
+
 .faculty-batch-table-actions {
-  justify-content: flex-start;
+  justify-content: center;
 }
 
 .faculty-batch-table-actions button {
@@ -4929,17 +5075,21 @@ tbody tr:hover {
     gap: 12px;
   }
 
-  .faculty-my-batches-page .faculty-course-details-button {
-    min-height: 36px;
-    padding: 0 10px;
-    font-size: 0.78rem;
-  }
-
   .faculty-my-batches-page .faculty-batch-table-head,
   .faculty-my-batches-page .faculty-batch-table-row {
-    grid-template-columns: minmax(170px, 1.1fr) 68px minmax(168px, 0.95fr) 92px 118px 88px;
-    gap: 8px;
+    grid-template-columns: minmax(140px, 0.88fr) 64px minmax(168px, 1.1fr) 92px 120px 84px;
+    gap: 10px;
   }
+
+  .faculty-my-batches-page .faculty-batch-table-head > span:nth-child(3),
+  .faculty-my-batches-page .faculty-batch-table-schedule {
+    padding-left: 22px;
+  }
+
+.faculty-my-batches-page .faculty-batch-table-head > span:nth-child(4),
+.faculty-my-batches-page .faculty-batch-table-progress {
+  margin-left: -18px;
+}
 
   .faculty-my-batches-page .faculty-batch-table-head {
     padding-inline: 4px;
@@ -5083,8 +5233,7 @@ tbody tr:hover {
   }
 
   .faculty-batch-dropdown-trigger,
-  .faculty-range-chip,
-  .faculty-course-details-button {
+  .faculty-range-chip {
     min-height: 34px;
     padding-inline: 10px;
     font-size: 0.76rem;
@@ -5959,6 +6108,10 @@ tbody tr:hover {
   background: linear-gradient(180deg, #fef2f2 0%, #fffafa 100%);
 }
 
+.student-attendance-today-status.is-unmarked {
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
 .student-attendance-today-icon {
   width: 46px;
   height: 46px;
@@ -5966,9 +6119,15 @@ tbody tr:hover {
   display: grid;
   place-items: center;
   color: #ffffff;
-  font-size: 0.98rem;
+  font-size: 0;
   font-weight: 900;
   letter-spacing: 0.02em;
+}
+
+.student-attendance-today-icon svg {
+  width: 24px;
+  height: 24px;
+  display: block;
 }
 
 .student-attendance-today-status.is-present .student-attendance-today-icon {
@@ -5977,6 +6136,10 @@ tbody tr:hover {
 
 .student-attendance-today-status.is-absent .student-attendance-today-icon {
   background: linear-gradient(180deg, #fb7185 0%, #ef4444 100%);
+}
+
+.student-attendance-today-status.is-unmarked .student-attendance-today-icon {
+  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
 }
 
 .student-attendance-today-copy {
@@ -5993,6 +6156,10 @@ tbody tr:hover {
 
 .student-attendance-today-status.is-absent .student-attendance-today-copy strong {
   color: #b91c1c;
+}
+
+.student-attendance-today-status.is-unmarked .student-attendance-today-copy strong {
+  color: #475569;
 }
 
 .student-attendance-today-status-header {
@@ -6023,7 +6190,7 @@ tbody tr:hover {
 
 .student-attendance-week-stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -6054,6 +6221,10 @@ tbody tr:hover {
 
 .student-attendance-mini-stat.is-absent strong {
   color: #ef4444;
+}
+
+.student-attendance-mini-stat.is-unmarked strong {
+  color: #f97316;
 }
 
 .student-attendance-progress-labels {
@@ -13501,6 +13672,141 @@ tbody tr:hover {
   max-width: 780px;
 }
 
+.faculty-my-batches-page .batch-student-modal-header-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.faculty-my-batches-page .batch-student-modal-header-meta > span {
+  min-width: 170px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: #f8fbff;
+  border: 1px solid #dbe6f5;
+  display: grid;
+  gap: 3px;
+}
+
+.faculty-my-batches-page .batch-student-modal-header-meta strong {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.faculty-my-batches-page .batch-student-modal-header-meta small {
+  color: #0f172a;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.faculty-my-batches-page .batch-late-attendance-card {
+  margin: 0 6px 14px;
+  padding: 18px 18px 20px;
+  border-radius: 22px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  display: grid;
+  gap: 18px;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.04);
+}
+
+.faculty-my-batches-page .batch-late-attendance-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.faculty-my-batches-page .batch-late-attendance-head strong {
+  color: #111827;
+  font-size: 1.9rem;
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.faculty-my-batches-page .batch-late-attendance-badge {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff4b45 0%, #ff3c36 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.faculty-my-batches-page .batch-late-attendance-meta {
+  margin-top: 0;
+}
+
+.faculty-my-batches-page .batch-late-attendance-warning {
+  border-radius: 18px;
+  border: 1px solid rgba(248, 113, 113, 0.12);
+  background: #fde2e2;
+  padding: 18px 18px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.faculty-my-batches-page .batch-late-attendance-warning-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.faculty-my-batches-page .batch-late-attendance-warning-icon {
+  width: 20px;
+  height: 20px;
+  color: #ef4444;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.faculty-my-batches-page .batch-late-attendance-warning-title strong {
+  color: #111827;
+  font-size: 1.08rem;
+  font-weight: 900;
+}
+
+.faculty-my-batches-page .batch-late-attendance-warning p {
+  margin: 0;
+  color: #111827;
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.faculty-my-batches-page .batch-late-attendance-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.faculty-my-batches-page .batch-late-attendance-submit {
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, #dc6b25 0%, #d85f14 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  box-shadow: 0 16px 28px rgba(216, 95, 20, 0.22);
+}
+
+.faculty-my-batches-page .batch-late-attendance-submit svg {
+  width: 16px;
+  height: 16px;
+}
+
 .faculty-my-batches-page .batch-student-status {
   min-height: 44px;
   padding: 0 18px;
@@ -13561,6 +13867,12 @@ tbody tr:hover {
   background: #fff8eb;
   color: #92400e;
   border: 1px solid rgba(245, 158, 11, 0.16);
+}
+
+.faculty-my-batches-page .batch-student-window-note.is-late {
+  background: #fff1f2;
+  color: #9f1239;
+  border: 1px solid rgba(244, 63, 94, 0.14);
 }
 
 .faculty-my-batches-page .batch-student-table-shell {
@@ -13820,6 +14132,13 @@ tbody tr:hover {
   text-align: center;
 }
 
+.faculty-my-batches-page .batch-attendance-reminder-popup {
+  width: min(920px, calc(100vw - 32px));
+  padding: 24px 28px 26px;
+  gap: 16px;
+  text-align: left;
+}
+
 .faculty-my-batches-page .batch-attendance-popup-icon {
   width: 56px;
   height: 56px;
@@ -13829,6 +14148,29 @@ tbody tr:hover {
   background: linear-gradient(180deg, #dff7e8 0%, #c8f1d8 100%);
   color: #15803d;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.faculty-my-batches-page .batch-attendance-reminder-icon {
+  background: linear-gradient(180deg, #fff1d6 0%, #ffe7b5 100%);
+  color: #b45309;
+}
+
+.faculty-my-batches-page .batch-reminder-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.faculty-my-batches-page .batch-reminder-pill {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #dc6b25 0%, #d85f14 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8rem;
+  font-weight: 900;
 }
 
 .faculty-my-batches-page .batch-attendance-popup-copy h3 {
@@ -13857,6 +14199,73 @@ tbody tr:hover {
   font-size: 0.92rem;
   font-weight: 800;
   box-shadow: 0 14px 24px rgba(37, 99, 235, 0.2);
+}
+
+.faculty-my-batches-page .batch-attendance-reminder-button {
+  margin-left: auto;
+  min-width: 180px;
+  background: linear-gradient(180deg, #111111 0%, #1f1f1f 100%);
+  box-shadow: 0 16px 28px rgba(17, 17, 17, 0.18);
+}
+
+.faculty-my-batches-page .batch-reminder-divider {
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.faculty-my-batches-page .batch-reminder-body {
+  display: grid;
+  gap: 8px;
+}
+
+.faculty-my-batches-page .batch-reminder-body strong {
+  color: #111827;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.faculty-my-batches-page .batch-reminder-body p {
+  margin: 0;
+  color: #111827;
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+.faculty-my-batches-page .batch-reminder-note {
+  margin-top: 2px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #fafafa;
+  display: grid;
+  gap: 8px;
+}
+
+.faculty-my-batches-page .batch-reminder-note-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.faculty-my-batches-page .batch-reminder-note-icon {
+  width: 18px;
+  height: 18px;
+  color: #f97316;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.faculty-my-batches-page .batch-reminder-note-title strong {
+  color: #111827;
+  font-size: 1.02rem;
+  font-weight: 900;
+}
+
+.faculty-my-batches-page .batch-reminder-note p {
+  margin: 0;
+  color: #111827;
+  font-size: 0.95rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 900px) {
@@ -14035,11 +14444,6 @@ tbody tr:hover {
 
   .faculty-batch-group-head {
     align-items: stretch;
-  }
-
-  .faculty-course-details-button {
-    width: 100%;
-    justify-content: center;
   }
 
   .faculty-batch-table-head {

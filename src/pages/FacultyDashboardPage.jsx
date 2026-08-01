@@ -1,5 +1,4 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, FileDown, GraduationCap, Layers3, Menu, Save, UsersRound, X } from 'lucide-react'
 
 import { NotificationBell } from '../components/NotificationBell'
@@ -12,11 +11,10 @@ import {
   getAttendanceDateKey,
   loadFacultyBatchAttendanceState,
   resolveBatchAttendanceWindow,
-  resolveFacultyBatchAttendanceStatus,
   resolveTodayFacultyAttendanceStatus,
   saveFacultyBatchAttendanceState,
 } from '../lib/facultyAttendanceStore'
-import { buildFacultyCoursePath, enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
+import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
 import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
@@ -49,6 +47,22 @@ function formatDisplayDate(value) {
     month: 'short',
     year: 'numeric',
   }).format(date)
+}
+
+function formatDisplayTime(value) {
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+function formatMinutesLabel(value = 0) {
+  const count = Math.max(0, Math.floor(Number(value) || 0))
+  return `${count} minute${count === 1 ? '' : 's'}`
 }
 
 function useCurrentFacultyProfile() {
@@ -670,7 +684,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
-  const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const activeFaculty = latestFaculty || null
 
   useEffect(() => {
@@ -733,16 +746,13 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       }),
     [activeFaculty, latestFaculty, facultyCourseIds, backfilledStudents],
   )
-  const activeStudentCount = matchingStudents.filter((student) =>
-    ['active', 'present', 'ongoing'].includes(String(student?.status || student?.currentStatus || '').trim().toLowerCase()),
-  ).length
   const totalStudents = Number(batchesSummary?.totalStudents || 0) || batchLinkedStudentCount || courseScopedStudentCount || matchingStudents.length
   const dashboardTotalBatchCount = Number(batchesSummary?.totalBatches || 0) || (Array.isArray(activeFaculty?.batchEntries)
     ? activeFaculty.batchEntries.length
     : Number(activeFaculty?.batchCount || 0) || 0)
   const facultyAttendanceStatus = useMemo(
     () => resolveTodayFacultyAttendanceStatus(facultyAttendanceId || profileName),
-    [facultyAttendanceId, profileName, attendanceRefreshToken],
+    [facultyAttendanceId, profileName],
   )
   const summaryCards = [
     {
@@ -900,7 +910,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
 export function FacultyMyBatchesPage() {
   const openMenu = useMobileMenu()
-  const navigate = useNavigate()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
   const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
@@ -911,10 +920,14 @@ export function FacultyMyBatchesPage() {
   const [selectedBatchView, setSelectedBatchView] = useState('details')
   const [selectedBatchAttendanceDraft, setSelectedBatchAttendanceDraft] = useState({})
   const [selectedBatchAttendanceMessage, setSelectedBatchAttendanceMessage] = useState('')
+  const [selectedBatchAttendanceState, setSelectedBatchAttendanceState] = useState(null)
+  const [selectedBatchAttendanceMode, setSelectedBatchAttendanceMode] = useState('regular')
   const [selectedBulkAttendance, setSelectedBulkAttendance] = useState('')
   const [attendanceSavePopup, setAttendanceSavePopup] = useState(null)
+  const [attendanceReminderPopup, setAttendanceReminderPopup] = useState(null)
   const [attendanceReportRequest, setAttendanceReportRequest] = useState(null)
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
+  const attendanceReminderShownRef = useRef(new Set())
 
   const profileName = latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
@@ -998,6 +1011,15 @@ export function FacultyMyBatchesPage() {
 
     if (!displayFaculty) return []
 
+    const getSavedBatchAttendanceCounts = (state = null) => {
+      const records = state && typeof state.records === 'object' && !Array.isArray(state.records) ? state.records : {}
+      const statuses = Object.values(records).map((value) => normalizeAttendanceChoice(value))
+      return {
+        present: statuses.filter((status) => status === 'Present').length,
+        absent: statuses.filter((status) => status === 'Absent').length,
+      }
+    }
+
     const courseRecords = getFacultyCourses(displayFaculty, courseOptions)
     const fallbackCourseName = String(displayFaculty?.courseName || '').trim()
     const fallbackCourseId = String(displayFaculty?.courseId || '').trim()
@@ -1021,13 +1043,6 @@ export function FacultyMyBatchesPage() {
         const batchName = String(batch?.batchName || '').trim() || `Batch ${Number(batch?.sequenceNo || batchIndex + 1) || batchIndex + 1}`
         const batchTiming = String(batch?.batchTiming || '').trim()
         const batchSummary = getBatchSummaryForRow(batch, batchIndex)
-        const batchAttendance = resolveFacultyBatchAttendanceStatus(displayFaculty || {}, {
-          batchName,
-          batchTiming,
-          id: batch?.id || '',
-          label: batchName,
-          timing: batchTiming,
-        })
         const localStudentRecords = getFacultyBatchStudentRecords(backfilledStudents, {
           facultyName: displayFaculty?.facultyName || latestFaculty?.facultyName || '',
           facultyId: displayFaculty?.id || latestFaculty?.id || '',
@@ -1038,8 +1053,17 @@ export function FacultyMyBatchesPage() {
         })
         const studentRecords = Array.isArray(batchSummary.studentRecords) && batchSummary.studentRecords.length ? batchSummary.studentRecords : localStudentRecords
         const studentCount = Number(batchSummary.studentCount || studentRecords.length || localStudentRecords.length || 0) || 0
-        const present = batchAttendance.status === 'Present' ? studentCount : 0
-        const absent = batchAttendance.status === 'Present' ? 0 : studentCount
+        const savedAttendanceState = loadFacultyBatchAttendanceState(
+          displayFaculty?.id || latestFaculty?.id || '',
+          displayFaculty?.facultyName || latestFaculty?.facultyName || '',
+          profileInitials,
+          batch?.id || '',
+          batchName,
+          batchTiming,
+        )
+        const attendanceCounts = getSavedBatchAttendanceCounts(savedAttendanceState)
+        const present = attendanceCounts.present
+        const absent = attendanceCounts.absent
         const progress = getBatchProgressValue(present, studentCount)
 
         return {
@@ -1069,7 +1093,7 @@ export function FacultyMyBatchesPage() {
         groupProgress,
       }
     })
-  }, [attendanceRefreshToken, backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id])
+  }, [attendanceRefreshToken, backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id, profileInitials])
 
   const openCourseAttendanceReport = (group) => {
     if (!group) return
@@ -1176,10 +1200,81 @@ export function FacultyMyBatchesPage() {
     () => getBatchAttendanceProgress(selectedBatchAttendanceDraft),
     [selectedBatchAttendanceDraft],
   )
-  const isSelectedBatchAttendanceEditable = Boolean(selectedBatchContext) && selectedBatchWindow.isEditable
-  const selectedBatchWindowMessage = isSelectedBatchAttendanceEditable
-    ? selectedBatchAttendanceMessage
-    : selectedBatchWindow.reason
+  const hasSelectedBatchAttendanceSubmitted = Boolean(selectedBatchAttendanceState)
+  const isSelectedBatchAttendanceLateMode = selectedBatchAttendanceMode === 'late'
+  const isSelectedBatchAttendanceEditable =
+    Boolean(selectedBatchContext) &&
+    !hasSelectedBatchAttendanceSubmitted &&
+    (isSelectedBatchAttendanceLateMode ? selectedBatchWindow.isLateAvailable : selectedBatchWindow.isEditable)
+  const selectedBatchActionButtonLabel =
+    hasSelectedBatchAttendanceSubmitted || selectedBatchWindow.phase !== 'closed' ? 'Attendance' : 'Late Attendance'
+  const selectedBatchStatusLabel = hasSelectedBatchAttendanceSubmitted
+    ? String(selectedBatchAttendanceState?.submissionMode || '').trim().toLowerCase() === 'late'
+      ? 'Late Submitted'
+      : 'Attendance Submitted'
+    : isSelectedBatchAttendanceLateMode
+      ? 'Late Attendance'
+    : selectedBatchWindow.statusLabel
+  const selectedBatchWindowMessage = hasSelectedBatchAttendanceSubmitted
+    ? String(selectedBatchAttendanceState?.submissionMode || '').trim().toLowerCase() === 'late'
+      ? 'Late attendance already submitted for today.'
+      : 'Attendance already submitted for today.'
+    : isSelectedBatchAttendanceLateMode
+      ? selectedBatchAttendanceMessage || selectedBatchWindow.reason
+      : selectedBatchWindow.isEditable || selectedBatchWindow.isReminder
+        ? selectedBatchAttendanceMessage || selectedBatchWindow.reason
+        : selectedBatchWindow.reason
+  const selectedBatchStatusToneClass =
+    hasSelectedBatchAttendanceSubmitted || selectedBatchWindow.isEditable || selectedBatchWindow.isReminder || isSelectedBatchAttendanceLateMode
+      ? 'active'
+      : 'locked'
+  const selectedBatchCurrentTimeLabel = formatDisplayTime(currentDateTime)
+  const selectedBatchLateByLabel = selectedBatchWindow.phase === 'closed' ? formatMinutesLabel(selectedBatchWindow.lateByMinutes) : ''
+
+  const openSelectedBatchAttendance = (mode = 'regular') => {
+    if (!selectedBatchContext) return
+
+    const normalizedMode = mode === 'late' ? 'late' : 'regular'
+    setSelectedBatchAttendanceMode(normalizedMode)
+    setSelectedBatchView('attendance')
+    setAttendanceReminderPopup(null)
+    setSelectedBatchAttendanceMessage(
+      normalizedMode === 'late'
+        ? `This attendance is being submitted after the batch end time and will be recorded as Late Attendance.`
+        : selectedBatchWindow.reason,
+    )
+  }
+
+  useEffect(() => {
+    if (!selectedBatchContext || hasSelectedBatchAttendanceSubmitted || !selectedBatchWindow.isReminder || isSelectedBatchAttendanceLateMode) {
+      return undefined
+    }
+
+    const reminderKey = `${selectedBatchContext.batchId || ''}:${selectedBatchWindow.dateKey || ''}:${selectedBatchContext.batchTiming || ''}`
+    if (attendanceReminderShownRef.current.has(reminderKey)) {
+      return undefined
+    }
+
+    attendanceReminderShownRef.current.add(reminderKey)
+    setAttendanceReminderPopup({
+      title: 'Attendance Reminder',
+      courseName: selectedBatchContext.courseName || 'Course',
+      batchName: selectedBatchContext.batchName || 'Batch',
+      batchTiming: selectedBatchContext.batchTiming || '',
+      endTime: selectedBatchWindow.endDateTime || null,
+      remainingMinutes: selectedBatchWindow.minutesUntilEnd || 5,
+    })
+
+    return undefined
+  }, [
+    hasSelectedBatchAttendanceSubmitted,
+    isSelectedBatchAttendanceLateMode,
+    selectedBatchContext,
+    selectedBatchWindow.dateKey,
+    selectedBatchWindow.endDateTime,
+    selectedBatchWindow.isReminder,
+    selectedBatchWindow.minutesUntilEnd,
+  ])
 
   const openBatchStudents = (group, batch) => {
     if (!group || !batch) return
@@ -1205,13 +1300,24 @@ export function FacultyMyBatchesPage() {
     )
 
     const batchWindow = resolveBatchAttendanceWindow(nextContext.batchTiming || '', currentDateTime)
+    const isSubmitted = Boolean(savedState)
+    const isLateSubmitted = String(savedState?.submissionMode || '').trim().toLowerCase() === 'late'
 
     setSelectedBatchContext(nextContext)
-    setSelectedBatchView('details')
+    setSelectedBatchAttendanceState(savedState)
+    setSelectedBatchAttendanceMode(isLateSubmitted ? 'late' : 'regular')
+    setSelectedBatchView(batchWindow.isEditable ? 'attendance' : 'details')
     setSelectedBatchAttendanceDraft(buildBatchAttendanceDraft(nextContext.students || [], savedState?.records || savedState?.attendance || {}))
     setSelectedBulkAttendance('')
     setAttendanceSavePopup(null)
-    setSelectedBatchAttendanceMessage(savedState ? '' : batchWindow.isEditable ? 'Attendance is open for this batch.' : batchWindow.reason)
+    setAttendanceReminderPopup(null)
+    setSelectedBatchAttendanceMessage(
+      isSubmitted
+        ? isLateSubmitted
+          ? 'Late attendance already submitted for today.'
+          : 'Attendance already submitted for today.'
+        : batchWindow.reason,
+    )
   }
 
   const closeBatchStudents = () => {
@@ -1219,8 +1325,11 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchView('details')
     setSelectedBatchAttendanceDraft({})
     setSelectedBatchAttendanceMessage('')
+    setSelectedBatchAttendanceState(null)
+    setSelectedBatchAttendanceMode('regular')
     setSelectedBulkAttendance('')
     setAttendanceSavePopup(null)
+    setAttendanceReminderPopup(null)
     setAttendanceReportRequest(null)
   }
 
@@ -1266,6 +1375,8 @@ export function FacultyMyBatchesPage() {
       studentId: student.id,
       status: String(selectedBatchAttendanceDraft?.[student.id] || '').trim().toUpperCase(),
     }))
+    const submissionMode = isSelectedBatchAttendanceLateMode ? 'late' : 'regular'
+    const submittedAt = currentDateTime.toISOString()
 
     try {
       await markFacultyStudentAttendance({
@@ -1273,8 +1384,24 @@ export function FacultyMyBatchesPage() {
         facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
         courseId: selectedBatchContext.courseId || '',
         batchName: selectedBatchContext.batchName || '',
+        submissionMode: submissionMode.toUpperCase(),
+        submittedAt,
         students,
       })
+
+      const savedPayload = {
+        dateKey: getAttendanceDateKey(currentDateTime),
+        facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
+        facultyName: selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
+        profileInitials,
+        batchId: selectedBatchContext.batchId || '',
+        batchName: selectedBatchContext.batchName || '',
+        batchTiming: selectedBatchContext.batchTiming || '',
+        records: selectedBatchAttendanceDraft,
+        updatedAt: currentDateTime.getTime(),
+        submittedAt,
+        submissionMode,
+      }
 
       saveFacultyBatchAttendanceState(
         selectedBatchContext.facultyId || facultyAttendanceId,
@@ -1283,24 +1410,20 @@ export function FacultyMyBatchesPage() {
         selectedBatchContext.batchId || '',
         selectedBatchContext.batchName || '',
         selectedBatchContext.batchTiming || '',
-        {
-          dateKey: getAttendanceDateKey(currentDateTime),
-          facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
-          facultyName: selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
-          profileInitials,
-          batchId: selectedBatchContext.batchId || '',
-          batchName: selectedBatchContext.batchName || '',
-          batchTiming: selectedBatchContext.batchTiming || '',
-          records: selectedBatchAttendanceDraft,
-          updatedAt: currentDateTime.getTime(),
-        },
+        savedPayload,
       )
 
-      setSelectedBatchAttendanceMessage('Attendance saved successfully for today.')
+      setSelectedBatchAttendanceState(savedPayload)
+      setSelectedBatchAttendanceMessage(
+        submissionMode === 'late' ? 'Late attendance saved successfully for today.' : 'Attendance saved successfully for today.',
+      )
       setSelectedBulkAttendance('')
       setAttendanceSavePopup({
-        title: 'Attendance Saved',
-        message: 'Attendance has been saved successfully for today.',
+        title: submissionMode === 'late' ? 'Late Attendance Saved' : 'Attendance Saved',
+        message:
+          submissionMode === 'late'
+            ? 'Late attendance has been saved successfully for today.'
+            : 'Attendance has been saved successfully for today.',
       })
     } catch (error) {
       setSelectedBatchAttendanceMessage(error?.body?.message || error?.message || 'Unable to save attendance right now.')
@@ -1422,19 +1545,6 @@ export function FacultyMyBatchesPage() {
                     <FileDown size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
                     <span>Generate Attendance Report</span>
                   </button>
-                  <button
-                    type="button"
-                    className="faculty-course-details-button"
-                    aria-label={`${group.courseName || 'Course'} details`}
-                    onClick={() => {
-                      if (!activeFaculty?.id || !group.courseId) return
-                      navigate(buildFacultyCoursePath(activeFaculty.id, group.courseId))
-                    }}
-                  >
-                    <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
-                    <span>Course Details</span>
-                    <ChevronDown size={14} strokeWidth={2.3} aria-hidden="true" focusable="false" />
-                  </button>
                 </div>
               </div>
 
@@ -1482,18 +1592,15 @@ export function FacultyMyBatchesPage() {
                         <UsersRound size={12} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                         {batch.present} Present
                       </span>
-                      <span className="faculty-batch-table-absent">{batch.absent} Absent</span>
+                      <span className="faculty-batch-table-absent">
+                        <UsersRound size={12} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                        {batch.absent} Absent
+                      </span>
                     </div>
 
                     <div className="faculty-batch-table-cell faculty-batch-table-actions" role="cell">
                       <button type="button" aria-label={`${batch.label} student details`} onClick={() => openBatchStudents(group, batch)}>
                         <UsersRound size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
-                      </button>
-                      <button type="button" aria-label={`${batch.label} schedule`}>
-                        <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
-                      </button>
-                      <button type="button" aria-label={`${batch.label} progress`}>
-                        <Check size={14} strokeWidth={2.3} aria-hidden="true" focusable="false" />
                       </button>
                     </div>
                   </div>
@@ -1563,24 +1670,74 @@ export function FacultyMyBatchesPage() {
                   <FileDown size={16} />
                   <span>Generate Attendance Report</span>
                 </button>
-                <div className={`batch-student-status ${isSelectedBatchAttendanceEditable ? 'active' : 'locked'}`.trim()}>
+                <div className={`batch-student-status ${selectedBatchStatusToneClass}`.trim()}>
                   <Clock3 size={16} />
-                  <span>{isSelectedBatchAttendanceEditable ? 'Attendance Open' : 'Attendance Locked'}</span>
+                  <span>{selectedBatchStatusLabel}</span>
                 </div>
                 <button
                   type="button"
-                  className={`batch-student-view-button ${selectedBatchView === 'attendance' ? 'is-active' : ''}`.trim()}
-                  onClick={() => setSelectedBatchView('attendance')}
-                  disabled={!selectedBatchStudents.length}
+                  className={`batch-student-view-button ${selectedBatchActionButtonLabel === 'Late Attendance' ? 'secondary' : ''} ${selectedBatchView === 'attendance' ? 'is-active' : ''}`.trim()}
+                  onClick={() => openSelectedBatchAttendance(selectedBatchActionButtonLabel === 'Late Attendance' ? 'late' : 'regular')}
+                  disabled={!selectedBatchStudents.length || (!hasSelectedBatchAttendanceSubmitted && selectedBatchWindow.phase === 'pre-open')}
                 >
                   <Check size={16} />
-                  <span>Attendance</span>
+                  <span>{selectedBatchActionButtonLabel}</span>
                 </button>
               </div>
             </div>
 
+            {selectedBatchView === 'attendance' && isSelectedBatchAttendanceLateMode ? (
+              <div className="batch-late-attendance-card" role="presentation">
+                <div className="batch-late-attendance-head">
+                  <strong>{selectedBatchContext.courseName}</strong>
+                  <span className="batch-late-attendance-badge">Late Attendance</span>
+                </div>
+
+                <div className="batch-student-modal-header-meta batch-late-attendance-meta">
+                  <span>
+                    <strong>Scheduled time</strong>
+                    <small>{selectedBatchContext.batchTiming || '-'}</small>
+                  </span>
+                  <span>
+                    <strong>Current time</strong>
+                    <small>{selectedBatchCurrentTimeLabel}</small>
+                  </span>
+                  <span>
+                    <strong>Late by</strong>
+                    <small>{selectedBatchLateByLabel || '-'}</small>
+                  </span>
+                </div>
+
+                <div className="batch-late-attendance-warning" role="note" aria-label="Late submission warning">
+                  <div className="batch-late-attendance-warning-title">
+                    <span className="batch-late-attendance-warning-icon" aria-hidden="true">
+                      <Clock3 size={16} strokeWidth={2.4} />
+                    </span>
+                    <strong>Late submission warning</strong>
+                  </div>
+                  <p>This attendance is being submitted after the batch end time and will be recorded as <b>Late Attendance</b>.</p>
+                </div>
+
+                <div className="batch-late-attendance-footer">
+                  <button
+                    type="button"
+                    className="batch-late-attendance-submit"
+                    onClick={saveBatchAttendance}
+                    disabled={!isSelectedBatchAttendanceEditable || !selectedBatchAttendanceSummary.isComplete}
+                  >
+                    <Check size={16} />
+                    <span>Submit Late Attendance</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             {selectedBatchWindowMessage ? (
-              <p className={`batch-student-window-note ${isSelectedBatchAttendanceEditable ? 'is-open' : 'is-locked'}`.trim()}>
+              <p
+                className={`batch-student-window-note ${
+                  hasSelectedBatchAttendanceSubmitted || isSelectedBatchAttendanceEditable ? 'is-open' : selectedBatchWindow.phase === 'closed' ? 'is-late' : 'is-locked'
+                }`.trim()}
+              >
                 {selectedBatchWindowMessage}
               </p>
             ) : null}
@@ -1724,7 +1881,7 @@ export function FacultyMyBatchesPage() {
                       <span className="batch-student-pagination-count">1 of 4</span>
                     </div>
 
-                    {selectedBatchView === 'attendance' ? (
+                    {selectedBatchView === 'attendance' && !isSelectedBatchAttendanceLateMode ? (
                       <button
                         type="button"
                         className="batch-student-save-button"
@@ -1766,6 +1923,47 @@ export function FacultyMyBatchesPage() {
             </div>
             <button type="button" className="batch-attendance-popup-button" onClick={closeAttendanceSavePopup}>
               OK
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {attendanceReminderPopup ? (
+        <div className="batch-attendance-popup-backdrop" role="presentation" onClick={() => setAttendanceReminderPopup(null)}>
+          <div
+            className="batch-attendance-popup panel-card batch-attendance-reminder-popup"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="batch-attendance-reminder-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="batch-reminder-head">
+              <span className="batch-reminder-pill">Reminder</span>
+              <h3 id="batch-attendance-reminder-title">{attendanceReminderPopup.title}</h3>
+            </div>
+            <div className="batch-reminder-divider" aria-hidden="true" />
+            <div className="batch-reminder-body">
+              <strong>{attendanceReminderPopup.courseName}</strong>
+              <p>You haven&apos;t marked attendance for this batch.</p>
+              <div className="batch-reminder-note">
+                <div className="batch-reminder-note-title">
+                  <span className="batch-reminder-note-icon" aria-hidden="true">
+                    <Clock3 size={16} strokeWidth={2.4} />
+                  </span>
+                  <strong>This batch ends in {formatMinutesLabel(attendanceReminderPopup.remainingMinutes)}.</strong>
+                </div>
+                <p>Please submit attendance before {formatDisplayTime(attendanceReminderPopup.endTime || selectedBatchWindow.endDateTime || currentDateTime)}.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="batch-attendance-popup-button batch-attendance-reminder-button"
+              onClick={() => {
+                setAttendanceReminderPopup(null)
+                openSelectedBatchAttendance('regular')
+              }}
+            >
+              Mark Attendance
             </button>
           </div>
         </div>

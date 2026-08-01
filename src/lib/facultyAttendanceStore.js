@@ -251,6 +251,8 @@ export function getBatchEndDateTime(batchTiming = '', dateKey = getAttendanceDat
   return getAttendanceDateTime(dateKey, parseBatchEndTime(batchTiming))
 }
 
+const BATCH_ATTENDANCE_REMINDER_WINDOW_MINUTES = 5
+
 export function resolveBatchAttendanceWindow(batchTiming = '', now = new Date()) {
   const dateKey = getAttendanceDateKey(now)
   const startDateTime = getBatchStartDateTime(batchTiming, dateKey)
@@ -269,18 +271,50 @@ export function resolveBatchAttendanceWindow(batchTiming = '', now = new Date())
 
   const startTime = startDateTime.getTime()
   const endTime = endDateTime.getTime()
-  const isEditable = Number.isFinite(nowTime) && nowTime >= startTime && nowTime <= endTime
+  const isBeforeStart = Number.isFinite(nowTime) && nowTime < startTime
+  const isAfterEnd = Number.isFinite(nowTime) && nowTime > endTime
+  const remainingMs = endTime - nowTime
+  const elapsedMs = nowTime - endTime
+  const isWithinReminderWindow =
+    Number.isFinite(nowTime) &&
+    nowTime >= startTime &&
+    nowTime <= endTime &&
+    remainingMs <= BATCH_ATTENDANCE_REMINDER_WINDOW_MINUTES * 60 * 1000
+  const phase = isBeforeStart ? 'pre-open' : isAfterEnd ? 'closed' : isWithinReminderWindow ? 'reminder' : 'open'
+  const isEditable = phase === 'open' || phase === 'reminder'
+  const isLateAvailable = phase === 'closed'
+  const lateByMinutes = isAfterEnd ? Math.max(1, Math.floor(elapsedMs / 60000)) : 0
+  const minutesUntilEnd = phase === 'reminder' ? Math.max(0, Math.ceil(remainingMs / 60000)) : 0
+  const statusLabel =
+    phase === 'pre-open'
+      ? 'Attendance Closed'
+      : phase === 'reminder'
+        ? 'Attendance Reminder'
+        : phase === 'open'
+          ? 'Attendance Open'
+          : 'Closed automatically'
+  const message =
+    phase === 'pre-open'
+      ? `Attendance will open at ${formatAttendanceTimeLabel(startDateTime)}.`
+      : phase === 'reminder'
+        ? `Attendance Reminder: Please submit before ${formatAttendanceTimeLabel(endDateTime)}.`
+        : phase === 'open'
+          ? 'Attendance is open for this batch right now.'
+          : `Attendance closed automatically at ${formatAttendanceTimeLabel(endDateTime)}. Late Attendance required.`
 
   return {
     dateKey,
     startDateTime,
     endDateTime,
+    phase,
     isEditable,
-    reason: isEditable
-      ? 'Attendance is open for this batch right now.'
-      : nowTime < startTime
-        ? 'Attendance will open when this batch starts.'
-        : 'Attendance is closed for today.',
+    isReminder: phase === 'reminder',
+    isLateAvailable,
+    lateByMinutes,
+    minutesUntilEnd,
+    statusLabel,
+    reason: message,
+    message,
   }
 }
 
@@ -452,35 +486,6 @@ function getBatchAttendanceRecordStatus(state = {}, student = {}) {
   }
 
   return ''
-}
-
-function isSavedBatchAttendanceRelevantToStudent(state = {}, student = {}) {
-  const facultyName = normalizeText(state?.facultyName || '')
-  const studentFacultyName = normalizeText(student?.facultyName || '')
-  const facultyId = String(state?.facultyId || '').trim().toLowerCase()
-  const studentFacultyId = String(student?.facultyId || '').trim().toLowerCase()
-  const batchName = normalizeText(state?.batchName || '')
-  const batchTiming = normalizeText(state?.batchTiming || '')
-  const batchId = String(state?.batchId || '').trim().toLowerCase()
-  const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
-  const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
-  const studentBatchTiming = normalizeText(student?.batchTiming || student?.batchTime || '')
-  const studentBatchId = String(student?.batchId || '').trim().toLowerCase()
-  const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
-  const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
-  const stateCourseId = String(state?.courseId || '').trim().toLowerCase()
-  const stateCourseName = normalizeText(state?.courseName || '')
-
-  return Boolean(
-    (facultyId && studentFacultyId && facultyId === studentFacultyId) ||
-      (facultyName && studentFacultyName && facultyName === studentFacultyName) ||
-      (batchId && studentBatchId && batchId === studentBatchId) ||
-      (batchName && studentBatchName && batchName === studentBatchName) ||
-      (batchName && studentBatchToken && batchName === studentBatchToken) ||
-      (batchTiming && studentBatchTiming && batchTiming === studentBatchTiming) ||
-      (stateCourseId && studentCourseId && stateCourseId === studentCourseId) ||
-      (stateCourseName && studentCourseName && stateCourseName === studentCourseName),
-  )
 }
 
 function getSavedBatchAttendanceMatchScore(state = {}, student = {}) {
