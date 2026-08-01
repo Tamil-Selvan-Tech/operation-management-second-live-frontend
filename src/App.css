@@ -14453,6 +14453,129 @@ tbody tr:hover {
   height: 16px;
 }
 
+.faculty-my-batches-page .faculty-my-batches-reminder-banner {
+  position: relative;
+  overflow: hidden;
+  margin-top: 18px;
+  padding: 18px 20px 18px 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(250, 204, 21, 0.32);
+  background:
+    radial-gradient(circle at top left, rgba(251, 191, 36, 0.2), transparent 28%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 22%),
+    linear-gradient(180deg, #fffdf3 0%, #fff8ea 100%);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 7px;
+  background: linear-gradient(180deg, #f59e0b 0%, #f97316 100%);
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  box-shadow: 0 14px 28px rgba(245, 158, 11, 0.22);
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-copy {
+  flex: 1 1 320px;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding-right: 8px;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-copy-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-kicker {
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  color: #b45309;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.71rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-copy strong {
+  color: #111827;
+  font-size: 1.02rem;
+  font-weight: 950;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-text {
+  color: #92400e;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-chip {
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(245, 158, 11, 0.16);
+  color: #a16207;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-chip.is-muted {
+  background: rgba(255, 255, 255, 0.62);
+  color: #7c2d12;
+}
+
+.faculty-my-batches-page .faculty-my-batches-reminder-banner-button {
+  min-height: 46px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, #1d4ed8 0%, #1e40af 100%);
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.88rem;
+  font-weight: 950;
+  box-shadow: 0 16px 28px rgba(29, 78, 216, 0.2);
+  letter-spacing: 0.01em;
+}
+
 .faculty-my-batches-page .batch-student-status {
   min-height: 44px;
   padding: 0 18px;

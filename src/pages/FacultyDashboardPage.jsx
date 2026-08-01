@@ -1266,6 +1266,45 @@ export function FacultyMyBatchesPage() {
     })
   }, [attendanceRefreshToken, backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id, profileInitials])
 
+  const pageAttendanceReminder = useMemo(() => {
+    if (!facultyCourseGroups.length) return null
+
+    const facultyId = displayFaculty?.id || latestFaculty?.id || ''
+    const facultyName = displayFaculty?.facultyName || latestFaculty?.facultyName || ''
+
+    for (const group of facultyCourseGroups) {
+      for (const batch of Array.isArray(group.batches) ? group.batches : []) {
+        const batchTiming = String(batch?.timing || '').trim()
+        const batchWindow = resolveBatchAttendanceWindow(batchTiming, currentDateTime)
+        if (!batchWindow.isReminder) continue
+
+        const savedAttendanceState = loadFacultyBatchAttendanceState(
+          facultyId,
+          facultyName,
+          profileInitials,
+          batch?.id || '',
+          batch?.label || '',
+          batchTiming,
+        )
+
+        if (savedAttendanceState) continue
+
+        return {
+          group,
+          batch,
+          batchWindow,
+          courseName: String(group.courseName || group.courseId || 'Course').trim(),
+          batchName: String(batch?.label || 'Batch').trim(),
+          batchTiming,
+          remainingMinutes: batchWindow.minutesUntilEnd,
+          endTimeLabel: formatDisplayTime(batchWindow.endDateTime || currentDateTime),
+        }
+      }
+    }
+
+    return null
+  }, [currentDateTime, displayFaculty?.facultyName, displayFaculty?.id, facultyCourseGroups, latestFaculty?.facultyName, latestFaculty?.id, profileInitials])
+
   const openCourseAttendanceReport = (group) => {
     if (!group) return
 
@@ -1447,6 +1486,22 @@ export function FacultyMyBatchesPage() {
     selectedBatchWindow.minutesUntilEnd,
   ])
 
+  useEffect(() => {
+    if (!attendanceReminderPopup) return undefined
+
+    if (!selectedBatchContext || hasSelectedBatchAttendanceSubmitted || isSelectedBatchAttendanceLateMode || !selectedBatchWindow.isReminder) {
+      setAttendanceReminderPopup(null)
+    }
+
+    return undefined
+  }, [
+    attendanceReminderPopup,
+    hasSelectedBatchAttendanceSubmitted,
+    isSelectedBatchAttendanceLateMode,
+    selectedBatchContext,
+    selectedBatchWindow.isReminder,
+  ])
+
   const openBatchStudents = (group, batch) => {
     if (!group || !batch) return
 
@@ -1553,8 +1608,12 @@ export function FacultyMyBatchesPage() {
       await markFacultyStudentAttendance({
         date: getAttendanceDateKey(currentDateTime),
         facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
+        facultyName: selectedBatchContext.facultyName || latestFaculty?.facultyName || '',
         courseId: selectedBatchContext.courseId || '',
+        courseName: selectedBatchContext.courseName || '',
+        batchId: selectedBatchContext.batchId || '',
         batchName: selectedBatchContext.batchName || '',
+        batchTiming: selectedBatchContext.batchTiming || '',
         submissionMode: submissionMode.toUpperCase(),
         submittedAt,
         students,
@@ -1659,6 +1718,37 @@ export function FacultyMyBatchesPage() {
           {profileChip}
         </div>
       </header>
+
+      {pageAttendanceReminder ? (
+        <div className="faculty-my-batches-reminder-banner" role="alert" aria-live="polite">
+          <div className="faculty-my-batches-reminder-banner-icon" aria-hidden="true">
+            <Clock3 size={18} strokeWidth={2.4} />
+          </div>
+          <div className="faculty-my-batches-reminder-banner-copy">
+            <div className="faculty-my-batches-reminder-banner-copy-head">
+              <span className="faculty-my-batches-reminder-banner-kicker">Reminder</span>
+              <strong>Attendance closing soon</strong>
+            </div>
+            <span className="faculty-my-batches-reminder-banner-text">
+              {pageAttendanceReminder.courseName} - {pageAttendanceReminder.batchName}
+              {pageAttendanceReminder.batchTiming ? ` (${pageAttendanceReminder.batchTiming})` : ''} ends in {formatMinutesLabel(pageAttendanceReminder.remainingMinutes)}.
+            </span>
+            <div className="faculty-my-batches-reminder-banner-chips">
+              <span className="faculty-my-batches-reminder-banner-chip">Closes at {pageAttendanceReminder.endTimeLabel}</span>
+              <span className="faculty-my-batches-reminder-banner-chip is-muted">
+                Only {formatMinutesLabel(pageAttendanceReminder.remainingMinutes)} left
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="faculty-my-batches-reminder-banner-button"
+            onClick={() => openBatchStudents(pageAttendanceReminder.group, pageAttendanceReminder.batch)}
+          >
+            Open Attendance
+          </button>
+        </div>
+      ) : null}
 
       <div className="student-summary-strip faculty-summary-strip faculty-my-batches-summary-grid" aria-label="My batches summary cards">
         {summaryCards.map((card) => (

@@ -319,8 +319,12 @@ export function BatchStudentsPage() {
       const result = await markFacultyStudentAttendance({
         date: getTodayValue(),
         facultyId,
+        facultyName: selectedFaculty?.facultyName || '',
         courseId,
+        courseName,
+        batchId,
         batchName,
+        batchTiming,
         students: studentsToSave,
       })
       setAttendanceOverview(result)

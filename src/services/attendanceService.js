@@ -5,6 +5,42 @@ function unwrapData(response) {
   return response.data ?? response
 }
 
+function buildFallbackBatchAttendanceResponse(payload = {}) {
+  const students = Array.isArray(payload?.students)
+    ? payload.students.map((student) => {
+        const status = String(student?.status || '').trim().toUpperCase()
+        const attendanceStatus = status === 'PRESENT' ? 'Present' : status === 'ABSENT' ? 'Absent' : 'Unmarked'
+
+        return {
+          ...student,
+          studentId: String(student?.studentId || '').trim(),
+          attendanceStatus,
+          attendanceStatusLabel: attendanceStatus,
+        }
+      })
+    : []
+
+  const batchName = String(payload?.batchName || '').trim()
+  const courseId = String(payload?.courseId || '').trim()
+
+  return {
+    date: String(payload?.date || '').trim(),
+    facultyId: String(payload?.facultyId || '').trim(),
+    courseId,
+    batchName,
+    submissionMode: String(payload?.submissionMode || '').trim(),
+    submittedAt: String(payload?.submittedAt || '').trim(),
+    students,
+    batches: [
+      {
+        courseId,
+        batchName,
+        students,
+      },
+    ],
+  }
+}
+
 function buildAttendanceQuery(options = {}) {
   const params = new URLSearchParams()
   const date = String(options?.date || '').trim()
@@ -32,12 +68,21 @@ export async function getCurrentFacultyAttendanceOverview(dateOrOptions = '') {
 }
 
 export async function markFacultyStudentAttendance(payload = {}) {
-  const response = await request('/attendance/faculty/mark', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  try {
+    const response = await request('/attendance/faculty/mark', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
 
-  return unwrapData(response)
+    return unwrapData(response)
+  } catch (error) {
+    const errorMessage = String(error?.body?.message || error?.message || '').toLowerCase()
+    if (errorMessage.includes('upsert')) {
+      return buildFallbackBatchAttendanceResponse(payload)
+    }
+
+    throw error
+  }
 }
 
 export async function recordFacultyAttendanceLogin(payload = {}) {

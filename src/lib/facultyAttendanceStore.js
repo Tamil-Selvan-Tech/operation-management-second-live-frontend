@@ -274,18 +274,19 @@ export function resolveBatchAttendanceWindow(batchTiming = '', now = new Date())
   const startTime = startDateTime.getTime()
   const endTime = endDateTime.getTime()
   const isBeforeStart = Number.isFinite(nowTime) && nowTime < startTime
+  const isAtOrAfterEnd = Number.isFinite(nowTime) && nowTime >= endTime
   const isAfterEnd = Number.isFinite(nowTime) && nowTime > endTime
   const remainingMs = endTime - nowTime
   const elapsedMs = nowTime - endTime
   const isWithinReminderWindow =
     Number.isFinite(nowTime) &&
     nowTime >= startTime &&
-    nowTime <= endTime &&
+    nowTime < endTime &&
     remainingMs <= BATCH_ATTENDANCE_REMINDER_WINDOW_MINUTES * 60 * 1000
-  const phase = isBeforeStart ? 'pre-open' : isAfterEnd ? 'closed' : isWithinReminderWindow ? 'reminder' : 'open'
+  const phase = isBeforeStart ? 'pre-open' : isAtOrAfterEnd ? 'closed' : isWithinReminderWindow ? 'reminder' : 'open'
   const isEditable = phase === 'open' || phase === 'reminder'
   const isLateAvailable = phase === 'closed'
-  const lateByMinutes = isAfterEnd ? Math.max(1, Math.floor(elapsedMs / 60000)) : 0
+  const lateByMinutes = isAfterEnd ? Math.max(1, Math.ceil(elapsedMs / 60000)) : 0
   const minutesUntilEnd = phase === 'reminder' ? Math.max(0, Math.ceil(remainingMs / 60000)) : 0
   const statusLabel =
     phase === 'pre-open'

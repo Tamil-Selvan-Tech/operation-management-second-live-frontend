@@ -29,12 +29,11 @@ import { PaginationBar } from '../components/PaginationBar'
 import { roleDashboards } from '../data/authData'
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { saveStudentRecords } from '../data/studentRecords'
-import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
+import { COURSE_RECORD_SYNC_EVENT } from '../data/courseRecords'
 import { listCourses } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
 import { downloadBatchAttendanceReport, downloadStudentAttendanceReport } from '../services/reportService'
 import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
-import { normalizeCourseList } from '../services/courseService'
 import { savePendingLoginEmail } from '../lib/session'
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
 import { FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, resolveStudentBatchAttendanceStatus } from '../lib/facultyAttendanceStore'
@@ -146,109 +145,6 @@ function formatDate(value) {
     month: 'short',
     year: 'numeric',
   }).format(date)
-}
-
-function formatReportDate(value) {
-  if (!value) return ''
-
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return ''
-
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date)
-}
-
-function formatReportFileDate(value) {
-  if (!value) return ''
-
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return ''
-
-  const day = String(date.getDate()).padStart(2, '0')
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const year = date.getFullYear()
-
-  return `${day}-${month}-${year}`
-}
-
-function escapeHtml(value = '') {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
-
-function getAttendanceReportFileName(fromDate, toDate) {
-  const fromLabel = formatReportFileDate(fromDate)
-  const toLabel = formatReportFileDate(toDate)
-  return `Attendance_Report_${fromLabel || 'from-date'}_to_${toLabel || 'to-date'}.xls`
-}
-
-function downloadAttendanceReportFile({
-  title,
-  subtitle,
-  fromDate,
-  toDate,
-  scopeLabel,
-  rows = [],
-}) {
-  const tableRows = rows.length
-    ? rows
-    : [['No students matched the selected filters.', '', '', '', '', '']]
-
-  const html = `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <style>
-    body { font-family: Arial, Helvetica, sans-serif; color: #0f172a; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #cbd5e1; padding: 10px 12px; text-align: left; vertical-align: top; }
-    th { background: #eff6ff; font-weight: 700; }
-    .title { font-size: 18px; font-weight: 700; }
-    .meta { color: #475569; }
-  </style>
-</head>
-<body>
-  <table>
-    <tr><td class="title" colspan="6">${escapeHtml(title)}</td></tr>
-    <tr><td class="meta" colspan="6">${escapeHtml(subtitle)}</td></tr>
-    <tr><td colspan="6"><strong>Scope:</strong> ${escapeHtml(scopeLabel)}</td></tr>
-    <tr><td colspan="6"><strong>From:</strong> ${escapeHtml(formatReportDate(fromDate) || '-')} | <strong>To:</strong> ${escapeHtml(formatReportDate(toDate) || '-')}</td></tr>
-    <tr>
-      <th>Student Name</th>
-      <th>Course</th>
-      <th>Batch</th>
-      <th>Faculty</th>
-      <th>Attendance Status</th>
-      <th>Remarks</th>
-    </tr>
-    ${tableRows
-      .map(
-        (row) => `
-          <tr>
-            ${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}
-          </tr>`,
-      )
-      .join('')}
-  </table>
-</body>
-</html>`
-
-  const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = getAttendanceReportFileName(fromDate, toDate)
-  document.body.appendChild(anchor)
-  anchor.click()
-  anchor.remove()
-  URL.revokeObjectURL(url)
 }
 
 function addOneMonth(value, months = 1) {
@@ -1887,48 +1783,19 @@ export function StudentManagementPage() {
   }, [students])
 
   useEffect(() => {
-    const loadCourseOptions = () => {
-      setIsCoursesLoading(true)
-      const uniqueCourseOptions = Array.from(
-        new Map(
-          normalizeCourseList(loadCourseRecords())
-            .filter((course) => String(course?.status || '').trim() === 'Active')
-            .map((course) => {
-              const id = String(course?.id || '').trim()
-              const name = String(course?.name || '').trim()
-              if (!id || !name) return null
-              return [
-                id,
-                {
-                  id,
-                  name,
-                  actualFees: course?.actualFees ?? '',
-                  registrationFees: course?.registrationFees ?? '',
-                  discount: course?.discount ?? '',
-                  afterDiscount: course?.afterDiscount ?? '',
-                  installmentCount: course?.installmentCount ?? '',
-                  installments: getCourseInstallmentValues(course),
-                },
-              ]
-            })
-            .filter(Boolean),
-        ).values(),
-      )
-
-      setCourseOptions(uniqueCourseOptions)
-      setIsCoursesLoading(false)
-    }
-
-    loadCourseOptions()
-
     const syncCourseOptions = () => {
-      loadCourseOptions()
+      void loadCourseOptions()
     }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadCourseOptions()
+    }, 0)
 
     window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
     window.addEventListener('storage', syncCourseOptions)
 
     return () => {
+      window.clearTimeout(timeoutId)
       window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
       window.removeEventListener('storage', syncCourseOptions)
     }
@@ -2051,6 +1918,17 @@ export function StudentManagementPage() {
     setSubmitted(true)
     setActionError('')
     setServerFieldErrors({})
+
+    if (String(form.courseId || '').trim() && !selectedCourse) {
+      setCurrentStep(1)
+      setFieldFocus((current) => ({
+        ...current,
+        courseInterested: true,
+      }))
+      setActionError('Selected course is no longer available. Please choose a valid course.')
+      setIsSavingStudent(false)
+      return
+    }
 
     const nextErrors = validateForm(form, selectedCourse)
     const duplicateStudent = findDuplicateStudent(form, backfilledStudents, editingStudentId)

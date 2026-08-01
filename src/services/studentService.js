@@ -65,12 +65,12 @@ function buildStudentMutationPayload(payload = {}) {
   const courseId = String(nextPayload.courseId || nextPayload.course?.connect?.id || '').trim()
 
   if (courseId) {
-    nextPayload.course = { connect: { id: courseId } }
+    nextPayload.courseId = courseId
   } else {
-    delete nextPayload.course
+    delete nextPayload.courseId
   }
 
-  delete nextPayload.courseId
+  delete nextPayload.course
   return nextPayload
 }
 
