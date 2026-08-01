@@ -7,6 +7,7 @@ import { OperationManagerWorkspaceHeader } from '../components/OperationManagerW
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
+import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { listCourses, normalizeCourseList } from '../services/courseService'
 import {
   createFacultyRecord,
@@ -16,9 +17,9 @@ import {
   updateFacultyRecord,
 } from '../services/facultyService'
 import { roleDashboards } from '../data/authData'
-import { loadFacultyRecords } from '../data/facultyRecords'
 import { useAuth } from '../auth/useAuth'
 import { FACULTY_ATTENDANCE_SYNC_EVENT, resolveTodayFacultyAttendanceStatus, formatAttendanceTimeLabel } from '../lib/facultyAttendanceStore'
+import { saveFacultySnapshot } from '../lib/facultySnapshot'
 import { buildFacultyCourseCatalogPath, getFacultyCourseIds } from '../lib/facultyFlow'
 import { FacultyAttendanceReportModal } from '../components/FacultyAttendanceReportModal'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
@@ -1586,6 +1587,9 @@ export function FacultyManagementPage() {
         ? await updateFacultyRecord(editingFacultyId, payload)
         : await createFacultyRecord(payload)
 
+      saveFacultySnapshot(savedRecord)
+      window.dispatchEvent(new CustomEvent(FACULTY_RECORD_SYNC_EVENT))
+
       const nextRecords = upsertFacultyRecordById(records, savedRecord)
       setRecords(nextRecords)
       await loadFacultyOptions()
@@ -1603,6 +1607,7 @@ export function FacultyManagementPage() {
 
     try {
       await deleteFacultyRecord(deleteTarget.id)
+      window.dispatchEvent(new CustomEvent(FACULTY_RECORD_SYNC_EVENT))
       await loadFacultyOptions()
       setCurrentPage(1)
       closeDeleteModal()

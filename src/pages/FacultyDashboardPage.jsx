@@ -8,6 +8,7 @@ import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRe
 import { loadFacultySnapshot, mergeFacultyWithSnapshot, saveFacultySnapshot } from '../lib/facultySnapshot'
 import { loadStudentSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import {
+  FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
   getAttendanceDateKey,
   loadFacultyBatchAttendanceState,
   loadFacultyAttendanceState,
@@ -286,14 +287,20 @@ function preferFacultyProfileSnapshot(current = null, next = null) {
   if (!current) return next
   if (!next) return current
 
+  const nextBatchEntries = Array.isArray(next.batchEntries) ? next.batchEntries.filter(Boolean) : []
+  const currentBatchEntries = Array.isArray(current.batchEntries) ? current.batchEntries.filter(Boolean) : []
+  const nextCourseAssignments = Array.isArray(next.courseAssignments) ? next.courseAssignments.filter(Boolean) : []
+  const currentCourseAssignments = Array.isArray(current.courseAssignments) ? current.courseAssignments.filter(Boolean) : []
+  const nextCourseIds = Array.isArray(next.courseIds) ? next.courseIds.filter(Boolean) : []
+  const currentCourseIds = Array.isArray(current.courseIds) ? current.courseIds.filter(Boolean) : []
+
   return {
     ...current,
     ...next,
-    batchEntries: Array.isArray(next.batchEntries) && next.batchEntries.length ? next.batchEntries : Array.isArray(current.batchEntries) ? current.batchEntries : [],
-    courseIds: Array.isArray(next.courseIds) && next.courseIds.length ? next.courseIds : Array.isArray(current.courseIds) ? current.courseIds : [],
-    courseAssignments:
-      Array.isArray(next.courseAssignments) && next.courseAssignments.length ? next.courseAssignments : Array.isArray(current.courseAssignments) ? current.courseAssignments : [],
-    batchCount: Number(next.batchCount || current.batchCount || 0) || 0,
+    batchEntries: nextBatchEntries.length ? nextBatchEntries : currentBatchEntries,
+    courseIds: nextCourseIds.length ? nextCourseIds : currentCourseIds,
+    courseAssignments: nextCourseAssignments.length ? nextCourseAssignments : currentCourseAssignments,
+    batchCount: Number(next.batchCount || nextBatchEntries.length || current.batchCount || currentBatchEntries.length || 0) || 0,
   }
 }
 
@@ -1166,6 +1173,7 @@ export function FacultyMyBatchesPage() {
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
   const attendanceReminderShownRef = useRef(new Set())
   const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [batchAttendanceVersion, setBatchAttendanceVersion] = useState(0)
 
   const profileName = latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
@@ -1196,6 +1204,20 @@ export function FacultyMyBatchesPage() {
     if (!profileFaculty) return
     saveFacultySnapshot(profileFaculty)
   }, [profileFaculty])
+
+  useEffect(() => {
+    const syncBatchAttendance = () => {
+      setBatchAttendanceVersion((current) => current + 1)
+    }
+
+    window.addEventListener(FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, syncBatchAttendance)
+    window.addEventListener('storage', syncBatchAttendance)
+
+    return () => {
+      window.removeEventListener(FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, syncBatchAttendance)
+      window.removeEventListener('storage', syncBatchAttendance)
+    }
+  }, [])
 
   const displayFaculty = profileFaculty || activeFaculty || latestFaculty
   const courseOptions = useMemo(
@@ -1282,6 +1304,7 @@ export function FacultyMyBatchesPage() {
 
   const facultyCourseGroups = useMemo(() => {
     if (!displayFaculty) return []
+    void batchAttendanceVersion
 
     const getSavedBatchAttendanceCounts = (state = null) => {
       const records = state && typeof state.records === 'object' && !Array.isArray(state.records) ? state.records : {}
@@ -1365,7 +1388,7 @@ export function FacultyMyBatchesPage() {
         groupProgress,
       }
     })
-  }, [backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id, profileInitials])
+  }, [backfilledStudents, batchAttendanceVersion, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id, profileInitials])
 
   let pageAttendanceReminder = null
   if (facultyCourseGroups.length) {

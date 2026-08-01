@@ -4,7 +4,7 @@ const FACULTY_SNAPSHOT_KEY = 'cispro.faculty-management.snapshot'
 
 function getStorage() {
   if (typeof window === 'undefined') return null
-  return window.sessionStorage
+  return window.localStorage
 }
 
 export function loadFacultySnapshot() {
