@@ -392,7 +392,8 @@ function buildWeeklyAttendanceOverview(weeklyAttendanceEntries = [], todayAttend
   const presentCount = days.filter((day) => day.status === 'Present').length
   const absentCount = days.filter((day) => day.status === 'Absent').length
   const markedCount = presentCount + absentCount
-  const weeklyPercentage = markedCount > 0 ? Math.round((presentCount / markedCount) * 100) : 0
+  // Show weekly progress against all 7 days, so unmarked days reduce the percentage.
+  const weeklyPercentage = Math.round((presentCount / days.length) * 100)
   const todayEntry = days.find((day) => day.isToday) || days[days.length - 1]
   const formatDayMonth = (date) =>
     new Intl.DateTimeFormat('en-GB', {
