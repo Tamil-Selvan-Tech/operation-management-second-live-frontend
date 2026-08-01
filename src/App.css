@@ -2470,12 +2470,15 @@ tbody tr:hover {
 }
 
 .app-shell.dashboard-shell .sidebar-profile-card {
+  width: calc(100% + 28px);
+  margin-left: -14px;
   padding: 8px 8px 8px 8px;
   border-color: #dfe7f2;
   background: #ffffff;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
   border-radius: 12px;
   grid-template-columns: 34px minmax(0, 1fr) 16px;
+  box-sizing: border-box;
 }
 
 .app-shell.business-owner-shell .sidebar-profile-avatar,
@@ -9736,6 +9739,12 @@ tbody tr:hover {
   box-shadow: none;
   padding: 0;
   margin: 0;
+}
+
+.student-management-top-header,
+.faculty-management-top-header,
+.notifications-page-top-header {
+  margin-top: -12px;
 }
 
 .notifications-page-top-header .business-topbar-actions {
@@ -22411,7 +22420,7 @@ tbody tr:hover {
 .sidebar .sidebar-head {
   align-items: center;
   gap: 6px;
-  margin-top: -8px;
+  margin-top: 0;
 }
 
 .sidebar .brand {
@@ -22460,28 +22469,29 @@ tbody tr:hover {
 }
 
 .menu {
-  gap: 8px;
+  gap: 10px;
   min-height: 0;
   min-width: 0;
 }
 
 .menu-section {
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
 .menu-section-label {
-  margin: -12px 0 0;
-  color: #6b7280;
+  margin: 0;
+  padding: 2px 4px 0;
+  color: #94a3b8;
   font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
 .menu-group {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .sidebar .sidebar-menu-item {
@@ -22489,10 +22499,10 @@ tbody tr:hover {
   width: 100%;
   border: 0;
   border-radius: 14px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: transparent;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   text-align: left;
@@ -22537,13 +22547,13 @@ tbody tr:hover {
 }
 
 .sidebar .sidebar-menu-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  background: #f3f4f6;
-  color: #334155;
+  background: #f4f5f7;
+  color: #475569;
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.03);
 }
 
@@ -22559,8 +22569,8 @@ tbody tr:hover {
 
 .sidebar .sidebar-menu-label {
   min-width: 0;
-  font-size: 0.9rem;
-  font-weight: 650;
+  font-size: 0.94rem;
+  font-weight: 700;
   color: inherit;
   white-space: nowrap;
   overflow: visible;
@@ -22590,19 +22600,19 @@ tbody tr:hover {
   margin-top: auto;
   display: grid;
   gap: 6px;
-  padding-top: 0;
+  padding-top: 8px;
   flex: 0 0 auto;
 }
 
 .sidebar-profile-card {
   width: 100%;
   border: 1px solid #d8e4f4;
-  border-radius: 12px;
-  padding: 6px 8px;
+  border-radius: 14px;
+  padding: 8px 10px;
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) 14px;
+  grid-template-columns: 40px minmax(0, 1fr) 16px;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   background: #f8fbff;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
   cursor: default;
@@ -22610,8 +22620,8 @@ tbody tr:hover {
 
 .sidebar-profile-avatar-wrap {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: block;
 }
 
@@ -22641,7 +22651,7 @@ tbody tr:hover {
 .sidebar-profile-copy strong {
   display: block;
   color: #0f172a;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   white-space: nowrap;
@@ -22654,8 +22664,8 @@ tbody tr:hover {
   border: 0;
   background: transparent;
   color: #dc2626;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: inline-grid;
   place-items: center;
   border-radius: 999px;

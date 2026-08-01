@@ -185,10 +185,6 @@ function AppLayout() {
   const canAccessFacultyBatches = role === 'faculty'
   const canAccessStudentManagement = courseAccessRoles.includes(role)
   const canAccessFacultyManagement = courseAccessRoles.includes(role)
-  const hideNotificationsNav =
-    location.pathname === '/dashboard/faculty' ||
-    location.pathname === '/dashboard/faculty/my-batches' ||
-    location.pathname === '/dashboard/student'
 
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
@@ -224,7 +220,7 @@ function AppLayout() {
       showFacultyBatchesNav={canAccessFacultyBatches}
       showStudentManagementNav={canAccessStudentManagement}
       showFacultyManagementNav={canAccessFacultyManagement}
-      showNotificationsNav={!hideNotificationsNav}
+      showNotificationsNav
       showChrome={showChrome}
       forceFlatMainArea={isFlatMainArea}
     >

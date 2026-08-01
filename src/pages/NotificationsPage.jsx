@@ -125,6 +125,7 @@ export function NotificationsPage() {
     <section className="notifications-page">
       {isBusinessOwner ? (
         <OperationManagerHeader
+          className="notifications-page-top-header"
           eyebrow={headerEyebrow}
           title={headerTitle}
           summary={headerSummary}

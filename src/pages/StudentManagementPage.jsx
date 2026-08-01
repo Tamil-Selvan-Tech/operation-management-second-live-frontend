@@ -2219,6 +2219,7 @@ export function StudentManagementPage() {
     <section className="student-management-page">
       {isBusinessOwner ? (
         <OperationManagerHeader
+          className="student-management-top-header"
           eyebrow={headerEyebrow}
           title={headerTitle}
           summary={headerSummary}

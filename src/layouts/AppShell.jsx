@@ -45,8 +45,9 @@ export function AppShell({
     location.pathname.startsWith('/dashboard/operation-manager/faculty-management/')
   const isFacultyFlowWhiteWorkspace = isFacultyManagementWorkspace
   const isNotificationsWorkspace = location.pathname === '/notifications'
-  const useDashboardShell = isDashboardWorkspace && !isBusinessOwnerWorkspace && !isOperationManagerWorkspace
-  const usePremiumSidebarShell = !isNotificationsWorkspace
+  const useDashboardShell =
+    (isDashboardWorkspace && !isBusinessOwnerWorkspace && !isOperationManagerWorkspace) ||
+    (isNotificationsWorkspace && !isBusinessOwnerRole && !isOperationManagerRole)
   const isPremiumSidebarWorkspace =
     isDashboardWorkspace ||
     isBusinessOwnerWorkspace ||
@@ -55,7 +56,6 @@ export function AppShell({
       (isCoursesWorkspace || isStudentManagementWorkspace || isFacultyManagementWorkspace || isNotificationsWorkspace)) ||
     (isOperationManagerRole &&
       (isCoursesWorkspace || isStudentManagementWorkspace || isFacultyManagementWorkspace || isNotificationsWorkspace))
-  const isSidebarPremium = isPremiumSidebarWorkspace && usePremiumSidebarShell
   const isFacultyBatchesPath = location.pathname.startsWith('/dashboard/faculty/my-batches')
   let activeNav = 'dashboard'
   if (isCoursesWorkspace) {
@@ -89,8 +89,8 @@ export function AppShell({
   const shellClassName = [
     'app-shell has-fixed-sidebar',
     isStudentPage ? 'is-student-page' : '',
-    isBusinessOwnerWorkspace || (isBusinessOwnerRole && isPremiumSidebarWorkspace && usePremiumSidebarShell) ? 'business-owner-shell' : '',
-    isOperationManagerWorkspace || (isOperationManagerRole && isPremiumSidebarWorkspace && usePremiumSidebarShell) ? 'operation-manager-shell' : '',
+    isBusinessOwnerWorkspace || (isBusinessOwnerRole && isPremiumSidebarWorkspace) ? 'business-owner-shell' : '',
+    isOperationManagerWorkspace || (isOperationManagerRole && isPremiumSidebarWorkspace) ? 'operation-manager-shell' : '',
     useDashboardShell ? 'dashboard-shell' : '',
   ]
     .filter(Boolean)
@@ -169,7 +169,7 @@ export function AppShell({
         <AppSidebar
           activeNav={activeNav}
           user={user}
-          isBusinessOwner={isSidebarPremium}
+          isBusinessOwner={isPremiumSidebarWorkspace && isBusinessOwnerRole}
           onNavigateDashboard={onNavigateDashboard}
           onNavigateFacultyBatches={onNavigateFacultyBatches}
           onNavigateCourses={onNavigateCourses}

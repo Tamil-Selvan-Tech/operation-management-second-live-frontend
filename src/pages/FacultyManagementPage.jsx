@@ -1615,6 +1615,7 @@ export function FacultyManagementPage() {
     <section className="faculty-management-page">
       {isBusinessOwner ? (
         <OperationManagerHeader
+          className="faculty-management-top-header"
           eyebrow={headerEyebrow}
           title={headerTitle}
           summary={headerSummary}
