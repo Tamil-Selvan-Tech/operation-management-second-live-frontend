@@ -17983,33 +17983,44 @@ tbody tr:hover {
 
 .course-drawer-table-header {
   height: auto;
-  min-height: 48px;
-  padding: 10px 14px;
+  min-height: 52px;
+  padding: 6px 16px 6px;
   overflow: hidden;
   align-items: center;
+  justify-content: center;
   flex-wrap: nowrap;
 }
 
 .course-drawer-table-header>div:first-child {
-  width: auto;
+  width: 100%;
   flex: 1 1 auto;
   min-width: 0;
   padding-left: 0;
   padding-right: 0;
   display: grid;
-  justify-items: flex-start;
-  gap: 0;
+  justify-items: center;
+  gap: 2px;
   line-height: 1;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.course-drawer-table-header .section-kicker {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.54rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
 .course-drawer-table-header h3 {
-  margin-top: 0;
-  font-size: 0.98rem;
-  line-height: 1.08;
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1;
   color: #ffffff;
   font-weight: 800;
   letter-spacing: -0.02em;
-  text-align: left;
+  text-align: center;
 }
 
 .student-drawer-table-header h3 {
@@ -18031,12 +18042,15 @@ tbody tr:hover {
 }
 
 .course-drawer-table-header .student-drawer-close-floating {
-  width: 32px;
-  height: 32px;
-  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
 }
 
 .student-drawer-table-actions {
+  position: absolute;
+  top: 6px;
+  right: 10px;
   display: flex;
   align-items: center;
   align-self: flex-start;
@@ -18123,8 +18137,8 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 40px;
-  padding: 0 14px 0 12px;
+  min-height: 34px;
+  padding: 0 12px 0 10px;
   border-color: rgba(255, 255, 255, 0.5);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.1) 100%);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
@@ -18136,8 +18150,8 @@ tbody tr:hover {
 }
 
 .course-drawer-edit-button svg {
-  width: 17px;
-  height: 17px;
+  width: 15px;
+  height: 15px;
   flex: 0 0 auto;
 }
 
@@ -18157,16 +18171,16 @@ tbody tr:hover {
 }
 
 .course-drawer-table-shell {
-  margin-top: -48px;
-  padding-top: 0;
+  margin-top: 0;
+  padding-top: 12px;
 }
 
 .course-drawer-table-shell.is-course-view {
-  margin-top: -106px;
+  margin-top: 0;
 }
 
 .course-drawer-table-shell.is-course-editing {
-  margin-top: -48px;
+  margin-top: 0;
 }
 
 .course-details-table {
@@ -23028,23 +23042,25 @@ tbody tr:hover {
   .course-drawer-table-header {
     height: auto;
     min-height: 0;
-    padding: 12px 12px;
+    padding: 6px 8px;
   }
 
   .course-drawer-table-header>div:first-child {
-    justify-items: flex-start;
-    text-align: left;
-    gap: 0;
+    justify-items: center;
+    text-align: center;
+    gap: 2px;
   }
 
   .course-drawer-table-header h3 {
-    font-size: 1rem;
-    line-height: 1.08;
+    font-size: 0.94rem;
+    line-height: 1.02;
     white-space: normal;
   }
 
   .student-drawer-table-actions {
-    position: static;
+    position: absolute;
+    top: 4px;
+    right: 6px;
     justify-content: flex-end;
     width: auto;
     margin-top: 0;
@@ -23052,9 +23068,9 @@ tbody tr:hover {
   }
 
   .course-drawer-table-header .student-drawer-close-floating {
-    width: 30px;
-    height: 30px;
-    font-size: 15px;
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
   }
 
   .student-drawer-edit-button {
@@ -23064,8 +23080,8 @@ tbody tr:hover {
   }
 
   .course-drawer-edit-button {
-    min-height: 32px;
-    padding: 0 11px 0 10px;
+    min-height: 30px;
+    padding: 0 10px 0 9px;
     gap: 6px;
   }
 
