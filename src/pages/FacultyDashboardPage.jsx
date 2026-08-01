@@ -1,5 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, FileDown, GraduationCap, Layers3, Menu, Save, UsersRound, X } from 'lucide-react'
+import { BadgeCheck, BookOpen, Building2, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, Check, Clock3, FileDown, GraduationCap, Layers3, LogOut, Mail, Menu, Phone, Save, ShieldCheck, UsersRound, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
@@ -10,8 +11,11 @@ import {
   FACULTY_ATTENDANCE_SYNC_EVENT,
   getAttendanceDateKey,
   loadFacultyBatchAttendanceState,
+  loadFacultyAttendanceState,
   resolveBatchAttendanceWindow,
   resolveTodayFacultyAttendanceStatus,
+  normalizeAttendanceSessions,
+  formatAttendanceTimeLabel,
   saveFacultyBatchAttendanceState,
 } from '../lib/facultyAttendanceStore'
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
@@ -63,6 +67,136 @@ function formatDisplayTime(value) {
 function formatMinutesLabel(value = 0) {
   const count = Math.max(0, Math.floor(Number(value) || 0))
   return `${count} minute${count === 1 ? '' : 's'}`
+}
+
+function FacultyProfileStat({ icon: Icon, label, value, tone = 'blue' }) {
+  return (
+    <div className={`profile-modal-stat tone-${tone}`}>
+      <span className="profile-modal-stat-icon" aria-hidden="true">
+        <Icon size={14} strokeWidth={2.4} />
+      </span>
+      <div>
+        <span>{label}</span>
+        <strong>{value || '-'}</strong>
+      </div>
+    </div>
+  )
+}
+
+function FacultyProfileRow({ icon: Icon, label, value }) {
+  return (
+    <div className="profile-modal-info-row faculty-profile-info-row">
+      <span className="profile-modal-info-label">
+        <Icon size={15} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+        {label}
+      </span>
+      <strong>{value || '-'}</strong>
+    </div>
+  )
+}
+
+function FacultyProfileDrawer({ faculty, batchOptions = [], isOpen, onClose }) {
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return undefined
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, onClose])
+
+  if (!isOpen || typeof document === 'undefined') return null
+
+  const profileName = faculty?.facultyName || 'Faculty'
+  const initials = getInitials(profileName)
+  const statusLabel = String(faculty?.status || 'Active').trim() || 'Active'
+  const statusTone = statusLabel.toLowerCase() === 'active' ? 'is-active' : 'is-inactive'
+  const email = String(faculty?.facultyEmail || faculty?.email || '').trim()
+  const phone = String(faculty?.facultyPhone || faculty?.phone || '').trim()
+  const facultyId = String(faculty?.id || '').trim()
+  const courseIds = Array.isArray(faculty?.courseIds) ? faculty.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean) : []
+  const courseName = String(faculty?.courseName || faculty?.course?.name || '').trim()
+  const courseLabel = courseName || (courseIds.length ? courseIds.join(', ') : 'Not assigned')
+  const joinedLabel = formatDisplayDate(faculty?.createdOn || faculty?.createdAt || faculty?.updatedOn || '')
+  const batchCount = Number(faculty?.batchCount || batchOptions.length || 0) || (Array.isArray(faculty?.batchEntries) ? faculty.batchEntries.length : 0)
+  const batchLabel =
+    batchOptions.length > 0
+      ? batchOptions
+          .slice(0, 3)
+          .map((batch) => batch.label)
+          .join(', ')
+          .concat(batchOptions.length > 3 ? '...' : '')
+      : 'No batches assigned'
+  const attendanceState = loadFacultyAttendanceState(facultyId, profileName, initials)
+  const attendanceSessions = normalizeAttendanceSessions(attendanceState)
+  const latestSession = attendanceSessions.length ? attendanceSessions[attendanceSessions.length - 1] : null
+  const lastLoginLabel = latestSession?.loginTimestamp ? formatAttendanceTimeLabel(new Date(Number(latestSession.loginTimestamp))) : ''
+  const logoutLabel = latestSession?.logoutTimestamp ? formatAttendanceTimeLabel(new Date(Number(latestSession.logoutTimestamp))) : ''
+  const earlyLogoutLabel =
+    String(latestSession?.logoutType || '').trim().toLowerCase() === 'early' ? 'Early Logout' : ''
+  const workReportLabel = String(latestSession?.workReport || latestSession?.workCompleted || '').trim()
+
+  return createPortal(
+    <div className="profile-drawer-backdrop faculty-profile-backdrop" role="presentation">
+      <div
+        className="profile-drawer faculty-profile-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="faculty-profile-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="profile-modal-cover faculty-profile-hero">
+          <button type="button" className="course-modal-close profile-modal-close" onClick={onClose} aria-label="Close profile card">
+            <X size={18} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+          </button>
+
+          <div className="faculty-profile-title-block">
+            <h3 id="faculty-profile-modal-title">{profileName}</h3>
+            <div className="faculty-profile-role-row">
+              <span className="faculty-profile-role">Faculty</span>
+              <span className={`faculty-profile-state ${statusTone}`.trim()}>{statusLabel}</span>
+            </div>
+            <p className="profile-modal-email faculty-profile-email">
+              <Mail size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+              {email || 'No email address added'}
+            </p>
+          </div>
+        </div>
+
+        <div className="profile-modal-body faculty-profile-body">
+          <div className="profile-modal-grid faculty-profile-stat-grid">
+            <FacultyProfileStat icon={BadgeCheck} label="Role" value="Faculty" tone="blue" />
+            <FacultyProfileStat icon={ShieldCheck} label="Status" value={statusLabel} tone="green" />
+            <FacultyProfileStat icon={Building2} label="Course" value={courseLabel} tone="violet" />
+            <FacultyProfileStat icon={Layers3} label="Batches" value={batchCount} tone="amber" />
+          </div>
+
+          <div className="profile-modal-info-list faculty-profile-info-list">
+            <FacultyProfileRow icon={Phone} label="Mobile Number" value={phone || 'Not added'} />
+            <FacultyProfileRow icon={Mail} label="Email Address" value={email || 'Not added'} />
+            {lastLoginLabel ? <FacultyProfileRow icon={Clock3} label="Last Login" value={lastLoginLabel} /> : null}
+            {logoutLabel ? <FacultyProfileRow icon={LogOut} label="Logout Time" value={logoutLabel} /> : null}
+            {earlyLogoutLabel ? <FacultyProfileRow icon={X} label={earlyLogoutLabel} value={logoutLabel || 'Not logged out yet'} /> : null}
+            {workReportLabel ? <FacultyProfileRow icon={FileDown} label="Work Report" value={workReportLabel} /> : null}
+          </div>
+
+          <div className="faculty-profile-divider" />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
 }
 
 function useCurrentFacultyProfile() {
@@ -686,6 +820,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
   const activeFaculty = latestFaculty || null
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   useEffect(() => {
     if (!activeFaculty) return
@@ -705,21 +840,13 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const profileName = activeFaculty?.facultyName || latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
   const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
+  const profileFaculty = activeFaculty || latestFaculty || null
   const facultyAttendanceStatus = useMemo(
     () => resolveTodayFacultyAttendanceStatus(facultyAttendanceId || profileName),
     [attendanceRefreshToken, facultyAttendanceId, profileName],
   )
   const greetingName = getFacultyGreetingName(activeFaculty?.facultyName || latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
-  const profileChip = (
-    <div className="student-dashboard-profile-chip" aria-label={profileName}>
-      <span className="student-dashboard-profile-initials" aria-hidden="true">
-        {profileInitials}
-      </span>
-      <span className="student-dashboard-profile-name">{profileName}</span>
-      <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-    </div>
-  )
   const batchNames = useMemo(
     () =>
       Array.isArray(activeFaculty?.batchEntries)
@@ -728,6 +855,30 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
     [activeFaculty],
   )
   const batchOptions = getFacultyBatchOptions(activeFaculty || {})
+  const profileDrawer = (
+    <FacultyProfileDrawer
+      faculty={profileFaculty}
+      batchOptions={batchOptions}
+      isOpen={isProfileOpen}
+      onClose={() => setIsProfileOpen(false)}
+    />
+  )
+  const profileChip = (
+    <button
+      type="button"
+      className="student-dashboard-profile-chip student-dashboard-profile-chip-button faculty-dashboard-profile-chip-button"
+      onClick={() => setIsProfileOpen(true)}
+      aria-label={`Open ${profileName} profile card`}
+      aria-haspopup="dialog"
+      aria-expanded={isProfileOpen}
+    >
+      <span className="student-dashboard-profile-initials" aria-hidden="true">
+        {profileInitials}
+      </span>
+      <span className="student-dashboard-profile-name">{profileName}</span>
+      <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+    </button>
+  )
   const facultyCourseIds = getFacultyCourseIds(activeFaculty || {})
   const courseScopedStudentCount = useMemo(
     () =>
@@ -845,6 +996,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
             <p>Please contact the operation manager to create or activate your faculty record.</p>
           </div>
         </article>
+        {profileDrawer}
       </section>
     )
   }
@@ -895,6 +1047,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       </div>
 
       <FacultyBatchPerformanceCard batches={batchOptions} />
+      {profileDrawer}
 
     </section>
   )
@@ -920,6 +1073,7 @@ export function FacultyMyBatchesPage() {
   const [attendanceReportRequest, setAttendanceReportRequest] = useState(null)
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
   const attendanceReminderShownRef = useRef(new Set())
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   const profileName = latestFaculty?.facultyName || 'Faculty'
   const profileInitials = getInitials(profileName)
@@ -927,15 +1081,7 @@ export function FacultyMyBatchesPage() {
   const greetingLabel = getFacultyGreetingLabel()
   const activeFaculty = latestFaculty || null
   const facultyAttendanceId = activeFaculty?.id || latestFaculty?.id || ''
-  const profileChip = (
-    <div className="student-dashboard-profile-chip" aria-label={profileName}>
-      <span className="student-dashboard-profile-initials" aria-hidden="true">
-        {profileInitials}
-      </span>
-      <span className="student-dashboard-profile-name">{profileName}</span>
-      <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-    </div>
-  )
+  const profileFaculty = activeFaculty || latestFaculty || null
 
   useEffect(() => {
     const tick = () => setCurrentDateTime(new Date())
@@ -953,6 +1099,30 @@ export function FacultyMyBatchesPage() {
   }, [activeFaculty])
 
   const displayFaculty = activeFaculty || latestFaculty
+  const profileDrawer = (
+    <FacultyProfileDrawer
+      faculty={profileFaculty}
+      batchOptions={Array.isArray(displayFaculty?.batchEntries) ? displayFaculty.batchEntries.map((entry) => ({ label: String(entry?.batchName || '').trim() || 'Batch' })) : []}
+      isOpen={isProfileOpen}
+      onClose={() => setIsProfileOpen(false)}
+    />
+  )
+  const profileChip = (
+    <button
+      type="button"
+      className="student-dashboard-profile-chip student-dashboard-profile-chip-button faculty-dashboard-profile-chip-button"
+      onClick={() => setIsProfileOpen(true)}
+      aria-label={`Open ${profileName} profile card`}
+      aria-haspopup="dialog"
+      aria-expanded={isProfileOpen}
+    >
+      <span className="student-dashboard-profile-initials" aria-hidden="true">
+        {profileInitials}
+      </span>
+      <span className="student-dashboard-profile-name">{profileName}</span>
+      <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+    </button>
+  )
 
   const facultyBackfillPool = useMemo(() => {
     const pool = []
@@ -1459,6 +1629,7 @@ export function FacultyMyBatchesPage() {
           <strong>Loading batches...</strong>
           <p>Please wait while we fetch your faculty, course, and student data.</p>
         </section>
+        {profileDrawer}
       </section>
     )
   }
@@ -1604,6 +1775,8 @@ export function FacultyMyBatchesPage() {
           </section>
         )}
       </div>
+
+      {profileDrawer}
 
       {selectedBatchContext ? (
         <div

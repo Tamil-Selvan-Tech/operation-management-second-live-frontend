@@ -265,18 +265,6 @@ function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
 }
 
-function resolveSingleBatchId(students = []) {
-  const uniqueBatchIds = Array.from(
-    new Set(
-      (Array.isArray(students) ? students : [])
-        .map((student) => String(student?.batchId || student?.batchEntryId || '').trim())
-        .filter(Boolean),
-    ),
-  )
-
-  return uniqueBatchIds.length === 1 ? uniqueBatchIds[0] : ''
-}
-
 function diffInDays(a, b) {
   const start = new Date(`${a}T00:00:00`)
   const end = new Date(`${b}T00:00:00`)
@@ -1060,7 +1048,7 @@ function AttendanceReportModal({
 
             {!isSingleStudent ? (
               <>
-                <Field label="Course (Optional)" icon={<FieldIcon kind="course" />}>
+                <Field label="Course" icon={<FieldIcon kind="course" />}>
                   <select
                     value={form.courseId}
                     onChange={(event) => onCourseChange(event.target.value)}
@@ -1075,13 +1063,14 @@ function AttendanceReportModal({
                   </select>
                 </Field>
 
-                <Field label="Batch (Optional)" icon={<FieldIcon kind="batch" />}>
+                <Field label="Batch" icon={<FieldIcon kind="batch" />}>
                   <select
                     value={form.batchId}
                     onChange={(event) => onChangeField('batchId', event.target.value)}
-                    disabled={!form.courseId || !batchOptions.length}
+                    disabled={!form.courseId}
                   >
                     <option value="">{form.courseId ? 'Select Batch' : 'Select Course first'}</option>
+                    {form.courseId ? <option value="all">All Batches</option> : null}
                     {batchOptions.map((batch) => (
                       <option key={batch.value} value={batch.value}>
                         {batch.label}
@@ -1344,6 +1333,9 @@ export function StudentManagementPage() {
     () => getReportBatchOptions(attendanceReportForm.courseId, facultyOptions),
     [attendanceReportForm.courseId, facultyOptions],
   )
+  const attendanceReportSelectedBatchId = String(attendanceReportForm.batchId || '').trim()
+  const attendanceReportUsesAllBatches =
+    !attendanceReportSelectedBatchId || attendanceReportSelectedBatchId === 'all'
   const attendanceReportStudent =
     attendanceReportModal?.mode === 'single'
       ? studentsWithAttendance.find((student) => student.id === attendanceReportModal.studentId) || selectedStudent || null
@@ -1358,10 +1350,10 @@ export function StudentManagementPage() {
           courseName:
             courseOptions.find((course) => String(course?.id || '').trim() === String(attendanceReportForm.courseId || '').trim())
               ?.name || '',
-          batchId: attendanceReportForm.batchId,
-          batchName:
-            reportBatchOptions.find((batch) => String(batch.value || '').trim() === String(attendanceReportForm.batchId || '').trim())
-              ?.batchName || '',
+          batchId: attendanceReportUsesAllBatches ? '' : attendanceReportSelectedBatchId,
+          batchName: attendanceReportUsesAllBatches
+            ? 'All Batches'
+            : reportBatchOptions.find((batch) => String(batch.value || '').trim() === attendanceReportSelectedBatchId)?.batchName || '',
         })
   const attendanceReportValidationErrors = useMemo(() => {
     const nextErrors = {}
@@ -1438,11 +1430,6 @@ export function StudentManagementPage() {
   )
   const totalStudents = filteredStudents.length
   const latestStudent = filteredStudents[0]
-  const attendanceReportScopeLabel = attendanceReportModal?.mode === 'single'
-    ? attendanceReportStudent
-      ? `${attendanceReportStudent.studentName}${attendanceReportStudent.courseInterested ? ` - ${attendanceReportStudent.courseInterested}` : ''}${attendanceReportStudent.batch ? ` - ${attendanceReportStudent.batch}` : ''}`
-      : 'Selected student'
-    : 'All students'
   const totalPages = Math.max(1, Math.ceil(totalStudents / studentsPerPage))
   const currentPageSafe = Math.min(currentPage, totalPages)
   const paginatedStudents = useMemo(() => {
@@ -1845,19 +1832,15 @@ export function StudentManagementPage() {
           toDate: attendanceReportForm.toDate,
         })
       } else {
-        const resolvedBatchId = String(attendanceReportForm.batchId || resolveSingleBatchId(attendanceReportTargetStudents)).trim()
-
-        if (!resolvedBatchId) {
-          throw new Error('Please select a batch before downloading the attendance report.')
-        }
-
         await downloadBatchAttendanceReport({
-          batchId: resolvedBatchId,
+          batchId: attendanceReportUsesAllBatches ? '' : attendanceReportSelectedBatchId,
           batchName:
-            reportBatchOptions.find((batch) => String(batch.value || '').trim() === String(resolvedBatchId).trim())?.batchName ||
-            attendanceReportTargetStudents[0]?.batchName ||
-            attendanceReportTargetStudents[0]?.batch ||
-            '',
+            attendanceReportUsesAllBatches
+              ? 'All Batches'
+              : reportBatchOptions.find((batch) => String(batch.value || '').trim() === attendanceReportSelectedBatchId)?.batchName ||
+                attendanceReportTargetStudents[0]?.batchName ||
+                attendanceReportTargetStudents[0]?.batch ||
+                '',
           courseId: String(attendanceReportForm.courseId || attendanceReportTargetStudents[0]?.courseId || '').trim(),
           fromDate: attendanceReportForm.fromDate,
           toDate: attendanceReportForm.toDate,
