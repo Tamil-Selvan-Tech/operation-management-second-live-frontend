@@ -1,5 +1,24 @@
-import { Activity, ArrowUpRight, BookOpen, ChevronDown, ClipboardList, GraduationCap, TrendingDown, TrendingUp, UserCheck, UserMinus, UserX, Wallet } from 'lucide-react'
+import {
+  Activity,
+  ArrowUpRight,
+  BookOpen,
+  CalendarDays,
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
+  GraduationCap,
+  Mail,
+  Phone,
+  TrendingDown,
+  TrendingUp,
+  UserCheck,
+  UserMinus,
+  UserX,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { NotificationBell } from '../components/NotificationBell'
@@ -320,7 +339,7 @@ function FacultyStatusIcon({ status }) {
   )
 }
 
-function StudentDashboardHeader({ studentName, facultyAttendanceStatus }) {
+function StudentDashboardHeader({ studentName, facultyAttendanceStatus, onProfileClick }) {
   const greetingName = getStudentGreetingName(studentName)
   const greetingLabel = getStudentGreetingLabel()
   const profileName = studentName || 'Student'
@@ -352,15 +371,158 @@ function StudentDashboardHeader({ studentName, facultyAttendanceStatus }) {
           </div>
           <ChevronDown size={18} strokeWidth={2.4} aria-hidden="true" focusable="false" className="student-faculty-status-chevron" />
         </div>
-        <div className="student-dashboard-profile-chip" aria-label={profileName}>
-          <span className="student-dashboard-profile-initials" aria-hidden="true">
-            {profileInitials}
-          </span>
-          <span className="student-dashboard-profile-name">{profileName}</span>
-          <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        </div>
+        {onProfileClick ? (
+          <button
+            type="button"
+            className="student-dashboard-profile-chip student-dashboard-profile-chip-button"
+            onClick={onProfileClick}
+            aria-label={`Open ${profileName} profile card`}
+            aria-haspopup="dialog"
+          >
+            <span className="student-dashboard-profile-initials" aria-hidden="true">
+              {profileInitials}
+            </span>
+            <span className="student-dashboard-profile-name">{profileName}</span>
+            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+          </button>
+        ) : (
+          <div className="student-dashboard-profile-chip" aria-label={profileName}>
+            <span className="student-dashboard-profile-initials" aria-hidden="true">
+              {profileInitials}
+            </span>
+            <span className="student-dashboard-profile-name">{profileName}</span>
+            <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+          </div>
+        )}
       </div>
     </header>
+  )
+}
+
+function StudentProfileStat({ icon: Icon, label, value, tone = 'blue' }) {
+  return (
+    <div className={`profile-modal-stat tone-${tone}`}>
+      <span className="profile-modal-stat-icon" aria-hidden="true">
+        <Icon size={14} strokeWidth={2.4} />
+      </span>
+      <div>
+        <span>{label}</span>
+        <strong>{value || '-'}</strong>
+      </div>
+    </div>
+  )
+}
+
+function StudentProfileRow({ icon: Icon, label, value }) {
+  return (
+    <div className="profile-modal-info-row student-profile-info-row">
+      <span className="profile-modal-info-label">
+        <Icon size={15} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+        {label}
+      </span>
+      <strong>{value || '-'}</strong>
+    </div>
+  )
+}
+
+function StudentProfileDrawer({ student, isOpen, onClose }) {
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') return undefined
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen, onClose])
+
+  if (!isOpen || typeof document === 'undefined' || !student) return null
+
+  const profileName = student.studentName || 'Student'
+  const statusLabel = String(student.status || 'Active').trim() || 'Active'
+  const statusTone = statusLabel.toLowerCase() === 'active' ? 'is-active' : 'is-inactive'
+  const email = String(student.emailAddress || '').trim()
+  const mobileNumber = String(student.mobileNumber || '').trim()
+  const parentSpouseNumber = String(student.parentSpouseNumber || '').trim()
+  const courseName = String(student.courseInterested || student.course?.name || '').trim()
+  const batchName = String(student.batchName || student.batch || student.batchId || '').trim()
+  const facultyName = String(student.facultyName || '').trim()
+  const admissionDate = formatDate(student.admissionDate)
+  const feeStatus = String(student.paymentMode || 'Installment').trim()
+  const feeProgress =
+    Number(student.afterDiscount || student.totalAmount || 0) > 0
+      ? Math.min(100, Math.round((getPaidAmount(student) / Number(student.afterDiscount || student.totalAmount || 0)) * 100))
+      : 0
+
+  return createPortal(
+    <div className="profile-drawer-backdrop student-profile-backdrop" role="presentation">
+      <div
+        className="profile-drawer student-profile-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="student-profile-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="profile-modal-cover student-profile-hero">
+          <button type="button" className="course-modal-close profile-modal-close" onClick={onClose} aria-label="Close profile card">
+            <X size={18} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+          </button>
+
+          <div className="student-profile-title-block">
+            <h3 id="student-profile-modal-title">{profileName}</h3>
+            <div className="student-profile-role-row">
+              <span className="student-profile-role">Student</span>
+              <span className={`student-profile-state ${statusTone}`.trim()}>{statusLabel}</span>
+            </div>
+            <p className="profile-modal-email student-profile-email">
+              <Mail size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+              {email || 'No email address added'}
+            </p>
+          </div>
+        </div>
+
+        <div className="profile-modal-body student-profile-body">
+          <div className="profile-modal-grid student-profile-stat-grid">
+            <StudentProfileStat icon={BookOpen} label="Course" value={courseName || 'Not assigned'} tone="violet" />
+            <StudentProfileStat icon={GraduationCap} label="Batch" value={batchName || 'Not assigned'} tone="blue" />
+            <StudentProfileStat icon={Wallet} label="Fee Progress" value={`${feeProgress}%`} tone="green" />
+            <StudentProfileStat icon={CalendarDays} label="Admission" value={admissionDate} tone="amber" />
+          </div>
+
+          <div className="profile-modal-info-list student-profile-info-list">
+            <StudentProfileRow icon={Phone} label="Mobile Number" value={mobileNumber || 'Not added'} />
+            <StudentProfileRow icon={Phone} label="Parent / Spouse" value={parentSpouseNumber || 'Not added'} />
+            <StudentProfileRow icon={Wallet} label="Payment Mode" value={feeStatus || 'Not added'} />
+          </div>
+
+          <div className="student-profile-divider" />
+
+          <div className="student-profile-section">
+            <div className="student-profile-section-row">
+              <span className="student-profile-pill tone-violet" aria-hidden="true">
+                FG
+              </span>
+              <div className="student-profile-section-copy">
+                <strong>Faculty Mentor</strong>
+                <span>{facultyName || 'Not assigned'}</span>
+              </div>
+              <ChevronRight size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" className="student-profile-chevron" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -705,6 +867,7 @@ function StudentDashboardContent({ dashboard }) {
   const { student: latestStudent, isLoading } = useCurrentStudentProfile()
   const facultyRecords = useFacultyRecordsSnapshot()
   const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [studentTodayAttendance, setStudentTodayAttendance] = useState(null)
   const [studentWeeklyAttendanceEntries, setStudentWeeklyAttendanceEntries] = useState([])
   const currentBatchWindow = useMemo(
@@ -881,7 +1044,7 @@ function StudentDashboardContent({ dashboard }) {
   if (isLoading) {
     return (
       <section className="student-dashboard-page">
-        <StudentDashboardHeader studentName={null} facultyAttendanceStatus={null} />
+        <StudentDashboardHeader studentName={null} facultyAttendanceStatus={null} onProfileClick={null} />
         <article className="panel-card student-dashboard-empty">
           <p className="eyebrow">Student Dashboard</p>
           <h2>{dashboard.title}</h2>
@@ -898,7 +1061,7 @@ function StudentDashboardContent({ dashboard }) {
   if (!latestStudent) {
     return (
       <section className="student-dashboard-page">
-        <StudentDashboardHeader studentName={null} facultyAttendanceStatus={null} />
+        <StudentDashboardHeader studentName={null} facultyAttendanceStatus={null} onProfileClick={null} />
         <article className="panel-card student-dashboard-empty">
           <p className="eyebrow">Student Dashboard</p>
           <h2>{dashboard.title}</h2>
@@ -952,7 +1115,13 @@ function StudentDashboardContent({ dashboard }) {
 
   return (
     <section className="student-dashboard-page">
-      <StudentDashboardHeader studentName={latestStudent.studentName} facultyAttendanceStatus={facultyAttendance} />
+      <StudentDashboardHeader
+        studentName={latestStudent.studentName}
+        facultyAttendanceStatus={facultyAttendance}
+        onProfileClick={() => setIsProfileOpen(true)}
+      />
+
+      <StudentProfileDrawer student={latestStudent} isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
 
       <div className="student-summary-strip" aria-label="Student summary cards">
         {summaryCards.map((card) => (
