@@ -207,6 +207,8 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   }, [facultyId, initialAttendance?.dateKey, profileName, profileInitials])
 
   useEffect(() => {
+    if (!isOpen || !facultyId) return undefined
+
     let active = true
 
     const loadAttendance = async () => {
@@ -227,7 +229,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     return () => {
       active = false
     }
-  }, [facultyId])
+  }, [facultyId, isOpen])
 
   useEffect(() => {
     const normalizedSessions = attendanceSessions.map((session) => ({

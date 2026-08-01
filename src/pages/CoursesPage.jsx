@@ -991,9 +991,7 @@ export function CoursesPage() {
           <aside className="student-drawer student-drawer-table-view" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
             <div className="student-drawer-table-header course-drawer-table-header">
               <div>
-                <p className="section-kicker">Course Details</p>
                 <h3>{viewTarget.name || 'Course Details'}</h3>
-                <p>Full course pricing and installment breakdown.</p>
               </div>
               <div className="student-drawer-table-actions">
                 {isCourseInlineEditing ? (

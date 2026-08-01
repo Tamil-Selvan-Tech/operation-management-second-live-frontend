@@ -4,11 +4,10 @@ import { createPortal } from 'react-dom'
 
 import { NotificationBell } from '../components/NotificationBell'
 import { roleDashboards } from '../data/authData'
-import { loadFacultyRecords } from '../data/facultyRecords'
+import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { loadFacultySnapshot, mergeFacultyWithSnapshot, saveFacultySnapshot } from '../lib/facultySnapshot'
 import { loadStudentSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import {
-  FACULTY_ATTENDANCE_SYNC_EVENT,
   getAttendanceDateKey,
   loadFacultyBatchAttendanceState,
   loadFacultyAttendanceState,
@@ -22,9 +21,6 @@ import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, g
 import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
-import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
-import { listCourses } from '../services/courseService'
-import { listStudents } from '../services/studentService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
@@ -234,29 +230,19 @@ function useFacultyStudents() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    let active = true
-
-    const run = async () => {
-      try {
-        const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
-        if (!active) return
-        const nextStudents = Array.isArray(result?.data) ? result.data : []
-        saveStudentSnapshot(nextStudents)
-        setStudents(nextStudents.length ? nextStudents : loadStudentSnapshot())
-      } catch {
-        if (!active) return
-        setStudents(loadStudentSnapshot())
-      } finally {
-        if (active) {
-          setIsLoading(false)
-        }
-      }
+    const syncStudents = () => {
+      setStudents(loadStudentSnapshot())
+      setIsLoading(false)
     }
 
-    void run()
+    syncStudents()
+
+    window.addEventListener('cispro:students-changed', syncStudents)
+    window.addEventListener('storage', syncStudents)
 
     return () => {
-      active = false
+      window.removeEventListener('cispro:students-changed', syncStudents)
+      window.removeEventListener('storage', syncStudents)
     }
   }, [])
 
@@ -295,10 +281,6 @@ function useFacultyBatchesSummary() {
   return { summary, isLoading }
 }
 
-function loadStoredFaculty() {
-  return normalizeFacultyList(loadFacultyRecords())
-}
-
 function preferFacultyProfileSnapshot(current = null, next = null) {
   if (!current && !next) return null
   if (!current) return next
@@ -320,83 +302,73 @@ function useFacultyRecords() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    let active = true
-
-    const run = async () => {
-      try {
-        const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
-        if (!active) return
-        setFacultyRecords(Array.isArray(result?.data) ? result.data : loadStoredFaculty())
-      } catch {
-        if (!active) return
-        setFacultyRecords(loadStoredFaculty())
-      } finally {
-        if (active) setIsLoading(false)
-      }
+    const syncFacultyRecords = () => {
+      const nextRecord = loadFacultyRecords()
+      setFacultyRecords(nextRecord ? [nextRecord] : [])
+      setIsLoading(false)
     }
 
-    void run()
+    syncFacultyRecords()
+
+    window.addEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyRecords)
+    window.addEventListener('storage', syncFacultyRecords)
 
     return () => {
-      active = false
+      window.removeEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyRecords)
+      window.removeEventListener('storage', syncFacultyRecords)
     }
   }, [])
 
   return { facultyRecords, isLoading }
 }
 
-function useFacultyAttendanceRefreshToken() {
-  const [refreshToken, setRefreshToken] = useState(0)
+function buildFacultyCourseOptions(facultyRecords = [], fallbackFaculty = null) {
+  const seen = new Map()
+  const pushOption = (courseId = '', courseName = '') => {
+    const normalizedCourseId = String(courseId || '').trim()
+    const normalizedCourseName = String(courseName || '').trim()
+    const key = normalizedCourseId || normalizedCourseName.toLowerCase()
+    if (!key) return
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined
+    const existing = seen.get(key)
+    if (!existing || (!existing.name && normalizedCourseName)) {
+      seen.set(key, {
+        id: normalizedCourseId || key,
+        name: normalizedCourseName || normalizedCourseId || 'Course',
+        courseName: normalizedCourseName || normalizedCourseId || 'Course',
+        title: normalizedCourseName || normalizedCourseId || 'Course',
+      })
+    }
+  }
 
-    const syncFacultyAttendance = () => {
-      setRefreshToken((current) => current + 1)
+  const records = Array.isArray(facultyRecords) ? facultyRecords : []
+
+  records.forEach((record) => {
+    const courseId = String(record?.courseId || '').trim()
+    const courseName = String(record?.courseName || '').trim()
+    pushOption(courseId, courseName)
+
+    if (Array.isArray(record?.courseIds)) {
+      record.courseIds.forEach((value) => pushOption(String(value || '').trim(), courseName))
     }
 
-    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
-    window.addEventListener('storage', syncFacultyAttendance)
-
-    return () => {
-      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, syncFacultyAttendance)
-      window.removeEventListener('storage', syncFacultyAttendance)
-    }
-  }, [])
-
-  return refreshToken
-}
-
-function useFacultyCourses() {
-  const [courses, setCourses] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-
-    const run = async () => {
-      try {
-        const result = await listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
-        if (!active) return
-        setCourses(Array.isArray(result?.data) ? result.data : [])
-      } catch {
-        if (!active) return
-        setCourses([])
-      } finally {
-        if (active) {
-          setIsLoading(false)
-        }
-      }
+    if (Array.isArray(record?.courseAssignments)) {
+      record.courseAssignments.forEach((assignment) => pushOption(assignment?.courseId, assignment?.courseName || courseName))
     }
 
-    void run()
-
-    return () => {
-      active = false
+    if (Array.isArray(record?.batchEntries)) {
+      record.batchEntries.forEach((entry) => pushOption(entry?.courseId, entry?.courseName || courseName))
     }
-  }, [])
+  })
 
-  return { courses, isLoading }
+  if (fallbackFaculty) {
+    pushOption(fallbackFaculty.courseId, fallbackFaculty.courseName)
+    if (Array.isArray(fallbackFaculty.courseIds)) {
+      fallbackFaculty.courseIds.forEach((courseId) => pushOption(courseId, fallbackFaculty.courseName))
+    }
+  }
+
+  return Array.from(seen.values())
 }
 
 function getFacultyGreetingName(facultyName) {
@@ -567,7 +539,6 @@ function FacultySummaryCard({
   value,
   note,
   tone = 'blue',
-  badge,
   tooltip,
   tooltipId,
   isTooltipOpen,
@@ -650,7 +621,6 @@ function FacultySummaryStrip({ cards = [], ariaLabel = 'Faculty summary cards', 
             value={card.value}
             note={card.note}
             tone={card.tone}
-            badge={card.badge}
             tooltip={card.tooltip}
             tooltipId={tooltipId}
             isTooltipOpen={isTooltipOpen}
@@ -945,7 +915,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const openMenu = useMobileMenu()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
-  const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
   const activeFaculty = latestFaculty || null
@@ -980,7 +949,7 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
 
   const facultyAttendanceStatus = useMemo(
     () => resolveTodayFacultyAttendanceStatus(facultyAttendanceId || profileName),
-    [attendanceRefreshToken, facultyAttendanceId, profileName],
+    [facultyAttendanceId, profileName],
   )
   const greetingName = getFacultyGreetingName(profileFaculty?.facultyName || activeFaculty?.facultyName || latestFaculty?.facultyName)
   const greetingLabel = getFacultyGreetingLabel()
@@ -1059,7 +1028,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       value: facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0),
       note: 'Courses you are teaching',
       tone: 'blue',
-      badge: `${facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0)}`,
       tooltip: 'Shows how many courses are assigned to your faculty profile and currently visible in your dashboard.',
     },
     {
@@ -1068,7 +1036,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       value: totalStudents,
       note: 'Students across all courses',
       tone: 'green',
-      badge: `${totalStudents}`,
       tooltip: 'Shows the total unique students linked to your courses and batches.',
     },
     {
@@ -1077,7 +1044,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       value: dashboardTotalBatchCount,
       note: 'Batches running',
       tone: 'violet',
-      badge: `${dashboardTotalBatchCount}`,
       tooltip: 'Shows the batch groups currently running under your assigned courses.',
     },
     {
@@ -1086,7 +1052,6 @@ export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
       value: facultyAttendanceStatus.status,
       note: facultyAttendanceStatus.reason,
       tone: facultyAttendanceStatus.status === 'Present' ? 'green' : 'orange',
-      badge: isStudentsLoading || isFacultyRecordsLoading || isBatchesSummaryLoading ? '...' : 'Live',
       tooltip: 'Shows your live attendance state for today. Present means you are currently logged in and active.',
     },
   ]
@@ -1186,10 +1151,8 @@ export function FacultyMyBatchesPage() {
   const openMenu = useMobileMenu()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
   const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
-  const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const { students, isLoading: isStudentsLoading } = useFacultyStudents()
   const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
-  const { courses: courseOptions, isLoading: isCoursesLoading } = useFacultyCourses()
   const [selectedBatchContext, setSelectedBatchContext] = useState(null)
   const [selectedBatchView, setSelectedBatchView] = useState('details')
   const [selectedBatchAttendanceDraft, setSelectedBatchAttendanceDraft] = useState({})
@@ -1235,6 +1198,10 @@ export function FacultyMyBatchesPage() {
   }, [profileFaculty])
 
   const displayFaculty = profileFaculty || activeFaculty || latestFaculty
+  const courseOptions = useMemo(
+    () => buildFacultyCourseOptions(facultyRecords, displayFaculty || latestFaculty || activeFaculty || null),
+    [activeFaculty, displayFaculty, facultyRecords, latestFaculty],
+  )
   const profileDrawer = (
     <FacultyProfileDrawer
       faculty={profileFaculty}
@@ -1314,8 +1281,6 @@ export function FacultyMyBatchesPage() {
   }, [batchSummaryEntries])
 
   const facultyCourseGroups = useMemo(() => {
-    void attendanceRefreshToken
-
     if (!displayFaculty) return []
 
     const getSavedBatchAttendanceCounts = (state = null) => {
@@ -1400,11 +1365,10 @@ export function FacultyMyBatchesPage() {
         groupProgress,
       }
     })
-  }, [attendanceRefreshToken, backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id, profileInitials])
+  }, [backfilledStudents, courseOptions, displayFaculty, getBatchSummaryForRow, latestFaculty?.facultyName, latestFaculty?.id, profileInitials])
 
-  const pageAttendanceReminder = useMemo(() => {
-    if (!facultyCourseGroups.length) return null
-
+  let pageAttendanceReminder = null
+  if (facultyCourseGroups.length) {
     const facultyId = displayFaculty?.id || latestFaculty?.id || ''
     const facultyName = displayFaculty?.facultyName || latestFaculty?.facultyName || ''
 
@@ -1425,7 +1389,7 @@ export function FacultyMyBatchesPage() {
 
         if (savedAttendanceState) continue
 
-        return {
+        pageAttendanceReminder = {
           group,
           batch,
           batchWindow,
@@ -1435,11 +1399,14 @@ export function FacultyMyBatchesPage() {
           remainingMinutes: batchWindow.minutesUntilEnd,
           endTimeLabel: formatDisplayTime(batchWindow.endDateTime || currentDateTime),
         }
+        break
+      }
+
+      if (pageAttendanceReminder) {
+        break
       }
     }
-
-    return null
-  }, [currentDateTime, displayFaculty?.facultyName, displayFaculty?.id, facultyCourseGroups, latestFaculty?.facultyName, latestFaculty?.id, profileInitials])
+  }
 
   const openCourseAttendanceReport = (group) => {
     if (!group) return
@@ -1486,7 +1453,6 @@ export function FacultyMyBatchesPage() {
       value: facultyCourseGroups.length || facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0),
       note: 'You teach',
       tone: 'blue',
-      badge: `${facultyCourseGroups.length || facultyCourseIds.length || (profileFaculty?.courseName ? 1 : 0)}`,
       tooltip: 'Shows the courses that have one or more batches assigned to you in this workspace.',
     },
     {
@@ -1495,7 +1461,6 @@ export function FacultyMyBatchesPage() {
       value: totalBatchCount,
       note: 'Across all courses',
       tone: 'green',
-      badge: `${totalBatchCount}`,
       tooltip: 'Shows all active batches that belong to your assigned courses.',
     },
     {
@@ -1504,7 +1469,6 @@ export function FacultyMyBatchesPage() {
       value: totalStudents,
       note: 'Across all batches',
       tone: 'violet',
-      badge: `${totalStudents}`,
       tooltip: 'Shows the total unique students linked to the batches you can manage here.',
     },
     {
@@ -1513,7 +1477,6 @@ export function FacultyMyBatchesPage() {
       value: `${averageProgress}%`,
       note: 'Overall average',
       tone: 'orange',
-      badge: isBatchesSummaryLoading || isCoursesLoading || isFacultyRecordsLoading || isStudentsLoading ? '...' : 'Live',
       tooltip: 'Shows the average completion progress across all of your batches.',
     },
   ]
@@ -1630,7 +1593,11 @@ export function FacultyMyBatchesPage() {
     if (!attendanceReminderPopup) return undefined
 
     if (!selectedBatchContext || hasSelectedBatchAttendanceSubmitted || isSelectedBatchAttendanceLateMode || !selectedBatchWindow.isReminder) {
-      setAttendanceReminderPopup(null)
+      const timeoutId = window.setTimeout(() => {
+        setAttendanceReminderPopup(null)
+      }, 0)
+
+      return () => window.clearTimeout(timeoutId)
     }
 
     return undefined
@@ -1805,7 +1772,7 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchView('details')
   }
 
-  if (isLoading || isCoursesLoading || isBatchesSummaryLoading || isFacultyRecordsLoading || isStudentsLoading) {
+  if (isLoading || isBatchesSummaryLoading || isFacultyRecordsLoading || isStudentsLoading) {
     return (
       <section className="student-dashboard-page faculty-dashboard-page faculty-my-batches-page">
         <header className="student-dashboard-header faculty-dashboard-header">

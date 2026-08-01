@@ -50,6 +50,67 @@ function getBatchOptions(students = []) {
   return Array.from(optionsById.values())
 }
 
+function escapeCsvValue(value = '') {
+  const text = String(value ?? '')
+  if (!/[",\n\r]/.test(text)) {
+    return text
+  }
+
+  return `"${text.replace(/"/g, '""')}"`
+}
+
+function triggerLocalDownload(content, fileName, type = 'text/csv;charset=utf-8') {
+  const blob = content instanceof Blob ? content : new Blob([content], { type })
+  const downloadUrl = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = downloadUrl
+  anchor.download = fileName
+  document.body.appendChild(anchor)
+  anchor.click()
+  anchor.remove()
+  URL.revokeObjectURL(downloadUrl)
+}
+
+function downloadFallbackAttendanceReport({
+  students = [],
+  courseId = '',
+  courseName = '',
+  batchId = '',
+  batchName = '',
+  fromDate = '',
+  toDate = '',
+}) {
+  const rows = [
+    ['Student Attendance Report'],
+    ['Course', courseName || courseId || 'Course'],
+    ['Batch', batchName || batchId || 'All Batches'],
+    ['From Date', fromDate || '-'],
+    ['To Date', toDate || '-'],
+    [],
+    ['Student Name', 'Email Address', 'Mobile Number', 'Attendance Status', 'Student ID'],
+  ]
+
+  ;(Array.isArray(students) ? students : []).forEach((student) => {
+    const status =
+      String(student?.attendanceStatusLabel || student?.attendanceStatus || student?.status || 'Unmarked')
+        .trim() || 'Unmarked'
+
+    rows.push([
+      student?.studentName || '',
+      student?.emailAddress || '',
+      student?.mobileNumber || '',
+      status,
+      student?.id || student?.studentId || '',
+    ])
+  })
+
+  const csvContent = rows
+    .map((row) => row.map((cell) => escapeCsvValue(cell)).join(','))
+    .join('\r\n')
+
+  triggerLocalDownload(csvContent, 'batch-attendance-report.csv')
+}
+
 export function StudentAttendanceReportModal({
   isOpen,
   mode = 'course',
@@ -160,6 +221,23 @@ export function StudentAttendanceReportModal({
         toDate: form.toDate,
       })
     } catch (error) {
+      if (error?.status === 403) {
+        downloadFallbackAttendanceReport({
+          students,
+          courseId: courseIdForDownload,
+          courseName: fixedCourseName,
+          batchId: batchIdForDownload,
+          batchName: isCourseMode
+            ? activeBatchId === 'all'
+              ? 'All Batches'
+              : activeBatchOption?.batchName || activeBatchOption?.label || ''
+            : fixedBatchName,
+          fromDate: form.fromDate,
+          toDate: form.toDate,
+        })
+        return
+      }
+
       setErrorMessage(error?.body?.message || error?.message || 'Unable to generate student attendance report right now.')
     } finally {
       setIsDownloading(false)
