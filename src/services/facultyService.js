@@ -2,8 +2,8 @@ import { request } from './apiClient'
 
 const FACULTY_PAGE_LIMIT = 100
 const BATCH_NAME_STORAGE_SEPARATOR = '::course::'
-const FACULTY_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
-const FACULTY_PROFILE_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
+const FACULTY_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 60000)
+const FACULTY_PROFILE_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 60000)
 const facultyListCache = new Map()
 const facultyListInflight = new Map()
 const facultyProfileCache = new Map()
@@ -38,6 +38,11 @@ function clearFacultyListCache() {
 function clearFacultyProfileCache() {
   facultyProfileCache.clear()
   facultyProfileInflight.clear()
+}
+
+export function peekFacultyList(query = {}) {
+  const cacheKey = makeCacheKey(query)
+  return getCachedResult(facultyListCache, cacheKey)
 }
 
 function getUniqueCourseIdsFromBatchEntries(batchEntries = []) {
