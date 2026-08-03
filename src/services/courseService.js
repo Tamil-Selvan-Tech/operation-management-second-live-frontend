@@ -56,6 +56,31 @@ function normalizeText(value) {
   return String(value ?? '').trim()
 }
 
+export function normalizeCourseNameKey(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+export function findDuplicateCourse(courses, courseName, excludedCourseId = '') {
+  const normalizedTargetName = normalizeCourseNameKey(courseName)
+  const normalizedExcludedCourseId = String(excludedCourseId || '').trim()
+
+  if (!normalizedTargetName) return null
+
+  return Array.isArray(courses)
+    ? courses.find((course) => {
+        if (!course) return false
+        if (normalizedExcludedCourseId && String(course?.id || '').trim() === normalizedExcludedCourseId) {
+          return false
+        }
+
+        const normalizedCourseName = normalizeCourseNameKey(course?.name || course?.courseName || course?.title || '')
+        return normalizedCourseName === normalizedTargetName
+      }) || null
+    : null
+}
+
 function looksLikeHoursValue(value) {
   return /\bhour(s)?\b/i.test(normalizeText(value))
 }

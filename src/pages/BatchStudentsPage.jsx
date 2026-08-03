@@ -19,7 +19,7 @@ import { AppLoadingState } from '../components/AppLoadingState'
 import { Button } from '../components/Button'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
-import { getCurrentFacultyAttendanceOverview, markFacultyStudentAttendance } from '../services/attendanceService'
+import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
 import { COURSE_RECORD_SYNC_EVENT } from '../data/courseRecords'
 import { listCourses } from '../services/courseService'
 import { listFacultyRecords } from '../services/facultyService'
@@ -28,12 +28,17 @@ import {
   buildFacultyCoursePath,
   getFacultyBatchEntryById,
   getFacultyCourseName,
+  enrichStudentsWithFacultyReferences,
   getFacultyBatchStudentRecords,
 } from '../lib/facultyFlow'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.message || fallback
+}
+
+function loadStoredStudents() {
+  return loadStudentSnapshot() || []
 }
 
 function formatDate(value) {
@@ -56,21 +61,6 @@ function formatCurrency(value) {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount)
-}
-
-function getTodayValue() {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function toTitleStatus(value = '') {
-  const normalized = String(value || '').trim().toUpperCase()
-  if (normalized === 'PRESENT') return 'Present'
-  if (normalized === 'ABSENT') return 'Absent'
-  return 'Unmarked'
 }
 
 function getStudentInitials(name) {
@@ -134,11 +124,6 @@ export function BatchStudentsPage() {
   const [students, setStudents] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [attendanceOverview, setAttendanceOverview] = useState(null)
-  const [attendanceError, setAttendanceError] = useState('')
-  const [attendanceDrafts, setAttendanceDrafts] = useState({})
-  const [isAttendanceSaving, setIsAttendanceSaving] = useState(false)
-  const [attendanceMessage, setAttendanceMessage] = useState('')
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -152,17 +137,19 @@ export function BatchStudentsPage() {
         const [facultyResult, courseResult, studentResult] = await Promise.all([
           listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }),
           listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }),
-          listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }),
+          listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }).catch(() => ({ data: loadStoredStudents() })),
         ])
 
         setFacultyRecords(Array.isArray(facultyResult.data) ? facultyResult.data : [])
         setCourseOptions(Array.isArray(courseResult.data) ? courseResult.data : [])
-        setStudents(Array.isArray(studentResult.data) ? studentResult.data : [])
+        const nextStudents = mergeStudentsWithSnapshot(studentResult.data)
+        saveStudentSnapshot(nextStudents)
+        setStudents(nextStudents.length ? nextStudents : loadStoredStudents())
         setError('')
       } catch (nextError) {
         setFacultyRecords([])
         setCourseOptions([])
-        setStudents([])
+        setStudents(loadStoredStudents())
         setError(apiErrorMessage(nextError, 'Unable to load batch students right now.'))
       } finally {
         setIsLoading(false)
@@ -182,29 +169,6 @@ export function BatchStudentsPage() {
       window.removeEventListener('cispro:students-changed', syncData)
     }
   }, [])
-
-  useEffect(() => {
-    let active = true
-
-    const loadAttendance = async () => {
-      try {
-        const result = await getCurrentFacultyAttendanceOverview({ facultyId })
-        if (!active) return
-        setAttendanceOverview(result)
-        setAttendanceError('')
-      } catch (nextError) {
-        if (!active) return
-        setAttendanceOverview(null)
-        setAttendanceError(apiErrorMessage(nextError, 'Unable to load attendance data right now.'))
-      }
-    }
-
-    void loadAttendance()
-
-    return () => {
-      active = false
-    }
-  }, [facultyId])
 
   const selectedFaculty = useMemo(
     () => facultyRecords.find((record) => String(record?.id || '').trim() === String(facultyId || '').trim()) || null,
@@ -226,39 +190,45 @@ export function BatchStudentsPage() {
   const courseName = selectedCourse?.name || getFacultyCourseName(courseId, courseOptions) || selectedCourse?.id || '-'
   const batchName = selectedBatch?.batchName || '-'
   const batchTiming = selectedBatch?.batchTiming || '-'
-  const attendanceBatch = useMemo(
-    () =>
-      Array.isArray(attendanceOverview?.batches)
-        ? attendanceOverview.batches.find(
-            (batch) =>
-              String(batch?.courseId || '').trim() === String(courseId || '').trim() &&
-              String(batch?.batchName || '').trim().toLowerCase() === String(batchName || '').trim().toLowerCase(),
-          ) || null
-        : null,
-    [attendanceOverview?.batches, batchName, courseId],
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyRecords, courseOptions),
+    [courseOptions, facultyRecords, students],
   )
+
+  useEffect(() => {
+    if (backfilledStudents === students) return
+    saveStudentSnapshot(backfilledStudents)
+  }, [backfilledStudents, students])
+
   const matchingStudents = useMemo(
     () => {
-      if (Array.isArray(attendanceBatch?.students) && attendanceBatch.students.length) {
-        return attendanceBatch.students.map((student) => ({
-          ...student,
-          attendanceStatus: String(student?.attendanceStatus || 'UNMARKED').trim().toUpperCase(),
-          attendanceStatusLabel: toTitleStatus(student?.attendanceStatus || 'UNMARKED'),
-        }))
-      }
-
-      return getFacultyBatchStudentRecords(students, {
+      const strictMatches = getFacultyBatchStudentRecords(backfilledStudents, {
         facultyName: selectedFaculty?.facultyName || '',
+        facultyId: selectedFaculty?.id || '',
         courseId,
         courseName,
         batchName,
-      }).map((student) => ({
+        batchId: selectedBatch?.id || batchId,
+        batchTiming,
+      })
+
+      const relaxedMatches = strictMatches.length
+        ? strictMatches
+        : getFacultyBatchStudentRecords(backfilledStudents, {
+            courseId,
+            courseName,
+            batchName,
+            batchId: selectedBatch?.id || batchId,
+            batchTiming,
+          })
+
+      return relaxedMatches.map((student) => ({
         ...student,
-        attendanceStatus: 'UNMARKED',
-        attendanceStatusLabel: 'Unmarked',
+        attendanceStatus: String(student?.attendanceStatus || 'UNMARKED').trim().toUpperCase(),
+        attendanceStatusLabel: String(student?.attendanceStatusLabel || student?.attendanceStatus || 'Unmarked').trim() || 'Unmarked',
       }))
     },
-    [attendanceBatch?.students, batchName, courseId, courseName, selectedFaculty, students],
+    [backfilledStudents, batchId, batchName, batchTiming, courseId, courseName, selectedBatch, selectedFaculty],
   )
   const visibleStudents = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase()
@@ -280,63 +250,6 @@ export function BatchStudentsPage() {
       null,
     [courseId, courseOptions, selectedCourse, selectedStudent],
   )
-
-  useEffect(() => {
-    const nextDrafts = {}
-    matchingStudents.forEach((student) => {
-      const studentId = String(student?.id || '').trim()
-      if (!studentId) return
-      nextDrafts[studentId] = String(student?.attendanceStatus || 'UNMARKED').trim().toUpperCase()
-    })
-    setAttendanceDrafts(nextDrafts)
-  }, [matchingStudents])
-
-  const handleAttendanceChange = (studentId, value) => {
-    setAttendanceDrafts((current) => ({
-      ...current,
-      [studentId]: String(value || 'UNMARKED').trim().toUpperCase(),
-    }))
-    setAttendanceMessage('')
-    setAttendanceError('')
-  }
-
-  const handleSaveAttendance = async () => {
-    const studentsToSave = matchingStudents
-      .map((student) => ({
-        studentId: String(student?.id || '').trim(),
-        status: String(attendanceDrafts[String(student?.id || '').trim()] || 'UNMARKED').trim().toUpperCase(),
-      }))
-      .filter((entry) => entry.studentId && (entry.status === 'PRESENT' || entry.status === 'ABSENT'))
-
-    if (!studentsToSave.length) {
-      setAttendanceMessage('')
-      setAttendanceError('Select at least one Present or Absent status before saving attendance.')
-      return
-    }
-
-    try {
-      setIsAttendanceSaving(true)
-      const result = await markFacultyStudentAttendance({
-        date: getTodayValue(),
-        facultyId,
-        facultyName: selectedFaculty?.facultyName || '',
-        courseId,
-        courseName,
-        batchId,
-        batchName,
-        batchTiming,
-        students: studentsToSave,
-      })
-      setAttendanceOverview(result)
-      setAttendanceError('')
-      setAttendanceMessage(`Attendance saved successfully on ${getTodayValue()}.`)
-    } catch (nextError) {
-      setAttendanceMessage('')
-      setAttendanceError(apiErrorMessage(nextError, 'Unable to save attendance right now.'))
-    } finally {
-      setIsAttendanceSaving(false)
-    }
-  }
 
   return (
     <section className="faculty-flow-page faculty-batch-students-page">
@@ -371,20 +284,6 @@ export function BatchStudentsPage() {
         <div className="faculty-flow-empty" role="alert">
           <strong>Unable to load students</strong>
           <p>{error}</p>
-        </div>
-      ) : null}
-
-      {attendanceError ? (
-        <div className="faculty-flow-empty" role="alert">
-          <strong>Attendance issue</strong>
-          <p>{attendanceError}</p>
-        </div>
-      ) : null}
-
-      {attendanceMessage ? (
-        <div className="faculty-flow-empty" role="status">
-          <strong>Attendance updated</strong>
-          <p>{attendanceMessage}</p>
         </div>
       ) : null}
 
@@ -440,7 +339,7 @@ export function BatchStudentsPage() {
           <div className="faculty-flow-section-header">
             <div>
               <h3>Students in {batchName}</h3>
-              <p>These students match the selected faculty, course, and batch. Mark attendance and save it to the database.</p>
+              <p>These students match the selected faculty, course, and batch.</p>
             </div>
             <div className="faculty-flow-toolbar">
               <SearchBar
@@ -452,9 +351,6 @@ export function BatchStudentsPage() {
                 placeholder="Search student..."
                 ariaLabel="Search students in batch"
               />
-              <Button type="button" onClick={handleSaveAttendance} disabled={isAttendanceSaving || !matchingStudents.length}>
-                {isAttendanceSaving ? 'Saving...' : 'Save Attendance'}
-              </Button>
             </div>
           </div>
 
@@ -469,7 +365,6 @@ export function BatchStudentsPage() {
                     <th>Phone</th>
                     <th>Admission Date</th>
                     <th>Today Status</th>
-                    <th>Mark Attendance</th>
                     <th>Action</th>
                   </tr>
                 </thead>
@@ -487,17 +382,6 @@ export function BatchStudentsPage() {
                         <span className={`status-pill ${String(student.attendanceStatusLabel || 'Unmarked').toLowerCase().replace(/\s+/g, '-')}`}>
                           {student.attendanceStatusLabel || 'Unmarked'}
                         </span>
-                      </td>
-                      <td>
-                        <select
-                          value={attendanceDrafts[String(student.id || '').trim()] || 'UNMARKED'}
-                          onChange={(event) => handleAttendanceChange(String(student.id || '').trim(), event.target.value)}
-                          disabled={isAttendanceSaving}
-                        >
-                          <option value="UNMARKED">Unmarked</option>
-                          <option value="PRESENT">Present</option>
-                          <option value="ABSENT">Absent</option>
-                        </select>
                       </td>
                       <td>
                         <button

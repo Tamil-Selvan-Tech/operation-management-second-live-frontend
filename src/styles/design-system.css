@@ -286,6 +286,24 @@ textarea:focus-visible {
   color: var(--ds-text);
 }
 
+.sidebar-profile-logout-icon {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #dc2626;
+}
+
+.sidebar-profile-logout-icon:hover,
+.sidebar-profile-logout-icon:active,
+.sidebar-profile-logout-icon:focus {
+  background: transparent;
+  color: #b91c1c;
+}
+
+.sidebar-profile-logout-icon:focus-visible {
+  outline: 2px solid var(--ds-primary);
+  outline-offset: 2px;
+}
+
 .form,
 .login-form,
 .forgot-form,
@@ -857,7 +875,14 @@ tbody tr:hover {
 .is-business-owner-sidebar .sidebar-profile-logout-icon,
 .operation-manager-dashboard .sidebar-profile-logout-icon,
 .business-owner-dashboard .sidebar-profile-logout-icon {
-  color: #6b7280 !important;
+  color: #dc2626 !important;
+}
+
+.is-business-owner-sidebar .sidebar-profile-logout-icon:hover,
+.operation-manager-dashboard .sidebar-profile-logout-icon:hover,
+.business-owner-dashboard .sidebar-profile-logout-icon:hover {
+  background: transparent !important;
+  color: #b91c1c !important;
 }
 
 @media (max-width: 1200px) {

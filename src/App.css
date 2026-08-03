@@ -2222,6 +2222,19 @@ tbody tr:hover {
   margin-top: -18px;
 }
 
+.app-shell.is-inset-sidebar-divider .sidebar {
+  margin-right: 10px;
+}
+
+.app-shell.is-inset-sidebar-divider .sidebar-footer {
+  padding-right: 6px;
+}
+
+.app-shell.is-inset-sidebar-divider .sidebar-profile-card {
+  width: calc(100% + 20px);
+  margin-left: -10px;
+}
+
 .app-shell.business-owner-shell .brand-logo,
 .app-shell.operation-manager-shell .brand-logo {
   width: 48px;
@@ -2470,8 +2483,8 @@ tbody tr:hover {
 }
 
 .app-shell.dashboard-shell .sidebar-profile-card {
-  width: calc(100% + 28px);
-  margin-left: -14px;
+  width: 100%;
+  margin-left: 0;
   padding: 8px 8px 8px 8px;
   border-color: #dfe7f2;
   background: #ffffff;
@@ -2536,12 +2549,12 @@ tbody tr:hover {
 
 .app-shell.business-owner-shell .sidebar-profile-logout-icon:hover,
 .app-shell.operation-manager-shell .sidebar-profile-logout-icon:hover {
-  background: #fee2e2;
+  background: transparent;
   color: #dc2626;
 }
 
 .app-shell.dashboard-shell .sidebar-profile-logout-icon:hover {
-  background: #fee2e2;
+  background: transparent;
   color: #dc2626;
 }
 
@@ -4677,14 +4690,25 @@ tbody tr:hover {
 
   .student-summary-card-label {
     font-size: 0.68rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-summary-card-value {
     font-size: 0.92rem;
+    word-break: normal;
+    overflow-wrap: normal;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-summary-card-note {
     font-size: 0.69rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-summary-card-badge {
@@ -12940,6 +12964,15 @@ tbody tr:hover {
   color: #17823b;
 }
 
+.faculty-course-catalog-page .faculty-flow-status-pill.is-active,
+.faculty-course-catalog-page .faculty-flow-status-pill.active {
+  min-height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #0f172a;
+}
+
 .faculty-flow-status-pill.is-inactive {
   background: #f2f4f7;
   color: #64748b;
@@ -13967,11 +14000,15 @@ tbody tr:hover {
   width: min(1240px, calc(100vw - 48px));
   max-height: min(90vh, 940px);
   padding: 24px 26px 22px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   border-radius: 30px;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 24%),
     radial-gradient(circle at top right, rgba(34, 197, 94, 0.06), transparent 22%),
@@ -14395,6 +14432,8 @@ tbody tr:hover {
   max-height: min(88vh, 920px);
   padding: 28px 30px 24px;
   border-radius: 28px;
+  overflow-y: auto;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 26%),
     radial-gradient(circle at top right, rgba(16, 185, 129, 0.06), transparent 22%),
@@ -14408,6 +14447,11 @@ tbody tr:hover {
   justify-content: space-between;
   gap: 16px;
   padding: 0 6px 18px;
+}
+
+.faculty-my-batches-page .batch-student-modal-header-main {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .faculty-my-batches-page .batch-student-modal-header-actions {
@@ -14430,7 +14474,11 @@ tbody tr:hover {
 }
 
 .faculty-my-batches-page .batch-student-modal-header-copy p {
-  max-width: 780px;
+  max-width: none;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 0.94rem;
 }
 
 .faculty-my-batches-page .batch-student-modal-header-meta {
@@ -14941,9 +14989,9 @@ tbody tr:hover {
 }
 
 .faculty-my-batches-page .batch-student-pagination-link {
-  min-height: 48px;
-  padding-inline: 18px;
-  border-radius: 16px;
+  min-height: 40px;
+  padding-inline: 14px;
+  border-radius: 14px;
   border-color: #d9e4f3;
   background: #ffffff;
   color: #3950d8;
@@ -14951,12 +14999,12 @@ tbody tr:hover {
 }
 
 .faculty-my-batches-page .batch-student-pagination-page {
-  min-width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  min-width: 42px;
+  height: 42px;
+  border-radius: 14px;
   background: #f6f8fe;
   color: #3f4b66;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 800;
 }
 
@@ -14967,13 +15015,13 @@ tbody tr:hover {
 .faculty-my-batches-page .batch-student-pagination-pages {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .faculty-my-batches-page .batch-student-pagination-count {
-  margin-left: 10px;
+  margin-left: 8px;
   color: #3f4b66;
-  font-size: 0.98rem;
+  font-size: 0.95rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -16386,14 +16434,61 @@ tbody tr:hover {
 
 .faculty-batch-item-image {
   min-height: 88px;
-  align-items: flex-start;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto;
+  align-items: start;
+  column-gap: 10px;
+  row-gap: 6px;
   padding: 14px 16px;
 }
 
 .faculty-batch-item-image .faculty-batch-item-copy {
   display: grid;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.faculty-batch-item-image .faculty-batch-item-copy strong {
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.faculty-batch-item-image .faculty-batch-item-copy small {
+  color: #475569;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.faculty-batch-item-image .faculty-batch-edit-icon,
+.faculty-batch-item-image .faculty-batch-remove-icon {
+  align-self: start;
+  grid-row: 1;
+}
+
+.faculty-batch-item-image .faculty-batch-edit-icon {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  grid-column: 2;
+  margin-left: 12px;
+}
+
+.faculty-batch-item-image .faculty-batch-edit-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.faculty-batch-item-image .faculty-batch-remove-icon {
+  grid-column: 3;
 }
 
 .faculty-form-actions-large {
@@ -17591,6 +17686,38 @@ tbody tr:hover {
   min-height: 104px;
 }
 
+.student-year-select-stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.student-year-select-control {
+  position: relative;
+  display: grid;
+}
+
+.student-year-select-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #4d63f5;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.student-year-select-control select {
+  padding-left: 48px;
+}
+
+.student-year-select-stack > input,
+.student-year-select-stack > select {
+  width: 100%;
+}
+
 .student-modal .course-field input:focus,
 .student-modal .course-field select:focus,
 .student-modal .course-field textarea:focus {
@@ -17983,11 +18110,27 @@ tbody tr:hover {
   background: linear-gradient(180deg, #1f6df0 0%, #1a5fd1 100%);
   color: #ffffff;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
   text-align: left;
   flex-wrap: wrap;
+}
+
+.student-drawer-table-header-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  flex: 1 1 260px;
+  padding-left: 240px;
+}
+
+.student-drawer-table-header-copy .section-kicker {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
 .course-drawer-table-header {
@@ -18034,14 +18177,14 @@ tbody tr:hover {
 
 .student-drawer-table-header h3 {
   margin: 0;
-  flex: 1 1 220px;
   min-width: 0;
   color: #ffffff;
   font-size: 1.25rem;
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.02em;
-  text-align: right;
+  text-align: left;
+  white-space: normal;
 }
 
 .student-drawer-close-floating {
@@ -18057,18 +18200,15 @@ tbody tr:hover {
 }
 
 .student-drawer-table-actions {
-  position: absolute;
-  top: 6px;
-  right: 10px;
+  position: relative;
   display: flex;
   align-items: center;
-  align-self: flex-start;
   justify-content: flex-end;
   flex: 0 0 auto;
   gap: 6px;
   flex-wrap: wrap;
   margin-left: auto;
-  margin-top: 0;
+  max-width: 100%;
 }
 
 .student-drawer-edit-button {
@@ -19051,6 +19191,100 @@ tbody tr:hover {
 
 .course-installment-confirm:hover {
   background: linear-gradient(180deg, #4f9dff 0%, #2875dc 100%);
+}
+
+.student-installment-toast {
+  position: fixed;
+  top: 28px;
+  right: 22px;
+  z-index: 120;
+  width: min(370px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid #e5edf7;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: studentInstallmentToastIn 0.24s ease-out;
+}
+
+.student-installment-toast-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 18px rgba(22, 163, 74, 0.18);
+}
+
+.student-installment-toast-copy {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #14532d;
+}
+
+.student-installment-toast-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.student-installment-toast-title-row strong {
+  color: #15803d;
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.student-installment-toast-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.student-installment-toast-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.student-installment-toast-lines {
+  display: grid;
+  gap: 2px;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.student-installment-toast-lines span {
+  display: block;
+}
+
+@keyframes studentInstallmentToastIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .course-pagination {
@@ -22646,6 +22880,10 @@ tbody tr:hover {
 
 .sidebar-profile-copy {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
 }
 
 .sidebar-profile-copy strong {
@@ -22658,6 +22896,15 @@ tbody tr:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.1;
+}
+
+.sidebar-profile-email {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-profile-logout-icon {
@@ -22678,9 +22925,9 @@ tbody tr:hover {
 }
 
 .sidebar-profile-logout-icon:hover {
-  background: #fee2e2;
+  background: transparent;
   color: #b91c1c;
-  transform: translateY(-1px);
+  transform: none;
 }
 
 @media (max-width: 1280px) {
@@ -23677,6 +23924,55 @@ tbody tr:hover {
   margin-bottom: 4px;
 }
 
+.business-owner-dashboard .revenue-summary-loading,
+.operation-manager-dashboard .revenue-summary-loading {
+  min-height: 68px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring,
+.operation-manager-dashboard .revenue-summary-loading-ring {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.85s linear infinite;
+  -webkit-mask: radial-gradient(circle, transparent 54%, #000 55%);
+  mask: radial-gradient(circle, transparent 54%, #000 55%);
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring.blue,
+.operation-manager-dashboard .revenue-summary-loading-ring.blue {
+  background: conic-gradient(from 90deg, #3b82f6 0 92deg, rgba(219, 234, 254, 0.95) 92deg 360deg);
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring.purple,
+.operation-manager-dashboard .revenue-summary-loading-ring.purple {
+  background: conic-gradient(from 90deg, #a855f7 0 92deg, rgba(243, 232, 255, 0.96) 92deg 360deg);
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring.amber,
+.operation-manager-dashboard .revenue-summary-loading-ring.amber {
+  background: conic-gradient(from 90deg, #eab308 0 92deg, rgba(254, 243, 199, 0.96) 92deg 360deg);
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring.green,
+.operation-manager-dashboard .revenue-summary-loading-ring.green {
+  background: conic-gradient(from 90deg, #22c55e 0 92deg, rgba(220, 252, 231, 0.96) 92deg 360deg);
+}
+
+.business-owner-dashboard .revenue-summary-loading strong,
+.operation-manager-dashboard .revenue-summary-loading strong {
+  margin: 0;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 .business-owner-dashboard:not(.operation-manager-dashboard) .revenue-summary-value {
   font-size: clamp(1.75rem, 2.6vw, 2rem);
   font-weight: 700;
@@ -24111,7 +24407,7 @@ tbody tr:hover {
 .is-business-owner-sidebar .sidebar-profile-logout-icon {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #ef4444;
   width: 24px;
   height: 24px;
   padding: 0;
@@ -24124,8 +24420,8 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .sidebar-profile-logout-icon:hover {
-  color: #0f172a;
-  background: #e2e8f0;
+  color: #dc2626;
+  background: transparent;
 }
 
 @media (max-width: 1024px) {
@@ -25741,10 +26037,18 @@ tbody tr:hover {
 
   .student-dashboard-page .student-summary-card-value {
     font-size: 0.9rem;
+    word-break: normal;
+    overflow-wrap: normal;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-dashboard-page .student-summary-card-note {
     font-size: 0.67rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-dashboard-page .student-summary-card-badge {

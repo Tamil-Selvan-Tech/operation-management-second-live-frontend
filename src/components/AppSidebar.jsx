@@ -67,6 +67,7 @@ export function AppSidebar({
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const userRoleLabel = roleLabels[user?.role] || 'Cispro User'
   const userName = user?.name && !/^\s*user\s*$/i.test(user.name) ? user.name : userRoleLabel
+  const profileEmail = user?.email || (isBusinessOwner ? 'business.owner@cispro.com' : '')
   const avatarSrc = user?.avatarUrl || defaultAvatarSrc
   const unreadNotificationCount = useMemo(() => getUnreadNotificationCount(user?.role), [user?.role])
 
@@ -198,9 +199,7 @@ export function AppSidebar({
           </span>
           <span className="sidebar-profile-copy">
             <strong>{userName}</strong>
-            {isBusinessOwner ? (
-              <small className="sidebar-profile-email">{user?.email || 'business.owner@cispro.com'}</small>
-            ) : null}
+            {profileEmail ? <small className="sidebar-profile-email">{profileEmail}</small> : null}
           </span>
           <button
             type="button"

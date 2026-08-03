@@ -69,6 +69,17 @@ function getStoredBatchCourseLabel(batchName = '') {
   return parts[parts.length - 1] || ''
 }
 
+function getBatchSequenceNoFromName(batchName = '') {
+  const normalizedBatchName = String(batchName || '').trim()
+  if (!normalizedBatchName) return 0
+
+  const match = normalizedBatchName.match(/\bbatch\s*(\d+)\b/i)
+  if (!match) return 0
+
+  const sequenceNo = Number(match[1])
+  return Number.isFinite(sequenceNo) && sequenceNo > 0 ? sequenceNo : 0
+}
+
 function stripStoredBatchName(batchName = '', courseLabel = '') {
   let normalizedBatchName = String(batchName || '').trim()
   if (!normalizedBatchName) return normalizedBatchName
@@ -169,7 +180,7 @@ export function normalizeFacultyRecord(record, fallback = {}) {
     batchTiming: entry.batchTiming || '',
     courseId: entry.courseId || '',
     courseName: entry.courseName || getStoredBatchCourseLabel(entry.batchName || '') || '',
-    sequenceNo: entry.sequenceNo ?? 1,
+    sequenceNo: Number(entry.sequenceNo || getBatchSequenceNoFromName(entry.batchName || '') || 1) || 1,
   }))
   const sourceCourseAssignments = Array.isArray(record.courseAssignments) && record.courseAssignments.length
     ? record.courseAssignments
@@ -290,6 +301,7 @@ function buildFacultyPayload(payload = {}) {
           batchTiming: String(entry?.batchTiming ?? '').trim(),
           courseId: String(entry?.courseId ?? '').trim(),
           courseName: String(entry?.courseName ?? '').trim(),
+          sequenceNo: Number(entry?.sequenceNo || getBatchSequenceNoFromName(entry?.batchName || '') || 1) || 1,
         }))
       : [],
   }

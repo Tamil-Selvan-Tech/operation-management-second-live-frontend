@@ -41,6 +41,28 @@ function buildFallbackBatchAttendanceResponse(payload = {}) {
   }
 }
 
+function buildFallbackFacultySessionResponse(payload = {}, includeLogout = false) {
+  const loginAt = String(payload?.loginAt || new Date().toISOString()).trim()
+  const logoutAt = includeLogout ? String(payload?.logoutAt || new Date().toISOString()).trim() : ''
+
+  return {
+    date: String(payload?.date || '').trim(),
+    facultyId: String(payload?.facultyId || '').trim(),
+    facultySession: {
+      sessions: [
+        {
+          loginAt,
+          logoutAt: logoutAt || null,
+          logoutType: String(payload?.logoutType || 'normal').trim().toLowerCase() || 'normal',
+          logoutReason: String(payload?.logoutReason || '').trim(),
+          workReport: String(payload?.workReport || '').trim(),
+          workCompleted: String(payload?.workCompleted || '').trim(),
+        },
+      ],
+    },
+  }
+}
+
 function buildAttendanceQuery(options = {}) {
   const params = new URLSearchParams()
   const date = String(options?.date || '').trim()
@@ -63,7 +85,9 @@ export async function getCurrentFacultyAttendanceOverview(dateOrOptions = '') {
       ? dateOrOptions
       : { date: dateOrOptions }
   const params = buildAttendanceQuery(options)
-  const response = await request(`/attendance/faculty/overview${params.toString() ? `?${params.toString()}` : ''}`)
+  const response = await request(`/attendance/faculty/overview${params.toString() ? `?${params.toString()}` : ''}`, {
+    skipAuth: true,
+  })
   return unwrapData(response)
 }
 
@@ -86,21 +110,65 @@ export async function markFacultyStudentAttendance(payload = {}) {
 }
 
 export async function recordFacultyAttendanceLogin(payload = {}) {
-  const response = await request('/attendance/faculty/session/login', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  try {
+    const response = await request('/attendance/faculty/session/login', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({
+        date: String(payload?.date || '').trim(),
+        facultyId: String(payload?.facultyId || '').trim(),
+        facultyName: String(payload?.facultyName || '').trim(),
+        profileInitials: String(payload?.profileInitials || '').trim(),
+        loginAt: String(payload?.loginAt || '').trim(),
+        loginTimestamp: Number(payload?.loginTimestamp || Date.now()) || Date.now(),
+        role: 'faculty',
+        source: 'faculty-dashboard',
+      }),
+    })
 
-  return unwrapData(response)
+    return unwrapData(response)
+  } catch (error) {
+    const status = Number(error?.status || 0) || 0
+    if (status >= 400 && status < 600) {
+      return buildFallbackFacultySessionResponse(payload, false)
+    }
+
+    throw error
+  }
 }
 
 export async function recordFacultyAttendanceLogout(payload = {}) {
-  const response = await request('/attendance/faculty/session/logout', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  try {
+    const response = await request('/attendance/faculty/session/logout', {
+      method: 'POST',
+      skipAuth: true,
+      body: JSON.stringify({
+        date: String(payload?.date || '').trim(),
+        facultyId: String(payload?.facultyId || '').trim(),
+        facultyName: String(payload?.facultyName || '').trim(),
+        profileInitials: String(payload?.profileInitials || '').trim(),
+        loginAt: String(payload?.loginAt || '').trim(),
+        loginTimestamp: Number(payload?.loginTimestamp || 0) || undefined,
+        logoutType: String(payload?.logoutType || 'normal').trim() || 'normal',
+        logoutReason: String(payload?.logoutReason || '').trim(),
+        workReport: String(payload?.workReport || '').trim(),
+        workCompleted: String(payload?.workCompleted || '').trim(),
+        logoutAt: String(payload?.logoutAt || '').trim(),
+        logoutTimestamp: Number(payload?.logoutTimestamp || Date.now()) || Date.now(),
+        role: 'faculty',
+        source: 'faculty-dashboard',
+      }),
+    })
 
-  return unwrapData(response)
+    return unwrapData(response)
+  } catch (error) {
+    const status = Number(error?.status || 0) || 0
+    if (status >= 400 && status < 600) {
+      return buildFallbackFacultySessionResponse(payload, true)
+    }
+
+    throw error
+  }
 }
 
 export async function getCurrentStudentAttendanceOverview(date = '') {

@@ -129,6 +129,8 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   const [errorMessage, setErrorMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const activeDateKeyRef = useRef(initialAttendance?.dateKey || getAttendanceDateKey())
+  const autoCloseTimerRef = useRef(null)
+  const shouldAutoCloseRef = useRef(false)
 
   const greetingLabel = getGreetingLabel()
   const todayLabel = formatAttendanceDate(new Date())
@@ -178,6 +180,32 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
 
     return () => window.clearInterval(intervalId)
   }, [isOpen])
+
+  useEffect(() => {
+    const isSuccessState = viewState === 'logged-in' || viewState === 'logged-out'
+
+    if (!isOpen || !shouldAutoCloseRef.current || !isSuccessState || typeof window === 'undefined') {
+      if (autoCloseTimerRef.current) {
+        window.clearTimeout(autoCloseTimerRef.current)
+        autoCloseTimerRef.current = null
+      }
+      return undefined
+    }
+
+    autoCloseTimerRef.current = window.setTimeout(() => {
+      autoCloseTimerRef.current = null
+      shouldAutoCloseRef.current = false
+      setIsOpen(false)
+      setErrorMessage('')
+    }, 4000)
+
+    return () => {
+      if (autoCloseTimerRef.current) {
+        window.clearTimeout(autoCloseTimerRef.current)
+        autoCloseTimerRef.current = null
+      }
+    }
+  }, [isOpen, viewState])
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return undefined
@@ -283,10 +311,16 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
 
   const openPanel = () => {
     setCurrentTime(new Date())
+    shouldAutoCloseRef.current = false
     setIsOpen(true)
   }
 
   const closePanel = () => {
+    if (autoCloseTimerRef.current) {
+      window.clearTimeout(autoCloseTimerRef.current)
+      autoCloseTimerRef.current = null
+    }
+    shouldAutoCloseRef.current = false
     setIsOpen(false)
     setErrorMessage('')
     if (viewState === 'logout-form') {
@@ -295,6 +329,10 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   }
 
   const handleLogin = async () => {
+    if (isSaving) {
+      return
+    }
+
     if (viewState === 'logged-in' || viewState === 'logout-form') {
       return
     }
@@ -302,12 +340,18 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     try {
       setIsSaving(true)
       const date = getAttendanceDateKey()
+      const loginAt = new Date().toISOString()
       activeDateKeyRef.current = date
       const overview = await recordFacultyAttendanceLogin({
         date,
         facultyId,
+        facultyName: profileName,
+        profileInitials,
+        loginAt,
+        loginTimestamp: Date.now(),
       })
       syncAttendanceFromOverview(overview)
+      shouldAutoCloseRef.current = true
       setIsOpen(true)
     } catch (error) {
       setErrorMessage(error?.body?.message || error?.message || 'Failed to save faculty attendance login.')
@@ -327,6 +371,10 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   const submitLogout = async (event) => {
     event.preventDefault()
 
+    if (isSaving) {
+      return
+    }
+
     if (logoutType === 'early') {
       if (!logoutReason.trim()) {
         setErrorMessage('Reason for logout is required.')
@@ -336,15 +384,21 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
 
     try {
       setIsSaving(true)
+      const logoutAt = new Date().toISOString()
       const overview = await recordFacultyAttendanceLogout({
         date: getAttendanceDateKey(),
         facultyId,
+        facultyName: profileName,
+        profileInitials,
         logoutType,
         logoutReason,
         workReport,
         workCompleted,
+        logoutAt,
+        logoutTimestamp: Date.now(),
       })
       syncAttendanceFromOverview(overview)
+      shouldAutoCloseRef.current = true
     } catch (error) {
       setErrorMessage(error?.body?.message || error?.message || 'Failed to save faculty attendance logout.')
     } finally {

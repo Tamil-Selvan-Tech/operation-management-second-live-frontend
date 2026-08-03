@@ -154,13 +154,21 @@ export function getFacultyBatchEntriesForCourse(record = {}, courseId = '', cour
 
   const matchingEntries = batchEntries.filter((entry) => {
     const entryCourseId = String(entry?.courseId || '').trim()
-    if (entryCourseId) return entryCourseId === normalizedCourseId
-
     const entryCourseName = normalizeText(entry?.courseName || '')
-    if (!entryCourseName || !Array.isArray(courseOptions) || !courseOptions.length) return false
+    const resolvedCourseFromName =
+      entryCourseName && Array.isArray(courseOptions) && courseOptions.length
+        ? courseOptions.find((course) => normalizeText(course?.name || '') === entryCourseName)
+        : null
 
-    const resolvedCourse = courseOptions.find((course) => normalizeText(course?.name || '') === entryCourseName)
-    return String(resolvedCourse?.id || '').trim() === normalizedCourseId
+    if (entryCourseId) {
+      if (entryCourseId === normalizedCourseId) return true
+      if (!resolvedCourseFromName) return false
+      return String(resolvedCourseFromName?.id || '').trim() === normalizedCourseId
+    }
+
+    if (!resolvedCourseFromName) return false
+
+    return String(resolvedCourseFromName?.id || '').trim() === normalizedCourseId
   })
   if (matchingEntries.length) return matchingEntries
 
@@ -327,7 +335,7 @@ export function enrichStudentsWithFacultyReferences(students = [], facultyRecord
 
 export function getMatchingStudents(
   students = [],
-  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '' } = {},
+  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '', batchTiming = '' } = {},
 ) {
   const normalizedFacultyId = String(facultyId || '').trim()
   const normalizedBatchId = String(batchId || '').trim()
@@ -336,6 +344,7 @@ export function getMatchingStudents(
   const normalizedCourseName = normalizeText(courseName)
   const normalizedBatchName = normalizeText(batchName)
   const normalizedBatchToken = normalizeBatchToken(batchName)
+  const normalizedBatchTiming = normalizeText(batchTiming || '')
 
   return (Array.isArray(students) ? students : []).filter((student) => {
     const studentCourseId = String(student?.courseId || '').trim()
@@ -345,6 +354,7 @@ export function getMatchingStudents(
     const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim()
     const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
     const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
+    const studentBatchTiming = normalizeText(student?.batchTiming || student?.batchTime || '')
 
     if (normalizedFacultyId && studentFacultyId && studentFacultyId !== normalizedFacultyId) {
       return false
@@ -363,6 +373,10 @@ export function getMatchingStudents(
     }
 
     if (normalizedBatchId && studentBatchId && studentBatchId !== normalizedBatchId) {
+      return false
+    }
+
+    if (normalizedBatchTiming && studentBatchTiming && studentBatchTiming !== normalizedBatchTiming) {
       return false
     }
 
@@ -395,7 +409,7 @@ export function getMatchingStudents(
 
 export function getFacultyBatchStudentRecords(
   students = [],
-  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '' } = {},
+  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '', batchTiming = '' } = {},
 ) {
   const exactMatches = getMatchingStudents(students, {
     facultyName,
@@ -404,6 +418,7 @@ export function getFacultyBatchStudentRecords(
     courseName,
     batchName,
     batchId,
+    batchTiming,
   })
 
   if (exactMatches.length) {
@@ -416,6 +431,7 @@ export function getFacultyBatchStudentRecords(
     courseName,
     batchName,
     batchId,
+    batchTiming,
   }))
 }
 
