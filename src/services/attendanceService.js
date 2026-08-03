@@ -86,7 +86,6 @@ export async function getCurrentFacultyAttendanceOverview(dateOrOptions = '') {
       : { date: dateOrOptions }
   const params = buildAttendanceQuery(options)
   const response = await request(`/attendance/faculty/overview${params.toString() ? `?${params.toString()}` : ''}`, {
-    skipAuth: true,
   })
   return unwrapData(response)
 }
@@ -113,7 +112,6 @@ export async function recordFacultyAttendanceLogin(payload = {}) {
   try {
     const response = await request('/attendance/faculty/session/login', {
       method: 'POST',
-      skipAuth: true,
       body: JSON.stringify({
         date: String(payload?.date || '').trim(),
         facultyId: String(payload?.facultyId || '').trim(),
@@ -129,7 +127,7 @@ export async function recordFacultyAttendanceLogin(payload = {}) {
     return unwrapData(response)
   } catch (error) {
     const status = Number(error?.status || 0) || 0
-    if (status >= 400 && status < 600) {
+    if (!status) {
       return buildFallbackFacultySessionResponse(payload, false)
     }
 
@@ -141,7 +139,6 @@ export async function recordFacultyAttendanceLogout(payload = {}) {
   try {
     const response = await request('/attendance/faculty/session/logout', {
       method: 'POST',
-      skipAuth: true,
       body: JSON.stringify({
         date: String(payload?.date || '').trim(),
         facultyId: String(payload?.facultyId || '').trim(),
@@ -163,7 +160,7 @@ export async function recordFacultyAttendanceLogout(payload = {}) {
     return unwrapData(response)
   } catch (error) {
     const status = Number(error?.status || 0) || 0
-    if (status >= 400 && status < 600) {
+    if (!status) {
       return buildFallbackFacultySessionResponse(payload, true)
     }
 
