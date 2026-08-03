@@ -17606,6 +17606,38 @@ tbody tr:hover {
   min-height: 104px;
 }
 
+.student-year-select-stack {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.student-year-select-control {
+  position: relative;
+  display: grid;
+}
+
+.student-year-select-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #4d63f5;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.student-year-select-control select {
+  padding-left: 48px;
+}
+
+.student-year-select-stack > input,
+.student-year-select-stack > select {
+  width: 100%;
+}
+
 .student-modal .course-field input:focus,
 .student-modal .course-field select:focus,
 .student-modal .course-field textarea:focus {
@@ -17998,11 +18030,27 @@ tbody tr:hover {
   background: linear-gradient(180deg, #1f6df0 0%, #1a5fd1 100%);
   color: #ffffff;
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
   text-align: left;
   flex-wrap: wrap;
+}
+
+.student-drawer-table-header-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  flex: 1 1 260px;
+  padding-left: 240px;
+}
+
+.student-drawer-table-header-copy .section-kicker {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
 }
 
 .course-drawer-table-header {
@@ -18049,14 +18097,14 @@ tbody tr:hover {
 
 .student-drawer-table-header h3 {
   margin: 0;
-  flex: 1 1 220px;
   min-width: 0;
   color: #ffffff;
   font-size: 1.25rem;
   line-height: 1.1;
   font-weight: 800;
   letter-spacing: -0.02em;
-  text-align: right;
+  text-align: left;
+  white-space: normal;
 }
 
 .student-drawer-close-floating {
@@ -18072,18 +18120,15 @@ tbody tr:hover {
 }
 
 .student-drawer-table-actions {
-  position: absolute;
-  top: 6px;
-  right: 10px;
+  position: relative;
   display: flex;
   align-items: center;
-  align-self: flex-start;
   justify-content: flex-end;
   flex: 0 0 auto;
   gap: 6px;
   flex-wrap: wrap;
   margin-left: auto;
-  margin-top: 0;
+  max-width: 100%;
 }
 
 .student-drawer-edit-button {

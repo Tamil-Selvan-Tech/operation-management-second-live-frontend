@@ -369,6 +369,17 @@ export function CoursesPage() {
     return () => window.clearTimeout(timeoutId)
   }, [activeFilter, currentPage, loadCourses, searchTerm])
 
+  useEffect(() => {
+    if (!isModalOpen) return undefined
+
+    const { overflow: previousOverflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isModalOpen])
+
   const pageList = useMemo(() => {
     if (totalPages <= 8) {
       return Array.from({ length: totalPages }, (_, index) => index + 1)

@@ -77,6 +77,12 @@ function getPassedOutYearOptions() {
   return years
 }
 
+function isCustomPassedOutYearValue(value, yearOptions = []) {
+  const normalizedValue = String(value || '').trim()
+  if (!normalizedValue) return false
+  return !yearOptions.includes(normalizedValue)
+}
+
 function getTodayValue() {
   const date = new Date()
   const year = date.getFullYear()
@@ -422,7 +428,6 @@ function getRequiredInstallmentCount(course = null) {
 
 function validateForm(form, course = null) {
   const errors = {}
-  const currentYear = new Date().getFullYear()
   const isFullPayment = isFullPaymentMode(form)
   const requiredInstallmentCount = isFullPayment ? 0 : getRequiredInstallmentCount(course)
 
@@ -439,7 +444,7 @@ function validateForm(form, course = null) {
   if (!form.qualification.trim()) errors.qualification = 'Qualification is required.'
 
   const passedOutYear = Number(form.passedOutYear)
-  if (!/^\d{4}$/.test(String(form.passedOutYear).trim()) || passedOutYear < 1950 || passedOutYear > currentYear + 1) {
+  if (!/^\d{4}$/.test(String(form.passedOutYear).trim()) || passedOutYear < 1950) {
     errors.passedOutYear = 'Enter a valid passed out year.'
   }
 
@@ -679,6 +684,7 @@ function DrawerTableRow({ leftLabel, leftValue, rightLabel, rightValue, leftTone
 function DrawerFormControl({
   value,
   onChange,
+  onBlur,
   type = 'text',
   options = [],
   as = 'input',
@@ -688,7 +694,7 @@ function DrawerFormControl({
 }) {
   if (as === 'select') {
     return (
-      <select className="student-drawer-inline-control" value={value} onChange={onChange} disabled={disabled}>
+      <select className="student-drawer-inline-control" value={value} onChange={onChange} onBlur={onBlur} disabled={disabled}>
         <option value="">{placeholder || 'Select option'}</option>
         {options.map((option) => (
           <option key={typeof option === 'object' ? option.value : option} value={typeof option === 'object' ? option.value : option}>
@@ -717,6 +723,7 @@ function DrawerFormControl({
       type={type}
       value={value}
       onChange={onChange}
+      onBlur={onBlur}
       placeholder={placeholder}
       readOnly={readOnly}
       disabled={disabled}
@@ -1043,6 +1050,7 @@ export function StudentManagementPage() {
   const [isCoursesLoading, setIsCoursesLoading] = useState(true)
   const [isFacultyLoading, setIsFacultyLoading] = useState(true)
   const [form, setForm] = useState(createEmptyForm)
+  const [passedOutYearMode, setPassedOutYearMode] = useState('select')
   const [submitted, setSubmitted] = useState(false)
   const [fieldFocus, setFieldFocus] = useState({})
   const [editingStudentId, setEditingStudentId] = useState('')
@@ -1483,10 +1491,22 @@ export function StudentManagementPage() {
     return () => window.clearTimeout(timeoutId)
   }, [])
 
+  useEffect(() => {
+    if (!isModalOpen) return undefined
+
+    const { overflow: previousOverflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isModalOpen])
+
   const openModal = () => {
     setActionError('')
     setServerFieldErrors({})
     setForm(createEmptyForm())
+    setPassedOutYearMode('select')
     setFieldFocus({})
     setSubmitted(false)
     setEditingStudentId('')
@@ -1537,10 +1557,35 @@ export function StudentManagementPage() {
     admissionDate: student.admissionDate || getTodayValue(),
   })
 
+  const handlePassedOutYearChange = (value) => {
+    const normalizedValue = String(value || '').trim()
+    if (normalizedValue === '__custom__') {
+      setPassedOutYearMode('custom')
+      setFieldFocus((current) => ({
+        ...current,
+        passedOutYear: false,
+      }))
+      setForm((current) => ({
+        ...current,
+        passedOutYear: '',
+      }))
+      return
+    }
+
+    setPassedOutYearMode('select')
+    updateField('passedOutYear', normalizedValue)
+  }
+
+  const handleCustomPassedOutYearChange = (value) => {
+    setPassedOutYearMode('custom')
+    updateField('passedOutYear', value.replace(/\D/g, '').slice(0, 4))
+  }
+
   const openEditModal = (student) => {
     setActionError('')
     setServerFieldErrors({})
     setForm(prepareStudentForm(student))
+    setPassedOutYearMode(isCustomPassedOutYearValue(student?.passedOutYear, passedOutYearOptions) ? 'custom' : 'select')
     setFieldFocus({})
     setSubmitted(false)
     setEditingStudentId(student.id)
@@ -1554,6 +1599,7 @@ export function StudentManagementPage() {
     setActionError('')
     setServerFieldErrors({})
     setForm(prepareStudentForm(student))
+    setPassedOutYearMode(isCustomPassedOutYearValue(student?.passedOutYear, passedOutYearOptions) ? 'custom' : 'select')
     setFieldFocus({})
     setSubmitted(false)
     setEditingStudentId(student.id)
@@ -1576,6 +1622,7 @@ export function StudentManagementPage() {
   const closeDrawer = useCallback(() => {
     setIsDrawerEditing(false)
     setManualSelectedStudentId('')
+    setPassedOutYearMode('select')
     navigate(buildStudentManagementUrl(), { replace: true })
   }, [buildStudentManagementUrl, navigate])
 
@@ -1622,6 +1669,7 @@ export function StudentManagementPage() {
     setServerFieldErrors({})
     setEditingStudentId('')
     setCurrentStep(0)
+    setPassedOutYearMode('select')
   }
 
   const openAttendanceReportModal = (mode = 'all', student = null) => {
@@ -2022,6 +2070,7 @@ export function StudentManagementPage() {
       } else {
         setIsModalOpen(false)
         setForm(createEmptyForm())
+        setPassedOutYearMode('select')
         setFieldFocus({})
         setSubmitted(false)
         setEditingStudentId('')
@@ -2790,19 +2839,42 @@ export function StudentManagementPage() {
                     />
                   </Field>
 
-                  <Field label="Select Passed Out Year" required icon={<FieldIcon kind="year" />} error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
-                    <select
-                      value={form.passedOutYear}
-                      onChange={(event) => updateField('passedOutYear', event.target.value)}
-                      onBlur={() => markTouched('passedOutYear')}
-                    >
-                      <option value="">Select year</option>
-                      {passedOutYearOptions.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
+                  <Field label="Select Passed Out Year" required error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
+                    <div className="student-year-select-stack">
+                      <div className="student-year-select-control">
+                        <span className="student-year-select-icon" aria-hidden="true">
+                          <FieldIcon kind="year" />
+                        </span>
+                        <select
+                          value={passedOutYearMode === 'custom' ? '__custom__' : form.passedOutYear}
+                          onChange={(event) => handlePassedOutYearChange(event.target.value)}
+                          onBlur={(event) => {
+                            if (event.target.value !== '__custom__') {
+                              markTouched('passedOutYear')
+                            }
+                          }}
+                        >
+                          <option value="">Select year</option>
+                          <option value="__custom__">Custom year</option>
+                          {passedOutYearOptions.map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {passedOutYearMode === 'custom' ? (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={form.passedOutYear}
+                          onChange={(event) => handleCustomPassedOutYearChange(event.target.value)}
+                          onBlur={() => markTouched('passedOutYear')}
+                          placeholder="Type passed out year"
+                        />
+                      ) : null}
+                    </div>
                   </Field>
 
                   <Field label="Select Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
@@ -3000,7 +3072,10 @@ export function StudentManagementPage() {
         <div className="student-drawer-backdrop" role="presentation">
           <aside className="student-drawer student-drawer-table-view" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
             <div className="student-drawer-table-header">
-              <h3>Student Details</h3>
+              <div className="student-drawer-table-header-copy">
+                <p className="section-kicker">Student Record</p>
+                <h3>Student Details</h3>
+              </div>
               <div className="student-drawer-table-actions">
                 <div
                   className={`student-drawer-attendance-pill ${selectedStudentAttendanceMeta.toneClass}`.trim()}
@@ -3027,6 +3102,7 @@ export function StudentManagementPage() {
                       className="student-drawer-edit-button student-drawer-edit-button-ghost"
                       onClick={() => {
                         setForm(prepareStudentForm(selectedStudent))
+                        setPassedOutYearMode(isCustomPassedOutYearValue(selectedStudent?.passedOutYear, passedOutYearOptions) ? 'custom' : 'select')
                         setEditingStudentId(selectedStudent.id)
                         setIsDrawerEditing(false)
                         setActionError('')
@@ -3141,13 +3217,28 @@ export function StudentManagementPage() {
                       <tr>
                         <th>Passed Out Year</th>
                         <td>
-                          <DrawerFormControl
-                            as="select"
-                            value={form.passedOutYear}
-                            onChange={(event) => updateField('passedOutYear', event.target.value)}
-                            options={passedOutYearOptions}
-                            placeholder="Select year"
-                          />
+                          <div className="student-year-select-stack">
+                            <DrawerFormControl
+                              as="select"
+                              value={passedOutYearMode === 'custom' ? '__custom__' : form.passedOutYear}
+                              onChange={(event) => handlePassedOutYearChange(event.target.value)}
+                              options={[{ value: '__custom__', label: 'Custom year' }, ...passedOutYearOptions.map((year) => ({ value: year, label: year }))]}
+                              placeholder="Select year"
+                              onBlur={(event) => {
+                                if (event.target.value !== '__custom__') {
+                                  markTouched('passedOutYear')
+                                }
+                              }}
+                            />
+                            {passedOutYearMode === 'custom' ? (
+                              <DrawerFormControl
+                                value={form.passedOutYear}
+                                onChange={(event) => handleCustomPassedOutYearChange(event.target.value)}
+                                onBlur={() => markTouched('passedOutYear')}
+                                placeholder="Type passed out year"
+                              />
+                            ) : null}
+                          </div>
                         </td>
                         <th>Current Status</th>
                         <td>
