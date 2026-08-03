@@ -1617,11 +1617,7 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchView('attendance')
     setAttendanceReminderPopup(null)
     setSelectedBatchOpenSource('attendance')
-    setSelectedBatchAttendanceMessage(
-      normalizedMode === 'late'
-        ? `This attendance is being submitted after the batch end time and will be recorded as Late Attendance.`
-        : selectedBatchWindow.reason,
-    )
+    setSelectedBatchAttendanceMessage(normalizedMode === 'late' ? '' : selectedBatchWindow.reason)
   }
 
   useEffect(() => {

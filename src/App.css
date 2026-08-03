@@ -14449,6 +14449,11 @@ tbody tr:hover {
   padding: 0 6px 18px;
 }
 
+.faculty-my-batches-page .batch-student-modal-header-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .faculty-my-batches-page .batch-student-modal-header-actions {
   display: flex;
   align-items: center;
@@ -14469,7 +14474,11 @@ tbody tr:hover {
 }
 
 .faculty-my-batches-page .batch-student-modal-header-copy p {
-  max-width: 780px;
+  max-width: none;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: 0.94rem;
 }
 
 .faculty-my-batches-page .batch-student-modal-header-meta {
@@ -14980,9 +14989,9 @@ tbody tr:hover {
 }
 
 .faculty-my-batches-page .batch-student-pagination-link {
-  min-height: 48px;
-  padding-inline: 18px;
-  border-radius: 16px;
+  min-height: 40px;
+  padding-inline: 14px;
+  border-radius: 14px;
   border-color: #d9e4f3;
   background: #ffffff;
   color: #3950d8;
@@ -14990,12 +14999,12 @@ tbody tr:hover {
 }
 
 .faculty-my-batches-page .batch-student-pagination-page {
-  min-width: 52px;
-  height: 52px;
-  border-radius: 16px;
+  min-width: 42px;
+  height: 42px;
+  border-radius: 14px;
   background: #f6f8fe;
   color: #3f4b66;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 800;
 }
 
@@ -15006,13 +15015,13 @@ tbody tr:hover {
 .faculty-my-batches-page .batch-student-pagination-pages {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .faculty-my-batches-page .batch-student-pagination-count {
-  margin-left: 10px;
+  margin-left: 8px;
   color: #3f4b66;
-  font-size: 0.98rem;
+  font-size: 0.95rem;
   font-weight: 700;
   white-space: nowrap;
 }
