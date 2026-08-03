@@ -10314,6 +10314,45 @@ tbody tr:hover {
   }
 }
 
+@media (min-width: 1440px) and (max-width: 2299px) and (min-height: 864px) and (max-height: 1080px) {
+  .business-owner-dashboard .profile-drawer,
+  .operation-manager-dashboard .profile-drawer {
+    height: calc(100vh - 72px);
+    max-height: calc(100vh - 72px);
+  }
+
+  .business-owner-dashboard .profile-drawer-body,
+  .operation-manager-dashboard .profile-drawer-body {
+    padding-top: 26px;
+  }
+}
+
+@media (min-width: 2560px) and (max-width: 3839px) and (min-height: 1440px) and (max-height: 1919px) {
+  .business-owner-dashboard .profile-drawer,
+  .operation-manager-dashboard .profile-drawer {
+    height: calc(100vh - 96px);
+    max-height: calc(100vh - 96px);
+  }
+
+  .business-owner-dashboard .profile-drawer-body,
+  .operation-manager-dashboard .profile-drawer-body {
+    padding-top: 22px;
+  }
+}
+
+@media (min-width: 3840px) and (min-height: 2160px) {
+  .business-owner-dashboard .profile-drawer,
+  .operation-manager-dashboard .profile-drawer {
+    height: calc(100vh - 120px);
+    max-height: calc(100vh - 120px);
+  }
+
+  .business-owner-dashboard .profile-drawer-body,
+  .operation-manager-dashboard .profile-drawer-body {
+    padding-top: 18px;
+  }
+}
+
 @media (min-width: 769px) and (max-width: 1100px) {
   .profile-drawer {
     width: min(100vw - 24px, 420px);
@@ -12442,7 +12481,7 @@ tbody tr:hover {
 .faculty-batch-list-column {
   order: 2;
   justify-self: end;
-  width: min(100%, 380px);
+  width: min(100%, 360px);
   margin-left: auto;
 }
 
@@ -16421,8 +16460,9 @@ tbody tr:hover {
 
 .faculty-batch-list-scroll {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 270px));
+  justify-content: start;
+  gap: 14px;
   max-height: 184px;
   overflow: auto;
   padding-right: 4px;
@@ -16433,14 +16473,16 @@ tbody tr:hover {
 }
 
 .faculty-batch-item-image {
-  min-height: 88px;
+  min-height: 104px;
+  width: 100%;
+  max-width: 270px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-rows: auto auto;
-  align-items: start;
+  align-items: center;
   column-gap: 10px;
-  row-gap: 6px;
-  padding: 14px 16px;
+  row-gap: 8px;
+  padding: 15px 16px;
 }
 
 .faculty-batch-item-image .faculty-batch-item-copy {
@@ -16449,7 +16491,7 @@ tbody tr:hover {
   min-width: 0;
   grid-column: 1;
   grid-row: 1 / span 2;
-  align-self: start;
+  align-self: center;
 }
 
 .faculty-batch-item-image .faculty-batch-item-copy strong {
@@ -16469,7 +16511,7 @@ tbody tr:hover {
 
 .faculty-batch-item-image .faculty-batch-edit-icon,
 .faculty-batch-item-image .faculty-batch-remove-icon {
-  align-self: start;
+  align-self: center;
   grid-row: 1;
 }
 
@@ -16489,6 +16531,11 @@ tbody tr:hover {
 
 .faculty-batch-item-image .faculty-batch-remove-icon {
   grid-column: 3;
+}
+
+.faculty-batch-item-image .faculty-batch-remove-icon,
+.faculty-batch-item-image .faculty-batch-edit-icon {
+  margin-top: 0;
 }
 
 .faculty-form-actions-large {
@@ -18122,7 +18169,10 @@ tbody tr:hover {
   display: grid;
   gap: 4px;
   flex: 1 1 260px;
-  padding-left: 240px;
+  padding-left: 0;
+  align-items: center;
+  justify-items: center;
+  text-align: center;
 }
 
 .student-drawer-table-header-copy .section-kicker {
