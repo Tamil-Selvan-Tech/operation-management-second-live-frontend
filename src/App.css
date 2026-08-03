@@ -10314,43 +10314,10 @@ tbody tr:hover {
   }
 }
 
-@media (min-width: 1440px) and (max-width: 2299px) and (min-height: 864px) and (max-height: 1080px) {
-  .business-owner-dashboard .profile-drawer,
-  .operation-manager-dashboard .profile-drawer {
-    height: calc(100vh - 72px);
-    max-height: calc(100vh - 72px);
-  }
-
-  .business-owner-dashboard .profile-drawer-body,
-  .operation-manager-dashboard .profile-drawer-body {
-    padding-top: 26px;
-  }
-}
-
-@media (min-width: 2560px) and (max-width: 3839px) and (min-height: 1440px) and (max-height: 1919px) {
-  .business-owner-dashboard .profile-drawer,
-  .operation-manager-dashboard .profile-drawer {
-    height: calc(100vh - 96px);
-    max-height: calc(100vh - 96px);
-  }
-
-  .business-owner-dashboard .profile-drawer-body,
-  .operation-manager-dashboard .profile-drawer-body {
-    padding-top: 22px;
-  }
-}
-
-@media (min-width: 3840px) and (min-height: 2160px) {
-  .business-owner-dashboard .profile-drawer,
-  .operation-manager-dashboard .profile-drawer {
-    height: calc(100vh - 120px);
-    max-height: calc(100vh - 120px);
-  }
-
-  .business-owner-dashboard .profile-drawer-body,
-  .operation-manager-dashboard .profile-drawer-body {
-    padding-top: 18px;
-  }
+.business-owner-dashboard .profile-drawer,
+.operation-manager-dashboard .profile-drawer {
+  height: 760px;
+  max-height: 760px;
 }
 
 @media (min-width: 769px) and (max-width: 1100px) {
@@ -18153,15 +18120,18 @@ tbody tr:hover {
 
 .student-drawer-table-header {
   position: relative;
-  padding: 14px 18px;
+  height: 118px;
+  min-height: 118px;
+  padding: 12px 18px;
   background: linear-gradient(180deg, #1f6df0 0%, #1a5fd1 100%);
   color: #ffffff;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   text-align: left;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .student-drawer-table-header-copy {
@@ -18169,10 +18139,10 @@ tbody tr:hover {
   display: grid;
   gap: 4px;
   flex: 1 1 260px;
-  padding-left: 0;
-  align-items: center;
-  justify-items: center;
-  text-align: center;
+  padding-left: 8px;
+  align-items: start;
+  justify-items: start;
+  text-align: left;
 }
 
 .student-drawer-table-header-copy .section-kicker {
@@ -18181,6 +18151,7 @@ tbody tr:hover {
   font-size: 0.56rem;
   font-weight: 800;
   letter-spacing: 0.16em;
+  line-height: 1;
 }
 
 .course-drawer-table-header {
@@ -18234,6 +18205,7 @@ tbody tr:hover {
   font-weight: 800;
   letter-spacing: -0.02em;
   text-align: left;
+  padding-left: 0;
   white-space: normal;
 }
 
@@ -18256,14 +18228,14 @@ tbody tr:hover {
   justify-content: flex-end;
   flex: 0 0 auto;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-left: auto;
   max-width: 100%;
 }
 
 .student-drawer-edit-button {
   min-height: 30px;
-  padding: 0 10px;
+  padding: 0 12px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
@@ -18271,6 +18243,7 @@ tbody tr:hover {
   font-size: 0.78rem;
   font-weight: 800;
   backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 
 .student-drawer-edit-button:hover {
@@ -18278,7 +18251,7 @@ tbody tr:hover {
 }
 
 .student-drawer-report-button {
-  min-width: 150px;
+  min-width: 148px;
   justify-content: center;
 }
 
