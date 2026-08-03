@@ -910,7 +910,14 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
               </button>
             </div>
             <div className="revenue-summary-value-row">
-              <div className="revenue-summary-value">{card.value}</div>
+              {isLoading ? (
+                <div className="revenue-summary-loading" aria-label={`Loading ${card.label}`}>
+                  <span className={`revenue-summary-loading-ring ${card.accent}`} aria-hidden="true" />
+                  <strong>Loading...</strong>
+                </div>
+              ) : (
+                <div className="revenue-summary-value">{card.value}</div>
+              )}
             </div>
             {card.change ? (
               <>

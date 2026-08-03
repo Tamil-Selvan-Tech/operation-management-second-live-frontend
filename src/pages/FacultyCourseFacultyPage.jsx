@@ -17,9 +17,11 @@ import {
   buildFacultyCourseCatalogPath,
   enrichStudentsWithFacultyReferences,
   getFacultyBatchEntriesForCourse,
+  getMatchingStudents,
   getFacultyCourseIds,
   getFacultyCourseName,
   getUniqueStudentCountForFacultyRecords,
+  getUniqueStudentCountForFacultyScope,
   sortByNameThenTiming,
 } from '../lib/facultyFlow'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
@@ -112,24 +114,39 @@ export function FacultyCourseFacultyPage() {
   const matchedFaculty = useMemo(() => {
     const normalizedCourseId = String(courseId || '').trim()
     if (!normalizedCourseId) return []
+    const resolvedCourseName = selectedCourse?.name || getFacultyCourseName(normalizedCourseId, courseOptions) || normalizedCourseId
 
     return facultyRecords
       .filter((record) => getFacultyCourseIds(record, courseOptions).includes(normalizedCourseId))
       .map((record) => {
         const mergedRecord = mergeFacultyWithSnapshot(record) || record
         const batchEntries = getFacultyBatchEntriesForCourse(mergedRecord, normalizedCourseId, courseOptions)
-        const courseName = selectedCourse?.name || getFacultyCourseName(normalizedCourseId, courseOptions) || normalizedCourseId
-        const studentCount = getUniqueStudentCountForFacultyRecords(backfilledStudents, {
+        const batchLinkedStudentCount = getUniqueStudentCountForFacultyRecords(backfilledStudents, {
           facultyId: mergedRecord.id || '',
           facultyName: mergedRecord.facultyName || '',
           batchEntries,
         })
+        const courseScopedStudentCount = getUniqueStudentCountForFacultyScope(backfilledStudents, {
+          facultyId: mergedRecord.id || '',
+          facultyName: mergedRecord.facultyName || '',
+          courseId: normalizedCourseId,
+          courseName: resolvedCourseName,
+          batchNames: batchEntries.map((entry) => String(entry?.batchName || '').trim()).filter(Boolean),
+          batchIds: batchEntries.map((entry) => String(entry?.id || '').trim()).filter(Boolean),
+        })
+        const matchingStudentsCount = getMatchingStudents(backfilledStudents, {
+          facultyId: mergedRecord.id || '',
+          facultyName: mergedRecord.facultyName || '',
+          courseId: normalizedCourseId,
+          courseName: resolvedCourseName,
+        }).length
+        const studentCount = batchLinkedStudentCount || courseScopedStudentCount || matchingStudentsCount
 
         return {
           ...mergedRecord,
           batchEntries: sortByNameThenTiming(batchEntries),
           studentCount,
-          courseName,
+          courseName: resolvedCourseName,
         }
       })
       .sort((left, right) => String(left.facultyName || '').localeCompare(String(right.facultyName || '')))

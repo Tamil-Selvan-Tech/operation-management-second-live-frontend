@@ -12953,6 +12953,15 @@ tbody tr:hover {
   color: #17823b;
 }
 
+.faculty-course-catalog-page .faculty-flow-status-pill.is-active,
+.faculty-course-catalog-page .faculty-flow-status-pill.active {
+  min-height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #0f172a;
+}
+
 .faculty-flow-status-pill.is-inactive {
   background: #f2f4f7;
   color: #64748b;
@@ -13980,11 +13989,15 @@ tbody tr:hover {
   width: min(1240px, calc(100vw - 48px));
   max-height: min(90vh, 940px);
   padding: 24px 26px 22px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   border-radius: 30px;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
   background:
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 24%),
     radial-gradient(circle at top right, rgba(34, 197, 94, 0.06), transparent 22%),
@@ -23735,6 +23748,55 @@ tbody tr:hover {
 .revenue-summary-value-row {
   margin-top: 6px;
   margin-bottom: 4px;
+}
+
+.business-owner-dashboard .revenue-summary-loading,
+.operation-manager-dashboard .revenue-summary-loading {
+  min-height: 68px;
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring,
+.operation-manager-dashboard .revenue-summary-loading-ring {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.85s linear infinite;
+  -webkit-mask: radial-gradient(circle, transparent 54%, #000 55%);
+  mask: radial-gradient(circle, transparent 54%, #000 55%);
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring.blue,
+.operation-manager-dashboard .revenue-summary-loading-ring.blue {
+  background: conic-gradient(from 90deg, #3b82f6 0 92deg, rgba(219, 234, 254, 0.95) 92deg 360deg);
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring.purple,
+.operation-manager-dashboard .revenue-summary-loading-ring.purple {
+  background: conic-gradient(from 90deg, #a855f7 0 92deg, rgba(243, 232, 255, 0.96) 92deg 360deg);
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring.amber,
+.operation-manager-dashboard .revenue-summary-loading-ring.amber {
+  background: conic-gradient(from 90deg, #eab308 0 92deg, rgba(254, 243, 199, 0.96) 92deg 360deg);
+}
+
+.business-owner-dashboard .revenue-summary-loading-ring.green,
+.operation-manager-dashboard .revenue-summary-loading-ring.green {
+  background: conic-gradient(from 90deg, #22c55e 0 92deg, rgba(220, 252, 231, 0.96) 92deg 360deg);
+}
+
+.business-owner-dashboard .revenue-summary-loading strong,
+.operation-manager-dashboard .revenue-summary-loading strong {
+  margin: 0;
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .business-owner-dashboard:not(.operation-manager-dashboard) .revenue-summary-value {

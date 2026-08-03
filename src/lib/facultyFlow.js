@@ -335,7 +335,7 @@ export function enrichStudentsWithFacultyReferences(students = [], facultyRecord
 
 export function getMatchingStudents(
   students = [],
-  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '' } = {},
+  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '', batchTiming = '' } = {},
 ) {
   const normalizedFacultyId = String(facultyId || '').trim()
   const normalizedBatchId = String(batchId || '').trim()
@@ -344,6 +344,7 @@ export function getMatchingStudents(
   const normalizedCourseName = normalizeText(courseName)
   const normalizedBatchName = normalizeText(batchName)
   const normalizedBatchToken = normalizeBatchToken(batchName)
+  const normalizedBatchTiming = normalizeText(batchTiming || '')
 
   return (Array.isArray(students) ? students : []).filter((student) => {
     const studentCourseId = String(student?.courseId || '').trim()
@@ -353,6 +354,7 @@ export function getMatchingStudents(
     const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim()
     const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
     const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
+    const studentBatchTiming = normalizeText(student?.batchTiming || student?.batchTime || '')
 
     if (normalizedFacultyId && studentFacultyId && studentFacultyId !== normalizedFacultyId) {
       return false
@@ -371,6 +373,10 @@ export function getMatchingStudents(
     }
 
     if (normalizedBatchId && studentBatchId && studentBatchId !== normalizedBatchId) {
+      return false
+    }
+
+    if (normalizedBatchTiming && studentBatchTiming && studentBatchTiming !== normalizedBatchTiming) {
       return false
     }
 
@@ -403,7 +409,7 @@ export function getMatchingStudents(
 
 export function getFacultyBatchStudentRecords(
   students = [],
-  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '' } = {},
+  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '', batchTiming = '' } = {},
 ) {
   const exactMatches = getMatchingStudents(students, {
     facultyName,
@@ -412,6 +418,7 @@ export function getFacultyBatchStudentRecords(
     courseName,
     batchName,
     batchId,
+    batchTiming,
   })
 
   if (exactMatches.length) {
@@ -424,6 +431,7 @@ export function getFacultyBatchStudentRecords(
     courseName,
     batchName,
     batchId,
+    batchTiming,
   }))
 }
 

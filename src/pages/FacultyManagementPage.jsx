@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Check, Clock3, Eye, FileDown, Layers3, Mail, MoreVertical, PencilLine, Phone, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
+import { AppLoadingState } from '../components/AppLoadingState'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
@@ -1059,6 +1060,7 @@ export function FacultyManagementPage() {
   const [records, setRecords] = useState([])
   const [courseOptions, setCourseOptions] = useState([])
   const [isCoursesLoading, setIsCoursesLoading] = useState(true)
+  const [isFacultyLoading, setIsFacultyLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('create')
   const [editingFacultyId, setEditingFacultyId] = useState('')
@@ -1469,6 +1471,7 @@ export function FacultyManagementPage() {
   }
 
   const loadFacultyOptions = async () => {
+    setIsFacultyLoading(true)
     try {
       const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
       const fetchedRecords = Array.isArray(result.data) ? result.data : []
@@ -1477,6 +1480,8 @@ export function FacultyManagementPage() {
     } catch (error) {
       setRecords(normalizeFacultyList(loadFacultyRecords()))
       setActionError(apiErrorMessage(error, 'Failed to load faculty records from the backend.'))
+    } finally {
+      setIsFacultyLoading(false)
     }
   }
 
@@ -1800,7 +1805,7 @@ export function FacultyManagementPage() {
         <div className="faculty-list-header">
           <div>
             <h3>Faculty List</h3>
-            <p>New faculty records appear here after submit.</p>
+            <p>Newly added records appear here immediately.</p>
           </div>
           <div className="faculty-list-header-actions">
             <Button
@@ -1827,7 +1832,15 @@ export function FacultyManagementPage() {
           </div>
         ) : null}
 
-        {filteredRecords.length ? (
+        {isFacultyLoading ? (
+          <div className="faculty-empty-state" role="status" aria-live="polite">
+            <AppLoadingState
+              title="Loading faculty..."
+              description="Connecting to the backend faculty records."
+              className="faculty-flow-inline-loading"
+            />
+          </div>
+        ) : filteredRecords.length ? (
           <div className="faculty-table-wrap">
             <table className="faculty-table">
               <thead>
@@ -2056,8 +2069,7 @@ export function FacultyManagementPage() {
           </div>
         ) : (
           <div className="faculty-empty-state">
-            <strong>No faculty added yet</strong>
-            <p>Use the Add Faculty button to link a faculty member to an active course.</p>
+            <strong>No faculty records found</strong>
           </div>
         )}
 
@@ -2680,12 +2692,14 @@ export function FacultyManagementPage() {
             <div className="course-modal-header">
               <div>
                 <p className="section-kicker">Confirm delete</p>
-                <h3 id="faculty-delete-title">Are you sure delete this faculty?</h3>
+                <h3 id="faculty-delete-title">
+                  Are you sure you want to delete <strong>{deleteTarget.facultyName}</strong>?
+                </h3>
               </div>
             </div>
 
             <p className="faculty-delete-copy">
-              This will permanently delete <strong>{deleteTarget.facultyName}</strong> from the database.
+              This action cannot be undone.
             </p>
 
             <div className="faculty-form-actions">

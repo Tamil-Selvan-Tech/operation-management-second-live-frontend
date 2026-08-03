@@ -17,6 +17,7 @@ import {
   getFacultyBatchStudentRecords,
   getFacultyCourseName,
   enrichStudentsWithFacultyReferences,
+  getMatchingStudents,
   getUniqueStudentCountForFacultyScope,
   sortByNameThenTiming,
 } from '../lib/facultyFlow'
@@ -120,24 +121,39 @@ export function CourseBatchesPage() {
   const batchStudentCounts = useMemo(
     () =>
       batches.map((batch) =>
+        getUniqueStudentCountForFacultyScope(backfilledStudents, {
+          facultyName: selectedFaculty?.facultyName || '',
+          facultyId: selectedFaculty?.id || '',
+          courseId,
+          courseName,
+          batchNames: [batch.batchName],
+          batchIds: [batch.id],
+          batchTimings: [batch.batchTiming],
+        }) ||
         getFacultyBatchStudentRecords(backfilledStudents, {
           facultyName: selectedFaculty?.facultyName || '',
+          facultyId: selectedFaculty?.id || '',
           courseId,
           courseName,
           batchName: batch.batchName,
+          batchId: batch.id,
+          batchTiming: batch.batchTiming,
+        }).length ||
+        getMatchingStudents(backfilledStudents, {
+          facultyName: selectedFaculty?.facultyName || '',
+          facultyId: selectedFaculty?.id || '',
+          courseId,
+          courseName,
+          batchName: batch.batchName,
+          batchId: batch.id,
+          batchTiming: batch.batchTiming,
         }).length,
       ),
     [backfilledStudents, batches, courseId, courseName, selectedFaculty],
   )
   const totalStudents = useMemo(
-    () =>
-      getUniqueStudentCountForFacultyScope(backfilledStudents, {
-        facultyName: selectedFaculty?.facultyName || '',
-        courseId,
-        courseName,
-        batchNames: batches.map((batch) => batch.batchName),
-      }),
-    [backfilledStudents, batches, courseId, courseName, selectedFaculty?.facultyName],
+    () => batchStudentCounts.reduce((sum, count) => sum + Number(count || 0), 0),
+    [batchStudentCounts],
   )
   const totalBatches = batches.length
 
