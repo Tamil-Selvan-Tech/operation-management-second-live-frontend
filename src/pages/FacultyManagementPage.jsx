@@ -2,7 +2,6 @@ import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Check, Clock3, Eye, FileDown, Layers3, Mail, MoreVertical, PencilLine, Phone, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
-import { AppLoadingState } from '../components/AppLoadingState'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
@@ -1833,12 +1832,9 @@ export function FacultyManagementPage() {
         ) : null}
 
         {isFacultyLoading ? (
-          <div className="faculty-empty-state" role="status" aria-live="polite">
-            <AppLoadingState
-              title="Loading faculty..."
-              description="Connecting to the backend faculty records."
-              className="faculty-flow-inline-loading"
-            />
+          <div className="faculty-empty-state faculty-loading-text" role="status" aria-live="polite">
+            <strong>Loading faculty...</strong>
+            <p>Fetching faculty records from the backend.</p>
           </div>
         ) : filteredRecords.length ? (
           <div className="faculty-table-wrap">
