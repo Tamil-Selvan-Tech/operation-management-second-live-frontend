@@ -1220,6 +1220,9 @@ export function FacultyMyBatchesPage() {
   const [attendanceReportRequest, setAttendanceReportRequest] = useState(null)
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
   const attendanceReminderShownRef = useRef(new Set())
+  const [selectedBatchOpenSource, setSelectedBatchOpenSource] = useState('details')
+  const batchStudentTableShellRef = useRef(null)
+  const firstStudentRowRef = useRef(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [batchAttendanceVersion, setBatchAttendanceVersion] = useState(0)
 
@@ -1600,21 +1603,10 @@ export function FacultyMyBatchesPage() {
     : isSelectedBatchAttendanceLateMode
       ? 'Late Attendance'
     : selectedBatchWindow.statusLabel
-  const selectedBatchWindowMessage = hasSelectedBatchAttendanceSubmitted
-    ? String(selectedBatchAttendanceState?.submissionMode || '').trim().toLowerCase() === 'late'
-      ? 'Late attendance already submitted for today.'
-      : 'Attendance already submitted for today.'
-    : isSelectedBatchAttendanceLateMode
-      ? selectedBatchAttendanceMessage || selectedBatchWindow.reason
-      : selectedBatchWindow.isEditable || selectedBatchWindow.isReminder
-        ? selectedBatchAttendanceMessage || selectedBatchWindow.reason
-        : selectedBatchWindow.reason
   const selectedBatchStatusToneClass =
     hasSelectedBatchAttendanceSubmitted || selectedBatchWindow.isEditable || selectedBatchWindow.isReminder || isSelectedBatchAttendanceLateMode
       ? 'active'
       : 'locked'
-  const selectedBatchCurrentTimeLabel = formatDisplayTime(currentDateTime)
-  const selectedBatchLateByLabel = selectedBatchWindow.phase === 'closed' ? formatMinutesLabel(selectedBatchWindow.lateByMinutes) : ''
 
   const openSelectedBatchAttendance = (mode = 'regular') => {
     if (!selectedBatchContext) return
@@ -1623,6 +1615,7 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchAttendanceMode(normalizedMode)
     setSelectedBatchView('attendance')
     setAttendanceReminderPopup(null)
+    setSelectedBatchOpenSource('attendance')
     setSelectedBatchAttendanceMessage(
       normalizedMode === 'late'
         ? `This attendance is being submitted after the batch end time and will be recorded as Late Attendance.`
@@ -1631,7 +1624,29 @@ export function FacultyMyBatchesPage() {
   }
 
   useEffect(() => {
-    if (!selectedBatchContext || hasSelectedBatchAttendanceSubmitted || !selectedBatchWindow.isReminder || isSelectedBatchAttendanceLateMode) {
+    if (selectedBatchView !== 'attendance' || !selectedBatchContext) return undefined
+
+    const scrollTimer = window.setTimeout(() => {
+      const target = firstStudentRowRef.current || batchStudentTableShellRef.current
+      if (!target) return
+
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (typeof target.focus === 'function') {
+        target.focus({ preventScroll: true })
+      }
+    }, 0)
+
+    return () => window.clearTimeout(scrollTimer)
+  }, [selectedBatchContext, selectedBatchView, isSelectedBatchAttendanceLateMode])
+
+  useEffect(() => {
+    if (
+      !selectedBatchContext ||
+      selectedBatchOpenSource === 'attendance' ||
+      hasSelectedBatchAttendanceSubmitted ||
+      !selectedBatchWindow.isReminder ||
+      isSelectedBatchAttendanceLateMode
+    ) {
       return undefined
     }
 
@@ -1655,6 +1670,7 @@ export function FacultyMyBatchesPage() {
     hasSelectedBatchAttendanceSubmitted,
     isSelectedBatchAttendanceLateMode,
     selectedBatchContext,
+    selectedBatchOpenSource,
     selectedBatchWindow.dateKey,
     selectedBatchWindow.endDateTime,
     selectedBatchWindow.isReminder,
@@ -1681,8 +1697,9 @@ export function FacultyMyBatchesPage() {
     selectedBatchWindow.isReminder,
   ])
 
-  const openBatchStudents = (group, batch) => {
+  const openBatchStudents = (group, batch, options = {}) => {
     if (!group || !batch) return
+    const openAttendanceDirectly = Boolean(options?.openAttendanceDirectly)
 
     const nextContext = {
       courseId: String(group.courseId || '').trim(),
@@ -1711,7 +1728,8 @@ export function FacultyMyBatchesPage() {
     setSelectedBatchContext(nextContext)
     setSelectedBatchAttendanceState(savedState)
     setSelectedBatchAttendanceMode(isLateSubmitted ? 'late' : 'regular')
-    setSelectedBatchView(batchWindow.isEditable ? 'attendance' : 'details')
+    setSelectedBatchOpenSource(openAttendanceDirectly ? 'attendance' : 'details')
+    setSelectedBatchView(openAttendanceDirectly || batchWindow.isEditable ? 'attendance' : 'details')
     setSelectedBatchAttendanceDraft(buildBatchAttendanceDraft(nextContext.students || [], savedState?.records || savedState?.attendance || {}))
     setSelectedBulkAttendance('')
     setAttendanceSavePopup(null)
@@ -1728,6 +1746,7 @@ export function FacultyMyBatchesPage() {
   const closeBatchStudents = () => {
     setSelectedBatchContext(null)
     setSelectedBatchView('details')
+    setSelectedBatchOpenSource('details')
     setSelectedBatchAttendanceDraft({})
     setSelectedBatchAttendanceMessage('')
     setSelectedBatchAttendanceState(null)
@@ -1922,7 +1941,7 @@ export function FacultyMyBatchesPage() {
           <button
             type="button"
             className="faculty-my-batches-reminder-banner-button"
-            onClick={() => openBatchStudents(pageAttendanceReminder.group, pageAttendanceReminder.batch)}
+            onClick={() => openBatchStudents(pageAttendanceReminder.group, pageAttendanceReminder.batch, { openAttendanceDirectly: true })}
           >
             Open Attendance
           </button>
@@ -2101,64 +2120,8 @@ export function FacultyMyBatchesPage() {
               </div>
             </div>
 
-            {selectedBatchView === 'attendance' && isSelectedBatchAttendanceLateMode ? (
-              <div className="batch-late-attendance-card" role="presentation">
-                <div className="batch-late-attendance-head">
-                  <strong>{selectedBatchContext.courseName}</strong>
-                  <span className="batch-late-attendance-badge">Late Attendance</span>
-                </div>
-
-                <div className="batch-student-modal-header-meta batch-late-attendance-meta">
-                  <span>
-                    <strong>Scheduled time</strong>
-                    <small>{selectedBatchContext.batchTiming || '-'}</small>
-                  </span>
-                  <span>
-                    <strong>Current time</strong>
-                    <small>{selectedBatchCurrentTimeLabel}</small>
-                  </span>
-                  <span>
-                    <strong>Late by</strong>
-                    <small>{selectedBatchLateByLabel || '-'}</small>
-                  </span>
-                </div>
-
-                <div className="batch-late-attendance-warning" role="note" aria-label="Late submission warning">
-                  <div className="batch-late-attendance-warning-title">
-                    <span className="batch-late-attendance-warning-icon" aria-hidden="true">
-                      <Clock3 size={16} strokeWidth={2.4} />
-                    </span>
-                    <strong>Late submission warning</strong>
-                  </div>
-                  <p>This attendance is being submitted after the batch end time and will be recorded as <b>Late Attendance</b>.</p>
-                </div>
-
-                <div className="batch-late-attendance-footer">
-                  <button
-                    type="button"
-                    className="batch-late-attendance-submit"
-                    onClick={saveBatchAttendance}
-                    disabled={!isSelectedBatchAttendanceEditable || !selectedBatchAttendanceSummary.isComplete}
-                  >
-                    <Check size={16} />
-                    <span>Submit Late Attendance</span>
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {selectedBatchWindowMessage ? (
-              <p
-                className={`batch-student-window-note ${
-                  hasSelectedBatchAttendanceSubmitted || isSelectedBatchAttendanceEditable ? 'is-open' : selectedBatchWindow.phase === 'closed' ? 'is-late' : 'is-locked'
-                }`.trim()}
-              >
-                {selectedBatchWindowMessage}
-              </p>
-            ) : null}
-
             {selectedBatchStudents.length ? (
-              <div className="batch-student-table-shell">
+              <div className="batch-student-table-shell" ref={batchStudentTableShellRef} tabIndex={-1}>
                 {selectedBatchView === 'attendance' ? (
                   <div className="batch-student-attendance-actions" aria-label="Attendance shortcuts">
                     <button
@@ -2207,7 +2170,11 @@ export function FacultyMyBatchesPage() {
                         const attendanceValue = normalizeAttendanceChoice(selectedBatchAttendanceDraft?.[student.id] || '')
 
                         return (
-                          <tr key={student.id || `${student.studentName}-${index}`}>
+                      <tr
+                        key={student.id || `${student.studentName}-${index}`}
+                        ref={index === 0 ? firstStudentRowRef : null}
+                        tabIndex={index === 0 ? -1 : undefined}
+                      >
                             <td className="batch-student-table-name-cell">
                               <div className="batch-student-table-name">
                                 <div className="batch-student-table-name-copy">
@@ -2296,15 +2263,15 @@ export function FacultyMyBatchesPage() {
                       <span className="batch-student-pagination-count">1 of 4</span>
                     </div>
 
-                    {selectedBatchView === 'attendance' && !isSelectedBatchAttendanceLateMode ? (
+                    {selectedBatchView === 'attendance' ? (
                       <button
                         type="button"
-                        className="batch-student-save-button"
+                        className={isSelectedBatchAttendanceLateMode ? 'batch-late-attendance-submit batch-student-save-button' : 'batch-student-save-button'}
                         onClick={saveBatchAttendance}
                         disabled={!isSelectedBatchAttendanceEditable || !selectedBatchAttendanceSummary.isComplete}
                       >
-                        <Save size={14} />
-                        <span>Save</span>
+                        {isSelectedBatchAttendanceLateMode ? <Check size={16} /> : <Save size={14} />}
+                        <span>{isSelectedBatchAttendanceLateMode ? 'Submit Late Attendance' : 'Save'}</span>
                       </button>
                     ) : null}
                   </div>
@@ -2316,6 +2283,7 @@ export function FacultyMyBatchesPage() {
                 <p>Try another batch or check whether the student data is mapped correctly.</p>
               </div>
             )}
+
           </div>
         </div>
       ) : null}
