@@ -67,6 +67,10 @@ function isSameFaculty(left = {}, right = {}) {
   )
 }
 
+function pickPreferredArray(primary = [], fallback = []) {
+  return Array.isArray(primary) && primary.length ? primary : Array.isArray(fallback) ? fallback : []
+}
+
 export function mergeFacultyWithSnapshot(record) {
   const snapshot = loadFacultySnapshot()
   if (!snapshot || !record || !isSameFaculty(record, snapshot)) {
@@ -77,15 +81,11 @@ export function mergeFacultyWithSnapshot(record) {
     ...snapshot,
     ...record,
     courseId: record.courseId || snapshot.courseId || '',
-    courseIds: Array.isArray(record.courseIds) && record.courseIds.length ? record.courseIds : Array.isArray(snapshot.courseIds) ? snapshot.courseIds : [],
+    courseIds: pickPreferredArray(snapshot.courseIds, record.courseIds),
     courseAssignments:
-      Array.isArray(record.courseAssignments) && record.courseAssignments.length
-        ? record.courseAssignments
-        : Array.isArray(snapshot.courseAssignments)
-          ? snapshot.courseAssignments
-          : [],
+      pickPreferredArray(snapshot.courseAssignments, record.courseAssignments),
     batchEntries:
-      Array.isArray(record.batchEntries) && record.batchEntries.length ? record.batchEntries : Array.isArray(snapshot.batchEntries) ? snapshot.batchEntries : [],
+      pickPreferredArray(snapshot.batchEntries, record.batchEntries),
     batchCount: Number(record.batchCount || snapshot.batchCount || 0) || 0,
   })
 }

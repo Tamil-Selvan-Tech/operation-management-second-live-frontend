@@ -295,6 +295,10 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   }
 
   const handleLogin = async () => {
+    if (isSaving) {
+      return
+    }
+
     if (viewState === 'logged-in' || viewState === 'logout-form') {
       return
     }
@@ -302,10 +306,15 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
     try {
       setIsSaving(true)
       const date = getAttendanceDateKey()
+      const loginAt = new Date().toISOString()
       activeDateKeyRef.current = date
       const overview = await recordFacultyAttendanceLogin({
         date,
         facultyId,
+        facultyName: profileName,
+        profileInitials,
+        loginAt,
+        loginTimestamp: Date.now(),
       })
       syncAttendanceFromOverview(overview)
       setIsOpen(true)
@@ -327,6 +336,10 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
   const submitLogout = async (event) => {
     event.preventDefault()
 
+    if (isSaving) {
+      return
+    }
+
     if (logoutType === 'early') {
       if (!logoutReason.trim()) {
         setErrorMessage('Reason for logout is required.')
@@ -336,13 +349,18 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', profileInitials
 
     try {
       setIsSaving(true)
+      const logoutAt = new Date().toISOString()
       const overview = await recordFacultyAttendanceLogout({
         date: getAttendanceDateKey(),
         facultyId,
+        facultyName: profileName,
+        profileInitials,
         logoutType,
         logoutReason,
         workReport,
         workCompleted,
+        logoutAt,
+        logoutTimestamp: Date.now(),
       })
       syncAttendanceFromOverview(overview)
     } catch (error) {

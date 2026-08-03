@@ -115,6 +115,17 @@ function formatBatchTimingState(entry = {}) {
   return `${start} ${startMeridiem} - ${end} ${endMeridiem}`
 }
 
+function getBatchSequenceNoFromName(batchName = '') {
+  const normalizedBatchName = String(batchName || '').trim()
+  if (!normalizedBatchName) return 0
+
+  const match = normalizedBatchName.match(/\bbatch\s*(\d+)\b/i)
+  if (!match) return 0
+
+  const sequenceNo = Number(match[1])
+  return Number.isFinite(sequenceNo) && sequenceNo > 0 ? sequenceNo : 0
+}
+
 function getBatchTimingPresetValue(entry = {}) {
   const preset = String(entry.batchTimingPreset || '').trim()
   if (preset) return preset
@@ -150,7 +161,7 @@ function getSuggestedBatchName(facultyName, batchEntries = [], fallback = '') {
   return `${baseName} batch ${batchEntries.length + 1}`
 }
 
-function resolveBatchEntryFromForm(form, batchEntries = []) {
+function resolveBatchEntryFromForm(form, batchEntries = [], entryId = '') {
   const batchName = getSuggestedBatchName(form.facultyName, batchEntries, form.batchName)
   const batchTiming = String(form.batchTiming || '').trim()
   const batchTimingCustomStart = String(form.batchTimingCustomStart || '').trim()
@@ -171,10 +182,11 @@ function resolveBatchEntryFromForm(form, batchEntries = []) {
   }
 
   return {
-    id: createBatchEntryId(),
+    id: String(entryId || '').trim() || createBatchEntryId(),
     batchName,
     batchTiming: resolvedBatchTiming,
     courseId: batchCourseId,
+    sequenceNo: getBatchSequenceNoFromName(batchName) || getBatchSequenceNoFromName(form.batchName) || 1,
     ...parseBatchTimingState(resolvedBatchTiming),
   }
 }
@@ -201,9 +213,14 @@ function hasDuplicateBatchName(batchEntries = [], batchName = '', courseId = '',
     : false
 }
 
-function getAvailableBatchTimingOptions(batchEntries = []) {
+function getAvailableBatchTimingOptions(batchEntries = [], ignoreEntryId = '') {
+  const normalizedIgnoreEntryId = String(ignoreEntryId || '').trim()
   const usedPresetTimings = new Set(
     batchEntries
+      .filter((entry) => {
+        if (!normalizedIgnoreEntryId) return true
+        return String(entry?.id || '').trim() !== normalizedIgnoreEntryId
+      })
       .map((entry) => getBatchTimingPresetValue(entry))
       .filter((timing) => BATCH_TIMING_OPTIONS.includes(timing)),
   )
@@ -986,6 +1003,7 @@ function getPrefilledForm(record = null, courseOptions = []) {
           batchTiming: String(entry.batchTiming || '').trim(),
           courseId: derivedCourseId,
           courseName: String(entry.courseName || getCourseNameById(derivedCourseId, courseOptions) || record.courseName || '').trim(),
+          sequenceNo: Number(entry.sequenceNo || getBatchSequenceNoFromName(entry.batchName || '') || 1) || 1,
           ...timingState,
         }
       })
@@ -1000,6 +1018,7 @@ function getPrefilledForm(record = null, courseOptions = []) {
               getCourseIdByName(record.courseName || '', courseOptions) ||
               String(record.courseIds?.[0] || '').trim(),
             courseName: String(record.courseName || '').trim(),
+            sequenceNo: Number(getBatchSequenceNoFromName(record.batch || '') || 1) || 1,
             ...parseBatchTimingState(record.batchTiming),
           },
         ]
@@ -1046,6 +1065,7 @@ export function FacultyManagementPage() {
   const [selectedFacultyRecord, setSelectedFacultyRecord] = useState(null)
   const [facultyWizardStep, setFacultyWizardStep] = useState(1)
   const [batchDeleteTarget, setBatchDeleteTarget] = useState(null)
+  const [editingBatchEntryId, setEditingBatchEntryId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [openActionMenuId, setOpenActionMenuId] = useState('')
   const [openActionMenuPlacement, setOpenActionMenuPlacement] = useState('bottom')
@@ -1109,14 +1129,23 @@ export function FacultyManagementPage() {
     if (!form.status.trim()) nextErrors.status = 'Please select faculty status.'
     if (
       form.batchName.trim() &&
-      hasDuplicateBatchName(form.batchEntries, form.batchName, form.batchCourseId || form.courseIds[0] || form.courseId || '')
+      hasDuplicateBatchName(
+        form.batchEntries,
+        form.batchName,
+        form.batchCourseId || form.courseIds[0] || form.courseId || '',
+        editingBatchEntryId,
+      )
     ) {
       nextErrors.batchName = 'Batch names must be unique within the same course.'
     }
 
+    const editingBatchEntry = editingBatchEntryId
+      ? form.batchEntries.find((entry) => String(entry?.id || '').trim() === String(editingBatchEntryId).trim()) || null
+      : null
     const pendingBatchEntry = resolveBatchEntryFromForm(
       form,
       getBatchEntriesForCourse(form.batchEntries, String(form.batchCourseId || form.courseIds[0] || form.courseId || '').trim()),
+      editingBatchEntry?.id || '',
     )
     const selectedCourseIds = Array.isArray(form.courseIds) ? form.courseIds : []
     const hasBatchForEveryCourse =
@@ -1136,7 +1165,7 @@ export function FacultyManagementPage() {
     }
 
     return nextErrors
-  }, [editingFacultyId, facultyWizardStep, form, records])
+  }, [editingBatchEntryId, editingFacultyId, facultyWizardStep, form, records])
 
   const totalFaculty = records.length
   const latestFaculty = records[0] || null
@@ -1175,7 +1204,37 @@ export function FacultyManagementPage() {
     selectedCourseIds.includes(String(form.batchCourseId || '').trim()) ? String(form.batchCourseId || '').trim() : selectedCourseIds[0] || ''
   const activeBatchCourseName = getCourseNameById(activeBatchCourseId, activeCourseOptions)
   const activeBatchEntries = getBatchEntriesForCourse(form.batchEntries, activeBatchCourseId)
-  const availableBatchTimingOptions = getAvailableBatchTimingOptions(activeBatchEntries)
+  const availableBatchTimingOptions = getAvailableBatchTimingOptions(activeBatchEntries, editingBatchEntryId)
+  const editingBatchEntry = editingBatchEntryId
+    ? activeBatchEntries.find((entry) => String(entry?.id || '').trim() === String(editingBatchEntryId).trim()) || null
+    : null
+
+  const resetBatchEditor = () => {
+    setEditingBatchEntryId('')
+    updateField('batchName', '')
+    updateField('batchTiming', '')
+    updateField('batchTimingCustomStart', '')
+    updateField('batchTimingCustomStartMeridiem', 'AM')
+    updateField('batchTimingCustomEnd', '')
+    updateField('batchTimingCustomEndMeridiem', 'PM')
+  }
+
+  const startBatchEdit = (entry) => {
+    if (!entry) return
+
+    const timingState = parseBatchTimingState(entry.batchTiming)
+    const resolvedTimingPreset = timingState.batchTimingPreset || (String(entry.batchTiming || '').trim() ? 'Custom' : '')
+
+    setEditingBatchEntryId(String(entry.id || '').trim())
+    updateField('batchCourseId', String(entry.courseId || activeBatchCourseId || form.courseIds[0] || form.courseId || '').trim())
+    updateField('batchName', String(entry.batchName || '').trim())
+    updateField('batchTiming', resolvedTimingPreset)
+    updateField('batchTimingCustomStart', timingState.batchTimingCustomStart || '')
+    updateField('batchTimingCustomStartMeridiem', timingState.batchTimingCustomStartMeridiem || 'AM')
+    updateField('batchTimingCustomEnd', timingState.batchTimingCustomEnd || '')
+    updateField('batchTimingCustomEndMeridiem', timingState.batchTimingCustomEndMeridiem || 'PM')
+    setActionError('')
+  }
   const selectedCourseLabelOverrides = useMemo(() => {
     const overrides = {}
     const selectedIds = Array.isArray(form.courseIds) ? form.courseIds.map((courseId) => String(courseId || '').trim()).filter(Boolean) : []
@@ -1313,24 +1372,51 @@ export function FacultyManagementPage() {
 
   const addBatchEntry = () => {
     const activeCourseId = form.batchCourseId || form.courseIds[0] || form.courseId || ''
-    if (form.batchName.trim() && hasDuplicateBatchName(form.batchEntries, form.batchName, activeCourseId)) {
+    if (
+      form.batchName.trim() &&
+      hasDuplicateBatchName(form.batchEntries, form.batchName, activeCourseId, editingBatchEntryId)
+    ) {
       setActionError('Batch names must be unique within the same course.')
       setTouched((current) => ({ ...current, batchName: true }))
       return
     }
 
-    const nextBatchEntry = resolveBatchEntryFromForm(form, activeBatchEntries)
+    const nextBatchEntry = resolveBatchEntryFromForm(form, activeBatchEntries, editingBatchEntryId || '')
 
     if (!nextBatchEntry) {
-      setActionError('Enter batch name and batch timing, then click Add Batch.')
+      setActionError(`Enter batch name and batch timing, then click ${editingBatchEntryId ? 'Update Batch' : 'Add Batch'}.`)
       return
     }
 
     setActionError('')
     setForm((current) => ({
       ...current,
-      batchEntries: [...current.batchEntries, nextBatchEntry],
-      batchName: getSuggestedBatchName(current.facultyName, [...activeBatchEntries, nextBatchEntry]),
+      batchEntries: editingBatchEntryId
+        ? current.batchEntries.map((entry) =>
+            String(entry.id || '').trim() === String(editingBatchEntryId).trim()
+              ? {
+                  ...entry,
+                  ...nextBatchEntry,
+                  id: entry.id,
+                  sequenceNo: entry.sequenceNo ?? nextBatchEntry.sequenceNo ?? 1,
+                }
+              : entry,
+          )
+        : [...current.batchEntries, nextBatchEntry],
+      batchName: getSuggestedBatchName(
+        current.facultyName,
+        editingBatchEntryId
+          ? current.batchEntries.map((entry) =>
+              String(entry.id || '').trim() === String(editingBatchEntryId).trim()
+                ? {
+                    ...entry,
+                    ...nextBatchEntry,
+                    id: entry.id,
+                  }
+                : entry,
+            )
+          : [...activeBatchEntries, nextBatchEntry],
+      ),
       batchTiming: '',
       batchTimingCustomStart: '',
       batchTimingCustomStartMeridiem: 'AM',
@@ -1338,6 +1424,7 @@ export function FacultyManagementPage() {
       batchTimingCustomEndMeridiem: 'PM',
       batchCourseId: current.batchCourseId || current.courseIds[0] || current.courseId || '',
     }))
+    setEditingBatchEntryId('')
   }
 
   const goToNextFacultyStep = () => {
@@ -1433,6 +1520,7 @@ export function FacultyManagementPage() {
     setSelectedFacultyRecord(null)
     setFacultyWizardStep(1)
     setBatchDeleteTarget(null)
+    setEditingBatchEntryId('')
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
     setOpenCoursePopoverId('')
@@ -1447,6 +1535,7 @@ export function FacultyManagementPage() {
     setEditingFacultyId('')
     setSelectedFacultyRecord(null)
     setFacultyWizardStep(1)
+    setEditingBatchEntryId('')
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
@@ -1462,6 +1551,7 @@ export function FacultyManagementPage() {
     setEditingFacultyId(record.id)
     setSelectedFacultyRecord(record)
     setFacultyWizardStep(1)
+    setEditingBatchEntryId('')
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
@@ -1477,6 +1567,7 @@ export function FacultyManagementPage() {
     setEditingFacultyId(record.id)
     setSelectedFacultyRecord(record)
     setFacultyWizardStep(1)
+    setEditingBatchEntryId('')
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
@@ -1497,6 +1588,10 @@ export function FacultyManagementPage() {
 
   const handleBatchDeleteConfirmed = () => {
     if (!batchDeleteTarget) return
+
+    if (String(editingBatchEntryId || '').trim() === String(batchDeleteTarget.id || '').trim()) {
+      resetBatchEditor()
+    }
 
     setForm((current) => ({
       ...current,
@@ -1537,6 +1632,9 @@ export function FacultyManagementPage() {
       return
     }
 
+    const editingBatchEntry = editingBatchEntryId
+      ? form.batchEntries.find((entry) => String(entry?.id || '').trim() === String(editingBatchEntryId).trim()) || null
+      : null
     const nextTouched = {
       facultyName: true,
       facultyEmail: true,
@@ -1555,6 +1653,7 @@ export function FacultyManagementPage() {
     const pendingBatchEntry = resolveBatchEntryFromForm(
       form,
       getBatchEntriesForCourse(form.batchEntries, String(form.batchCourseId || form.courseIds[0] || form.courseId || '').trim()),
+      editingBatchEntry?.id || '',
     )
     const existingBatchEntries = Array.isArray(form.batchEntries) && form.batchEntries.length
       ? form.batchEntries
@@ -1563,8 +1662,13 @@ export function FacultyManagementPage() {
         : []
     const resolvedBatchEntries = [...existingBatchEntries]
 
-    if (pendingBatchEntry && !resolvedBatchEntries.some((entry) => sameBatchEntry(entry, pendingBatchEntry))) {
-      resolvedBatchEntries.push(pendingBatchEntry)
+    if (pendingBatchEntry) {
+      const pendingEntryIndex = resolvedBatchEntries.findIndex((entry) => String(entry?.id || '').trim() === String(pendingBatchEntry.id || '').trim())
+      if (pendingEntryIndex >= 0) {
+        resolvedBatchEntries[pendingEntryIndex] = pendingBatchEntry
+      } else if (!resolvedBatchEntries.some((entry) => sameBatchEntry(entry, pendingBatchEntry))) {
+        resolvedBatchEntries.push(pendingBatchEntry)
+      }
     }
 
     const payload = {
@@ -1579,6 +1683,7 @@ export function FacultyManagementPage() {
         batchTiming: formatBatchTimingState(entry),
         courseId: String(entry.courseId || form.batchCourseId || form.courseIds[0] || form.courseId || '').trim(),
         courseName: getCourseNameById(entry.courseId || form.batchCourseId || form.courseIds[0] || form.courseId || '', activeCourseOptions),
+        sequenceNo: Number(entry.sequenceNo || getBatchSequenceNoFromName(entry.batchName || '') || 1) || 1,
       })),
     }
 
@@ -1595,6 +1700,7 @@ export function FacultyManagementPage() {
       await loadFacultyOptions()
       setCurrentPage(1)
       setSelectedFacultyRecord(savedRecord)
+      setEditingBatchEntryId('')
       closeModal()
     } catch (error) {
       setActionError(apiErrorMessage(error, 'Unable to save faculty details right now.'))
@@ -2317,8 +2423,18 @@ export function FacultyManagementPage() {
                   ) : null}
 
                   <button type="button" className="faculty-batch-add faculty-batch-add-full" onClick={addBatchEntry}>
-                    <span>Add Batch</span>
+                    <span>{editingBatchEntryId ? 'Update Batch' : 'Add Batch'}</span>
                   </button>
+
+                  {editingBatchEntryId ? (
+                    <div className="faculty-batch-edit-banner" role="status" aria-live="polite">
+                      Editing <strong>{editingBatchEntry?.batchName || 'batch'}</strong>
+                      {editingBatchEntry?.batchTiming ? ` at ${editingBatchEntry.batchTiming}` : ''}
+                      <button type="button" className="faculty-batch-edit-cancel" onClick={resetBatchEditor}>
+                        Cancel edit
+                      </button>
+                    </div>
+                  ) : null}
 
                   <div className="faculty-batch-list-wrap">
                     <div className="faculty-batch-list-title">
@@ -2332,6 +2448,15 @@ export function FacultyManagementPage() {
                               <strong>{entry.batchName}</strong>
                               <small>{entry.batchTiming}</small>
                             </div>
+                            <button
+                              type="button"
+                              className="faculty-batch-remove faculty-batch-edit-icon"
+                              onClick={() => startBatchEdit(entry)}
+                              aria-label={`Edit batch ${entry.batchName || ''}`.trim()}
+                              title="Edit batch"
+                            >
+                              <PencilLine />
+                            </button>
                             <button
                               type="button"
                               className="faculty-batch-remove faculty-batch-remove-icon"

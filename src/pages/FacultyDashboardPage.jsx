@@ -294,13 +294,17 @@ function preferFacultyProfileSnapshot(current = null, next = null) {
   const nextCourseIds = Array.isArray(next.courseIds) ? next.courseIds.filter(Boolean) : []
   const currentCourseIds = Array.isArray(current.courseIds) ? current.courseIds.filter(Boolean) : []
 
+  const preferredBatchEntries = nextBatchEntries.length ? nextBatchEntries : currentBatchEntries
+  const preferredCourseAssignments = nextCourseAssignments.length ? nextCourseAssignments : currentCourseAssignments
+  const preferredCourseIds = nextCourseIds.length ? nextCourseIds : currentCourseIds
+
   return {
     ...current,
     ...next,
-    batchEntries: nextBatchEntries.length ? nextBatchEntries : currentBatchEntries,
-    courseIds: nextCourseIds.length ? nextCourseIds : currentCourseIds,
-    courseAssignments: nextCourseAssignments.length ? nextCourseAssignments : currentCourseAssignments,
-    batchCount: Number(next.batchCount || nextBatchEntries.length || current.batchCount || currentBatchEntries.length || 0) || 0,
+    batchEntries: preferredBatchEntries,
+    courseIds: preferredCourseIds,
+    courseAssignments: preferredCourseAssignments,
+    batchCount: Number(next.batchCount || preferredBatchEntries.length || current.batchCount || currentBatchEntries.length || 0) || 0,
   }
 }
 
@@ -331,6 +335,18 @@ function useFacultyRecords() {
 
 function buildFacultyCourseOptions(facultyRecords = [], fallbackFaculty = null) {
   const seen = new Map()
+  const courseNameById = new Map()
+
+  const rememberCourseName = (courseId = '', courseName = '') => {
+    const normalizedCourseId = String(courseId || '').trim()
+    const normalizedCourseName = String(courseName || '').trim()
+    if (!normalizedCourseId || !normalizedCourseName) return
+
+    if (!courseNameById.has(normalizedCourseId)) {
+      courseNameById.set(normalizedCourseId, normalizedCourseName)
+    }
+  }
+
   const pushOption = (courseId = '', courseName = '') => {
     const normalizedCourseId = String(courseId || '').trim()
     const normalizedCourseName = String(courseName || '').trim()
@@ -351,27 +367,48 @@ function buildFacultyCourseOptions(facultyRecords = [], fallbackFaculty = null) 
   const records = Array.isArray(facultyRecords) ? facultyRecords : []
 
   records.forEach((record) => {
-    const courseId = String(record?.courseId || '').trim()
-    const courseName = String(record?.courseName || '').trim()
-    pushOption(courseId, courseName)
+    const recordCourseName = String(record?.courseName || '').trim()
 
-    if (Array.isArray(record?.courseIds)) {
-      record.courseIds.forEach((value) => pushOption(String(value || '').trim(), courseName))
+    if (Array.isArray(record?.batchEntries)) {
+      record.batchEntries.forEach((entry) => {
+        rememberCourseName(entry?.courseId, entry?.courseName)
+      })
     }
 
     if (Array.isArray(record?.courseAssignments)) {
-      record.courseAssignments.forEach((assignment) => pushOption(assignment?.courseId, assignment?.courseName || courseName))
+      record.courseAssignments.forEach((assignment) => {
+        rememberCourseName(assignment?.courseId, assignment?.courseName)
+      })
+    }
+
+    const courseId = String(record?.courseId || '').trim()
+    const courseName = courseNameById.get(courseId) || recordCourseName
+    pushOption(courseId, courseName)
+
+    if (Array.isArray(record?.courseIds)) {
+      record.courseIds.forEach((value, index) => {
+        const normalizedCourseId = String(value || '').trim()
+        const nextCourseName =
+          courseNameById.get(normalizedCourseId) ||
+          (normalizedCourseId === courseId ? courseName : '') ||
+          (index === 0 ? recordCourseName : '')
+        pushOption(normalizedCourseId, nextCourseName)
+      })
     }
 
     if (Array.isArray(record?.batchEntries)) {
-      record.batchEntries.forEach((entry) => pushOption(entry?.courseId, entry?.courseName || courseName))
+      record.batchEntries.forEach((entry) => pushOption(entry?.courseId, entry?.courseName || courseNameById.get(String(entry?.courseId || '').trim()) || recordCourseName))
     }
   })
 
   if (fallbackFaculty) {
-    pushOption(fallbackFaculty.courseId, fallbackFaculty.courseName)
+    const fallbackCourseId = String(fallbackFaculty.courseId || '').trim()
+    pushOption(fallbackCourseId, courseNameById.get(fallbackCourseId) || fallbackFaculty.courseName)
     if (Array.isArray(fallbackFaculty.courseIds)) {
-      fallbackFaculty.courseIds.forEach((courseId) => pushOption(courseId, fallbackFaculty.courseName))
+      fallbackFaculty.courseIds.forEach((courseId, index) => {
+        const normalizedCourseId = String(courseId || '').trim()
+        pushOption(normalizedCourseId, courseNameById.get(normalizedCourseId) || (index === 0 ? fallbackFaculty.courseName : ''))
+      })
     }
   }
 
@@ -458,6 +495,17 @@ function formatBatchOptionLabel(batchName = '', courseName = '') {
   if (!normalizedBatchName) return normalizedCourseName
 
   return `${normalizedBatchName} - ${normalizedCourseName}`
+}
+
+function getBatchSequenceNoFromName(batchName = '') {
+  const normalizedBatchName = String(batchName || '').trim()
+  if (!normalizedBatchName) return 0
+
+  const match = normalizedBatchName.match(/\bbatch\s*(\d+)\b/i)
+  if (!match) return 0
+
+  const sequenceNo = Number(match[1])
+  return Number.isFinite(sequenceNo) && sequenceNo > 0 ? sequenceNo : 0
 }
 
 function getFacultyBatchOptions(faculty) {
@@ -1335,7 +1383,8 @@ export function FacultyMyBatchesPage() {
 
     return resolvedCourses.map((course, courseIndex) => {
       const batches = sortByNameThenTiming(getFacultyBatchEntriesForCourse(displayFaculty, course.courseId, courseOptions)).map((batch, batchIndex) => {
-        const batchName = String(batch?.batchName || '').trim() || `Batch ${Number(batch?.sequenceNo || batchIndex + 1) || batchIndex + 1}`
+        const batchNumber = getBatchSequenceNoFromName(batch?.batchName || '') || Number(batch?.sequenceNo || batchIndex + 1) || batchIndex + 1
+        const batchName = String(batch?.batchName || '').trim() || `Batch ${batchNumber}`
         const batchTiming = String(batch?.batchTiming || '').trim()
         const batchSummary = getBatchSummaryForRow(batch, batchIndex)
         const localStudentRecords = getFacultyBatchStudentRecords(backfilledStudents, {
@@ -1366,7 +1415,7 @@ export function FacultyMyBatchesPage() {
           id: String(batch?.id || `${course.courseId || 'course'}-${batchName}-${batchIndex}`).trim(),
           label: batchName,
           timing: batchTiming,
-          sequenceNo: Number(batch?.sequenceNo || batchIndex + 1) || batchIndex + 1,
+          sequenceNo: batchNumber,
           studentRecords,
           studentCount,
           present,
@@ -1944,7 +1993,7 @@ export function FacultyMyBatchesPage() {
                       <CalendarDays size={14} strokeWidth={2.1} aria-hidden="true" focusable="false" />
                       <div>
                         <strong>{batch.timing || '-'}</strong>
-                        <span>Batch {batch.sequenceNo}</span>
+                        <span>Batch {getBatchSequenceNoFromName(batch.label || '') || Number(batch.sequenceNo || 0) || 0}</span>
                       </div>
                     </div>
 

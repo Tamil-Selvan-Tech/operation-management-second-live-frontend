@@ -154,13 +154,21 @@ export function getFacultyBatchEntriesForCourse(record = {}, courseId = '', cour
 
   const matchingEntries = batchEntries.filter((entry) => {
     const entryCourseId = String(entry?.courseId || '').trim()
-    if (entryCourseId) return entryCourseId === normalizedCourseId
-
     const entryCourseName = normalizeText(entry?.courseName || '')
-    if (!entryCourseName || !Array.isArray(courseOptions) || !courseOptions.length) return false
+    const resolvedCourseFromName =
+      entryCourseName && Array.isArray(courseOptions) && courseOptions.length
+        ? courseOptions.find((course) => normalizeText(course?.name || '') === entryCourseName)
+        : null
 
-    const resolvedCourse = courseOptions.find((course) => normalizeText(course?.name || '') === entryCourseName)
-    return String(resolvedCourse?.id || '').trim() === normalizedCourseId
+    if (entryCourseId) {
+      if (entryCourseId === normalizedCourseId) return true
+      if (!resolvedCourseFromName) return false
+      return String(resolvedCourseFromName?.id || '').trim() === normalizedCourseId
+    }
+
+    if (!resolvedCourseFromName) return false
+
+    return String(resolvedCourseFromName?.id || '').trim() === normalizedCourseId
   })
   if (matchingEntries.length) return matchingEntries
 
