@@ -16425,14 +16425,61 @@ tbody tr:hover {
 
 .faculty-batch-item-image {
   min-height: 88px;
-  align-items: flex-start;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto;
+  align-items: start;
+  column-gap: 10px;
+  row-gap: 6px;
   padding: 14px 16px;
 }
 
 .faculty-batch-item-image .faculty-batch-item-copy {
   display: grid;
-  gap: 6px;
+  gap: 4px;
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: start;
+}
+
+.faculty-batch-item-image .faculty-batch-item-copy strong {
+  line-height: 1.35;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.faculty-batch-item-image .faculty-batch-item-copy small {
+  color: #475569;
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.faculty-batch-item-image .faculty-batch-edit-icon,
+.faculty-batch-item-image .faculty-batch-remove-icon {
+  align-self: start;
+  grid-row: 1;
+}
+
+.faculty-batch-item-image .faculty-batch-edit-icon {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  grid-column: 2;
+  margin-left: 12px;
+}
+
+.faculty-batch-item-image .faculty-batch-edit-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.faculty-batch-item-image .faculty-batch-remove-icon {
+  grid-column: 3;
 }
 
 .faculty-form-actions-large {
