@@ -24676,6 +24676,15 @@ tbody tr:hover {
   letter-spacing: -0.04em;
 }
 
+.business-owner-dashboard .revenue-summary-value.is-total-revenue,
+.operation-manager-dashboard .revenue-summary-value.is-total-revenue {
+  text-align: right;
+  justify-self: end;
+  width: fit-content;
+  margin-left: auto;
+  padding-right: 6px;
+}
+
 .revenue-summary-card-divider {
   height: 1px;
   width: 100%;

@@ -922,7 +922,11 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
                   <strong>Loading...</strong>
                 </div>
               ) : (
-                <div className="revenue-summary-value">{card.value}</div>
+                <div
+                  className={`revenue-summary-value ${card.label === 'Total Revenue' ? 'is-total-revenue' : ''}`}
+                >
+                  {card.value}
+                </div>
               )}
             </div>
             {card.change ? (
