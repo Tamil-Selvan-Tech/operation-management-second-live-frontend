@@ -1,7 +1,7 @@
 import { request } from './apiClient'
 
 const COURSE_PAGE_LIMIT = 5
-const COURSE_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
+const COURSE_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 60000)
 const courseListCache = new Map()
 const courseListInflight = new Map()
 
@@ -29,6 +29,11 @@ function setCachedResult(cache, key, value) {
 function clearCourseListCache() {
   courseListCache.clear()
   courseListInflight.clear()
+}
+
+export function peekCourseList(query = {}) {
+  const cacheKey = makeCacheKey(query)
+  return getCachedResult(courseListCache, cacheKey)
 }
 
 function unwrapData(response) {

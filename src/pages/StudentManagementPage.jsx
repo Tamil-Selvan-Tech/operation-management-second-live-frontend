@@ -30,10 +30,10 @@ import { roleDashboards } from '../data/authData'
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT } from '../data/courseRecords'
-import { listCourses } from '../services/courseService'
-import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
+import { listCourses, peekCourseList } from '../services/courseService'
+import { listFacultyRecords, normalizeFacultyList, peekFacultyList } from '../services/facultyService'
 import { downloadBatchAttendanceReport, downloadStudentAttendanceReport } from '../services/reportService'
-import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
+import { createStudent, deleteStudent, listStudents, peekStudentList, updateStudent } from '../services/studentService'
 import { savePendingLoginEmail } from '../lib/session'
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
 import { FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, resolveStudentBatchAttendanceStatus } from '../lib/facultyAttendanceStore'
@@ -45,6 +45,12 @@ const recordStatusOptions = ['Active', 'Inactive']
 const paymentModeOptions = ['Installment', 'Full Payment']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
 const MAX_INSTALLMENT_FIELDS = 12
+const DEFAULT_LARGE_LIST_QUERY = Object.freeze({
+  page: 1,
+  limit: 100,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+})
 const studentWizardSteps = [
   {
     key: 'basic',
@@ -1035,13 +1041,47 @@ export function StudentManagementPage() {
   const openMenu = useMobileMenu()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [students, setStudents] = useState(() => loadStudentSnapshot())
-  const [courseOptions, setCourseOptions] = useState([])
-  const [facultyOptions, setFacultyOptions] = useState([])
+  const initialStudentList = peekStudentList(DEFAULT_LARGE_LIST_QUERY)
+  const initialCourseList = peekCourseList(DEFAULT_LARGE_LIST_QUERY)
+  const initialFacultyList = peekFacultyList(DEFAULT_LARGE_LIST_QUERY)
+  const [students, setStudents] = useState(() =>
+    initialStudentList?.data?.length ? mergeStudentsWithSnapshot(initialStudentList.data) : loadStudentSnapshot(),
+  )
+  const [courseOptions, setCourseOptions] = useState(() => {
+    const cachedCourses = Array.isArray(initialCourseList?.data) ? initialCourseList.data : []
+    return cachedCourses.length
+      ? Array.from(
+          new Map(
+            cachedCourses
+              .map((course) => {
+                const id = String(course?.id || '').trim()
+                const name = String(course?.name || '').trim()
+                if (!id || !name) return null
+
+                return [
+                  id,
+                  {
+                    id,
+                    name,
+                    actualFees: course?.actualFees ?? '',
+                    registrationFees: course?.registrationFees ?? '',
+                    discount: course?.discount ?? '',
+                    afterDiscount: course?.afterDiscount ?? '',
+                    installmentCount: course?.installmentCount ?? '',
+                    installments: getCourseInstallmentValues(course),
+                  },
+                ]
+              })
+              .filter(Boolean),
+          ).values(),
+        )
+      : []
+  })
+  const [facultyOptions, setFacultyOptions] = useState(() => Array.isArray(initialFacultyList?.data) ? initialFacultyList.data : [])
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isStudentsLoading, setIsStudentsLoading] = useState(true)
-  const [isCoursesLoading, setIsCoursesLoading] = useState(true)
-  const [isFacultyLoading, setIsFacultyLoading] = useState(true)
+  const [isStudentsLoading, setIsStudentsLoading] = useState(() => !initialStudentList && !loadStudentSnapshot().length)
+  const [isCoursesLoading, setIsCoursesLoading] = useState(() => !initialCourseList)
+  const [isFacultyLoading, setIsFacultyLoading] = useState(() => !initialFacultyList)
   const [form, setForm] = useState(createEmptyForm)
   const [submitted, setSubmitted] = useState(false)
   const [fieldFocus, setFieldFocus] = useState({})
@@ -1333,10 +1373,13 @@ export function StudentManagementPage() {
     return filteredStudents.slice(start, start + studentsPerPage)
   }, [currentPageSafe, filteredStudents])
   const loadStudents = async ({ silent = false } = {}) => {
-    setIsStudentsLoading(true)
+    const cachedStudents = peekStudentList(DEFAULT_LARGE_LIST_QUERY)
+    if (!silent && !cachedStudents && !students.length) {
+      setIsStudentsLoading(true)
+    }
 
     try {
-      const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const result = await listStudents(DEFAULT_LARGE_LIST_QUERY)
       const nextStudents = mergeStudentsWithSnapshot(result.data)
       saveStudentSnapshot(nextStudents)
       setStudents(nextStudents.length ? nextStudents : loadStudentSnapshot())
@@ -1354,10 +1397,13 @@ export function StudentManagementPage() {
   }
 
   const loadCourseOptions = async () => {
-    setIsCoursesLoading(true)
+    const cachedCourses = peekCourseList(DEFAULT_LARGE_LIST_QUERY)
+    if (!cachedCourses && !courseOptions.length) {
+      setIsCoursesLoading(true)
+    }
 
     try {
-      const result = await listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const result = await listCourses(DEFAULT_LARGE_LIST_QUERY)
       const normalizedCourses = Array.from(
         new Map(
           (result.data || [])
@@ -1395,10 +1441,13 @@ export function StudentManagementPage() {
   }
 
   const loadFacultyOptions = async () => {
-    setIsFacultyLoading(true)
+    const cachedFaculty = peekFacultyList(DEFAULT_LARGE_LIST_QUERY)
+    if (!cachedFaculty && !facultyOptions.length) {
+      setIsFacultyLoading(true)
+    }
 
     try {
-      const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const result = await listFacultyRecords(DEFAULT_LARGE_LIST_QUERY)
       const normalizedFaculty = Array.from(
         new Map(
           (result.data || [])
@@ -1476,11 +1525,7 @@ export function StudentManagementPage() {
   }
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
+    void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
   }, [])
 
   const openModal = () => {
@@ -1793,17 +1838,10 @@ export function StudentManagementPage() {
       void loadCourseOptions()
     }
 
-    const timeoutId = window.setTimeout(() => {
-      void loadCourseOptions()
-    }, 0)
-
     window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
-    window.addEventListener('storage', syncCourseOptions)
 
     return () => {
-      window.clearTimeout(timeoutId)
       window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
-      window.removeEventListener('storage', syncCourseOptions)
     }
   }, [])
 
@@ -1813,11 +1851,9 @@ export function StudentManagementPage() {
     }
 
     window.addEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyOptions)
-    window.addEventListener('storage', syncFacultyOptions)
 
     return () => {
       window.removeEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyOptions)
-      window.removeEventListener('storage', syncFacultyOptions)
     }
   }, [])
 

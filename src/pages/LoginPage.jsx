@@ -4,6 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
+import { warmBackendConnection } from '../services/apiClient'
 import "../styles/LoginPage.css";
 
 function EmailIcon() {
@@ -57,6 +58,10 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
   const [showPassword, setShowPassword] = useState(false)
   const emailInputRef = useRef(null)
   const passwordInputRef = useRef(null)
+
+  useEffect(() => {
+    void warmBackendConnection()
+  }, [])
 
   useEffect(() => {
     const syncAutofill = () => {

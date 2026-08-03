@@ -1,8 +1,8 @@
 import { request } from './apiClient'
 
 const STUDENT_PAGE_LIMIT = 100
-const STUDENT_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
-const STUDENT_PROFILE_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 15000)
+const STUDENT_LIST_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 60000)
+const STUDENT_PROFILE_CACHE_TTL_MS = Number(import.meta.env.VITE_LIST_CACHE_TTL_MS || 60000)
 const studentListCache = new Map()
 const studentListInflight = new Map()
 const studentProfileCache = new Map()
@@ -37,6 +37,11 @@ function clearStudentListCache() {
 function clearStudentProfileCache() {
   studentProfileCache.clear()
   studentProfileInflight.clear()
+}
+
+export function peekStudentList(query = {}) {
+  const cacheKey = makeCacheKey(query)
+  return getCachedResult(studentListCache, cacheKey)
 }
 
 function unwrapData(response) {
