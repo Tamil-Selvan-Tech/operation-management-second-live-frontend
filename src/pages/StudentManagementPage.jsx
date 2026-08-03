@@ -19,6 +19,7 @@ import {
   Phone,
   UserRound,
   FileDown,
+  X,
 } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
@@ -197,8 +198,64 @@ function hasFourthInstallment(student = null, course = null) {
   )
 }
 
+function getInstallmentOrdinalLabel(installmentField = '') {
+  if (installmentField === 'firstInstallmentStatus') return '1st Installment'
+  if (installmentField === 'secondInstallmentStatus') return '2nd Installment'
+  if (installmentField === 'thirdInstallmentStatus') return '3rd Installment'
+  if (installmentField === 'fourthInstallmentStatus') return '4th Installment'
+  return 'Installment'
+}
+
+function getInstallmentSuccessToast(student = null, installmentField = '') {
+  return buildInstallmentToastPayload(student, installmentField)
+}
+
 function getSecondDueDate(student) {
   return student?.secondDueDate || addOneMonth(student?.admissionDate)
+}
+
+function buildInstallmentToastPayload(student = null, installmentField = '') {
+  const paidLabel = getInstallmentOrdinalLabel(installmentField)
+
+  if (installmentField === 'firstInstallmentStatus') {
+    return {
+      title: 'Payment Confirmed',
+      lines: [`${paidLabel} payment has been confirmed.`, 'The 2nd installment is now open.'],
+    }
+  }
+
+  if (installmentField === 'secondInstallmentStatus') {
+    if (hasThirdInstallment(student)) {
+      return {
+        title: 'Payment Confirmed',
+        lines: [`${paidLabel} payment has been confirmed.`, 'The 3rd installment is now open.'],
+      }
+    }
+
+    return {
+      title: 'Payment Confirmed',
+      lines: [`${paidLabel} payment has been confirmed.`, 'Full payment has been completed.'],
+    }
+  }
+
+  if (installmentField === 'thirdInstallmentStatus') {
+    if (hasFourthInstallment(student)) {
+      return {
+        title: 'Payment Confirmed',
+        lines: [`${paidLabel} payment has been confirmed.`, 'The 4th installment is now open.'],
+      }
+    }
+
+    return {
+      title: 'Payment Confirmed',
+      lines: [`${paidLabel} payment has been confirmed.`, 'Full payment has been completed.'],
+    }
+  }
+
+  return {
+    title: 'Payment Confirmed',
+    lines: [`${paidLabel} payment has been confirmed.`, 'Full payment has been completed.'],
+  }
 }
 
 function getThirdDueDate(student) {
@@ -1076,6 +1133,8 @@ export function StudentManagementPage() {
   const [attendanceReportTouched, setAttendanceReportTouched] = useState({})
   const [attendanceReportSubmitting, setAttendanceReportSubmitting] = useState(false)
   const [attendanceReportError, setAttendanceReportError] = useState('')
+  const [installmentToast, setInstallmentToast] = useState(null)
+  const installmentToastTimerRef = useRef(null)
   const attendanceRefreshToken = useFacultyBatchAttendanceRefreshToken()
   const studentsPerPage = 5
   const passedOutYearOptions = useMemo(() => getPassedOutYearOptions(), [])
@@ -1632,6 +1691,19 @@ export function StudentManagementPage() {
 
   const closeInstallmentConfirmModal = () => {
     setInstallmentConfirmTarget(null)
+  }
+
+  const showInstallmentToast = (message) => {
+    if (installmentToastTimerRef.current) {
+      window.clearTimeout(installmentToastTimerRef.current)
+      installmentToastTimerRef.current = null
+    }
+
+    setInstallmentToast(message)
+    installmentToastTimerRef.current = window.setTimeout(() => {
+      setInstallmentToast(null)
+      installmentToastTimerRef.current = null
+    }, 3500)
   }
 
   const openActionMenu = (studentId) => {
@@ -2258,14 +2330,46 @@ export function StudentManagementPage() {
     try {
       await updateStudent(studentId, updatePayload)
       setOpenActionMenuId('')
+      if (nextStatus === 'Paid') {
+        showInstallmentToast(getInstallmentSuccessToast(currentStudent, installmentField))
+      }
     } catch (error) {
       setStudents(previousStudents)
       setActionError(apiErrorMessage(error, 'Unable to update installment status.'))
     }
   }
 
+  useEffect(() => {
+    return () => {
+      if (installmentToastTimerRef.current) {
+        window.clearTimeout(installmentToastTimerRef.current)
+      }
+    }
+  }, [])
+
   return (
     <section className="student-management-page">
+      {installmentToast ? (
+        <div className="student-installment-toast" role="status" aria-live="polite">
+          <div className="student-installment-toast-icon" aria-hidden="true">
+            <BadgeCheck size={18} />
+          </div>
+          <div className="student-installment-toast-copy">
+            <div className="student-installment-toast-title-row">
+              <strong>{installmentToast.title}</strong>
+              <button type="button" className="student-installment-toast-close" onClick={() => setInstallmentToast(null)} aria-label="Close notification">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="student-installment-toast-lines">
+              {installmentToast.lines.map((line) => (
+                <span key={line}>{line}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {isBusinessOwner ? (
         <OperationManagerHeader
           className="student-management-top-header"
@@ -3639,5 +3743,6 @@ export function StudentManagementPage() {
     </section>
   )
 }
+
 
 

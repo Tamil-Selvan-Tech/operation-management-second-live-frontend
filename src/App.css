@@ -2483,8 +2483,8 @@ tbody tr:hover {
 }
 
 .app-shell.dashboard-shell .sidebar-profile-card {
-  width: calc(100% + 28px);
-  margin-left: -14px;
+  width: 100%;
+  margin-left: 0;
   padding: 8px 8px 8px 8px;
   border-color: #dfe7f2;
   background: #ffffff;
@@ -2549,12 +2549,12 @@ tbody tr:hover {
 
 .app-shell.business-owner-shell .sidebar-profile-logout-icon:hover,
 .app-shell.operation-manager-shell .sidebar-profile-logout-icon:hover {
-  background: #fee2e2;
+  background: transparent;
   color: #dc2626;
 }
 
 .app-shell.dashboard-shell .sidebar-profile-logout-icon:hover {
-  background: #fee2e2;
+  background: transparent;
   color: #dc2626;
 }
 
@@ -4690,14 +4690,25 @@ tbody tr:hover {
 
   .student-summary-card-label {
     font-size: 0.68rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-summary-card-value {
     font-size: 0.92rem;
+    word-break: normal;
+    overflow-wrap: normal;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-summary-card-note {
     font-size: 0.69rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-summary-card-badge {
@@ -19126,6 +19137,100 @@ tbody tr:hover {
   background: linear-gradient(180deg, #4f9dff 0%, #2875dc 100%);
 }
 
+.student-installment-toast {
+  position: fixed;
+  top: 28px;
+  right: 22px;
+  z-index: 120;
+  width: min(370px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid #e5edf7;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: studentInstallmentToastIn 0.24s ease-out;
+}
+
+.student-installment-toast-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 18px rgba(22, 163, 74, 0.18);
+}
+
+.student-installment-toast-copy {
+  flex: 1 1 auto;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #14532d;
+}
+
+.student-installment-toast-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.student-installment-toast-title-row strong {
+  color: #15803d;
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.student-installment-toast-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.student-installment-toast-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.student-installment-toast-lines {
+  display: grid;
+  gap: 2px;
+  color: #334155;
+  font-size: 0.92rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.student-installment-toast-lines span {
+  display: block;
+}
+
+@keyframes studentInstallmentToastIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 .course-pagination {
   display: flex;
   align-items: center;
@@ -22719,6 +22824,10 @@ tbody tr:hover {
 
 .sidebar-profile-copy {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
 }
 
 .sidebar-profile-copy strong {
@@ -22731,6 +22840,15 @@ tbody tr:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1.1;
+}
+
+.sidebar-profile-email {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-profile-logout-icon {
@@ -22751,9 +22869,9 @@ tbody tr:hover {
 }
 
 .sidebar-profile-logout-icon:hover {
-  background: #fee2e2;
+  background: transparent;
   color: #b91c1c;
-  transform: translateY(-1px);
+  transform: none;
 }
 
 @media (max-width: 1280px) {
@@ -24233,7 +24351,7 @@ tbody tr:hover {
 .is-business-owner-sidebar .sidebar-profile-logout-icon {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: #ef4444;
   width: 24px;
   height: 24px;
   padding: 0;
@@ -24246,8 +24364,8 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .sidebar-profile-logout-icon:hover {
-  color: #0f172a;
-  background: #e2e8f0;
+  color: #dc2626;
+  background: transparent;
 }
 
 @media (max-width: 1024px) {
@@ -25863,10 +25981,18 @@ tbody tr:hover {
 
   .student-dashboard-page .student-summary-card-value {
     font-size: 0.9rem;
+    word-break: normal;
+    overflow-wrap: normal;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-dashboard-page .student-summary-card-note {
     font-size: 0.67rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .student-dashboard-page .student-summary-card-badge {

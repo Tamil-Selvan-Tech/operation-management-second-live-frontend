@@ -969,9 +969,9 @@ function FacultyBatchPerformanceCard({ batches = [] }) {
 export function FacultyDashboardPage({ dashboard = roleDashboards.faculty }) {
   const openMenu = useMobileMenu()
   const { faculty: latestFaculty, isLoading } = useCurrentFacultyProfile()
-  const { facultyRecords, isLoading: isFacultyRecordsLoading } = useFacultyRecords()
-  const { students, isLoading: isStudentsLoading } = useFacultyStudents()
-  const { summary: batchesSummary, isLoading: isBatchesSummaryLoading } = useFacultyBatchesSummary()
+  const { facultyRecords } = useFacultyRecords()
+  const { students } = useFacultyStudents()
+  const { summary: batchesSummary } = useFacultyBatchesSummary()
   const activeFaculty = latestFaculty || null
   const [isProfileOpen, setIsProfileOpen] = useState(false)
 
@@ -1219,6 +1219,7 @@ export function FacultyMyBatchesPage() {
   const [attendanceReminderPopup, setAttendanceReminderPopup] = useState(null)
   const [attendanceReportRequest, setAttendanceReportRequest] = useState(null)
   const [currentDateTime, setCurrentDateTime] = useState(() => new Date())
+  const [isAttendanceSaving, setIsAttendanceSaving] = useState(false)
   const attendanceReminderShownRef = useRef(new Set())
   const [selectedBatchOpenSource, setSelectedBatchOpenSource] = useState('details')
   const batchStudentTableShellRef = useRef(null)
@@ -1788,6 +1789,7 @@ export function FacultyMyBatchesPage() {
 
   const saveBatchAttendance = async () => {
     if (!selectedBatchContext || !isSelectedBatchAttendanceEditable) return
+    if (isAttendanceSaving) return
 
     const progress = getBatchAttendanceProgress(selectedBatchAttendanceDraft)
     if (!progress.isComplete) {
@@ -1803,6 +1805,8 @@ export function FacultyMyBatchesPage() {
     const submittedAt = currentDateTime.toISOString()
 
     try {
+      setIsAttendanceSaving(true)
+      setSelectedBatchAttendanceMessage('Saving attendance...')
       await markFacultyStudentAttendance({
         date: getAttendanceDateKey(currentDateTime),
         facultyId: selectedBatchContext.facultyId || facultyAttendanceId,
@@ -1855,6 +1859,8 @@ export function FacultyMyBatchesPage() {
       })
     } catch (error) {
       setSelectedBatchAttendanceMessage(error?.body?.message || error?.message || 'Unable to save attendance right now.')
+    } finally {
+      setIsAttendanceSaving(false)
     }
   }
 
@@ -2237,6 +2243,11 @@ export function FacultyMyBatchesPage() {
                   </div>
 
                   <div className="batch-student-table-footer-actions">
+                    {selectedBatchAttendanceMessage ? (
+                      <span className="batch-student-save-message" role="status" aria-live="polite">
+                        {selectedBatchAttendanceMessage}
+                      </span>
+                    ) : null}
                     <div className="batch-student-pagination" aria-hidden="true">
                       <button type="button" className="batch-student-pagination-link" disabled>
                         <ChevronLeft size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
@@ -2268,10 +2279,16 @@ export function FacultyMyBatchesPage() {
                         type="button"
                         className={isSelectedBatchAttendanceLateMode ? 'batch-late-attendance-submit batch-student-save-button' : 'batch-student-save-button'}
                         onClick={saveBatchAttendance}
-                        disabled={!isSelectedBatchAttendanceEditable || !selectedBatchAttendanceSummary.isComplete}
+                        disabled={!isSelectedBatchAttendanceEditable || !selectedBatchAttendanceSummary.isComplete || isAttendanceSaving}
                       >
-                        {isSelectedBatchAttendanceLateMode ? <Check size={16} /> : <Save size={14} />}
-                        <span>{isSelectedBatchAttendanceLateMode ? 'Submit Late Attendance' : 'Save'}</span>
+                        {isAttendanceSaving ? (
+                          <span>Saving...</span>
+                        ) : (
+                          <>
+                            {isSelectedBatchAttendanceLateMode ? <Check size={16} /> : <Save size={14} />}
+                            <span>{isSelectedBatchAttendanceLateMode ? 'Submit Late Attendance' : 'Save'}</span>
+                          </>
+                        )}
                       </button>
                     ) : null}
                   </div>
