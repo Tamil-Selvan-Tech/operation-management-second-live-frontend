@@ -10316,8 +10316,19 @@ tbody tr:hover {
 
 .business-owner-dashboard .profile-drawer,
 .operation-manager-dashboard .profile-drawer {
-  height: 760px;
-  max-height: 760px;
+  height: 580px !important;
+  max-height: 580px !important;
+}
+
+.business-owner-dashboard .profile-drawer-body,
+.operation-manager-dashboard .profile-drawer-body {
+  padding-top: 20px;
+  padding-bottom: 10px;
+}
+
+.business-owner-dashboard .profile-modal-cover,
+.operation-manager-dashboard .profile-modal-cover {
+  min-height: 108px;
 }
 
 @media (min-width: 769px) and (max-width: 1100px) {
@@ -18122,13 +18133,13 @@ tbody tr:hover {
   position: relative;
   height: 118px;
   min-height: 118px;
-  padding: 12px 18px;
+  padding: 18px 18px 16px 18px;
   background: linear-gradient(180deg, #1f6df0 0%, #1a5fd1 100%);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 18px;
   text-align: left;
   flex-wrap: nowrap;
   overflow: hidden;
@@ -18137,9 +18148,9 @@ tbody tr:hover {
 .student-drawer-table-header-copy {
   min-width: 0;
   display: grid;
-  gap: 4px;
-  flex: 1 1 260px;
-  padding-left: 8px;
+  gap: 6px;
+  flex: 1 1 300px;
+  padding-left: 0;
   align-items: start;
   justify-items: start;
   text-align: left;
@@ -18147,10 +18158,10 @@ tbody tr:hover {
 
 .student-drawer-table-header-copy .section-kicker {
   margin: 0;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 0.56rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.74rem;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   line-height: 1;
 }
 
@@ -18200,8 +18211,8 @@ tbody tr:hover {
   margin: 0;
   min-width: 0;
   color: #ffffff;
-  font-size: 1.25rem;
-  line-height: 1.1;
+  font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+  line-height: 1.02;
   font-weight: 800;
   letter-spacing: -0.02em;
   text-align: left;
@@ -18227,21 +18238,23 @@ tbody tr:hover {
   align-items: center;
   justify-content: flex-end;
   flex: 0 0 auto;
-  gap: 6px;
+  gap: 14px;
   flex-wrap: nowrap;
   margin-left: auto;
   max-width: 100%;
+  padding-left: 24px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .student-drawer-edit-button {
-  min-height: 30px;
-  padding: 0 12px;
+  min-height: 44px;
+  padding: 0 18px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 700;
   backdrop-filter: blur(6px);
   white-space: nowrap;
 }
@@ -18251,13 +18264,26 @@ tbody tr:hover {
 }
 
 .student-drawer-report-button {
-  min-width: 148px;
+  min-width: 154px;
   justify-content: center;
 }
 
 .student-drawer-report-button svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.student-drawer-attendance-pill {
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 0.92rem;
+}
+
+.student-drawer-close-floating {
+  width: 44px;
+  height: 44px;
+  font-size: 1.2rem;
   flex: 0 0 auto;
 }
 
