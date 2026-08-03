@@ -90,7 +90,7 @@ export function NotificationsPage() {
   const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
   const activeFilterLabel =
-    activeFilter === 'all' ? 'Filter' : activeFilter === 'unread' ? 'Unread' : 'Read'
+    activeFilter === 'all' ? 'All notifications' : activeFilter === 'unread' ? 'Unread only' : 'Read only'
 
   useEffect(() => {
     if (!isFilterMenuOpen) return undefined

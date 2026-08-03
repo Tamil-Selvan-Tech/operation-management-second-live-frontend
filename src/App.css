@@ -2222,6 +2222,19 @@ tbody tr:hover {
   margin-top: -18px;
 }
 
+.app-shell.is-inset-sidebar-divider .sidebar {
+  margin-right: 10px;
+}
+
+.app-shell.is-inset-sidebar-divider .sidebar-footer {
+  padding-right: 6px;
+}
+
+.app-shell.is-inset-sidebar-divider .sidebar-profile-card {
+  width: calc(100% + 20px);
+  margin-left: -10px;
+}
+
 .app-shell.business-owner-shell .brand-logo,
 .app-shell.operation-manager-shell .brand-logo {
   width: 48px;

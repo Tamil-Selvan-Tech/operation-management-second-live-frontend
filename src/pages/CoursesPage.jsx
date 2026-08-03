@@ -5,7 +5,13 @@ import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
-import { createCourse, deleteCourse, listCourses, updateCourse } from '../services/courseService'
+import {
+  createCourse,
+  deleteCourse,
+  findDuplicateCourse,
+  listCourses,
+  updateCourse,
+} from '../services/courseService'
 import { saveCourseRecords } from '../data/courseRecords'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { Eye, MoreVertical, PencilLine, Trash2 } from 'lucide-react'
@@ -135,7 +141,7 @@ function buildCourseFormFromCourse(course) {
     installment2: installments[1] ?? '',
     installment3: installments[2] ?? '',
     extraInstallments: installments.slice(3),
-    status: course?.status || '',
+    status: course?.status || 'Active',
   }
 }
 
@@ -156,6 +162,11 @@ function normalizeCourseFormForSave(courseForm) {
 
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.body?.error || error?.message || fallback
+}
+
+function isDuplicateCourseError(error) {
+  const message = String(apiErrorMessage(error, '') || '').toLowerCase()
+  return error?.status === 409 || message.includes('already exists') || message.includes('duplicate')
 }
 
 export function CoursesPage() {
@@ -194,7 +205,7 @@ export function CoursesPage() {
     installment2: '',
     installment3: '',
     extraInstallments: [],
-    status: '',
+    status: 'Active',
   })
   const [touched, setTouched] = useState({})
   const [saveError, setSaveError] = useState('')
@@ -202,7 +213,9 @@ export function CoursesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [duplicateNameError, setDuplicateNameError] = useState('')
   const requestIdRef = useRef(0)
+  const duplicateCheckRequestRef = useRef(0)
   const actionMenuButtonRefs = useRef(new Map())
 
   const pageSize = 5
@@ -222,6 +235,7 @@ export function CoursesPage() {
     const errors = {}
 
     if (!form.name.trim()) errors.name = `${requiredFieldLabels.name} is required.`
+    if (duplicateNameError) errors.name = duplicateNameError
     if (!form.mode) errors.mode = `${requiredFieldLabels.mode} is required.`
     if (!form.duration) errors.duration = `${requiredFieldLabels.duration} is required.`
     if (form.duration && Number(form.duration) <= 0) errors.duration = 'Duration must be greater than zero.'
@@ -276,7 +290,7 @@ export function CoursesPage() {
     }
 
     return errors
-  }, [form, isCourseInlineEditing])
+  }, [duplicateNameError, form, isCourseInlineEditing])
 
   const totalPages = pagination.totalPages || 1
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -380,6 +394,7 @@ export function CoursesPage() {
 
   const updateField = (field, value) => {
     if (saveError) setSaveError('')
+    if (field === 'name' && duplicateNameError) setDuplicateNameError('')
     setForm((current) => ({ ...current, [field]: value }))
   }
 
@@ -426,6 +441,7 @@ export function CoursesPage() {
     })
     setTouched({})
     setSaveError('')
+    setDuplicateNameError('')
     setEditingCourseId(null)
   }
 
@@ -433,6 +449,7 @@ export function CoursesPage() {
     setIsModalOpen(false)
     setViewTarget(null)
     setIsCourseInlineEditing(false)
+    setDuplicateNameError('')
   }
 
   const closeModalAfterSave = () => {
@@ -457,6 +474,7 @@ export function CoursesPage() {
     setViewTarget(null)
     setIsCourseInlineEditing(false)
     setIsModalOpen(true)
+    setDuplicateNameError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuMode('')
@@ -471,6 +489,7 @@ export function CoursesPage() {
     setViewTarget(null)
     setIsCourseInlineEditing(false)
     setIsModalOpen(true)
+    setDuplicateNameError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuMode('')
@@ -485,6 +504,7 @@ export function CoursesPage() {
     setViewTarget(course)
     setIsCourseInlineEditing(true)
     setIsModalOpen(false)
+    setDuplicateNameError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuMode('')
@@ -497,6 +517,7 @@ export function CoursesPage() {
     setEditingCourseId(null)
     setTouched({})
     setSaveError('')
+    setDuplicateNameError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuMode('')
@@ -513,6 +534,7 @@ export function CoursesPage() {
     setEditingCourseId(null)
     setTouched({})
     setSaveError('')
+    setDuplicateNameError('')
   }
 
   const goToPage = (page) => {
@@ -528,6 +550,37 @@ export function CoursesPage() {
     setActiveFilter(value)
     setCurrentPage(1)
   }
+
+  useEffect(() => {
+    if (!isModalOpen && !isCourseInlineEditing) return
+
+    const trimmedName = String(form.name || '').trim()
+    if (!trimmedName) {
+      return
+    }
+
+    const requestId = ++duplicateCheckRequestRef.current
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const result = await listCourses({
+          page: 1,
+          limit: 100,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        })
+        if (requestId !== duplicateCheckRequestRef.current) return
+
+        const duplicateCourse = findDuplicateCourse(result.data || [], trimmedName, editingCourseId)
+        setDuplicateNameError(duplicateCourse ? 'Course already exists.' : '')
+      } catch {
+        if (requestId === duplicateCheckRequestRef.current) {
+          setDuplicateNameError('')
+        }
+      }
+    }, 250)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [editingCourseId, form.name, isCourseInlineEditing, isModalOpen])
 
   const isValid = Object.keys(validationErrors).length === 0
   const isBusinessOwner = role === 'business-owner'
@@ -567,6 +620,7 @@ export function CoursesPage() {
     const saveAfterDiscount = String(Math.max(Number(saveForm.actualFees || 0) - Number(saveForm.discount || 0), 0))
     const saveEffectiveInstallmentCount = getEffectiveInstallmentCount(saveForm)
     const installmentsPayload = Array.from({ length: saveEffectiveInstallmentCount }, (_, index) => getInstallmentValue(saveForm, index + 1))
+    const duplicateCheckResult = findDuplicateCourse(courses, saveForm.name, editingCourseId)
 
     const payload = {
       name: saveForm.name.trim(),
@@ -587,6 +641,24 @@ export function CoursesPage() {
     })
 
     try {
+      if (duplicateCheckResult) {
+        throw new Error(`Course already exists: ${duplicateCheckResult.name || saveForm.name.trim()}`)
+      }
+
+      const allCoursesResult = await listCourses({
+        page: 1,
+        limit: 100,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      })
+      const duplicateCourse = findDuplicateCourse(allCoursesResult.data || [], saveForm.name, editingCourseId)
+      if (duplicateCourse) {
+        setDuplicateNameError('Course already exists.')
+        setTouched((current) => ({ ...current, name: true }))
+        setSaveError('')
+        return
+      }
+
       if (editingCourseId) {
         await updateCourse(editingCourseId, payload)
       } else {
@@ -615,6 +687,13 @@ export function CoursesPage() {
 
       closeModalAfterSave()
     } catch (error) {
+      if (isDuplicateCourseError(error)) {
+        setDuplicateNameError('Course already exists.')
+        setTouched((current) => ({ ...current, name: true }))
+        setSaveError('')
+        return
+      }
+
       setSaveError(apiErrorMessage(error, 'Unable to save course right now.'))
     } finally {
       setIsSaving(false)
@@ -815,7 +894,9 @@ export function CoursesPage() {
                   onBlur={() => markTouched('mode')}
                   aria-invalid={Boolean(shouldShowError('mode'))}
                 >
-                  <option value="" disabled hidden />
+                  <option value="" disabled>
+                    Select Mode
+                  </option>
                   <option>Online</option>
                   <option>Offline</option>
                   <option>Hybrid</option>
@@ -957,8 +1038,7 @@ export function CoursesPage() {
                   onBlur={() => markTouched('status')}
                   aria-invalid={Boolean(shouldShowError('status'))}
                 >
-                  <option value="" disabled hidden />
-                  <option>Active</option>
+                  <option value="Active">Active</option>
                   <option>Inactive</option>
                 </select>
               </Field>
