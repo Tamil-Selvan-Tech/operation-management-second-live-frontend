@@ -2201,12 +2201,13 @@ tbody tr:hover {
   gap: 10px;
   background: #ffffff;
   border: 0;
-  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  border-right: 0 !important;
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
   margin-left: -18px;
   margin-top: -18px;
+  position: relative;
 }
 
 .app-shell.dashboard-shell .sidebar {
@@ -2214,12 +2215,26 @@ tbody tr:hover {
   gap: 10px;
   background: #ffffff;
   border: 0;
-  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  border-right: 0 !important;
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
   margin-left: -18px;
   margin-top: -18px;
+  position: relative;
+}
+
+.app-shell.business-owner-shell .sidebar::after,
+.app-shell.operation-manager-shell .sidebar::after,
+.app-shell.dashboard-shell .sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(148, 163, 184, 0.45);
+  pointer-events: none;
 }
 
 .app-shell.is-inset-sidebar-divider .sidebar {
@@ -2377,7 +2392,8 @@ tbody tr:hover {
 }
 
 .app-shell.dashboard-shell .sidebar .sidebar-menu-item.is-active {
-  background: #eff4fb;
+  background: #f1f5f9;
+  border-color: transparent;
   box-shadow: none;
 }
 
@@ -24583,9 +24599,21 @@ tbody tr:hover {
 
 .is-business-owner-sidebar {
   background: #ffffff !important;
-  border-right: 1.5px solid #cbd5e1 !important;
+  border-right: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  position: relative !important;
+}
+
+.is-business-owner-sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(148, 163, 184, 0.45);
+  pointer-events: none;
 }
 
 .is-business-owner-sidebar .sidebar-head {
@@ -24641,6 +24669,8 @@ tbody tr:hover {
   color: #0f172a !important;
   font-weight: 700 !important;
   border-radius: 10px !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .is-business-owner-sidebar .sidebar-menu-item.is-active .sidebar-menu-icon {
