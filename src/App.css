@@ -18370,17 +18370,22 @@ tbody tr:hover {
   gap: 18px;
 }
 
-.student-drawer-table-view {
-  padding: 0;
-  gap: 0;
-  overflow: hidden;
+.student-drawer.student-drawer-table-view {
+  width: min(960px, calc(100vw - 72px));
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  background: #ffffff;
 }
 
-.student-drawer-table-header {
+.student-drawer.student-drawer-table-view .student-drawer-table-header {
   position: relative;
-  height: 118px;
-  min-height: 118px;
-  padding: 18px 18px 16px 18px;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  height: 68px;
+  min-height: 68px;
+  padding: 6px 18px;
   background: linear-gradient(180deg, #1f6df0 0%, #1a5fd1 100%);
   color: #ffffff;
   display: flex;
@@ -18390,9 +18395,10 @@ tbody tr:hover {
   text-align: left;
   flex-wrap: nowrap;
   overflow: hidden;
+  border-radius: 0;
 }
 
-.student-drawer-table-header-copy {
+.student-drawer.student-drawer-table-view .student-drawer-table-header-copy {
   min-width: 0;
   display: grid;
   gap: 6px;
@@ -18403,7 +18409,7 @@ tbody tr:hover {
   text-align: left;
 }
 
-.student-drawer-table-header-copy .section-kicker {
+.student-drawer.student-drawer-table-view .student-drawer-table-header-copy .section-kicker {
   margin: 0;
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.74rem;
@@ -18412,7 +18418,7 @@ tbody tr:hover {
   line-height: 1;
 }
 
-.course-drawer-table-header {
+.student-drawer.student-drawer-table-view .course-drawer-table-header {
   height: auto;
   min-height: 52px;
   padding: 6px 16px 6px;
@@ -18422,7 +18428,7 @@ tbody tr:hover {
   flex-wrap: nowrap;
 }
 
-.course-drawer-table-header>div:first-child {
+.student-drawer.student-drawer-table-view .course-drawer-table-header>div:first-child {
   width: 100%;
   flex: 1 1 auto;
   min-width: 0;
@@ -18436,7 +18442,7 @@ tbody tr:hover {
   margin: 0 auto;
 }
 
-.course-drawer-table-header .section-kicker {
+.student-drawer.student-drawer-table-view .course-drawer-table-header .section-kicker {
   margin: 0;
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.54rem;
@@ -18444,7 +18450,7 @@ tbody tr:hover {
   letter-spacing: 0.16em;
 }
 
-.course-drawer-table-header h3 {
+.student-drawer.student-drawer-table-view .course-drawer-table-header h3 {
   margin: 0;
   font-size: 0.96rem;
   line-height: 1;
@@ -18454,7 +18460,7 @@ tbody tr:hover {
   text-align: center;
 }
 
-.student-drawer-table-header h3 {
+.student-drawer.student-drawer-table-view .student-drawer-table-header h3 {
   margin: 0;
   min-width: 0;
   color: #ffffff;
@@ -18467,19 +18473,19 @@ tbody tr:hover {
   white-space: normal;
 }
 
-.student-drawer-close-floating {
+.student-drawer.student-drawer-table-view .student-drawer-close-floating {
   position: static;
   border-color: rgba(255, 255, 255, 0.32);
   background: rgba(255, 255, 255, 0.98);
 }
 
-.course-drawer-table-header .student-drawer-close-floating {
+.student-drawer.student-drawer-table-view .course-drawer-table-header .student-drawer-close-floating {
   width: 28px;
   height: 28px;
   font-size: 14px;
 }
 
-.student-drawer-table-actions {
+.student-drawer.student-drawer-table-view .student-drawer-table-actions {
   position: relative;
   display: flex;
   align-items: center;
@@ -18493,7 +18499,7 @@ tbody tr:hover {
   border-left: 1px solid rgba(255, 255, 255, 0.16);
 }
 
-.student-drawer-edit-button {
+.student-drawer.student-drawer-table-view .student-drawer-edit-button {
   min-height: 44px;
   padding: 0 18px;
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -18506,11 +18512,11 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-.student-drawer-edit-button:hover {
+.student-drawer.student-drawer-table-view .student-drawer-edit-button:hover {
   background: rgba(255, 255, 255, 0.24);
 }
 
-.student-drawer-report-button {
+.student-drawer.student-drawer-table-view .student-drawer-report-button {
   min-height: 40px;
   padding: 0 14px;
   display: inline-flex;
@@ -18527,7 +18533,7 @@ tbody tr:hover {
   box-shadow: none;
 }
 
-.student-drawer-report-button svg {
+.student-drawer.student-drawer-table-view .student-drawer-report-button svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
