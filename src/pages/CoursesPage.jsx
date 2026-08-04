@@ -197,6 +197,7 @@ export function CoursesPage() {
   const [isCourseInlineEditing, setIsCourseInlineEditing] = useState(false)
   const [openActionMenuId, setOpenActionMenuId] = useState(null)
   const [openActionMenuPlacement, setOpenActionMenuPlacement] = useState('bottom')
+  const [openActionMenuPosition, setOpenActionMenuPosition] = useState({ top: 0, right: 0 })
   const [openActionMenuMode, setOpenActionMenuMode] = useState('')
   const actionMenuCloseTimerRef = useRef(null)
   const [form, setForm] = useState({
@@ -502,6 +503,7 @@ export function CoursesPage() {
     setDuplicateNameError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenActionMenuMode('')
   }
 
@@ -517,6 +519,7 @@ export function CoursesPage() {
     setDuplicateNameError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenActionMenuMode('')
   }
 
@@ -532,6 +535,7 @@ export function CoursesPage() {
     setDuplicateNameError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenActionMenuMode('')
   }
 
@@ -545,6 +549,7 @@ export function CoursesPage() {
     setDuplicateNameError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenActionMenuMode('')
   }
 
@@ -729,6 +734,7 @@ export function CoursesPage() {
     setDeleteTarget(courses.find((course) => course.id === courseId) || null)
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenActionMenuMode('')
   }
 
@@ -743,6 +749,7 @@ export function CoursesPage() {
     actionMenuCloseTimerRef.current = window.setTimeout(() => {
       setOpenActionMenuId(null)
       setOpenActionMenuPlacement('bottom')
+      setOpenActionMenuPosition({ top: 0, right: 0 })
       setOpenActionMenuMode('')
       actionMenuCloseTimerRef.current = null
     }, 140)
@@ -763,8 +770,14 @@ export function CoursesPage() {
     const spaceAbove = rect.top
     const estimatedMenuHeight = 180
     const nextPlacement = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? 'top' : 'bottom'
+    const nextTop =
+      nextPlacement === 'top'
+        ? Math.max(12, rect.top - estimatedMenuHeight - 10)
+        : Math.min(window.innerHeight - estimatedMenuHeight - 12, rect.bottom + 10)
+    const nextRight = Math.max(12, window.innerWidth - rect.right)
 
     setOpenActionMenuPlacement(nextPlacement)
+    setOpenActionMenuPosition({ top: nextTop, right: nextRight })
   }
 
   useEffect(() => {
@@ -772,6 +785,7 @@ export function CoursesPage() {
       if (!event.target.closest('.course-row-actions-wrap')) {
         setOpenActionMenuId(null)
         setOpenActionMenuPlacement('bottom')
+        setOpenActionMenuPosition({ top: 0, right: 0 })
         setOpenActionMenuMode('')
       }
     }
@@ -780,6 +794,7 @@ export function CoursesPage() {
       if (event.key === 'Escape') {
         setOpenActionMenuId(null)
         setOpenActionMenuPlacement('bottom')
+        setOpenActionMenuPosition({ top: 0, right: 0 })
         setOpenActionMenuMode('')
       }
     }
@@ -878,14 +893,14 @@ export function CoursesPage() {
       </div>
 
       {loadError ? (
-        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem' }}>
-          {loadError}
+        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem', color: '#dc2626' }}>
+          <span style={{ color: '#dc2626' }}>{loadError}</span>
         </div>
       ) : null}
 
       {saveError ? (
-        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem' }}>
-          {saveError}
+        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem', color: '#dc2626' }}>
+          <span style={{ color: '#dc2626' }}>{saveError}</span>
         </div>
       ) : null}
 
@@ -1070,8 +1085,10 @@ export function CoursesPage() {
             </div>
 
             {Object.keys(touched).length > 0 && !isValid ? (
-              <div className="course-validation-note course-validation-error">
-                {saveError || Object.values(validationErrors)[0] || 'Please fill all required fields before saving.'}
+              <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
+                <span style={{ color: '#dc2626' }}>
+                  {saveError || Object.values(validationErrors)[0] || 'Please fill all required fields before saving.'}
+                </span>
               </div>
             ) : null}
 
@@ -1448,6 +1465,7 @@ export function CoursesPage() {
                                 if (!nextIsOpen) {
                                   setOpenActionMenuId(null)
                                   setOpenActionMenuPlacement('bottom')
+                                  setOpenActionMenuPosition({ top: 0, right: 0 })
                                   setOpenActionMenuMode('')
                                   return
                                 }
@@ -1467,6 +1485,12 @@ export function CoursesPage() {
                                 className={`course-row-action-menu ${menuPlacement === 'top' ? 'course-row-action-menu-top' : 'course-row-action-menu-bottom'}`.trim()}
                                 role="menu"
                                 aria-label={`${course.name || 'course'} actions`}
+                                style={{
+                                  top: `${openActionMenuPosition.top}px`,
+                                  right: `${openActionMenuPosition.right}px`,
+                                  bottom: 'auto',
+                                  left: 'auto',
+                                }}
                                 onMouseEnter={clearActionMenuCloseTimer}
                                 onMouseLeave={() => {
                                   if (openActionMenuMode === 'hover') {
@@ -1480,6 +1504,7 @@ export function CoursesPage() {
                                   onClick={() => {
                                     setOpenActionMenuId(null)
                                     setOpenActionMenuPlacement('bottom')
+                                    setOpenActionMenuPosition({ top: 0, right: 0 })
                                     setOpenActionMenuMode('')
                                     openViewModal(course)
                                   }}
@@ -1494,6 +1519,7 @@ export function CoursesPage() {
                                   onClick={() => {
                                     setOpenActionMenuId(null)
                                     setOpenActionMenuPlacement('bottom')
+                                    setOpenActionMenuPosition({ top: 0, right: 0 })
                                     setOpenActionMenuMode('')
                                     openEditModal(course)
                                   }}
@@ -1508,6 +1534,7 @@ export function CoursesPage() {
                                   onClick={() => {
                                     setOpenActionMenuId(null)
                                     setOpenActionMenuPlacement('bottom')
+                                    setOpenActionMenuPosition({ top: 0, right: 0 })
                                     setOpenActionMenuMode('')
                                     handleDelete(course.id)
                                   }}

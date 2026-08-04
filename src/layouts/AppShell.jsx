@@ -72,6 +72,11 @@ export function AppShell({
   const isBusinessOwnerDashboard = isBusinessOwnerWorkspace
   const isOperationManagerDashboard = isOperationManagerWorkspace
   const isPremiumDashboard = isBusinessOwnerDashboard || isOperationManagerDashboard
+  const usePremiumLayout =
+    isBusinessOwnerDashboard ||
+    isOperationManagerDashboard ||
+    (isBusinessOwnerRole && isPremiumSidebarWorkspace) ||
+    (isOperationManagerRole && isPremiumSidebarWorkspace)
   const isFacultyDashboard = location.pathname === '/dashboard/faculty'
   const isInsetSidebarDividerWorkspace =
     isFacultyDashboard || isFacultyBatchesPath || location.pathname === '/dashboard/student'
@@ -89,7 +94,9 @@ export function AppShell({
   const isStudentPage = location.pathname === '/dashboard/student'
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
   const shellClassName = [
-    'app-shell has-fixed-sidebar',
+    usePremiumLayout
+      ? 'app-shell has-fixed-sidebar relative !min-h-screen !min-w-0 !grid !grid-cols-1 !gap-3 !p-3 md:!h-screen md:!grid-cols-[280px_minmax(0,1fr)] md:!gap-0 md:!border md:!border-slate-200 md:!bg-white md:!p-0 md:!shadow-none md:!rounded-none md:!overflow-hidden xl:!grid-cols-[300px_minmax(0,1fr)]'
+      : 'app-shell has-fixed-sidebar',
     isStudentPage ? 'is-student-page' : '',
     isInsetSidebarDividerWorkspace ? 'is-inset-sidebar-divider' : '',
     isBusinessOwnerWorkspace || (isBusinessOwnerRole && isPremiumSidebarWorkspace) ? 'business-owner-shell' : '',
@@ -165,7 +172,9 @@ export function AppShell({
     <MobileMenuContext.Provider value={() => setIsMobileSidebarOpen(true)}>
       <div className={shellClassName}>
         <div
-          className={`sidebar-backdrop ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
+          className={`sidebar-backdrop fixed inset-0 z-[1100] bg-slate-950/20 transition-opacity duration-200 md:hidden ${
+            isMobileSidebarOpen ? 'opacity-100 visible' : 'pointer-events-none opacity-0 invisible'
+          }`}
           role="presentation"
           onClick={closeMobileSidebar}
         />
@@ -173,6 +182,8 @@ export function AppShell({
           activeNav={activeNav}
           user={user}
           isBusinessOwner={isPremiumSidebarWorkspace && isBusinessOwnerRole}
+          usePremiumLayout={usePremiumLayout}
+          useDashboardShell={useDashboardShell}
           onNavigateDashboard={onNavigateDashboard}
           onNavigateFacultyBatches={onNavigateFacultyBatches}
           onNavigateCourses={onNavigateCourses}
@@ -190,20 +201,51 @@ export function AppShell({
         />
 
         <div
-          className={`main-area ${showChrome ? '' : 'main-area-compact'} ${
-            isFlatMainArea ? 'main-area-flat' : ''
-          } ${isPremiumDashboard ? 'business-owner-main' : ''} ${
-            isFacultyFlowWhiteWorkspace ? 'faculty-flow-white-main' : ''
-          }`}
+          className={
+            usePremiumLayout
+              ? `main-area !flex !min-w-0 !flex-1 !flex-col !overflow-hidden !rounded-none !bg-white !shadow-none md:!h-screen md:!overflow-y-auto ${
+                  showChrome ? '' : 'main-area-compact'
+                } ${
+                  isFlatMainArea ? 'main-area-flat' : ''
+                } ${isPremiumDashboard ? 'business-owner-main' : ''} ${
+                  isFacultyFlowWhiteWorkspace ? 'faculty-flow-white-main' : ''
+                }`
+              : `main-area ${showChrome ? '' : 'main-area-compact'} ${
+                  isFlatMainArea ? 'main-area-flat' : ''
+                } ${isPremiumDashboard ? 'business-owner-main' : ''} ${
+                  isFacultyFlowWhiteWorkspace ? 'faculty-flow-white-main' : ''
+                }`
+          }
         >
           {showChrome ? (
-            <>
+            <div
+              className={
+                usePremiumLayout
+                  ? '!flex !min-w-0 !flex-col !gap-2 !border-b !border-slate-200/80 !px-4 !py-4 sm:!px-5 sm:!py-5 lg:!px-6 lg:!py-6'
+                  : 'flex min-w-0 flex-col gap-2 border-b border-slate-200/80 px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6'
+              }
+            >
               <AppHeader dashboard={dashboard} onOpenMenu={() => setIsMobileSidebarOpen(true)} />
               <AppBreadcrumbs crumbs={['Home', dashboard?.title || 'Workspace']} />
-            </>
+            </div>
           ) : null}
-          <main className="content">{children}</main>
-          <nav className="mobile-bottom-nav" aria-label="Mobile navigation">
+          <main
+            className={
+              usePremiumLayout
+                ? 'content !min-w-0 !flex-1 !px-4 !py-4 sm:!px-5 sm:!py-5 lg:!px-6 lg:!py-6'
+                : 'content min-w-0 flex-1 px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6'
+            }
+          >
+            {children}
+          </main>
+          <nav
+            className={
+              usePremiumLayout
+                ? 'mobile-bottom-nav !fixed !inset-x-3 !bottom-3 !z-[1150] !flex items-center justify-between gap-1 rounded-[24px] border border-slate-200 bg-white/95 px-2 py-2 shadow-[0_18px_40px_rgba(15,23,42,0.12)] backdrop-blur md:!hidden'
+                : 'mobile-bottom-nav hidden'
+            }
+            aria-label="Mobile navigation"
+          >
             {bottomNavItems
               .filter((item) => !item.hidden)
               .map((item) => {
@@ -214,23 +256,25 @@ export function AppShell({
                   <button
                     key={item.key}
                     type="button"
-                    className={`mobile-bottom-nav-item ${isActive ? 'is-active' : ''}`.trim()}
+                    className={`mobile-bottom-nav-item flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[14px] px-2 py-2 text-[0.62rem] font-semibold leading-none text-slate-600 transition-colors ${
+                      isActive ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'
+                    }`}
                     onClick={item.onClick}
                     aria-current={isActive ? 'page' : undefined}
                     aria-label={item.label}
                   >
-                    <Icon />
+                    <Icon size={20} strokeWidth={2.2} />
                     <span>{item.label}</span>
                   </button>
                 )
               })}
             <button
               type="button"
-              className="mobile-bottom-nav-item mobile-bottom-nav-more"
+              className="mobile-bottom-nav-item mobile-bottom-nav-more flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[14px] px-2 py-2 text-[0.62rem] font-semibold leading-none text-slate-600 hover:bg-slate-50"
               onClick={() => setIsMobileSidebarOpen(true)}
               aria-label="More options"
             >
-              <Ellipsis />
+              <Ellipsis size={20} strokeWidth={2.2} />
               <span>More</span>
             </button>
           </nav>

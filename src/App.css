@@ -2258,6 +2258,10 @@ tbody tr:hover {
   display: none;
 }
 
+.app-shell.operation-manager-shell .sidebar-divider {
+  display: none;
+}
+
 .app-shell.dashboard-shell .sidebar-divider {
   display: none;
 }
@@ -2363,6 +2367,18 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell.dashboard-shell .sidebar .sidebar-menu-item:not(.is-active) {
+  background: transparent;
+  box-shadow: none;
+}
+
+.app-shell.dashboard-shell .sidebar .sidebar-menu-item.is-active {
+  background: #eff4fb;
+  box-shadow: none;
 }
 
 .app-shell.business-owner-shell .sidebar .sidebar-menu-item:hover:not(:disabled),
@@ -4123,10 +4139,10 @@ tbody tr:hover {
 }
 
 .profile-drawer.faculty-profile-card {
-  width: min(100%, 560px);
-  height: min(calc(100vh - 44px), 760px);
-  max-height: calc(100vh - 44px);
-  border-radius: 28px;
+  width: min(100%, 500px);
+  height: min(calc(100vh - 72px), 640px);
+  max-height: calc(100vh - 72px);
+  border-radius: 26px;
   overflow: hidden;
   background: #ffffff;
   border: 1px solid #e6edf6;
@@ -4147,8 +4163,8 @@ tbody tr:hover {
 }
 
 .profile-drawer.faculty-profile-card .profile-modal-cover.faculty-profile-hero {
-  min-height: 180px;
-  padding: 40px 32px 8px;
+  min-height: 136px;
+  padding: 24px 24px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4178,8 +4194,8 @@ tbody tr:hover {
 }
 
 .faculty-profile-avatar {
-  width: 112px;
-  height: 112px;
+  width: 88px;
+  height: 88px;
   border-radius: 999px;
   display: grid;
   place-items: center;
@@ -4187,7 +4203,7 @@ tbody tr:hover {
   color: #166534;
   border: 4px solid #ffffff;
   box-shadow: 0 16px 34px rgba(34, 197, 94, 0.18);
-  font-size: 1.35rem;
+  font-size: 1.08rem;
   font-weight: 900;
   letter-spacing: -0.04em;
 }
@@ -4211,15 +4227,15 @@ tbody tr:hover {
 .faculty-profile-title-block {
   display: grid;
   justify-items: center;
-  gap: 6px;
+  gap: 3px;
   text-align: center;
-  margin-top: 12px;
+  margin-top: 6px;
 }
 
 .faculty-profile-title-block h3 {
   margin: 0;
   color: #172033;
-  font-size: clamp(1.9rem, 2.3vw, 2.45rem);
+  font-size: clamp(1.42rem, 1.7vw, 1.88rem);
   line-height: 1.05;
   font-weight: 900;
   letter-spacing: -0.04em;
@@ -4266,17 +4282,18 @@ tbody tr:hover {
 }
 
 .profile-drawer.faculty-profile-card .profile-modal-body.faculty-profile-body {
-  padding: 8px 30px 24px;
+  padding: 10px 22px 14px;
   text-align: left;
   align-items: stretch;
   justify-items: stretch;
-  gap: 12px;
+  gap: 8px;
   overflow: auto;
   background: #ffffff;
 }
 
 .faculty-profile-stat-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .faculty-profile-stat-grid .profile-modal-stat {
@@ -4288,7 +4305,7 @@ tbody tr:hover {
 
 .faculty-profile-info-list {
   gap: 0;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 
 .faculty-profile-info-row {
@@ -4968,14 +4985,20 @@ tbody tr:hover {
   position: static;
   top: auto;
   padding: 0 0 14px;
-  width: calc(100% + 32px);
-  margin-right: -16px;
+  width: calc(100% + 24px);
+  margin-right: -12px;
   background: transparent;
   border: 0;
   border-bottom: 1px solid #dce6f3;
   border-radius: 0;
   box-shadow: none;
   backdrop-filter: none;
+}
+
+.faculty-dashboard-page .student-dashboard-header-actions,
+.faculty-my-batches-page .student-dashboard-header-actions {
+  gap: 10px;
+  padding-right: 2px;
 }
 
 .faculty-dashboard-header {
@@ -7906,11 +7929,21 @@ tbody tr:hover {
 .business-owner-dashboard .business-topbar,
 .operation-manager-dashboard .business-topbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
   min-width: 0;
+}
+
+.operation-manager-dashboard .business-topbar-actions {
+  align-items: center;
+  margin-top: 0;
+}
+
+.operation-manager-dashboard .notification-menu,
+.operation-manager-dashboard .profile-chip {
+  align-self: center;
 }
 
 .business-owner-dashboard .business-topbar>div:first-child,
@@ -9771,6 +9804,32 @@ tbody tr:hover {
   margin-top: -12px;
 }
 
+.student-management-top-header.is-business-owner-header .business-topbar-copy,
+.faculty-management-top-header.is-business-owner-header .business-topbar-copy,
+.notifications-page-top-header.is-business-owner-header .business-topbar-copy {
+  margin-left: -18px;
+  transform: translateY(-1px);
+}
+
+.student-management-top-header.is-business-owner-header::after,
+.faculty-management-top-header.is-business-owner-header::after,
+.notifications-page-top-header.is-business-owner-header::after {
+  left: -18px;
+  right: -32px;
+}
+
+.student-management-top-header.is-business-owner-header .business-topbar-actions,
+.faculty-management-top-header.is-business-owner-header .business-topbar-actions,
+.notifications-page-top-header.is-business-owner-header .business-topbar-actions {
+  transform: translateX(-18px) translateY(-6px);
+}
+
+.student-management-top-header.is-business-owner-header::after,
+.faculty-management-top-header.is-business-owner-header::after,
+.notifications-page-top-header.is-business-owner-header::after {
+  left: -28px;
+}
+
 .notifications-page-top-header .business-topbar-actions {
   margin-top: 0;
   transform: none;
@@ -9778,6 +9837,33 @@ tbody tr:hover {
 
 .notifications-page-top-header .business-topbar-copy {
   padding-top: 0;
+}
+
+.business-owner-dashboard .is-business-owner-header .business-topbar-copy,
+.courses-page .operation-manager-header.is-business-owner-header .business-topbar-copy,
+.student-management-top-header.is-business-owner-header .business-topbar-copy,
+.faculty-management-top-header.is-business-owner-header .business-topbar-copy,
+.notifications-page-top-header.is-business-owner-header .business-topbar-copy {
+  padding-left: 0;
+  margin-left: -18px;
+  transform: translateY(-1px);
+}
+
+.business-owner-dashboard .is-business-owner-header::after,
+.courses-page .operation-manager-header.is-business-owner-header::after,
+.student-management-top-header.is-business-owner-header::after,
+.faculty-management-top-header.is-business-owner-header::after,
+.notifications-page-top-header.is-business-owner-header::after {
+  left: -18px;
+  right: -32px;
+}
+
+.business-owner-dashboard .is-business-owner-header .business-topbar-actions,
+.courses-page .operation-manager-header.is-business-owner-header .business-topbar-actions,
+.student-management-top-header.is-business-owner-header .business-topbar-actions,
+.faculty-management-top-header.is-business-owner-header .business-topbar-actions,
+.notifications-page-top-header.is-business-owner-header .business-topbar-actions {
+  transform: translateX(-18px) translateY(-6px);
 }
 
 .notifications-filter-menu {
@@ -10314,21 +10400,103 @@ tbody tr:hover {
   }
 }
 
-.business-owner-dashboard .profile-drawer,
-.operation-manager-dashboard .profile-drawer {
-  height: 580px !important;
-  max-height: 580px !important;
+.operation-manager-profile-card {
+  height: calc(100vh - 44px) !important;
+  max-height: calc(100vh - 44px) !important;
+  width: min(100%, 500px);
 }
 
-.business-owner-dashboard .profile-drawer-body,
-.operation-manager-dashboard .profile-drawer-body {
-  padding-top: 20px;
-  padding-bottom: 10px;
+.operation-manager-profile-card .profile-drawer-body {
+  padding-top: 14px;
+  padding-bottom: 12px;
+  gap: 10px;
 }
 
-.business-owner-dashboard .profile-modal-cover,
-.operation-manager-dashboard .profile-modal-cover {
-  min-height: 108px;
+.operation-manager-profile-card .profile-modal-cover {
+  min-height: 96px;
+}
+
+.operation-manager-profile-card .profile-modal-avatar-wrap,
+.operation-manager-profile-card .profile-modal-status-dot {
+  display: none !important;
+}
+
+.operation-manager-profile-card .profile-modal-cover::before {
+  inset: auto -2% -1px -2%;
+  height: 64px;
+}
+
+.operation-manager-profile-card .profile-modal-eyebrow {
+  margin-top: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  line-height: 1.1;
+}
+
+.operation-manager-profile-card .profile-modal-body h3 {
+  margin-top: 4px;
+}
+
+@media (min-width: 1640px) and (max-width: 1719px) and (min-height: 1020px) and (max-height: 1079px) {
+  .operation-manager-profile-card {
+    height: calc(100vh - 54px) !important;
+    max-height: calc(100vh - 54px) !important;
+  }
+
+  .operation-manager-profile-card .profile-drawer-body {
+    padding-top: 12px;
+    padding-bottom: 6px;
+    gap: 8px;
+  }
+
+  .operation-manager-profile-card .profile-modal-cover {
+    min-height: 112px;
+  }
+}
+
+@media (min-width: 1440px) and (max-width: 1599px) {
+  .operation-manager-profile-card {
+    height: calc(100vh - 48px) !important;
+    max-height: calc(100vh - 48px) !important;
+  }
+}
+
+@media (min-width: 1600px) and (max-width: 1919px) {
+  .operation-manager-profile-card {
+    height: calc(100vh - 54px) !important;
+    max-height: calc(100vh - 54px) !important;
+  }
+}
+
+@media (min-width: 1920px) and (max-width: 2559px) {
+  .operation-manager-profile-card {
+    height: calc(100vh - 58px) !important;
+    max-height: calc(100vh - 58px) !important;
+  }
+}
+
+@media (min-width: 2560px) {
+  .operation-manager-profile-card {
+    height: calc(100vh - 64px) !important;
+    max-height: calc(100vh - 64px) !important;
+  }
+}
+
+@media (width: 1680px) and (height: 1050px) {
+  .operation-manager-profile-card {
+    height: calc(100vh - 54px) !important;
+    max-height: calc(100vh - 54px) !important;
+  }
+
+  .operation-manager-profile-card .profile-drawer-body {
+    padding-top: 12px;
+    padding-bottom: 6px;
+    gap: 8px;
+  }
+
+  .operation-manager-profile-card .profile-modal-cover {
+    min-height: 112px;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1100px) {
@@ -11334,7 +11502,7 @@ tbody tr:hover {
 .course-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 1300;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -11695,19 +11863,27 @@ tbody tr:hover {
 }
 
 .student-report-button {
-  min-height: 36px;
-  padding: 0 14px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
   gap: 8px;
+  border-radius: 12px;
+  border: 1px solid #2f80ed;
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 0.92rem;
+  font-weight: 800;
   white-space: nowrap;
   flex: 0 0 auto;
-  font-size: 0.9rem;
+  line-height: 1;
+  box-shadow: none;
 }
 
 .student-report-button svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   flex: 0 0 auto;
 }
 
@@ -11954,19 +12130,36 @@ tbody tr:hover {
 
 .faculty-report-button,
 .faculty-flow-report-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   padding: 0 14px;
   border-radius: 12px;
   gap: 8px;
   font-weight: 800;
+  font-size: 0.9rem;
   white-space: nowrap;
+  line-height: 1;
+  width: auto;
 }
 
 .faculty-report-button svg,
 .faculty-flow-report-button svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   flex: 0 0 auto;
+}
+
+.faculty-report-button span,
+.faculty-flow-report-button span {
+  line-height: 1;
+}
+
+.faculty-attendance-report-button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
 }
 
 .faculty-table-wrap {
@@ -12303,9 +12496,10 @@ tbody tr:hover {
 }
 
 .faculty-row-action-menu {
-  position: absolute;
-  top: calc(100% + 10px);
+  position: fixed;
+  top: 0;
   right: 0;
+  bottom: auto;
   min-width: 168px;
   padding: 8px 8px;
   border-radius: 16px;
@@ -12314,16 +12508,16 @@ tbody tr:hover {
   box-shadow: 0 16px 36px rgba(31, 54, 93, 0.14);
   display: grid;
   gap: 2px;
-  z-index: 999;
+  z-index: 2200;
 }
 
 .faculty-row-action-menu-top {
-  top: auto;
-  bottom: calc(100% + 10px);
+  top: 0;
+  bottom: auto;
 }
 
 .faculty-row-action-menu-bottom {
-  top: calc(100% + 10px);
+  top: 0;
   bottom: auto;
 }
 
@@ -16438,9 +16632,9 @@ tbody tr:hover {
 
 .faculty-batch-list-scroll {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 270px));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   justify-content: start;
-  gap: 14px;
+  gap: 10px;
   max-height: 184px;
   overflow: auto;
   padding-right: 4px;
@@ -16453,7 +16647,7 @@ tbody tr:hover {
 .faculty-batch-item-image {
   min-height: 104px;
   width: 100%;
-  max-width: 270px;
+  max-width: none;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-rows: auto auto;
@@ -16494,26 +16688,49 @@ tbody tr:hover {
 }
 
 .faculty-batch-item-image .faculty-batch-edit-icon {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
   padding: 0;
   grid-column: 2;
-  margin-left: 12px;
+  margin-left: 0;
+  justify-self: center;
+  align-self: center;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
 }
 
 .faculty-batch-item-image .faculty-batch-edit-icon svg {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .faculty-batch-item-image .faculty-batch-remove-icon {
   grid-column: 3;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  justify-self: center;
+  align-self: center;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
 }
 
 .faculty-batch-item-image .faculty-batch-remove-icon,
 .faculty-batch-item-image .faculty-batch-edit-icon {
   margin-top: 0;
+  border-width: 1px;
+  border-style: solid;
+  box-sizing: border-box;
+}
+
+.faculty-batch-item-image .faculty-batch-remove-icon svg {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .faculty-form-actions-large {
@@ -17390,7 +17607,9 @@ tbody tr:hover {
 }
 
 .student-modal-backdrop {
-  z-index: 60;
+  z-index: 1500;
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(8px);
 }
 
 .student-modal {
@@ -17418,8 +17637,16 @@ tbody tr:hover {
   font-size: 0.95rem;
 }
 
-.attendance-report-backdrop {
-  z-index: 85;
+.attendance-report-backdrop,
+.faculty-attendance-report-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(6px);
 }
 
 .attendance-report-modal {
@@ -17896,9 +18123,9 @@ tbody tr:hover {
 }
 
 .student-action-menu-panel {
-  position: absolute;
+  position: fixed;
   right: 0;
-  top: calc(100% + 10px);
+  top: 0;
   bottom: auto;
   min-width: 156px;
   padding: 8px;
@@ -17911,19 +18138,23 @@ tbody tr:hover {
   transform: translateY(-6px);
   transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
   pointer-events: none;
-  z-index: 20;
+  z-index: 2200;
 }
 
 .student-action-menu.is-up .student-action-menu-panel {
-  top: auto;
-  bottom: calc(100% + 10px);
   transform: translateY(6px);
 }
 
 .student-action-menu.is-down .student-action-menu-panel {
-  top: calc(100% + 10px);
-  bottom: auto;
   transform: translateY(-6px);
+}
+
+.student-management-page.is-drawer-open .student-action-menu,
+.student-management-page.is-drawer-open .student-action-menu-panel {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .student-action-menu:hover .student-action-menu-panel,
@@ -18021,7 +18252,7 @@ tbody tr:hover {
 .student-drawer-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: 1300;
   background: rgba(15, 23, 42, 0.28);
   backdrop-filter: blur(4px);
 }
@@ -18264,13 +18495,25 @@ tbody tr:hover {
 }
 
 .student-drawer-report-button {
-  min-width: 154px;
+  min-height: 40px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: none;
 }
 
 .student-drawer-report-button svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex: 0 0 auto;
 }
 
@@ -18769,7 +19012,11 @@ tbody tr:hover {
 .course-validation-error {
   border-color: rgba(239, 68, 68, 0.25);
   background: rgba(239, 68, 68, 0.06);
-  color: #b91c1c;
+  color: #dc2626 !important;
+}
+
+.course-validation-note.course-validation-error {
+  color: #dc2626 !important;
 }
 
 .course-form-actions {
@@ -19024,23 +19271,25 @@ tbody tr:hover {
 }
 
 .course-row-action-menu {
-  position: absolute;
+  position: fixed;
   right: 0;
+  top: 0;
+  bottom: auto;
   min-width: 190px;
   padding: 10px 10px 12px;
   border-radius: 22px;
   border: 1px solid rgba(225, 232, 243, 0.95);
   background: #ffffff;
   box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
-  z-index: 20;
+  z-index: 2200;
 }
 
 .course-row-action-menu-bottom {
-  top: calc(100% + 10px);
+  top: 0;
 }
 
 .course-row-action-menu-top {
-  bottom: calc(100% + 10px);
+  top: 0;
 }
 
 .course-row-action-menu-item {
@@ -23749,11 +23998,11 @@ tbody tr:hover {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  padding: 4px 0 16px 0 !important;
+  padding: 0 0 6px 0 !important;
   margin-bottom: 0;
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
   min-width: 0;
@@ -23780,6 +24029,22 @@ tbody tr:hover {
 
 .business-owner-dashboard .is-business-owner-header .business-topbar-copy {
   padding-left: 12px;
+  margin-top: -1px;
+  transform: translateY(-1px);
+}
+
+.courses-page .operation-manager-header.is-business-owner-header .business-topbar-copy {
+  margin-left: -18px;
+  transform: translateY(-1px);
+}
+
+.courses-page .operation-manager-header.is-business-owner-header .business-topbar-actions {
+  transform: translateX(-18px) translateY(-6px);
+}
+
+.courses-page .operation-manager-header.is-business-owner-header::after {
+  left: -18px;
+  right: -32px;
 }
 
 .is-business-owner-header .business-topbar-copy .eyebrow {
@@ -23788,14 +24053,14 @@ tbody tr:hover {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .is-business-owner-header .business-topbar-copy h2 {
   font-size: clamp(1.85rem, 2.8vw, 2.2rem);
   font-weight: 700;
   color: #111827;
-  margin: 0 0 4px 0;
+  margin: -2px 0 0 0;
   letter-spacing: -0.04em;
   line-height: 1.05;
 }
@@ -23805,17 +24070,17 @@ tbody tr:hover {
   font-size: 16px;
   font-weight: 400;
   margin: 0;
-  padding-top: 2px;
+  padding-top: 0;
   line-height: 1.45;
 }
 
 .is-business-owner-header .business-topbar-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 8px;
   margin: 0;
   padding-right: 0;
-  transform: translateX(-8px);
+  transform: translateX(-8px) translateY(-6px);
 }
 
 .business-header-search {
@@ -24324,7 +24589,7 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .sidebar-head {
-  padding: 8px 4px 16px;
+  padding: 4px 0 12px;
 }
 
 .is-business-owner-sidebar .sidebar-divider {
@@ -24332,7 +24597,7 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .menu-section {
-  padding: 8px 0;
+  padding: 2px 0 2px 4px;
 }
 
 .is-business-owner-sidebar .menu-section-label {
@@ -24341,16 +24606,16 @@ tbody tr:hover {
   font-weight: 600;
   letter-spacing: 0.01em;
   text-transform: none;
-  margin-bottom: 8px;
-  padding-left: 0;
+  margin-bottom: 4px;
+  padding-left: 4px;
 }
 
 .is-business-owner-sidebar .sidebar-menu-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 10px 8px;
   color: #475569;
   font-weight: 500;
   font-size: 0.95rem;
@@ -24396,7 +24661,7 @@ tbody tr:hover {
 }
 
 .is-business-owner-sidebar .sidebar-footer {
-  padding: 14px 6px;
+  padding: 10px 0 12px 4px;
   border-top: none;
 }
 
@@ -24410,7 +24675,7 @@ tbody tr:hover {
   align-items: center;
   gap: 8px;
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
-  margin-left: -12px;
+  margin-left: 0;
 }
 
 .is-business-owner-sidebar .sidebar-profile-avatar-wrap {
@@ -24503,11 +24768,11 @@ tbody tr:hover {
   border: none !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  padding: 4px 0 16px 0 !important;
+  padding: 0 0 10px 0 !important;
   margin-bottom: 0;
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
   min-width: 0;
@@ -24517,8 +24782,8 @@ tbody tr:hover {
 .operation-manager-dashboard .business-topbar::after {
   content: '';
   position: absolute;
-  left: -8px;
-  right: -32px;
+  left: -72px;
+  right: -16px;
   bottom: 0;
   height: 1px;
   background: rgba(15, 23, 42, 0.08);
@@ -24528,7 +24793,7 @@ tbody tr:hover {
   padding-left: 0;
   margin: 0;
   margin-left: -12px;
-  margin-top: 8px;
+  margin-top: -4px;
   padding-bottom: 0;
   border-bottom: none;
   width: auto;
@@ -24547,14 +24812,14 @@ tbody tr:hover {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .operation-manager-dashboard .business-topbar-copy h2 {
   font-size: clamp(1.9rem, 3vw, 2.25rem);
   font-weight: 700;
   color: #111827;
-  margin: 0 0 4px 0;
+  margin: 0 0 2px 0;
   letter-spacing: -0.03em;
   line-height: 1.1;
 }
@@ -24564,15 +24829,15 @@ tbody tr:hover {
   font-size: 16px;
   font-weight: 400;
   margin: 0;
-  padding-top: 2px;
+  padding-top: 0;
   line-height: 1.4;
 }
 
 .operation-manager-dashboard .business-topbar-actions {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
-  margin: 8px 0 0;
+  margin: -4px 0 0;
   padding-right: 0;
   justify-content: flex-end;
   flex: 0 1 auto;
@@ -26682,5 +26947,146 @@ tbody tr:hover {
   background: #eaf2ff;
   color: #1d4ed8;
   box-shadow: 0 10px 18px rgba(37, 99, 235, 0.12);
+}
+
+/* Shared layout guardrails */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+.app-shell,
+.main-area,
+.sidebar,
+.topbar,
+.business-topbar,
+.content,
+.breadcrumbs {
+  min-width: 0;
+}
+
+.app-shell {
+  align-items: start;
+}
+
+.main-area {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content {
+  width: 100%;
+}
+
+.topbar,
+.business-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.topbar > *,
+.business-topbar > * {
+  min-width: 0;
+}
+
+.topbar .app-header-copy,
+.business-topbar-copy {
+  flex: 1 1 320px;
+}
+
+.topbar h1,
+.business-topbar h2,
+.topbar p,
+.business-topbar p,
+.breadcrumbs {
+  overflow-wrap: anywhere;
+}
+
+.business-topbar-actions {
+  flex: 0 1 auto;
+  margin-left: auto;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .app-shell {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .main-area {
+    padding: 14px;
+  }
+
+  .topbar,
+  .business-topbar {
+    padding: 14px 14px 12px;
+    gap: 12px;
+    flex-direction: column;
+  }
+
+  .topbar .mobile-menu-button,
+  .business-topbar .mobile-menu-button {
+    align-self: flex-start;
+  }
+
+  .app-header-mobile-brand,
+  .operation-manager-mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .app-header-copy,
+  .business-topbar-copy,
+  .business-topbar-actions {
+    width: 100%;
+  }
+
+  .business-topbar-actions {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar h1,
+  .business-topbar h2 {
+    font-size: clamp(1.05rem, 3.8vw, 1.25rem);
+    line-height: 1.15;
+  }
+
+  .topbar p,
+  .business-topbar p,
+  .breadcrumbs {
+    font-size: 0.85rem;
+  }
+
+  .business-topbar-actions {
+    gap: 8px;
+  }
+
+  .dashboard-search {
+    width: 100%;
+  }
 }
 

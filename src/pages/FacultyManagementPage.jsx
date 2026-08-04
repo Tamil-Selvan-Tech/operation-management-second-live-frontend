@@ -1100,6 +1100,7 @@ export function FacultyManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [openActionMenuId, setOpenActionMenuId] = useState('')
   const [openActionMenuPlacement, setOpenActionMenuPlacement] = useState('bottom')
+  const [openActionMenuPosition, setOpenActionMenuPosition] = useState({ top: 0, right: 0 })
   const [openActionMenuMode, setOpenActionMenuMode] = useState('')
   const [openCoursePopoverId, setOpenCoursePopoverId] = useState('')
   const [openCoursePopoverMode, setOpenCoursePopoverMode] = useState('')
@@ -1321,8 +1322,14 @@ export function FacultyManagementPage() {
     const spaceAbove = rect.top
     const estimatedMenuHeight = 184
     const nextPlacement = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow ? 'top' : 'bottom'
+    const nextTop =
+      nextPlacement === 'top'
+        ? Math.max(12, rect.top - estimatedMenuHeight - 10)
+        : Math.min(window.innerHeight - estimatedMenuHeight - 12, rect.bottom + 10)
+    const nextRight = Math.max(12, window.innerWidth - rect.right)
 
     setOpenActionMenuPlacement(nextPlacement)
+    setOpenActionMenuPosition({ top: nextTop, right: nextRight })
   }
 
   useEffect(() => {
@@ -1330,6 +1337,7 @@ export function FacultyManagementPage() {
       if (!event.target.closest('.faculty-row-actions')) {
         setOpenActionMenuId('')
         setOpenActionMenuPlacement('bottom')
+        setOpenActionMenuPosition({ top: 0, right: 0 })
       }
     }
 
@@ -1337,6 +1345,7 @@ export function FacultyManagementPage() {
       if (event.key === 'Escape') {
         setOpenActionMenuId('')
         setOpenActionMenuPlacement('bottom')
+        setOpenActionMenuPosition({ top: 0, right: 0 })
       }
     }
 
@@ -1599,6 +1608,7 @@ export function FacultyManagementPage() {
     setEditingBatchEntryId('')
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenCoursePopoverId('')
     setOpenCoursePopoverMode('')
   }
@@ -1618,6 +1628,7 @@ export function FacultyManagementPage() {
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenCoursePopoverId('')
     setOpenCoursePopoverMode('')
   }
@@ -1637,6 +1648,7 @@ export function FacultyManagementPage() {
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenCoursePopoverId('')
     setOpenCoursePopoverMode('')
   }
@@ -1656,6 +1668,7 @@ export function FacultyManagementPage() {
     setIsModalOpen(true)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenCoursePopoverId('')
     setOpenCoursePopoverMode('')
   }
@@ -1665,6 +1678,7 @@ export function FacultyManagementPage() {
     setDeleteTarget(record)
     setOpenActionMenuId('')
     setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
   }
 
   const closeBatchDeleteModal = () => {
@@ -2062,6 +2076,7 @@ export function FacultyManagementPage() {
                               if (!nextIsOpen) {
                                 setOpenActionMenuId('')
                                 setOpenActionMenuPlacement('bottom')
+                                setOpenActionMenuPosition({ top: 0, right: 0 })
                                 setOpenActionMenuMode('')
                                 return
                               }
@@ -2082,6 +2097,12 @@ export function FacultyManagementPage() {
                             className={`faculty-row-action-menu ${openActionMenuPlacement === 'top' ? 'faculty-row-action-menu-top' : 'faculty-row-action-menu-bottom'}`.trim()}
                             role="menu"
                             aria-label={`${record.facultyName} actions`}
+                            style={{
+                              top: `${openActionMenuPosition.top}px`,
+                              right: `${openActionMenuPosition.right}px`,
+                              bottom: 'auto',
+                              left: 'auto',
+                            }}
                             onMouseEnter={() => {
                               if (actionMenuCloseTimerRef.current) {
                                 window.clearTimeout(actionMenuCloseTimerRef.current)
@@ -2100,6 +2121,7 @@ export function FacultyManagementPage() {
                               onClick={() => {
                                 setOpenActionMenuId('')
                                 setOpenActionMenuPlacement('bottom')
+                                setOpenActionMenuPosition({ top: 0, right: 0 })
                                 openViewModal(record)
                               }}
                               role="menuitem"
@@ -2113,6 +2135,7 @@ export function FacultyManagementPage() {
                               onClick={() => {
                                 setOpenActionMenuId('')
                                 setOpenActionMenuPlacement('bottom')
+                                setOpenActionMenuPosition({ top: 0, right: 0 })
                                 openEditModal(record)
                               }}
                               role="menuitem"
@@ -2126,6 +2149,7 @@ export function FacultyManagementPage() {
                               onClick={() => {
                                 setOpenActionMenuId('')
                                 setOpenActionMenuPlacement('bottom')
+                                setOpenActionMenuPosition({ top: 0, right: 0 })
                                 openDeleteModal(record)
                               }}
                               role="menuitem"

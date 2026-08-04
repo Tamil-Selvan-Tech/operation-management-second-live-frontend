@@ -196,7 +196,7 @@ export function OperationManagerWorkspaceHeader({
         ? createPortal(
             <div className="profile-drawer-backdrop" role="presentation">
               <div
-                className="profile-drawer"
+                className="profile-drawer operation-manager-profile-card"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="profile-modal-title"
@@ -243,46 +243,35 @@ export function OperationManagerWorkspaceHeader({
                   <h3 id="profile-modal-title">{profileTitle}</h3>
                   <p className="profile-modal-email">{email}</p>
 
-                  <div className="profile-modal-grid">
-                    <div className="profile-modal-stat tone-blue">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <BadgeCheck size={16} />
-                      </span>
-                      <div>
-                        <span>Role</span>
-                        <strong>{profileDetails.role}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-green">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <ShieldCheck size={16} />
-                      </span>
-                      <div>
-                        <span>Status</span>
-                        <strong>{profileDetails.status}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-violet">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <Building2 size={16} />
-                      </span>
-                      <div>
-                        <span>Workspace</span>
-                        <strong>{profileDetails.workspace}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-amber">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <Globe size={16} />
-                      </span>
-                      <div>
-                        <span>Access Level</span>
-                        <strong>{profileDetails.accessLevel}</strong>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="profile-modal-info-list">
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <BadgeCheck size={15} />
+                        Role
+                      </span>
+                      <strong>{profileDetails.role}</strong>
+                    </div>
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <ShieldCheck size={15} />
+                        Status
+                      </span>
+                      <strong>{profileDetails.status}</strong>
+                    </div>
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <Building2 size={15} />
+                        Workspace
+                      </span>
+                      <strong>{profileDetails.workspace}</strong>
+                    </div>
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <Globe size={15} />
+                        Access Level
+                      </span>
+                      <strong>{profileDetails.accessLevel}</strong>
+                    </div>
                     <div className="profile-modal-info-row">
                       <span className="profile-modal-info-label">
                         <LockKeyhole size={15} />

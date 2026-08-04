@@ -703,8 +703,8 @@ export function resolveStudentBatchAttendanceStatus(student = {}, facultyRecords
 
   if (!status) {
     return {
-      status: 'Absent',
-      reason: 'Attendance was saved for this batch, but your record was not marked.',
+      status: 'Unmarked',
+      reason: 'Attendance was saved for this batch, but this student was not marked.',
       facultyName,
       batchName,
       batchTiming,
