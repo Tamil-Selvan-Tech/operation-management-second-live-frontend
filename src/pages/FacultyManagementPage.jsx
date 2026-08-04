@@ -168,6 +168,22 @@ function getSuggestedBatchName(facultyName, batchEntries = [], fallback = '') {
   return `${baseName} batch ${batchEntries.length + 1}`
 }
 
+function getBatchTimingValidationError(form) {
+  const batchTiming = String(form?.batchTiming || '').trim()
+  const batchTimingCustomStart = String(form?.batchTimingCustomStart || '').trim()
+  const batchTimingCustomEnd = String(form?.batchTimingCustomEnd || '').trim()
+
+  if (!batchTiming) {
+    return 'Batch timing is required.'
+  }
+
+  if (batchTiming === 'Custom' && (!batchTimingCustomStart || !batchTimingCustomEnd)) {
+    return 'Batch timing is required.'
+  }
+
+  return ''
+}
+
 function resolveBatchEntryFromForm(form, batchEntries = [], entryId = '') {
   const batchName = getSuggestedBatchName(form.facultyName, batchEntries, form.batchName)
   const batchTiming = String(form.batchTiming || '').trim()
@@ -1096,6 +1112,9 @@ export function FacultyManagementPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [form, setForm] = useState(createEmptyForm())
   const [touched, setTouched] = useState({})
+  const [showValidationErrors, setShowValidationErrors] = useState(false)
+  const [showCourseValidationError, setShowCourseValidationError] = useState(false)
+  const [showBatchTimingError, setShowBatchTimingError] = useState(false)
   const [actionError, setActionError] = useState('')
   const itemsPerPage = 5
   const submitIntentRef = useRef(false)
@@ -1154,6 +1173,11 @@ export function FacultyManagementPage() {
       nextErrors.batchName = 'Batch names must be unique within the same course.'
     }
 
+    const batchTimingError = getBatchTimingValidationError(form)
+    if (batchTimingError) {
+      nextErrors.batchTiming = batchTimingError
+    }
+
     const editingBatchEntry = editingBatchEntryId
       ? form.batchEntries.find((entry) => String(entry?.id || '').trim() === String(editingBatchEntryId).trim()) || null
       : null
@@ -1209,7 +1233,17 @@ export function FacultyManagementPage() {
     return filteredRecords.slice(start, start + itemsPerPage)
   }, [currentPageSafe, filteredRecords])
 
-  const shouldShowError = (field) => touched[field] && validationErrors[field]
+  const shouldShowError = (field) => {
+    if (field === 'batchTiming') {
+      return showBatchTimingError && validationErrors.batchTiming
+    }
+
+    if (field === 'courseId') {
+      return showCourseValidationError && validationErrors.courseId
+    }
+
+    return showValidationErrors && touched[field] && validationErrors[field]
+  }
   const currentWizardStep = facultyWizardStep
   const isFacultyStepOne = currentWizardStep === 1
   const isFacultyStepTwo = currentWizardStep === 2
@@ -1382,6 +1416,7 @@ export function FacultyManagementPage() {
   }
 
   const markTouched = (field) => {
+    setShowValidationErrors(true)
     setTouched((current) => ({ ...current, [field]: true }))
   }
 
@@ -1396,10 +1431,19 @@ export function FacultyManagementPage() {
       return
     }
 
+    const batchTimingError = getBatchTimingValidationError(form)
+    if (batchTimingError) {
+      setShowBatchTimingError(true)
+      setTouched((current) => ({ ...current, batchTiming: true }))
+      setActionError('')
+      return
+    }
+
+    setShowBatchTimingError(false)
+
     const nextBatchEntry = resolveBatchEntryFromForm(form, activeBatchEntries, editingBatchEntryId || '')
 
     if (!nextBatchEntry) {
-      setActionError(`Enter batch name and batch timing, then click ${editingBatchEntryId ? 'Update Batch' : 'Add Batch'}.`)
       return
     }
 
@@ -1439,10 +1483,12 @@ export function FacultyManagementPage() {
       batchTimingCustomEndMeridiem: 'PM',
       batchCourseId: current.batchCourseId || current.courseIds[0] || current.courseId || '',
     }))
+    setShowBatchTimingError(false)
     setEditingBatchEntryId('')
   }
 
   const goToNextFacultyStep = () => {
+    setShowValidationErrors(true)
     const nextTouched = {
       facultyName: true,
       facultyEmail: true,
@@ -1452,10 +1498,12 @@ export function FacultyManagementPage() {
     setTouched((current) => ({ ...current, ...nextTouched }))
 
     if (!Array.isArray(form.courseIds) || !form.courseIds.length) {
+      setShowCourseValidationError(true)
       setActionError('Please select a course before continuing.')
       return
     }
 
+    setShowCourseValidationError(false)
     if (stepOneHasErrors) return
 
     setActionError('')
@@ -1540,6 +1588,9 @@ export function FacultyManagementPage() {
     setActionError('')
     setForm(createEmptyForm())
     setTouched({})
+    setShowValidationErrors(false)
+    setShowCourseValidationError(false)
+    setShowBatchTimingError(false)
     setModalMode('create')
     setEditingFacultyId('')
     setSelectedFacultyRecord(null)
@@ -1556,6 +1607,9 @@ export function FacultyManagementPage() {
     setActionError('')
     setForm(createEmptyForm())
     setTouched({})
+    setShowValidationErrors(false)
+    setShowCourseValidationError(false)
+    setShowBatchTimingError(false)
     setModalMode('create')
     setEditingFacultyId('')
     setSelectedFacultyRecord(null)
@@ -1572,6 +1626,9 @@ export function FacultyManagementPage() {
     setActionError('')
     setForm(getPrefilledForm(record, activeCourseOptions))
     setTouched({})
+    setShowValidationErrors(false)
+    setShowCourseValidationError(false)
+    setShowBatchTimingError(false)
     setModalMode('view')
     setEditingFacultyId(record.id)
     setSelectedFacultyRecord(record)
@@ -1588,6 +1645,9 @@ export function FacultyManagementPage() {
     setActionError('')
     setForm(getPrefilledForm(record, activeCourseOptions))
     setTouched({})
+    setShowValidationErrors(false)
+    setShowCourseValidationError(false)
+    setShowBatchTimingError(false)
     setModalMode('edit')
     setEditingFacultyId(record.id)
     setSelectedFacultyRecord(record)
@@ -1653,6 +1713,7 @@ export function FacultyManagementPage() {
     submitIntentRef.current = false
 
     if (isFacultyStepOne) {
+      setShowValidationErrors(true)
       goToNextFacultyStep()
       return
     }
@@ -1664,11 +1725,14 @@ export function FacultyManagementPage() {
       facultyName: true,
       facultyEmail: true,
       facultyPhone: true,
+      batchTiming: true,
       batchEntries: true,
       courseId: true,
       status: true,
     }
+    setShowValidationErrors(true)
     setTouched(nextTouched)
+    setShowBatchTimingError(Boolean(validationErrors.batchTiming))
 
     if (Object.keys(validationErrors).length > 0) return
 
@@ -2384,12 +2448,19 @@ export function FacultyManagementPage() {
                       />
                     </FacultyField>
 
-                    <FacultyField className="faculty-batch-field" label="Batch Timing" required icon={<Clock3 />}>
+                    <FacultyField
+                      className="faculty-batch-field"
+                      label="Batch Timing"
+                      required
+                      icon={<Clock3 />}
+                      error={shouldShowError('batchTiming') ? validationErrors.batchTiming : ''}
+                    >
                       <select
                         value={form.batchTiming}
                         onChange={(event) => {
                           const nextTiming = event.target.value
                           updateField('batchTiming', nextTiming)
+                          setShowBatchTimingError(false)
                           if (nextTiming !== 'Custom') {
                             updateField('batchTimingCustomStart', '')
                             updateField('batchTimingCustomStartMeridiem', 'AM')
@@ -2397,6 +2468,8 @@ export function FacultyManagementPage() {
                             updateField('batchTimingCustomEndMeridiem', 'PM')
                           }
                         }}
+                        onBlur={() => markTouched('batchTiming')}
+                        aria-invalid={Boolean(shouldShowError('batchTiming'))}
                       >
                         <option value="">Select timing</option>
                         {availableBatchTimingOptions.map((option) => (
@@ -2417,12 +2490,20 @@ export function FacultyManagementPage() {
                             placeholder="09:30"
                             aria-label="Custom timing start time"
                             value={form.batchTimingCustomStart}
-                            onChange={(event) => updateField('batchTimingCustomStart', event.target.value)}
+                            onChange={(event) => {
+                              updateField('batchTimingCustomStart', event.target.value)
+                              setShowBatchTimingError(false)
+                              if (form.batchTiming === 'Custom') markTouched('batchTiming')
+                            }}
                           />
                           <select
                             aria-label="Custom timing start meridiem"
                             value={form.batchTimingCustomStartMeridiem}
-                            onChange={(event) => updateField('batchTimingCustomStartMeridiem', event.target.value)}
+                            onChange={(event) => {
+                              updateField('batchTimingCustomStartMeridiem', event.target.value)
+                              setShowBatchTimingError(false)
+                              if (form.batchTiming === 'Custom') markTouched('batchTiming')
+                            }}
                           >
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
@@ -2436,12 +2517,20 @@ export function FacultyManagementPage() {
                             placeholder="06:30"
                             aria-label="Custom timing end time"
                             value={form.batchTimingCustomEnd}
-                            onChange={(event) => updateField('batchTimingCustomEnd', event.target.value)}
+                            onChange={(event) => {
+                              updateField('batchTimingCustomEnd', event.target.value)
+                              setShowBatchTimingError(false)
+                              if (form.batchTiming === 'Custom') markTouched('batchTiming')
+                            }}
                           />
                           <select
                             aria-label="Custom timing end meridiem"
                             value={form.batchTimingCustomEndMeridiem}
-                            onChange={(event) => updateField('batchTimingCustomEndMeridiem', event.target.value)}
+                            onChange={(event) => {
+                              updateField('batchTimingCustomEndMeridiem', event.target.value)
+                              setShowBatchTimingError(false)
+                              if (form.batchTiming === 'Custom') markTouched('batchTiming')
+                            }}
                           >
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>

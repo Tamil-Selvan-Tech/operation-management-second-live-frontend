@@ -10314,6 +10314,23 @@ tbody tr:hover {
   }
 }
 
+.business-owner-dashboard .profile-drawer,
+.operation-manager-dashboard .profile-drawer {
+  height: 580px !important;
+  max-height: 580px !important;
+}
+
+.business-owner-dashboard .profile-drawer-body,
+.operation-manager-dashboard .profile-drawer-body {
+  padding-top: 20px;
+  padding-bottom: 10px;
+}
+
+.business-owner-dashboard .profile-modal-cover,
+.operation-manager-dashboard .profile-modal-cover {
+  min-height: 108px;
+}
+
 @media (min-width: 769px) and (max-width: 1100px) {
   .profile-drawer {
     width: min(100vw - 24px, 420px);
@@ -12442,7 +12459,7 @@ tbody tr:hover {
 .faculty-batch-list-column {
   order: 2;
   justify-self: end;
-  width: min(100%, 380px);
+  width: min(100%, 360px);
   margin-left: auto;
 }
 
@@ -16421,8 +16438,9 @@ tbody tr:hover {
 
 .faculty-batch-list-scroll {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 270px));
+  justify-content: start;
+  gap: 14px;
   max-height: 184px;
   overflow: auto;
   padding-right: 4px;
@@ -16433,14 +16451,16 @@ tbody tr:hover {
 }
 
 .faculty-batch-item-image {
-  min-height: 88px;
+  min-height: 104px;
+  width: 100%;
+  max-width: 270px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   grid-template-rows: auto auto;
-  align-items: start;
+  align-items: center;
   column-gap: 10px;
-  row-gap: 6px;
-  padding: 14px 16px;
+  row-gap: 8px;
+  padding: 15px 16px;
 }
 
 .faculty-batch-item-image .faculty-batch-item-copy {
@@ -16449,7 +16469,7 @@ tbody tr:hover {
   min-width: 0;
   grid-column: 1;
   grid-row: 1 / span 2;
-  align-self: start;
+  align-self: center;
 }
 
 .faculty-batch-item-image .faculty-batch-item-copy strong {
@@ -16469,7 +16489,7 @@ tbody tr:hover {
 
 .faculty-batch-item-image .faculty-batch-edit-icon,
 .faculty-batch-item-image .faculty-batch-remove-icon {
-  align-self: start;
+  align-self: center;
   grid-row: 1;
 }
 
@@ -16489,6 +16509,11 @@ tbody tr:hover {
 
 .faculty-batch-item-image .faculty-batch-remove-icon {
   grid-column: 3;
+}
+
+.faculty-batch-item-image .faculty-batch-remove-icon,
+.faculty-batch-item-image .faculty-batch-edit-icon {
+  margin-top: 0;
 }
 
 .faculty-form-actions-large {
@@ -18106,31 +18131,38 @@ tbody tr:hover {
 
 .student-drawer-table-header {
   position: relative;
-  padding: 14px 18px;
+  height: 118px;
+  min-height: 118px;
+  padding: 18px 18px 16px 18px;
   background: linear-gradient(180deg, #1f6df0 0%, #1a5fd1 100%);
   color: #ffffff;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 18px;
   text-align: left;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .student-drawer-table-header-copy {
   min-width: 0;
   display: grid;
-  gap: 4px;
-  flex: 1 1 260px;
-  padding-left: 240px;
+  gap: 6px;
+  flex: 1 1 300px;
+  padding-left: 0;
+  align-items: start;
+  justify-items: start;
+  text-align: left;
 }
 
 .student-drawer-table-header-copy .section-kicker {
   margin: 0;
-  color: rgba(255, 255, 255, 0.86);
-  font-size: 0.56rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.74rem;
   font-weight: 800;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
+  line-height: 1;
 }
 
 .course-drawer-table-header {
@@ -18179,11 +18211,12 @@ tbody tr:hover {
   margin: 0;
   min-width: 0;
   color: #ffffff;
-  font-size: 1.25rem;
-  line-height: 1.1;
+  font-size: clamp(1.75rem, 2.2vw, 2.25rem);
+  line-height: 1.02;
   font-weight: 800;
   letter-spacing: -0.02em;
   text-align: left;
+  padding-left: 0;
   white-space: normal;
 }
 
@@ -18205,22 +18238,25 @@ tbody tr:hover {
   align-items: center;
   justify-content: flex-end;
   flex: 0 0 auto;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 14px;
+  flex-wrap: nowrap;
   margin-left: auto;
   max-width: 100%;
+  padding-left: 24px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .student-drawer-edit-button {
-  min-height: 30px;
-  padding: 0 10px;
+  min-height: 44px;
+  padding: 0 18px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
-  font-size: 0.78rem;
-  font-weight: 800;
+  font-size: 0.95rem;
+  font-weight: 700;
   backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 
 .student-drawer-edit-button:hover {
@@ -18228,13 +18264,26 @@ tbody tr:hover {
 }
 
 .student-drawer-report-button {
-  min-width: 150px;
+  min-width: 154px;
   justify-content: center;
 }
 
 .student-drawer-report-button svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.student-drawer-attendance-pill {
+  min-height: 44px;
+  padding: 0 18px;
+  font-size: 0.92rem;
+}
+
+.student-drawer-close-floating {
+  width: 44px;
+  height: 44px;
+  font-size: 1.2rem;
   flex: 0 0 auto;
 }
 
