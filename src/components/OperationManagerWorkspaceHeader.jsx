@@ -1,22 +1,21 @@
-import { useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useMemo, useState } from 'react'
 import {
   BadgeCheck,
-  Building2,
   Bell,
-  Clock3,
-  Globe,
-  LockKeyhole,
-  RefreshCcw,
   Search,
   ShieldCheck,
-  X,
+  Building2,
+  Globe,
+  Clock3,
+  LockKeyhole,
+  RefreshCcw,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../auth/useAuth'
 import { getNotificationItems } from '../data/notificationsData'
 import { HeaderIdentityChip } from './HeaderIdentityChip'
+import { ProfileDrawer } from './ProfileDrawer'
 
 function buildProfileDetails({ profileTitle, email, initials, eyebrow }) {
   const isBusinessOwner = eyebrow === 'Business Owner'
@@ -26,14 +25,11 @@ function buildProfileDetails({ profileTitle, email, initials, eyebrow }) {
     status: 'Active',
     workspace: 'Cispro Ops',
     accessLevel: isBusinessOwner ? 'Business Owner' : 'Operation Manager',
-    joinedOn: isBusinessOwner ? '12 March 2024' : '16 March 2023',
-    primaryEmail: email,
-    contactNumber: '+91 98765 43210',
-    location: isBusinessOwner ? 'Chennai, Tamil Nadu, India' : 'Coimbatore, Tamil Nadu, India',
     passwordMasked: 'ChangeMe123!',
     resetPasswordText: 'Send Reset Link',
     lastLogin: 'Today, 10:25 AM',
     initials,
+    primaryEmail: email,
   }
 }
 
@@ -127,24 +123,25 @@ export function OperationManagerWorkspaceHeader({
 }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const profileDetails = buildProfileDetails({ profileTitle, email, initials, eyebrow })
-
-  useEffect(() => {
-    if (!isProfileOpen) return undefined
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setIsProfileOpen(false)
-      }
-    }
-
-    document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.body.style.overflow = ''
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isProfileOpen])
+  const isBusinessOwner = eyebrow === 'Business Owner'
+  const profileStatTiles = isBusinessOwner
+    ? [
+        { icon: BadgeCheck, tone: 'blue', label: 'Status', value: profileDetails.status },
+        { icon: Building2, tone: 'green', label: 'Workspace', value: profileDetails.workspace },
+        { icon: ShieldCheck, tone: 'violet', label: 'Access Level', value: profileDetails.accessLevel },
+        { icon: Clock3, tone: 'amber', label: 'Last Login', value: profileDetails.lastLogin },
+      ]
+    : [
+        { icon: BadgeCheck, tone: 'blue', label: 'Role', value: profileDetails.role },
+        { icon: ShieldCheck, tone: 'green', label: 'Status', value: profileDetails.status },
+        { icon: Building2, tone: 'violet', label: 'Workspace', value: profileDetails.workspace },
+        { icon: Globe, tone: 'amber', label: 'Access Level', value: profileDetails.accessLevel },
+      ]
+  const profileDetailRows = [
+    { icon: LockKeyhole, label: 'Password', value: profileDetails.passwordMasked },
+    { icon: RefreshCcw, label: 'Reset Password', value: profileDetails.resetPasswordText },
+    { icon: Clock3, label: 'Last Login', value: profileDetails.lastLogin },
+  ]
 
   return (
     <>
@@ -191,115 +188,16 @@ export function OperationManagerWorkspaceHeader({
           />
         </div>
       </header>
-
-      {isProfileOpen && typeof document !== 'undefined'
-        ? createPortal(
-            <div className="profile-drawer-backdrop" role="presentation">
-              <div
-                className="profile-drawer operation-manager-profile-card"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="profile-modal-title"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="profile-modal-cover profile-drawer-cover">
-                  <button
-                    type="button"
-                    className="course-modal-close profile-modal-close"
-                    onClick={() => setIsProfileOpen(false)}
-                    aria-label="Close profile card"
-                  >
-                    <X size={18} strokeWidth={2.5} aria-hidden="true" focusable="false" />
-                  </button>
-
-                  <div className="profile-modal-cover-dots" aria-hidden="true">
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                    <span />
-                  </div>
-
-                  <div className="profile-modal-avatar-wrap">
-                    <div className="profile-modal-avatar" aria-hidden="true">
-                      {profileDetails.initials}
-                    </div>
-                    <span className="profile-modal-status-dot" aria-hidden="true" />
-                  </div>
-                </div>
-
-                <div className="profile-modal-body profile-drawer-body">
-                  <p className="profile-modal-eyebrow">Profile</p>
-                  <h3 id="profile-modal-title">{profileTitle}</h3>
-                  <p className="profile-modal-email">{email}</p>
-
-                  <div className="profile-modal-info-list">
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <BadgeCheck size={15} />
-                        Role
-                      </span>
-                      <strong>{profileDetails.role}</strong>
-                    </div>
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <ShieldCheck size={15} />
-                        Status
-                      </span>
-                      <strong>{profileDetails.status}</strong>
-                    </div>
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <Building2 size={15} />
-                        Workspace
-                      </span>
-                      <strong>{profileDetails.workspace}</strong>
-                    </div>
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <Globe size={15} />
-                        Access Level
-                      </span>
-                      <strong>{profileDetails.accessLevel}</strong>
-                    </div>
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <LockKeyhole size={15} />
-                        Password
-                      </span>
-                      <strong>{profileDetails.passwordMasked}</strong>
-                    </div>
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <RefreshCcw size={15} />
-                        Reset Password
-                      </span>
-                      <strong>{profileDetails.resetPasswordText}</strong>
-                    </div>
-                    <div className="profile-modal-info-row">
-                      <span className="profile-modal-info-label">
-                        <Clock3 size={15} />
-                        Last Login
-                      </span>
-                      <strong>{profileDetails.lastLogin}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      <ProfileDrawer
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        title={profileTitle}
+        email={email}
+        initials={profileDetails.initials}
+        statTiles={profileStatTiles}
+        detailRows={profileDetailRows}
+        ariaLabelledBy="profile-modal-title"
+      />
     </>
   )
 }

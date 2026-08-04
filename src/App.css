@@ -2201,12 +2201,13 @@ tbody tr:hover {
   gap: 10px;
   background: #ffffff;
   border: 0;
-  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  border-right: 0 !important;
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
   margin-left: -18px;
   margin-top: -18px;
+  position: relative;
 }
 
 .app-shell.dashboard-shell .sidebar {
@@ -2214,12 +2215,26 @@ tbody tr:hover {
   gap: 10px;
   background: #ffffff;
   border: 0;
-  border-right: 1px solid rgba(15, 23, 42, 0.08);
+  border-right: 0 !important;
   box-shadow: none;
   backdrop-filter: none;
   border-radius: 0;
   margin-left: -18px;
   margin-top: -18px;
+  position: relative;
+}
+
+.app-shell.business-owner-shell .sidebar::after,
+.app-shell.operation-manager-shell .sidebar::after,
+.app-shell.dashboard-shell .sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(148, 163, 184, 0.45);
+  pointer-events: none;
 }
 
 .app-shell.is-inset-sidebar-divider .sidebar {
@@ -2377,7 +2392,8 @@ tbody tr:hover {
 }
 
 .app-shell.dashboard-shell .sidebar .sidebar-menu-item.is-active {
-  background: #eff4fb;
+  background: #f1f5f9;
+  border-color: transparent;
   box-shadow: none;
 }
 
@@ -16777,6 +16793,10 @@ tbody tr:hover {
   flex-direction: column;
 }
 
+.faculty-view-drawer.faculty-view-drawer-image.course-modal.panel-card {
+  padding: 0;
+}
+
 .faculty-view-header {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -18354,17 +18374,22 @@ tbody tr:hover {
   gap: 18px;
 }
 
-.student-drawer-table-view {
-  padding: 0;
-  gap: 0;
-  overflow: hidden;
+.student-drawer.student-drawer-table-view {
+  width: min(960px, calc(100vw - 72px));
+  padding: 0 !important;
+  gap: 0 !important;
+  overflow: hidden !important;
+  background: #ffffff;
 }
 
-.student-drawer-table-header {
+.student-drawer.student-drawer-table-view .student-drawer-table-header {
   position: relative;
-  height: 118px;
-  min-height: 118px;
-  padding: 18px 18px 16px 18px;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  height: 68px;
+  min-height: 68px;
+  padding: 6px 18px;
   background: linear-gradient(180deg, #1f6df0 0%, #1a5fd1 100%);
   color: #ffffff;
   display: flex;
@@ -18374,9 +18399,10 @@ tbody tr:hover {
   text-align: left;
   flex-wrap: nowrap;
   overflow: hidden;
+  border-radius: 0;
 }
 
-.student-drawer-table-header-copy {
+.student-drawer.student-drawer-table-view .student-drawer-table-header-copy {
   min-width: 0;
   display: grid;
   gap: 6px;
@@ -18387,7 +18413,7 @@ tbody tr:hover {
   text-align: left;
 }
 
-.student-drawer-table-header-copy .section-kicker {
+.student-drawer.student-drawer-table-view .student-drawer-table-header-copy .section-kicker {
   margin: 0;
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.74rem;
@@ -18396,7 +18422,7 @@ tbody tr:hover {
   line-height: 1;
 }
 
-.course-drawer-table-header {
+.student-drawer.student-drawer-table-view .course-drawer-table-header {
   height: auto;
   min-height: 52px;
   padding: 6px 16px 6px;
@@ -18406,7 +18432,7 @@ tbody tr:hover {
   flex-wrap: nowrap;
 }
 
-.course-drawer-table-header>div:first-child {
+.student-drawer.student-drawer-table-view .course-drawer-table-header>div:first-child {
   width: 100%;
   flex: 1 1 auto;
   min-width: 0;
@@ -18420,7 +18446,7 @@ tbody tr:hover {
   margin: 0 auto;
 }
 
-.course-drawer-table-header .section-kicker {
+.student-drawer.student-drawer-table-view .course-drawer-table-header .section-kicker {
   margin: 0;
   color: rgba(255, 255, 255, 0.9);
   font-size: 0.54rem;
@@ -18428,7 +18454,7 @@ tbody tr:hover {
   letter-spacing: 0.16em;
 }
 
-.course-drawer-table-header h3 {
+.student-drawer.student-drawer-table-view .course-drawer-table-header h3 {
   margin: 0;
   font-size: 0.96rem;
   line-height: 1;
@@ -18438,7 +18464,7 @@ tbody tr:hover {
   text-align: center;
 }
 
-.student-drawer-table-header h3 {
+.student-drawer.student-drawer-table-view .student-drawer-table-header h3 {
   margin: 0;
   min-width: 0;
   color: #ffffff;
@@ -18451,19 +18477,19 @@ tbody tr:hover {
   white-space: normal;
 }
 
-.student-drawer-close-floating {
+.student-drawer.student-drawer-table-view .student-drawer-close-floating {
   position: static;
   border-color: rgba(255, 255, 255, 0.32);
   background: rgba(255, 255, 255, 0.98);
 }
 
-.course-drawer-table-header .student-drawer-close-floating {
+.student-drawer.student-drawer-table-view .course-drawer-table-header .student-drawer-close-floating {
   width: 28px;
   height: 28px;
   font-size: 14px;
 }
 
-.student-drawer-table-actions {
+.student-drawer.student-drawer-table-view .student-drawer-table-actions {
   position: relative;
   display: flex;
   align-items: center;
@@ -18477,7 +18503,7 @@ tbody tr:hover {
   border-left: 1px solid rgba(255, 255, 255, 0.16);
 }
 
-.student-drawer-edit-button {
+.student-drawer.student-drawer-table-view .student-drawer-edit-button {
   min-height: 44px;
   padding: 0 18px;
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -18490,11 +18516,11 @@ tbody tr:hover {
   white-space: nowrap;
 }
 
-.student-drawer-edit-button:hover {
+.student-drawer.student-drawer-table-view .student-drawer-edit-button:hover {
   background: rgba(255, 255, 255, 0.24);
 }
 
-.student-drawer-report-button {
+.student-drawer.student-drawer-table-view .student-drawer-report-button {
   min-height: 40px;
   padding: 0 14px;
   display: inline-flex;
@@ -18511,7 +18537,7 @@ tbody tr:hover {
   box-shadow: none;
 }
 
-.student-drawer-report-button svg {
+.student-drawer.student-drawer-table-view .student-drawer-report-button svg {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
@@ -24028,7 +24054,7 @@ tbody tr:hover {
 }
 
 .business-owner-dashboard .is-business-owner-header .business-topbar-copy {
-  padding-left: 12px;
+  padding-left: 20px;
   margin-top: -1px;
   transform: translateY(-1px);
 }
@@ -24583,9 +24609,21 @@ tbody tr:hover {
 
 .is-business-owner-sidebar {
   background: #ffffff !important;
-  border-right: 1.5px solid #cbd5e1 !important;
+  border-right: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  position: relative !important;
+}
+
+.is-business-owner-sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(148, 163, 184, 0.45);
+  pointer-events: none;
 }
 
 .is-business-owner-sidebar .sidebar-head {
@@ -24641,6 +24679,8 @@ tbody tr:hover {
   color: #0f172a !important;
   font-weight: 700 !important;
   border-radius: 10px !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .is-business-owner-sidebar .sidebar-menu-item.is-active .sidebar-menu-icon {
@@ -25379,7 +25419,7 @@ tbody tr:hover {
 }
 
 .business-owner-dashboard .is-business-owner-header .business-topbar-copy {
-  padding-left: 16px;
+  padding-left: 20px;
 }
 
 .is-business-owner-header .business-topbar-actions {
