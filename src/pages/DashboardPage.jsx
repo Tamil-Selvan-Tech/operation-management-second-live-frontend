@@ -28,7 +28,7 @@ import { HeaderIdentityChip } from '../components/HeaderIdentityChip'
 import { ProfileDrawer } from '../components/ProfileDrawer'
 import { roleDashboards } from '../data/authData'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
-import { getRevenueInsights } from '../services/dashboardService'
+import { listStudents } from '../services/studentService'
 import { StudentDashboard } from './StudentDashboard'
 import { FacultyDashboardPage } from './FacultyDashboardPage'
 
@@ -541,10 +541,8 @@ function buildWeeklyRevenueComparison(students, referenceDate = new Date()) {
   return buckets.map(({ week, actual, expected, isCurrent }) => ({ week, actual, expected, isCurrent }))
 }
 
-function useRevenueInsightsData() {
-  const [summary, setSummary] = useState(null)
-  const [monthlyRevenue, setMonthlyRevenue] = useState([])
-  const [weeklyRevenue, setWeeklyRevenue] = useState([])
+function useBackendStudents() {
+  const [records, setRecords] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -552,16 +550,12 @@ function useRevenueInsightsData() {
 
     const run = async () => {
       try {
-        const result = await getRevenueInsights()
+        const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
         if (!active) return
-        setSummary(result?.summary || null)
-        setMonthlyRevenue(Array.isArray(result?.monthlyRevenue) ? result.monthlyRevenue : [])
-        setWeeklyRevenue(Array.isArray(result?.weeklyRevenue) ? result.weeklyRevenue : [])
+        setRecords(result.data || [])
       } catch {
         if (!active) return
-        setSummary(null)
-        setMonthlyRevenue([])
-        setWeeklyRevenue([])
+        setRecords(loadStudentRecords())
       } finally {
         if (active) {
           setIsLoading(false)
@@ -584,10 +578,10 @@ function useRevenueInsightsData() {
     }
   }, [])
 
-  return { summary, monthlyRevenue, weeklyRevenue, isLoading }
+  return { records, isLoading }
 }
 
-function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, monthlyRevenue, weeklyRevenue }) {
+function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, revenueStudents }) {
   const openMenu = useMobileMenu()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const profileDetails = {
@@ -628,7 +622,7 @@ function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, m
       />
 
       <MemoRevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <MemoRevenueDashboards monthlyRevenueData={monthlyRevenue} weeklyRevenueData={weeklyRevenue} reverse={true} />
+      <MemoRevenueDashboards students={revenueStudents} reverse={true} />
       <MemoAttendanceComparisonChart />
       <ProfileDrawer
         isOpen={isProfileOpen}
@@ -1387,7 +1381,10 @@ function ChartInfoTrigger({ label, description }) {
   )
 }
 
-function RevenueDashboards({ monthlyRevenueData = [], weeklyRevenueData = [], reverse = false }) {
+function RevenueDashboards({ students = [], reverse = false }) {
+  const monthlyRevenueData = useMemo(() => buildMonthlyRevenueComparison(students), [students])
+  const weeklyRevenueData = useMemo(() => buildWeeklyRevenueComparison(students), [students])
+
   return (
     <div className="revenue-comparison-grid">
       {reverse ? (
@@ -1571,7 +1568,7 @@ function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading
       </div>
 
       <MemoRevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <MemoRevenueDashboards monthlyRevenueData={monthlyRevenue} weeklyRevenueData={weeklyRevenue} reverse={true} />
+      <MemoRevenueDashboards students={revenueStudents} reverse={true} />
       <MemoAttendanceComparisonChart />
       <ProfileDrawer
         isOpen={isProfileOpen}
@@ -1614,7 +1611,8 @@ function GenericDashboard({ role }) {
 }
 
 function ManagementDashboard({ role, dashboard }) {
-  const { summary: revenueSummary, monthlyRevenue, weeklyRevenue, isLoading: isRevenueLoading } = useRevenueInsightsData()
+  const { records: revenueStudents, isLoading: isRevenueLoading } = useBackendStudents()
+  const revenueSummary = useMemo(() => calculateRevenueSummary(revenueStudents), [revenueStudents])
 
   if (role === 'business-owner') {
     return (
@@ -1622,8 +1620,7 @@ function ManagementDashboard({ role, dashboard }) {
         dashboard={dashboard}
         revenueSummary={revenueSummary}
         isRevenueLoading={isRevenueLoading}
-        monthlyRevenue={monthlyRevenue}
-        weeklyRevenue={weeklyRevenue}
+        revenueStudents={revenueStudents}
       />
     )
   }
@@ -1633,8 +1630,7 @@ function ManagementDashboard({ role, dashboard }) {
       dashboard={dashboard}
       revenueSummary={revenueSummary}
       isRevenueLoading={isRevenueLoading}
-      monthlyRevenue={monthlyRevenue}
-      weeklyRevenue={weeklyRevenue}
+      revenueStudents={revenueStudents}
     />
   )
 }
