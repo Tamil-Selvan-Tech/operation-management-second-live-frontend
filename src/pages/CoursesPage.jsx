@@ -864,14 +864,14 @@ export function CoursesPage() {
       </div>
 
       {loadError ? (
-        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem' }}>
-          {loadError}
+        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem', color: '#dc2626' }}>
+          <span style={{ color: '#dc2626' }}>{loadError}</span>
         </div>
       ) : null}
 
       {saveError ? (
-        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem' }}>
-          {saveError}
+        <div className="course-validation-note course-validation-error" style={{ marginBottom: '1rem', color: '#dc2626' }}>
+          <span style={{ color: '#dc2626' }}>{saveError}</span>
         </div>
       ) : null}
 
@@ -1056,8 +1056,10 @@ export function CoursesPage() {
             </div>
 
             {Object.keys(touched).length > 0 && !isValid ? (
-              <div className="course-validation-note course-validation-error">
-                {saveError || Object.values(validationErrors)[0] || 'Please fill all required fields before saving.'}
+              <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
+                <span style={{ color: '#dc2626' }}>
+                  {saveError || Object.values(validationErrors)[0] || 'Please fill all required fields before saving.'}
+                </span>
               </div>
             ) : null}
 

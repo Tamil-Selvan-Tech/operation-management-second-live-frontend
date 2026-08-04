@@ -196,7 +196,7 @@ export function OperationManagerWorkspaceHeader({
         ? createPortal(
             <div className="profile-drawer-backdrop" role="presentation">
               <div
-                className="profile-drawer"
+                className="profile-drawer operation-manager-profile-card"
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="profile-modal-title"

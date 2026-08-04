@@ -10314,21 +10314,63 @@ tbody tr:hover {
   }
 }
 
-.business-owner-dashboard .profile-drawer,
-.operation-manager-dashboard .profile-drawer {
+.operation-manager-profile-card {
   height: 580px !important;
   max-height: 580px !important;
 }
 
-.business-owner-dashboard .profile-drawer-body,
-.operation-manager-dashboard .profile-drawer-body {
+.operation-manager-profile-card .profile-drawer-body {
   padding-top: 20px;
   padding-bottom: 10px;
 }
 
-.business-owner-dashboard .profile-modal-cover,
-.operation-manager-dashboard .profile-modal-cover {
-  min-height: 108px;
+.operation-manager-profile-card .profile-modal-cover {
+  min-height: 140px;
+}
+
+.operation-manager-profile-card .profile-modal-eyebrow {
+  margin-top: 8px;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
+  line-height: 1;
+}
+
+.operation-manager-profile-card .profile-modal-body h3 {
+  margin-top: 4px;
+}
+
+@media (min-width: 1640px) and (max-width: 1719px) and (min-height: 1020px) and (max-height: 1079px) {
+  .operation-manager-profile-card {
+    height: 750px !important;
+    max-height: 750px !important;
+  }
+
+  .operation-manager-profile-card .profile-drawer-body {
+    padding-top: 12px;
+    padding-bottom: 6px;
+    gap: 8px;
+  }
+
+  .operation-manager-profile-card .profile-modal-cover {
+    min-height: 112px;
+  }
+}
+
+@media (width: 1680px) and (height: 1050px) {
+  .operation-manager-profile-card {
+    height: 750px !important;
+    max-height: 750px !important;
+  }
+
+  .operation-manager-profile-card .profile-drawer-body {
+    padding-top: 12px;
+    padding-bottom: 6px;
+    gap: 8px;
+  }
+
+  .operation-manager-profile-card .profile-modal-cover {
+    min-height: 112px;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1100px) {
@@ -18769,7 +18811,11 @@ tbody tr:hover {
 .course-validation-error {
   border-color: rgba(239, 68, 68, 0.25);
   background: rgba(239, 68, 68, 0.06);
-  color: #b91c1c;
+  color: #dc2626 !important;
+}
+
+.course-validation-note.course-validation-error {
+  color: #dc2626 !important;
 }
 
 .course-form-actions {

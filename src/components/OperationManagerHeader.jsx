@@ -116,13 +116,13 @@ export function OperationManagerHeader({
               className="profile-drawer-backdrop"
               role="presentation"
             >
-              <div
-                className="profile-drawer"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="profile-modal-title"
-                onClick={(event) => event.stopPropagation()}
-              >
+            <div
+              className="profile-drawer operation-manager-profile-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="profile-modal-title"
+              onClick={(event) => event.stopPropagation()}
+            >
                 <div className="profile-modal-cover profile-drawer-cover">
                   <button
                     type="button"
