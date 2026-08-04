@@ -1,3 +1,4 @@
+import { flushSync } from 'react-dom'
 import { isValidElement, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
@@ -1115,7 +1116,10 @@ export function StudentManagementPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [installmentConfirmTarget, setInstallmentConfirmTarget] = useState(null)
   const [openActionMenuId, setOpenActionMenuId] = useState('')
+  const [openActionMenuPlacement, setOpenActionMenuPlacement] = useState('bottom')
+  const [openActionMenuPosition, setOpenActionMenuPosition] = useState({ top: 0, right: 0 })
   const actionMenuCloseTimerRef = useRef(null)
+  const actionMenuButtonRefs = useRef(new Map())
   const [isDrawerEditing, setIsDrawerEditing] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [currentPage, setCurrentPage] = useState(1)
@@ -1668,8 +1672,11 @@ export function StudentManagementPage() {
   }
 
   const openDrawer = (student) => {
-    setManualSelectedStudentId(student.id)
-    setIsDrawerEditing(false)
+    flushSync(() => {
+      closeActionMenu()
+      setManualSelectedStudentId(student.id)
+      setIsDrawerEditing(false)
+    })
     navigate(buildStudentManagementUrl(student.id))
   }
 
@@ -1706,11 +1713,29 @@ export function StudentManagementPage() {
     }, 3500)
   }
 
-  const openActionMenu = (studentId) => {
+  const syncOpenActionMenuPosition = (buttonElement, placement = 'bottom') => {
+    if (!buttonElement || typeof window === 'undefined') return
+
+    const rect = buttonElement.getBoundingClientRect()
+    const menuHeight = 168
+    const gap = 10
+    const nextTop =
+      placement === 'top'
+        ? Math.max(12, rect.top - menuHeight - gap)
+        : Math.min(window.innerHeight - menuHeight - 12, rect.bottom + gap)
+    const nextRight = Math.max(12, window.innerWidth - rect.right)
+
+    setOpenActionMenuPlacement(placement)
+    setOpenActionMenuPosition({ top: nextTop, right: nextRight })
+  }
+
+  const openActionMenu = (studentId, placement = 'bottom', buttonElement = actionMenuButtonRefs.current.get(studentId)) => {
     if (actionMenuCloseTimerRef.current) {
       window.clearTimeout(actionMenuCloseTimerRef.current)
       actionMenuCloseTimerRef.current = null
     }
+
+    syncOpenActionMenuPosition(buttonElement, placement)
     setOpenActionMenuId(studentId)
   }
 
@@ -1720,6 +1745,8 @@ export function StudentManagementPage() {
       actionMenuCloseTimerRef.current = null
     }
     setOpenActionMenuId('')
+    setOpenActionMenuPlacement('bottom')
+    setOpenActionMenuPosition({ top: 0, right: 0 })
   }
 
   const scheduleCloseActionMenu = () => {
@@ -1729,6 +1756,8 @@ export function StudentManagementPage() {
 
     actionMenuCloseTimerRef.current = window.setTimeout(() => {
       setOpenActionMenuId('')
+      setOpenActionMenuPlacement('bottom')
+      setOpenActionMenuPosition({ top: 0, right: 0 })
       actionMenuCloseTimerRef.current = null
     }, 140)
   }
@@ -1879,6 +1908,8 @@ export function StudentManagementPage() {
 
   useEffect(() => {
     if (!isDrawerOpen) return undefined
+
+    closeActionMenu()
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
@@ -2327,14 +2358,18 @@ export function StudentManagementPage() {
       ),
     )
 
+    if (nextStatus === 'Paid') {
+      showInstallmentToast(getInstallmentSuccessToast(currentStudent, installmentField))
+    }
+
     try {
       await updateStudent(studentId, updatePayload)
       setOpenActionMenuId('')
-      if (nextStatus === 'Paid') {
-        showInstallmentToast(getInstallmentSuccessToast(currentStudent, installmentField))
-      }
     } catch (error) {
       setStudents(previousStudents)
+      if (nextStatus === 'Paid') {
+        setInstallmentToast(null)
+      }
       setActionError(apiErrorMessage(error, 'Unable to update installment status.'))
     }
   }
@@ -2348,7 +2383,7 @@ export function StudentManagementPage() {
   }, [])
 
   return (
-    <section className="student-management-page">
+    <section className={`student-management-page ${isDrawerOpen ? 'is-drawer-open' : ''}`.trim()}>
       {installmentToast ? (
         <div className="student-installment-toast" role="status" aria-live="polite">
           <div className="student-installment-toast-icon" aria-hidden="true">
@@ -2596,20 +2631,24 @@ export function StudentManagementPage() {
                       <td>
                         <div
                           className={`student-action-menu ${openActionMenuId === student.id ? 'is-open' : ''} ${actionMenuDirection === 'up' ? 'is-up' : 'is-down'}`.trim()}
-                          onMouseEnter={() => openActionMenu(student.id, actionMenuDirection)}
+                          onMouseEnter={() => openActionMenu(student.id, actionMenuDirection, actionMenuButtonRefs.current.get(student.id))}
                           onMouseLeave={scheduleCloseActionMenu}
                         >
                           <button
+                            ref={(node) => {
+                              if (node) actionMenuButtonRefs.current.set(student.id, node)
+                              else actionMenuButtonRefs.current.delete(student.id)
+                            }}
                             type="button"
                             className="student-row-button student-row-button-more"
-                            onMouseEnter={() => openActionMenu(student.id, actionMenuDirection)}
-                            onClick={() => {
+                            onMouseEnter={(event) => openActionMenu(student.id, actionMenuDirection, event.currentTarget)}
+                            onClick={(event) => {
                               if (openActionMenuId === student.id) {
                                 closeActionMenu()
                                 return
                               }
 
-                              openActionMenu(student.id, actionMenuDirection)
+                              openActionMenu(student.id, actionMenuDirection, event.currentTarget)
                             }}
                             aria-label="Open student actions"
                             aria-haspopup="menu"
@@ -2617,7 +2656,20 @@ export function StudentManagementPage() {
                           >
                             <MoreIcon />
                           </button>
-                          <div className="student-action-menu-panel" role="menu" aria-label="Student actions">
+                          {openActionMenuId === student.id && !isDrawerOpen ? (
+                            <div
+                            className="student-action-menu-panel"
+                            role="menu"
+                            aria-label="Student actions"
+                            style={
+                              {
+                                top: `${openActionMenuPosition.top}px`,
+                                right: `${openActionMenuPosition.right}px`,
+                                bottom: 'auto',
+                                left: 'auto',
+                              }
+                            }
+                            >
                             <button
                               type="button"
                               className="student-action-menu-item"
@@ -2655,6 +2707,7 @@ export function StudentManagementPage() {
                               <span>Delete</span>
                             </button>
                           </div>
+                          ) : null}
                         </div>
                       </td>
                     </tr>

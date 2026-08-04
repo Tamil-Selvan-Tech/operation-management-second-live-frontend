@@ -34,6 +34,45 @@ function buildProfileDetails({ eyebrow, profileTitle, email, initials }) {
   }
 }
 
+function ProfileStatTile({ icon: Icon, tone, label, value }) {
+  const toneStyles = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-emerald-50 text-emerald-600',
+    violet: 'bg-violet-50 text-violet-600',
+    amber: 'bg-amber-50 text-amber-600',
+  }
+
+  return (
+    <div className="grid min-h-[72px] grid-cols-[28px_minmax(0,1fr)] gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-2.5 text-left shadow-sm sm:min-h-[84px] sm:grid-cols-[32px_minmax(0,1fr)] sm:gap-2.5 sm:p-3.5 lg:min-h-[88px] xl:min-h-[92px] 2xl:min-h-[96px] 2xl:p-4">
+      <span className={`grid h-7 w-7 place-items-center rounded-full ${toneStyles[tone] || toneStyles.blue}`} aria-hidden="true">
+        <Icon size={14} strokeWidth={2.2} />
+      </span>
+      <div className="min-w-0">
+        <span className="block text-[0.64rem] font-bold uppercase tracking-[0.08em] text-slate-500 sm:text-[0.7rem] 2xl:text-[0.72rem]">
+          {label}
+        </span>
+        <strong className="mt-0.5 block min-w-0 break-words text-[0.84rem] font-extrabold leading-[1.18] tracking-[-0.03em] text-slate-900 sm:mt-1 sm:text-[0.95rem] 2xl:text-[1rem]">
+          {value}
+        </strong>
+      </div>
+    </div>
+  )
+}
+
+function ProfileDetailRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-t border-slate-200 px-3.5 py-2 first:border-t-0 first:pt-3 first:last:pb-3 sm:px-5 sm:py-2.5">
+      <span className="flex min-w-0 items-center gap-2 text-[0.82rem] font-medium text-slate-500 sm:text-sm 2xl:text-[0.95rem]">
+        <Icon size={14} strokeWidth={2.2} className="shrink-0 text-blue-600" aria-hidden="true" />
+        <span className="min-w-0">{label}</span>
+      </span>
+      <strong className="max-w-[55%] break-words text-right text-[0.82rem] font-semibold tracking-[-0.02em] text-slate-900 sm:max-w-[60%] sm:text-sm 2xl:text-[0.95rem]">
+        {value}
+      </strong>
+    </div>
+  )
+}
+
 export function OperationManagerHeader({
   title = 'Operation Manager Dashboard',
   summary = '',
@@ -164,46 +203,35 @@ export function OperationManagerHeader({
                   <h3 id="profile-modal-title">{profileTitle}</h3>
                   <p className="profile-modal-email">{email}</p>
 
-                  <div className="profile-modal-grid">
-                    <div className="profile-modal-stat tone-blue">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <BadgeCheck size={16} />
-                      </span>
-                      <div>
-                        <span>Role</span>
-                        <strong>{profileDetails.role}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-green">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <ShieldCheck size={16} />
-                      </span>
-                      <div>
-                        <span>Status</span>
-                        <strong>{profileDetails.status}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-violet">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <Building2 size={16} />
-                      </span>
-                      <div>
-                        <span>Workspace</span>
-                        <strong>{profileDetails.workspace}</strong>
-                      </div>
-                    </div>
-                    <div className="profile-modal-stat tone-amber">
-                      <span className="profile-modal-stat-icon" aria-hidden="true">
-                        <Globe size={16} />
-                      </span>
-                      <div>
-                        <span>Access Level</span>
-                        <strong>{profileDetails.accessLevel}</strong>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="profile-modal-info-list">
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <BadgeCheck size={15} />
+                        Role
+                      </span>
+                      <strong>{profileDetails.role}</strong>
+                    </div>
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <ShieldCheck size={15} />
+                        Status
+                      </span>
+                      <strong>{profileDetails.status}</strong>
+                    </div>
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <Building2 size={15} />
+                        Workspace
+                      </span>
+                      <strong>{profileDetails.workspace}</strong>
+                    </div>
+                    <div className="profile-modal-info-row">
+                      <span className="profile-modal-info-label">
+                        <Globe size={15} />
+                        Access Level
+                      </span>
+                      <strong>{profileDetails.accessLevel}</strong>
+                    </div>
                     <div className="profile-modal-info-row">
                       <span className="profile-modal-info-label">
                         <LockKeyhole size={15} />
