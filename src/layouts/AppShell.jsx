@@ -183,6 +183,7 @@ export function AppShell({
           user={user}
           isBusinessOwner={isPremiumSidebarWorkspace && isBusinessOwnerRole}
           usePremiumLayout={usePremiumLayout}
+          useDashboardShell={useDashboardShell}
           onNavigateDashboard={onNavigateDashboard}
           onNavigateFacultyBatches={onNavigateFacultyBatches}
           onNavigateCourses={onNavigateCourses}

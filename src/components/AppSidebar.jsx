@@ -26,8 +26,11 @@ function SidebarItem({
   disabled = false,
   badge = null,
   usePremiumLayout = false,
+  useDashboardShell = false,
 }) {
-  const itemClassName = usePremiumLayout
+  const usePlainSidebarItem = usePremiumLayout || useDashboardShell
+
+  const itemClassName = usePlainSidebarItem
     ? `sidebar-menu-item group !flex w-full items-center gap-3 rounded-xl border-0 bg-transparent px-2 py-3 text-left text-slate-700 shadow-none transition-colors duration-150 hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-50 ${
         active ? 'is-active bg-slate-100 text-slate-950' : ''
       }`.trim()
@@ -35,7 +38,7 @@ function SidebarItem({
         active ? 'is-active border-transparent bg-gradient-to-r from-sky-500 to-sky-400 text-white shadow-lg shadow-sky-500/20' : ''
       }`.trim()
 
-  const iconClassName = usePremiumLayout
+  const iconClassName = usePlainSidebarItem
     ? `sidebar-menu-icon !grid h-5 w-5 shrink-0 place-items-center rounded-none bg-transparent text-slate-500 transition-colors group-hover:text-slate-700 ${
         active ? 'text-slate-950 group-hover:text-slate-950' : ''
       }`
@@ -78,6 +81,7 @@ export function AppSidebar({
   user,
   isBusinessOwner = false,
   usePremiumLayout = false,
+  useDashboardShell = false,
   onNavigateDashboard,
   onNavigateFacultyBatches,
   onNavigateCourses,
@@ -212,7 +216,12 @@ export function AppSidebar({
             </p>
             <div className={usePremiumLayout ? 'menu-group !grid gap-2' : 'menu-group'}>
               {mainMenuItems.map((item) => (
-                <SidebarItem key={item.label} {...item} usePremiumLayout={usePremiumLayout} />
+                <SidebarItem
+                  key={item.label}
+                  {...item}
+                  usePremiumLayout={usePremiumLayout}
+                  useDashboardShell={useDashboardShell}
+                />
               ))}
             </div>
           </div>
@@ -223,7 +232,12 @@ export function AppSidebar({
             </p>
             <div className={usePremiumLayout ? 'menu-group !grid gap-2' : 'menu-group'}>
               {otherMenuItems.map((item) => (
-                <SidebarItem key={item.label} {...item} usePremiumLayout={usePremiumLayout} />
+                <SidebarItem
+                  key={item.label}
+                  {...item}
+                  usePremiumLayout={usePremiumLayout}
+                  useDashboardShell={useDashboardShell}
+                />
               ))}
             </div>
           </div>

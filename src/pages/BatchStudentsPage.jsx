@@ -20,6 +20,11 @@ import { Button } from '../components/Button'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
 import { loadStudentSnapshot, mergeStudentsWithSnapshot, saveStudentSnapshot } from '../lib/studentSnapshot'
+import {
+  listFacultyBatchAttendanceStates,
+  listFacultyBatchAttendanceHistoryStates,
+  resolveStudentBatchAttendanceStatus,
+} from '../lib/facultyAttendanceStore'
 import { COURSE_RECORD_SYNC_EVENT } from '../data/courseRecords'
 import { listCourses } from '../services/courseService'
 import { listFacultyRecords } from '../services/facultyService'
@@ -73,6 +78,48 @@ function getStudentInitials(name) {
     .map((part) => part[0]?.toUpperCase() || '')
     .join('')
     .slice(0, 2)
+}
+
+function getBatchStudentTodayStatus(student = {}, facultyRecords = [], savedAttendanceState = null, studentIndex = -1) {
+  const attendance = resolveStudentBatchAttendanceStatus(student, facultyRecords)
+  const resolvedStatus = String(attendance?.status || '').trim()
+
+  if (resolvedStatus === 'Present' || resolvedStatus === 'Absent') {
+    return {
+      label: resolvedStatus,
+      toneClass: resolvedStatus === 'Present' ? 'is-present' : 'is-absent',
+    }
+  }
+
+  const savedRecords = savedAttendanceState && typeof savedAttendanceState.records === 'object' && !Array.isArray(savedAttendanceState.records)
+    ? savedAttendanceState.records
+    : null
+  if (savedRecords) {
+    const recordKeys = [
+      String(student?.id || '').trim(),
+      String(student?.emailAddress || '').trim(),
+      String(student?.mobileNumber || '').trim(),
+      String(student?.studentName || '').trim(),
+    ].filter(Boolean)
+
+    for (const key of recordKeys) {
+      const recordStatus = String(savedRecords[key] || '').trim().toLowerCase()
+      if (recordStatus === 'present') return { label: 'Present', toneClass: 'is-present' }
+      if (recordStatus === 'absent') return { label: 'Absent', toneClass: 'is-absent' }
+    }
+
+    const orderedStatuses = Object.values(savedRecords)
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter((value) => value === 'present' || value === 'absent')
+
+    if (studentIndex >= 0 && studentIndex < orderedStatuses.length) {
+      const indexedStatus = orderedStatuses[studentIndex]
+      if (indexedStatus === 'present') return { label: 'Present', toneClass: 'is-present' }
+      if (indexedStatus === 'absent') return { label: 'Absent', toneClass: 'is-absent' }
+    }
+  }
+
+  return { label: 'Unmarked', toneClass: 'is-unmarked' }
 }
 
 function DetailRow({ label, value, tone = '', valueClassName = '', icon: Icon = UserRound, iconTone = 'blue' }) {
@@ -186,6 +233,35 @@ export function BatchStudentsPage() {
     () => getFacultyBatchEntryById(selectedFaculty || {}, batchId),
     [batchId, selectedFaculty],
   )
+  const savedBatchAttendanceState = useMemo(
+    () => {
+      const pageBatchId = String(selectedBatch?.id || batchId || '').trim().toLowerCase()
+      const pageBatchName = String(selectedBatch?.batchName || '').trim().toLowerCase()
+      const pageBatchTiming = String(selectedBatch?.batchTiming || '').trim().toLowerCase()
+      const allStates = [...listFacultyBatchAttendanceStates(), ...listFacultyBatchAttendanceHistoryStates()]
+
+      const candidates = allStates.filter((state) => {
+        const stateBatchId = String(state?.batchId || '').trim().toLowerCase()
+        const stateBatchName = String(state?.batchName || '').trim().toLowerCase()
+        const stateBatchTiming = String(state?.batchTiming || '').trim().toLowerCase()
+
+        return Boolean(
+          (pageBatchId && stateBatchId && pageBatchId === stateBatchId) ||
+            (pageBatchName && stateBatchName && pageBatchName === stateBatchName) ||
+            (pageBatchTiming && stateBatchTiming && pageBatchTiming === stateBatchTiming),
+        )
+      })
+
+      if (!candidates.length) return null
+
+      return candidates.sort((left, right) => {
+        const leftTime = Number(left?.updatedAt || 0) || 0
+        const rightTime = Number(right?.updatedAt || 0) || 0
+        return rightTime - leftTime
+      })[0] || null
+    },
+    [batchId, selectedBatch?.batchName, selectedBatch?.batchTiming, selectedBatch?.id],
+  )
 
   const courseName = selectedCourse?.name || getFacultyCourseName(courseId, courseOptions) || selectedCourse?.id || '-'
   const batchName = selectedBatch?.batchName || '-'
@@ -222,13 +298,13 @@ export function BatchStudentsPage() {
             batchTiming,
           })
 
-      return relaxedMatches.map((student) => ({
+      return relaxedMatches.map((student, index) => ({
         ...student,
         attendanceStatus: String(student?.attendanceStatus || 'UNMARKED').trim().toUpperCase(),
-        attendanceStatusLabel: String(student?.attendanceStatusLabel || student?.attendanceStatus || 'Unmarked').trim() || 'Unmarked',
+        ...getBatchStudentTodayStatus(student, facultyRecords, savedBatchAttendanceState, index),
       }))
     },
-    [backfilledStudents, batchId, batchName, batchTiming, courseId, courseName, selectedBatch, selectedFaculty],
+    [backfilledStudents, batchId, batchName, batchTiming, courseId, courseName, savedBatchAttendanceState, selectedBatch, selectedFaculty],
   )
   const visibleStudents = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase()
