@@ -21,19 +21,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
-import { loadStudentSnapshot } from '../lib/studentSnapshot'
 import { NotificationBell } from '../components/NotificationBell'
 import { getCurrentStudentAttendanceOverview } from '../services/attendanceService'
 import {
   FACULTY_ATTENDANCE_SYNC_EVENT,
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
   getAttendanceDateKey,
-  listFacultyBatchAttendanceHistoryStates,
-  resolveBatchAttendanceWindow,
   resolveStudentBatchAttendanceStatus,
   resolveTodayFacultyAttendanceStatus,
 } from '../lib/facultyAttendanceStore'
-import { getFacultyBatchStudentRecords } from '../lib/facultyFlow'
 import {
   formatCurrency,
   formatDate,
@@ -148,265 +144,6 @@ function endOfMonth(date) {
   next.setMonth(next.getMonth() + 1, 0)
   next.setHours(23, 59, 59, 999)
   return next
-}
-
-function getDaysInMonth(date) {
-  const year = date.getFullYear()
-  const month = date.getMonth()
-  return new Date(year, month + 1, 0).getDate()
-}
-
-function getAttendanceRecordKeys(student) {
-  const keys = new Set()
-  const values = [
-    student?.id,
-    student?.studentName,
-    student?.emailAddress,
-    student?.mobileNumber,
-  ]
-
-  values.forEach((value) => {
-    const normalizedValue = String(value || '').trim().toLowerCase()
-    if (normalizedValue) {
-      keys.add(normalizedValue)
-    }
-  })
-
-  return Array.from(keys)
-}
-
-function getMonthlyAttendanceStatus(state = {}, student = {}) {
-  const records = state?.records && typeof state.records === 'object' ? state.records : {}
-  const recordKeys = getAttendanceRecordKeys(student)
-
-  for (const key of recordKeys) {
-    const status = normalizeAttendanceDisplayStatus(records[key] || records[String(key).trim()] || '')
-    if (status === 'Present' || status === 'Absent') {
-      return status
-    }
-  }
-
-  return ''
-}
-
-function getMonthlyAttendanceStatusWithFallback(state = {}, student = {}, studentIndex = -1) {
-  const directStatus = getMonthlyAttendanceStatus(state, student)
-  if (directStatus) {
-    return directStatus
-  }
-
-  const records = state?.records && typeof state.records === 'object' && !Array.isArray(state.records) ? state.records : null
-  if (!records) return ''
-
-  const orderedStatuses = Object.values(records)
-    .map((value) => String(value || '').trim().toLowerCase())
-    .filter((value) => value === 'present' || value === 'absent')
-
-  if (studentIndex >= 0 && studentIndex < orderedStatuses.length) {
-    const indexedStatus = orderedStatuses[studentIndex]
-    if (indexedStatus === 'present') return 'Present'
-    if (indexedStatus === 'absent') return 'Absent'
-  }
-
-  return ''
-}
-
-function getMonthlyAttendanceMatchScore(state = {}, student = {}) {
-  const facultyName = String(state?.facultyName || '').trim().toLowerCase()
-  const studentFacultyName = String(student?.facultyName || '').trim().toLowerCase()
-  const facultyId = String(state?.facultyId || '').trim().toLowerCase()
-  const studentFacultyId = String(student?.facultyId || '').trim().toLowerCase()
-  const batchName = String(state?.batchName || '').trim().toLowerCase()
-  const batchTiming = String(state?.batchTiming || '').trim().toLowerCase()
-  const batchId = String(state?.batchId || '').trim().toLowerCase()
-  const studentBatchName = String(student?.batchName || student?.batch || '').trim().toLowerCase()
-  const studentBatchTiming = String(student?.batchTiming || student?.batchTime || '').trim().toLowerCase()
-  const studentBatchId = String(student?.batchId || '').trim().toLowerCase()
-  const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
-  const studentCourseName = String(student?.courseInterested || student?.courseName || student?.course?.name || '').trim().toLowerCase()
-  const stateCourseId = String(state?.courseId || '').trim().toLowerCase()
-  const stateCourseName = String(state?.courseName || '').trim().toLowerCase()
-
-  let score = 0
-
-  if (facultyId && studentFacultyId && facultyId === studentFacultyId) score += 100
-  if (facultyName && studentFacultyName && facultyName === studentFacultyName) score += 90
-  if (batchId && studentBatchId && batchId === studentBatchId) score += 80
-  if (batchName && studentBatchName && batchName === studentBatchName) score += 70
-  if (batchTiming && studentBatchTiming && batchTiming === studentBatchTiming) score += 60
-  if (stateCourseId && studentCourseId && stateCourseId === studentCourseId) score += 40
-  if (stateCourseName && studentCourseName && stateCourseName === studentCourseName) score += 30
-
-  return score
-}
-
-function getMonthlyAttendanceEntriesFromState(state = {}, student = {}, studentIndex = -1) {
-  const status = getMonthlyAttendanceStatusWithFallback(state, student, studentIndex)
-  const dateKey = String(state?.dateKey || '').trim()
-
-  if (!dateKey || (status !== 'Present' && status !== 'Absent')) {
-    return null
-  }
-
-  return {
-    dateKey,
-    status,
-    updatedAt: Number(state?.updatedAt || 0) || 0,
-    score: getMonthlyAttendanceMatchScore(state, student),
-  }
-}
-
-function getFacultyBatchStudentIndex(student = {}) {
-  const roster = getFacultyBatchStudentRecords(loadStudentSnapshot(), {
-    facultyId: student?.facultyId,
-    facultyName: student?.facultyName,
-    courseId: student?.courseId,
-    courseName: student?.courseInterested || student?.courseName || student?.course?.name,
-    batchId: student?.batchId || student?.batchEntryId,
-    batchName: student?.batchName || student?.batch,
-    batchTiming: student?.batchTiming || student?.batchTime,
-  })
-
-  const targetId = String(student?.id || '').trim().toLowerCase()
-  const targetEmail = String(student?.emailAddress || '').trim().toLowerCase()
-  const targetMobile = String(student?.mobileNumber || '').trim().toLowerCase()
-  const targetName = String(student?.studentName || '').trim().toLowerCase()
-
-  return roster.findIndex((candidate) => {
-    const candidateId = String(candidate?.id || '').trim().toLowerCase()
-    const candidateEmail = String(candidate?.emailAddress || '').trim().toLowerCase()
-    const candidateMobile = String(candidate?.mobileNumber || '').trim().toLowerCase()
-    const candidateName = String(candidate?.studentName || '').trim().toLowerCase()
-
-    return (
-      (targetId && candidateId && targetId === candidateId) ||
-      (targetEmail && candidateEmail && targetEmail === candidateEmail) ||
-      (targetMobile && candidateMobile && targetMobile === candidateMobile) ||
-      (targetName && candidateName && targetName === candidateName)
-    )
-  })
-}
-
-function buildMonthlyAttendanceSummary(student, attendanceEntries = [], currentAttendance = null, today = new Date()) {
-  const durationMonths = getCourseDurationMonths(student)
-  const admissionDate = parseDateValue(student?.admissionDate || student?.firstInstallmentDate || student?.createdAt) || today
-  const courseStartDate = startOfMonth(admissionDate)
-  const courseEndDate = endOfMonth(addMonths(courseStartDate, Math.max(durationMonths - 1, 0)))
-  const todayDateKey = getAttendanceDateKey(today)
-  const monthMap = new Map()
-
-  const normalizedEntries = Array.isArray(attendanceEntries)
-    ? attendanceEntries
-        .map((entry) => {
-          const dateKey = String(entry?.dateKey || '').trim()
-          const status = normalizeAttendanceDisplayStatus(entry?.status)
-          if (!dateKey || (status !== 'Present' && status !== 'Absent')) {
-            return null
-          }
-
-          return {
-            dateKey,
-            status,
-            updatedAt: Number(entry?.updatedAt || 0) || 0,
-            score: Number(entry?.score || 0) || 0,
-          }
-        })
-        .filter(Boolean)
-    : []
-
-  const sortedHistory = normalizedEntries
-    .sort((left, right) => {
-      if (right.score !== left.score) return right.score - left.score
-      return String(left.dateKey).localeCompare(String(right.dateKey))
-    })
-
-  sortedHistory.forEach((entry) => {
-    if (monthMap.has(entry.dateKey)) {
-      const existing = monthMap.get(entry.dateKey)
-      const existingScore = Number(existing?.score || 0)
-      const existingUpdatedAt = Number(existing?.updatedAt || 0)
-      const nextUpdatedAt = Number(entry.updatedAt || 0)
-      if (entry.score > existingScore || nextUpdatedAt >= existingUpdatedAt) {
-        monthMap.set(entry.dateKey, {
-          status: entry.status,
-          score: entry.score,
-          updatedAt: nextUpdatedAt,
-        })
-      }
-      return
-    }
-
-    monthMap.set(entry.dateKey, {
-      status: entry.status,
-      score: entry.score,
-      updatedAt: Number(entry.updatedAt || 0) || 0,
-    })
-  })
-
-  const currentStatus = normalizeAttendanceDisplayStatus(currentAttendance?.status)
-  const currentAttendanceDateKey = String(currentAttendance?.dateKey || '').trim()
-  if (currentAttendanceDateKey && (currentStatus === 'Present' || currentStatus === 'Absent') && !monthMap.has(currentAttendanceDateKey)) {
-    monthMap.set(currentAttendanceDateKey, {
-      status: currentStatus,
-      score: 999,
-      updatedAt: Number(currentAttendance?.updatedAt || 0) || 0,
-    })
-  }
-
-  const series = Array.from({ length: durationMonths }, (_, index) => {
-    const monthDate = addMonths(courseStartDate, index)
-    const monthStart = startOfMonth(monthDate)
-    const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
-    const totalDaysInMonth = getDaysInMonth(monthDate)
-    const inRangeEntries = Array.from(monthMap.entries()).filter(([dateKey]) => dateKey >= monthKey && dateKey <= `${monthKey}-31`)
-    const presentCount = inRangeEntries.filter(([, entry]) => entry?.status === 'Present').length
-    const absentCount = inRangeEntries.filter(([, entry]) => entry?.status === 'Absent').length
-    const markedCount = presentCount + absentCount
-    const value = markedCount > 0 ? Math.round((presentCount / totalDaysInMonth) * 100) : 0
-    const displayValue = markedCount > 0 ? `${value}%` : ''
-    const isFutureMonth = monthStart.getTime() > today.getTime()
-
-    return {
-      month: formatMonthYear(monthDate),
-      value,
-      displayValue,
-      markedCount,
-      presentCount,
-      absentCount,
-      isFutureMonth,
-      hasData: markedCount > 0,
-      dateKey: monthKey,
-      isCurrentMonth: monthKey === todayDateKey.slice(0, 7),
-    }
-  })
-
-  const rangeStart = formatMonthYear(courseStartDate)
-  const rangeEnd = formatMonthYear(courseEndDate)
-
-  return {
-    durationMonths,
-    rangeLabel: rangeStart === rangeEnd ? rangeStart : `${rangeStart} - ${rangeEnd}`,
-    series,
-  }
-}
-
-function mergeAttendanceEntries(...entryGroups) {
-  const mergedEntries = new Map()
-
-  entryGroups.flat().forEach((entry) => {
-    if (!entry?.dateKey) return
-
-    const existing = mergedEntries.get(entry.dateKey)
-    if (
-      !existing ||
-      Number(entry.score || 0) > Number(existing.score || 0) ||
-      Number(entry.updatedAt || 0) >= Number(existing.updatedAt || 0)
-    ) {
-      mergedEntries.set(entry.dateKey, entry)
-    }
-  })
-
-  return Array.from(mergedEntries.values())
 }
 
 function getStudentGreetingName(studentName) {
@@ -735,10 +472,68 @@ function buildWeeklyOverviewFromBackend(weeklyOverview = null, today = new Date(
   }
 }
 
-function StudentMonthlyAttendanceChart({ student, studentAttendanceStatus, monthlyAttendance, weeklyOverview }) {
+function buildMonthlyOverviewFromBackend(student, monthlySeries = null) {
+  const backendSeries = Array.isArray(monthlySeries) ? monthlySeries : []
+  const durationMonths = getCourseDurationMonths(student)
+  const admissionDate = parseDateValue(student?.admissionDate || student?.firstInstallmentDate || student?.createdAt) || new Date()
+  const courseStartDate = startOfMonth(admissionDate)
+  const courseEndDate = endOfMonth(addMonths(courseStartDate, Math.max(durationMonths - 1, 0)))
+
+  if (backendSeries.length) {
+    return {
+      durationMonths: backendSeries.length,
+      rangeLabel:
+        formatMonthYear(courseStartDate) === formatMonthYear(courseEndDate)
+          ? formatMonthYear(courseStartDate)
+          : `${formatMonthYear(courseStartDate)} - ${formatMonthYear(courseEndDate)}`,
+      series: backendSeries.map((item) => {
+        const value = Math.max(0, Number(item?.value || 0) || 0)
+        const month = String(item?.month || item?.label || '').trim()
+
+        return {
+          month,
+          value,
+          displayValue: `${value}%`,
+          markedCount: value > 0 ? 1 : 0,
+          presentCount: value > 0 ? 1 : 0,
+          absentCount: 0,
+          isFutureMonth: false,
+          hasData: true,
+          dateKey: '',
+          isCurrentMonth: false,
+        }
+      }),
+    }
+  }
+
+  return {
+    durationMonths,
+    rangeLabel:
+      formatMonthYear(courseStartDate) === formatMonthYear(courseEndDate)
+        ? formatMonthYear(courseStartDate)
+        : `${formatMonthYear(courseStartDate)} - ${formatMonthYear(courseEndDate)}`,
+    series: Array.from({ length: durationMonths }, (_, index) => {
+      const monthDate = addMonths(courseStartDate, index)
+      return {
+        month: formatMonthYear(monthDate),
+        value: 0,
+        displayValue: '0%',
+        markedCount: 0,
+        presentCount: 0,
+        absentCount: 0,
+        isFutureMonth: monthDate.getTime() > Date.now(),
+        hasData: false,
+        dateKey: '',
+        isCurrentMonth: false,
+      }
+    }),
+  }
+}
+
+function StudentMonthlyAttendanceChart({ student, monthlySeries, weeklyOverview }) {
   const attendance = useMemo(
-    () => monthlyAttendance || buildMonthlyAttendanceSummary(student, [], studentAttendanceStatus),
-    [monthlyAttendance, student, studentAttendanceStatus],
+    () => buildMonthlyOverviewFromBackend(student, monthlySeries),
+    [monthlySeries, student],
   )
   const weekly = useMemo(
     () => buildWeeklyOverviewFromBackend(weeklyOverview),
@@ -1075,28 +870,6 @@ function StudentDashboardContent({ dashboard }) {
   const attendanceRefreshToken = useFacultyAttendanceRefreshToken()
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [studentTodayAttendance, setStudentTodayAttendance] = useState(null)
-  const [studentMonthlyAttendanceEntries, setStudentMonthlyAttendanceEntries] = useState([])
-  const currentBatchWindow = useMemo(
-    () => resolveBatchAttendanceWindow(latestStudent?.batchTiming || latestStudent?.batchTime || ''),
-    [latestStudent?.batchTiming, latestStudent?.batchTime],
-  )
-  const batchStudentIndex = useMemo(
-    () => (latestStudent ? getFacultyBatchStudentIndex(latestStudent) : -1),
-    [latestStudent],
-  )
-
-  const studentLocalAttendanceEntries = useMemo(() => {
-    if (!latestStudent) return []
-
-    return listFacultyBatchAttendanceHistoryStates()
-      .map((state) => getMonthlyAttendanceEntriesFromState(state, latestStudent, batchStudentIndex))
-      .filter(Boolean)
-  }, [batchStudentIndex, latestStudent])
-
-  const studentAttendanceEntries = useMemo(
-    () => mergeAttendanceEntries(studentLocalAttendanceEntries, studentMonthlyAttendanceEntries),
-    [studentLocalAttendanceEntries, studentMonthlyAttendanceEntries],
-  )
 
   useEffect(() => {
     let active = true
@@ -1117,72 +890,6 @@ function StudentDashboardContent({ dashboard }) {
         if (!active) return
         setStudentTodayAttendance(null)
       }
-    }
-
-    void run()
-
-    return () => {
-      active = false
-    }
-  }, [attendanceRefreshToken, latestStudent])
-
-  useEffect(() => {
-    let active = true
-
-    const run = async () => {
-      if (!latestStudent) {
-        if (active) {
-          setStudentMonthlyAttendanceEntries([])
-        }
-        return
-      }
-
-      const durationMonths = getCourseDurationMonths(latestStudent)
-      const admissionDate = parseDateValue(latestStudent?.admissionDate || latestStudent?.firstInstallmentDate || latestStudent?.createdAt) || new Date()
-      const courseStartDate = startOfMonth(admissionDate)
-      const today = new Date()
-      const todayKey = getAttendanceDateKey(today)
-
-      const monthDates = Array.from({ length: durationMonths }, (_, index) => addMonths(courseStartDate, index))
-        .filter((monthDate) => monthDate.getTime() <= today.getTime())
-
-      const apiEntries = []
-
-      for (const monthDate of monthDates) {
-        const monthEnd = endOfMonth(monthDate)
-        const rangeEnd = monthEnd.getTime() > today.getTime() ? today : monthEnd
-        const dayCount = Math.max(1, Math.ceil((rangeEnd.getTime() - startOfMonth(monthDate).getTime()) / (24 * 60 * 60 * 1000)) + 1)
-
-        for (let offset = 0; offset < dayCount; offset += 1) {
-          const date = new Date(startOfMonth(monthDate))
-          date.setDate(date.getDate() + offset)
-          const dateKey = getAttendanceDateKey(date)
-
-          if (dateKey > todayKey) {
-            continue
-          }
-
-          try {
-            const result = await getCurrentStudentAttendanceOverview(dateKey)
-            const normalizedStatus = normalizeAttendanceDisplayStatus(result?.status)
-
-            if (normalizedStatus === 'Present' || normalizedStatus === 'Absent') {
-              apiEntries.push({
-                dateKey,
-                status: normalizedStatus,
-                updatedAt: Number(result?.updatedAt || 0) || 0,
-                score: 1000,
-              })
-            }
-          } catch {
-            // Ignore day-level fetch failures and keep building the rest of the chart.
-          }
-        }
-      }
-
-      if (!active) return
-
-      setStudentMonthlyAttendanceEntries(apiEntries)
     }
 
     void run()
@@ -1216,90 +923,6 @@ function StudentDashboardContent({ dashboard }) {
       }
     }
   }, [latestStudent])
-
-  const studentBatchAttendance = useMemo(() => {
-    try {
-      return resolveStudentBatchAttendanceStatus(latestStudent || {}, facultyRecords)
-    } catch {
-      return null
-    }
-  }, [facultyRecords, latestStudent])
-
-  const studentAttendance = useMemo(() => {
-    try {
-      const apiAttendanceStatus = normalizeAttendanceDisplayStatus(studentTodayAttendance?.status)
-      const currentDayAttendance =
-        currentBatchWindow.phase === 'pre-open'
-          ? 'Unmarked'
-          : apiAttendanceStatus === 'Present' || apiAttendanceStatus === 'Absent'
-            ? apiAttendanceStatus
-            : 'Unmarked'
-
-      const attendanceFallbackStatus = getMonthlyAttendanceStatusWithFallback(
-        studentAttendanceEntries.find((entry) => entry.dateKey === getAttendanceDateKey()),
-        latestStudent,
-        batchStudentIndex,
-      )
-
-      const apiAttendance =
-        currentDayAttendance === 'Present' || currentDayAttendance === 'Absent'
-          ? {
-              ...studentTodayAttendance,
-              status: currentDayAttendance,
-            }
-          : null
-
-      const batchAttendance =
-        attendanceFallbackStatus === 'Present' || attendanceFallbackStatus === 'Absent'
-          ? {
-              status: attendanceFallbackStatus,
-              reason: 'Attendance was resolved from saved batch history.',
-              facultyName: latestStudent?.facultyName || '-',
-              batchName: latestStudent?.batchName || latestStudent?.batch || '-',
-              batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
-              dateKey: getAttendanceDateKey(),
-              updatedAt: null,
-              records: {},
-            }
-          : null
-
-      return (
-        preferAttendanceState(studentBatchAttendance, batchAttendance, apiAttendance) || {
-          status: 'Unmarked',
-          reason: 'Attendance has not been marked yet.',
-          facultyName: latestStudent?.facultyName || '-',
-          batchName: latestStudent?.batchName || latestStudent?.batch || '-',
-          batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
-          dateKey: getAttendanceDateKey(),
-          updatedAt: null,
-          records: {},
-        }
-      )
-    } catch {
-      return {
-        status: 'Absent',
-        reason: 'Attendance data could not be loaded.',
-        facultyName: latestStudent?.facultyName || '-',
-        batchName: latestStudent?.batchName || latestStudent?.batch || '-',
-        batchTiming: latestStudent?.batchTiming || latestStudent?.batchTime || '',
-        dateKey: getAttendanceDateKey(),
-        updatedAt: null,
-        records: {},
-      }
-    }
-  }, [
-    currentBatchWindow.phase,
-    batchStudentIndex,
-    latestStudent,
-    studentBatchAttendance,
-    studentAttendanceEntries,
-    studentTodayAttendance,
-  ])
-
-  const monthlyAttendance = useMemo(
-    () => buildMonthlyAttendanceSummary(latestStudent, studentAttendanceEntries, studentAttendance),
-    [latestStudent, studentAttendance, studentAttendanceEntries],
-  )
 
   if (isLoading) {
     return (
@@ -1401,8 +1024,7 @@ function StudentDashboardContent({ dashboard }) {
 
       <StudentMonthlyAttendanceChart
         student={latestStudent}
-        studentAttendanceStatus={studentAttendance}
-        monthlyAttendance={monthlyAttendance}
+        monthlySeries={studentTodayAttendance?.monthlySeries || null}
         weeklyOverview={studentTodayAttendance?.weeklyOverview || null}
       />
 
