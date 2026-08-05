@@ -510,13 +510,13 @@ function FacultyStatusIcon({ status }) {
   )
 }
 
-function StudentDashboardHeader({ studentName, facultyAttendanceStatus, onProfileClick }) {
+function StudentDashboardHeader({ studentName, facultyName, facultyAttendanceStatus, onProfileClick }) {
   const greetingName = getStudentGreetingName(studentName)
   const greetingLabel = getStudentGreetingLabel()
   const profileName = studentName || 'Student'
   const profileInitials = getStudentInitials(profileName)
   const statusLabel = facultyAttendanceStatus?.status || 'Absent'
-  const facultyName = String(facultyAttendanceStatus?.facultyName || 'HEMA').trim() || 'HEMA'
+  const mentorName = String(facultyName || facultyAttendanceStatus?.facultyName || 'Not assigned').trim() || 'Not assigned'
   const badgeLabel = statusLabel === 'Present' ? 'Present' : statusLabel === 'Unmarked' ? 'Unmarked' : 'Absent'
 
   return (
@@ -536,7 +536,7 @@ function StudentDashboardHeader({ studentName, facultyAttendanceStatus, onProfil
             <FacultyStatusIcon status={statusLabel} />
           </div>
           <div className="student-faculty-status-copy">
-            <strong>{facultyName}</strong>
+            <strong>{mentorName}</strong>
             <span>Faculty Mentor</span>
             <span className={`student-faculty-status-pill ${getAttendanceStatusTone(statusLabel)}`.trim()}>{badgeLabel}</span>
           </div>
@@ -1312,7 +1312,7 @@ function StudentDashboardContent({ dashboard }) {
   if (isLoading) {
     return (
       <section className="student-dashboard-page">
-        <StudentDashboardHeader studentName={null} facultyAttendanceStatus={null} onProfileClick={null} />
+        <StudentDashboardHeader studentName={null} facultyName={null} facultyAttendanceStatus={null} onProfileClick={null} />
         <article className="panel-card student-dashboard-empty">
           <p className="eyebrow">Student Dashboard</p>
           <h2>{dashboard.title}</h2>
@@ -1329,7 +1329,7 @@ function StudentDashboardContent({ dashboard }) {
   if (!latestStudent) {
     return (
       <section className="student-dashboard-page">
-        <StudentDashboardHeader studentName={null} facultyAttendanceStatus={null} onProfileClick={null} />
+        <StudentDashboardHeader studentName={null} facultyName={null} facultyAttendanceStatus={null} onProfileClick={null} />
         <article className="panel-card student-dashboard-empty">
           <p className="eyebrow">Student Dashboard</p>
           <h2>{dashboard.title}</h2>
@@ -1385,6 +1385,7 @@ function StudentDashboardContent({ dashboard }) {
     <section className="student-dashboard-page">
       <StudentDashboardHeader
         studentName={latestStudent.studentName}
+        facultyName={latestStudent.facultyName}
         facultyAttendanceStatus={facultyAttendance}
         onProfileClick={() => setIsProfileOpen(true)}
       />
