@@ -94,7 +94,7 @@ export function ProfileDrawer({
   if (!isOpen || typeof document === 'undefined') return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[1210] flex items-stretch justify-end bg-slate-950/50 px-0 backdrop-blur-[6px]" role="presentation" onClick={() => onClose?.()}>
+    <div className="fixed inset-0 z-[1210] flex items-stretch justify-end bg-slate-950/50 px-0 backdrop-blur-[6px]" role="presentation">
       <div
         className={`flex h-[calc(100dvh-12px)] w-full min-w-0 flex-col overflow-hidden bg-white shadow-[-24px_0_90px_rgba(15,23,42,0.28)] sm:h-[calc(100vh-24px)] sm:w-[400px] md:w-[420px] lg:h-[calc(100vh-36px)] lg:w-[440px] xl:h-[calc(100vh-40px)] xl:w-[460px] 2xl:h-[calc(100vh-44px)] 2xl:w-[500px] min-[1440px]:h-[calc(100vh-48px)] min-[1600px]:h-[calc(100vh-54px)] min-[1920px]:h-[calc(100vh-58px)] min-[2560px]:h-[calc(100vh-64px)] sm:flex-none sm:rounded-l-[28px] sm:border sm:border-slate-200 sm:border-r-0 ${className}`.trim()}
         role="dialog"
