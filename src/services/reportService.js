@@ -41,8 +41,15 @@ export async function downloadStudentAttendanceReport(query = {}) {
   return downloadReport('/reports/student-attendance', query, 'student-attendance-report.xlsx')
 }
 
-export async function downloadBatchAttendanceReport(query = {}) {
-  return downloadReport('/reports/batch-attendance', query, 'batch-attendance-report.xlsx')
+export async function downloadCourseAttendanceReport(query = {}) {
+  return downloadReport('/reports/batch-attendance', query, 'course-attendance-report.xlsx')
+}
+
+export async function downloadBatchAttendanceReport(
+  query = {},
+  fileName = 'batch-attendance-report.xlsx',
+) {
+  return downloadReport('/reports/batch-attendance', query, fileName)
 }
 
 export async function downloadFacultyAttendanceReport(query = {}) {
