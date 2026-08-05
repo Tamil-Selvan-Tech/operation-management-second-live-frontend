@@ -20,7 +20,7 @@ const configuredApiBaseUrl = String(import.meta.env.VITE_API_BASE_URL || '').tri
 const runtimeApiBaseUrl = buildRuntimeApiBaseUrl()
 const isLocalRuntime = typeof window !== 'undefined' && isLocalhostLike(window.location?.hostname)
 const productionApiBaseUrl = 'https://cispro-operation-management-backend-m07q.onrender.com/api/v1'
-const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 20000)
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 45000)
 
 export const API_BASE_URL =
   configuredApiBaseUrl || (isLocalRuntime ? runtimeApiBaseUrl : productionApiBaseUrl)
@@ -237,6 +237,20 @@ export async function resetPassword({ token, password }) {
     skipAuth: true,
     body: JSON.stringify({ token, password }),
   })
+}
+
+export async function warmBackendConnection() {
+  try {
+    await fetch(`${API_BASE_URL}/health`, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+    })
+  } catch {
+    return null
+  }
+
+  return true
 }
 
 export async function requestBlob(path, options = {}, retryCount = 0) {

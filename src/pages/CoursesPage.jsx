@@ -5,13 +5,7 @@ import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
-import {
-  createCourse,
-  deleteCourse,
-  findDuplicateCourse,
-  listCourses,
-  updateCourse,
-} from '../services/courseService'
+import { createCourse, deleteCourse, listCourses, peekCourseList, updateCourse } from '../services/courseService'
 import { saveCourseRecords } from '../data/courseRecords'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { Eye, MoreVertical, PencilLine, Trash2 } from 'lucide-react'
@@ -61,6 +55,12 @@ const requiredFieldLabels = {
 }
 
 const MAX_INSTALLMENT_FIELDS = 12
+const DEFAULT_COURSE_LIST_QUERY = Object.freeze({
+  page: 1,
+  limit: 5,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+})
 
 function normalizeInstallmentCount(value) {
   const amount = Number(value)
@@ -172,12 +172,13 @@ function isDuplicateCourseError(error) {
 export function CoursesPage() {
   const { role } = useAuth()
   const openMenu = useMobileMenu()
+  const initialCourseList = peekCourseList(DEFAULT_COURSE_LIST_QUERY)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [courses, setCourses] = useState([])
-  const [pagination, setPagination] = useState({
+  const [courses, setCourses] = useState(() => initialCourseList?.data || [])
+  const [pagination, setPagination] = useState(() => initialCourseList?.meta || {
     page: 1,
     limit: 5,
-    total: 0,
+    total: initialCourseList?.data?.length || 0,
     totalPages: 1,
   })
   const [searchTerm, setSearchTerm] = useState('')
@@ -211,7 +212,7 @@ export function CoursesPage() {
   const [touched, setTouched] = useState({})
   const [saveError, setSaveError] = useState('')
   const [loadError, setLoadError] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(() => !initialCourseList)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [duplicateNameError, setDuplicateNameError] = useState('')
@@ -314,25 +315,31 @@ export function CoursesPage() {
   const loadCourses = useCallback(
     async ({ page = currentPage, search = searchTerm, filter = activeFilter } = {}) => {
       const requestId = ++requestIdRef.current
-      setIsLoading(true)
+      const query = {
+        page,
+        limit: pageSize,
+        search,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      }
+
+      if (filter === 'Active' || filter === 'Inactive') {
+        query.status = filter
+      }
+
+      if (filter === 'Online' || filter === 'Offline') {
+        query.mode = filter
+      }
+
+      const cachedResult = peekCourseList(query)
+
+      if (!cachedResult && !courses.length) {
+        setIsLoading(true)
+      }
+
       setLoadError('')
 
       try {
-        const query = {
-          page,
-          limit: pageSize,
-          search,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
-        }
-
-        if (filter === 'Active' || filter === 'Inactive') {
-          query.status = filter
-        }
-
-        if (filter === 'Online' || filter === 'Offline') {
-          query.mode = filter
-        }
 
         const result = await listCourses(query)
 
@@ -359,15 +366,11 @@ export function CoursesPage() {
         }
       }
     },
-    [activeFilter, currentPage, pageSize, searchTerm],
+    [activeFilter, courses.length, currentPage, pageSize, searchTerm],
   )
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
+    void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
   }, [activeFilter, currentPage, loadCourses, searchTerm])
 
   useEffect(() => {

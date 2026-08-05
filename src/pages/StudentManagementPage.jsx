@@ -32,10 +32,10 @@ import { roleDashboards } from '../data/authData'
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT } from '../data/courseRecords'
-import { listCourses } from '../services/courseService'
-import { listFacultyRecords, normalizeFacultyList } from '../services/facultyService'
+import { listCourses, peekCourseList } from '../services/courseService'
+import { listFacultyRecords, normalizeFacultyList, peekFacultyList } from '../services/facultyService'
 import { downloadBatchAttendanceReport, downloadStudentAttendanceReport } from '../services/reportService'
-import { createStudent, deleteStudent, listStudents, updateStudent } from '../services/studentService'
+import { createStudent, deleteStudent, listStudents, peekStudentList, updateStudent } from '../services/studentService'
 import { savePendingLoginEmail } from '../lib/session'
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
 import { FACULTY_BATCH_ATTENDANCE_SYNC_EVENT, resolveStudentBatchAttendanceStatus } from '../lib/facultyAttendanceStore'
@@ -47,6 +47,12 @@ const recordStatusOptions = ['Active', 'Inactive']
 const paymentModeOptions = ['Installment', 'Full Payment']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
 const MAX_INSTALLMENT_FIELDS = 12
+const DEFAULT_LARGE_LIST_QUERY = Object.freeze({
+  page: 1,
+  limit: 100,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+})
 const studentWizardSteps = [
   {
     key: 'basic',
@@ -180,10 +186,10 @@ function diffInDays(a, b) {
 function hasThirdInstallment(student = null, course = null) {
   return Boolean(
     student?.installment3 ||
-      student?.thirdInstallmentAmount ||
-      student?.thirdDueDate ||
-      String(course?.installmentCount ?? student?.course?.installmentCount ?? '') === '3' ||
-      String(course?.installment3 ?? student?.course?.installment3 ?? '') !== '',
+    student?.thirdInstallmentAmount ||
+    student?.thirdDueDate ||
+    String(course?.installmentCount ?? student?.course?.installmentCount ?? '') === '3' ||
+    String(course?.installment3 ?? student?.course?.installment3 ?? '') !== '',
   )
 }
 
@@ -192,10 +198,10 @@ function hasFourthInstallment(student = null, course = null) {
 
   return Boolean(
     student?.installment4 ||
-      student?.fourthInstallmentAmount ||
-      student?.fourthDueDate ||
-      courseInstallmentCount >= 4 ||
-      String(course?.installment4 ?? student?.course?.installment4 ?? '') !== '',
+    student?.fourthInstallmentAmount ||
+    student?.fourthDueDate ||
+    courseInstallmentCount >= 4 ||
+    String(course?.installment4 ?? student?.course?.installment4 ?? '') !== '',
   )
 }
 
@@ -980,7 +986,7 @@ function AttendanceReportModal({
           ) : null}
 
           <div className="course-form-grid student-form-grid student-form-grid-tight attendance-report-grid">
-              <Field
+            <Field
               label="From Date"
               required
               icon={<FieldIcon kind="calendar" />}
@@ -993,7 +999,7 @@ function AttendanceReportModal({
               />
             </Field>
 
-              <Field
+            <Field
               label="To Date"
               required
               icon={<FieldIcon kind="calendar" />}
@@ -1100,13 +1106,47 @@ export function StudentManagementPage() {
   const openMenu = useMobileMenu()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [students, setStudents] = useState(() => loadStudentSnapshot())
-  const [courseOptions, setCourseOptions] = useState([])
-  const [facultyOptions, setFacultyOptions] = useState([])
+  const initialStudentList = peekStudentList(DEFAULT_LARGE_LIST_QUERY)
+  const initialCourseList = peekCourseList(DEFAULT_LARGE_LIST_QUERY)
+  const initialFacultyList = peekFacultyList(DEFAULT_LARGE_LIST_QUERY)
+  const [students, setStudents] = useState(() =>
+    initialStudentList?.data?.length ? mergeStudentsWithSnapshot(initialStudentList.data) : loadStudentSnapshot(),
+  )
+  const [courseOptions, setCourseOptions] = useState(() => {
+    const cachedCourses = Array.isArray(initialCourseList?.data) ? initialCourseList.data : []
+    return cachedCourses.length
+      ? Array.from(
+        new Map(
+          cachedCourses
+            .map((course) => {
+              const id = String(course?.id || '').trim()
+              const name = String(course?.name || '').trim()
+              if (!id || !name) return null
+
+              return [
+                id,
+                {
+                  id,
+                  name,
+                  actualFees: course?.actualFees ?? '',
+                  registrationFees: course?.registrationFees ?? '',
+                  discount: course?.discount ?? '',
+                  afterDiscount: course?.afterDiscount ?? '',
+                  installmentCount: course?.installmentCount ?? '',
+                  installments: getCourseInstallmentValues(course),
+                },
+              ]
+            })
+            .filter(Boolean),
+        ).values(),
+      )
+      : []
+  })
+  const [facultyOptions, setFacultyOptions] = useState(() => Array.isArray(initialFacultyList?.data) ? initialFacultyList.data : [])
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isStudentsLoading, setIsStudentsLoading] = useState(true)
-  const [isCoursesLoading, setIsCoursesLoading] = useState(true)
-  const [isFacultyLoading, setIsFacultyLoading] = useState(true)
+  const [isStudentsLoading, setIsStudentsLoading] = useState(() => !initialStudentList && !loadStudentSnapshot().length)
+  const [isCoursesLoading, setIsCoursesLoading] = useState(() => !initialCourseList)
+  const [isFacultyLoading, setIsFacultyLoading] = useState(() => !initialFacultyList)
   const [form, setForm] = useState(createEmptyForm)
   const [passedOutYearMode, setPassedOutYearMode] = useState('select')
   const [submitted, setSubmitted] = useState(false)
@@ -1313,15 +1353,15 @@ export function StudentManagementPage() {
         ? [attendanceReportStudent]
         : []
       : getMatchingStudents(studentsWithAttendance, {
-          courseId: attendanceReportForm.courseId,
-          courseName:
-            courseOptions.find((course) => String(course?.id || '').trim() === String(attendanceReportForm.courseId || '').trim())
-              ?.name || '',
-          batchId: attendanceReportUsesAllBatches ? '' : attendanceReportSelectedBatchId,
-          batchName: attendanceReportUsesAllBatches
-            ? 'All Batches'
-            : reportBatchOptions.find((batch) => String(batch.value || '').trim() === attendanceReportSelectedBatchId)?.batchName || '',
-        })
+        courseId: attendanceReportForm.courseId,
+        courseName:
+          courseOptions.find((course) => String(course?.id || '').trim() === String(attendanceReportForm.courseId || '').trim())
+            ?.name || '',
+        batchId: attendanceReportUsesAllBatches ? '' : attendanceReportSelectedBatchId,
+        batchName: attendanceReportUsesAllBatches
+          ? 'All Batches'
+          : reportBatchOptions.find((batch) => String(batch.value || '').trim() === attendanceReportSelectedBatchId)?.batchName || '',
+      })
   const attendanceReportValidationErrors = useMemo(() => {
     const nextErrors = {}
 
@@ -1346,13 +1386,13 @@ export function StudentManagementPage() {
       !courseFilterId && !facultyFilterId && !batchFilterId
         ? studentsWithAttendance
         : getMatchingStudents(studentsWithAttendance, {
-            facultyId: facultyFilterId,
-            facultyName: selectedFacultyFilter?.facultyName || '',
-            courseId: courseFilterId,
-            courseName: selectedCourseFilter?.name || getFacultyCourseName(courseFilterId, courseOptions) || '',
-            batchId: batchFilterId,
-            batchName: selectedBatchFilter?.batchName || '',
-          })
+          facultyId: facultyFilterId,
+          facultyName: selectedFacultyFilter?.facultyName || '',
+          courseId: courseFilterId,
+          courseName: selectedCourseFilter?.name || getFacultyCourseName(courseFilterId, courseOptions) || '',
+          batchId: batchFilterId,
+          batchName: selectedBatchFilter?.batchName || '',
+        })
 
     const normalizedSearch = searchQuery.trim().toLowerCase()
     if (!normalizedSearch) return baseMatches
@@ -1404,10 +1444,13 @@ export function StudentManagementPage() {
     return filteredStudents.slice(start, start + studentsPerPage)
   }, [currentPageSafe, filteredStudents])
   const loadStudents = async ({ silent = false } = {}) => {
-    setIsStudentsLoading(true)
+    const cachedStudents = peekStudentList(DEFAULT_LARGE_LIST_QUERY)
+    if (!silent && !cachedStudents && !students.length) {
+      setIsStudentsLoading(true)
+    }
 
     try {
-      const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const result = await listStudents(DEFAULT_LARGE_LIST_QUERY)
       const nextStudents = mergeStudentsWithSnapshot(result.data)
       saveStudentSnapshot(nextStudents)
       setStudents(nextStudents.length ? nextStudents : loadStudentSnapshot())
@@ -1425,10 +1468,13 @@ export function StudentManagementPage() {
   }
 
   const loadCourseOptions = async () => {
-    setIsCoursesLoading(true)
+    const cachedCourses = peekCourseList(DEFAULT_LARGE_LIST_QUERY)
+    if (!cachedCourses && !courseOptions.length) {
+      setIsCoursesLoading(true)
+    }
 
     try {
-      const result = await listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const result = await listCourses(DEFAULT_LARGE_LIST_QUERY)
       const normalizedCourses = Array.from(
         new Map(
           (result.data || [])
@@ -1466,10 +1512,13 @@ export function StudentManagementPage() {
   }
 
   const loadFacultyOptions = async () => {
-    setIsFacultyLoading(true)
+    const cachedFaculty = peekFacultyList(DEFAULT_LARGE_LIST_QUERY)
+    if (!cachedFaculty && !facultyOptions.length) {
+      setIsFacultyLoading(true)
+    }
 
     try {
-      const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const result = await listFacultyRecords(DEFAULT_LARGE_LIST_QUERY)
       const normalizedFaculty = Array.from(
         new Map(
           (result.data || [])
@@ -1488,13 +1537,13 @@ export function StudentManagementPage() {
                   courseId,
                   batchEntries: Array.isArray(faculty?.batchEntries)
                     ? faculty.batchEntries
-                        .map((entry) => ({
-                          id: String(entry?.id || '').trim(),
-                          courseId: String(entry?.courseId || faculty?.courseId || '').trim(),
-                          batchName: String(entry?.batchName || '').trim(),
-                          batchTiming: String(entry?.batchTiming || '').trim(),
-                        }))
-                        .filter((entry) => entry.batchName)
+                      .map((entry) => ({
+                        id: String(entry?.id || '').trim(),
+                        courseId: String(entry?.courseId || faculty?.courseId || '').trim(),
+                        batchName: String(entry?.batchName || '').trim(),
+                        batchTiming: String(entry?.batchTiming || '').trim(),
+                      }))
+                      .filter((entry) => entry.batchName)
                     : [],
                 },
               ]
@@ -1524,13 +1573,13 @@ export function StudentManagementPage() {
                   courseId,
                   batchEntries: Array.isArray(faculty?.batchEntries)
                     ? faculty.batchEntries
-                        .map((entry) => ({
-                          id: String(entry?.id || '').trim(),
-                          courseId: String(entry?.courseId || faculty?.courseId || '').trim(),
-                          batchName: String(entry?.batchName || '').trim(),
-                          batchTiming: String(entry?.batchTiming || '').trim(),
-                        }))
-                        .filter((entry) => entry.batchName)
+                      .map((entry) => ({
+                        id: String(entry?.id || '').trim(),
+                        courseId: String(entry?.courseId || faculty?.courseId || '').trim(),
+                        batchName: String(entry?.batchName || '').trim(),
+                        batchTiming: String(entry?.batchTiming || '').trim(),
+                      }))
+                      .filter((entry) => entry.batchName)
                     : [],
                 },
               ]
@@ -1547,11 +1596,7 @@ export function StudentManagementPage() {
   }
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
+    void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
   }, [])
 
   useEffect(() => {
@@ -1883,19 +1928,43 @@ export function StudentManagementPage() {
           throw new Error('Please select a course before downloading all batches attendance report.')
         }
 
-        await downloadBatchAttendanceReport({
-          batchId: attendanceReportUsesAllBatches ? '' : attendanceReportSelectedBatchId,
-          batchName:
-            attendanceReportUsesAllBatches
+        // await downloadBatchAttendanceReport({
+        //   batchId: attendanceReportUsesAllBatches ? '' : attendanceReportSelectedBatchId,
+        //   batchName:
+        //     attendanceReportUsesAllBatches
+        //       ? ''
+        //       : reportBatchOptions.find((batch) => String(batch.value || '').trim() === attendanceReportSelectedBatchId)?.batchName ||
+        //         attendanceReportTargetStudents[0]?.batchName ||
+        //         attendanceReportTargetStudents[0]?.batch ||
+        //         '',
+        //   courseId: courseIdForDownload,
+        //   fromDate: attendanceReportForm.fromDate,
+        //   toDate: attendanceReportForm.toDate,
+        // })
+        const isAllBatch =
+          !attendanceReportSelectedBatchId ||
+          attendanceReportSelectedBatchId === 'all'
+
+        await downloadBatchAttendanceReport(
+          {
+            batchId: isAllBatch ? '' : attendanceReportSelectedBatchId,
+            batchName: isAllBatch
               ? ''
-              : reportBatchOptions.find((batch) => String(batch.value || '').trim() === attendanceReportSelectedBatchId)?.batchName ||
-                attendanceReportTargetStudents[0]?.batchName ||
-                attendanceReportTargetStudents[0]?.batch ||
-                '',
-          courseId: courseIdForDownload,
-          fromDate: attendanceReportForm.fromDate,
-          toDate: attendanceReportForm.toDate,
-        })
+              : reportBatchOptions.find(
+                (batch) =>
+                  String(batch.value || '').trim() === attendanceReportSelectedBatchId,
+              )?.batchName ||
+              attendanceReportTargetStudents[0]?.batchName ||
+              attendanceReportTargetStudents[0]?.batch ||
+              '',
+            courseId: courseIdForDownload,
+            fromDate: attendanceReportForm.fromDate,
+            toDate: attendanceReportForm.toDate,
+          },
+          isAllBatch
+            ? 'course-attendance-report.xlsx'
+            : 'batch-attendance-report.xlsx',
+        )
       }
 
       setAttendanceReportError('')
@@ -1944,17 +2013,10 @@ export function StudentManagementPage() {
       void loadCourseOptions()
     }
 
-    const timeoutId = window.setTimeout(() => {
-      void loadCourseOptions()
-    }, 0)
-
     window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
-    window.addEventListener('storage', syncCourseOptions)
 
     return () => {
-      window.clearTimeout(timeoutId)
       window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourseOptions)
-      window.removeEventListener('storage', syncCourseOptions)
     }
   }, [])
 
@@ -1964,11 +2026,9 @@ export function StudentManagementPage() {
     }
 
     window.addEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyOptions)
-    window.addEventListener('storage', syncFacultyOptions)
 
     return () => {
       window.removeEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyOptions)
-      window.removeEventListener('storage', syncFacultyOptions)
     }
   }, [])
 
@@ -1977,24 +2037,24 @@ export function StudentManagementPage() {
       ...current,
       ...(name === 'paymentMode' && value === 'Installment'
         ? {
-            paymentMode: value,
-            firstInstallmentStatus: 'Pending',
-            secondInstallmentStatus: 'Pending',
-            thirdInstallmentStatus: 'Pending',
-            fourthInstallmentStatus: 'Pending',
-            firstInstallmentPaidAt: '',
-            secondInstallmentPaidAt: '',
-            thirdInstallmentPaidAt: '',
-            fourthInstallmentPaidAt: '',
-            ...(getInstallmentFieldNames().some((fieldName) => Boolean(current[fieldName]))
-              ? {}
-              : applyInstallmentValues({}, getCourseInstallmentValues(findCourseForForm(courseOptions, current)))),
-          }
+          paymentMode: value,
+          firstInstallmentStatus: 'Pending',
+          secondInstallmentStatus: 'Pending',
+          thirdInstallmentStatus: 'Pending',
+          fourthInstallmentStatus: 'Pending',
+          firstInstallmentPaidAt: '',
+          secondInstallmentPaidAt: '',
+          thirdInstallmentPaidAt: '',
+          fourthInstallmentPaidAt: '',
+          ...(getInstallmentFieldNames().some((fieldName) => Boolean(current[fieldName]))
+            ? {}
+            : applyInstallmentValues({}, getCourseInstallmentValues(findCourseForForm(courseOptions, current)))),
+        }
         : name === 'paymentMode' && value === 'Full Payment'
           ? {
-              paymentMode: value,
-              ...applyInstallmentValues(),
-            }
+            paymentMode: value,
+            ...applyInstallmentValues(),
+          }
           : {}),
       [name]: value,
     }))
@@ -2031,10 +2091,10 @@ export function StudentManagementPage() {
   const applyBatchDetails = (batch) => {
     const matchedBatch = Array.isArray(selectedFaculty?.batchEntries)
       ? selectedFaculty.batchEntries.find(
-          (entry) =>
-            String(entry?.batchName || '').trim() === String(batch || '').trim() &&
-            String(entry?.courseId || '').trim() === String(form.courseId || '').trim(),
-        )
+        (entry) =>
+          String(entry?.batchName || '').trim() === String(batch || '').trim() &&
+          String(entry?.courseId || '').trim() === String(form.courseId || '').trim(),
+      )
       : null
     setForm((current) => ({
       ...current,
@@ -2350,10 +2410,10 @@ export function StudentManagementPage() {
       currentStudents.map((student) =>
         student.id === studentId
           ? {
-              ...student,
-              [installmentField]: nextStatus,
-              [paidAtField]: nextPaidAt,
-            }
+            ...student,
+            [installmentField]: nextStatus,
+            [paidAtField]: nextPaidAt,
+          }
           : student,
       ),
     )
@@ -2436,7 +2496,7 @@ export function StudentManagementPage() {
             <UserRound size={26} />
           </div>
           <h1>Student Management</h1>
-          
+
         </div>
 
         <div className="student-management-actions">
@@ -2539,18 +2599,18 @@ export function StudentManagementPage() {
                     isFullPaymentRecord(student)
                       ? ''
                       : visibleInstallmentStage === 2
-                      ? secondDueDate
-                      : visibleInstallmentStage === 3
-                        ? thirdDueDate || addOneMonth(secondDueDate)
-                        : ''
+                        ? secondDueDate
+                        : visibleInstallmentStage === 3
+                          ? thirdDueDate || addOneMonth(secondDueDate)
+                          : ''
                   const currentInstallmentOverdueDays =
                     isFullPaymentRecord(student)
                       ? 0
                       : visibleInstallmentStage === 2
-                      ? (secondPaid ? 0 : diffInDays(secondDueDate, getTodayValue()))
-                      : visibleInstallmentStage === 3
-                        ? (thirdPaid ? 0 : diffInDays(thirdDueDate || addOneMonth(secondDueDate), getTodayValue()))
-                        : 0
+                        ? (secondPaid ? 0 : diffInDays(secondDueDate, getTodayValue()))
+                        : visibleInstallmentStage === 3
+                          ? (thirdPaid ? 0 : diffInDays(thirdDueDate || addOneMonth(secondDueDate), getTodayValue()))
+                          : 0
 
                   return (
                     <tr key={student.id}>
@@ -2836,70 +2896,70 @@ export function StudentManagementPage() {
                       <h4>Please provide the basic details of the student.</h4>
                     </div>
                   </div>
-                <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Enter Student Name" required icon={<FieldIcon kind="user" />} error={shouldShowError('studentName') ? errors.studentName : ''}>
-                    <input
-                      type="text"
-                      value={form.studentName}
-                      onChange={(event) => updateField('studentName', event.target.value)}
-                      onBlur={() => markTouched('studentName')}
-                      placeholder="Enter student name"
-                    />
-                  </Field>
+                  <div className="course-form-grid student-form-grid student-form-grid-tight">
+                    <Field label="Enter Student Name" required icon={<FieldIcon kind="user" />} error={shouldShowError('studentName') ? errors.studentName : ''}>
+                      <input
+                        type="text"
+                        value={form.studentName}
+                        onChange={(event) => updateField('studentName', event.target.value)}
+                        onBlur={() => markTouched('studentName')}
+                        placeholder="Enter student name"
+                      />
+                    </Field>
 
-                  <Field
-                    label="Enter Mobile Number"
-                    required
-                    icon={<FieldIcon kind="phone" />}
-                    error={shouldShowError('mobileNumber') ? serverFieldErrors.mobileNumber || errors.mobileNumber : ''}
-                  >
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={10}
-                      pattern="[0-9]*"
-                      value={form.mobileNumber}
-                      onChange={(event) => updateField('mobileNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                      onBlur={() => markTouched('mobileNumber')}
-                      placeholder="10-digit mobile number"
-                    />
-                  </Field>
+                    <Field
+                      label="Enter Mobile Number"
+                      required
+                      icon={<FieldIcon kind="phone" />}
+                      error={shouldShowError('mobileNumber') ? serverFieldErrors.mobileNumber || errors.mobileNumber : ''}
+                    >
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        pattern="[0-9]*"
+                        value={form.mobileNumber}
+                        onChange={(event) => updateField('mobileNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                        onBlur={() => markTouched('mobileNumber')}
+                        placeholder="10-digit mobile number"
+                      />
+                    </Field>
 
-                  <Field label="Enter Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
-                    <input
-                      type="email"
-                      value={form.emailAddress}
-                      onChange={(event) => updateField('emailAddress', event.target.value.replace(/\s+/g, '').toLowerCase())}
-                      onBlur={() => markTouched('emailAddress')}
-                      autoCapitalize="none"
-                      autoCorrect="off"
-                      placeholder="name@example.com"
-                    />
-                  </Field>
+                    <Field label="Enter Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
+                      <input
+                        type="email"
+                        value={form.emailAddress}
+                        onChange={(event) => updateField('emailAddress', event.target.value.replace(/\s+/g, '').toLowerCase())}
+                        onBlur={() => markTouched('emailAddress')}
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        placeholder="name@example.com"
+                      />
+                    </Field>
 
-                  <Field label="Enter Parent / Spouse Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      maxLength={10}
-                      pattern="[0-9]*"
-                      value={form.parentSpouseNumber}
-                      onChange={(event) => updateField('parentSpouseNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                      onBlur={() => markTouched('parentSpouseNumber')}
-                      placeholder="10-digit contact number"
-                    />
-                  </Field>
+                    <Field label="Enter Parent / Spouse Number" required icon={<FieldIcon kind="phone" />} error={shouldShowError('parentSpouseNumber') ? errors.parentSpouseNumber : ''}>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        pattern="[0-9]*"
+                        value={form.parentSpouseNumber}
+                        onChange={(event) => updateField('parentSpouseNumber', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                        onBlur={() => markTouched('parentSpouseNumber')}
+                        placeholder="10-digit contact number"
+                      />
+                    </Field>
 
-                  <Field label="Enter Location" required icon={<FieldIcon kind="pin" />} error={shouldShowError('location') ? errors.location : ''}>
-                    <input
-                      type="text"
-                      value={form.location}
-                      onChange={(event) => updateField('location', event.target.value)}
-                      onBlur={() => markTouched('location')}
-                      placeholder="Current city or location"
-                    />
-                  </Field>
-                </div>
+                    <Field label="Enter Location" required icon={<FieldIcon kind="pin" />} error={shouldShowError('location') ? errors.location : ''}>
+                      <input
+                        type="text"
+                        value={form.location}
+                        onChange={(event) => updateField('location', event.target.value)}
+                        onBlur={() => markTouched('location')}
+                        placeholder="Current city or location"
+                      />
+                    </Field>
+                  </div>
                 </div>
               ) : null}
 
@@ -2914,87 +2974,87 @@ export function StudentManagementPage() {
                       <h4>Choose the course and academic background.</h4>
                     </div>
                   </div>
-                <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Select Course Interested" required icon={<FieldIcon kind="course" />} error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
-                    <select
-                      value={form.courseId}
-                      onChange={(event) => applyCourseDetails(event.target.value)}
-                      onBlur={() => markTouched('courseInterested')}
-                      disabled={isCoursesLoading}
-                    >
-                      <option value="">{isCoursesLoading ? 'Loading courses...' : 'Select course'}</option>
-                      {courseOptions.map((course) => (
-                        <option key={course.id} value={course.id}>
-                          {course.name}
-                        </option>
-                      ))}
-                      {!isCoursesLoading && !courseOptions.length ? <option value="" disabled>No courses available</option> : null}
-                    </select>
-                  </Field>
+                  <div className="course-form-grid student-form-grid student-form-grid-tight">
+                    <Field label="Select Course Interested" required icon={<FieldIcon kind="course" />} error={shouldShowError('courseInterested') ? errors.courseInterested : ''}>
+                      <select
+                        value={form.courseId}
+                        onChange={(event) => applyCourseDetails(event.target.value)}
+                        onBlur={() => markTouched('courseInterested')}
+                        disabled={isCoursesLoading}
+                      >
+                        <option value="">{isCoursesLoading ? 'Loading courses...' : 'Select course'}</option>
+                        {courseOptions.map((course) => (
+                          <option key={course.id} value={course.id}>
+                            {course.name}
+                          </option>
+                        ))}
+                        {!isCoursesLoading && !courseOptions.length ? <option value="" disabled>No courses available</option> : null}
+                      </select>
+                    </Field>
 
-                  <Field label="Select Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
-                    <select
-                      value={form.facultyName}
-                      onChange={(event) => applyFacultyDetails(event.target.value)}
-                      onBlur={() => markTouched('facultyName')}
-                      disabled={isFacultyLoading || !form.courseId || !facultySelectOptions.length}
-                    >
-                      <option value="">
-                        {isFacultyLoading
-                          ? 'Loading faculty...'
-                          : form.courseId
-                            ? 'Select faculty'
-                            : 'Select a course first'}
-                      </option>
-                      {facultySelectOptions.map((faculty) => (
-                        <option key={`${faculty.value}-${faculty.label}`} value={faculty.value}>
-                          {faculty.label}
+                    <Field label="Select Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
+                      <select
+                        value={form.facultyName}
+                        onChange={(event) => applyFacultyDetails(event.target.value)}
+                        onBlur={() => markTouched('facultyName')}
+                        disabled={isFacultyLoading || !form.courseId || !facultySelectOptions.length}
+                      >
+                        <option value="">
+                          {isFacultyLoading
+                            ? 'Loading faculty...'
+                            : form.courseId
+                              ? 'Select faculty'
+                              : 'Select a course first'}
                         </option>
-                      ))}
-                      {!isFacultyLoading && form.courseId && !facultySelectOptions.length ? (
-                        <option value="" disabled>
-                          No faculty mapped for this course
-                        </option>
-                      ) : null}
-                    </select>
-                  </Field>
+                        {facultySelectOptions.map((faculty) => (
+                          <option key={`${faculty.value}-${faculty.label}`} value={faculty.value}>
+                            {faculty.label}
+                          </option>
+                        ))}
+                        {!isFacultyLoading && form.courseId && !facultySelectOptions.length ? (
+                          <option value="" disabled>
+                            No faculty mapped for this course
+                          </option>
+                        ) : null}
+                      </select>
+                    </Field>
 
-                  <Field label="Select Batch" required icon={<FieldIcon kind="batch" />} error={shouldShowError('batch') ? errors.batch : ''}>
-                    <select
-                      value={form.batch}
-                      onChange={(event) => applyBatchDetails(event.target.value)}
-                      onBlur={() => markTouched('batch')}
-                      disabled={isFacultyLoading || !form.facultyName || !batchSelectOptions.length}
-                    >
-                      <option value="">
-                        {isFacultyLoading
-                          ? 'Loading batches...'
-                          : form.facultyName
-                            ? 'Select batch'
-                            : 'Select faculty first'}
-                      </option>
-                      {batchSelectOptions.map((batch) => (
-                        <option key={`${batch.value}-${batch.label}`} value={batch.value}>
-                          {batch.label}
+                    <Field label="Select Batch" required icon={<FieldIcon kind="batch" />} error={shouldShowError('batch') ? errors.batch : ''}>
+                      <select
+                        value={form.batch}
+                        onChange={(event) => applyBatchDetails(event.target.value)}
+                        onBlur={() => markTouched('batch')}
+                        disabled={isFacultyLoading || !form.facultyName || !batchSelectOptions.length}
+                      >
+                        <option value="">
+                          {isFacultyLoading
+                            ? 'Loading batches...'
+                            : form.facultyName
+                              ? 'Select batch'
+                              : 'Select faculty first'}
                         </option>
-                      ))}
-                      {!isFacultyLoading && form.facultyName && form.courseId && !batchSelectOptions.length ? (
-                        <option value="" disabled>
-                          No batches available for this faculty and course
-                        </option>
-                      ) : null}
-                    </select>
-                  </Field>
+                        {batchSelectOptions.map((batch) => (
+                          <option key={`${batch.value}-${batch.label}`} value={batch.value}>
+                            {batch.label}
+                          </option>
+                        ))}
+                        {!isFacultyLoading && form.facultyName && form.courseId && !batchSelectOptions.length ? (
+                          <option value="" disabled>
+                            No batches available for this faculty and course
+                          </option>
+                        ) : null}
+                      </select>
+                    </Field>
 
-                  <Field label="Enter Qualification" required icon={<FieldIcon kind="user" />} error={shouldShowError('qualification') ? errors.qualification : ''}>
-                    <input
-                      type="text"
-                      value={form.qualification}
-                      onChange={(event) => updateField('qualification', event.target.value)}
-                      onBlur={() => markTouched('qualification')}
-                      placeholder="Highest qualification"
-                    />
-                  </Field>
+                    <Field label="Enter Qualification" required icon={<FieldIcon kind="user" />} error={shouldShowError('qualification') ? errors.qualification : ''}>
+                      <input
+                        type="text"
+                        value={form.qualification}
+                        onChange={(event) => updateField('qualification', event.target.value)}
+                        onBlur={() => markTouched('qualification')}
+                        placeholder="Highest qualification"
+                      />
+                    </Field>
 
                   <Field label="Select Passed Out Year" required error={shouldShowError('passedOutYear') ? errors.passedOutYear : ''}>
                     <div className="student-year-select-stack">
@@ -3034,52 +3094,52 @@ export function StudentManagementPage() {
                     </div>
                   </Field>
 
-                  <Field label="Select Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
-                    <select
-                      value={form.currentStatus}
-                      onChange={(event) => updateField('currentStatus', event.target.value)}
-                      onBlur={() => markTouched('currentStatus')}
+                    <Field label="Select Current Status" required icon={<FieldIcon kind="status" />} error={shouldShowError('currentStatus') ? errors.currentStatus : ''}>
+                      <select
+                        value={form.currentStatus}
+                        onChange={(event) => updateField('currentStatus', event.target.value)}
+                        onBlur={() => markTouched('currentStatus')}
+                      >
+                        <option value="">Select status</option>
+                        {statusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    <Field
+                      label="Enter Designation"
+                      icon={<FieldIcon kind="user" />}
+                      hint="Required when the current status is Employee."
+                      error={shouldShowError('designation') ? errors.designation : ''}
                     >
-                      <option value="">Select status</option>
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                      <input
+                        type="text"
+                        value={form.designation}
+                        onChange={(event) => updateField('designation', event.target.value)}
+                        onBlur={() => markTouched('designation')}
+                        placeholder="Job title or designation"
+                      />
+                    </Field>
 
-                  <Field
-                    label="Enter Designation"
-                    icon={<FieldIcon kind="user" />}
-                    hint="Required when the current status is Employee."
-                    error={shouldShowError('designation') ? errors.designation : ''}
-                  >
-                    <input
-                      type="text"
-                      value={form.designation}
-                      onChange={(event) => updateField('designation', event.target.value)}
-                      onBlur={() => markTouched('designation')}
-                      placeholder="Job title or designation"
-                    />
-                  </Field>
-
-                  <Field
-                    label="Select Source"
-                    required
-                    icon={<FieldIcon kind="note" />}
-                    error={shouldShowError('source') ? errors.source : ''}
-                  >
-                    <select value={form.source} onChange={(event) => updateField('source', event.target.value)} onBlur={() => markTouched('source')}>
-                      <option value="">Select source</option>
-                      {sourceOptions.map((source) => (
-                        <option key={source} value={source}>
-                          {source}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
+                    <Field
+                      label="Select Source"
+                      required
+                      icon={<FieldIcon kind="note" />}
+                      error={shouldShowError('source') ? errors.source : ''}
+                    >
+                      <select value={form.source} onChange={(event) => updateField('source', event.target.value)} onBlur={() => markTouched('source')}>
+                        <option value="">Select source</option>
+                        {sourceOptions.map((source) => (
+                          <option key={source} value={source}>
+                            {source}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
                 </div>
               ) : null}
 
@@ -3094,88 +3154,88 @@ export function StudentManagementPage() {
                       <h4>Complete the fee and admission setup before submitting.</h4>
                     </div>
                   </div>
-                <div className="course-form-grid student-form-grid student-form-grid-tight">
-                  <Field label="Actual Fees (Auto Filled)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('actualFees') ? errors.actualFees : ''}>
-                    <input type="text" value={form.actualFees} readOnly placeholder="Auto filled from course" />
-                  </Field>
-
-                  <Field label="Registration Fees (Auto Filled)" required icon={<FieldIcon kind="balance" />} error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
-                    <input type="text" value={form.registrationFees} readOnly placeholder="Auto filled from course" />
-                  </Field>
-
-                  <Field label="Discount (Auto Filled)" required icon={<FieldIcon kind="percent" />} error={shouldShowError('discount') ? errors.discount : ''}>
-                    <input type="text" value={form.discount} readOnly placeholder="Auto filled from course" />
-                  </Field>
-
-                <Field label="After Discount (Auto Calculated)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
-                    <input type="text" value={form.afterDiscount} readOnly placeholder="Auto calculated" />
-                  </Field>
-
-                  <Field label="Payment Mode" required icon={<FieldIcon kind="note" />}>
-                    <select
-                      value={form.paymentMode}
-                      onChange={(event) => updateField('paymentMode', event.target.value)}
-                    >
-                      {paymentModeOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-
-                  {!isFullPaymentMode(form) ? (
-                    <>
-                      {Array.from({ length: visibleInstallmentCount }, (_, index) => {
-                        const installmentIndex = index + 1
-                        const fieldName = `installment${installmentIndex}`
-                        const fieldValue = form[fieldName] || ''
-
-                        return (
-                          <Field
-                            key={fieldName}
-                            label={`Installment ${installmentIndex} (Auto Filled)`}
-                            required={installmentIndex <= visibleInstallmentCount}
-                            icon={<FieldIcon kind="installment" />}
-                            error={shouldShowError(fieldName) ? errors[fieldName] : ''}
-                          >
-                            <input type="text" value={fieldValue} readOnly placeholder="Auto filled from course" />
-                          </Field>
-                        )
-                      })}
-                    </>
-                  ) : (
-                    <Field label="Paid Amount" required icon={<FieldIcon kind="currency" />}>
-                      <input type="text" value={form.afterDiscount} readOnly placeholder="Full payment amount" />
+                  <div className="course-form-grid student-form-grid student-form-grid-tight">
+                    <Field label="Actual Fees (Auto Filled)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('actualFees') ? errors.actualFees : ''}>
+                      <input type="text" value={form.actualFees} readOnly placeholder="Auto filled from course" />
                     </Field>
-                  )}
 
-                  <Field label="Select Admission Date" required icon={<FieldIcon kind="calendar" />} error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
-                    <input
-                      type="date"
-                      value={form.admissionDate}
-                      onChange={(event) => updateField('admissionDate', event.target.value)}
-                      onBlur={() => markTouched('admissionDate')}
-                      placeholder="Select admission date"
-                    />
-                  </Field>
+                    <Field label="Registration Fees (Auto Filled)" required icon={<FieldIcon kind="balance" />} error={shouldShowError('registrationFees') ? errors.registrationFees : ''}>
+                      <input type="text" value={form.registrationFees} readOnly placeholder="Auto filled from course" />
+                    </Field>
 
-                  <Field
-                    label="Enter Remarks"
-                    icon={<FieldIcon kind="note" />}
-                    multiline
-                    hint="Optional notes can help the counselor follow up later."
-                    error={shouldShowError('remarks') ? errors.remarks : ''}
-                    className="student-field--full"
-                  >
-                    <textarea
-                      value={form.remarks}
-                      onChange={(event) => updateField('remarks', event.target.value)}
-                      onBlur={() => markTouched('remarks')}
-                      placeholder="Additional notes or counselor remarks"
-                    />
-                  </Field>
-                </div>
+                    <Field label="Discount (Auto Filled)" required icon={<FieldIcon kind="percent" />} error={shouldShowError('discount') ? errors.discount : ''}>
+                      <input type="text" value={form.discount} readOnly placeholder="Auto filled from course" />
+                    </Field>
+
+                    <Field label="After Discount (Auto Calculated)" required icon={<FieldIcon kind="currency" />} error={shouldShowError('afterDiscount') ? errors.afterDiscount : ''}>
+                      <input type="text" value={form.afterDiscount} readOnly placeholder="Auto calculated" />
+                    </Field>
+
+                    <Field label="Payment Mode" required icon={<FieldIcon kind="note" />}>
+                      <select
+                        value={form.paymentMode}
+                        onChange={(event) => updateField('paymentMode', event.target.value)}
+                      >
+                        {paymentModeOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+
+                    {!isFullPaymentMode(form) ? (
+                      <>
+                        {Array.from({ length: visibleInstallmentCount }, (_, index) => {
+                          const installmentIndex = index + 1
+                          const fieldName = `installment${installmentIndex}`
+                          const fieldValue = form[fieldName] || ''
+
+                          return (
+                            <Field
+                              key={fieldName}
+                              label={`Installment ${installmentIndex} (Auto Filled)`}
+                              required={installmentIndex <= visibleInstallmentCount}
+                              icon={<FieldIcon kind="installment" />}
+                              error={shouldShowError(fieldName) ? errors[fieldName] : ''}
+                            >
+                              <input type="text" value={fieldValue} readOnly placeholder="Auto filled from course" />
+                            </Field>
+                          )
+                        })}
+                      </>
+                    ) : (
+                      <Field label="Paid Amount" required icon={<FieldIcon kind="currency" />}>
+                        <input type="text" value={form.afterDiscount} readOnly placeholder="Full payment amount" />
+                      </Field>
+                    )}
+
+                    <Field label="Select Admission Date" required icon={<FieldIcon kind="calendar" />} error={shouldShowError('admissionDate') ? errors.admissionDate : ''}>
+                      <input
+                        type="date"
+                        value={form.admissionDate}
+                        onChange={(event) => updateField('admissionDate', event.target.value)}
+                        onBlur={() => markTouched('admissionDate')}
+                        placeholder="Select admission date"
+                      />
+                    </Field>
+
+                    <Field
+                      label="Enter Remarks"
+                      icon={<FieldIcon kind="note" />}
+                      multiline
+                      hint="Optional notes can help the counselor follow up later."
+                      error={shouldShowError('remarks') ? errors.remarks : ''}
+                      className="student-field--full"
+                    >
+                      <textarea
+                        value={form.remarks}
+                        onChange={(event) => updateField('remarks', event.target.value)}
+                        onBlur={() => markTouched('remarks')}
+                        placeholder="Additional notes or counselor remarks"
+                      />
+                    </Field>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -3641,8 +3701,8 @@ export function StudentManagementPage() {
                                   ? '0 Days'
                                   : `${diffInDays(getThirdDueDate(selectedStudent) || addOneMonth(getSecondDueDate(selectedStudent)), getTodayValue())} Days`
                                 : (selectedStudent.secondInstallmentStatus || 'Pending') === 'Paid'
-                                ? '0 Days'
-                                : `${diffInDays(getSecondDueDate(selectedStudent), getTodayValue())} Days`
+                                  ? '0 Days'
+                                  : `${diffInDays(getSecondDueDate(selectedStudent), getTodayValue())} Days`
                             }
                             rightLabel="How did you know about our Institute?"
                             rightValue={selectedStudent.source}
@@ -3663,10 +3723,10 @@ export function StudentManagementPage() {
                                 rightValue={
                                   hasFourthInstallment(selectedStudent, selectedStudentCourse)
                                     ? formatCurrency(
-                                        selectedStudent.fourthInstallmentAmount ||
-                                          selectedStudent.installment4 ||
-                                          selectedStudentCourse?.installment4,
-                                      )
+                                      selectedStudent.fourthInstallmentAmount ||
+                                      selectedStudent.installment4 ||
+                                      selectedStudentCourse?.installment4,
+                                    )
                                     : selectedStudent.remarks || '-'
                                 }
                               />

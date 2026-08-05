@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BookOpen, Check, Clock3, Eye, FileDown, Layers3, Mail, MoreVertical, PencilLine, Phone, Save, Trash2, UserRound, UsersRound, X } from 'lucide-react'
 import { Button } from '../components/Button'
@@ -8,12 +8,13 @@ import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
 import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords } from '../data/courseRecords'
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
-import { listCourses, normalizeCourseList } from '../services/courseService'
+import { listCourses, normalizeCourseList, peekCourseList } from '../services/courseService'
 import {
   createFacultyRecord,
   deleteFacultyRecord,
   listFacultyRecords,
   normalizeFacultyList,
+  peekFacultyList,
   updateFacultyRecord,
 } from '../services/facultyService'
 import { roleDashboards } from '../data/authData'
@@ -67,6 +68,12 @@ const FACULTY_WIZARD_STEPS = [
   },
 ]
 const FACULTY_STEP_ONE_FIELDS = ['facultyName', 'facultyEmail', 'facultyPhone', 'courseId', 'status']
+const DEFAULT_LARGE_LIST_QUERY = Object.freeze({
+  page: 1,
+  limit: 100,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+})
 
 function createEmptyBatchTimingState() {
   return {
@@ -1072,10 +1079,14 @@ export function FacultyManagementPage() {
   const headerProfileTitle = isBusinessOwner ? 'Business Head' : 'Operation Manager'
   const headerEmail = isBusinessOwner ? 'business.owner@cispro.com' : 'operation.manager@cispro.com'
 
-  const [records, setRecords] = useState([])
-  const [courseOptions, setCourseOptions] = useState([])
-  const [isCoursesLoading, setIsCoursesLoading] = useState(true)
-  const [isFacultyLoading, setIsFacultyLoading] = useState(true)
+  const initialFacultyList = peekFacultyList(DEFAULT_LARGE_LIST_QUERY)
+  const initialCourseList = peekCourseList(DEFAULT_LARGE_LIST_QUERY)
+  const [records, setRecords] = useState(() => Array.isArray(initialFacultyList?.data) ? normalizeFacultyList(initialFacultyList.data) : [])
+  const [courseOptions, setCourseOptions] = useState(() => {
+    const cachedCourses = Array.isArray(initialCourseList?.data) ? initialCourseList.data : []
+    return cachedCourses.length ? normalizeCourseList(cachedCourses) : []
+  })
+  const [isCoursesLoading, setIsCoursesLoading] = useState(() => !initialCourseList?.data?.length)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('create')
   const [editingFacultyId, setEditingFacultyId] = useState('')
@@ -1510,11 +1521,14 @@ export function FacultyManagementPage() {
     setFacultyWizardStep(1)
   }
 
-  const loadCourseOptions = async () => {
-    setIsCoursesLoading(true)
+  const loadCourseOptions = useCallback(async () => {
+    const cachedCourses = peekCourseList(DEFAULT_LARGE_LIST_QUERY)
+    if (!cachedCourses && !courseOptions.length) {
+      setIsCoursesLoading(true)
+    }
 
     try {
-      const result = await listCourses({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const result = await listCourses(DEFAULT_LARGE_LIST_QUERY)
       const normalizedCourses = normalizeCourseList(result.data || loadCourseRecords())
       setCourseOptions(normalizedCourses)
       setActionError('')
@@ -1524,12 +1538,11 @@ export function FacultyManagementPage() {
     } finally {
       setIsCoursesLoading(false)
     }
-  }
+  }, [courseOptions.length])
 
-  const loadFacultyOptions = async () => {
-    setIsFacultyLoading(true)
+  const loadFacultyOptions = useCallback(async () => {
     try {
-      const result = await listFacultyRecords({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      const result = await listFacultyRecords(DEFAULT_LARGE_LIST_QUERY)
       const fetchedRecords = Array.isArray(result.data) ? result.data : []
       setRecords(normalizeFacultyList(fetchedRecords))
       setActionError('')
@@ -1539,7 +1552,7 @@ export function FacultyManagementPage() {
     } finally {
       setIsFacultyLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -1547,7 +1560,7 @@ export function FacultyManagementPage() {
     }, 0)
 
     return () => window.clearTimeout(timeoutId)
-  }, [])
+  }, [loadCourseOptions, loadFacultyOptions])
 
   useEffect(() => {
     if (!isModalOpen) return undefined
@@ -1568,7 +1581,7 @@ export function FacultyManagementPage() {
     window.addEventListener(COURSE_RECORD_SYNC_EVENT, refreshCourses)
 
     return () => window.removeEventListener(COURSE_RECORD_SYNC_EVENT, refreshCourses)
-  }, [])
+  }, [loadCourseOptions])
 
   const closeModal = () => {
     setIsModalOpen(false)
