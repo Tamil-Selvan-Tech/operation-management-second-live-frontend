@@ -102,14 +102,14 @@ export function ProfileDrawer({
         role="presentation"
       >
         <div
-          className={`fixed top-[74px] right-4 left-4 z-[1220] flex w-[calc(100vw-32px)] max-w-[calc(100vw-32px)] sm:left-auto sm:right-6 sm:w-[390px] flex-col rounded-[10px] bg-white pt-[58px] px-6 pb-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-100/80 profile-card-animate ${className}`.trim()}
+          className={`fixed top-[74px] right-4 left-4 z-[1220] flex w-[calc(100vw-32px)] max-w-[calc(100vw-32px)] sm:left-auto sm:right-0 sm:w-[390px] flex-col rounded-[10px] bg-white pt-[58px] px-6 pb-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-100/80 profile-card-animate ${className}`.trim()}
           role="dialog"
           aria-modal="true"
           aria-labelledby={ariaLabelledBy}
           onClick={(event) => event.stopPropagation()}
         >
           {/* Top Pointer Arrow */}
-          <div className="absolute right-[30px] top-[-6px] h-3 w-3 rotate-45 border-l border-t border-slate-100 bg-white" />
+          <div className="absolute right-[18px] top-[-6px] h-3 w-3 rotate-45 border-l border-t border-slate-100 bg-white" />
 
           {/* Close (X) Icon */}
           <button

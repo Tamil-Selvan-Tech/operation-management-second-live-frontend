@@ -24963,13 +24963,13 @@ tbody tr:hover {
   justify-content: flex-end;
   flex: 0 1 auto;
   flex-wrap: wrap;
-  transform: translateX(-8px);
+  transform: translateX(10px);
 }
 
 .operation-manager-dashboard .notification-menu {
   position: relative;
   z-index: 40;
-  margin-left: -12px;
+  margin-left: 0;
 }
 
 .operation-manager-dashboard .notification-dropdown {
