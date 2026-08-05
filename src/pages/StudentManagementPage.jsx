@@ -34,7 +34,10 @@ import { saveStudentRecords } from '../data/studentRecords'
 import { COURSE_RECORD_SYNC_EVENT } from '../data/courseRecords'
 import { listCourses, peekCourseList } from '../services/courseService'
 import { listFacultyRecords, normalizeFacultyList, peekFacultyList } from '../services/facultyService'
+import { listCourses, peekCourseList } from '../services/courseService'
+import { listFacultyRecords, normalizeFacultyList, peekFacultyList } from '../services/facultyService'
 import { downloadBatchAttendanceReport, downloadStudentAttendanceReport } from '../services/reportService'
+import { createStudent, deleteStudent, listStudents, peekStudentList, updateStudent } from '../services/studentService'
 import { createStudent, deleteStudent, listStudents, peekStudentList, updateStudent } from '../services/studentService'
 import { savePendingLoginEmail } from '../lib/session'
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntryById, getFacultyCourseName, getMatchingStudents } from '../lib/facultyFlow'
@@ -47,6 +50,12 @@ const recordStatusOptions = ['Active', 'Inactive']
 const paymentModeOptions = ['Installment', 'Full Payment']
 const sourceOptions = ['Justdial', 'Sulekha', 'Website', 'Poster', 'Others']
 const MAX_INSTALLMENT_FIELDS = 12
+const DEFAULT_LARGE_LIST_QUERY = Object.freeze({
+  page: 1,
+  limit: 100,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+})
 const DEFAULT_LARGE_LIST_QUERY = Object.freeze({
   page: 1,
   limit: 100,
@@ -1147,6 +1156,9 @@ export function StudentManagementPage() {
   const [isStudentsLoading, setIsStudentsLoading] = useState(() => !initialStudentList && !loadStudentSnapshot().length)
   const [isCoursesLoading, setIsCoursesLoading] = useState(() => !initialCourseList)
   const [isFacultyLoading, setIsFacultyLoading] = useState(() => !initialFacultyList)
+  const [isStudentsLoading, setIsStudentsLoading] = useState(() => !initialStudentList && !loadStudentSnapshot().length)
+  const [isCoursesLoading, setIsCoursesLoading] = useState(() => !initialCourseList)
+  const [isFacultyLoading, setIsFacultyLoading] = useState(() => !initialFacultyList)
   const [form, setForm] = useState(createEmptyForm)
   const [passedOutYearMode, setPassedOutYearMode] = useState('select')
   const [submitted, setSubmitted] = useState(false)
@@ -1448,8 +1460,13 @@ export function StudentManagementPage() {
     if (!silent && !cachedStudents && !students.length) {
       setIsStudentsLoading(true)
     }
+    const cachedStudents = peekStudentList(DEFAULT_LARGE_LIST_QUERY)
+    if (!silent && !cachedStudents && !students.length) {
+      setIsStudentsLoading(true)
+    }
 
     try {
+      const result = await listStudents(DEFAULT_LARGE_LIST_QUERY)
       const result = await listStudents(DEFAULT_LARGE_LIST_QUERY)
       const nextStudents = mergeStudentsWithSnapshot(result.data)
       saveStudentSnapshot(nextStudents)
@@ -1472,8 +1489,13 @@ export function StudentManagementPage() {
     if (!cachedCourses && !courseOptions.length) {
       setIsCoursesLoading(true)
     }
+    const cachedCourses = peekCourseList(DEFAULT_LARGE_LIST_QUERY)
+    if (!cachedCourses && !courseOptions.length) {
+      setIsCoursesLoading(true)
+    }
 
     try {
+      const result = await listCourses(DEFAULT_LARGE_LIST_QUERY)
       const result = await listCourses(DEFAULT_LARGE_LIST_QUERY)
       const normalizedCourses = Array.from(
         new Map(
@@ -1516,8 +1538,13 @@ export function StudentManagementPage() {
     if (!cachedFaculty && !facultyOptions.length) {
       setIsFacultyLoading(true)
     }
+    const cachedFaculty = peekFacultyList(DEFAULT_LARGE_LIST_QUERY)
+    if (!cachedFaculty && !facultyOptions.length) {
+      setIsFacultyLoading(true)
+    }
 
     try {
+      const result = await listFacultyRecords(DEFAULT_LARGE_LIST_QUERY)
       const result = await listFacultyRecords(DEFAULT_LARGE_LIST_QUERY)
       const normalizedFaculty = Array.from(
         new Map(
@@ -1596,6 +1623,7 @@ export function StudentManagementPage() {
   }
 
   useEffect(() => {
+    void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
     void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
   }, [])
 

@@ -5017,6 +5017,70 @@ tbody tr:hover {
   padding-right: 2px;
 }
 
+.faculty-dashboard-page .notification-chip {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+.faculty-dashboard-page .notification-chip svg {
+  width: 15px;
+  height: 15px;
+}
+
+@media (min-width: 1081px) and (max-width: 1120px) and (max-height: 640px) {
+  .faculty-dashboard-page .student-dashboard-header {
+    width: 100%;
+    margin-right: 0;
+    padding: 0 0 12px;
+    gap: 8px;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-actions {
+    gap: 6px;
+    padding-right: 0;
+  }
+
+  .faculty-dashboard-page .student-dashboard-header-actions > .notification-menu,
+  .faculty-dashboard-page .student-dashboard-header-actions > .faculty-attendance-chip,
+  .faculty-dashboard-page .student-dashboard-header-actions > .student-dashboard-profile-chip {
+    flex: 0 0 auto;
+  }
+
+  .faculty-dashboard-page .notification-chip {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .faculty-dashboard-page .notification-chip svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .faculty-dashboard-page .faculty-attendance-chip {
+    min-height: 34px;
+    padding: 0 10px;
+    gap: 5px;
+    font-size: 0.72rem;
+  }
+
+  .faculty-dashboard-page .student-dashboard-profile-chip {
+    gap: 8px;
+    padding: 6px 8px 6px 6px;
+  }
+
+  .faculty-dashboard-page .student-dashboard-profile-name {
+    display: none;
+  }
+
+  .faculty-dashboard-page .student-dashboard-profile-initials {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+}
+
 .faculty-dashboard-header {
   margin-bottom: 2px;
 }
@@ -16862,6 +16926,11 @@ tbody tr:hover {
   padding-top: 18px;
 }
 
+.faculty-view-table-shell > .faculty-details-table {
+  width: min(940px, calc(100% - 32px));
+  margin: 0 auto 18px;
+}
+
 .faculty-inline-edit-form {
   display: flex;
   flex-direction: column;
@@ -17184,6 +17253,16 @@ tbody tr:hover {
   .faculty-details-table,
   .faculty-batch-details-table {
     grid-template-columns: 1fr;
+  }
+
+  .faculty-view-table-shell > .faculty-details-table {
+    width: 100%;
+    margin: 0 0 18px;
+  }
+
+  .faculty-attendance-overview-panel {
+    width: 100%;
+    margin: 16px 0 0;
   }
 
   .faculty-view-actions {
@@ -20037,7 +20116,8 @@ tbody tr:hover {
 }
 
 .faculty-attendance-overview-panel {
-  margin-top: 16px;
+  width: min(940px, calc(100% - 32px));
+  margin: 16px auto 0;
 }
 
 @keyframes spin {
