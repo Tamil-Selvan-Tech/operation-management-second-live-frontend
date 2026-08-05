@@ -67,6 +67,11 @@ function buildAttendanceQuery(options = {}) {
   const params = new URLSearchParams()
   const date = String(options?.date || '').trim()
   const facultyId = String(options?.facultyId || '').trim()
+  const studentId = String(options?.studentId || '').trim()
+  const from = String(options?.from || options?.startDate || '').trim()
+  const to = String(options?.to || options?.endDate || '').trim()
+  const batchId = String(options?.batchId || '').trim()
+  const courseId = String(options?.courseId || '').trim()
 
   if (date) {
     params.set('date', date)
@@ -74,6 +79,26 @@ function buildAttendanceQuery(options = {}) {
 
   if (facultyId) {
     params.set('facultyId', facultyId)
+  }
+
+  if (studentId) {
+    params.set('studentId', studentId)
+  }
+
+  if (from) {
+    params.set('from', from)
+  }
+
+  if (to) {
+    params.set('to', to)
+  }
+
+  if (batchId) {
+    params.set('batchId', batchId)
+  }
+
+  if (courseId) {
+    params.set('courseId', courseId)
   }
 
   return params
@@ -176,4 +201,86 @@ export async function getCurrentStudentAttendanceOverview(date = '') {
 
   const response = await request(`/attendance/student/me${params.toString() ? `?${params.toString()}` : ''}`)
   return unwrapData(response)
+}
+
+function extractAttendanceListPayload(payload) {
+  if (!payload) return []
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.data)) return payload.data
+  if (Array.isArray(payload?.items)) return payload.items
+  if (Array.isArray(payload?.results)) return payload.results
+  if (Array.isArray(payload?.records)) return payload.records
+  if (Array.isArray(payload?.attendance)) return payload.attendance
+  if (Array.isArray(payload?.attendanceRecords)) return payload.attendanceRecords
+  if (Array.isArray(payload?.days)) return payload.days
+  if (payload?.data && typeof payload.data === 'object') {
+    return extractAttendanceListPayload(payload.data)
+  }
+  if (payload?.history && typeof payload.history === 'object') {
+    return extractAttendanceListPayload(payload.history)
+  }
+
+  return []
+}
+
+function normalizeStudentAttendanceEntry(entry = {}) {
+  const dateKey =
+    String(entry?.dateKey || entry?.date || entry?.attendanceDate || entry?.day || '').trim() ||
+    ''
+
+  if (!dateKey) return null
+
+  const rawStatus = String(
+    entry?.status ||
+      entry?.attendanceStatus ||
+      entry?.attendanceStatusLabel ||
+      entry?.result ||
+      '',
+  ).trim().toLowerCase()
+
+  const status =
+    rawStatus === 'present'
+      ? 'Present'
+      : rawStatus === 'absent'
+        ? 'Absent'
+        : rawStatus === 'unmarked'
+          ? 'Unmarked'
+          : ''
+
+  return {
+    dateKey,
+    status,
+    updatedAt: Number(entry?.updatedAt || entry?.timestamp || entry?.createdAt || 0) || 0,
+  }
+}
+
+async function tryGetStudentAttendanceHistory(path, query = {}) {
+  const params = buildAttendanceQuery(query)
+  const response = await request(`${path}${params.toString() ? `?${params.toString()}` : ''}`)
+  return extractAttendanceListPayload(unwrapData(response)).map(normalizeStudentAttendanceEntry).filter(Boolean)
+}
+
+export async function getCurrentStudentAttendanceHistory(query = {}) {
+  const attempts = [
+    '/attendance/student/me/history',
+    '/attendance/student/history',
+    '/attendance/student/me/records',
+    '/attendance/student/me',
+  ]
+
+  for (const path of attempts) {
+    try {
+      const entries = await tryGetStudentAttendanceHistory(path, query)
+      if (entries.length) {
+        return entries
+      }
+    } catch (error) {
+      const status = Number(error?.status || 0) || 0
+      if (status && status !== 404 && status !== 405) {
+        throw error
+      }
+    }
+  }
+
+  return []
 }
