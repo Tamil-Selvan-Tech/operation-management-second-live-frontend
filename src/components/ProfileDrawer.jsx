@@ -109,22 +109,19 @@ export function ProfileDrawer({
         role="presentation"
       >
         <div
-          className={`fixed top-[74px] right-4 left-4 z-[1220] flex w-auto max-w-[calc(100vw-32px)] sm:left-auto sm:right-6 sm:w-[380px] flex-col rounded-[24px] bg-white p-5 shadow-[0_20px_50px_rgba(15,23,42,0.12)] border border-slate-100 profile-card-animate ${className}`.trim()}
+          className={`fixed top-[74px] right-4 left-4 z-[1220] flex w-auto max-w-[calc(100vw-32px)] sm:left-auto sm:right-6 sm:w-[380px] flex-col rounded-[10px] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-100/80 profile-card-animate ${className}`.trim()}
           role="dialog"
           aria-modal="true"
           aria-labelledby={ariaLabelledBy}
           onClick={(event) => event.stopPropagation()}
         >
-          {/* Top Pointer Arrow */}
-          <div className="absolute right-[30px] top-[-6px] h-3 w-3 rotate-45 border-l border-t border-slate-100 bg-white" />
-
           {/* Search Applications Input */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <div className="relative mb-4 flex items-center h-10 w-full rounded-full border border-slate-200/80 px-3.5 bg-slate-50/50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+            <Search className="h-4 w-4 text-slate-400 shrink-0" />
             <input
               type="text"
               placeholder="Search Applications"
-              className="w-full rounded-xl border border-slate-200 py-2.5 pl-10 pr-4 text-xs font-medium text-slate-800 placeholder-slate-400 focus:border-blue-500 focus:outline-none bg-slate-50/50"
+              className="w-full h-full pl-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none bg-transparent border-none p-0"
               readOnly
             />
           </div>
