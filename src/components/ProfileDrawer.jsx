@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Search,
   User,
+  X,
 } from 'lucide-react'
 
 const defaultStatTiles = [
@@ -38,20 +39,12 @@ export function ProfileDrawer({
   useEffect(() => {
     if (!isOpen) return undefined
 
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        onClose?.()
-      }
-    }
-
     document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', handleKeyDown)
 
     return () => {
       document.body.style.overflow = ''
-      window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen || typeof document === 'undefined') return null
 
@@ -67,7 +60,8 @@ export function ProfileDrawer({
   }
 
   const lastLoginItem = uniqueItems.find((item) => item.label === 'Last Login')
-  const otherItems = uniqueItems.filter((item) => item.label !== 'Last Login')
+  // Filter out the "Password" row completely
+  const otherItems = uniqueItems.filter((item) => item.label !== 'Last Login' && item.label !== 'Password')
 
   const getIconColor = (tone, label) => {
     if (label === 'Role') return 'text-blue-500'
@@ -104,24 +98,47 @@ export function ProfileDrawer({
         }
       `}</style>
       <div
-        className="fixed inset-0 z-[1210] bg-slate-950/10 backdrop-blur-[2px] transition-opacity"
-        onClick={onClose}
+        className="fixed inset-0 z-[1210] bg-black/20 backdrop-blur-[6px] transition-opacity"
         role="presentation"
       >
         <div
-          className={`fixed top-[74px] right-4 left-4 z-[1220] flex w-auto max-w-[calc(100vw-32px)] sm:left-auto sm:right-6 sm:w-[380px] flex-col rounded-[10px] bg-white p-5 shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-100/80 profile-card-animate ${className}`.trim()}
+          className={`fixed top-[74px] right-4 left-4 z-[1220] flex w-auto max-w-[calc(100vw-32px)] sm:left-auto sm:right-6 sm:w-[250px] flex-col rounded-[10px] bg-white pt-[58px] px-6 pb-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-100/80 profile-card-animate ${className}`.trim()}
           role="dialog"
           aria-modal="true"
           aria-labelledby={ariaLabelledBy}
           onClick={(event) => event.stopPropagation()}
         >
+          {/* Top Pointer Arrow */}
+          <div className="absolute right-[30px] top-[-6px] h-3 w-3 rotate-45 border-l border-t border-slate-100 bg-white" />
+
+          {/* Close (X) Icon */}
+          <button
+            type="button"
+            className="absolute right-5 top-5 z-20 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer border-none bg-transparent p-0"
+            onClick={onClose}
+            aria-label="Close profile card"
+          >
+            <X size={16} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+          </button>
+
           {/* Search Applications Input */}
-          <div className="relative mb-4 flex items-center h-10 w-full rounded-full border border-slate-200/80 px-3.5 bg-slate-50/50 focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-            <Search className="h-4 w-4 text-slate-400 shrink-0" />
+          <div className="relative mb-4 flex items-center h-[52px] w-full rounded-full border border-slate-200 bg-white px-5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-sm overflow-hidden">
+            <div className="flex h-5 w-5 items-center justify-center text-slate-400 shrink-0">
+              <Search size={18} strokeWidth={2.2} />
+            </div>
             <input
               type="text"
               placeholder="Search Applications"
-              className="w-full h-full pl-2.5 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none bg-transparent border-none p-0"
+              className="flex-1 h-full ml-4 text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none p-0 outline-none ring-0 focus:ring-0 rounded-full rounded-r-full"
+              style={{
+                border: 'none',
+                outline: 'none',
+                boxShadow: 'none',
+                background: 'transparent',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+                appearance: 'none',
+              }}
               readOnly
             />
           </div>
@@ -132,7 +149,7 @@ export function ProfileDrawer({
           </div>
 
           {/* User Info (Avatar, Name, Email) */}
-          <div className="flex items-center gap-3.5 mb-4">
+          <div className="flex items-center gap-3.5 mb-[22px]">
             <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#5275F6] text-white">
               <User className="h-7 w-7 text-white/95" strokeWidth={1.8} />
             </div>
@@ -142,42 +159,37 @@ export function ProfileDrawer({
             </div>
           </div>
 
-          <div className="h-px bg-slate-100 my-1" />
-
           {/* Profile Details List */}
-          <div className="flex flex-col">
-            {otherItems.map((item, index) => {
+          <div className="flex flex-col gap-[22px]">
+            {otherItems.map((item) => {
               const Icon = item.icon
               const isResetPassword = item.label === 'Reset Password'
 
               return (
-                <div key={`${item.label}-${item.value}`}>
-                  <div className="flex items-center gap-3.5 py-3">
-                    <span
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center ${getIconColor(
-                        item.tone,
-                        item.label,
-                      )}`}
-                      aria-hidden="true"
-                    >
-                      <Icon size={18} strokeWidth={1.8} />
+                <div key={`${item.label}-${item.value}`} className="flex items-center gap-3.5">
+                  <span
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center ${getIconColor(
+                      item.tone,
+                      item.label,
+                    )}`}
+                    aria-hidden="true"
+                  >
+                    <Icon size={18} strokeWidth={1.8} />
+                  </span>
+                  <div className="flex-1 text-left min-w-0">
+                    <span className="block text-[11px] text-slate-400 font-medium leading-none">
+                      {item.label}
                     </span>
-                    <div className="flex-1 text-left min-w-0">
-                      <span className="block text-[11px] text-slate-400 font-medium leading-none">
-                        {item.label}
+                    {isResetPassword ? (
+                      <span className="mt-1 block text-[13px] font-semibold text-blue-600 hover:underline cursor-pointer leading-tight">
+                        {item.value}
                       </span>
-                      {isResetPassword ? (
-                        <span className="mt-1 block text-[13px] font-semibold text-blue-600 hover:underline cursor-pointer">
-                          {item.value}
-                        </span>
-                      ) : (
-                        <strong className="mt-1 block text-[13px] font-semibold text-slate-800 break-words leading-tight">
-                          {item.value}
-                        </strong>
-                      )}
-                    </div>
+                    ) : (
+                      <strong className="mt-1 block text-[13px] font-semibold text-slate-800 break-words leading-tight">
+                        {item.value}
+                      </strong>
+                    )}
                   </div>
-                  {index < otherItems.length - 1 && <div className="h-px bg-slate-100" />}
                 </div>
               )
             })}
@@ -185,7 +197,7 @@ export function ProfileDrawer({
 
           {/* Last Login Section (Blue Box) */}
           {lastLoginItem && (
-            <div className="mt-2.5 flex items-center gap-3.5 rounded-xl bg-blue-50/40 border border-blue-100/30 p-3">
+            <div className="mt-[22px] flex items-center gap-3.5 rounded-xl bg-blue-50/40 border border-blue-100/30 p-3">
               <span className="flex h-5 w-5 shrink-0 items-center justify-center text-blue-600" aria-hidden="true">
                 <lastLoginItem.icon size={18} strokeWidth={1.8} />
               </span>
