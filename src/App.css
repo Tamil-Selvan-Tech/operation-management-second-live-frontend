@@ -16862,6 +16862,11 @@ tbody tr:hover {
   padding-top: 18px;
 }
 
+.faculty-view-table-shell > .faculty-details-table {
+  width: min(940px, calc(100% - 32px));
+  margin: 0 auto 18px;
+}
+
 .faculty-inline-edit-form {
   display: flex;
   flex-direction: column;
@@ -17184,6 +17189,16 @@ tbody tr:hover {
   .faculty-details-table,
   .faculty-batch-details-table {
     grid-template-columns: 1fr;
+  }
+
+  .faculty-view-table-shell > .faculty-details-table {
+    width: 100%;
+    margin: 0 0 18px;
+  }
+
+  .faculty-attendance-overview-panel {
+    width: 100%;
+    margin: 16px 0 0;
   }
 
   .faculty-view-actions {
@@ -20037,7 +20052,8 @@ tbody tr:hover {
 }
 
 .faculty-attendance-overview-panel {
-  margin-top: 16px;
+  width: min(940px, calc(100% - 32px));
+  margin: 16px auto 0;
 }
 
 @keyframes spin {
