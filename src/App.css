@@ -10483,7 +10483,8 @@ tbody tr:hover {
 .operation-manager-profile-card {
   height: calc(100vh - 44px) !important;
   max-height: calc(100vh - 44px) !important;
-  width: min(100%, 500px);
+  width: min(100%, 390px);
+  max-width: calc(100vw - 32px);
 }
 
 .operation-manager-profile-card .profile-drawer-body {

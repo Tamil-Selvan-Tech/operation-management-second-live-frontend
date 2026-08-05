@@ -102,7 +102,7 @@ export function ProfileDrawer({
         role="presentation"
       >
         <div
-          className={`fixed top-[74px] right-4 left-4 z-[1220] flex w-auto max-w-[calc(100vw-32px)] sm:left-auto sm:right-6 sm:w-[250px] flex-col rounded-[10px] bg-white pt-[58px] px-6 pb-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-100/80 profile-card-animate ${className}`.trim()}
+          className={`fixed top-[74px] right-4 left-4 z-[1220] flex w-[calc(100vw-32px)] max-w-[calc(100vw-32px)] sm:left-auto sm:right-6 sm:w-[390px] flex-col rounded-[10px] bg-white pt-[58px] px-6 pb-6 shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-100/80 profile-card-animate ${className}`.trim()}
           role="dialog"
           aria-modal="true"
           aria-labelledby={ariaLabelledBy}
@@ -114,7 +114,7 @@ export function ProfileDrawer({
           {/* Close (X) Icon */}
           <button
             type="button"
-            className="absolute right-5 top-5 z-20 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer border-none bg-transparent p-0"
+            className="absolute right-4 top-4 z-20 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer border-none bg-transparent p-0"
             onClick={onClose}
             aria-label="Close profile card"
           >
@@ -122,7 +122,7 @@ export function ProfileDrawer({
           </button>
 
           {/* Search Applications Input */}
-          <div className="relative mb-4 flex items-center h-[52px] w-full rounded-full border border-slate-200 bg-white px-5 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-sm overflow-hidden">
+          <div className="relative mb-2.5 flex h-12 w-full items-center overflow-hidden rounded-full border border-slate-200 bg-white px-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
             <div className="flex h-5 w-5 items-center justify-center text-slate-400 shrink-0">
               <Search size={18} strokeWidth={2.2} />
             </div>
@@ -144,7 +144,7 @@ export function ProfileDrawer({
           </div>
 
           {/* User Profile Header */}
-          <div className="text-[11px] font-bold tracking-wider text-slate-400 uppercase mb-3 text-left">
+          <div className="mb-3 text-left text-[12px] font-medium uppercase tracking-wider text-[#8B96A8]">
             User Profile
           </div>
 
@@ -197,7 +197,7 @@ export function ProfileDrawer({
 
           {/* Last Login Section (Blue Box) */}
           {lastLoginItem && (
-            <div className="mt-[22px] flex items-center gap-3.5 rounded-xl bg-blue-50/40 border border-blue-100/30 p-3">
+            <div className="mt-[22px] flex items-center gap-3.5 rounded-xl border border-blue-100/30 bg-blue-50/40 px-3 py-2.5">
               <span className="flex h-5 w-5 shrink-0 items-center justify-center text-blue-600" aria-hidden="true">
                 <lastLoginItem.icon size={18} strokeWidth={1.8} />
               </span>
