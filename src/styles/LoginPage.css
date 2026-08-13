@@ -584,6 +584,55 @@
   width: 100%;
 }
 
+.reset-password-input-wrap {
+  position: relative;
+}
+
+.reset-password-input-wrap input {
+  padding-right: 54px;
+}
+
+.reset-password-visibility-toggle {
+  all: unset;
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  padding: 0;
+  line-height: 0;
+  color: #64748b;
+  cursor: pointer;
+  z-index: 1;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.reset-password-visibility-toggle:hover {
+  color: #2563eb;
+  transform: translateY(-50%) translateY(-1px);
+}
+
+.reset-password-visibility-toggle:focus-visible {
+  outline: 2px solid rgba(15, 95, 209, 0.42);
+  outline-offset: 2px;
+}
+
+.reset-password-visibility-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.reset-password-visibility-toggle svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  stroke-width: 2.2;
+}
+
 .reset-password-actions {
   display: flex;
   flex-wrap: wrap;

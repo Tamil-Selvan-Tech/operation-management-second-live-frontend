@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
@@ -83,6 +84,8 @@ export function ResetPasswordPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUpdated, setIsUpdated] = useState(false)
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false)
 
   const goToLogin = () => navigate(redirectTo)
   const requestNewLink = () => navigate('/forgot-password')
@@ -192,33 +195,55 @@ export function ResetPasswordPage() {
         ) : null}
 
         <FormField label="New password">
-          <input
-            name="newPassword"
-            type="password"
-            placeholder="Create a new password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            disabled={isSubmitting}
-            autoComplete="new-password"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-          />
+          <div className="reset-password-input-wrap">
+            <input
+              name="newPassword"
+              type={isPasswordVisible ? 'text' : 'password'}
+              placeholder="Create a new password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={isSubmitting}
+              autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              className="reset-password-visibility-toggle"
+              onClick={() => setIsPasswordVisible((current) => !current)}
+              aria-label={isPasswordVisible ? 'Hide new password' : 'Show new password'}
+              disabled={isSubmitting}
+            >
+              {isPasswordVisible ? <EyeOff size={20} strokeWidth={2.1} /> : <Eye size={20} strokeWidth={2.1} />}
+            </button>
+          </div>
         </FormField>
 
         <FormField label="Confirm password">
-          <input
-            name="confirmNewPassword"
-            type="password"
-            placeholder="Confirm password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            disabled={isSubmitting}
-            autoComplete="new-password"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-          />
+          <div className="reset-password-input-wrap">
+            <input
+              name="confirmNewPassword"
+              type={isConfirmPasswordVisible ? 'text' : 'password'}
+              placeholder="Confirm password"
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              disabled={isSubmitting}
+              autoComplete="new-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button
+              type="button"
+              className="reset-password-visibility-toggle"
+              onClick={() => setIsConfirmPasswordVisible((current) => !current)}
+              aria-label={isConfirmPasswordVisible ? 'Hide confirm password' : 'Show confirm password'}
+              disabled={isSubmitting}
+            >
+              {isConfirmPasswordVisible ? <EyeOff size={20} strokeWidth={2.1} /> : <Eye size={20} strokeWidth={2.1} />}
+            </button>
+          </div>
         </FormField>
 
         <Button type="submit" disabled={isSubmitting}>

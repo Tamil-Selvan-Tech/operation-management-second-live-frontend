@@ -164,6 +164,28 @@
   backdrop-filter: blur(10px);
 }
 
+.branch-dashboard-topbar-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.branch-dashboard-topbar-copy h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+
+.branch-dashboard-topbar-copy p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 .branch-dashboard-kicker {
   color: #64748b;
   font-size: 0.76rem;
@@ -210,7 +232,7 @@
 .branch-dashboard-content {
   display: grid;
   gap: 18px;
-  padding: 18px 6px 12px 22px;
+  padding: 18px 0 12px;
 }
 
 .branch-dashboard-stats {

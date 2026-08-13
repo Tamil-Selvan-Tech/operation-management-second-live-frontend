@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  Bell,
   BookOpen,
   CircleUserRound,
   LayoutDashboard,
-  LogOut,
   Layers3,
-  Wallet,
+  LogOut,
+  Menu,
+  Shield,
   Users,
+  Wallet,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
 import { getCurrentBranchProfile } from '../services/branchService'
+import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
 const overviewStats = [
@@ -60,12 +64,32 @@ function BranchDashboardSection({ title, description, children }) {
   )
 }
 
+function AvatarBadge() {
+  return (
+    <span className="super-admin-avatar" aria-hidden="true">
+      <span className="super-admin-avatar-mark">
+        <Shield size={18} strokeWidth={2.2} />
+      </span>
+    </span>
+  )
+}
+
+function SidebarUserAvatar() {
+  return (
+    <span className="super-admin-sidebar-user-avatar" aria-hidden="true">
+      <CircleUserRound size={34} strokeWidth={1.9} />
+      <span className="super-admin-sidebar-user-status" />
+    </span>
+  )
+}
+
 export function BranchDashboardPage() {
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user } = useAuth()
   const [activeSection, setActiveSection] = useState('dashboard')
   const [branchProfile, setBranchProfile] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated || role !== 'branch-admin') {
@@ -86,7 +110,16 @@ export function BranchDashboardPage() {
       })
   }, [isAuthenticated, navigate, role, signOut])
 
-  const handleLogout = async () => {
+  const openLogoutConfirm = () => {
+    setIsLogoutConfirmOpen(true)
+  }
+
+  const closeLogoutConfirm = () => {
+    setIsLogoutConfirmOpen(false)
+  }
+
+  const handleConfirmLogout = async () => {
+    closeLogoutConfirm()
     await signOut()
     navigate('/login', { replace: true })
   }
@@ -96,225 +129,299 @@ export function BranchDashboardPage() {
   const branchEmail = branchProfile?.branchEmail || user?.email || 'branch@example.com'
   const branchLocation = branchProfile?.branchAddress || 'Assigned location'
 
+  const renderSidebar = () => (
+    <aside className="super-admin-sidebar" aria-label="Branch navigation">
+      <div className="super-admin-sidebar-brand">
+        <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="CISPRO logo" />
+      </div>
+
+      <nav className="super-admin-sidebar-nav">
+        {[
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'students', label: 'Students', icon: Users },
+          { id: 'courses', label: 'Courses', icon: BookOpen },
+          { id: 'batches', label: 'Batches', icon: Layers3 },
+          { id: 'payments', label: 'Payments', icon: Wallet },
+          { id: 'profile', label: 'Profile', icon: CircleUserRound },
+        ].map((item) => {
+          const Icon = item.icon
+          const isActive = activeSection === item.id
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
+              onClick={() => setActiveSection(item.id)}
+            >
+              <span className="super-admin-sidebar-icon" aria-hidden="true">
+                <Icon size={18} strokeWidth={2.15} />
+              </span>
+              <span>{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
+
+      <div className="super-admin-sidebar-footer">
+        <div className="super-admin-sidebar-profile-card">
+          <SidebarUserAvatar />
+
+          <div className="super-admin-sidebar-profile-copy">
+            <strong>{branchTitle}</strong>
+            <span>{branchEmail}</span>
+          </div>
+
+          <button
+            type="button"
+            className="super-admin-sidebar-logout-button"
+            onClick={openLogoutConfirm}
+            aria-label="Logout"
+          >
+            <LogOut size={22} strokeWidth={2.15} />
+          </button>
+        </div>
+      </div>
+    </aside>
+  )
+
+  const renderTopbar = () => (
+    <header className="super-admin-topbar">
+      <div className="super-admin-topbar-left">
+        <button type="button" className="super-admin-icon-button" aria-label="Open menu">
+          <Menu size={22} strokeWidth={2.2} />
+        </button>
+        <div className="branch-dashboard-topbar-copy">
+          <p className="branch-dashboard-kicker">Branch Dashboard</p>
+          <p>
+            {branchAdmin} - {branchLocation}
+          </p>
+        </div>
+      </div>
+
+      <div className="super-admin-topbar-right">
+        <button type="button" className="super-admin-notification-button" aria-label="Notifications">
+          <Bell size={22} strokeWidth={2.1} />
+          <span className="super-admin-notification-badge">8</span>
+        </button>
+
+        <div className="super-admin-profile">
+          <AvatarBadge />
+          <div className="super-admin-profile-copy">
+            <strong>{branchAdmin}</strong>
+            <span>{branchEmail}</span>
+          </div>
+        </div>
+      </div>
+    </header>
+  )
+
   if (isLoading) {
     return (
-      <section className="branch-dashboard-page">
-        <div className="branch-dashboard-shell">
-          <main className="branch-dashboard-main">
-            <header className="branch-dashboard-topbar">
-              <div>
-                <p className="branch-dashboard-kicker">Branch Dashboard</p>
-                <h1>Loading branch profile...</h1>
-                <p>Please wait while we load your branch workspace.</p>
+      <section className="super-admin-page">
+        <div className="super-admin-shell">
+          {renderSidebar()}
+
+          <div className="super-admin-main">
+            {renderTopbar()}
+
+            <main className="super-admin-content">
+              <div className="branch-dashboard-content">
+                <div className="super-admin-hero-copy">
+                  <p className="branch-dashboard-kicker">Branch Dashboard</p>
+                  <h1>Loading branch profile...</h1>
+                  <p>Please wait while we load your branch workspace.</p>
+                </div>
               </div>
-            </header>
-          </main>
+            </main>
+          </div>
         </div>
       </section>
     )
   }
 
   return (
-    <section className="branch-dashboard-page">
-      <div className="branch-dashboard-shell">
-        <aside className="branch-dashboard-sidebar" aria-label="Branch navigation">
-          <div className="branch-dashboard-brand">
-            <img className="branch-dashboard-brand-logo" src="/logo1.png" alt="CISPRO logo" />
-          </div>
+    <section className="super-admin-page">
+      <div className="super-admin-shell">
+        {renderSidebar()}
 
-          <nav className="branch-dashboard-nav">
-            {[
-              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-              { id: 'students', label: 'Students', icon: Users },
-              { id: 'courses', label: 'Courses', icon: BookOpen },
-              { id: 'batches', label: 'Batches', icon: Layers3 },
-              { id: 'payments', label: 'Payments', icon: Wallet },
-              { id: 'profile', label: 'Profile', icon: CircleUserRound },
-            ].map((item) => {
-              const Icon = item.icon
-              const isActive = activeSection === item.id
+        <div className="super-admin-main">
+          {renderTopbar()}
 
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`branch-dashboard-nav-item ${isActive ? 'is-active' : ''}`.trim()}
-                  onClick={() => setActiveSection(item.id)}
-                >
-                  <span className="branch-dashboard-nav-icon" aria-hidden="true">
-                    <Icon size={18} strokeWidth={2.15} />
-                  </span>
-                  <span>{item.label}</span>
-                </button>
-              )
-            })}
-          </nav>
+          <main className="super-admin-content">
+            <div className="branch-dashboard-content">
+              {activeSection === 'dashboard' ? (
+                <>
+                  <div className="branch-dashboard-stats">
+                    {overviewStats.map((stat) => (
+                      <article key={stat.label} className="branch-dashboard-stat-card">
+                        <span>{stat.label}</span>
+                        <strong>{stat.value}</strong>
+                        <small>{stat.note}</small>
+                      </article>
+                    ))}
+                  </div>
 
-          <div className="branch-dashboard-footer">
-            <div className="branch-dashboard-profile-card">
-              <span className="branch-dashboard-avatar" aria-hidden="true">
-                <CircleUserRound size={30} strokeWidth={1.9} />
-              </span>
+                  <BranchDashboardSection title="Today" description="A quick snapshot of branch activity.">
+                    <div className="branch-dashboard-activity-grid">
+                      <article className="branch-dashboard-panel">
+                        <strong>Attendance</strong>
+                        <p>224 students checked in before 10:00 AM.</p>
+                      </article>
+                      <article className="branch-dashboard-panel">
+                        <strong>Revenue</strong>
+                        <p>₹1.84L collected in the last 7 days.</p>
+                      </article>
+                      <article className="branch-dashboard-panel">
+                        <strong>Follow-ups</strong>
+                        <p>14 pending payment reminders scheduled for today.</p>
+                      </article>
+                    </div>
+                  </BranchDashboardSection>
+                </>
+              ) : null}
 
-              <div className="branch-dashboard-profile-copy">
-                <strong>{branchTitle}</strong>
-                <span>{branchEmail}</span>
-              </div>
+              {activeSection === 'students' ? (
+                <BranchDashboardSection title="Students" description="Dummy student list for the branch.">
+                  <div className="branch-dashboard-table-shell">
+                    <table className="branch-dashboard-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Batch</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {studentRows.map(([name, batch, status]) => (
+                          <tr key={name}>
+                            <td>{name}</td>
+                            <td>{batch}</td>
+                            <td>{status}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </BranchDashboardSection>
+              ) : null}
 
-              <button type="button" className="branch-dashboard-logout-button" onClick={handleLogout} aria-label="Logout">
-                <LogOut size={20} strokeWidth={2.15} />
-              </button>
-            </div>
-          </div>
-        </aside>
+              {activeSection === 'courses' ? (
+                <BranchDashboardSection title="Courses" description="A small sample of active course offerings.">
+                  <div className="branch-dashboard-card-grid">
+                    {courseCards.map((course) => (
+                      <article key={course.name} className="branch-dashboard-info-card">
+                        <strong>{course.name}</strong>
+                        <span>{course.batches} batches</span>
+                        <small>{course.students} students</small>
+                      </article>
+                    ))}
+                  </div>
+                </BranchDashboardSection>
+              ) : null}
 
-        <main className="branch-dashboard-main">
-          <header className="branch-dashboard-topbar">
-            <div>
-              <p className="branch-dashboard-kicker">Branch Dashboard</p>
-              <h1>{branchTitle}</h1>
-              <p>{branchAdmin} · {branchLocation}</p>
-            </div>
-            <div className="branch-dashboard-topbar-chip">
-              <span className="branch-dashboard-status-dot" />
-              <span>Logged in as branch admin</span>
-            </div>
-          </header>
+              {activeSection === 'batches' ? (
+                <BranchDashboardSection title="Batches" description="Current batch schedule overview.">
+                  <div className="branch-dashboard-card-grid">
+                    {batchCards.map((batch) => (
+                      <article key={batch.title} className="branch-dashboard-info-card">
+                        <strong>{batch.title}</strong>
+                        <span>{batch.timing}</span>
+                        <small>{batch.status}</small>
+                      </article>
+                    ))}
+                  </div>
+                </BranchDashboardSection>
+              ) : null}
 
-          <div className="branch-dashboard-content">
-            {activeSection === 'dashboard' ? (
-              <>
-                <div className="branch-dashboard-stats">
-                  {overviewStats.map((stat) => (
-                    <article key={stat.label} className="branch-dashboard-stat-card">
-                      <span>{stat.label}</span>
-                      <strong>{stat.value}</strong>
-                      <small>{stat.note}</small>
+              {activeSection === 'payments' ? (
+                <BranchDashboardSection title="Payments" description="Pending and collected payment snapshot.">
+                  <div className="branch-dashboard-table-shell">
+                    <table className="branch-dashboard-table">
+                      <thead>
+                        <tr>
+                          <th>Student</th>
+                          <th>Amount</th>
+                          <th>Note</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paymentRows.map(([name, amount, note]) => (
+                          <tr key={name}>
+                            <td>{name}</td>
+                            <td>{amount}</td>
+                            <td>{note}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </BranchDashboardSection>
+              ) : null}
+
+              {activeSection === 'profile' ? (
+                <BranchDashboardSection title="Profile" description="Branch profile and login details.">
+                  <div className="branch-dashboard-profile-grid">
+                    <article className="branch-dashboard-profile-panel">
+                      <span>Branch Name</span>
+                      <strong>{branchTitle}</strong>
                     </article>
-                  ))}
-                </div>
-
-                <BranchDashboardSection title="Today" description="A quick snapshot of branch activity.">
-                  <div className="branch-dashboard-activity-grid">
-                    <article className="branch-dashboard-panel">
-                      <strong>Attendance</strong>
-                      <p>224 students checked in before 10:00 AM.</p>
+                    <article className="branch-dashboard-profile-panel">
+                      <span>Branch Admin</span>
+                      <strong>{branchAdmin}</strong>
                     </article>
-                    <article className="branch-dashboard-panel">
-                      <strong>Revenue</strong>
-                      <p>₹1.84L collected in the last 7 days.</p>
+                    <article className="branch-dashboard-profile-panel">
+                      <span>Email</span>
+                      <strong>{branchEmail}</strong>
                     </article>
-                    <article className="branch-dashboard-panel">
-                      <strong>Follow-ups</strong>
-                      <p>14 pending payment reminders scheduled for today.</p>
+                    <article className="branch-dashboard-profile-panel">
+                      <span>Location</span>
+                      <strong>{branchLocation}</strong>
                     </article>
                   </div>
                 </BranchDashboardSection>
-              </>
-            ) : null}
+              ) : null}
+            </div>
+          </main>
+        </div>
 
-            {activeSection === 'students' ? (
-              <BranchDashboardSection title="Students" description="Dummy student list for the branch.">
-                <div className="branch-dashboard-table-shell">
-                  <table className="branch-dashboard-table">
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Batch</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {studentRows.map(([name, batch, status]) => (
-                        <tr key={name}>
-                          <td>{name}</td>
-                          <td>{batch}</td>
-                          <td>{status}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </BranchDashboardSection>
-            ) : null}
+        {isLogoutConfirmOpen ? (
+          <div className="branch-modal-backdrop" role="presentation" onClick={closeLogoutConfirm}>
+            <div
+              className="branch-success-modal super-admin-logout-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="branch-logout-title"
+              aria-describedby="branch-logout-description"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close logout confirmation"
+                onClick={closeLogoutConfirm}
+              >
+                X
+              </button>
 
-            {activeSection === 'courses' ? (
-              <BranchDashboardSection title="Courses" description="A small sample of active course offerings.">
-                <div className="branch-dashboard-card-grid">
-                  {courseCards.map((course) => (
-                    <article key={course.name} className="branch-dashboard-info-card">
-                      <strong>{course.name}</strong>
-                      <span>{course.batches} batches</span>
-                      <small>{course.students} students</small>
-                    </article>
-                  ))}
-                </div>
-              </BranchDashboardSection>
-            ) : null}
+              <div className="super-admin-logout-icon" aria-hidden="true">
+                <LogOut size={28} strokeWidth={2.1} />
+              </div>
 
-            {activeSection === 'batches' ? (
-              <BranchDashboardSection title="Batches" description="Current batch schedule overview.">
-                <div className="branch-dashboard-card-grid">
-                  {batchCards.map((batch) => (
-                    <article key={batch.title} className="branch-dashboard-info-card">
-                      <strong>{batch.title}</strong>
-                      <span>{batch.timing}</span>
-                      <small>{batch.status}</small>
-                    </article>
-                  ))}
-                </div>
-              </BranchDashboardSection>
-            ) : null}
+              <h2 id="branch-logout-title">Are you sure you want to logout?</h2>
+              
 
-            {activeSection === 'payments' ? (
-              <BranchDashboardSection title="Payments" description="Pending and collected payment snapshot.">
-                <div className="branch-dashboard-table-shell">
-                  <table className="branch-dashboard-table">
-                    <thead>
-                      <tr>
-                        <th>Student</th>
-                        <th>Amount</th>
-                        <th>Note</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paymentRows.map(([name, amount, note]) => (
-                        <tr key={name}>
-                          <td>{name}</td>
-                          <td>{amount}</td>
-                          <td>{note}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </BranchDashboardSection>
-            ) : null}
-
-            {activeSection === 'profile' ? (
-              <BranchDashboardSection title="Profile" description="Branch profile and login details.">
-                <div className="branch-dashboard-profile-grid">
-                  <article className="branch-dashboard-profile-panel">
-                    <span>Branch Name</span>
-                    <strong>{branchTitle}</strong>
-                  </article>
-                  <article className="branch-dashboard-profile-panel">
-                    <span>Branch Admin</span>
-                    <strong>{branchAdmin}</strong>
-                  </article>
-                  <article className="branch-dashboard-profile-panel">
-                    <span>Email</span>
-                    <strong>{branchEmail}</strong>
-                  </article>
-                  <article className="branch-dashboard-profile-panel">
-                    <span>Location</span>
-                    <strong>{branchLocation}</strong>
-                  </article>
-                </div>
-              </BranchDashboardSection>
-            ) : null}
+              <div className="branch-modal-actions">
+                <button type="button" className="branch-modal-cancel" onClick={closeLogoutConfirm}>
+                  Cancel
+                </button>
+                <button type="button" className="branch-modal-submit" onClick={handleConfirmLogout}>
+                  OK
+                </button>
+              </div>
+            </div>
           </div>
-        </main>
+        ) : null}
       </div>
     </section>
   )
