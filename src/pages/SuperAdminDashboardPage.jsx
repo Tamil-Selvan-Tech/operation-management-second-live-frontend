@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
+import { addBranchWithCredentials, deleteBranchRecord, loadBranchRegistry, saveBranchRegistry, updateBranchRecord } from '../lib/branchAuth'
 import { PaginationBar } from '../components/PaginationBar'
 import '../styles/SuperAdminDashboardPage.css'
 
@@ -36,129 +37,6 @@ function SidebarUserAvatar() {
   )
 }
 
-const seedBranches = [
-  {
-    id: 1,
-    branchId: 'BR-001',
-    branchName: 'City Center',
-    branchEmail: 'citycenter@company.com',
-    branchPhone: '440-231-4037',
-    branchAddress: '1157 Stracke Throughway, Guymouth, Nevada, Mauritius, 48423-8359',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 2,
-    branchId: 'BR-002',
-    branchName: 'Business Park',
-    branchEmail: 'businesspark@company.com',
-    branchPhone: '1-986-720-8778',
-    branchAddress: '62719 Rahul Mountains Suite 492, North Deontae, Montana, Yemen, 76453',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 3,
-    branchId: 'BR-003',
-    branchName: 'Corporate Center',
-    branchEmail: 'corporatecenter@company.com',
-    branchPhone: '1-747-315-0801',
-    branchAddress: '2129 Marques Lights Apt. 984, West Ronny, Iowa, Canada, 06563',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 4,
-    branchId: 'BR-004',
-    branchName: 'Metro Hub',
-    branchEmail: 'metrohub@company.com',
-    branchPhone: '1-408-555-0194',
-    branchAddress: '44 Park Lane, San Jose, California, United States, 95112',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 5,
-    branchId: 'BR-005',
-    branchName: 'North Point',
-    branchEmail: 'northpoint@company.com',
-    branchPhone: '1-415-555-0188',
-    branchAddress: '18 Market Street, San Francisco, California, United States, 94105',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 6,
-    branchId: 'BR-006',
-    branchName: 'Green Valley',
-    branchEmail: 'greenvalley@company.com',
-    branchPhone: '1-512-555-0124',
-    branchAddress: '1201 Cedar Avenue, Austin, Texas, United States, 78701',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 7,
-    branchId: 'BR-007',
-    branchName: 'Lake View',
-    branchEmail: 'lakeview@company.com',
-    branchPhone: '1-206-555-0171',
-    branchAddress: '77 Harbor Road, Seattle, Washington, United States, 98101',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 8,
-    branchId: 'BR-008',
-    branchName: 'Central Gate',
-    branchEmail: 'centralgate@company.com',
-    branchPhone: '1-312-555-0148',
-    branchAddress: '900 W Madison St, Chicago, Illinois, United States, 60607',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 9,
-    branchId: 'BR-009',
-    branchName: 'River Front',
-    branchEmail: 'riverfront@company.com',
-    branchPhone: '1-214-555-0117',
-    branchAddress: '2601 Elm Street, Dallas, Texas, United States, 75201',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 10,
-    branchId: 'BR-010',
-    branchName: 'Sunrise Plaza',
-    branchEmail: 'sunriseplaza@company.com',
-    branchPhone: '1-602-555-0139',
-    branchAddress: '500 East Jefferson St, Phoenix, Arizona, United States, 85004',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 11,
-    branchId: 'BR-011',
-    branchName: 'Harbor Point',
-    branchEmail: 'harborpoint@company.com',
-    branchPhone: '1-305-555-0166',
-    branchAddress: '155 Biscayne Blvd, Miami, Florida, United States, 33132',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-  {
-    id: 12,
-    branchId: 'BR-012',
-    branchName: 'Summit Center',
-    branchEmail: 'summitcenter@company.com',
-    branchPhone: '1-303-555-0155',
-    branchAddress: '1900 16th Street Mall, Denver, Colorado, United States, 80202',
-    status: 'Active',
-    createdAt: '2025-09-10',
-  },
-]
-
 function formatToday() {
   const date = new Date()
   const year = date.getFullYear()
@@ -179,6 +57,10 @@ function validateBranchField(field, value) {
       if (!text) return 'Branch name is required'
       if (!/^[A-Za-z]+(?: [A-Za-z]+)*$/.test(text)) return 'Branch name must contain letters only'
       return ''
+    case 'branchAdminName':
+      if (!text) return 'Branch admin name is required'
+      if (!/^[A-Za-z]+(?: [A-Za-z]+)*$/.test(text)) return 'Branch admin name must contain letters only'
+      return ''
     case 'branchEmail':
       if (!text) return 'Email is required'
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) return 'Enter a valid email address'
@@ -188,8 +70,8 @@ function validateBranchField(field, value) {
       if (!/^\d{10}$/.test(text)) return 'Phone number must be exactly 10 digits'
       return ''
     case 'branchAddress':
-      if (!text) return 'Address is required'
-      if (text.length < 5) return 'Address must be at least 5 characters'
+      if (!text) return 'Location is required'
+      if (text.length < 5) return 'Location must be at least 5 characters'
       return ''
     default:
       return ''
@@ -215,6 +97,7 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
       validateBranchField('branchId', form.branchId) ||
       (normalizedBranchId && branchIdExists ? 'Branch ID already exists' : ''),
     branchName: validateBranchField('branchName', form.branchName),
+    branchAdminName: validateBranchField('branchAdminName', form.branchAdminName),
     branchEmail:
       validateBranchField('branchEmail', form.branchEmail) ||
       (normalizedEmail && emailExists ? 'Email already exists' : ''),
@@ -227,43 +110,58 @@ export function SuperAdminDashboardPage() {
   const navigate = useNavigate()
   const { signOut, user } = useAuth()
   const [activeSection, setActiveSection] = useState('branches')
-  const [branches, setBranches] = useState(seedBranches)
+  const [branches, setBranches] = useState(() => loadBranchRegistry())
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [isResendConfirmOpen, setIsResendConfirmOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [editingBranchId, setEditingBranchId] = useState(null)
   const [deleteTargetBranch, setDeleteTargetBranch] = useState(null)
+  const [resendTargetBranch, setResendTargetBranch] = useState(null)
   const [actionMenuBranchId, setActionMenuBranchId] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [successMessage, setSuccessMessage] = useState('')
+  const [successTitle, setSuccessTitle] = useState('Action completed successfully')
+  const [createdCredentials, setCreatedCredentials] = useState(null)
+  const [isCredentialsVisible, setIsCredentialsVisible] = useState(false)
   const [branchErrors, setBranchErrors] = useState({})
   const [form, setForm] = useState({
     branchId: '',
     branchName: '',
+    branchAdminName: '',
     branchEmail: '',
     branchPhone: '',
     branchAddress: '',
   })
 
   useEffect(() => {
-    if (!isAddBranchOpen && !isSuccessOpen && !isDeleteConfirmOpen && !isLogoutConfirmOpen) return undefined
+    saveBranchRegistry(branches)
+  }, [branches])
+
+  useEffect(() => {
+    if (!isAddBranchOpen && !isSuccessOpen && !isDeleteConfirmOpen && !isResendConfirmOpen && !isLogoutConfirmOpen) {
+      return undefined
+    }
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsAddBranchOpen(false)
         setIsSuccessOpen(false)
         setIsDeleteConfirmOpen(false)
+        setIsResendConfirmOpen(false)
         setIsLogoutConfirmOpen(false)
         setDeleteTargetBranch(null)
+        setResendTargetBranch(null)
         setEditingBranchId(null)
+        setIsCredentialsVisible(false)
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isAddBranchOpen, isSuccessOpen, isDeleteConfirmOpen, isLogoutConfirmOpen])
+  }, [isAddBranchOpen, isSuccessOpen, isDeleteConfirmOpen, isResendConfirmOpen, isLogoutConfirmOpen])
 
   useEffect(() => {
     if (!actionMenuBranchId) return undefined
@@ -305,20 +203,18 @@ export function SuperAdminDashboardPage() {
     return filteredBranches.slice(startIndex, startIndex + rowsPerPage)
   }, [filteredBranches, rowsPerPage, safeCurrentPage])
 
-  useEffect(() => {
-    setCurrentPage((current) => {
-      const clampedPage = Math.min(Math.max(1, current), totalPages)
-      return clampedPage === current ? current : clampedPage
-    })
-  }, [totalPages])
-
   const openAddBranch = () => {
     setBranchErrors({})
     setEditingBranchId(null)
     setActionMenuBranchId(null)
+    setCreatedCredentials(null)
+    setIsCredentialsVisible(false)
+    setSuccessTitle('Create branch invitation sent')
+    setSuccessMessage('')
     setForm({
       branchId: '',
       branchName: '',
+      branchAdminName: '',
       branchEmail: '',
       branchPhone: '',
       branchAddress: '',
@@ -333,6 +229,7 @@ export function SuperAdminDashboardPage() {
     setForm({
       branchId: branch.branchId || '',
       branchName: branch.branchName || '',
+      branchAdminName: branch.branchAdminName || '',
       branchEmail: branch.branchEmail || '',
       branchPhone: String(branch.branchPhone || '').replace(/\D+/g, '').slice(0, 10),
       branchAddress: branch.branchAddress || '',
@@ -354,13 +251,18 @@ export function SuperAdminDashboardPage() {
 
   const openResendMail = (branch) => {
     setActionMenuBranchId(null)
-    setSuccessMessage(`Resend mail sent successfully to ${branch.branchName} (${branch.branchEmail}).`)
-    setIsSuccessOpen(true)
+    setResendTargetBranch(branch)
+    setIsResendConfirmOpen(true)
   }
 
   const closeDeleteConfirm = () => {
     setIsDeleteConfirmOpen(false)
     setDeleteTargetBranch(null)
+  }
+
+  const closeResendConfirm = () => {
+    setIsResendConfirmOpen(false)
+    setResendTargetBranch(null)
   }
 
   const closeLogoutConfirm = () => {
@@ -370,9 +272,21 @@ export function SuperAdminDashboardPage() {
   const handleDeleteBranch = () => {
     if (!deleteTargetBranch) return
 
-    setBranches((current) => current.filter((item) => item.id !== deleteTargetBranch.id))
+    const nextBranches = deleteBranchRecord(deleteTargetBranch.id)
+    setBranches(nextBranches)
     setDeleteTargetBranch(null)
     setIsDeleteConfirmOpen(false)
+  }
+
+  const handleSendMail = () => {
+    if (!resendTargetBranch) return
+
+    setIsResendConfirmOpen(false)
+    setCreatedCredentials(null)
+    setIsCredentialsVisible(false)
+    setSuccessTitle('Mail sent successfully')
+    setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
+    setIsSuccessOpen(true)
   }
 
   const handleSearchChange = (event) => {
@@ -388,6 +302,11 @@ export function SuperAdminDashboardPage() {
   const updateBranchName = (value) => {
     const nextValue = value.replace(/[^A-Za-z ]+/g, '')
     updateField('branchName', nextValue)
+  }
+
+  const updateBranchAdminName = (value) => {
+    const nextValue = value.replace(/[^A-Za-z ]+/g, '')
+    updateField('branchAdminName', nextValue)
   }
 
   const updateBranchPhone = (value) => {
@@ -411,6 +330,7 @@ export function SuperAdminDashboardPage() {
     const nextBranchData = {
       branchId: form.branchId.trim(),
       branchName: form.branchName.trim(),
+      branchAdminName: form.branchAdminName.trim(),
       branchEmail: form.branchEmail.trim(),
       branchPhone: cleanedPhone,
       branchAddress: form.branchAddress.trim(),
@@ -423,27 +343,32 @@ export function SuperAdminDashboardPage() {
         ...nextBranchData,
       }
 
-      setBranches((current) =>
-        current.map((item) => (item.id === editingBranchId ? updatedBranch : item)),
-      )
+      const nextBranches = updateBranchRecord(editingBranchId, updatedBranch)
+      setBranches(nextBranches)
       setIsAddBranchOpen(false)
       setEditingBranchId(null)
+      setCreatedCredentials(null)
+      setIsCredentialsVisible(false)
+      setSuccessTitle('Branch updated successfully')
       setSuccessMessage(`${updatedBranch.branchName} has been updated in the table.`)
       setIsSuccessOpen(true)
       return
     }
 
-    const nextBranch = {
+    const nextBranch = addBranchWithCredentials({
       id: branches.length ? Math.max(...branches.map((item) => Number(item.id) || 0)) + 1 : 1,
       ...nextBranchData,
       status: 'Active',
       createdAt: formatToday(),
-    }
+    })
 
     setBranches((current) => [nextBranch, ...current])
     setIsAddBranchOpen(false)
     setEditingBranchId(null)
-    setSuccessMessage(`${nextBranch.branchName} has been added to the table.`)
+    setCreatedCredentials(nextBranch)
+    setIsCredentialsVisible(false)
+    setSuccessTitle('Invitation email sent')
+    setSuccessMessage('Login credentials have been sent to the registered email.')
     setIsSuccessOpen(true)
   }
 
@@ -542,7 +467,7 @@ export function SuperAdminDashboardPage() {
                   <div className="branch-management-actions">
                     <button type="button" className="branch-add-button" onClick={openAddBranch}>
                       <span>+</span>
-                      <span>Add Branch</span>
+                      <span>Create Branch</span>
                     </button>
 
                     <p className="branch-management-subtitle">
@@ -577,7 +502,7 @@ export function SuperAdminDashboardPage() {
                         <th>#</th>
                         <th>Branch ID</th>
                         <th>Name</th>
-                        <th>Address</th>
+                        <th>Location</th>
                         <th>Contact</th>
                         <th>Created At</th>
                         <th>Actions</th>
@@ -588,7 +513,10 @@ export function SuperAdminDashboardPage() {
                         <tr key={branch.id}>
                           <td>{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td>
                           <td><strong>{branch.branchId}</strong></td>
-                          <td><strong>{branch.branchName}</strong></td>
+                          <td className="branch-name-cell">
+                            <strong>{branch.branchName}</strong>
+                            <span>{branch.branchAdminName || 'Branch admin not set'}</span>
+                          </td>
                           <td>{branch.branchAddress}</td>
                           <td className="branch-contact-cell">
                             <span className="branch-contact-email">{branch.branchEmail}</span>
@@ -685,7 +613,7 @@ export function SuperAdminDashboardPage() {
               X
             </button>
 
-            <h2>{editingBranchId !== null ? 'Edit branch information' : 'Branch information'}</h2>
+            <h2>{editingBranchId !== null ? 'Edit branch information' : 'Create Branch'}</h2>
 
             <div className="branch-form-grid">
               <label className="branch-field">
@@ -715,6 +643,19 @@ export function SuperAdminDashboardPage() {
               </label>
 
               <label className="branch-field">
+                <span>Branch Admin Name</span>
+                <input
+                  type="text"
+                  value={form.branchAdminName}
+                  onChange={(event) => updateBranchAdminName(event.target.value)}
+                  placeholder="Enter branch admin name"
+                  inputMode="text"
+                  maxLength={50}
+                />
+                {branchErrors.branchAdminName ? <small className="branch-field-error">{branchErrors.branchAdminName}</small> : null}
+              </label>
+
+              <label className="branch-field">
                 <span>Email</span>
                 <input
                   type="email"
@@ -739,12 +680,12 @@ export function SuperAdminDashboardPage() {
               </label>
 
               <label className="branch-field branch-field-full">
-                <span>Address</span>
+                <span>Location</span>
                 <input
                   type="text"
                   value={form.branchAddress}
                   onChange={(event) => updateField('branchAddress', event.target.value)}
-                  placeholder="Enter address"
+                  placeholder="Enter location"
                   maxLength={120}
                 />
                 {branchErrors.branchAddress ? <small className="branch-field-error">{branchErrors.branchAddress}</small> : null}
@@ -781,9 +722,34 @@ export function SuperAdminDashboardPage() {
             </div>
 
             <div className="branch-success-copy">
-              <h2 id="branch-success-title">Action completed successfully</h2>
+              <h2 id="branch-success-title">{successTitle}</h2>
               <p>{successMessage}</p>
             </div>
+
+            {createdCredentials ? (
+              <div className="branch-credentials-panel">
+                <button
+                  type="button"
+                  className="branch-credentials-toggle"
+                  onClick={() => setIsCredentialsVisible((current) => !current)}
+                >
+                  {isCredentialsVisible ? 'Hide Credentials' : 'View Credentials'}
+                </button>
+
+                {isCredentialsVisible ? (
+                  <div className="branch-credentials-card">
+                    <div>
+                      <span>Email</span>
+                      <strong>{createdCredentials.branchEmail}</strong>
+                    </div>
+                    <div>
+                      <span>Temporary Password</span>
+                      <strong>{createdCredentials.tempPassword}</strong>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="branch-success-actions">
               <button type="button" className="branch-success-secondary" onClick={() => setIsSuccessOpen(false)}>
@@ -791,6 +757,41 @@ export function SuperAdminDashboardPage() {
               </button>
               <button type="button" className="branch-success-primary" onClick={() => setIsSuccessOpen(false)}>
                 OK
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isResendConfirmOpen ? (
+        <div className="branch-modal-backdrop" role="presentation" onClick={closeResendConfirm}>
+          <div className="branch-delete-modal branch-resend-modal" role="dialog" aria-modal="true" aria-labelledby="resend-mail-title">
+            <button
+              type="button"
+              className="branch-modal-close"
+              aria-label="Close resend confirmation"
+              onClick={closeResendConfirm}
+            >
+              X
+            </button>
+
+            <div className="branch-delete-icon branch-resend-icon" aria-hidden="true">
+              !
+            </div>
+
+            <h2 id="resend-mail-title">Resend invitation mail?</h2>
+            <p>
+              {resendTargetBranch
+                ? `Resend invitation mail to ${resendTargetBranch.branchEmail}?`
+                : 'Resend invitation mail to this branch?'}
+            </p>
+
+            <div className="branch-delete-actions">
+              <button type="button" className="branch-delete-cancel" onClick={closeResendConfirm}>
+                Cancel
+              </button>
+              <button type="button" className="branch-delete-danger" onClick={handleSendMail}>
+                Send Mail
               </button>
             </div>
           </div>

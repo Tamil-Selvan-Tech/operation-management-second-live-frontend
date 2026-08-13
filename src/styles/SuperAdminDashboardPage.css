@@ -669,6 +669,18 @@
   color: #111827;
 }
 
+.branch-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.branch-name-cell span {
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
 .branch-created-at-cell {
   white-space: nowrap;
 }
@@ -785,6 +797,53 @@
 
 .branch-actions-menu button.is-warning:hover {
   background: #eff6ff;
+}
+
+.branch-credentials-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f8fbff;
+  text-align: left;
+}
+
+.branch-credentials-toggle {
+  justify-self: start;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.branch-credentials-card {
+  display: grid;
+  gap: 10px;
+}
+
+.branch-credentials-card div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.branch-credentials-card span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.branch-credentials-card strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+  word-break: break-word;
 }
 
 .branch-table-footer {
@@ -1015,6 +1074,11 @@
   font-weight: 900;
 }
 
+.branch-resend-modal .branch-delete-icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
 .branch-delete-modal h2 {
   margin-top: 0;
   color: #0f172a;
@@ -1058,6 +1122,12 @@
   border: 1px solid #dc2626;
   background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%);
   color: #fff;
+}
+
+.branch-resend-modal .branch-delete-danger {
+  border-color: #2563eb;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
 }
 
 .branch-modal h2 {

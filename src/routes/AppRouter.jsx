@@ -12,6 +12,7 @@ import { useAuth } from '../auth/useAuth'
 import { courseAccessRoles, roleDashboards, dashboardPathByRole } from '../data/authData'
 import { LoadingPage } from '../pages/LoadingPage'
 import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
+import { BranchProtectedRoute, BranchPublicRoute } from './BranchRoute'
 import { PublicRoute } from './PublicRoute'
 import {
   clearPendingLoginEmail,
@@ -62,6 +63,11 @@ const SuperAdminDashboardPage = lazyNamed(
   () => import('../pages/SuperAdminDashboardPage'),
   'SuperAdminDashboardPage',
 )
+const BranchLoginPage = lazyNamed(() => import('../pages/BranchLoginPage'), 'BranchLoginPage')
+const BranchDashboardPage = lazyNamed(
+  () => import('../pages/BranchDashboardPage'),
+  'BranchDashboardPage',
+)
 
 const routeChunks = [
   AuthShell,
@@ -84,6 +90,8 @@ const routeChunks = [
   UnauthorizedPage,
   FacultyMyBatchesPage,
   SuperAdminDashboardPage,
+  BranchLoginPage,
+  BranchDashboardPage,
 ]
 
 function preloadRouteChunks() {
@@ -322,6 +330,14 @@ export function AppRouter() {
 
           <Route path="/unauthorized" element={<StatusRoute kind="unauthorized" />} />
           <Route path="/session-expired" element={<StatusRoute kind="session-expired" />} />
+
+          <Route element={<BranchPublicRoute />}>
+            <Route path="/branch-login" element={<BranchLoginPage />} />
+          </Route>
+
+          <Route element={<BranchProtectedRoute />}>
+            <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
+          </Route>
 
           <Route
             element={
