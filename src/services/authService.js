@@ -7,6 +7,7 @@ import {
   setAuthTokens,
 } from './apiClient'
 import { roleLabels, dashboardPathByRole } from '../data/authData'
+import { findBranchByCredentials } from '../lib/branchAuth'
 
 const fixedAccounts = [
   {
@@ -100,6 +101,28 @@ export function createMockSession(account) {
       name: account.name || `${roleLabels[account.role]} User`,
       email: account.email,
       role: account.role,
+      mustResetPassword: Boolean(account.mustResetPassword),
+    },
+  }
+}
+
+function buildBranchSessionFromCredentials(credentials) {
+  const email = String(credentials?.email || credentials?.identifier || '').trim().toLowerCase()
+  const password = String(credentials?.password || '').trim()
+
+  if (!email || !password) return null
+
+  const matchedBranch = findBranchByCredentials(email, password)
+  if (!matchedBranch) return null
+
+  return {
+    token: `mock-token-${Date.now()}`,
+    user: {
+      id: matchedBranch.id || 1,
+      name: matchedBranch.branchAdminName || matchedBranch.branchName || 'Branch Admin',
+      email: matchedBranch.branchEmail,
+      role: 'branch-admin',
+      mustResetPassword: true,
     },
   }
 }
@@ -120,6 +143,12 @@ export function normalizeAuthSession(response, fallbackSession) {
     response.data?.refresh_token ||
     null
   const user = response.user || response.data?.user || fallbackSession.user
+  const mustResetPassword =
+    response.mustResetPassword ??
+    response.data?.mustResetPassword ??
+    response.user?.mustResetPassword ??
+    response.data?.user?.mustResetPassword ??
+    fallbackSession.user.mustResetPassword
 
   return {
     token,
@@ -129,6 +158,7 @@ export function normalizeAuthSession(response, fallbackSession) {
       name: user?.name ?? user?.fullName ?? fallbackSession.user.name,
       email: user?.email ?? fallbackSession.user.email,
       role: roleFromBackend(user?.role ?? fallbackSession.user.role),
+      mustResetPassword: Boolean(user?.mustResetPassword ?? mustResetPassword),
     },
   }
 }
@@ -139,6 +169,15 @@ export async function signInWithFallback(credentials) {
   if (!API_BASE_URL) {
     if (!isLocalRuntime()) {
       throw new Error('API base URL is not configured for this environment')
+    }
+
+    const branchSession = buildBranchSessionFromCredentials(credentials)
+    if (branchSession) {
+      return {
+        session: branchSession,
+        redirectTo: '/branch-dashboard',
+        source: 'mock-branch',
+      }
     }
 
     if (!matchedAccount) {
@@ -153,25 +192,27 @@ export async function signInWithFallback(credentials) {
     }
   }
 
-  try {
-    const response = await loginRequest({
-      identifier: loginIdentifier(credentials),
-      password: credentials.password,
-    })
-    const fallbackSession = createMockSession({
-      email: credentials.email || credentials.identifier || '',
-      role: 'student',
-      name: 'User',
-    })
-    const session = normalizeAuthSession(response, fallbackSession)
-    setAuthTokens(session.token, session.refreshToken)
-    return {
-      session,
-      redirectTo: dashboardPathByRole[session.user.role] || '/dashboard',
-      source: 'api',
-    }
-  } catch (error) {
-    throw error
+  const response = await loginRequest({
+    identifier: loginIdentifier(credentials),
+    password: credentials.password,
+  })
+  const fallbackSession = createMockSession({
+    email: credentials.email || credentials.identifier || '',
+    role: 'student',
+    name: 'User',
+  })
+  const session = normalizeAuthSession(response, fallbackSession)
+  const branchSession = buildBranchSessionFromCredentials(credentials)
+
+  if (branchSession?.user?.role === 'branch-admin') {
+    session.user.mustResetPassword = true
+  }
+
+  setAuthTokens(session.token, session.refreshToken)
+  return {
+    session,
+    redirectTo: dashboardPathByRole[session.user.role] || '/dashboard',
+    source: 'api',
   }
 }
 

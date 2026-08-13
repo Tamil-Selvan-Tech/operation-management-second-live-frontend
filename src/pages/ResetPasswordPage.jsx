@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
+import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
+import { findBranchByEmail, updateBranchRecordByEmail } from '../lib/branchAuth'
 import { resetPassword } from '../services/apiClient'
 import '../styles/LoginPage.css'
 
@@ -76,9 +78,23 @@ const isExpiredStatus = (searchParams, token) => {
 export function ResetPasswordPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { isAuthenticated, role, session, setSession } = useAuth()
   const token = String(searchParams.get('token') || '').trim()
-  const redirectTo = String(searchParams.get('redirect') || '').trim() || '/login'
-  const expired = useMemo(() => isExpiredStatus(searchParams, token), [searchParams, token])
+  const isBranchResetParam = String(searchParams.get('branchReset') || '').trim() === '1'
+  const authenticatedBranchEmail = String(session?.user?.email || '').trim().toLowerCase()
+  const registryBranch = findBranchByEmail(authenticatedBranchEmail)
+  const isBranchResetFlow = Boolean(
+    (isBranchResetParam ||
+      (isAuthenticated && role === 'branch-admin')) &&
+      (session?.user?.mustResetPassword || registryBranch?.mustResetPassword),
+  )
+  const redirectTo =
+    String(searchParams.get('redirect') || '').trim() ||
+    (isBranchResetFlow ? '/branch-dashboard' : '/login')
+  const expired = useMemo(
+    () => isExpiredStatus(searchParams, token) && !isBranchResetFlow,
+    [searchParams, token, isBranchResetFlow],
+  )
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -110,6 +126,38 @@ export function ResetPasswordPage() {
 
     if (nextPassword !== nextConfirmPassword) {
       setErrorMessage('Passwords do not match.')
+      return
+    }
+
+    if (isBranchResetFlow) {
+      setIsSubmitting(true)
+
+      try {
+        if (authenticatedBranchEmail) {
+          updateBranchRecordByEmail(authenticatedBranchEmail, (branch) => ({
+            ...branch,
+            mustResetPassword: false,
+            tempPassword: '',
+          }))
+        }
+        setSession((current) =>
+          current
+            ? {
+                ...current,
+                user: {
+                  ...current.user,
+                  mustResetPassword: false,
+                },
+              }
+            : current,
+        )
+        setIsUpdated(true)
+        setPassword('')
+        setConfirmPassword('')
+      } finally {
+        setIsSubmitting(false)
+      }
+
       return
     }
 
@@ -165,7 +213,7 @@ export function ResetPasswordPage() {
         <p>Your password has been changed successfully.</p>
         <div className="reset-password-actions">
           <Button type="button" onClick={goToLogin}>
-            Go to Login
+            {redirectTo === '/branch-dashboard' ? 'Go to Dashboard' : 'Go to Login'}
           </Button>
         </div>
       </Card>
@@ -174,9 +222,6 @@ export function ResetPasswordPage() {
 
   return (
     <Card className="panel reset-password-shell">
-      <span className="reset-password-orb reset-password-orb-left" aria-hidden="true" />
-      <span className="reset-password-orb reset-password-orb-right" aria-hidden="true" />
-
       <div className="reset-password-header">
         <div className="reset-password-badge" aria-hidden="true">
           <ShieldIcon />

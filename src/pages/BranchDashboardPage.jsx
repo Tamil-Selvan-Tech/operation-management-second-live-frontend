@@ -1,19 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   BookOpen,
   CircleUserRound,
+  ChevronDown,
   LayoutDashboard,
   Layers3,
   LogOut,
   Menu,
+  RefreshCcw,
   Shield,
   Users,
   Wallet,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
+import { findBranchByEmail } from '../lib/branchAuth'
 import { getCurrentBranchProfile } from '../services/branchService'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -85,11 +88,13 @@ function SidebarUserAvatar() {
 
 export function BranchDashboardPage() {
   const navigate = useNavigate()
-  const { isAuthenticated, role, signOut, user } = useAuth()
+  const { isAuthenticated, role, signOut, user, session } = useAuth()
   const [activeSection, setActiveSection] = useState('dashboard')
   const [branchProfile, setBranchProfile] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const profileMenuRef = useRef(null)
 
   useEffect(() => {
     if (!isAuthenticated || role !== 'branch-admin') {
@@ -97,7 +102,6 @@ export function BranchDashboardPage() {
       return
     }
 
-    setIsLoading(true)
     getCurrentBranchProfile()
       .then((result) => {
         setBranchProfile(result)
@@ -110,7 +114,33 @@ export function BranchDashboardPage() {
       })
   }, [isAuthenticated, navigate, role, signOut])
 
+  useEffect(() => {
+    if (!isProfileMenuOpen) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (profileMenuRef.current?.contains(target)) return
+      setIsProfileMenuOpen(false)
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsProfileMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isProfileMenuOpen])
+
   const openLogoutConfirm = () => {
+    setIsProfileMenuOpen(false)
     setIsLogoutConfirmOpen(true)
   }
 
@@ -120,6 +150,7 @@ export function BranchDashboardPage() {
 
   const handleConfirmLogout = async () => {
     closeLogoutConfirm()
+    setIsProfileMenuOpen(false)
     await signOut()
     navigate('/login', { replace: true })
   }
@@ -128,6 +159,23 @@ export function BranchDashboardPage() {
   const branchAdmin = branchProfile?.branchAdminName || user?.name || 'Branch Admin'
   const branchEmail = branchProfile?.branchEmail || user?.email || 'branch@example.com'
   const branchLocation = branchProfile?.branchAddress || 'Assigned location'
+  const registryBranch = findBranchByEmail(branchEmail)
+  const mustResetPassword = Boolean(
+    session?.user?.mustResetPassword ??
+      user?.mustResetPassword ??
+      branchProfile?.mustResetPassword ??
+      registryBranch?.mustResetPassword,
+  )
+
+  const openResetPassword = () => {
+    setIsProfileMenuOpen(false)
+    navigate('/reset-password?branchReset=1&redirect=%2Fbranch-dashboard')
+  }
+
+  const openProfile = () => {
+    setIsProfileMenuOpen(false)
+    setActiveSection('profile')
+  }
 
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Branch navigation">
@@ -205,12 +253,52 @@ export function BranchDashboardPage() {
           <span className="super-admin-notification-badge">8</span>
         </button>
 
-        <div className="super-admin-profile">
-          <AvatarBadge />
-          <div className="super-admin-profile-copy">
-            <strong>{branchAdmin}</strong>
-            <span>{branchEmail}</span>
-          </div>
+        <div ref={profileMenuRef} className="branch-dashboard-profile-menu-wrap">
+          <button
+            type="button"
+            className="super-admin-profile branch-dashboard-profile-trigger"
+            onClick={() => setIsProfileMenuOpen((current) => !current)}
+            aria-haspopup="menu"
+            aria-expanded={isProfileMenuOpen}
+          >
+            <AvatarBadge />
+            <div className="super-admin-profile-copy">
+              <strong>{branchAdmin}</strong>
+              <span>{branchEmail}</span>
+            </div>
+            <ChevronDown size={16} strokeWidth={2.2} className="branch-dashboard-profile-caret" aria-hidden="true" />
+          </button>
+
+          {isProfileMenuOpen ? (
+            <div className="branch-dashboard-profile-menu" role="menu" aria-label="Branch profile menu">
+              <button type="button" role="menuitem" className="branch-dashboard-profile-menu-item" onClick={openProfile}>
+                <CircleUserRound size={16} strokeWidth={2.1} />
+                <span>Profile</span>
+              </button>
+
+              {mustResetPassword ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="branch-dashboard-profile-menu-item"
+                  onClick={openResetPassword}
+                >
+                  <RefreshCcw size={16} strokeWidth={2.1} />
+                  <span>Reset Password</span>
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                role="menuitem"
+                className="branch-dashboard-profile-menu-item is-danger"
+                onClick={openLogoutConfirm}
+              >
+                <LogOut size={16} strokeWidth={2.1} />
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
     </header>

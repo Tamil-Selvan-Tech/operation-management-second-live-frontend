@@ -21,6 +21,9 @@ const writeJSON = (key, value) => {
 }
 
 export function normalizeBranchRecord(branch = {}) {
+  const tempPassword = String(
+    branch.tempPassword || branch.temporaryPassword || branch.temporary_password || '',
+  ).trim()
   return {
     id: Number(branch.id) || Date.now(),
     branchId: String(branch.branchId || '').trim(),
@@ -29,7 +32,8 @@ export function normalizeBranchRecord(branch = {}) {
     branchEmail: String(branch.branchEmail || '').trim().toLowerCase(),
     branchPhone: String(branch.branchPhone || '').trim(),
     branchAddress: String(branch.branchAddress || '').trim(),
-    tempPassword: String(branch.tempPassword || '').trim(),
+    tempPassword,
+    mustResetPassword: Boolean(branch.mustResetPassword || tempPassword),
     status: String(branch.status || 'Active').trim() || 'Active',
     createdAt: String(branch.createdAt || '').trim(),
   }
@@ -67,6 +71,7 @@ export function addBranchWithCredentials(branch = {}) {
   const nextBranch = normalizeBranchRecord({
     ...branch,
     tempPassword: createTemporaryPassword(10),
+    mustResetPassword: true,
     createdAt: branch.createdAt || new Date().toISOString().slice(0, 10),
     status: branch.status || 'Active',
   })
@@ -85,6 +90,25 @@ export function updateBranchRecord(branchId, updater) {
 
   saveBranchRegistry(nextRegistry)
   return nextRegistry
+}
+
+export function updateBranchRecordByEmail(branchEmail, updater) {
+  const normalizedEmail = String(branchEmail || '').trim().toLowerCase()
+  const registry = loadBranchRegistry()
+  const nextRegistry = registry.map((branch) => {
+    if (branch.branchEmail !== normalizedEmail) return branch
+    return normalizeBranchRecord(typeof updater === 'function' ? updater(branch) : { ...branch, ...updater })
+  })
+
+  saveBranchRegistry(nextRegistry)
+  return nextRegistry
+}
+
+export function findBranchByEmail(branchEmail) {
+  const normalizedEmail = String(branchEmail || '').trim().toLowerCase()
+  if (!normalizedEmail) return null
+
+  return loadBranchRegistry().find((branch) => branch.branchEmail === normalizedEmail) || null
 }
 
 export function deleteBranchRecord(branchId) {
@@ -134,6 +158,7 @@ export function createBranchSession(branch) {
     branchEmail: branch.branchEmail,
     branchPhone: branch.branchPhone,
     branchAddress: branch.branchAddress,
+    mustResetPassword: Boolean(branch.mustResetPassword),
     loggedInAt: new Date().toISOString(),
   }
 }
