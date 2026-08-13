@@ -202,11 +202,6 @@ export async function signInWithFallback(credentials) {
     name: 'User',
   })
   const session = normalizeAuthSession(response, fallbackSession)
-  const branchSession = buildBranchSessionFromCredentials(credentials)
-
-  if (branchSession?.user?.role === 'branch-admin') {
-    session.user.mustResetPassword = true
-  }
 
   setAuthTokens(session.token, session.refreshToken)
   return {

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
@@ -83,7 +83,12 @@ const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value |
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState(loadPendingLoginEmail())
+  const [searchParams] = useSearchParams()
+  const prefilledEmail = useMemo(() => {
+    const emailFromQuery = String(searchParams.get('email') || '').trim().toLowerCase()
+    return emailFromQuery || loadPendingLoginEmail()
+  }, [searchParams])
+  const [email, setEmail] = useState(prefilledEmail)
   const [sentEmail, setSentEmail] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)

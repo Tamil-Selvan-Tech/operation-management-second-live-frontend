@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
+import { Button } from '../components/Button'
 import { findBranchByEmail } from '../lib/branchAuth'
 import { getCurrentBranchProfile } from '../services/branchService'
 import '../styles/SuperAdminDashboardPage.css'
@@ -169,7 +170,13 @@ export function BranchDashboardPage() {
 
   const openResetPassword = () => {
     setIsProfileMenuOpen(false)
-    navigate('/reset-password?branchReset=1&redirect=%2Fbranch-dashboard')
+    navigate('/reset-password?branchReset=1')
+  }
+
+  const openForgotPassword = () => {
+    setIsProfileMenuOpen(false)
+    const suffix = branchEmail ? `?email=${encodeURIComponent(branchEmail)}` : ''
+    navigate(`/forgot-password${suffix}`)
   }
 
   const openProfile = () => {
@@ -286,7 +293,17 @@ export function BranchDashboardPage() {
                   <RefreshCcw size={16} strokeWidth={2.1} />
                   <span>Reset Password</span>
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="branch-dashboard-profile-menu-item"
+                  onClick={openForgotPassword}
+                >
+                  <RefreshCcw size={16} strokeWidth={2.1} />
+                  <span>Forgot Password</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -340,6 +357,20 @@ export function BranchDashboardPage() {
             <div className="branch-dashboard-content">
               {activeSection === 'dashboard' ? (
                 <>
+                  {mustResetPassword ? (
+                    <section className="branch-dashboard-password-alert" aria-live="polite">
+                      <div className="branch-dashboard-password-alert-copy">
+                        <strong>Temporary password still active</strong>
+                        <p>
+                          You have not reset your temporary password yet. Please reset it now to secure your branch dashboard account.
+                        </p>
+                      </div>
+                      <Button type="button" onClick={openResetPassword}>
+                        Reset Password
+                      </Button>
+                    </section>
+                  ) : null}
+
                   <div className="branch-dashboard-stats">
                     {overviewStats.map((stat) => (
                       <article key={stat.label} className="branch-dashboard-stat-card">

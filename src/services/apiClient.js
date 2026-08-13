@@ -239,6 +239,13 @@ export async function resetPassword({ token, password }) {
   })
 }
 
+export async function changePassword(password) {
+  return request('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
+}
+
 export async function warmBackendConnection() {
   try {
     await fetch(`${API_BASE_URL}/health`, {

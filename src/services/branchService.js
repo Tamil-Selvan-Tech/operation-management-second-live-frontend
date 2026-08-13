@@ -34,6 +34,10 @@ function normalizeBranchRecord(record = {}) {
   }
 }
 
+function hasExplicitMustResetPassword(record = {}) {
+  return Object.prototype.hasOwnProperty.call(record, 'mustResetPassword')
+}
+
 function unwrapResponse(response) {
   return response?.data || response
 }
@@ -41,6 +45,7 @@ function unwrapResponse(response) {
 function syncLocalBranchRecord(record) {
   const normalized = normalizeBranchRecord(record)
   if (!normalized.branchEmail) return normalized
+  const explicitMustResetPassword = hasExplicitMustResetPassword(record)
 
   const registry = loadBranchRegistry()
   const existing = registry.find((branch) => branch.branchEmail === normalized.branchEmail)
@@ -48,14 +53,18 @@ function syncLocalBranchRecord(record) {
     ? {
         ...existing,
         ...normalized,
-        tempPassword: normalized.tempPassword || existing.tempPassword || '',
-        mustResetPassword:
-          Boolean(
-            normalized.mustResetPassword ||
-              existing.mustResetPassword ||
-              normalized.tempPassword ||
-              existing.tempPassword,
-          ),
+        tempPassword:
+          explicitMustResetPassword && !normalized.mustResetPassword
+            ? ''
+            : normalized.tempPassword || existing.tempPassword || '',
+        mustResetPassword: explicitMustResetPassword
+          ? Boolean(normalized.mustResetPassword)
+          : Boolean(
+              normalized.mustResetPassword ||
+                existing.mustResetPassword ||
+                normalized.tempPassword ||
+                existing.tempPassword,
+            ),
       }
     : {
         ...normalized,
@@ -112,13 +121,18 @@ export async function listBranches(params = {}) {
       return {
         ...existing,
         ...branch,
-        tempPassword: branch.tempPassword || existing.tempPassword || '',
-        mustResetPassword: Boolean(
-          branch.mustResetPassword ||
-            existing.mustResetPassword ||
-            branch.tempPassword ||
-            existing.tempPassword,
-        ),
+        tempPassword:
+          hasExplicitMustResetPassword(branch) && !branch.mustResetPassword
+            ? ''
+            : branch.tempPassword || existing.tempPassword || '',
+        mustResetPassword: hasExplicitMustResetPassword(branch)
+          ? Boolean(branch.mustResetPassword)
+          : Boolean(
+              branch.mustResetPassword ||
+                existing.mustResetPassword ||
+                branch.tempPassword ||
+                existing.tempPassword,
+            ),
       }
     })
 
@@ -183,5 +197,5 @@ export async function getCurrentBranchProfile() {
     method: 'GET',
   })
 
-  return normalizeBranchRecord(unwrapResponse(response))
+  return syncLocalBranchRecord(unwrapResponse(response))
 }

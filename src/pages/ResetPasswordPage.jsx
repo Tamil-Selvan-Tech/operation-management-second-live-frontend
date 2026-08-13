@@ -6,7 +6,8 @@ import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
 import { findBranchByEmail, updateBranchRecordByEmail } from '../lib/branchAuth'
-import { resetPassword } from '../services/apiClient'
+import { clearPendingLoginEmail, savePendingLoginEmail } from '../lib/session'
+import { changePassword, resetPassword } from '../services/apiClient'
 import '../styles/LoginPage.css'
 
 function ShieldIcon() {
@@ -90,7 +91,7 @@ export function ResetPasswordPage() {
   )
   const redirectTo =
     String(searchParams.get('redirect') || '').trim() ||
-    (isBranchResetFlow ? '/branch-dashboard' : '/login')
+    (isBranchResetFlow ? '/login' : '/login')
   const expired = useMemo(
     () => isExpiredStatus(searchParams, token) && !isBranchResetFlow,
     [searchParams, token, isBranchResetFlow],
@@ -132,35 +133,37 @@ export function ResetPasswordPage() {
     if (isBranchResetFlow) {
       setIsSubmitting(true)
 
-      try {
-        if (authenticatedBranchEmail) {
-          updateBranchRecordByEmail(authenticatedBranchEmail, (branch) => ({
-            ...branch,
-            mustResetPassword: false,
-            tempPassword: '',
-          }))
-        }
-        setSession((current) =>
-          current
-            ? {
-                ...current,
-                user: {
-                  ...current.user,
-                  mustResetPassword: false,
-                },
-              }
-            : current,
-        )
-        setIsUpdated(true)
-        setPassword('')
-        setConfirmPassword('')
-      } finally {
-        setIsSubmitting(false)
-      }
-
+      changePassword(nextPassword)
+        .then(() => {
+          if (authenticatedBranchEmail) {
+            updateBranchRecordByEmail(authenticatedBranchEmail, (branch) => ({
+              ...branch,
+              mustResetPassword: false,
+              tempPassword: '',
+            }))
+            savePendingLoginEmail(authenticatedBranchEmail)
+          } else {
+            clearPendingLoginEmail()
+          }
+          setSession(null)
+          setPassword('')
+          setConfirmPassword('')
+          navigate('/login', { replace: true })
+        })
+        .catch((error) => {
+          const message =
+            error?.body?.message ||
+            error?.message ||
+            'Unable to update password right now. Please try again.'
+          setErrorMessage(message)
+        })
+        .finally(() => {
+          setIsSubmitting(false)
+        })
       return
     }
 
+    clearPendingLoginEmail()
     setIsSubmitting(true)
 
     resetPassword({ token, password: nextPassword })
@@ -213,7 +216,7 @@ export function ResetPasswordPage() {
         <p>Your password has been changed successfully.</p>
         <div className="reset-password-actions">
           <Button type="button" onClick={goToLogin}>
-            {redirectTo === '/branch-dashboard' ? 'Go to Dashboard' : 'Go to Login'}
+            Go to Login
           </Button>
         </div>
       </Card>
@@ -229,7 +232,11 @@ export function ResetPasswordPage() {
         <div className="reset-password-copy">
           <p className="eyebrow">Security</p>
           <h2>Reset password</h2>
-          <p>Create a new password below and use it the next time you sign in.</p>
+          <p>
+            {isBranchResetFlow
+              ? 'You are still using your temporary password. Create a new password now to continue using your branch dashboard safely.'
+              : 'Create a new password below and use it the next time you sign in.'}
+          </p>
         </div>
       </div>
 

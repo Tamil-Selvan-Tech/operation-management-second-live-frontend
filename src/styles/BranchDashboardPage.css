@@ -308,6 +308,35 @@
   padding: 18px 0 12px;
 }
 
+.branch-dashboard-password-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.08);
+}
+
+.branch-dashboard-password-alert-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.branch-dashboard-password-alert-copy strong {
+  color: #1d4ed8;
+  font-size: 1rem;
+}
+
+.branch-dashboard-password-alert-copy p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
 .branch-dashboard-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -522,6 +551,11 @@
 
   .branch-dashboard-content {
     padding: 12px 0 8px;
+  }
+
+  .branch-dashboard-password-alert {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .branch-dashboard-stats,
