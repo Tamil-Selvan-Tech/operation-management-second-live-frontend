@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   Building2,
   ChevronDown,
-  ChevronRight,
+  CircleUserRound,
   LayoutDashboard,
+  LogOut,
   Menu,
   MoreVertical,
   Search,
   Shield,
 } from 'lucide-react'
 
+import { useAuth } from '../auth/useAuth'
 import { PaginationBar } from '../components/PaginationBar'
 import '../styles/SuperAdminDashboardPage.css'
 
@@ -20,6 +23,15 @@ function AvatarBadge() {
       <span className="super-admin-avatar-mark">
         <Shield size={18} strokeWidth={2.2} />
       </span>
+    </span>
+  )
+}
+
+function SidebarUserAvatar() {
+  return (
+    <span className="super-admin-sidebar-user-avatar" aria-hidden="true">
+      <CircleUserRound size={34} strokeWidth={1.9} />
+      <span className="super-admin-sidebar-user-status" />
     </span>
   )
 }
@@ -212,12 +224,15 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
 }
 
 export function SuperAdminDashboardPage() {
+  const navigate = useNavigate()
+  const { signOut, user } = useAuth()
   const [activeSection, setActiveSection] = useState('branches')
   const [branches, setBranches] = useState(seedBranches)
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [editingBranchId, setEditingBranchId] = useState(null)
   const [deleteTargetBranch, setDeleteTargetBranch] = useState(null)
   const [actionMenuBranchId, setActionMenuBranchId] = useState(null)
@@ -233,13 +248,14 @@ export function SuperAdminDashboardPage() {
   })
 
   useEffect(() => {
-    if (!isAddBranchOpen && !isSuccessOpen && !isDeleteConfirmOpen) return undefined
+    if (!isAddBranchOpen && !isSuccessOpen && !isDeleteConfirmOpen && !isLogoutConfirmOpen) return undefined
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsAddBranchOpen(false)
         setIsSuccessOpen(false)
         setIsDeleteConfirmOpen(false)
+        setIsLogoutConfirmOpen(false)
         setDeleteTargetBranch(null)
         setEditingBranchId(null)
       }
@@ -247,7 +263,7 @@ export function SuperAdminDashboardPage() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isAddBranchOpen, isSuccessOpen, isDeleteConfirmOpen])
+  }, [isAddBranchOpen, isSuccessOpen, isDeleteConfirmOpen, isLogoutConfirmOpen])
 
   useEffect(() => {
     if (!actionMenuBranchId) return undefined
@@ -264,6 +280,7 @@ export function SuperAdminDashboardPage() {
   }, [actionMenuBranchId])
 
   const rowsPerPage = 5
+  const totalBranches = branches.length
 
   const filteredBranches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -335,9 +352,19 @@ export function SuperAdminDashboardPage() {
     setActionMenuBranchId(null)
   }
 
+  const openResendMail = (branch) => {
+    setActionMenuBranchId(null)
+    setSuccessMessage(`Resend mail sent successfully to ${branch.branchName} (${branch.branchEmail}).`)
+    setIsSuccessOpen(true)
+  }
+
   const closeDeleteConfirm = () => {
     setIsDeleteConfirmOpen(false)
     setDeleteTargetBranch(null)
+  }
+
+  const closeLogoutConfirm = () => {
+    setIsLogoutConfirmOpen(false)
   }
 
   const handleDeleteBranch = () => {
@@ -420,6 +447,17 @@ export function SuperAdminDashboardPage() {
     setIsSuccessOpen(true)
   }
 
+  const handleConfirmLogout = async () => {
+    closeLogoutConfirm()
+    try {
+      await signOut()
+    } finally {
+      navigate('/login', { replace: true })
+    }
+  }
+
+  const profileEmail = user?.email || 'superadmin@example.com'
+
   return (
     <section className="super-admin-page">
       <div className="super-admin-shell">
@@ -444,9 +482,27 @@ export function SuperAdminDashboardPage() {
                 <Building2 size={18} strokeWidth={2.2} />
               </span>
               <span>Branches</span>
-              <ChevronRight size={14} strokeWidth={2.4} className="super-admin-sidebar-caret" />
             </button>
           </nav>
+
+          <div className="super-admin-sidebar-footer">
+            <div className="super-admin-sidebar-profile-card">
+              <SidebarUserAvatar />
+
+              <div className="super-admin-sidebar-profile-copy">
+                <span>{profileEmail}</span>
+              </div>
+
+              <button
+                type="button"
+                className="super-admin-sidebar-logout-button"
+                aria-label="Logout"
+                onClick={() => setIsLogoutConfirmOpen(true)}
+              >
+                <LogOut size={22} strokeWidth={2.15} />
+              </button>
+            </div>
+          </div>
         </aside>
 
         <div className="super-admin-main">
@@ -455,18 +511,7 @@ export function SuperAdminDashboardPage() {
               <button type="button" className="super-admin-icon-button" aria-label="Open menu">
                 <Menu size={22} strokeWidth={2.2} />
               </button>
-
-              <div className="super-admin-brand">
-                <img className="super-admin-brand-logo" src="/logo1.png" alt="Super Admin logo" />
-                <span className="super-admin-brand-title">Elite Admin</span>
-              </div>
             </div>
-
-            <button type="button" className="super-admin-branch-chip" aria-label="Select branch">
-              <Building2 size={18} strokeWidth={2.1} />
-              <span>All Branches</span>
-              <ChevronDown size={18} strokeWidth={2.2} />
-            </button>
 
             <div className="super-admin-topbar-right">
               <button type="button" className="super-admin-notification-button" aria-label="Notifications">
@@ -494,10 +539,16 @@ export function SuperAdminDashboardPage() {
                     <h1>Branch Management</h1>
                   </div>
 
-                  <button type="button" className="branch-add-button" onClick={openAddBranch}>
-                    <span>+</span>
-                    <span>Add Branch</span>
-                  </button>
+                  <div className="branch-management-actions">
+                    <button type="button" className="branch-add-button" onClick={openAddBranch}>
+                      <span>+</span>
+                      <span>Add Branch</span>
+                    </button>
+
+                    <p className="branch-management-subtitle">
+                      Total branches: <strong>{totalBranches}</strong>
+                    </p>
+                  </div>
                 </div>
 
                 <div className="branch-management-toolbar">
@@ -571,6 +622,9 @@ export function SuperAdminDashboardPage() {
                                 <button type="button" role="menuitem" className="is-danger" onClick={() => openDeleteConfirm(branch)}>
                                   Delete
                                 </button>
+                                <button type="button" role="menuitem" className="is-warning" onClick={() => openResendMail(branch)}>
+                                  Resend Mail
+                                </button>
                               </div>
                             </div>
                           </td>
@@ -603,8 +657,16 @@ export function SuperAdminDashboardPage() {
             ) : (
               <div className="super-admin-hero-copy">
                 <p className="eyebrow">Super Admin</p>
-                <h1>Control Center</h1>
-                <p>Dummy super admin dashboard for login validation and role checks.</p>
+                {/* <h1>Control Center</h1> */}
+                {/* <p>Dummy super admin dashboard for login validation and role checks.</p> */}
+
+                <div className="super-admin-stats-grid" aria-label="Dashboard branch summary">
+                  <article className="super-admin-stat-card">
+                    <span className="super-admin-stat-label">Total branches</span>
+                    <strong className="super-admin-stat-value">{totalBranches}</strong>
+                    <span className="super-admin-stat-note">All branches</span>
+                  </article>
+                </div>
               </div>
             )}
           </main>
@@ -719,13 +781,13 @@ export function SuperAdminDashboardPage() {
             </div>
 
             <div className="branch-success-copy">
-              <h2 id="branch-success-title">Branch created successfully</h2>
+              <h2 id="branch-success-title">Action completed successfully</h2>
               <p>{successMessage}</p>
             </div>
 
             <div className="branch-success-actions">
               <button type="button" className="branch-success-secondary" onClick={() => setIsSuccessOpen(false)}>
-                View table
+                Close
               </button>
               <button type="button" className="branch-success-primary" onClick={() => setIsSuccessOpen(false)}>
                 OK
@@ -764,6 +826,44 @@ export function SuperAdminDashboardPage() {
               </button>
               <button type="button" className="branch-delete-danger" onClick={handleDeleteBranch}>
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isLogoutConfirmOpen ? (
+        <div className="branch-modal-backdrop" role="presentation" onClick={closeLogoutConfirm}>
+          <div
+            className="branch-success-modal super-admin-logout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="super-admin-logout-title"
+            aria-describedby="super-admin-logout-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="branch-modal-close"
+              aria-label="Close logout confirmation"
+              onClick={closeLogoutConfirm}
+            >
+              X
+            </button>
+
+            <div className="super-admin-logout-icon" aria-hidden="true">
+              <LogOut size={28} strokeWidth={2.1} />
+            </div>
+
+            <h2 id="super-admin-logout-title">Are you sure you want to logout?</h2>
+           
+
+            <div className="branch-modal-actions">
+              <button type="button" className="branch-modal-cancel" onClick={closeLogoutConfirm}>
+                Cancel
+              </button>
+              <button type="button" className="branch-modal-submit" onClick={handleConfirmLogout}>
+                OK
               </button>
             </div>
           </div>
