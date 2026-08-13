@@ -222,7 +222,6 @@ export function SuperAdminDashboardPage() {
   const [deleteTargetBranch, setDeleteTargetBranch] = useState(null)
   const [actionMenuBranchId, setActionMenuBranchId] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [rowsPerPage, setRowsPerPage] = useState(5)
   const [successMessage, setSuccessMessage] = useState('')
   const [branchErrors, setBranchErrors] = useState({})
   const [form, setForm] = useState({
@@ -263,6 +262,8 @@ export function SuperAdminDashboardPage() {
     window.addEventListener('pointerdown', onPointerDown)
     return () => window.removeEventListener('pointerdown', onPointerDown)
   }, [actionMenuBranchId])
+
+  const rowsPerPage = 5
 
   const filteredBranches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -349,11 +350,6 @@ export function SuperAdminDashboardPage() {
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value)
-    setCurrentPage(1)
-  }
-
-  const handleRowsPerPageChange = (event) => {
-    setRowsPerPage(Number(event.target.value))
     setCurrentPage(1)
   }
 
@@ -521,16 +517,6 @@ export function SuperAdminDashboardPage() {
                     </button>
                   </div>
 
-                  <div className="branch-per-page">
-                    <span>Per Page:</span>
-                    <select
-                      value={rowsPerPage}
-                      onChange={handleRowsPerPageChange}
-                      aria-label="Rows per page"
-                    >
-                      <option value="5">5</option>
-                    </select>
-                  </div>
                 </div>
 
                 <div className="branch-table-shell">
