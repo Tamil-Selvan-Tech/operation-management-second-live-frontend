@@ -11,6 +11,7 @@ import {
   Shield,
 } from 'lucide-react'
 
+import { PaginationBar } from '../components/PaginationBar'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -51,6 +52,96 @@ const seedBranches = [
     branchEmail: 'corporatecenter@company.com',
     branchPhone: '1-747-315-0801',
     branchAddress: '2129 Marques Lights Apt. 984, West Ronny, Iowa, Canada, 06563',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 4,
+    branchId: 'BR-004',
+    branchName: 'Metro Hub',
+    branchEmail: 'metrohub@company.com',
+    branchPhone: '1-408-555-0194',
+    branchAddress: '44 Park Lane, San Jose, California, United States, 95112',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 5,
+    branchId: 'BR-005',
+    branchName: 'North Point',
+    branchEmail: 'northpoint@company.com',
+    branchPhone: '1-415-555-0188',
+    branchAddress: '18 Market Street, San Francisco, California, United States, 94105',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 6,
+    branchId: 'BR-006',
+    branchName: 'Green Valley',
+    branchEmail: 'greenvalley@company.com',
+    branchPhone: '1-512-555-0124',
+    branchAddress: '1201 Cedar Avenue, Austin, Texas, United States, 78701',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 7,
+    branchId: 'BR-007',
+    branchName: 'Lake View',
+    branchEmail: 'lakeview@company.com',
+    branchPhone: '1-206-555-0171',
+    branchAddress: '77 Harbor Road, Seattle, Washington, United States, 98101',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 8,
+    branchId: 'BR-008',
+    branchName: 'Central Gate',
+    branchEmail: 'centralgate@company.com',
+    branchPhone: '1-312-555-0148',
+    branchAddress: '900 W Madison St, Chicago, Illinois, United States, 60607',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 9,
+    branchId: 'BR-009',
+    branchName: 'River Front',
+    branchEmail: 'riverfront@company.com',
+    branchPhone: '1-214-555-0117',
+    branchAddress: '2601 Elm Street, Dallas, Texas, United States, 75201',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 10,
+    branchId: 'BR-010',
+    branchName: 'Sunrise Plaza',
+    branchEmail: 'sunriseplaza@company.com',
+    branchPhone: '1-602-555-0139',
+    branchAddress: '500 East Jefferson St, Phoenix, Arizona, United States, 85004',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 11,
+    branchId: 'BR-011',
+    branchName: 'Harbor Point',
+    branchEmail: 'harborpoint@company.com',
+    branchPhone: '1-305-555-0166',
+    branchAddress: '155 Biscayne Blvd, Miami, Florida, United States, 33132',
+    status: 'Active',
+    createdAt: '2025-09-10',
+  },
+  {
+    id: 12,
+    branchId: 'BR-012',
+    branchName: 'Summit Center',
+    branchEmail: 'summitcenter@company.com',
+    branchPhone: '1-303-555-0155',
+    branchAddress: '1900 16th Street Mall, Denver, Colorado, United States, 80202',
     status: 'Active',
     createdAt: '2025-09-10',
   },
@@ -129,6 +220,9 @@ export function SuperAdminDashboardPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [editingBranchId, setEditingBranchId] = useState(null)
   const [deleteTargetBranch, setDeleteTargetBranch] = useState(null)
+  const [actionMenuBranchId, setActionMenuBranchId] = useState(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(5)
   const [successMessage, setSuccessMessage] = useState('')
   const [branchErrors, setBranchErrors] = useState({})
   const [form, setForm] = useState({
@@ -156,6 +250,20 @@ export function SuperAdminDashboardPage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isAddBranchOpen, isSuccessOpen, isDeleteConfirmOpen])
 
+  useEffect(() => {
+    if (!actionMenuBranchId) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (target.closest('.branch-actions-wrap')) return
+      setActionMenuBranchId(null)
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    return () => window.removeEventListener('pointerdown', onPointerDown)
+  }, [actionMenuBranchId])
+
   const filteredBranches = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
     if (!query) return branches
@@ -172,9 +280,24 @@ export function SuperAdminDashboardPage() {
     })
   }, [branches, searchTerm])
 
+  const totalPages = Math.max(1, Math.ceil(filteredBranches.length / rowsPerPage))
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+  const paginatedBranches = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * rowsPerPage
+    return filteredBranches.slice(startIndex, startIndex + rowsPerPage)
+  }, [filteredBranches, rowsPerPage, safeCurrentPage])
+
+  useEffect(() => {
+    setCurrentPage((current) => {
+      const clampedPage = Math.min(Math.max(1, current), totalPages)
+      return clampedPage === current ? current : clampedPage
+    })
+  }, [totalPages])
+
   const openAddBranch = () => {
     setBranchErrors({})
     setEditingBranchId(null)
+    setActionMenuBranchId(null)
     setForm({
       branchId: '',
       branchName: '',
@@ -188,6 +311,7 @@ export function SuperAdminDashboardPage() {
   const openEditBranch = (branch) => {
     setBranchErrors({})
     setEditingBranchId(branch.id)
+    setActionMenuBranchId(null)
     setForm({
       branchId: branch.branchId || '',
       branchName: branch.branchName || '',
@@ -202,6 +326,35 @@ export function SuperAdminDashboardPage() {
     setIsAddBranchOpen(false)
     setEditingBranchId(null)
     setBranchErrors({})
+  }
+
+  const openDeleteConfirm = (branch) => {
+    setDeleteTargetBranch(branch)
+    setIsDeleteConfirmOpen(true)
+    setActionMenuBranchId(null)
+  }
+
+  const closeDeleteConfirm = () => {
+    setIsDeleteConfirmOpen(false)
+    setDeleteTargetBranch(null)
+  }
+
+  const handleDeleteBranch = () => {
+    if (!deleteTargetBranch) return
+
+    setBranches((current) => current.filter((item) => item.id !== deleteTargetBranch.id))
+    setDeleteTargetBranch(null)
+    setIsDeleteConfirmOpen(false)
+  }
+
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value)
+    setCurrentPage(1)
+  }
+
+  const handleRowsPerPageChange = (event) => {
+    setRowsPerPage(Number(event.target.value))
+    setCurrentPage(1)
   }
 
   const updateField = (field, value) => {
@@ -269,26 +422,6 @@ export function SuperAdminDashboardPage() {
     setEditingBranchId(null)
     setSuccessMessage(`${nextBranch.branchName} has been added to the table.`)
     setIsSuccessOpen(true)
-  }
-
-  const openDeleteConfirm = (branch) => {
-    setDeleteTargetBranch(branch)
-    setIsDeleteConfirmOpen(true)
-  }
-
-  const closeDeleteConfirm = () => {
-    setIsDeleteConfirmOpen(false)
-    setDeleteTargetBranch(null)
-  }
-
-  const handleDeleteBranch = () => {
-    if (!deleteTargetBranch) {
-      closeDeleteConfirm()
-      return
-    }
-
-    setBranches((current) => current.filter((item) => item.id !== deleteTargetBranch.id))
-    closeDeleteConfirm()
   }
 
   return (
@@ -379,7 +512,7 @@ export function SuperAdminDashboardPage() {
                     <input
                       type="text"
                       value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
+                      onChange={handleSearchChange}
                       placeholder="Search..."
                       aria-label="Search branches"
                     />
@@ -390,10 +523,12 @@ export function SuperAdminDashboardPage() {
 
                   <div className="branch-per-page">
                     <span>Per Page:</span>
-                    <select defaultValue="10" aria-label="Rows per page">
-                      <option value="10">10</option>
-                      <option value="20">20</option>
-                      <option value="50">50</option>
+                    <select
+                      value={rowsPerPage}
+                      onChange={handleRowsPerPageChange}
+                      aria-label="Rows per page"
+                    >
+                      <option value="5">5</option>
                     </select>
                   </div>
                 </div>
@@ -407,40 +542,40 @@ export function SuperAdminDashboardPage() {
                         <th>Name</th>
                         <th>Address</th>
                         <th>Contact</th>
-                        <th>Status</th>
                         <th>Created At</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredBranches.map((branch, index) => (
+                      {paginatedBranches.map((branch, index) => (
                         <tr key={branch.id}>
-                          <td>{index + 1}</td>
+                          <td>{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td>
                           <td><strong>{branch.branchId}</strong></td>
                           <td><strong>{branch.branchName}</strong></td>
                           <td>{branch.branchAddress}</td>
-                          <td>
-                            {branch.branchPhone} | {branch.branchEmail}
+                          <td className="branch-contact-cell">
+                            <span className="branch-contact-email">{branch.branchEmail}</span>
+                            <span className="branch-contact-phone">{branch.branchPhone}</span>
                           </td>
+                          <td className="branch-created-at-cell">{branch.createdAt}</td>
                           <td>
-                            <span className="branch-status-pill">{branch.status}</span>
-                          </td>
-                          <td>{branch.createdAt}</td>
-                          <td>
-                            <div className="branch-actions branch-actions-wrap">
+                            <div
+                              className={`branch-actions branch-actions-wrap ${actionMenuBranchId === branch.id ? 'is-open' : ''}`.trim()}
+                              onMouseEnter={() => setActionMenuBranchId(branch.id)}
+                            >
                               <button
                                 type="button"
                                 className="branch-actions-trigger"
                                 aria-label={`Open actions for ${branch.branchName}`}
                                 aria-haspopup="menu"
                                 aria-expanded={actionMenuBranchId === branch.id}
-                                onClick={() => toggleActionMenu(branch.id)}
+                                onClick={() => setActionMenuBranchId(branch.id)}
                               >
                                 <MoreVertical size={18} strokeWidth={2.3} />
                               </button>
 
                               <div
-                                className={`branch-actions-menu ${actionMenuBranchId === branch.id ? 'is-open' : ''}`.trim()}
+                                className="branch-actions-menu"
                                 role="menu"
                                 aria-label={`${branch.branchName} actions`}
                               >
@@ -460,20 +595,23 @@ export function SuperAdminDashboardPage() {
 
                   <div className="branch-table-footer">
                     <span>
-                      Showing {filteredBranches.length} of {branches.length} branches
+                      Showing {filteredBranches.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1}
+                      {' '}to{' '}
+                      {Math.min(safeCurrentPage * rowsPerPage, filteredBranches.length)}
+                      {' '}of {filteredBranches.length} branches
                     </span>
-                    <div className="branch-pagination">
-                      <button type="button" disabled>
-                        Previous
-                      </button>
-                      <button type="button" className="is-active">
-                        1
-                      </button>
-                      <button type="button" disabled>
-                        Next
-                      </button>
-                    </div>
                   </div>
+
+                  <PaginationBar
+                    className="super-admin-pagination"
+                    currentPage={safeCurrentPage}
+                    totalPages={totalPages}
+                    onPageChange={setCurrentPage}
+                    label="Branch pagination"
+                    previousLabel="Prev"
+                    nextLabel="Next"
+                    showSummary={false}
+                  />
                 </div>
               </section>
             ) : (

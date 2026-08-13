@@ -16,7 +16,17 @@ function buildPageList(totalPages, currentPage) {
   return pages
 }
 
-export function PaginationBar({ currentPage, totalPages, pageList: pageListProp, onPageChange, className = '', label = 'Pagination' }) {
+export function PaginationBar({
+  currentPage,
+  totalPages,
+  pageList: pageListProp,
+  onPageChange,
+  className = '',
+  label = 'Pagination',
+  previousLabel = 'Back',
+  nextLabel = 'Next',
+  showSummary = true,
+}) {
   const safeTotalPages = Math.max(1, Number(totalPages) || 1)
   const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), safeTotalPages)
   const pageList = Array.isArray(pageListProp) && pageListProp.length ? pageListProp : buildPageList(safeTotalPages, safeCurrentPage)
@@ -32,7 +42,7 @@ export function PaginationBar({ currentPage, totalPages, pageList: pageListProp,
         disabled={safeCurrentPage <= 1}
       >
         <ChevronLeft size={18} />
-        <span>Back</span>
+        <span>{previousLabel}</span>
       </button>
 
       <div className="pagination-bar-pages">
@@ -61,13 +71,15 @@ export function PaginationBar({ currentPage, totalPages, pageList: pageListProp,
         onClick={() => onPageChange(Math.min(safeTotalPages, safeCurrentPage + 1))}
         disabled={safeCurrentPage >= safeTotalPages}
       >
-        <span>Next</span>
+        <span>{nextLabel}</span>
         <ChevronRight size={18} />
       </button>
 
-      <div className="pagination-bar-summary" aria-hidden="true">
-        {safeCurrentPage} of {safeTotalPages}
-      </div>
+      {showSummary ? (
+        <div className="pagination-bar-summary" aria-hidden="true">
+          {safeCurrentPage} of {safeTotalPages}
+        </div>
+      ) : null}
     </div>
   )
 }
