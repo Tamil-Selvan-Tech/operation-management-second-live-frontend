@@ -130,8 +130,6 @@ export function SuperAdminDashboardPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [successMessage, setSuccessMessage] = useState('')
   const [successTitle, setSuccessTitle] = useState('Action completed successfully')
-  const [createdCredentials, setCreatedCredentials] = useState(null)
-  const [isCredentialsVisible, setIsCredentialsVisible] = useState(false)
   const [branchErrors, setBranchErrors] = useState({})
   const [actionError, setActionError] = useState('')
   const [form, setForm] = useState({
@@ -173,7 +171,6 @@ export function SuperAdminDashboardPage() {
         setDeleteTargetBranch(null)
         setResendTargetBranch(null)
         setEditingBranchId(null)
-        setIsCredentialsVisible(false)
       }
     }
 
@@ -225,8 +222,6 @@ export function SuperAdminDashboardPage() {
     setBranchErrors({})
     setEditingBranchId(null)
     setActionMenuBranchId(null)
-    setCreatedCredentials(null)
-    setIsCredentialsVisible(false)
     setSuccessTitle('Create branch invitation sent')
     setSuccessMessage('')
     setActionError('')
@@ -305,8 +300,6 @@ export function SuperAdminDashboardPage() {
       setIsSuccessOpen(true)
       setSuccessTitle('Delete failed')
       setSuccessMessage(error?.body?.message || error?.message || 'Unable to delete branch right now.')
-      setCreatedCredentials(null)
-      setIsCredentialsVisible(false)
     }
   }
 
@@ -314,17 +307,13 @@ export function SuperAdminDashboardPage() {
     if (!resendTargetBranch) return
 
     try {
-      const result = await resendBranchInvitation(resendTargetBranch.id)
+      await resendBranchInvitation(resendTargetBranch.id)
       setIsResendConfirmOpen(false)
-      setCreatedCredentials(result?.branch || null)
-      setIsCredentialsVisible(false)
       setSuccessTitle('Mail sent successfully')
       setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
       setIsSuccessOpen(true)
     } catch (error) {
       setIsResendConfirmOpen(false)
-      setCreatedCredentials(null)
-      setIsCredentialsVisible(false)
       setSuccessTitle('Mail sending failed')
       setSuccessMessage(error?.body?.message || error?.message || 'Unable to send invitation mail right now.')
       setIsSuccessOpen(true)
@@ -387,8 +376,6 @@ export function SuperAdminDashboardPage() {
         setBranches((current) => current.map((item) => (item.id === editingBranchId ? updatedBranch : item)))
         setIsAddBranchOpen(false)
         setEditingBranchId(null)
-        setCreatedCredentials(null)
-        setIsCredentialsVisible(false)
         setSuccessTitle('Branch updated successfully')
         setSuccessMessage(`${updatedBranch.branchName} has been updated in the table.`)
         setIsSuccessOpen(true)
@@ -404,8 +391,6 @@ export function SuperAdminDashboardPage() {
       setBranches((current) => [nextBranch, ...current])
       setIsAddBranchOpen(false)
       setEditingBranchId(null)
-      setCreatedCredentials(nextBranch)
-      setIsCredentialsVisible(false)
       setSuccessTitle('Invitation email sent')
       setSuccessMessage('Login credentials have been sent to the registered email.')
       setIsSuccessOpen(true)
@@ -769,31 +754,6 @@ export function SuperAdminDashboardPage() {
               <h2 id="branch-success-title">{successTitle}</h2>
               <p>{successMessage}</p>
             </div>
-
-            {createdCredentials ? (
-              <div className="branch-credentials-panel">
-                <button
-                  type="button"
-                  className="branch-credentials-toggle"
-                  onClick={() => setIsCredentialsVisible((current) => !current)}
-                >
-                  {isCredentialsVisible ? 'Hide Credentials' : 'View Credentials'}
-                </button>
-
-                {isCredentialsVisible ? (
-                  <div className="branch-credentials-card">
-                    <div>
-                      <span>Email</span>
-                      <strong>{createdCredentials.branchEmail}</strong>
-                    </div>
-                    <div>
-                      <span>Temporary Password</span>
-                      <strong>{createdCredentials.tempPassword}</strong>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
 
             <div className="branch-success-actions">
               <button type="button" className="branch-success-secondary" onClick={() => setIsSuccessOpen(false)}>
