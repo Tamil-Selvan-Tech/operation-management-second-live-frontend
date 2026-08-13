@@ -5,14 +5,7 @@ import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
-import {
-  createCourse,
-  deleteCourse,
-  findDuplicateCourse,
-  listCourses,
-  peekCourseList,
-  updateCourse,
-} from '../services/courseService'
+import { createCourse, deleteCourse, listCourses, peekCourseList, updateCourse } from '../services/courseService'
 import { saveCourseRecords } from '../data/courseRecords'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { Eye, MoreVertical, PencilLine, Trash2 } from 'lucide-react'
@@ -62,6 +55,12 @@ const requiredFieldLabels = {
 }
 
 const MAX_INSTALLMENT_FIELDS = 12
+const DEFAULT_COURSE_LIST_QUERY = Object.freeze({
+  page: 1,
+  limit: 5,
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+})
 const DEFAULT_COURSE_LIST_QUERY = Object.freeze({
   page: 1,
   limit: 5,
@@ -180,11 +179,15 @@ export function CoursesPage() {
   const { role } = useAuth()
   const openMenu = useMobileMenu()
   const initialCourseList = peekCourseList(DEFAULT_COURSE_LIST_QUERY)
+  const initialCourseList = peekCourseList(DEFAULT_COURSE_LIST_QUERY)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [courses, setCourses] = useState(() => initialCourseList?.data || [])
+  const [pagination, setPagination] = useState(() => initialCourseList?.meta || {
   const [courses, setCourses] = useState(() => initialCourseList?.data || [])
   const [pagination, setPagination] = useState(() => initialCourseList?.meta || {
     page: 1,
     limit: 5,
+    total: initialCourseList?.data?.length || 0,
     total: initialCourseList?.data?.length || 0,
     totalPages: 1,
   })
@@ -219,6 +222,7 @@ export function CoursesPage() {
   const [touched, setTouched] = useState({})
   const [saveError, setSaveError] = useState('')
   const [loadError, setLoadError] = useState('')
+  const [isLoading, setIsLoading] = useState(() => !initialCourseList)
   const [isLoading, setIsLoading] = useState(() => !initialCourseList)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -329,11 +333,34 @@ export function CoursesPage() {
         sortBy: 'createdAt',
         sortOrder: 'desc',
       }
+      const query = {
+        page,
+        limit: pageSize,
+        search,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      }
 
       if (filter === 'Active' || filter === 'Inactive') {
         query.status = filter
       }
+      if (filter === 'Active' || filter === 'Inactive') {
+        query.status = filter
+      }
 
+      if (filter === 'Online' || filter === 'Offline') {
+        query.mode = filter
+      }
+
+      const cachedResult = peekCourseList(query)
+
+      if (!cachedResult && !courses.length) {
+        setIsLoading(true)
+      }
+
+      setLoadError('')
+
+      try {
       if (filter === 'Online' || filter === 'Offline') {
         query.mode = filter
       }
@@ -374,14 +401,11 @@ export function CoursesPage() {
       }
     },
     [activeFilter, courses.length, currentPage, pageSize, searchTerm],
+    [activeFilter, courses.length, currentPage, pageSize, searchTerm],
   )
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
-    }, 0)
-
-    return () => window.clearTimeout(timeoutId)
+    void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
   }, [activeFilter, currentPage, loadCourses, searchTerm])
 
   useEffect(() => {
