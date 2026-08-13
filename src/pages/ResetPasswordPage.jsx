@@ -174,6 +174,9 @@ export function ResetPasswordPage() {
 
   return (
     <Card className="panel reset-password-shell">
+      <span className="reset-password-orb reset-password-orb-left" aria-hidden="true" />
+      <span className="reset-password-orb reset-password-orb-right" aria-hidden="true" />
+
       <div className="reset-password-header">
         <div className="reset-password-badge" aria-hidden="true">
           <ShieldIcon />
@@ -194,12 +197,12 @@ export function ResetPasswordPage() {
           </div>
         ) : null}
 
-        <FormField label="New password">
+        <FormField label="New password" hint="Minimum 8 characters">
           <div className="reset-password-input-wrap">
             <input
               name="newPassword"
               type={isPasswordVisible ? 'text' : 'password'}
-              placeholder="Create a new password"
+              placeholder="Enter new password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               disabled={isSubmitting}
@@ -215,17 +218,17 @@ export function ResetPasswordPage() {
               aria-label={isPasswordVisible ? 'Hide new password' : 'Show new password'}
               disabled={isSubmitting}
             >
-              {isPasswordVisible ? <EyeOff size={20} strokeWidth={2.1} /> : <Eye size={20} strokeWidth={2.1} />}
+              {isPasswordVisible ? <Eye size={20} strokeWidth={2.1} /> : <EyeOff size={20} strokeWidth={2.1} />}
             </button>
           </div>
         </FormField>
 
-        <FormField label="Confirm password">
+        <FormField label="Confirm password" hint="Type the same password again">
           <div className="reset-password-input-wrap">
             <input
               name="confirmNewPassword"
               type={isConfirmPasswordVisible ? 'text' : 'password'}
-              placeholder="Confirm password"
+              placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               disabled={isSubmitting}
@@ -241,7 +244,7 @@ export function ResetPasswordPage() {
               aria-label={isConfirmPasswordVisible ? 'Hide confirm password' : 'Show confirm password'}
               disabled={isSubmitting}
             >
-              {isConfirmPasswordVisible ? <EyeOff size={20} strokeWidth={2.1} /> : <Eye size={20} strokeWidth={2.1} />}
+              {isConfirmPasswordVisible ? <Eye size={20} strokeWidth={2.1} /> : <EyeOff size={20} strokeWidth={2.1} />}
             </button>
           </div>
         </FormField>
