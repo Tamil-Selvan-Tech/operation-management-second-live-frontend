@@ -10,20 +10,20 @@ import { roleLabels, dashboardPathByRole } from '../data/authData'
 
 const fixedAccounts = [
   {
-    email: 'business.owner@cispro.local',
+    email: 'business.owner@cispro.com',
     password: 'ChangeMe123!',
     role: 'business-owner',
     name: 'Business Owner',
   },
   {
-    email: 'operation.manager@cispro.local',
+    email: 'operation.manager@cispro.com',
     password: 'ChangeMe123!',
     role: 'operation-manager',
     name: 'Operation Manager',
   },
   {
-    email: 'super.admin@cispro.local',
-    password: 'ChangeMe123!',
+    email: 'superadmin.manager@cispro.com',
+    password: 'superAdmin@cispro123',
     role: 'super-admin',
     name: 'Super Admin',
   },
@@ -54,6 +54,8 @@ const roleFromBackend = (role) => {
     OPERATION_MANAGER: 'operation-manager',
     SUPER_ADMIN: 'super-admin',
     SUPERADMIN: 'super-admin',
+    BRANCH_ADMIN: 'branch-admin',
+    BRANCHADMIN: 'branch-admin',
     HR: 'hr',
     FACULTY: 'faculty',
     STUDENT: 'student',
@@ -124,7 +126,7 @@ export function normalizeAuthSession(response, fallbackSession) {
     refreshToken,
     user: {
       id: user?.id ?? fallbackSession.user.id,
-      name: user?.name ?? fallbackSession.user.name,
+      name: user?.name ?? user?.fullName ?? fallbackSession.user.name,
       email: user?.email ?? fallbackSession.user.email,
       role: roleFromBackend(user?.role ?? fallbackSession.user.role),
     },
@@ -169,28 +171,7 @@ export async function signInWithFallback(credentials) {
       source: 'api',
     }
   } catch (error) {
-    const isNetworkError = error instanceof TypeError || error?.name === 'TypeError'
-    const status = error?.status
-    const isAuthFailure = status === 400 || status === 401 || status === 403 || status === 422
-
-    if (!isNetworkError && !isAuthFailure) {
-      throw error
-    }
-
-    if (!matchedAccount) {
-      if (isNetworkError) {
-        throw error
-      }
-
-      throw error
-    }
-
-    const fallbackSession = createMockSession(matchedAccount)
-    return {
-      session: fallbackSession,
-      redirectTo: dashboardPathByRole[matchedAccount.role],
-      source: 'mock',
-    }
+    throw error
   }
 }
 

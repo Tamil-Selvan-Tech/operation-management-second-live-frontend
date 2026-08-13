@@ -1,21 +1,34 @@
 import { Navigate, Outlet } from 'react-router-dom'
-import { loadBranchSession } from '../lib/branchAuth'
+import { useAuth } from '../auth/useAuth'
+import { dashboardPathByRole } from '../data/authData'
 
 export function BranchProtectedRoute() {
-  const session = loadBranchSession()
+  const { isAuthenticated, role, isReady } = useAuth()
 
-  if (!session) {
-    return <Navigate to="/branch-login" replace />
+  if (!isReady) {
+    return null
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (role !== 'branch-admin') {
+    return <Navigate to={dashboardPathByRole[role] || '/unauthorized'} replace />
   }
 
   return <Outlet />
 }
 
 export function BranchPublicRoute() {
-  const session = loadBranchSession()
+  const { isAuthenticated, role, isReady } = useAuth()
 
-  if (session) {
-    return <Navigate to="/branch-dashboard" replace />
+  if (!isReady) {
+    return null
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={dashboardPathByRole[role] || '/branch-dashboard'} replace />
   }
 
   return <Outlet />

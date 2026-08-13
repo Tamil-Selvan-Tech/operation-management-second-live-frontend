@@ -76,6 +76,7 @@ export function ResetPasswordPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const token = String(searchParams.get('token') || '').trim()
+  const redirectTo = String(searchParams.get('redirect') || '').trim() || '/login'
   const expired = useMemo(() => isExpiredStatus(searchParams, token), [searchParams, token])
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -83,7 +84,7 @@ export function ResetPasswordPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUpdated, setIsUpdated] = useState(false)
 
-  const goToLogin = () => navigate('/login')
+  const goToLogin = () => navigate(redirectTo)
   const requestNewLink = () => navigate('/forgot-password')
 
   const onSubmit = (event) => {
@@ -142,7 +143,7 @@ export function ResetPasswordPage() {
           <Button type="button" onClick={requestNewLink}>
             Request New Link
           </Button>
-          <Link to="/login" className="button button-ghost reset-password-link">
+          <Link to={redirectTo} className="button button-ghost reset-password-link">
             Back to Login
           </Link>
         </div>
@@ -224,7 +225,7 @@ export function ResetPasswordPage() {
           {isSubmitting ? 'Updating...' : 'Update Password'}
         </Button>
 
-        <Link to="/login" className="text-link reset-password-back-link">
+        <Link to={redirectTo} className="text-link reset-password-back-link">
           Back to Login
         </Link>
       </form>

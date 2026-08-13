@@ -14,7 +14,13 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
-import { addBranchWithCredentials, deleteBranchRecord, loadBranchRegistry, saveBranchRegistry, updateBranchRecord } from '../lib/branchAuth'
+import {
+  createBranch,
+  deleteBranch,
+  listBranches,
+  resendBranchInvitation,
+  updateBranch,
+} from '../services/branchService'
 import { PaginationBar } from '../components/PaginationBar'
 import '../styles/SuperAdminDashboardPage.css'
 
@@ -110,7 +116,7 @@ export function SuperAdminDashboardPage() {
   const navigate = useNavigate()
   const { signOut, user } = useAuth()
   const [activeSection, setActiveSection] = useState('branches')
-  const [branches, setBranches] = useState(() => loadBranchRegistry())
+  const [branches, setBranches] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
@@ -127,6 +133,7 @@ export function SuperAdminDashboardPage() {
   const [createdCredentials, setCreatedCredentials] = useState(null)
   const [isCredentialsVisible, setIsCredentialsVisible] = useState(false)
   const [branchErrors, setBranchErrors] = useState({})
+  const [actionError, setActionError] = useState('')
   const [form, setForm] = useState({
     branchId: '',
     branchName: '',
@@ -137,8 +144,19 @@ export function SuperAdminDashboardPage() {
   })
 
   useEffect(() => {
-    saveBranchRegistry(branches)
-  }, [branches])
+    listBranches({
+      page: 1,
+      limit: 100,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    })
+      .then((result) => {
+        setBranches(Array.isArray(result?.data) ? result.data : [])
+      })
+      .catch(() => {
+        setBranches([])
+      })
+  }, [])
 
   useEffect(() => {
     if (!isAddBranchOpen && !isSuccessOpen && !isDeleteConfirmOpen && !isResendConfirmOpen && !isLogoutConfirmOpen) {
@@ -211,6 +229,7 @@ export function SuperAdminDashboardPage() {
     setIsCredentialsVisible(false)
     setSuccessTitle('Create branch invitation sent')
     setSuccessMessage('')
+    setActionError('')
     setForm({
       branchId: '',
       branchName: '',
@@ -226,6 +245,7 @@ export function SuperAdminDashboardPage() {
     setBranchErrors({})
     setEditingBranchId(branch.id)
     setActionMenuBranchId(null)
+    setActionError('')
     setForm({
       branchId: branch.branchId || '',
       branchName: branch.branchName || '',
@@ -241,6 +261,7 @@ export function SuperAdminDashboardPage() {
     setIsAddBranchOpen(false)
     setEditingBranchId(null)
     setBranchErrors({})
+    setActionError('')
   }
 
   const openDeleteConfirm = (branch) => {
@@ -269,24 +290,47 @@ export function SuperAdminDashboardPage() {
     setIsLogoutConfirmOpen(false)
   }
 
-  const handleDeleteBranch = () => {
+  const handleDeleteBranch = async () => {
     if (!deleteTargetBranch) return
 
-    const nextBranches = deleteBranchRecord(deleteTargetBranch.id)
-    setBranches(nextBranches)
-    setDeleteTargetBranch(null)
-    setIsDeleteConfirmOpen(false)
+    try {
+      await deleteBranch(deleteTargetBranch.id)
+      setBranches((current) => current.filter((branch) => branch.id !== deleteTargetBranch.id))
+      setDeleteTargetBranch(null)
+      setIsDeleteConfirmOpen(false)
+    } catch (error) {
+      setActionError(error?.body?.message || error?.message || 'Unable to delete branch right now.')
+      setIsDeleteConfirmOpen(false)
+      setDeleteTargetBranch(null)
+      setIsSuccessOpen(true)
+      setSuccessTitle('Delete failed')
+      setSuccessMessage(error?.body?.message || error?.message || 'Unable to delete branch right now.')
+      setCreatedCredentials(null)
+      setIsCredentialsVisible(false)
+    }
   }
 
-  const handleSendMail = () => {
+  const handleSendMail = async () => {
     if (!resendTargetBranch) return
 
-    setIsResendConfirmOpen(false)
-    setCreatedCredentials(null)
-    setIsCredentialsVisible(false)
-    setSuccessTitle('Mail sent successfully')
-    setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
-    setIsSuccessOpen(true)
+    try {
+      const result = await resendBranchInvitation(resendTargetBranch.id)
+      setIsResendConfirmOpen(false)
+      setCreatedCredentials(result?.branch || null)
+      setIsCredentialsVisible(false)
+      setSuccessTitle('Mail sent successfully')
+      setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
+      setIsSuccessOpen(true)
+    } catch (error) {
+      setIsResendConfirmOpen(false)
+      setCreatedCredentials(null)
+      setIsCredentialsVisible(false)
+      setSuccessTitle('Mail sending failed')
+      setSuccessMessage(error?.body?.message || error?.message || 'Unable to send invitation mail right now.')
+      setIsSuccessOpen(true)
+    } finally {
+      setResendTargetBranch(null)
+    }
   }
 
   const handleSearchChange = (event) => {
@@ -316,11 +360,12 @@ export function SuperAdminDashboardPage() {
     setBranchErrors((current) => ({ ...current, branchPhone: '' }))
   }
 
-  const handleAddBranch = (event) => {
+  const handleAddBranch = async (event) => {
     event.preventDefault()
 
     const nextErrors = validateBranchForm(form, branches, editingBranchId)
     setBranchErrors(nextErrors)
+    setActionError('')
 
     if (Object.values(nextErrors).some(Boolean)) {
       return
@@ -336,40 +381,37 @@ export function SuperAdminDashboardPage() {
       branchAddress: form.branchAddress.trim(),
     }
 
-    if (editingBranchId !== null) {
-      const editedBranch = branches.find((item) => item.id === editingBranchId)
-      const updatedBranch = {
-        ...(editedBranch || {}),
-        ...nextBranchData,
+    try {
+      if (editingBranchId !== null) {
+        const updatedBranch = await updateBranch(editingBranchId, nextBranchData)
+        setBranches((current) => current.map((item) => (item.id === editingBranchId ? updatedBranch : item)))
+        setIsAddBranchOpen(false)
+        setEditingBranchId(null)
+        setCreatedCredentials(null)
+        setIsCredentialsVisible(false)
+        setSuccessTitle('Branch updated successfully')
+        setSuccessMessage(`${updatedBranch.branchName} has been updated in the table.`)
+        setIsSuccessOpen(true)
+        return
       }
 
-      const nextBranches = updateBranchRecord(editingBranchId, updatedBranch)
-      setBranches(nextBranches)
+      const nextBranch = await createBranch({
+        ...nextBranchData,
+        status: 'Active',
+        createdAt: formatToday(),
+      })
+
+      setBranches((current) => [nextBranch, ...current])
       setIsAddBranchOpen(false)
       setEditingBranchId(null)
-      setCreatedCredentials(null)
+      setCreatedCredentials(nextBranch)
       setIsCredentialsVisible(false)
-      setSuccessTitle('Branch updated successfully')
-      setSuccessMessage(`${updatedBranch.branchName} has been updated in the table.`)
+      setSuccessTitle('Invitation email sent')
+      setSuccessMessage('Login credentials have been sent to the registered email.')
       setIsSuccessOpen(true)
-      return
+    } catch (error) {
+      setActionError(error?.body?.message || error?.message || 'Unable to save branch right now.')
     }
-
-    const nextBranch = addBranchWithCredentials({
-      id: branches.length ? Math.max(...branches.map((item) => Number(item.id) || 0)) + 1 : 1,
-      ...nextBranchData,
-      status: 'Active',
-      createdAt: formatToday(),
-    })
-
-    setBranches((current) => [nextBranch, ...current])
-    setIsAddBranchOpen(false)
-    setEditingBranchId(null)
-    setCreatedCredentials(nextBranch)
-    setIsCredentialsVisible(false)
-    setSuccessTitle('Invitation email sent')
-    setSuccessMessage('Login credentials have been sent to the registered email.')
-    setIsSuccessOpen(true)
   }
 
   const handleConfirmLogout = async () => {
@@ -381,7 +423,7 @@ export function SuperAdminDashboardPage() {
     }
   }
 
-  const profileEmail = user?.email || 'superadmin@example.com'
+  const profileEmail = user?.email || 'superadmin.manager@cispro.com'
 
   return (
     <section className="super-admin-page">
@@ -448,7 +490,7 @@ export function SuperAdminDashboardPage() {
                 <AvatarBadge />
                 <div className="super-admin-profile-copy">
                   <strong>Super Admin</strong>
-                  <span>superadmin@example.com</span>
+                  <span>{profileEmail}</span>
                 </div>
                 <ChevronDown size={18} strokeWidth={2.2} className="super-admin-profile-chevron" />
               </div>
@@ -614,6 +656,8 @@ export function SuperAdminDashboardPage() {
             </button>
 
             <h2>{editingBranchId !== null ? 'Edit branch information' : 'Create Branch'}</h2>
+
+            {actionError ? <p className="branch-field-error">{actionError}</p> : null}
 
             <div className="branch-form-grid">
               <label className="branch-field">

@@ -2,19 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, KeyRound, Mail } from 'lucide-react'
 
+import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
-import {
-  createBranchSession,
-  findBranchByCredentials,
-  loadBranchSession,
-  saveBranchSession,
-} from '../lib/branchAuth'
 import '../styles/BranchAuthPage.css'
 
 export function BranchLoginPage() {
   const navigate = useNavigate()
+  const { signIn, isAuthenticated, role } = useAuth()
   const emailInputRef = useRef(null)
   const passwordInputRef = useRef(null)
   const [showPassword, setShowPassword] = useState(false)
@@ -26,11 +22,10 @@ export function BranchLoginPage() {
   })
 
   useEffect(() => {
-    const existingSession = loadBranchSession()
-    if (existingSession) {
+    if (isAuthenticated && role === 'branch-admin') {
       navigate('/branch-dashboard', { replace: true })
     }
-  }, [navigate])
+  }, [isAuthenticated, navigate, role])
 
   useEffect(() => {
     const syncAutofill = () => {
@@ -70,15 +65,13 @@ export function BranchLoginPage() {
     setIsSubmitting(true)
 
     try {
-      const branch = findBranchByCredentials(email, password)
-
-      if (!branch) {
-        setErrorMessage('Invalid email or temporary password.')
-        return
-      }
-
-      saveBranchSession(createBranchSession(branch))
-      navigate('/branch-dashboard', { replace: true })
+      const target = await signIn({
+        email,
+        password,
+      })
+      navigate(target, { replace: true })
+    } catch (error) {
+      setErrorMessage(error?.message || 'Invalid email or temporary password.')
     } finally {
       setIsSubmitting(false)
     }
@@ -96,7 +89,7 @@ export function BranchLoginPage() {
         <div className="branch-auth-copy">
           <p className="branch-auth-eyebrow">Branch Login</p>
           <h1>Welcome to your branch dashboard</h1>
-          <p>Use the temporary password from the invitation email to sign in.</p>
+          <p>Use the invitation email credentials to sign in to your branch dashboard.</p>
         </div>
 
         <form className="branch-auth-form" onSubmit={handleSubmit}>
@@ -161,7 +154,7 @@ export function BranchLoginPage() {
           <img className="branch-auth-visual-image" src="/cispro.png" alt="" />
           <div className="branch-auth-visual-copy">
             <strong>Invitation based access</strong>
-            <span>Frontend-only branch login demo</span>
+            <span>Use your branch invitation credentials to continue</span>
           </div>
         </div>
       </aside>

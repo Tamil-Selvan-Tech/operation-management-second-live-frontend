@@ -10,7 +10,8 @@ import {
   Users,
 } from 'lucide-react'
 
-import { clearBranchSession, loadBranchSession } from '../lib/branchAuth'
+import { useAuth } from '../auth/useAuth'
+import { getCurrentBranchProfile } from '../services/branchService'
 import '../styles/BranchDashboardPage.css'
 
 const overviewStats = [
@@ -61,26 +62,57 @@ function BranchDashboardSection({ title, description, children }) {
 
 export function BranchDashboardPage() {
   const navigate = useNavigate()
+  const { isAuthenticated, role, signOut, user } = useAuth()
   const [activeSection, setActiveSection] = useState('dashboard')
-  const session = loadBranchSession()
+  const [branchProfile, setBranchProfile] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const nextSession = loadBranchSession()
-    if (!nextSession) {
-      navigate('/branch-login', { replace: true })
+    if (!isAuthenticated || role !== 'branch-admin') {
+      navigate('/login', { replace: true })
       return
     }
-  }, [navigate])
 
-  const handleLogout = () => {
-    clearBranchSession()
-    navigate('/branch-login', { replace: true })
+    setIsLoading(true)
+    getCurrentBranchProfile()
+      .then((result) => {
+        setBranchProfile(result)
+        setIsLoading(false)
+      })
+      .catch(async () => {
+        setIsLoading(false)
+        await signOut()
+        navigate('/login', { replace: true })
+      })
+  }, [isAuthenticated, navigate, role, signOut])
+
+  const handleLogout = async () => {
+    await signOut()
+    navigate('/login', { replace: true })
   }
 
-  const branchTitle = session?.branchName || 'Branch Dashboard'
-  const branchAdmin = session?.branchAdminName || 'Branch Admin'
-  const branchEmail = session?.branchEmail || 'branch@example.com'
-  const branchLocation = session?.branchAddress || 'Assigned location'
+  const branchTitle = branchProfile?.branchName || 'Branch Dashboard'
+  const branchAdmin = branchProfile?.branchAdminName || user?.name || 'Branch Admin'
+  const branchEmail = branchProfile?.branchEmail || user?.email || 'branch@example.com'
+  const branchLocation = branchProfile?.branchAddress || 'Assigned location'
+
+  if (isLoading) {
+    return (
+      <section className="branch-dashboard-page">
+        <div className="branch-dashboard-shell">
+          <main className="branch-dashboard-main">
+            <header className="branch-dashboard-topbar">
+              <div>
+                <p className="branch-dashboard-kicker">Branch Dashboard</p>
+                <h1>Loading branch profile...</h1>
+                <p>Please wait while we load your branch workspace.</p>
+              </div>
+            </header>
+          </main>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className="branch-dashboard-page">
