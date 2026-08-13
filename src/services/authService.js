@@ -22,6 +22,12 @@ const fixedAccounts = [
     name: 'Operation Manager',
   },
   {
+    email: 'super.admin@cispro.local',
+    password: 'ChangeMe123!',
+    role: 'super-admin',
+    name: 'Super Admin',
+  },
+  {
     email: 'hr@cispro.local',
     password: 'ChangeMe123!',
     role: 'hr',
@@ -46,6 +52,8 @@ const roleFromBackend = (role) => {
   const roleMap = {
     BUSINESS_OWNER: 'business-owner',
     OPERATION_MANAGER: 'operation-manager',
+    SUPER_ADMIN: 'super-admin',
+    SUPERADMIN: 'super-admin',
     HR: 'hr',
     FACULTY: 'faculty',
     STUDENT: 'student',
@@ -124,12 +132,13 @@ export function normalizeAuthSession(response, fallbackSession) {
 }
 
 export async function signInWithFallback(credentials) {
+  const matchedAccount = findFixedAccount(credentials)
+
   if (!API_BASE_URL) {
     if (!isLocalRuntime()) {
       throw new Error('API base URL is not configured for this environment')
     }
 
-    const matchedAccount = findFixedAccount(credentials)
     if (!matchedAccount) {
       throw new Error('Invalid email or password')
     }
@@ -161,12 +170,18 @@ export async function signInWithFallback(credentials) {
     }
   } catch (error) {
     const isNetworkError = error instanceof TypeError || error?.name === 'TypeError'
-    if (!isNetworkError) {
+    const status = error?.status
+    const isAuthFailure = status === 400 || status === 401 || status === 403 || status === 422
+
+    if (!isNetworkError && !isAuthFailure) {
       throw error
     }
 
-    const matchedAccount = findFixedAccount(credentials)
     if (!matchedAccount) {
+      if (isNetworkError) {
+        throw error
+      }
+
       throw error
     }
 

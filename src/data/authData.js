@@ -3,6 +3,7 @@ export const STORAGE_KEY = 'cispro.session'
 export const roleLabels = {
   'business-owner': 'Business Owner',
   'operation-manager': 'Operation Manager',
+  'super-admin': 'Super Admin',
   hr: 'HR',
   faculty: 'Faculty',
   student: 'Student',
@@ -22,6 +23,13 @@ export const roleDashboards = {
     accent: 'Amber',
     color: '#f59e0b',
     cards: ['Approvals', 'Team queue', 'Daily KPIs'],
+  },
+  'super-admin': {
+    title: 'Super Admin Dashboard',
+    summary: 'System control center for users, roles, and platform visibility.',
+    accent: 'Indigo',
+    color: '#4f46e5',
+    cards: ['User control', 'Role matrix', 'System health'],
   },
   hr: {
     title: 'HR Dashboard',
@@ -49,6 +57,7 @@ export const roleDashboards = {
 export const dashboardPathByRole = {
   'business-owner': '/dashboard/business-owner',
   'operation-manager': '/dashboard/operation-manager',
+  'super-admin': '/dashboard/super-admin',
   hr: '/dashboard/hr',
   faculty: '/dashboard/faculty',
   student: '/dashboard/student',

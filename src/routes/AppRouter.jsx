@@ -58,6 +58,10 @@ const FacultyMyBatchesPage = lazyNamed(
   () => import('../pages/FacultyDashboardPage'),
   'FacultyMyBatchesPage',
 )
+const SuperAdminDashboardPage = lazyNamed(
+  () => import('../pages/SuperAdminDashboardPage'),
+  'SuperAdminDashboardPage',
+)
 
 const routeChunks = [
   AuthShell,
@@ -79,6 +83,7 @@ const routeChunks = [
   SessionExpiredPage,
   UnauthorizedPage,
   FacultyMyBatchesPage,
+  SuperAdminDashboardPage,
 ]
 
 function preloadRouteChunks() {
@@ -185,6 +190,7 @@ function AppLayout() {
   const canAccessFacultyBatches = role === 'faculty'
   const canAccessStudentManagement = courseAccessRoles.includes(role)
   const canAccessFacultyManagement = courseAccessRoles.includes(role)
+  const isSuperAdmin = role === 'super-admin'
 
   const showChrome =
     location.pathname !== '/dashboard/business-owner' &&
@@ -208,19 +214,23 @@ function AppLayout() {
       user={user}
       onNavigateDashboard={() => navigate(dashboardPathByRole[role])}
       onNavigateFacultyBatches={() => navigate('/dashboard/faculty/my-batches')}
-      onNavigateCourses={() => navigate(workspacePaths.courses)}
-      onNavigateStudentManagement={() => navigate(workspacePaths.studentManagement)}
-      onNavigateFacultyManagement={() => navigate(workspacePaths.facultyManagement)}
-      onNavigateNotifications={() => navigate('/notifications')}
+      onNavigateCourses={() => navigate(isSuperAdmin ? '/dashboard/super-admin' : workspacePaths.courses)}
+      onNavigateStudentManagement={() =>
+        navigate(isSuperAdmin ? '/dashboard/super-admin' : workspacePaths.studentManagement)
+      }
+      onNavigateFacultyManagement={() =>
+        navigate(isSuperAdmin ? '/dashboard/super-admin' : workspacePaths.facultyManagement)
+      }
+      onNavigateNotifications={() => navigate(isSuperAdmin ? '/dashboard/super-admin' : '/notifications')}
       onLogout={async () => {
         await signOut()
         navigate('/login')
       }}
-      showCoursesNav={canAccessCourses}
+      showCoursesNav={isSuperAdmin ? false : canAccessCourses}
       showFacultyBatchesNav={canAccessFacultyBatches}
-      showStudentManagementNav={canAccessStudentManagement}
-      showFacultyManagementNav={canAccessFacultyManagement}
-      showNotificationsNav
+      showStudentManagementNav={isSuperAdmin ? false : canAccessStudentManagement}
+      showFacultyManagementNav={isSuperAdmin ? false : canAccessFacultyManagement}
+      showNotificationsNav={!isSuperAdmin}
       showChrome={showChrome}
       forceFlatMainArea={isFlatMainArea}
     >
@@ -316,10 +326,11 @@ export function AppRouter() {
           <Route
             element={
               <ProtectedRoute
-                allowedRoles={['business-owner', 'operation-manager', 'hr', 'faculty', 'student']}
+                allowedRoles={['business-owner', 'operation-manager', 'super-admin', 'hr', 'faculty', 'student']}
               />
             }
           >
+            <Route path="/dashboard/super-admin" element={<SuperAdminDashboardPage />} />
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<RoleDashboardRedirect />} />
               <Route path="/dashboard/business-owner" element={<DashboardPage role="business-owner" />} />
