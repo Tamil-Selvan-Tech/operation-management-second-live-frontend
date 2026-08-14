@@ -72,6 +72,17 @@ function formatDisplayDate(value) {
   }).format(date)
 }
 
+function formatBranchLocation(branch) {
+  const parts = [
+    String(branch?.branchAddress || '').trim(),
+    String(branch?.branchCity || branch?.branchDistrict || '').trim(),
+    String(branch?.branchState || '').trim(),
+    String(branch?.branchCountry || '').trim(),
+  ].filter(Boolean)
+
+  return parts.length ? parts.join(', ') : '-'
+}
+
 function getResendMailStatus(branch) {
   const status = String(branch?.resendMailStatus || (branch?.welcomeMailSent ? 'Active' : 'Inactive'))
     .trim()
@@ -186,7 +197,7 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
     branchCountry: validateBranchField('branchCountry', form.branchCountry),
     branchState: validateBranchField('branchState', form.branchState),
     branchDistrict: validateBranchField('branchDistrict', form.branchDistrict),
-    branchAddress: '',
+    branchAddress: validateBranchField('branchAddress', form.branchAddress),
   }
 }
 
@@ -1263,7 +1274,7 @@ export function SuperAdminDashboardPage() {
                     { label: 'Branch ID', icon: <BadgeCheck size={18} strokeWidth={2.1} />, value: selectedBranch.branchId || '-' },
                     { label: 'Branch Name', icon: <Building2 size={18} strokeWidth={2.1} />, value: selectedBranch.branchName || '-' },
                     { label: 'Branch Admin', icon: <CircleUserRound size={18} strokeWidth={2.1} />, value: selectedBranch.branchAdminName || '-' },
-                    { label: 'Location', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchAddress || '-' },
+                    { label: 'Location', icon: <MapPin size={18} strokeWidth={2.1} />, value: formatBranchLocation(selectedBranch) },
                     { label: 'Email', icon: <Mail size={18} strokeWidth={2.1} />, value: selectedBranch.branchEmail || '-' },
                     { label: 'Phone', icon: <Phone size={18} strokeWidth={2.1} />, value: selectedBranch.branchPhone || '-' },
                     { label: 'Status', icon: <CheckCircle2 size={18} strokeWidth={2.1} />, value: selectedBranch.status || '-' },
