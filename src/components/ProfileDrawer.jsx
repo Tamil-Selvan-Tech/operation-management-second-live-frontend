@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   BadgeCheck,
   Building2,
+  CircleHelp,
   Clock3,
   Bot,
   CalendarDays,
@@ -12,15 +13,50 @@ import {
   LockKeyhole,
   LogOut,
   RefreshCcw,
-  ShieldCheck,
-  Search,
   Settings2,
-  MessageSquareMore,
-  User,
+  ShieldCheck,
   X,
-  CircleHelp,
 } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
+
+function ProfileStatTile({ icon: Icon, tone, label, value }) {
+  const toneStyles = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-emerald-50 text-emerald-600',
+    violet: 'bg-violet-50 text-violet-600',
+    amber: 'bg-amber-50 text-amber-600',
+  }
+
+  return (
+    <div className="grid min-h-[72px] grid-cols-[28px_minmax(0,1fr)] gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-2.5 text-left shadow-sm sm:min-h-[84px] sm:grid-cols-[32px_minmax(0,1fr)] sm:gap-2.5 sm:p-3.5 lg:min-h-[88px] xl:min-h-[92px] 2xl:min-h-[96px] 2xl:p-4">
+      <span className={`grid h-7 w-7 place-items-center rounded-full ${toneStyles[tone] || toneStyles.blue}`} aria-hidden="true">
+        <Icon size={14} strokeWidth={2.2} />
+      </span>
+      <div className="min-w-0">
+        <span className="block text-[0.64rem] font-bold uppercase tracking-[0.08em] text-slate-500 sm:text-[0.7rem] 2xl:text-[0.72rem]">
+          {label}
+        </span>
+        <strong className="mt-0.5 block min-w-0 break-words text-[0.84rem] font-extrabold leading-[1.18] tracking-[-0.03em] text-slate-900 sm:mt-1 sm:text-[0.95rem] 2xl:text-[1rem]">
+          {value}
+        </strong>
+      </div>
+    </div>
+  )
+}
+
+function ProfileDetailRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-t border-slate-200 px-3.5 py-2 first:border-t-0 first:pt-3 first:last:pb-3 sm:px-5 sm:py-2.5">
+      <span className="flex min-w-0 items-center gap-2 text-[0.82rem] font-medium text-slate-500 sm:text-sm 2xl:text-[0.95rem]">
+        <Icon size={14} strokeWidth={2.2} className="shrink-0 text-blue-600" aria-hidden="true" />
+        <span className="min-w-0">{label}</span>
+      </span>
+      <strong className="max-w-[55%] break-words text-right text-[0.82rem] font-semibold tracking-[-0.02em] text-slate-900 sm:max-w-[60%] sm:text-sm 2xl:text-[0.95rem]">
+        {value}
+      </strong>
+    </div>
+  )
+}
 
 const defaultStatTiles = [
   { icon: BadgeCheck, tone: 'blue', label: 'Role', value: 'Operation Manager' },
@@ -68,216 +104,68 @@ export function ProfileDrawer({
 
   if (!isOpen || typeof document === 'undefined') return null
 
-  // Combine and deduplicate items based on their labels
-  const allItems = [...statTiles, ...detailRows]
-  const uniqueItems = []
-  const seenLabels = new Set()
-  for (const item of allItems) {
-    if (!seenLabels.has(item.label)) {
-      seenLabels.add(item.label)
-      uniqueItems.push(item)
-    }
-  }
-
-  const lastLoginItem = uniqueItems.find((item) => item.label === 'Last Login')
-  // Filter out the "Password" row completely
-  const otherItems = uniqueItems.filter((item) => item.label !== 'Last Login' && item.label !== 'Password')
-
-  const handleSignOut = async () => {
-    try {
-      await signOut?.()
-    } finally {
-      onClose?.()
-      navigate('/login')
-    }
-  }
-
-  const getIconColor = (tone, label) => {
-    if (label === 'Role') return 'text-blue-500'
-    if (label === 'Status') return 'text-emerald-500'
-    if (label === 'Workspace') return 'text-blue-500'
-    if (label === 'Access Level') return 'text-violet-500'
-    if (label === 'Password') return 'text-violet-500'
-    if (label === 'Reset Password') return 'text-blue-500'
-
-    const map = {
-      blue: 'text-blue-500',
-      green: 'text-emerald-500',
-      violet: 'text-violet-500',
-      amber: 'text-purple-500',
-    }
-    return map[tone] || 'text-slate-400'
-  }
-
   return createPortal(
-    <>
-      <style>{`
-        @keyframes profileCardFadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(12px) scale(0.98);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-        .profile-card-animate {
-          animation: profileCardFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-      `}</style>
+    <div className="fixed inset-0 z-[1210] flex items-stretch justify-end bg-slate-950/50 px-0 backdrop-blur-[6px]" role="presentation">
       <div
-        className="fixed inset-0 z-[1210] bg-black/20 backdrop-blur-[6px] transition-opacity"
-        role="presentation"
+        className={`flex h-[calc(100dvh-12px)] w-full min-w-0 flex-col overflow-hidden bg-white shadow-[-24px_0_90px_rgba(15,23,42,0.28)] sm:h-[calc(100vh-24px)] sm:w-[400px] md:w-[420px] lg:h-[calc(100vh-36px)] lg:w-[440px] xl:h-[calc(100vh-40px)] xl:w-[460px] 2xl:h-[calc(100vh-44px)] 2xl:w-[500px] min-[1440px]:h-[calc(100vh-48px)] min-[1600px]:h-[calc(100vh-54px)] min-[1920px]:h-[calc(100vh-58px)] min-[2560px]:h-[calc(100vh-64px)] sm:flex-none sm:rounded-l-[28px] sm:border sm:border-slate-200 sm:border-r-0 ${className}`.trim()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={ariaLabelledBy}
+        onClick={(event) => event.stopPropagation()}
       >
-        <div
-          className={`fixed top-[56px] right-4 left-4 z-[1220] flex w-[calc(100vw-32px)] max-w-[calc(100vw-32px)] sm:left-auto sm:right-0 sm:w-[390px] flex-col rounded-none bg-white pt-[50px] px-6 pb-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] border border-slate-100/80 profile-card-animate ${className}`.trim()}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={ariaLabelledBy}
-          onClick={(event) => event.stopPropagation()}
-        >
-          {/* Top Pointer Arrow */}
-          <div className="absolute right-[18px] top-[-6px] h-3 w-3 rotate-45 border-l border-t border-slate-100 bg-white" />
-
-          {/* Close (X) Icon */}
+        <div className="relative min-h-[78px] overflow-hidden bg-[linear-gradient(135deg,#0e1632_0%,#0f2f73_48%,#0d77df_100%)] sm:min-h-[96px] md:min-h-[104px] xl:min-h-[110px] 2xl:min-h-[116px] min-[1440px]:min-h-[104px] min-[1600px]:min-h-[100px] min-[1920px]:min-h-[96px] min-[2560px]:min-h-[92px]">
           <button
             type="button"
-            className="absolute right-4 top-4 z-20 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none cursor-pointer border-none bg-transparent p-0"
+            className="absolute right-4 top-4 z-20 grid h-10 w-10 place-items-center rounded-full bg-white text-slate-900 shadow-[0_10px_22px_rgba(15,23,42,0.14)] transition-colors hover:bg-slate-50 hover:text-blue-700"
             onClick={onClose}
             aria-label="Close profile card"
           >
-            <X size={16} strokeWidth={2.5} aria-hidden="true" focusable="false" />
+            <X size={18} strokeWidth={2.5} aria-hidden="true" focusable="false" />
           </button>
 
-          <div className="flex h-full min-h-0 flex-col">
-            <div className="shrink-0">
-              {/* Search Applications Input */}
-              <div className="relative mb-2.5 flex h-12 w-full items-center overflow-hidden rounded-full border border-slate-200 bg-white px-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition-all focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20">
-                <div className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-400">
-                  <Search size={18} strokeWidth={2.2} />
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search Applications"
-                  className="ml-4 h-full flex-1 rounded-full rounded-r-full p-0 text-xs font-medium text-slate-800 placeholder-slate-400 outline-none ring-0 focus:outline-none focus:ring-0"
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    boxShadow: 'none',
-                    background: 'transparent',
-                    WebkitAppearance: 'none',
-                    MozAppearance: 'none',
-                    appearance: 'none',
-                  }}
-                  readOnly
-                />
-              </div>
+          <div className="absolute left-4 top-4 grid grid-cols-5 gap-x-2 gap-y-2 opacity-30" aria-hidden="true">
+            {Array.from({ length: 15 }, (_, index) => (
+              <span key={`profile-dot-${index}`} className="h-1 w-1 rounded-full bg-white" />
+            ))}
+          </div>
 
-              {/* User Profile Header */}
-              <div className="mb-2.5 text-left text-[12px] font-medium uppercase tracking-wider text-[#8B96A8]">
-                User Profile
-              </div>
+          <svg
+            className="absolute inset-x-[-2%] bottom-[-1px] h-[78px] w-[104%] text-white sm:h-[84px] min-[1440px]:h-[76px] min-[1600px]:h-[72px] min-[1920px]:h-[68px] min-[2560px]:h-[64px]"
+            viewBox="0 0 100 34"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <path d="M0 34 C18 7 82 7 100 34 L100 34 L0 34 Z" fill="currentColor" />
+          </svg>
+        </div>
 
-              {/* User Info (Avatar, Name, Email) */}
-              <div className="mb-4 flex items-center gap-3.5">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#5275F6] text-white">
-                  <User className="h-7 w-7 text-white/95" strokeWidth={1.8} />
-                </div>
-                <div className="min-w-0 flex-1 text-left">
-                  <h4 className="text-[15px] font-bold leading-snug text-slate-900">{title}</h4>
-                  <p className="mt-0.5 truncate text-[13px] leading-none text-slate-500">{email}</p>
-                </div>
-              </div>
+        <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center -mt-3 overflow-y-auto px-4 pb-4 pt-7 text-center [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:-mt-5 sm:px-5 sm:pb-4 sm:pt-7 xl:-mt-4 xl:px-6 xl:pt-7 2xl:-mt-6 2xl:px-7 2xl:pb-4 2xl:pt-7 min-[1440px]:pb-3 min-[1600px]:pb-3 min-[1920px]:pb-2 min-[2560px]:pb-2">
+          <p className="text-[clamp(0.7rem,0.75vw,0.78rem)] font-black uppercase tracking-[0.14em] text-blue-700 2xl:text-[0.82rem]">
+            Profile
+          </p>
+          <h3 id={ariaLabelledBy} className="mt-1.5 text-[clamp(1.15rem,1.7vw,1.55rem)] font-bold leading-tight tracking-[-0.03em] text-slate-900 sm:mt-2 2xl:text-[1.65rem]">
+            {title}
+          </h3>
+          <p className="mt-1.5 max-w-[34ch] text-[clamp(0.8rem,1vw,0.95rem)] leading-5 text-slate-500 sm:mt-2 sm:leading-6 2xl:max-w-[40ch] 2xl:text-[1rem]">
+            {email}
+          </p>
 
-              {/* Profile Details List */}
-              <div className="flex flex-col gap-4">
-                {otherItems.map((item) => {
-                  const Icon = item.icon
-                  const isResetPassword = item.label === 'Reset Password'
+          <div className="mt-2.5 grid w-full grid-cols-1 gap-2 sm:mt-3 sm:grid-cols-2 sm:gap-2.5 lg:gap-3 2xl:mt-3.5 2xl:gap-3.5 min-[1440px]:mt-2.5 min-[1600px]:mt-2.5 min-[1920px]:mt-2 min-[2560px]:mt-2">
+            {statTiles.map((tile) => {
+              const Icon = tile.icon
+              return <ProfileStatTile key={`${tile.label}-${tile.value}`} icon={Icon} tone={tile.tone} label={tile.label} value={tile.value} />
+            })}
+          </div>
 
-                  return (
-                    <div key={`${item.label}-${item.value}`} className="flex items-center gap-3.5">
-                      <span
-                        className={`flex h-5 w-5 shrink-0 items-center justify-center ${getIconColor(
-                          item.tone,
-                          item.label,
-                        )}`}
-                        aria-hidden="true"
-                      >
-                        <Icon size={18} strokeWidth={1.8} />
-                      </span>
-                      <div className="min-w-0 flex-1 text-left">
-                        <span className="block text-[11px] font-medium leading-none text-slate-400">
-                          {item.label}
-                        </span>
-                        {isResetPassword ? (
-                          <span className="mt-1 block cursor-pointer text-[13px] font-semibold leading-tight text-blue-600 hover:underline">
-                            {item.value}
-                          </span>
-                        ) : (
-                          <strong className="mt-1 block break-words text-[13px] font-semibold leading-tight text-slate-800">
-                            {item.value}
-                          </strong>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {/* Last Login Section (Blue Box) */}
-              {lastLoginItem && (
-                <div className="mt-4 flex items-center gap-3.5 rounded-xl border border-blue-100/30 bg-blue-50/40 px-3 py-2.5">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center text-blue-600" aria-hidden="true">
-                    <lastLoginItem.icon size={18} strokeWidth={1.8} />
-                  </span>
-                  <div className="min-w-0 flex-1 text-left">
-                    <span className="block text-[11px] font-medium leading-none text-slate-400">
-                      {lastLoginItem.label}
-                    </span>
-                    <strong className="mt-1 block break-words text-[13px] font-semibold leading-tight text-slate-800">
-                      {lastLoginItem.value}
-                    </strong>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-2.5 px-1">
-                {quickActions.map((item) => {
-                  const Icon = item.icon
-
-                  return (
-                    <button
-                      key={item.label}
-                      type="button"
-                      className="flex items-center gap-2 rounded-none border-0 bg-transparent p-0 text-left text-[13px] font-medium leading-tight text-slate-700"
-                    >
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center text-slate-500" aria-hidden="true">
-                        <Icon size={15} strokeWidth={1.9} />
-                      </span>
-                      <span className="leading-tight">{item.label}</span>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div className="mt-3 shrink-0 border-t border-slate-100/90 pt-3 pb-1">
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="flex w-full items-center justify-center gap-2 text-[14px] font-medium text-red-500 transition-colors hover:text-red-600"
-              >
-                <LogOut size={16} strokeWidth={2} aria-hidden="true" focusable="false" />
-                <span>Sign Out</span>
-              </button>
-            </div>
+          <div className="mt-2.5 w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/80 text-left shadow-sm sm:mt-3 2xl:mt-3.5 min-[1440px]:mt-2.5 min-[1600px]:mt-2.5 min-[1920px]:mt-2 min-[2560px]:mt-2">
+            {detailRows.map((row) => {
+              const Icon = row.icon
+              return <ProfileDetailRow key={`${row.label}-${row.value}`} icon={Icon} label={row.label} value={row.value} />
+            })}
           </div>
         </div>
       </div>
-    </>,
+    </div>,
     document.body,
   )
 }
-

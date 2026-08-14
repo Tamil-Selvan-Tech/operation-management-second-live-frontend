@@ -28,7 +28,7 @@ import { HeaderIdentityChip } from '../components/HeaderIdentityChip'
 import { ProfileDrawer } from '../components/ProfileDrawer'
 import { roleDashboards } from '../data/authData'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
-import { getRevenueInsights } from '../services/dashboardService'
+import { listStudents } from '../services/studentService'
 import { StudentDashboard } from './StudentDashboard'
 import { FacultyDashboardPage } from './FacultyDashboardPage'
 
@@ -552,16 +552,17 @@ function useRevenueInsightsData() {
 
     const run = async () => {
       try {
-        const result = await getRevenueInsights()
+        const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+        const students = Array.isArray(result?.data) ? result.data : []
         if (!active) return
-        setSummary(result?.summary || null)
-        setMonthlyRevenue(Array.isArray(result?.monthlyRevenue) ? result.monthlyRevenue : [])
-        setWeeklyRevenue(Array.isArray(result?.weeklyRevenue) ? result.weeklyRevenue : [])
+        setSummary(calculateRevenueSummary(students))
+        setMonthlyRevenue(buildMonthlyRevenueComparison(students))
+        setWeeklyRevenue(buildWeeklyRevenueComparison(students))
       } catch {
         if (!active) return
-        setSummary(null)
-        setMonthlyRevenue([])
-        setWeeklyRevenue([])
+        setSummary(calculateRevenueSummary([]))
+        setMonthlyRevenue(buildMonthlyRevenueComparison([]))
+        setWeeklyRevenue(buildWeeklyRevenueComparison([]))
       } finally {
         if (active) {
           setIsLoading(false)

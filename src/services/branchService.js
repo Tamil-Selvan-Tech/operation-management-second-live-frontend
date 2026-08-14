@@ -38,6 +38,7 @@ function normalizeBranchRecord(record = {}) {
     tempPassword,
     mustResetPassword: Boolean(record.mustResetPassword || tempPassword),
     status: normalizeStatus(record.status),
+    lastLoginAt: String(record.lastLoginAt || '').trim(),
     createdAt: normalizeDate(record.createdAt),
     updatedAt: normalizeDate(record.updatedAt),
     resendMailStatus,
