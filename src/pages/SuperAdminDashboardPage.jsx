@@ -945,32 +945,39 @@ export function SuperAdminDashboardPage() {
           </div>
 
           <nav className="super-admin-sidebar-nav">
-            <button
-              type="button"
-              className={`super-admin-sidebar-item ${activeSection === 'dashboard' ? 'is-active' : ''}`.trim()}
-              onClick={() => {
-                setActiveSection('dashboard')
-                setIsMobileSidebarOpen(false)
-              }}
-            >
-              <span className="super-admin-sidebar-icon" aria-hidden="true">
-                <LayoutDashboard size={18} strokeWidth={2.2} />
-              </span>
-              <span>Dashboard</span>
-            </button>
-            <button
-              type="button"
-              className={`super-admin-sidebar-item ${activeSection === 'branches' ? 'is-active' : ''}`.trim()}
-              onClick={() => {
-                setActiveSection('branches')
-                setIsMobileSidebarOpen(false)
-              }}
-            >
-              <span className="super-admin-sidebar-icon" aria-hidden="true">
-                <Building2 size={18} strokeWidth={2.2} />
-              </span>
-              <span>Branches</span>
-            </button>
+            <div className="super-admin-sidebar-section">
+              <span className="super-admin-sidebar-section-label">MAIN</span>
+              <button
+                type="button"
+                className={`super-admin-sidebar-item ${activeSection === 'dashboard' ? 'is-active' : ''}`.trim()}
+                onClick={() => {
+                  setActiveSection('dashboard')
+                  setIsMobileSidebarOpen(false)
+                }}
+              >
+                <span className="super-admin-sidebar-icon" aria-hidden="true">
+                  <LayoutDashboard size={18} strokeWidth={2.2} />
+                </span>
+                <span>Dashboard</span>
+              </button>
+            </div>
+
+            <div className="super-admin-sidebar-section">
+              <span className="super-admin-sidebar-section-label">MANAGEMENT</span>
+              <button
+                type="button"
+                className={`super-admin-sidebar-item ${activeSection === 'branches' ? 'is-active' : ''}`.trim()}
+                onClick={() => {
+                  setActiveSection('branches')
+                  setIsMobileSidebarOpen(false)
+                }}
+              >
+                <span className="super-admin-sidebar-icon" aria-hidden="true">
+                  <Building2 size={18} strokeWidth={2.2} />
+                </span>
+                <span>Branches</span>
+              </button>
+            </div>
           </nav>
 
           <div className="super-admin-sidebar-footer">
@@ -1295,7 +1302,8 @@ export function SuperAdminDashboardPage() {
             ) : (
               <div className="super-admin-dashboard-overview">
                 <div className="super-admin-dashboard-intro">
-                  <p className="eyebrow">Super Admin</p>
+                  <h1>Dashboard</h1>
+                  <p>Welcome back! Here’s an overview of your operations and today’s activities.</p>
                 </div>
 
                 <div className="super-admin-stats-grid" aria-label="Dashboard branch summary">

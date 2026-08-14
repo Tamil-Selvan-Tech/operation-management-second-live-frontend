@@ -52,7 +52,21 @@
 
 .super-admin-sidebar-nav {
   display: grid;
-  gap: 2px;
+  gap: 14px;
+}
+
+.super-admin-sidebar-section {
+  display: grid;
+  gap: 6px;
+}
+
+.super-admin-sidebar-section-label {
+  padding: 0 6px;
+  color: #9ca3af;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .super-admin-sidebar-footer {
@@ -223,19 +237,22 @@
 
 .super-admin-dashboard-intro {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .super-admin-dashboard-intro h1 {
   margin: 0;
   color: #0f172a;
-  font-size: clamp(1.6rem, 2.2vw, 2.4rem);
+  font-size: clamp(1.4rem, 2vw, 1.95rem);
   line-height: 1.12;
   letter-spacing: -0.04em;
 }
 
-.super-admin-dashboard-intro .eyebrow {
+.super-admin-dashboard-intro p {
   margin: 0;
+  color: #6b7280;
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
 
 .super-admin-stats-grid {
