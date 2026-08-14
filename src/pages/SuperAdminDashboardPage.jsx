@@ -2,13 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
+  BadgeCheck,
   Building2,
   CircleUserRound,
   CheckCircle2,
+  CalendarDays,
+  Mail,
   LayoutDashboard,
   LogOut,
   Menu,
   MoreVertical,
+  ChevronRight,
+  MapPin,
+  Phone,
   Search,
   Shield,
 } from 'lucide-react'
@@ -49,6 +55,20 @@ function formatToday() {
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function formatDisplayDate(value) {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+
+  const date = new Date(`${text}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return text
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
 }
 
 function validateBranchField(field, value) {
@@ -101,7 +121,6 @@ function getDuplicateBranchEmailError(branchEmail, existingBranches = [], ignore
 
 function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) {
   const normalizedBranchId = String(form.branchId || '').trim().toLowerCase()
-  const normalizedEmail = String(form.branchEmail || '').trim().toLowerCase()
   const normalizedIgnoreBranchId = ignoreBranchId == null ? null : String(ignoreBranchId).trim().toLowerCase()
   const branchesList = (Array.isArray(existingBranches) ? existingBranches : []).filter(
     (branch) => String(branch?.id || '').trim().toLowerCase() !== normalizedIgnoreBranchId,
@@ -127,6 +146,7 @@ export function SuperAdminDashboardPage() {
   const navigate = useNavigate()
   const { signOut, user } = useAuth()
   const [activeSection, setActiveSection] = useState('dashboard')
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [branches, setBranches] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false)
@@ -134,6 +154,7 @@ export function SuperAdminDashboardPage() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
   const [isResendConfirmOpen, setIsResendConfirmOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const [viewTargetBranch, setViewTargetBranch] = useState(null)
   const [editingBranchId, setEditingBranchId] = useState(null)
   const [deleteTargetBranch, setDeleteTargetBranch] = useState(null)
   const [resendTargetBranch, setResendTargetBranch] = useState(null)
@@ -170,7 +191,15 @@ export function SuperAdminDashboardPage() {
   }, [])
 
   useEffect(() => {
-    if (!isAddBranchOpen && !isSuccessOpen && !isDeleteConfirmOpen && !isResendConfirmOpen && !isLogoutConfirmOpen) {
+    if (
+      !isAddBranchOpen &&
+      !isSuccessOpen &&
+      !isDeleteConfirmOpen &&
+      !isResendConfirmOpen &&
+      !isLogoutConfirmOpen &&
+      !viewTargetBranch &&
+      !isMobileSidebarOpen
+    ) {
       return undefined
     }
 
@@ -181,37 +210,33 @@ export function SuperAdminDashboardPage() {
         setIsDeleteConfirmOpen(false)
         setIsResendConfirmOpen(false)
         setIsLogoutConfirmOpen(false)
+        setViewTargetBranch(null)
         setDeleteTargetBranch(null)
         setResendTargetBranch(null)
         setEditingBranchId(null)
+        setIsMobileSidebarOpen(false)
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isAddBranchOpen, isSuccessOpen, isDeleteConfirmOpen, isResendConfirmOpen, isLogoutConfirmOpen])
+  }, [
+    isAddBranchOpen,
+    isSuccessOpen,
+    isDeleteConfirmOpen,
+    isResendConfirmOpen,
+    isLogoutConfirmOpen,
+    viewTargetBranch,
+    isMobileSidebarOpen,
+  ])
 
   useEffect(() => {
-    if (!isAddBranchOpen) return
+    document.body.classList.toggle('super-admin-sidebar-open', isMobileSidebarOpen)
 
-    const emailValue = String(form.branchEmail || '').trim()
-
-    if (!emailValue) {
-      setBranchErrors((current) => {
-        if (!current.branchEmail) return current
-        return { ...current, branchEmail: '' }
-      })
-      return
+    return () => {
+      document.body.classList.remove('super-admin-sidebar-open')
     }
-
-    const emailError = validateBranchField('branchEmail', emailValue)
-    const duplicateEmailError = emailError || getDuplicateBranchEmailError(emailValue, branches, editingBranchId)
-
-    setBranchErrors((current) => {
-      if (current.branchEmail === duplicateEmailError) return current
-      return { ...current, branchEmail: duplicateEmailError }
-    })
-  }, [branches, editingBranchId, form.branchEmail, isAddBranchOpen])
+  }, [isMobileSidebarOpen])
 
   useEffect(() => {
     if (!actionMenuBranchId) return undefined
@@ -236,14 +261,9 @@ export function SuperAdminDashboardPage() {
     if (!query) return branches
 
     return branches.filter((branch) => {
-      return [
-        branch.branchId,
-        branch.branchName,
-        branch.branchEmail,
-        branch.branchPhone,
-        branch.branchAddress,
-        branch.status,
-      ].some((value) => String(value || '').toLowerCase().includes(query))
+      return [branch.branchId, branch.branchName].some((value) =>
+        String(value || '').toLowerCase().includes(query),
+      )
     })
   }, [branches, searchTerm])
 
@@ -258,6 +278,7 @@ export function SuperAdminDashboardPage() {
     setBranchErrors({})
     setEditingBranchId(null)
     setActionMenuBranchId(null)
+    setIsMobileSidebarOpen(false)
     setSuccessTitle('Create branch invitation sent')
     setSuccessMessage('')
     setActionError('')
@@ -276,6 +297,7 @@ export function SuperAdminDashboardPage() {
     setBranchErrors({})
     setEditingBranchId(branch.id)
     setActionMenuBranchId(null)
+    setIsMobileSidebarOpen(false)
     setActionError('')
     setForm({
       branchId: branch.branchId || '',
@@ -286,6 +308,12 @@ export function SuperAdminDashboardPage() {
       branchAddress: branch.branchAddress || '',
     })
     setIsAddBranchOpen(true)
+  }
+
+  const openViewBranch = (branch) => {
+    setViewTargetBranch(branch)
+    setActionMenuBranchId(null)
+    setIsMobileSidebarOpen(false)
   }
 
   const closeBranchModal = () => {
@@ -299,12 +327,14 @@ export function SuperAdminDashboardPage() {
     setDeleteTargetBranch(branch)
     setIsDeleteConfirmOpen(true)
     setActionMenuBranchId(null)
+    setIsMobileSidebarOpen(false)
   }
 
   const openResendMail = (branch) => {
     setActionMenuBranchId(null)
     setResendTargetBranch(branch)
     setIsResendConfirmOpen(true)
+    setIsMobileSidebarOpen(false)
   }
 
   const closeDeleteConfirm = () => {
@@ -319,6 +349,10 @@ export function SuperAdminDashboardPage() {
 
   const closeLogoutConfirm = () => {
     setIsLogoutConfirmOpen(false)
+  }
+
+  const closeViewBranch = () => {
+    setViewTargetBranch(null)
   }
 
   const handleDeleteBranch = async () => {
@@ -452,11 +486,25 @@ export function SuperAdminDashboardPage() {
   }
 
   const profileEmail = user?.email || 'superadmin.manager@cispro.com'
+  const selectedBranch = viewTargetBranch
+  const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
 
   return (
     <section className="super-admin-page">
       <div className="super-admin-shell">
-        <aside className="super-admin-sidebar" aria-label="Super admin navigation">
+        {isMobileSidebarOpen ? (
+          <button
+            type="button"
+            className="super-admin-sidebar-backdrop"
+            aria-label="Close navigation menu"
+            onClick={closeMobileSidebar}
+          />
+        ) : null}
+
+        <aside
+          className={`super-admin-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()}
+          aria-label="Super admin navigation"
+        >
           <div className="super-admin-sidebar-brand">
             <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Elite Admin logo" />
           </div>
@@ -465,7 +513,10 @@ export function SuperAdminDashboardPage() {
             <button
               type="button"
               className={`super-admin-sidebar-item ${activeSection === 'dashboard' ? 'is-active' : ''}`.trim()}
-              onClick={() => setActiveSection('dashboard')}
+              onClick={() => {
+                setActiveSection('dashboard')
+                setIsMobileSidebarOpen(false)
+              }}
             >
               <span className="super-admin-sidebar-icon" aria-hidden="true">
                 <LayoutDashboard size={18} strokeWidth={2.2} />
@@ -475,7 +526,10 @@ export function SuperAdminDashboardPage() {
             <button
               type="button"
               className={`super-admin-sidebar-item ${activeSection === 'branches' ? 'is-active' : ''}`.trim()}
-              onClick={() => setActiveSection('branches')}
+              onClick={() => {
+                setActiveSection('branches')
+                setIsMobileSidebarOpen(false)
+              }}
             >
               <span className="super-admin-sidebar-icon" aria-hidden="true">
                 <Building2 size={18} strokeWidth={2.2} />
@@ -496,7 +550,10 @@ export function SuperAdminDashboardPage() {
                 type="button"
                 className="super-admin-sidebar-logout-button"
                 aria-label="Logout"
-                onClick={() => setIsLogoutConfirmOpen(true)}
+                onClick={() => {
+                  setIsLogoutConfirmOpen(true)
+                  setIsMobileSidebarOpen(false)
+                }}
               >
                 <LogOut size={22} strokeWidth={2.15} />
               </button>
@@ -507,7 +564,13 @@ export function SuperAdminDashboardPage() {
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-left">
-              <button type="button" className="super-admin-icon-button" aria-label="Open menu">
+              <button
+                type="button"
+                className="super-admin-icon-button"
+                aria-label="Open menu"
+                aria-expanded={isMobileSidebarOpen}
+                onClick={() => setIsMobileSidebarOpen(true)}
+              >
                 <Menu size={22} strokeWidth={2.2} />
               </button>
             </div>
@@ -572,13 +635,14 @@ export function SuperAdminDashboardPage() {
                   <table className="branch-table">
                     <thead>
                       <tr>
-                        <th>#</th>
-                        <th>Branch ID</th>
-                        <th>Name</th>
-                        <th>Location</th>
-                        <th>Contact</th>
-                        <th>Created At</th>
-                        <th>Actions</th>
+                        <th className="branch-table-col-index">S.No</th>
+                        <th className="branch-table-col-id">Branch ID</th>
+                        <th className="branch-table-col-name">Branch Name</th>
+                        <th className="branch-table-col-admin">Branch Admin Name</th>
+                        <th className="branch-table-col-contact">Contact</th>
+                        <th className="branch-table-col-created">Created At</th>
+                        <th className="branch-table-col-resend">Resend Mail</th>
+                        <th className="branch-table-col-actions">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -587,19 +651,42 @@ export function SuperAdminDashboardPage() {
 
                         return (
                           <tr key={branch.id}>
-                            <td>{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td>
-                            <td><strong>{branch.branchId}</strong></td>
-                            <td className="branch-name-cell">
+                            <td className="branch-table-col-index">{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td>
+                            <td className="branch-table-col-id">
+                              <div className="branch-inline-view-cell">
+                                <strong>{branch.branchId}</strong>
+                                <button
+                                  type="button"
+                                  className="branch-inline-view-arrow"
+                                  onClick={() => openViewBranch(branch)}
+                                  aria-label={`View details for branch ID ${branch.branchId || ''}`.trim()}
+                                  title="View details"
+                                >
+                                  <ChevronRight size={16} strokeWidth={2.4} />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="branch-table-col-name">
                               <strong>{branch.branchName}</strong>
+                            </td>
+                            <td className="branch-table-col-admin">
                               <span>{branch.branchAdminName || 'Branch admin not set'}</span>
                             </td>
-                            <td>{branch.branchAddress}</td>
-                            <td className="branch-contact-cell">
+                            <td className="branch-table-col-contact branch-contact-cell">
                               <span className="branch-contact-email">{branch.branchEmail}</span>
                               <span className="branch-contact-phone">{branch.branchPhone}</span>
                             </td>
-                            <td className="branch-created-at-cell">{branch.createdAt}</td>
-                            <td>
+                            <td className="branch-table-col-created branch-created-at-cell">{branch.createdAt}</td>
+                            <td className="branch-table-col-resend">
+                              <button
+                                type="button"
+                                className="branch-resend-inline-button"
+                                onClick={() => openResendMail(branch)}
+                              >
+                                Resend Mail
+                              </button>
+                            </td>
+                            <td className="branch-table-col-actions">
                               <div
                                 className={`branch-actions branch-actions-wrap ${isUpwardMenu ? 'is-upward' : ''} ${actionMenuBranchId === branch.id ? 'is-open' : ''}`.trim()}
                                 onMouseEnter={() => setActionMenuBranchId(branch.id)}
@@ -620,14 +707,14 @@ export function SuperAdminDashboardPage() {
                                   role="menu"
                                   aria-label={`${branch.branchName} actions`}
                                 >
+                                  <button type="button" role="menuitem" onClick={() => openViewBranch(branch)}>
+                                    View
+                                  </button>
                                   <button type="button" role="menuitem" onClick={() => openEditBranch(branch)}>
                                     Edit
                                   </button>
                                   <button type="button" role="menuitem" className="is-danger" onClick={() => openDeleteConfirm(branch)}>
                                     Delete
-                                  </button>
-                                  <button type="button" role="menuitem" className="is-warning" onClick={() => openResendMail(branch)}>
-                                    Resend Mail
                                   </button>
                                 </div>
                               </div>
@@ -638,25 +725,121 @@ export function SuperAdminDashboardPage() {
                     </tbody>
                   </table>
 
+                  <div className="branch-card-list" aria-label="Branch cards">
+                    {paginatedBranches.map((branch, index) => {
+                      const isUpwardMenu = index >= paginatedBranches.length - 2
+
+                      return (
+                        <article className="branch-card" key={branch.id}>
+                          <div className="branch-card-header">
+                            <div className="branch-card-title">
+                              <span className="branch-card-kicker">Branch {branch.branchId || '-'}</span>
+                              <h3>{branch.branchName || 'Untitled branch'}</h3>
+                            </div>
+
+                            <div className="branch-card-header-actions">
+                              <span className={`branch-status-pill ${String(branch.status || '').trim().toLowerCase() === 'active' ? 'is-active' : ''}`.trim()}>
+                                {branch.status || 'Unknown'}
+                              </span>
+
+                              <div
+                                className={`branch-actions branch-actions-wrap ${isUpwardMenu ? 'is-upward' : ''} ${actionMenuBranchId === branch.id ? 'is-open' : ''}`.trim()}
+                                onMouseEnter={() => setActionMenuBranchId(branch.id)}
+                              >
+                                <button
+                                  type="button"
+                                  className="branch-actions-trigger"
+                                  aria-label={`Open actions for ${branch.branchName}`}
+                                  aria-haspopup="menu"
+                                  aria-expanded={actionMenuBranchId === branch.id}
+                                  onClick={() => setActionMenuBranchId(branch.id)}
+                                >
+                                  <MoreVertical size={18} strokeWidth={2.3} />
+                                </button>
+
+                                <div
+                                  className="branch-actions-menu"
+                                  role="menu"
+                                  aria-label={`${branch.branchName} actions`}
+                                >
+                                  <button type="button" role="menuitem" onClick={() => openViewBranch(branch)}>
+                                    View
+                                  </button>
+                                  <button type="button" role="menuitem" onClick={() => openEditBranch(branch)}>
+                                    Edit
+                                  </button>
+                                  <button type="button" role="menuitem" className="is-danger" onClick={() => openDeleteConfirm(branch)}>
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <dl className="branch-card-details">
+                            <div>
+                              <dt>Admin</dt>
+                              <dd>{branch.branchAdminName || 'Branch admin not set'}</dd>
+                            </div>
+                            <div>
+                              <dt>Location</dt>
+                              <dd>{branch.branchAddress || '-'}</dd>
+                            </div>
+                            <div>
+                              <dt>Contact</dt>
+                              <dd>
+                                <span>{branch.branchEmail || '-'}</span>
+                                <span>{branch.branchPhone || '-'}</span>
+                              </dd>
+                            </div>
+                            <div>
+                              <dt>Created At</dt>
+                              <dd>{branch.createdAt ? formatDisplayDate(branch.createdAt) : '-'}</dd>
+                            </div>
+                          </dl>
+
+                          <div className="branch-card-actions">
+                            <button
+                              type="button"
+                              className="branch-inline-view-arrow"
+                              onClick={() => openViewBranch(branch)}
+                              aria-label={`View details for branch ID ${branch.branchId || ''}`.trim()}
+                              title="View details"
+                            >
+                              <ChevronRight size={16} strokeWidth={2.4} />
+                            </button>
+                            <button
+                              type="button"
+                              className="branch-resend-inline-button"
+                              onClick={() => openResendMail(branch)}
+                            >
+                              Resend Mail
+                            </button>
+                          </div>
+                        </article>
+                      )
+                    })}
+                  </div>
+
                   <div className="branch-table-footer">
-                    <span>
+                    <span className="branch-table-footer-summary">
                       Showing {filteredBranches.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1}
                       {' '}to{' '}
                       {Math.min(safeCurrentPage * rowsPerPage, filteredBranches.length)}
                       {' '}of {filteredBranches.length} branches
                     </span>
-                  </div>
 
-                  <PaginationBar
-                    className="super-admin-pagination"
-                    currentPage={safeCurrentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                    label="Branch pagination"
-                    previousLabel="Prev"
-                    nextLabel="Next"
-                    showSummary={false}
-                  />
+                    <PaginationBar
+                      className="super-admin-pagination"
+                      currentPage={safeCurrentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      label="Branch pagination"
+                      previousLabel="Prev"
+                      nextLabel="Next"
+                      showSummary={false}
+                    />
+                  </div>
                 </div>
               </section>
             ) : (
@@ -693,6 +876,80 @@ export function SuperAdminDashboardPage() {
           </main>
         </div>
       </div>
+
+      {selectedBranch ? (
+        <div className="branch-view-drawer-backdrop" role="presentation">
+          <aside
+            className="branch-view-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="branch-view-title"
+            aria-describedby="branch-view-description"
+          >
+            <div className="branch-view-drawer-header">
+              <div className="branch-view-drawer-title-block">
+                <h2 id="branch-view-title">BRANCH DETAILS</h2>
+                <p id="branch-view-description">Complete information about this branch</p>
+              </div>
+
+              <div className="branch-view-drawer-header-actions">
+                <span className={`branch-view-status-chip ${String(selectedBranch.status || '').trim().toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`.trim()}>
+                  {selectedBranch.status || 'Unknown'}
+                </span>
+                <button
+                  type="button"
+                  className="branch-view-close"
+                  onClick={closeViewBranch}
+                  aria-label="Close branch details"
+                >
+                  X
+                </button>
+              </div>
+            </div>
+
+            <div className="branch-view-drawer-body">
+              <section className="branch-view-info-card">
+                <div className="branch-view-info-card-header">
+                  <span className="branch-view-info-icon" aria-hidden="true">
+                    <Building2 size={18} strokeWidth={2.2} />
+                  </span>
+                  <h3>Branch Information</h3>
+                </div>
+
+                <div className="branch-view-info-rows">
+                  {[
+                    { label: 'Branch ID', icon: <BadgeCheck size={18} strokeWidth={2.1} />, value: selectedBranch.branchId || '-' },
+                    { label: 'Branch Name', icon: <Building2 size={18} strokeWidth={2.1} />, value: selectedBranch.branchName || '-' },
+                    { label: 'Branch Admin', icon: <CircleUserRound size={18} strokeWidth={2.1} />, value: selectedBranch.branchAdminName || '-' },
+                    { label: 'Location', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchAddress || '-' },
+                    { label: 'Email', icon: <Mail size={18} strokeWidth={2.1} />, value: selectedBranch.branchEmail || '-' },
+                    { label: 'Phone', icon: <Phone size={18} strokeWidth={2.1} />, value: selectedBranch.branchPhone || '-' },
+                    { label: 'Status', icon: <CheckCircle2 size={18} strokeWidth={2.1} />, value: selectedBranch.status || '-' },
+                    { label: 'Created Date', icon: <CalendarDays size={18} strokeWidth={2.1} />, value: formatDisplayDate(selectedBranch.createdAt) },
+                  ].map((item) => (
+                    <div className="branch-view-info-row" key={item.label}>
+                      <div className="branch-view-info-label">
+                        {item.icon ? <span className="branch-view-row-icon" aria-hidden="true">{item.icon}</span> : <span className="branch-view-row-icon is-placeholder" aria-hidden="true" />}
+                        <span>{item.label}</span>
+                      </div>
+                      <div className="branch-view-info-separator">:</div>
+                      <div className="branch-view-info-value">
+                        {item.label === 'Status' ? (
+                          <span className={`branch-view-status-chip ${String(item.value || '').trim().toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`.trim()}>
+                            {item.value}
+                          </span>
+                        ) : (
+                          item.value
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+          </aside>
+        </div>
+      ) : null}
 
       {isAddBranchOpen ? (
         <div className="branch-modal-backdrop" role="presentation">
