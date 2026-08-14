@@ -1,7 +1,17 @@
 import { seedBranches } from '../data/branchSeedData'
+import { addBranchLoginNotification } from './notificationStore'
 
 const BRANCH_REGISTRY_KEY = 'cispro.branch-registry'
 const BRANCH_SESSION_KEY = 'cispro.branch-session'
+
+const pickFirstNonEmpty = (...values) => {
+  for (const value of values) {
+    const text = String(value || '').trim()
+    if (text) return text
+  }
+
+  return ''
+}
 
 const isBrowser = () => typeof window !== 'undefined' && Boolean(window.localStorage)
 
@@ -43,11 +53,11 @@ export function normalizeBranchRecord(branch = {}) {
     branchEmail: String(branch.branchEmail || '').trim().toLowerCase(),
     branchPhone: String(branch.branchPhone || '').trim(),
     branchCountryCode: String(branch.branchCountryCode || '').trim(),
-    branchCountry: String(branch.branchCountry || '').trim(),
+    branchCountry: pickFirstNonEmpty(branch.branchCountry, branch.country),
     branchStateCode: String(branch.branchStateCode || '').trim(),
-    branchState: String(branch.branchState || '').trim(),
-    branchCity: String(branch.branchCity || branch.branchDistrict || '').trim(),
-    branchDistrict: String(branch.branchDistrict || branch.branchCity || '').trim(),
+    branchState: pickFirstNonEmpty(branch.branchState, branch.state),
+    branchCity: pickFirstNonEmpty(branch.branchCity, branch.city, branch.branchDistrict, branch.district),
+    branchDistrict: pickFirstNonEmpty(branch.branchDistrict, branch.district, branch.branchCity, branch.city),
     branchAddress: String(branch.branchAddress || '').trim(),
     tempPassword,
     mustResetPassword: Boolean(branch.mustResetPassword || tempPassword),
@@ -193,4 +203,25 @@ export function markBranchWelcomeMailSent(branchEmail) {
     resendMailStatus: 'Active',
     welcomeMailSent: true,
   }))
+}
+
+export function recordBranchLogin(branch = {}) {
+  const loginAt = new Date().toISOString()
+  const normalizedEmail = String(branch.branchEmail || '').trim().toLowerCase()
+
+  if (!normalizedEmail) return null
+
+  updateBranchRecordByEmail(normalizedEmail, (currentBranch) => ({
+    ...currentBranch,
+    status: 'Active',
+    lastLoginAt: loginAt,
+    welcomeMailSent: true,
+    resendMailStatus: 'Active',
+  }))
+
+  return addBranchLoginNotification({
+    ...branch,
+    status: 'Active',
+    lastLoginAt: loginAt,
+  })
 }

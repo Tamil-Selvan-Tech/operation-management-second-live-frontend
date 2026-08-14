@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
 import {
-  Bell,
   BadgeCheck,
   Building2,
   CircleUserRound,
@@ -20,14 +19,14 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
+import { createBranch, deleteBranch, listBranches, resendBranchInvitation, updateBranch } from '../services/branchService'
 import {
-  createBranch,
-  deleteBranch,
-  listBranches,
-  resendBranchInvitation,
-  updateBranch,
-} from '../services/branchService'
+  addBranchInvitationResentNotification,
+  addBranchLoginNotification,
+  hasBranchNotification,
+} from '../lib/notificationStore'
 import { PaginationBar } from '../components/PaginationBar'
+import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -43,7 +42,7 @@ function AvatarBadge() {
 function SidebarUserAvatar() {
   return (
     <span className="super-admin-sidebar-user-avatar" aria-hidden="true">
-      <CircleUserRound size={34} strokeWidth={1.9} />
+      <CircleUserRound size={28} strokeWidth={1.9} />
       <span className="super-admin-sidebar-user-status" />
     </span>
   )
@@ -83,8 +82,26 @@ function isResendMailActive(branch) {
   return getResendMailStatus(branch) === 'Active'
 }
 
+function getNormalizedBranchStatus(branch = {}) {
+  return String(branch?.status || '').trim().toLowerCase() === 'active' ? 'Active' : 'Inactive'
+}
+
+function getNormalizedResendMailStatus(branch = {}) {
+  return getResendMailStatus(branch)
+}
+
+function pickFirstNonEmpty(...values) {
+  for (const value of values) {
+    const text = String(value || '').trim()
+    if (text) return text
+  }
+
+  return ''
+}
+
 const BRANCH_ID_PREFIX = 'BR-'
 const DEFAULT_BRANCH_COUNTRY_NAME = 'India'
+const DEFAULT_BRANCH_STATE_NAME = 'Tamil Nadu'
 
 function formatBranchIdNumber(value) {
   return String(value || '').padStart(3, '0')
@@ -112,6 +129,14 @@ function getDefaultBranchCountry(countryOptions = []) {
     const name = String(item?.name || '').trim().toLowerCase()
     const iso2 = String(item?.iso2 || '').trim().toUpperCase()
     return name === DEFAULT_BRANCH_COUNTRY_NAME.toLowerCase() || iso2 === 'IN'
+  })
+}
+
+function getDefaultBranchState(stateOptions = []) {
+  return (Array.isArray(stateOptions) ? stateOptions : []).find((item) => {
+    const name = String(item?.name || '').trim().toLowerCase()
+    const iso2 = String(item?.iso2 || '').trim().toUpperCase()
+    return name === DEFAULT_BRANCH_STATE_NAME.toLowerCase() || iso2 === 'TN'
   })
 }
 
@@ -242,6 +267,7 @@ export function SuperAdminDashboardPage() {
   const [actionError, setActionError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const previousBranchSnapshotRef = useRef(null)
   const [form, setForm] = useState({
     branchId: '',
     branchName: '',
@@ -263,7 +289,52 @@ export function SuperAdminDashboardPage() {
         sortBy: 'createdAt',
         sortOrder: 'desc',
       })
-      setBranches(Array.isArray(result?.data) ? result.data : [])
+      const nextBranches = Array.isArray(result?.data) ? result.data : []
+      const previousSnapshot = previousBranchSnapshotRef.current
+
+      if (previousSnapshot) {
+        nextBranches.forEach((branch) => {
+          const previousBranch = previousSnapshot.get(String(branch.id))
+          if (!previousBranch) return
+
+          const nextStatus = getNormalizedBranchStatus(branch)
+          const previousStatus = previousBranch.status
+          if (previousStatus !== 'Active' && nextStatus === 'Active') {
+            addBranchLoginNotification(branch)
+          }
+
+          const nextResendMailStatus = getNormalizedResendMailStatus(branch)
+          const previousResendMailStatus = previousBranch.resendMailStatus
+          if (previousResendMailStatus !== 'Active' && nextResendMailStatus === 'Active') {
+            addBranchInvitationResentNotification(branch)
+          }
+        })
+      }
+
+      nextBranches.forEach((branch) => {
+        const hasRecentLoginStamp = Boolean(String(branch?.lastLoginAt || '').trim())
+        if (!hasRecentLoginStamp) return
+
+        if (getNormalizedBranchStatus(branch) === 'Active' && !hasBranchNotification('branch-login', branch)) {
+          addBranchLoginNotification(branch)
+        }
+
+        if (getNormalizedResendMailStatus(branch) === 'Active' && !hasBranchNotification('branch-mail', branch)) {
+          addBranchInvitationResentNotification(branch)
+        }
+      })
+
+      previousBranchSnapshotRef.current = new Map(
+        nextBranches.map((branch) => [
+          String(branch.id),
+          {
+            status: getNormalizedBranchStatus(branch),
+            resendMailStatus: getNormalizedResendMailStatus(branch),
+          },
+        ]),
+      )
+
+      setBranches(nextBranches)
     } catch {
       setBranches([])
     }
@@ -407,6 +478,36 @@ export function SuperAdminDashboardPage() {
 
     return undefined
   }, [countryOptions, editingBranchId, form.branchCountryCode, isAddBranchOpen])
+
+  useEffect(() => {
+    if (
+      !isAddBranchOpen ||
+      editingBranchId !== null ||
+      !form.branchCountryCode ||
+      form.branchStateCode ||
+      !stateOptions.length
+    ) {
+      return undefined
+    }
+
+    if (String(form.branchCountryCode || '').trim().toUpperCase() !== 'IN') return undefined
+
+    const defaultState = getDefaultBranchState(stateOptions)
+    if (!defaultState) return undefined
+
+    queueMicrotask(() => {
+      setForm((current) => {
+        if (current.branchStateCode) return current
+        return {
+          ...current,
+          branchStateCode: defaultState.iso2 || '',
+          branchState: defaultState.name || DEFAULT_BRANCH_STATE_NAME,
+        }
+      })
+    })
+
+    return undefined
+  }, [editingBranchId, form.branchCountryCode, form.branchStateCode, isAddBranchOpen, stateOptions])
 
   useEffect(() => {
     if (form.branchCountryCode || !form.branchCountry || !countryOptions.length) return undefined
@@ -580,14 +681,15 @@ export function SuperAdminDashboardPage() {
     setSuccessTitle('Create branch invitation sent')
     setSuccessMessage('')
     setActionError('')
+    const defaultCountry = getDefaultBranchCountry(countryOptions)
     setForm({
       branchId: getNextBranchId(branches),
       branchName: '',
       branchAdminName: '',
       branchEmail: '',
       branchPhone: '',
-      branchCountryCode: '',
-      branchCountry: '',
+      branchCountryCode: defaultCountry?.iso2 || '',
+      branchCountry: defaultCountry?.name || '',
       branchStateCode: '',
       branchState: '',
       branchDistrict: '',
@@ -691,7 +793,15 @@ export function SuperAdminDashboardPage() {
       const result = await resendBranchInvitation(resendTargetBranch.id)
       if (result?.branch?.id) {
         setBranches((current) => current.map((branch) => (branch.id === result.branch.id ? result.branch : branch)))
+        previousBranchSnapshotRef.current = new Map(
+          (previousBranchSnapshotRef.current || new Map()).entries(),
+        )
+        previousBranchSnapshotRef.current.set(String(result.branch.id), {
+          status: getNormalizedBranchStatus(result.branch),
+          resendMailStatus: getNormalizedResendMailStatus(result.branch),
+        })
       }
+      addBranchInvitationResentNotification(result?.branch || resendTargetBranch)
       setIsResendConfirmOpen(false)
       setSuccessTitle('Mail sent successfully')
       setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
@@ -821,10 +931,14 @@ export function SuperAdminDashboardPage() {
       branchPhone: cleanedPhone,
       branchCountryCode: nextForm.branchCountryCode.trim(),
       branchCountry: nextForm.branchCountry.trim(),
+      country: nextForm.branchCountry.trim(),
       branchStateCode: nextForm.branchStateCode.trim(),
       branchState: nextForm.branchState.trim(),
+      state: nextForm.branchState.trim(),
       branchCity: nextForm.branchDistrict.trim(),
+      city: nextForm.branchDistrict.trim(),
       branchDistrict: nextForm.branchDistrict.trim(),
+      district: nextForm.branchDistrict.trim(),
       branchAddress: nextForm.branchAddress.trim(),
     }
 
@@ -905,32 +1019,39 @@ export function SuperAdminDashboardPage() {
           </div>
 
           <nav className="super-admin-sidebar-nav">
-            <button
-              type="button"
-              className={`super-admin-sidebar-item ${activeSection === 'dashboard' ? 'is-active' : ''}`.trim()}
-              onClick={() => {
-                setActiveSection('dashboard')
-                setIsMobileSidebarOpen(false)
-              }}
-            >
-              <span className="super-admin-sidebar-icon" aria-hidden="true">
-                <LayoutDashboard size={18} strokeWidth={2.2} />
-              </span>
-              <span>Dashboard</span>
-            </button>
-            <button
-              type="button"
-              className={`super-admin-sidebar-item ${activeSection === 'branches' ? 'is-active' : ''}`.trim()}
-              onClick={() => {
-                setActiveSection('branches')
-                setIsMobileSidebarOpen(false)
-              }}
-            >
-              <span className="super-admin-sidebar-icon" aria-hidden="true">
-                <Building2 size={18} strokeWidth={2.2} />
-              </span>
-              <span>Branches</span>
-            </button>
+            <div className="super-admin-sidebar-section">
+              <span className="super-admin-sidebar-section-label">MAIN</span>
+              <button
+                type="button"
+                className={`super-admin-sidebar-item ${activeSection === 'dashboard' ? 'is-active' : ''}`.trim()}
+                onClick={() => {
+                  setActiveSection('dashboard')
+                  setIsMobileSidebarOpen(false)
+                }}
+              >
+                <span className="super-admin-sidebar-icon" aria-hidden="true">
+                  <LayoutDashboard size={18} strokeWidth={2.2} />
+                </span>
+                <span>Dashboard</span>
+              </button>
+            </div>
+
+            <div className="super-admin-sidebar-section">
+              <span className="super-admin-sidebar-section-label">MANAGEMENT</span>
+              <button
+                type="button"
+                className={`super-admin-sidebar-item ${activeSection === 'branches' ? 'is-active' : ''}`.trim()}
+                onClick={() => {
+                  setActiveSection('branches')
+                  setIsMobileSidebarOpen(false)
+                }}
+              >
+                <span className="super-admin-sidebar-icon" aria-hidden="true">
+                  <Building2 size={18} strokeWidth={2.2} />
+                </span>
+                <span>Branches</span>
+              </button>
+            </div>
           </nav>
 
           <div className="super-admin-sidebar-footer">
@@ -959,10 +1080,7 @@ export function SuperAdminDashboardPage() {
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-right">
-              <button type="button" className="super-admin-notification-button" aria-label="Notifications">
-                <Bell size={22} strokeWidth={2.1} />
-                <span className="super-admin-notification-badge">8</span>
-              </button>
+              <SuperAdminNotificationBell onOpenBranches={() => setActiveSection('branches')} />
 
               <div className="super-admin-profile">
                 <AvatarBadge />
@@ -1255,7 +1373,8 @@ export function SuperAdminDashboardPage() {
             ) : (
               <div className="super-admin-dashboard-overview">
                 <div className="super-admin-dashboard-intro">
-                  <p className="eyebrow">Super Admin</p>
+                  <h1>Dashboard</h1>
+                  <p>Welcome back! Here’s an overview of your operations and today’s activities.</p>
                 </div>
 
                 <div className="super-admin-stats-grid" aria-label="Dashboard branch summary">
@@ -1331,9 +1450,27 @@ export function SuperAdminDashboardPage() {
                     { label: 'Branch ID', icon: <BadgeCheck size={18} strokeWidth={2.1} />, value: selectedBranch.branchId || '-' },
                     { label: 'Branch Name', icon: <Building2 size={18} strokeWidth={2.1} />, value: selectedBranch.branchName || '-' },
                     { label: 'Branch Admin', icon: <CircleUserRound size={18} strokeWidth={2.1} />, value: selectedBranch.branchAdminName || '-' },
-                    { label: 'Country', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchCountry || '-' },
-                    { label: 'State', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchState || '-' },
-                    { label: 'City', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchDistrict || selectedBranch.branchCity || '-' },
+                    {
+                      label: 'Country',
+                      icon: <MapPin size={18} strokeWidth={2.1} />,
+                      value: pickFirstNonEmpty(selectedBranch.branchCountry, selectedBranch.country) || '-',
+                    },
+                    {
+                      label: 'State',
+                      icon: <MapPin size={18} strokeWidth={2.1} />,
+                      value: pickFirstNonEmpty(selectedBranch.branchState, selectedBranch.state) || '-',
+                    },
+                    {
+                      label: 'City',
+                      icon: <MapPin size={18} strokeWidth={2.1} />,
+                      value:
+                        pickFirstNonEmpty(
+                          selectedBranch.branchDistrict,
+                          selectedBranch.branchCity,
+                          selectedBranch.district,
+                          selectedBranch.city,
+                        ) || '-',
+                    },
                     { label: 'Address', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchAddress || '-' },
                     { label: 'Email', icon: <Mail size={18} strokeWidth={2.1} />, value: selectedBranch.branchEmail || '-' },
                     { label: 'Phone', icon: <Phone size={18} strokeWidth={2.1} />, value: selectedBranch.branchPhone || '-' },
@@ -1642,7 +1779,7 @@ export function SuperAdminDashboardPage() {
       ) : null}
 
       {isLogoutConfirmOpen ? (
-        <div className="branch-modal-backdrop" role="presentation" onClick={closeLogoutConfirm}>
+        <div className="branch-modal-backdrop" role="presentation">
           <div
             className="super-admin-logout-modal"
             role="dialog"
