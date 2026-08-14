@@ -84,13 +84,36 @@ function isResendMailActive(branch) {
   return getResendMailStatus(branch) === 'Active'
 }
 
+const BRANCH_ID_PREFIX = 'BR-'
+
+function formatBranchIdNumber(value) {
+  return String(value || '').padStart(3, '0')
+}
+
+function getNextBranchId(existingBranches = []) {
+  const highestBranchNumber = (Array.isArray(existingBranches) ? existingBranches : []).reduce((highest, branch) => {
+    const match = String(branch?.branchId || '')
+      .trim()
+      .match(/^BR-(\d+)$/i)
+
+    if (!match) return highest
+
+    const branchNumber = Number(match[1])
+    if (!Number.isFinite(branchNumber)) return highest
+
+    return Math.max(highest, branchNumber)
+  }, 0)
+
+  return `${BRANCH_ID_PREFIX}${formatBranchIdNumber(highestBranchNumber + 1)}`
+}
+
 function validateBranchField(field, value) {
   const text = String(value || '').trim()
 
   switch (field) {
     case 'branchId':
       if (!text) return 'Branch ID is required'
-      if (!/^[A-Za-z0-9-]+$/.test(text)) return 'Branch ID can contain letters, numbers, and hyphens only'
+      if (!/^BR-\d{3}$/.test(text)) return 'Branch ID must follow BR-001 format'
       return ''
     case 'branchName':
       if (!text) return 'Branch name is required'
@@ -513,7 +536,7 @@ export function SuperAdminDashboardPage() {
     setSuccessMessage('')
     setActionError('')
     setForm({
-      branchId: '',
+      branchId: getNextBranchId(branches),
       branchName: '',
       branchAdminName: '',
       branchEmail: '',
@@ -715,7 +738,12 @@ export function SuperAdminDashboardPage() {
   const handleAddBranch = async (event) => {
     event.preventDefault()
 
-    const nextErrors = validateBranchForm(form, branches, editingBranchId)
+    const branchId = editingBranchId !== null ? String(form.branchId || '').trim() : getNextBranchId(branches)
+    const nextForm = {
+      ...form,
+      branchId,
+    }
+    const nextErrors = validateBranchForm(nextForm, branches, editingBranchId)
     setBranchErrors(nextErrors)
     setActionError('')
 
@@ -723,20 +751,20 @@ export function SuperAdminDashboardPage() {
       return
     }
 
-    const cleanedPhone = String(form.branchPhone || '').trim()
+    const cleanedPhone = String(nextForm.branchPhone || '').trim()
     const nextBranchData = {
-      branchId: form.branchId.trim(),
-      branchName: form.branchName.trim(),
-      branchAdminName: form.branchAdminName.trim(),
-      branchEmail: form.branchEmail.trim(),
+      branchId,
+      branchName: nextForm.branchName.trim(),
+      branchAdminName: nextForm.branchAdminName.trim(),
+      branchEmail: nextForm.branchEmail.trim(),
       branchPhone: cleanedPhone,
-      branchCountryCode: form.branchCountryCode.trim(),
-      branchCountry: form.branchCountry.trim(),
-      branchStateCode: form.branchStateCode.trim(),
-      branchState: form.branchState.trim(),
-      branchCity: form.branchDistrict.trim(),
-      branchDistrict: form.branchDistrict.trim(),
-      branchAddress: form.branchAddress.trim(),
+      branchCountryCode: nextForm.branchCountryCode.trim(),
+      branchCountry: nextForm.branchCountry.trim(),
+      branchStateCode: nextForm.branchStateCode.trim(),
+      branchState: nextForm.branchState.trim(),
+      branchCity: nextForm.branchDistrict.trim(),
+      branchDistrict: nextForm.branchDistrict.trim(),
+      branchAddress: nextForm.branchAddress.trim(),
     }
 
     try {
@@ -1286,11 +1314,11 @@ export function SuperAdminDashboardPage() {
                 <span>Branch ID</span>
                 <input
                   type="text"
-                  value={form.branchId}
-                  onChange={(event) => updateField('branchId', event.target.value.toUpperCase())}
-                  placeholder="Enter branch ID"
-                  inputMode="text"
-                  maxLength={20}
+                  value={editingBranchId !== null ? form.branchId : getNextBranchId(branches)}
+                  placeholder="Auto-generated"
+                  readOnly
+                  aria-readonly="true"
+                  tabIndex={-1}
                 />
                 {branchErrors.branchId ? <small className="branch-field-error">{branchErrors.branchId}</small> : null}
               </label>
