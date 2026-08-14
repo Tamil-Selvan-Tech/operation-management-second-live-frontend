@@ -11,7 +11,6 @@ import {
   Mail,
   LayoutDashboard,
   LogOut,
-  Menu,
   MoreVertical,
   ChevronRight,
   MapPin,
@@ -916,18 +915,6 @@ export function SuperAdminDashboardPage() {
 
         <div className="super-admin-main">
           <header className="super-admin-topbar">
-            <div className="super-admin-topbar-left">
-              <button
-                type="button"
-                className="super-admin-icon-button"
-                aria-label="Open menu"
-                aria-expanded={isMobileSidebarOpen}
-                onClick={() => setIsMobileSidebarOpen(true)}
-              >
-                <Menu size={22} strokeWidth={2.2} />
-              </button>
-            </div>
-
             <div className="super-admin-topbar-right">
               <button type="button" className="super-admin-notification-button" aria-label="Notifications">
                 <Bell size={22} strokeWidth={2.1} />
@@ -994,29 +981,48 @@ export function SuperAdminDashboardPage() {
                         <th className="branch-table-col-admin">Branch Admin Name</th>
                         <th className="branch-table-col-contact">Contact</th>
                         <th className="branch-table-col-created">Created At</th>
-                        <th className="branch-table-col-resend">Resend Mail</th>
                         <th className="branch-table-col-actions">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedBranches.map((branch, index) => {
                         const isUpwardMenu = index >= paginatedBranches.length - 2
+                        const resendMailStatus = getResendMailStatus(branch)
+                        const isResendMailActiveBranch = resendMailStatus === 'Active'
+                        const openBranchDetails = () => openViewBranch(branch)
 
                         return (
-                          <tr key={branch.id}>
+                          <tr
+                            key={branch.id}
+                            className="branch-table-row"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`View details for branch ${branch.branchName || branch.branchId || ''}`.trim()}
+                            onClick={openBranchDetails}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                openBranchDetails()
+                              }
+                            }}
+                          >
                             <td className="branch-table-col-index">{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td>
                             <td className="branch-table-col-id">
                               <div className="branch-inline-view-cell">
                                 <strong>{branch.branchId}</strong>
-                                <button
-                                  type="button"
-                                  className="branch-inline-view-arrow"
-                                  onClick={() => openViewBranch(branch)}
-                                  aria-label={`View details for branch ID ${branch.branchId || ''}`.trim()}
-                                  title="View details"
+                                <span
+                                  className={`branch-status-badge ${isResendMailActiveBranch ? 'is-active' : 'is-inactive'}`.trim()}
+                                  aria-label={`Resend mail ${resendMailStatus}`}
+                                  role="img"
                                 >
-                                  <ChevronRight size={16} strokeWidth={2.4} />
-                                </button>
+                                  <span className="branch-status-dot" aria-hidden="true" />
+                                  <span
+                                    className={`branch-status-tooltip ${isResendMailActiveBranch ? 'is-active' : 'is-inactive'}`.trim()}
+                                    aria-hidden="true"
+                                  >
+                                    {resendMailStatus}
+                                  </span>
+                                </span>
                               </div>
                             </td>
                             <td className="branch-table-col-name">
@@ -1030,25 +1036,11 @@ export function SuperAdminDashboardPage() {
                               <span className="branch-contact-phone">{branch.branchPhone}</span>
                             </td>
                             <td className="branch-table-col-created branch-created-at-cell">{branch.createdAt}</td>
-                            <td className="branch-table-col-resend">
-                              <div className="branch-resend-inline-cell">
-                                {isResendMailActive(branch) ? (
-                                  <span className="branch-mail-status-pill is-active">Active</span>
-                                ) : (
-                                  <>
-                                    <button
-                                      type="button"
-                                      className="branch-resend-inline-button"
-                                      onClick={() => openResendMail(branch)}
-                                    >
-                                      Resend Mail
-                                    </button>
-                                    <span className="branch-mail-status-pill">Inactive</span>
-                                  </>
-                                )}
-                              </div>
-                            </td>
-                            <td className="branch-table-col-actions">
+                            <td
+                              className="branch-table-col-actions"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                            >
                               <div
                                 className={`branch-actions branch-actions-wrap ${isUpwardMenu ? 'is-upward' : ''} ${actionMenuBranchId === branch.id ? 'is-open' : ''}`.trim()}
                                 onMouseEnter={() => setActionMenuBranchId(branch.id)}
@@ -1075,6 +1067,11 @@ export function SuperAdminDashboardPage() {
                                   <button type="button" role="menuitem" onClick={() => openEditBranch(branch)}>
                                     Edit
                                   </button>
+                                  {!isResendMailActiveBranch ? (
+                                    <button type="button" role="menuitem" className="is-warning" onClick={() => openResendMail(branch)}>
+                                      Resend Mail
+                                    </button>
+                                  ) : null}
                                   <button type="button" role="menuitem" className="is-danger" onClick={() => openDeleteConfirm(branch)}>
                                     Delete
                                   </button>
@@ -1618,14 +1615,10 @@ export function SuperAdminDashboardPage() {
               X
             </button>
 
-            <div className="super-admin-logout-icon" aria-hidden="true">
-              <LogOut size={28} strokeWidth={2.1} />
-            </div>
-
             <h2 id="super-admin-logout-title">Are you sure you want to logout?</h2>
            
 
-            <div className="branch-modal-actions">
+            <div className="branch-modal-actions super-admin-logout-actions">
               <button type="button" className="branch-modal-cancel" onClick={closeLogoutConfirm}>
                 Cancel
               </button>

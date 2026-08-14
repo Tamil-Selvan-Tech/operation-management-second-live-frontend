@@ -196,7 +196,7 @@
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr;
   align-items: center;
   gap: 14px;
   min-height: 78px;
@@ -415,18 +415,10 @@
 
 .super-admin-logout-modal {
   width: min(92vw, 420px);
+  min-height: 220px;
+  padding-top: 22px;
+  padding-bottom: 20px;
   text-align: center;
-}
-
-.super-admin-logout-icon {
-  width: 68px;
-  height: 68px;
-  margin: 8px auto 14px;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #fff5f5 0%, #fee2e2 100%);
-  color: #ef4444;
 }
 
 .super-admin-logout-modal h2 {
@@ -529,10 +521,6 @@
     width: 92px;
   }
 
-  .branch-table-col-resend {
-    width: 96px;
-  }
-
   .branch-table-col-actions {
     width: 66px;
   }
@@ -547,6 +535,16 @@
   .branch-inline-view-arrow {
     width: 22px;
     height: 22px;
+  }
+
+  .branch-inline-view-cell {
+    gap: 6px;
+  }
+
+  .branch-status-tooltip {
+    bottom: calc(100% + 6px);
+    padding: 4px 7px;
+    font-size: 0.68rem;
   }
 
   .branch-resend-inline-button {
@@ -605,7 +603,7 @@
   }
 
   .super-admin-topbar {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     gap: 8px;
     min-height: 74px;
     padding: 0 14px;
@@ -972,6 +970,23 @@
   vertical-align: top;
 }
 
+.branch-table tbody tr.branch-table-row {
+  cursor: pointer;
+}
+
+.branch-table tbody tr.branch-table-row:hover {
+  background: #f8fbff;
+}
+
+.branch-table tbody tr.branch-table-row:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: -2px;
+}
+
+.branch-table tbody tr.branch-table-row:focus-visible td {
+  background: #f8fbff;
+}
+
 .branch-table-col-index {
   width: 56px;
 }
@@ -1000,10 +1015,6 @@
   width: 132px;
 }
 
-.branch-table-col-resend {
-  width: 120px;
-}
-
 .branch-table-col-actions {
   width: 90px;
 }
@@ -1019,14 +1030,99 @@
   max-width: 100%;
 }
 
-.branch-inline-view-cell strong,
-.branch-inline-view-cell span {
+.branch-inline-view-cell > strong {
   min-width: 0;
   color: #111827;
   font-weight: 800;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.branch-status-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  margin-top: 0;
+  cursor: help;
+  overflow: visible;
+}
+
+.branch-status-dot {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9);
+}
+
+.branch-status-badge.is-active .branch-status-dot {
+  background: #16a34a;
+}
+
+.branch-status-badge.is-inactive .branch-status-dot {
+  background: #ef4444;
+}
+
+.branch-status-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  transform: translateX(-50%) translateY(4px);
+  opacity: 0;
+  pointer-events: none;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #111827;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  overflow: visible;
+}
+
+.branch-status-tooltip.is-active {
+  background: #ecfdf3;
+  color: #16a34a;
+  box-shadow: 0 10px 22px rgba(22, 163, 74, 0.16);
+}
+
+.branch-status-tooltip.is-active::after {
+  border-color: #ecfdf3 transparent transparent transparent;
+}
+
+.branch-status-tooltip.is-inactive {
+  background: #fef2f2;
+  color: #dc2626;
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.16);
+}
+
+.branch-status-tooltip.is-inactive::after {
+  border-color: #fef2f2 transparent transparent transparent;
+}
+
+.branch-status-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px 5px 0 5px;
+  border-style: solid;
+  border-color: #111827 transparent transparent transparent;
+}
+
+.branch-status-badge:hover .branch-status-tooltip,
+.branch-status-badge:focus-visible .branch-status-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .branch-inline-view-arrow {
@@ -1141,6 +1237,10 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.branch-actions-wrap {
+  cursor: default;
 }
 
 .branch-actions button {
@@ -1671,6 +1771,12 @@
   margin-top: 18px;
   padding-top: 16px;
   border-top: 1px solid #e5e7eb;
+}
+
+.super-admin-logout-actions {
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .branch-modal-cancel,
