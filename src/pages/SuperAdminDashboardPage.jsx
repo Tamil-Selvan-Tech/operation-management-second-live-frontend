@@ -236,14 +236,9 @@ export function SuperAdminDashboardPage() {
     if (!query) return branches
 
     return branches.filter((branch) => {
-      return [
-        branch.branchId,
-        branch.branchName,
-        branch.branchEmail,
-        branch.branchPhone,
-        branch.branchAddress,
-        branch.status,
-      ].some((value) => String(value || '').toLowerCase().includes(query))
+      return [branch.branchId, branch.branchName].some((value) =>
+        String(value || '').toLowerCase().includes(query),
+      )
     })
   }, [branches, searchTerm])
 
@@ -572,9 +567,10 @@ export function SuperAdminDashboardPage() {
                   <table className="branch-table">
                     <thead>
                       <tr>
-                        <th>#</th>
+                        <th>S.No</th>
                         <th>Branch ID</th>
-                        <th>Name</th>
+                        <th>Branch Name</th>
+                        <th>Branch Admin Name</th>
                         <th>Location</th>
                         <th>Contact</th>
                         <th>Created At</th>
@@ -589,10 +585,8 @@ export function SuperAdminDashboardPage() {
                           <tr key={branch.id}>
                             <td>{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td>
                             <td><strong>{branch.branchId}</strong></td>
-                            <td className="branch-name-cell">
-                              <strong>{branch.branchName}</strong>
-                              <span>{branch.branchAdminName || 'Branch admin not set'}</span>
-                            </td>
+                            <td><strong>{branch.branchName}</strong></td>
+                            <td>{branch.branchAdminName || 'Branch admin not set'}</td>
                             <td>{branch.branchAddress}</td>
                             <td className="branch-contact-cell">
                               <span className="branch-contact-email">{branch.branchEmail}</span>
