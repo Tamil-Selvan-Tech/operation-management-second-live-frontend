@@ -254,13 +254,6 @@ export function BranchDashboardPage() {
 
   const renderTopbar = () => (
     <header className="super-admin-topbar">
-      <div className="super-admin-topbar-left">
-        <div className="branch-dashboard-topbar-copy">
-          <p className="branch-dashboard-kicker">Branch Dashboard</p>
-          <p>{branchAdminDisplay}</p>
-        </div>
-      </div>
-
       <div className="super-admin-topbar-right">
         <button type="button" className="super-admin-notification-button" aria-label="Notifications">
           <Bell size={22} strokeWidth={2.1} />
@@ -363,6 +356,11 @@ export function BranchDashboardPage() {
             <div className="branch-dashboard-content">
               {activeSection === 'dashboard' ? (
                 <>
+                  <div className="branch-dashboard-overview-intro">
+                    <h1>Dashboard</h1>
+                    <p>Welcome back! Here&apos;s an overview of your operations and today&apos;s activities.</p>
+                  </div>
+
                   {mustResetPassword ? (
                     <section className="branch-dashboard-password-alert" aria-live="polite">
                       <div className="branch-dashboard-password-alert-copy">

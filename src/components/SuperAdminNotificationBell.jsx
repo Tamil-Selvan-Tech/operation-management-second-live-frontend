@@ -5,10 +5,16 @@ import {
   Bell,
   CheckCircle2,
   Mail,
+  X,
   Shield,
 } from 'lucide-react'
 
 import { request } from '../services/apiClient'
+import {
+  markNotificationsAsRead,
+  mergeNotificationsWithStoredState,
+  saveNotifications,
+} from '../lib/notificationStore'
 
 function formatNotificationTime(createdAt) {
   const date = new Date(createdAt)
@@ -44,7 +50,7 @@ function getNotificationIcon(kind) {
   }
 }
 
-export function SuperAdminNotificationBell({ onOpenBranches }) {
+export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
   const navigate = useNavigate()
   const menuRef = useRef(null)
   const [isOpen, setIsOpen] = useState(false)
@@ -57,7 +63,9 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
         method: 'GET',
       })
       const data = Array.isArray(response?.data) ? response.data : []
-      setNotifications(data)
+      const mergedNotifications = mergeNotificationsWithStoredState(data)
+      saveNotifications(mergedNotifications)
+      setNotifications(mergedNotifications)
     } catch {
       setNotifications([])
     } finally {
@@ -66,7 +74,11 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
   }
 
   useEffect(() => {
-    void refreshNotifications()
+    const timerId = window.setTimeout(() => {
+      void refreshNotifications()
+    }, 0)
+
+    return () => window.clearTimeout(timerId)
   }, [])
 
   useEffect(() => {
@@ -99,39 +111,28 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
     }
   }, [])
 
-  useEffect(() => {
-    if (!isOpen) return undefined
+  const notificationCount = useMemo(
+    () => notifications.filter((notification) => !notification.read).length,
+    [notifications],
+  )
+  const visibleNotifications = useMemo(() => notifications.slice(0, 3), [notifications])
 
-    const handlePointerDown = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false)
-      }
+  const handleOpenNotification = async (notification) => {
+    setNotifications((current) =>
+      current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
+    )
+    markNotificationsAsRead([notification.id])
+
+    try {
+      await request('/notifications/mark-read', {
+        method: 'PATCH',
+        body: JSON.stringify({ notificationIds: [notification.id] }),
+      })
+    } catch {
+      // Keep the optimistic state if the API is temporarily unavailable.
+    } finally {
+      void refreshNotifications()
     }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false)
-      }
-    }
-
-    window.addEventListener('pointerdown', handlePointerDown)
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      window.removeEventListener('pointerdown', handlePointerDown)
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isOpen])
-
-  const notificationCount = useMemo(() => notifications.length, [notifications])
-  const visibleNotifications = useMemo(() => notifications.slice(0, 4), [notifications])
-
-  const handleOpenNotification = (notification) => {
-    setIsOpen(false)
-    void request('/notifications/mark-read', {
-      method: 'PATCH',
-      body: JSON.stringify({ notificationIds: [notification.id] }),
-    }).catch(() => {})
 
     if (notification.kind?.startsWith('branch-') && typeof onOpenBranches === 'function') {
       onOpenBranches(notification)
@@ -142,6 +143,9 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
   }
 
   const handleMarkAllAsRead = () => {
+    setNotifications((current) => current.map((item) => ({ ...item, read: true })))
+    markNotificationsAsRead()
+
     void request('/notifications/mark-read', {
       method: 'PATCH',
       body: JSON.stringify({ notificationIds: [] }),
@@ -157,11 +161,6 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
       ref={menuRef}
       className="notification-menu super-admin-notification-menu"
       onFocusCapture={() => setIsOpen(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setIsOpen(false)
-        }
-      }}
     >
       <button
         className="icon-chip notification-chip"
@@ -179,9 +178,19 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
         <div className="notification-dropdown" role="menu" aria-label="Notifications">
           <div className="notification-dropdown-head">
             <strong>Notifications</strong>
-            <button type="button" className="notification-mark-read" onClick={handleMarkAllAsRead}>
-              Mark all as read
-            </button>
+            <div className="notification-dropdown-head-actions">
+              <button type="button" className="notification-mark-read" onClick={handleMarkAllAsRead}>
+                Mark all as read
+              </button>
+              <button
+                type="button"
+                className="notification-dropdown-close"
+                aria-label="Close notifications"
+                onClick={() => setIsOpen(false)}
+              >
+                <X size={16} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+              </button>
+            </div>
           </div>
 
           <div className="notification-dropdown-list">
@@ -225,11 +234,17 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
             type="button"
             onClick={() => {
               setIsOpen(false)
+              if (typeof onViewActivity === 'function') {
+                onViewActivity()
+                return
+              }
+
               if (typeof onOpenBranches === 'function') {
                 onOpenBranches()
-              } else {
-                navigate('/dashboard/super-admin')
+                return
               }
+
+              navigate('/dashboard/super-admin/notifications')
             }}
           >
             View branch activity

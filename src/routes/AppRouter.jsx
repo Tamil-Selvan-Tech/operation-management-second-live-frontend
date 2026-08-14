@@ -63,6 +63,10 @@ const SuperAdminDashboardPage = lazyNamed(
   () => import('../pages/SuperAdminDashboardPage'),
   'SuperAdminDashboardPage',
 )
+const SuperAdminNotificationsPage = lazyNamed(
+  () => import('../pages/SuperAdminNotificationsPage'),
+  'SuperAdminNotificationsPage',
+)
 const BranchDashboardPage = lazyNamed(
   () => import('../pages/BranchDashboardPage'),
   'BranchDashboardPage',
@@ -89,6 +93,7 @@ const routeChunks = [
   UnauthorizedPage,
   FacultyMyBatchesPage,
   SuperAdminDashboardPage,
+  SuperAdminNotificationsPage,
   BranchDashboardPage,
 ]
 
@@ -342,6 +347,7 @@ export function AppRouter() {
             }
           >
             <Route path="/dashboard/super-admin" element={<SuperAdminDashboardPage />} />
+            <Route path="/dashboard/super-admin/notifications" element={<SuperAdminNotificationsPage />} />
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<RoleDashboardRedirect />} />
               <Route path="/dashboard/business-owner" element={<DashboardPage role="business-owner" />} />

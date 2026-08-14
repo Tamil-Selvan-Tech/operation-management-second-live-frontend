@@ -507,6 +507,10 @@
   gap: 16px;
 }
 
+.reset-password-state-success {
+  padding-top: clamp(56px, 8vh, 96px);
+}
+
 .reset-password-header {
   position: relative;
   z-index: 1;
@@ -537,6 +541,10 @@
   color: #4b6ea8;
   font-size: 0.95rem;
   line-height: 1.45;
+}
+
+.reset-password-intro {
+  white-space: nowrap;
 }
 
 .reset-password-badge {
@@ -1241,9 +1249,17 @@
     font-size: 1.45rem;
   }
 
+  .reset-password-intro {
+    white-space: normal;
+  }
+
   .reset-password-actions {
     flex-direction: column;
     width: 100%;
+  }
+
+  .reset-password-state-success {
+    padding-top: 40px;
   }
 
   .reset-password-link,

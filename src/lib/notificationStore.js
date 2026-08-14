@@ -60,6 +60,18 @@ export function saveNotifications(notifications = []) {
   writeJSON(NOTIFICATION_STORAGE_KEY, notifications.map(normalizeNotification))
 }
 
+export function mergeNotificationsWithStoredState(notifications = []) {
+  const storedNotifications = loadNotifications()
+  const readStateById = new Map(storedNotifications.map((notification) => [String(notification.id), Boolean(notification.read)]))
+
+  return (Array.isArray(notifications) ? notifications : []).map((notification) => {
+    const normalizedNotification = normalizeNotification(notification)
+    const storedReadState = readStateById.get(String(normalizedNotification.id))
+
+    return storedReadState ? { ...normalizedNotification, read: true } : normalizedNotification
+  })
+}
+
 function emitNotificationChange() {
   if (!isBrowser()) return
 
