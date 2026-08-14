@@ -20,10 +20,21 @@ const writeJSON = (key, value) => {
   window.localStorage.setItem(key, JSON.stringify(value))
 }
 
+const normalizeMailStatus = (value, fallback = 'Inactive') => {
+  const text = String(value || '').trim().toLowerCase()
+  if (text === 'active') return 'Active'
+  if (text === 'inactive') return 'Inactive'
+  return fallback
+}
+
 export function normalizeBranchRecord(branch = {}) {
   const tempPassword = String(
     branch.tempPassword || branch.temporaryPassword || branch.temporary_password || '',
   ).trim()
+  const resendMailStatus = normalizeMailStatus(
+    branch.resendMailStatus || (branch.welcomeMailSent ? 'Active' : ''),
+    'Inactive',
+  )
   return {
     id: Number(branch.id) || Date.now(),
     branchId: String(branch.branchId || '').trim(),
@@ -36,6 +47,8 @@ export function normalizeBranchRecord(branch = {}) {
     mustResetPassword: Boolean(branch.mustResetPassword || tempPassword),
     status: String(branch.status || 'Active').trim() || 'Active',
     createdAt: String(branch.createdAt || '').trim(),
+    resendMailStatus,
+    welcomeMailSent: Boolean(branch.welcomeMailSent || resendMailStatus === 'Active'),
   }
 }
 
@@ -74,6 +87,8 @@ export function addBranchWithCredentials(branch = {}) {
     mustResetPassword: true,
     createdAt: branch.createdAt || new Date().toISOString().slice(0, 10),
     status: branch.status || 'Active',
+    resendMailStatus: 'Inactive',
+    welcomeMailSent: false,
   })
 
   const nextRegistry = [nextBranch, ...registry]
@@ -161,4 +176,15 @@ export function createBranchSession(branch) {
     mustResetPassword: Boolean(branch.mustResetPassword),
     loggedInAt: new Date().toISOString(),
   }
+}
+
+export function markBranchWelcomeMailSent(branchEmail) {
+  const normalizedEmail = String(branchEmail || '').trim().toLowerCase()
+  if (!normalizedEmail) return null
+
+  return updateBranchRecordByEmail(normalizedEmail, (branch) => ({
+    ...branch,
+    resendMailStatus: 'Active',
+    welcomeMailSent: true,
+  }))
 }
