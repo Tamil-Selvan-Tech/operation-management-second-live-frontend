@@ -123,10 +123,7 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
     }
   }, [isOpen])
 
-  const unreadCount = useMemo(
-    () => notifications.filter((notification) => !notification.read).length,
-    [notifications],
-  )
+  const notificationCount = useMemo(() => notifications.length, [notifications])
   const visibleNotifications = useMemo(() => notifications.slice(0, 4), [notifications])
 
   const handleOpenNotification = (notification) => {
@@ -175,7 +172,7 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
         onClick={() => setIsOpen((current) => !current)}
       >
         <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        <b>{isLoading ? '...' : unreadCount}</b>
+        <b>{isLoading ? '...' : notificationCount}</b>
       </button>
 
       {isOpen ? (
