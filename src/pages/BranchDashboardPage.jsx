@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Layers3,
   LogOut,
-  Menu,
   RefreshCcw,
   Shield,
   Users,
@@ -158,6 +157,7 @@ export function BranchDashboardPage() {
 
   const branchTitle = branchProfile?.branchName || 'Branch Dashboard'
   const branchAdmin = branchProfile?.branchAdminName || user?.name || 'Branch Admin'
+  const branchAdminDisplay = String(branchAdmin || 'Branch Admin').toUpperCase()
   const branchEmail = branchProfile?.branchEmail || user?.email || 'branch@example.com'
   const branchLocation = branchProfile?.branchAddress || 'Assigned location'
   const registryBranch = findBranchByEmail(branchEmail)
@@ -224,7 +224,6 @@ export function BranchDashboardPage() {
 
           <div className="super-admin-sidebar-profile-copy">
             <strong>{branchTitle}</strong>
-            <span>{branchEmail}</span>
           </div>
 
           <button
@@ -243,13 +242,10 @@ export function BranchDashboardPage() {
   const renderTopbar = () => (
     <header className="super-admin-topbar">
       <div className="super-admin-topbar-left">
-        <button type="button" className="super-admin-icon-button" aria-label="Open menu">
-          <Menu size={22} strokeWidth={2.2} />
-        </button>
         <div className="branch-dashboard-topbar-copy">
           <p className="branch-dashboard-kicker">Branch Dashboard</p>
           <p>
-            {branchAdmin} - {branchLocation}
+            {branchAdminDisplay} - {branchLocation}
           </p>
         </div>
       </div>
@@ -270,8 +266,7 @@ export function BranchDashboardPage() {
           >
             <AvatarBadge />
             <div className="super-admin-profile-copy">
-              <strong>{branchAdmin}</strong>
-              <span>{branchEmail}</span>
+              <strong>{branchAdminDisplay}</strong>
             </div>
             <ChevronDown size={16} strokeWidth={2.2} className="branch-dashboard-profile-caret" aria-hidden="true" />
           </button>
@@ -487,7 +482,7 @@ export function BranchDashboardPage() {
                     </article>
                     <article className="branch-dashboard-profile-panel">
                       <span>Branch Admin</span>
-                      <strong>{branchAdmin}</strong>
+                      <strong>{branchAdminDisplay}</strong>
                     </article>
                     <article className="branch-dashboard-profile-panel">
                       <span>Email</span>
