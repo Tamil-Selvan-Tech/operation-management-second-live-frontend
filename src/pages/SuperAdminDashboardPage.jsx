@@ -1160,7 +1160,6 @@ export function SuperAdminDashboardPage() {
                         <th className="branch-table-col-id">Branch ID</th>
                         <th className="branch-table-col-name">Branch Name</th>
                         <th className="branch-table-col-admin">Branch Admin Name</th>
-                        <th className="branch-table-col-contact">Contact</th>
                         <th className="branch-table-col-created">Created At</th>
                         <th className="branch-table-col-actions">Actions</th>
                       </tr>
@@ -1210,11 +1209,10 @@ export function SuperAdminDashboardPage() {
                               <strong>{branch.branchName}</strong>
                             </td>
                             <td className="branch-table-col-admin">
-                              <span>{branch.branchAdminName || 'Branch admin not set'}</span>
-                            </td>
-                            <td className="branch-table-col-contact branch-contact-cell">
-                              <span className="branch-contact-email">{branch.branchEmail}</span>
-                              <span className="branch-contact-phone">{branch.branchPhone}</span>
+                              <div className="branch-table-detail-cell">
+                                <strong>{branch.branchAdminName || 'Branch admin not set'}</strong>
+                                <span className="branch-contact-email">{branch.branchEmail || '-'}</span>
+                              </div>
                             </td>
                             <td className="branch-table-col-created">{formatDisplayDate(branch.createdAt)}</td>
                             <td
@@ -1471,16 +1469,9 @@ export function SuperAdminDashboardPage() {
                     { label: 'Branch ID', icon: <BadgeCheck size={18} strokeWidth={2.1} />, value: selectedBranch.branchId || '-' },
                     { label: 'Branch Name', icon: <Building2 size={18} strokeWidth={2.1} />, value: selectedBranch.branchName || '-' },
                     { label: 'Branch Admin', icon: <CircleUserRound size={18} strokeWidth={2.1} />, value: selectedBranch.branchAdminName || '-' },
-                    {
-                      label: 'Country',
-                      icon: <MapPin size={18} strokeWidth={2.1} />,
-                      value: pickFirstNonEmpty(selectedBranch.branchCountry, selectedBranch.country) || '-',
-                    },
-                    {
-                      label: 'State',
-                      icon: <MapPin size={18} strokeWidth={2.1} />,
-                      value: pickFirstNonEmpty(selectedBranch.branchState, selectedBranch.state) || '-',
-                    },
+                    { label: 'Email', icon: <Mail size={18} strokeWidth={2.1} />, value: selectedBranch.branchEmail || '-' },
+                    { label: 'Phone', icon: <Phone size={18} strokeWidth={2.1} />, value: selectedBranch.branchPhone || '-' },
+                    { label: 'Address', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchAddress || '-' },
                     {
                       label: 'City',
                       icon: <MapPin size={18} strokeWidth={2.1} />,
@@ -1492,10 +1483,16 @@ export function SuperAdminDashboardPage() {
                           selectedBranch.city,
                         ) || '-',
                     },
-                    { label: 'Address', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchAddress || '-' },
-                    { label: 'Email', icon: <Mail size={18} strokeWidth={2.1} />, value: selectedBranch.branchEmail || '-' },
-                    { label: 'Phone', icon: <Phone size={18} strokeWidth={2.1} />, value: selectedBranch.branchPhone || '-' },
-                    { label: 'Status', icon: <CheckCircle2 size={18} strokeWidth={2.1} />, value: selectedBranch.status || '-' },
+                    {
+                      label: 'State',
+                      icon: <MapPin size={18} strokeWidth={2.1} />,
+                      value: pickFirstNonEmpty(selectedBranch.branchState, selectedBranch.state) || '-',
+                    },
+                    {
+                      label: 'Country',
+                      icon: <MapPin size={18} strokeWidth={2.1} />,
+                      value: pickFirstNonEmpty(selectedBranch.branchCountry, selectedBranch.country) || '-',
+                    },
                     { label: 'Created Date', icon: <CalendarDays size={18} strokeWidth={2.1} />, value: formatDisplayDate(selectedBranch.createdAt) },
                   ].map((item) => (
                     <div className="branch-view-info-row" key={item.label}>

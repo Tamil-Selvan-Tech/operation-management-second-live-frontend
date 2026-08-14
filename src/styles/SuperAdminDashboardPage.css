@@ -595,10 +595,6 @@
     width: 96px;
   }
 
-  .branch-table-col-contact {
-    width: 164px;
-  }
-
   .branch-table-col-created {
     width: 96px;
   }
@@ -1090,12 +1086,13 @@
   width: 160px;
 }
 
-.branch-table-col-location {
-  width: 150px;
+.branch-table thead th.branch-table-col-admin,
+.branch-table tbody td.branch-table-col-admin {
+  padding-left: 4px;
 }
 
-.branch-table-col-contact {
-  width: 240px;
+.branch-table-col-location {
+  width: 150px;
 }
 
 .branch-table-col-created {
@@ -1108,6 +1105,12 @@
 
 .branch-table tbody td strong {
   color: #111827;
+}
+
+.branch-table-detail-cell {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
 }
 
 .branch-inline-view-cell {
