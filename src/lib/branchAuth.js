@@ -1,4 +1,5 @@
 import { seedBranches } from '../data/branchSeedData'
+import { addBranchLoginNotification } from './notificationStore'
 
 const BRANCH_REGISTRY_KEY = 'cispro.branch-registry'
 const BRANCH_SESSION_KEY = 'cispro.branch-session'
@@ -202,4 +203,25 @@ export function markBranchWelcomeMailSent(branchEmail) {
     resendMailStatus: 'Active',
     welcomeMailSent: true,
   }))
+}
+
+export function recordBranchLogin(branch = {}) {
+  const loginAt = new Date().toISOString()
+  const normalizedEmail = String(branch.branchEmail || '').trim().toLowerCase()
+
+  if (!normalizedEmail) return null
+
+  updateBranchRecordByEmail(normalizedEmail, (currentBranch) => ({
+    ...currentBranch,
+    status: 'Active',
+    lastLoginAt: loginAt,
+    welcomeMailSent: true,
+    resendMailStatus: 'Active',
+  }))
+
+  return addBranchLoginNotification({
+    ...branch,
+    status: 'Active',
+    lastLoginAt: loginAt,
+  })
 }

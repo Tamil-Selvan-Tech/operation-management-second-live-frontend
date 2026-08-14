@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
 import {
-  Bell,
   BadgeCheck,
   Building2,
   CircleUserRound,
@@ -20,14 +19,14 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
+import { createBranch, deleteBranch, listBranches, resendBranchInvitation, updateBranch } from '../services/branchService'
 import {
-  createBranch,
-  deleteBranch,
-  listBranches,
-  resendBranchInvitation,
-  updateBranch,
-} from '../services/branchService'
+  addBranchInvitationResentNotification,
+  addBranchLoginNotification,
+  hasBranchNotification,
+} from '../lib/notificationStore'
 import { PaginationBar } from '../components/PaginationBar'
+import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -81,6 +80,14 @@ function getResendMailStatus(branch) {
 
 function isResendMailActive(branch) {
   return getResendMailStatus(branch) === 'Active'
+}
+
+function getNormalizedBranchStatus(branch = {}) {
+  return String(branch?.status || '').trim().toLowerCase() === 'active' ? 'Active' : 'Inactive'
+}
+
+function getNormalizedResendMailStatus(branch = {}) {
+  return getResendMailStatus(branch)
 }
 
 function pickFirstNonEmpty(...values) {
@@ -260,6 +267,7 @@ export function SuperAdminDashboardPage() {
   const [actionError, setActionError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const previousBranchSnapshotRef = useRef(null)
   const [form, setForm] = useState({
     branchId: '',
     branchName: '',
@@ -281,7 +289,52 @@ export function SuperAdminDashboardPage() {
         sortBy: 'createdAt',
         sortOrder: 'desc',
       })
-      setBranches(Array.isArray(result?.data) ? result.data : [])
+      const nextBranches = Array.isArray(result?.data) ? result.data : []
+      const previousSnapshot = previousBranchSnapshotRef.current
+
+      if (previousSnapshot) {
+        nextBranches.forEach((branch) => {
+          const previousBranch = previousSnapshot.get(String(branch.id))
+          if (!previousBranch) return
+
+          const nextStatus = getNormalizedBranchStatus(branch)
+          const previousStatus = previousBranch.status
+          if (previousStatus !== 'Active' && nextStatus === 'Active') {
+            addBranchLoginNotification(branch)
+          }
+
+          const nextResendMailStatus = getNormalizedResendMailStatus(branch)
+          const previousResendMailStatus = previousBranch.resendMailStatus
+          if (previousResendMailStatus !== 'Active' && nextResendMailStatus === 'Active') {
+            addBranchInvitationResentNotification(branch)
+          }
+        })
+      }
+
+      nextBranches.forEach((branch) => {
+        const hasRecentLoginStamp = Boolean(String(branch?.lastLoginAt || '').trim())
+        if (!hasRecentLoginStamp) return
+
+        if (getNormalizedBranchStatus(branch) === 'Active' && !hasBranchNotification('branch-login', branch)) {
+          addBranchLoginNotification(branch)
+        }
+
+        if (getNormalizedResendMailStatus(branch) === 'Active' && !hasBranchNotification('branch-mail', branch)) {
+          addBranchInvitationResentNotification(branch)
+        }
+      })
+
+      previousBranchSnapshotRef.current = new Map(
+        nextBranches.map((branch) => [
+          String(branch.id),
+          {
+            status: getNormalizedBranchStatus(branch),
+            resendMailStatus: getNormalizedResendMailStatus(branch),
+          },
+        ]),
+      )
+
+      setBranches(nextBranches)
     } catch {
       setBranches([])
     }
@@ -740,7 +793,15 @@ export function SuperAdminDashboardPage() {
       const result = await resendBranchInvitation(resendTargetBranch.id)
       if (result?.branch?.id) {
         setBranches((current) => current.map((branch) => (branch.id === result.branch.id ? result.branch : branch)))
+        previousBranchSnapshotRef.current = new Map(
+          (previousBranchSnapshotRef.current || new Map()).entries(),
+        )
+        previousBranchSnapshotRef.current.set(String(result.branch.id), {
+          status: getNormalizedBranchStatus(result.branch),
+          resendMailStatus: getNormalizedResendMailStatus(result.branch),
+        })
       }
+      addBranchInvitationResentNotification(result?.branch || resendTargetBranch)
       setIsResendConfirmOpen(false)
       setSuccessTitle('Mail sent successfully')
       setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
@@ -1019,10 +1080,7 @@ export function SuperAdminDashboardPage() {
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-right">
-              <button type="button" className="super-admin-notification-button" aria-label="Notifications">
-                <Bell size={22} strokeWidth={2.1} />
-                <span className="super-admin-notification-badge">8</span>
-              </button>
+              <SuperAdminNotificationBell onOpenBranches={() => setActiveSection('branches')} />
 
               <div className="super-admin-profile">
                 <AvatarBadge />
