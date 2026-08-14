@@ -47,30 +47,6 @@ function unwrapResponse(response) {
   return response?.data || response
 }
 
-function mergeBranchPayload(responseRecord = {}, payload = {}) {
-  const normalizedResponse = normalizeBranchRecord(responseRecord)
-  const normalizedPayload = normalizeBranchRecord(payload)
-
-  return {
-    ...normalizedResponse,
-    branchId: normalizedResponse.branchId || normalizedPayload.branchId,
-    branchName: normalizedResponse.branchName || normalizedPayload.branchName,
-    branchAdminName: normalizedResponse.branchAdminName || normalizedPayload.branchAdminName,
-    branchEmail: normalizedResponse.branchEmail || normalizedPayload.branchEmail,
-    branchPhone: normalizedResponse.branchPhone || normalizedPayload.branchPhone,
-    branchCountryCode: normalizedResponse.branchCountryCode || normalizedPayload.branchCountryCode,
-    branchCountry: normalizedResponse.branchCountry || normalizedPayload.branchCountry,
-    branchStateCode: normalizedResponse.branchStateCode || normalizedPayload.branchStateCode,
-    branchState: normalizedResponse.branchState || normalizedPayload.branchState,
-    branchCity: normalizedResponse.branchCity || normalizedPayload.branchCity,
-    branchDistrict: normalizedResponse.branchDistrict || normalizedPayload.branchDistrict,
-    branchAddress: normalizedResponse.branchAddress || normalizedPayload.branchAddress,
-    status: normalizedResponse.status || normalizedPayload.status,
-    createdAt: normalizedResponse.createdAt || normalizedPayload.createdAt,
-    updatedAt: normalizedResponse.updatedAt || normalizedPayload.updatedAt,
-  }
-}
-
 export async function listBranches(params = {}) {
   const searchParams = new URLSearchParams()
 
@@ -98,7 +74,7 @@ export async function createBranch(payload) {
   })
 
   clearBranchRegistry()
-  return mergeBranchPayload(unwrapResponse(response), payload)
+  return normalizeBranchRecord(unwrapResponse(response))
 }
 
 export async function updateBranch(branchId, payload) {
@@ -108,7 +84,7 @@ export async function updateBranch(branchId, payload) {
   })
 
   clearBranchRegistry()
-  return mergeBranchPayload(unwrapResponse(response), payload)
+  return normalizeBranchRecord(unwrapResponse(response))
 }
 
 export async function deleteBranch(branchId) {
