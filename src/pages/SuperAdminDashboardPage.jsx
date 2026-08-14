@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
 import {
   BadgeCheck,
@@ -240,10 +240,16 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
   }
 }
 
+function getInitialSuperAdminSection(search = '') {
+  const params = new URLSearchParams(search)
+  return params.get('section') === 'branches' ? 'branches' : 'dashboard'
+}
+
 export function SuperAdminDashboardPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { signOut, user } = useAuth()
-  const [activeSection, setActiveSection] = useState('dashboard')
+  const [activeSection, setActiveSection] = useState(() => getInitialSuperAdminSection(location.search))
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [branches, setBranches] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -616,6 +622,10 @@ export function SuperAdminDashboardPage() {
       document.body.classList.remove('super-admin-sidebar-open')
     }
   }, [isMobileSidebarOpen])
+
+  useEffect(() => {
+    setActiveSection(getInitialSuperAdminSection(location.search))
+  }, [location.search])
 
   useEffect(() => {
     if (!isOverlayOpen) {
@@ -1080,7 +1090,10 @@ export function SuperAdminDashboardPage() {
         <div className="super-admin-main">
           <header className="super-admin-topbar">
             <div className="super-admin-topbar-right">
-              <SuperAdminNotificationBell onOpenBranches={() => setActiveSection('branches')} />
+              <SuperAdminNotificationBell
+                onOpenBranches={() => setActiveSection('branches')}
+                onViewActivity={() => navigate('/dashboard/super-admin/notifications')}
+              />
 
               <div className="super-admin-profile">
                 <AvatarBadge />

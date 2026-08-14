@@ -2281,5 +2281,77 @@ body.super-admin-sidebar-open {
   overflow: hidden;
 }
 
+.super-admin-page .notifications-item-meta {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.notifications-item-view-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.notifications-item-view-button:hover,
+.notifications-item-view-button:focus-visible {
+  background: #dbeafe;
+  color: #1e40af;
+  transform: translateY(-1px);
+}
+
+.notifications-empty-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 22px 20px;
+  border: 1px solid #e6edf7;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.notifications-empty-state-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  flex: 0 0 auto;
+}
+
+.notifications-empty-state h3 {
+  margin: 0 0 6px;
+  color: #0f172a;
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.notifications-empty-state p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .super-admin-page .notifications-item-meta {
+    align-items: flex-start;
+  }
+
+  .notifications-empty-state {
+    padding: 18px;
+  }
+}
+
 
 

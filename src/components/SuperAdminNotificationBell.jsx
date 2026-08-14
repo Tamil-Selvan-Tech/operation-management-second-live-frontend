@@ -44,7 +44,7 @@ function getNotificationIcon(kind) {
   }
 }
 
-export function SuperAdminNotificationBell({ onOpenBranches }) {
+export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
   const navigate = useNavigate()
   const menuRef = useRef(null)
   const [isOpen, setIsOpen] = useState(false)
@@ -123,7 +123,10 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
     }
   }, [isOpen])
 
-  const notificationCount = useMemo(() => notifications.length, [notifications])
+  const notificationCount = useMemo(
+    () => notifications.filter((notification) => !notification.read).length,
+    [notifications],
+  )
   const visibleNotifications = useMemo(() => notifications.slice(0, 4), [notifications])
 
   const handleOpenNotification = (notification) => {
@@ -225,11 +228,17 @@ export function SuperAdminNotificationBell({ onOpenBranches }) {
             type="button"
             onClick={() => {
               setIsOpen(false)
+              if (typeof onViewActivity === 'function') {
+                onViewActivity()
+                return
+              }
+
               if (typeof onOpenBranches === 'function') {
                 onOpenBranches()
-              } else {
-                navigate('/dashboard/super-admin')
+                return
               }
+
+              navigate('/dashboard/super-admin/notifications')
             }}
           >
             View branch activity
