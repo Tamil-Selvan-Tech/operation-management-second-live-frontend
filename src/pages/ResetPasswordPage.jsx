@@ -5,7 +5,6 @@ import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { FormField } from '../components/FormField'
-import { findBranchByEmail, updateBranchRecordByEmail } from '../lib/branchAuth'
 import { clearPendingLoginEmail, savePendingLoginEmail } from '../lib/session'
 import { changePassword, resetPassword } from '../services/apiClient'
 import '../styles/LoginPage.css'
@@ -83,11 +82,10 @@ export function ResetPasswordPage() {
   const token = String(searchParams.get('token') || '').trim()
   const isBranchResetParam = String(searchParams.get('branchReset') || '').trim() === '1'
   const authenticatedBranchEmail = String(session?.user?.email || '').trim().toLowerCase()
-  const registryBranch = findBranchByEmail(authenticatedBranchEmail)
   const isBranchResetFlow = Boolean(
     (isBranchResetParam ||
       (isAuthenticated && role === 'branch-admin')) &&
-      (session?.user?.mustResetPassword || registryBranch?.mustResetPassword),
+      session?.user?.mustResetPassword,
   )
   const redirectTo =
     String(searchParams.get('redirect') || '').trim() ||
@@ -136,11 +134,6 @@ export function ResetPasswordPage() {
       changePassword(nextPassword)
         .then(() => {
           if (authenticatedBranchEmail) {
-            updateBranchRecordByEmail(authenticatedBranchEmail, (branch) => ({
-              ...branch,
-              mustResetPassword: false,
-              tempPassword: '',
-            }))
             savePendingLoginEmail(authenticatedBranchEmail)
           } else {
             clearPendingLoginEmail()
