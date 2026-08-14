@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -332,6 +332,19 @@ export function SuperAdminDashboardPage() {
     branchDistrict: '',
     branchAddress: '',
   })
+  const loadBranches = useCallback(async () => {
+    try {
+      const result = await listBranches({
+        page: 1,
+        limit: 100,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      })
+      setBranches(Array.isArray(result?.data) ? result.data : [])
+    } catch {
+      setBranches([])
+    }
+  }, [])
   const isOverlayOpen =
     isAddBranchOpen ||
     isSuccessOpen ||
@@ -342,19 +355,28 @@ export function SuperAdminDashboardPage() {
     isMobileSidebarOpen
 
   useEffect(() => {
-    listBranches({
-      page: 1,
-      limit: 100,
-      sortBy: 'createdAt',
-      sortOrder: 'desc',
-    })
-      .then((result) => {
-        setBranches(Array.isArray(result?.data) ? result.data : [])
-      })
-      .catch(() => {
-        setBranches([])
-      })
-  }, [])
+    void loadBranches()
+  }, [loadBranches])
+
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      void loadBranches()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadBranches()
+      }
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [loadBranches])
 
   useEffect(() => {
     if (
@@ -570,7 +592,10 @@ export function SuperAdminDashboardPage() {
     if (!resendTargetBranch) return
 
     try {
-      await resendBranchInvitation(resendTargetBranch.id)
+      const result = await resendBranchInvitation(resendTargetBranch.id)
+      if (result?.branch?.id) {
+        setBranches((current) => current.map((branch) => (branch.id === result.branch.id ? result.branch : branch)))
+      }
       setIsResendConfirmOpen(false)
       setSuccessTitle('Mail sent successfully')
       setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
