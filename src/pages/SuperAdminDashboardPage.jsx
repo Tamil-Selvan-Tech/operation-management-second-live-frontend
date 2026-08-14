@@ -85,6 +85,7 @@ function isResendMailActive(branch) {
 }
 
 const BRANCH_ID_PREFIX = 'BR-'
+const DEFAULT_BRANCH_COUNTRY_NAME = 'India'
 
 function formatBranchIdNumber(value) {
   return String(value || '').padStart(3, '0')
@@ -105,6 +106,14 @@ function getNextBranchId(existingBranches = []) {
   }, 0)
 
   return `${BRANCH_ID_PREFIX}${formatBranchIdNumber(highestBranchNumber + 1)}`
+}
+
+function getDefaultBranchCountry(countryOptions = []) {
+  return (Array.isArray(countryOptions) ? countryOptions : []).find((item) => {
+    const name = String(item?.name || '').trim().toLowerCase()
+    const iso2 = String(item?.iso2 || '').trim().toUpperCase()
+    return name === DEFAULT_BRANCH_COUNTRY_NAME.toLowerCase() || iso2 === 'IN'
+  })
 }
 
 function validateBranchField(field, value) {
@@ -362,6 +371,26 @@ export function SuperAdminDashboardPage() {
       cancelled = true
     }
   }, [form.branchCountryCode, form.branchStateCode])
+
+  useEffect(() => {
+    if (!isAddBranchOpen || editingBranchId !== null || form.branchCountryCode || !countryOptions.length) return undefined
+
+    const defaultCountry = getDefaultBranchCountry(countryOptions)
+    if (!defaultCountry) return undefined
+
+    queueMicrotask(() => {
+      setForm((current) => {
+        if (current.branchCountryCode) return current
+        return {
+          ...current,
+          branchCountryCode: defaultCountry.iso2 || '',
+          branchCountry: defaultCountry.name || DEFAULT_BRANCH_COUNTRY_NAME,
+        }
+      })
+    })
+
+    return undefined
+  }, [countryOptions, editingBranchId, form.branchCountryCode, isAddBranchOpen])
 
   useEffect(() => {
     if (form.branchCountryCode || !form.branchCountry || !countryOptions.length) return undefined
