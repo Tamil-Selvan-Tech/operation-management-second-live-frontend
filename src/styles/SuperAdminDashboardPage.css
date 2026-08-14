@@ -27,11 +27,11 @@
   top: 10px;
   left: 10px;
   z-index: 30;
-  width: 240px;
+  width: 216px;
   height: calc(100vh - 20px);
   border-right: 1px solid #e5e7eb;
   background: #fff;
-  padding: 16px 12px 18px;
+  padding: 14px 10px 16px;
   overflow: hidden;
 }
 
@@ -39,13 +39,13 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 8px 6px 12px;
+  padding: 6px 4px 10px;
 }
 
 .super-admin-sidebar-brand-logo {
   display: block;
   width: auto;
-  height: 46px;
+  height: 40px;
   max-width: 100%;
   object-fit: contain;
 }
@@ -57,7 +57,7 @@
 
 .super-admin-sidebar-footer {
   margin-top: auto;
-  padding-top: 16px;
+  padding-top: 12px;
 }
 
 .super-admin-sidebar-item,
@@ -68,21 +68,21 @@
   width: 100%;
   border: 0;
   border-radius: 14px;
-  padding: 8px 12px;
+  padding: 7px 10px;
   background: transparent;
   color: #1f2937;
   text-align: left;
-  font-size: 0.96rem;
+  font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
 }
 
 .super-admin-sidebar-item {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   padding-left: 10px;
   padding-right: 10px;
-  min-height: 48px;
+  min-height: 42px;
 }
 
 .super-admin-sidebar-item:hover,
@@ -99,8 +99,8 @@
 .super-admin-sidebar-icon {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border-radius: 10px;
   background: #f3f4f6;
   color: inherit;
@@ -115,12 +115,12 @@
 
 .super-admin-sidebar-profile-card {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr) 28px;
+  grid-template-columns: 30px minmax(0, 1fr) 26px;
   align-items: center;
   gap: 6px;
   border: 1px solid #dbe4f0;
-  border-radius: 18px;
-  padding: 9px 10px;
+  border-radius: 16px;
+  padding: 8px 9px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
@@ -129,8 +129,8 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 34px;
+  width: 30px;
+  height: 32px;
   border-radius: 999px;
   background: linear-gradient(180deg, #4aa3ff 0%, #1d78e6 100%);
   color: #fff;
@@ -157,10 +157,10 @@
 
 .super-admin-sidebar-profile-copy span {
   color: #64748b;
-  font-size: 0.72rem;
+  font-size: 0.69rem;
   line-height: 1.15;
   display: block;
-  max-width: 200px;
+  max-width: 176px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -169,8 +169,8 @@
 .super-admin-sidebar-logout-button {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -189,7 +189,7 @@
   gap: 0;
   background: #fff;
   padding: 0;
-  margin-left: 240px;
+  margin-left: 216px;
   min-height: calc(100vh - 20px);
 }
 
