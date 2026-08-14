@@ -115,12 +115,12 @@
 
 .super-admin-sidebar-profile-card {
   display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) 34px;
+  grid-template-columns: 32px minmax(0, 1fr) 28px;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   border: 1px solid #dbe4f0;
   border-radius: 18px;
-  padding: 11px 12px;
+  padding: 9px 10px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
 }
@@ -129,8 +129,8 @@
   position: relative;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 32px;
+  height: 34px;
   border-radius: 999px;
   background: linear-gradient(180deg, #4aa3ff 0%, #1d78e6 100%);
   color: #fff;
@@ -139,10 +139,10 @@
 
 .super-admin-sidebar-user-status {
   position: absolute;
-  right: 1px;
-  bottom: 1px;
-  width: 9px;
-  height: 9px;
+  right: 0;
+  bottom: 0;
+  width: 7px;
+  height: 7px;
   border: 2px solid #fff;
   border-radius: 999px;
   background: #22c55e;
@@ -157,8 +157,10 @@
 
 .super-admin-sidebar-profile-copy span {
   color: #64748b;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   line-height: 1.15;
+  display: block;
+  max-width: 200px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -167,8 +169,8 @@
 .super-admin-sidebar-logout-button {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -415,7 +417,7 @@
 
 .super-admin-logout-modal {
   position: relative;
-  width: min(92vw, 520px);
+  width: min(90vw, 460px);
   border-radius: 30px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
   box-shadow: 0 30px 80px rgba(15, 23, 42, 0.18);
@@ -428,13 +430,13 @@
   position: absolute;
   top: 18px;
   right: 18px;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border: 1px solid #d9e2f2;
   border-radius: 999px;
   background: #fff;
   color: #6b7280;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   line-height: 1;
   display: grid;
   place-items: center;
@@ -463,7 +465,7 @@
 
 .super-admin-logout-cancel,
 .super-admin-logout-submit {
-  height: 54px;
+  height: 44px;
   min-width: 154px;
   border-radius: 14px;
   padding: 0 20px;
@@ -477,7 +479,7 @@
   background: #fff;
   color: #3f4f6b;
   min-width: 132px;
-  height: 50px;
+  height: 40px;
   padding: 0 16px;
 }
 
@@ -503,11 +505,11 @@
 
 @media (max-width: 1280px) {
   .super-admin-sidebar {
-    width: 170px;
+    width: 220px;
   }
 
   .super-admin-main {
-    margin-left: 170px;
+    margin-left: 220px;
   }
 
   .super-admin-content {
@@ -521,9 +523,7 @@
   }
 
   .super-admin-profile-copy span {
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    max-width: none;
   }
 
   .branch-table-shell {

@@ -43,7 +43,7 @@ function AvatarBadge() {
 function SidebarUserAvatar() {
   return (
     <span className="super-admin-sidebar-user-avatar" aria-hidden="true">
-      <CircleUserRound size={34} strokeWidth={1.9} />
+      <CircleUserRound size={28} strokeWidth={1.9} />
       <span className="super-admin-sidebar-user-status" />
     </span>
   )
@@ -85,6 +85,7 @@ function isResendMailActive(branch) {
 
 const BRANCH_ID_PREFIX = 'BR-'
 const DEFAULT_BRANCH_COUNTRY_NAME = 'India'
+const DEFAULT_BRANCH_STATE_NAME = 'Tamil Nadu'
 
 function formatBranchIdNumber(value) {
   return String(value || '').padStart(3, '0')
@@ -112,6 +113,14 @@ function getDefaultBranchCountry(countryOptions = []) {
     const name = String(item?.name || '').trim().toLowerCase()
     const iso2 = String(item?.iso2 || '').trim().toUpperCase()
     return name === DEFAULT_BRANCH_COUNTRY_NAME.toLowerCase() || iso2 === 'IN'
+  })
+}
+
+function getDefaultBranchState(stateOptions = []) {
+  return (Array.isArray(stateOptions) ? stateOptions : []).find((item) => {
+    const name = String(item?.name || '').trim().toLowerCase()
+    const iso2 = String(item?.iso2 || '').trim().toUpperCase()
+    return name === DEFAULT_BRANCH_STATE_NAME.toLowerCase() || iso2 === 'TN'
   })
 }
 
@@ -409,6 +418,36 @@ export function SuperAdminDashboardPage() {
   }, [countryOptions, editingBranchId, form.branchCountryCode, isAddBranchOpen])
 
   useEffect(() => {
+    if (
+      !isAddBranchOpen ||
+      editingBranchId !== null ||
+      !form.branchCountryCode ||
+      form.branchStateCode ||
+      !stateOptions.length
+    ) {
+      return undefined
+    }
+
+    if (String(form.branchCountryCode || '').trim().toUpperCase() !== 'IN') return undefined
+
+    const defaultState = getDefaultBranchState(stateOptions)
+    if (!defaultState) return undefined
+
+    queueMicrotask(() => {
+      setForm((current) => {
+        if (current.branchStateCode) return current
+        return {
+          ...current,
+          branchStateCode: defaultState.iso2 || '',
+          branchState: defaultState.name || DEFAULT_BRANCH_STATE_NAME,
+        }
+      })
+    })
+
+    return undefined
+  }, [editingBranchId, form.branchCountryCode, form.branchStateCode, isAddBranchOpen, stateOptions])
+
+  useEffect(() => {
     if (form.branchCountryCode || !form.branchCountry || !countryOptions.length) return undefined
 
     const matchedCountry = countryOptions.find((item) => String(item?.name || '') === String(form.branchCountry || ''))
@@ -580,14 +619,15 @@ export function SuperAdminDashboardPage() {
     setSuccessTitle('Create branch invitation sent')
     setSuccessMessage('')
     setActionError('')
+    const defaultCountry = getDefaultBranchCountry(countryOptions)
     setForm({
       branchId: getNextBranchId(branches),
       branchName: '',
       branchAdminName: '',
       branchEmail: '',
       branchPhone: '',
-      branchCountryCode: '',
-      branchCountry: '',
+      branchCountryCode: defaultCountry?.iso2 || '',
+      branchCountry: defaultCountry?.name || '',
       branchStateCode: '',
       branchState: '',
       branchDistrict: '',
@@ -1642,7 +1682,7 @@ export function SuperAdminDashboardPage() {
       ) : null}
 
       {isLogoutConfirmOpen ? (
-        <div className="branch-modal-backdrop" role="presentation" onClick={closeLogoutConfirm}>
+        <div className="branch-modal-backdrop" role="presentation">
           <div
             className="super-admin-logout-modal"
             role="dialog"
