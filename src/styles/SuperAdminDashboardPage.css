@@ -414,25 +414,24 @@
 }
 
 .super-admin-logout-modal {
-  width: min(92vw, 420px);
-  min-height: 220px;
-  padding-top: 22px;
-  padding-bottom: 20px;
+  width: min(88vw, 360px);
+  min-height: 170px;
+  padding: 18px 18px 16px;
   text-align: center;
 }
 
 .super-admin-logout-modal h2 {
-  margin-top: 10px;
+  margin-top: 8px;
   color: #0f172a;
-  font-size: 1.15rem;
+  font-size: 1.02rem;
   line-height: 1.35;
   letter-spacing: -0.02em;
 }
 
 .super-admin-logout-modal p {
-  margin-top: 8px;
+  margin-top: 6px;
   color: #64748b;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   line-height: 1.6;
 }
 
@@ -475,12 +474,17 @@
   }
 
   .branch-table-shell {
+    display: block;
+    width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
   }
 
   .branch-table {
     width: 100%;
-    min-width: 0;
+    min-width: 1100px;
     table-layout: fixed;
   }
 
@@ -518,7 +522,7 @@
   }
 
   .branch-table-col-created {
-    width: 92px;
+    width: 96px;
   }
 
   .branch-table-col-actions {
@@ -1026,7 +1030,7 @@
 .branch-inline-view-cell {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   max-width: 100%;
 }
 
@@ -1163,10 +1167,6 @@
   line-height: 1.25;
 }
 
-.branch-created-at-cell {
-  white-space: nowrap;
-}
-
 .branch-table tbody tr:last-child td {
   border-bottom: 0;
 }
@@ -1181,6 +1181,11 @@
   color: #16a34a;
   font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.branch-table-col-created {
+  white-space: nowrap;
 }
 
 .branch-status-pill:not(.is-active) {

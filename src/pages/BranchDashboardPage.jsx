@@ -86,6 +86,30 @@ function SidebarUserAvatar() {
   )
 }
 
+function buildFallbackBranchProfile(user, session) {
+  const branchEmail = String(user?.email || session?.user?.email || '').trim().toLowerCase()
+  const registryBranch = findBranchByEmail(branchEmail)
+
+  if (registryBranch) {
+    return registryBranch
+  }
+
+  return {
+    branchName: 'Branch Dashboard',
+    branchAdminName: user?.name || 'Branch Admin',
+    branchEmail: branchEmail || 'branch@example.com',
+    branchAddress: 'Assigned location',
+    mustResetPassword: Boolean(user?.mustResetPassword || session?.user?.mustResetPassword),
+  }
+}
+
+function formatBranchAdminDisplayName(value) {
+  const text = String(value || '').trim()
+  if (!text) return 'Branch Admin'
+
+  return text.replace(/^KKJ\s*[-–—:]?\s*/i, '').trim() || 'Branch Admin'
+}
+
 export function BranchDashboardPage() {
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
@@ -107,12 +131,11 @@ export function BranchDashboardPage() {
         setBranchProfile(result)
         setIsLoading(false)
       })
-      .catch(async () => {
+      .catch(() => {
+        setBranchProfile(buildFallbackBranchProfile(user, session))
         setIsLoading(false)
-        await signOut()
-        navigate('/login', { replace: true })
       })
-  }, [isAuthenticated, navigate, role, signOut])
+  }, [isAuthenticated, navigate, role, session, user])
 
   useEffect(() => {
     if (!isProfileMenuOpen) return undefined
@@ -157,7 +180,7 @@ export function BranchDashboardPage() {
 
   const branchTitle = branchProfile?.branchName || 'Branch Dashboard'
   const branchAdmin = branchProfile?.branchAdminName || user?.name || 'Branch Admin'
-  const branchAdminDisplay = String(branchAdmin || 'Branch Admin').toUpperCase()
+  const branchAdminDisplay = formatBranchAdminDisplayName(branchAdmin)
   const branchEmail = branchProfile?.branchEmail || user?.email || 'branch@example.com'
   const branchLocation = branchProfile?.branchAddress || 'Assigned location'
   const registryBranch = findBranchByEmail(branchEmail)
@@ -244,9 +267,7 @@ export function BranchDashboardPage() {
       <div className="super-admin-topbar-left">
         <div className="branch-dashboard-topbar-copy">
           <p className="branch-dashboard-kicker">Branch Dashboard</p>
-          <p>
-            {branchAdminDisplay} - {branchLocation}
-          </p>
+          <p>{branchAdminDisplay}</p>
         </div>
       </div>
 

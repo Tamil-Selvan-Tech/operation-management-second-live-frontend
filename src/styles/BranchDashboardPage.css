@@ -167,7 +167,7 @@
 .branch-dashboard-topbar-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
   min-width: 0;
 }
 
@@ -182,8 +182,18 @@
 .branch-dashboard-topbar-copy p {
   margin: 0;
   color: #64748b;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.branch-dashboard-page .super-admin-topbar {
+  min-height: 58px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.branch-dashboard-page .branch-dashboard-topbar-copy .branch-dashboard-kicker {
+  margin-bottom: 4px;
 }
 
 .branch-dashboard-kicker {
@@ -561,6 +571,10 @@
   .branch-dashboard-content {
     padding: 14px 0 10px;
   }
+
+  .branch-dashboard-page .super-admin-topbar {
+    min-height: 54px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -576,6 +590,12 @@
 
   .branch-dashboard-content {
     padding: 12px 0 8px;
+  }
+
+  .branch-dashboard-page .super-admin-topbar {
+    min-height: auto;
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
 
   .branch-dashboard-password-alert {

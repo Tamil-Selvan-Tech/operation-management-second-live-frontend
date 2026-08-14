@@ -54,6 +54,38 @@ function unwrapResponse(response) {
   return response?.data || response
 }
 
+function pickNonEmpty(...values) {
+  for (const value of values) {
+    const text = String(value ?? '').trim()
+    if (text) return text
+  }
+  return ''
+}
+
+function mergeBranchPayload(responseRecord = {}, payload = {}) {
+  const normalizedResponse = normalizeBranchRecord(responseRecord)
+  const normalizedPayload = normalizeBranchRecord(payload)
+
+  return {
+    ...normalizedResponse,
+    branchId: normalizedResponse.branchId || normalizedPayload.branchId,
+    branchName: normalizedResponse.branchName || normalizedPayload.branchName,
+    branchAdminName: normalizedResponse.branchAdminName || normalizedPayload.branchAdminName,
+    branchEmail: normalizedResponse.branchEmail || normalizedPayload.branchEmail,
+    branchPhone: normalizedResponse.branchPhone || normalizedPayload.branchPhone,
+    branchCountryCode: normalizedResponse.branchCountryCode || normalizedPayload.branchCountryCode,
+    branchCountry: normalizedResponse.branchCountry || normalizedPayload.branchCountry,
+    branchStateCode: normalizedResponse.branchStateCode || normalizedPayload.branchStateCode,
+    branchState: normalizedResponse.branchState || normalizedPayload.branchState,
+    branchCity: normalizedResponse.branchCity || normalizedPayload.branchCity,
+    branchDistrict: normalizedResponse.branchDistrict || normalizedPayload.branchDistrict,
+    branchAddress: normalizedResponse.branchAddress || normalizedPayload.branchAddress,
+    status: normalizedResponse.status || normalizedPayload.status,
+    createdAt: normalizedResponse.createdAt || normalizedPayload.createdAt,
+    updatedAt: normalizedResponse.updatedAt || normalizedPayload.updatedAt,
+  }
+}
+
 function syncLocalBranchRecord(record) {
   const normalized = normalizeBranchRecord(record)
   if (!normalized.branchEmail) return normalized
@@ -122,11 +154,12 @@ export async function listBranches(params = {}) {
   const suffix = searchParams.toString() ? `?${searchParams.toString()}` : ''
   const response = await request(`/branches${suffix}`, { method: 'GET' })
   const data = Array.isArray(response?.data) ? response.data.map(normalizeBranchRecord) : []
+  let nextData = data
 
   if (data.length) {
     const registry = loadBranchRegistry()
     const registryByEmail = new Map(registry.map((branch) => [branch.branchEmail, branch]))
-    const nextRegistry = data.map((branch) => {
+    nextData = data.map((branch) => {
       const existing = registryByEmail.get(branch.branchEmail)
       if (!existing) {
         return {
@@ -142,8 +175,19 @@ export async function listBranches(params = {}) {
       }
 
       return {
-        ...existing,
         ...branch,
+        branchId: pickNonEmpty(branch.branchId, existing.branchId),
+        branchName: pickNonEmpty(branch.branchName, existing.branchName),
+        branchAdminName: pickNonEmpty(branch.branchAdminName, existing.branchAdminName),
+        branchEmail: pickNonEmpty(branch.branchEmail, existing.branchEmail),
+        branchPhone: pickNonEmpty(branch.branchPhone, existing.branchPhone),
+        branchCountryCode: pickNonEmpty(branch.branchCountryCode, existing.branchCountryCode),
+        branchCountry: pickNonEmpty(branch.branchCountry, existing.branchCountry),
+        branchStateCode: pickNonEmpty(branch.branchStateCode, existing.branchStateCode),
+        branchState: pickNonEmpty(branch.branchState, existing.branchState),
+        branchCity: pickNonEmpty(branch.branchCity, existing.branchCity, branch.branchDistrict, existing.branchDistrict),
+        branchDistrict: pickNonEmpty(branch.branchDistrict, existing.branchDistrict, branch.branchCity, existing.branchCity),
+        branchAddress: pickNonEmpty(branch.branchAddress, existing.branchAddress),
         tempPassword:
           hasExplicitMustResetPassword(branch) && !branch.mustResetPassword
             ? ''
@@ -165,6 +209,7 @@ export async function listBranches(params = {}) {
       }
     })
 
+    const nextRegistry = [...nextData]
     for (const branch of registry) {
       if (!data.some((item) => item.branchEmail === branch.branchEmail)) {
         nextRegistry.push(branch)
@@ -175,7 +220,7 @@ export async function listBranches(params = {}) {
   }
 
   return {
-    data,
+    data: nextData,
     meta: response?.meta || { page: 1, limit: 10, total: 0, totalPages: 1 },
   }
 }
@@ -186,7 +231,7 @@ export async function createBranch(payload) {
     body: JSON.stringify(payload),
   })
 
-  return syncLocalBranchRecord(unwrapResponse(response))
+  return syncLocalBranchRecord(mergeBranchPayload(unwrapResponse(response), payload))
 }
 
 export async function updateBranch(branchId, payload) {
@@ -195,7 +240,7 @@ export async function updateBranch(branchId, payload) {
     body: JSON.stringify(payload),
   })
 
-  return syncLocalBranchRecord(unwrapResponse(response))
+  return syncLocalBranchRecord(mergeBranchPayload(unwrapResponse(response), payload))
 }
 
 export async function deleteBranch(branchId) {

@@ -71,17 +71,6 @@ function formatDisplayDate(value) {
   }).format(date)
 }
 
-function formatBranchLocation(branch) {
-  const parts = [
-    String(branch?.branchAddress || '').trim(),
-    String(branch?.branchCity || branch?.branchDistrict || '').trim(),
-    String(branch?.branchState || '').trim(),
-    String(branch?.branchCountry || '').trim(),
-  ].filter(Boolean)
-
-  return parts.length ? parts.join(', ') : '-'
-}
-
 function getResendMailStatus(branch) {
   const status = String(branch?.resendMailStatus || (branch?.welcomeMailSent ? 'Active' : 'Inactive'))
     .trim()
@@ -936,7 +925,6 @@ export function SuperAdminDashboardPage() {
                 <AvatarBadge />
                 <div className="super-admin-profile-copy">
                   <strong>Super Admin</strong>
-                  <span>{profileEmail}</span>
                 </div>
               </div>
             </div>
@@ -1020,7 +1008,6 @@ export function SuperAdminDashboardPage() {
                             <td className="branch-table-col-index">{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td>
                             <td className="branch-table-col-id">
                               <div className="branch-inline-view-cell">
-                                <strong>{branch.branchId}</strong>
                                 <span
                                   className={`branch-status-badge ${isResendMailActiveBranch ? 'is-active' : 'is-inactive'}`.trim()}
                                   aria-label={`Resend mail ${resendMailStatus}`}
@@ -1034,6 +1021,7 @@ export function SuperAdminDashboardPage() {
                                     {resendMailStatus}
                                   </span>
                                 </span>
+                                <strong>{branch.branchId}</strong>
                               </div>
                             </td>
                             <td className="branch-table-col-name">
@@ -1046,7 +1034,7 @@ export function SuperAdminDashboardPage() {
                               <span className="branch-contact-email">{branch.branchEmail}</span>
                               <span className="branch-contact-phone">{branch.branchPhone}</span>
                             </td>
-                            <td className="branch-table-col-created branch-created-at-cell">{branch.createdAt}</td>
+                            <td className="branch-table-col-created">{formatDisplayDate(branch.createdAt)}</td>
                             <td
                               className="branch-table-col-actions"
                               onClick={(event) => event.stopPropagation()}
@@ -1300,7 +1288,10 @@ export function SuperAdminDashboardPage() {
                     { label: 'Branch ID', icon: <BadgeCheck size={18} strokeWidth={2.1} />, value: selectedBranch.branchId || '-' },
                     { label: 'Branch Name', icon: <Building2 size={18} strokeWidth={2.1} />, value: selectedBranch.branchName || '-' },
                     { label: 'Branch Admin', icon: <CircleUserRound size={18} strokeWidth={2.1} />, value: selectedBranch.branchAdminName || '-' },
-                    { label: 'Location', icon: <MapPin size={18} strokeWidth={2.1} />, value: formatBranchLocation(selectedBranch) },
+                    { label: 'Country', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchCountry || '-' },
+                    { label: 'State', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchState || '-' },
+                    { label: 'City', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchDistrict || selectedBranch.branchCity || '-' },
+                    { label: 'Address', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchAddress || '-' },
                     { label: 'Email', icon: <Mail size={18} strokeWidth={2.1} />, value: selectedBranch.branchEmail || '-' },
                     { label: 'Phone', icon: <Phone size={18} strokeWidth={2.1} />, value: selectedBranch.branchPhone || '-' },
                     { label: 'Status', icon: <CheckCircle2 size={18} strokeWidth={2.1} />, value: selectedBranch.status || '-' },
