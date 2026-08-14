@@ -1087,6 +1087,7 @@ export function FacultyManagementPage() {
     return cachedCourses.length ? normalizeCourseList(cachedCourses) : []
   })
   const [isCoursesLoading, setIsCoursesLoading] = useState(() => !initialCourseList?.data?.length)
+  const [isFacultyLoading, setIsFacultyLoading] = useState(() => !initialFacultyList?.data?.length)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('create')
   const [editingFacultyId, setEditingFacultyId] = useState('')

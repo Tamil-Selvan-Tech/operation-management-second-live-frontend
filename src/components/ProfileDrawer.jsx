@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   BadgeCheck,
   Building2,
+  CircleHelp,
   Clock3,
   Bot,
   CalendarDays,
@@ -12,9 +13,11 @@ import {
   LockKeyhole,
   LogOut,
   RefreshCcw,
+  Settings2,
   ShieldCheck,
   X,
 } from 'lucide-react'
+import { useAuth } from '../auth/useAuth'
 
 function ProfileStatTile({ icon: Icon, tone, label, value }) {
   const toneStyles = {
