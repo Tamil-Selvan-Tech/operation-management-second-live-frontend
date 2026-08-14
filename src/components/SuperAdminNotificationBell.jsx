@@ -108,7 +108,7 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
     () => notifications.filter((notification) => !notification.read).length,
     [notifications],
   )
-  const visibleNotifications = useMemo(() => notifications.slice(0, 4), [notifications])
+  const visibleNotifications = useMemo(() => notifications.slice(0, 3), [notifications])
 
   const handleOpenNotification = async (notification) => {
     setNotifications((current) =>
