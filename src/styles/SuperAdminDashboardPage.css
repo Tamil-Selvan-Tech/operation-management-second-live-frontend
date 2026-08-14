@@ -1537,7 +1537,7 @@
 
 .branch-modal {
   position: relative;
-  width: min(92vw, 640px);
+  width: min(92vw, 700px);
   max-height: calc(100vh - 36px);
   border-radius: 18px;
   background: #fff;
@@ -1795,8 +1795,8 @@
 }
 
 .branch-email-input {
-  padding: 0 9px;
-  font-size: 0.78rem;
+  padding: 0 10px;
+  font-size: 0.84rem;
   letter-spacing: -0.01em;
 }
 
