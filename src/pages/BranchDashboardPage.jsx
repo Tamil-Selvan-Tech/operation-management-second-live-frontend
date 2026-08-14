@@ -16,7 +16,6 @@ import {
 
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
-import { findBranchByEmail } from '../lib/branchAuth'
 import { getCurrentBranchProfile } from '../services/branchService'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -87,17 +86,10 @@ function SidebarUserAvatar() {
 }
 
 function buildFallbackBranchProfile(user, session) {
-  const branchEmail = String(user?.email || session?.user?.email || '').trim().toLowerCase()
-  const registryBranch = findBranchByEmail(branchEmail)
-
-  if (registryBranch) {
-    return registryBranch
-  }
-
   return {
     branchName: 'Branch Dashboard',
     branchAdminName: user?.name || 'Branch Admin',
-    branchEmail: branchEmail || 'branch@example.com',
+    branchEmail: String(user?.email || session?.user?.email || '').trim().toLowerCase() || 'branch@example.com',
     branchAddress: 'Assigned location',
     mustResetPassword: Boolean(user?.mustResetPassword || session?.user?.mustResetPassword),
   }
@@ -183,12 +175,10 @@ export function BranchDashboardPage() {
   const branchAdminDisplay = formatBranchAdminDisplayName(branchAdmin)
   const branchEmail = branchProfile?.branchEmail || user?.email || 'branch@example.com'
   const branchLocation = branchProfile?.branchAddress || 'Assigned location'
-  const registryBranch = findBranchByEmail(branchEmail)
   const mustResetPassword = Boolean(
     session?.user?.mustResetPassword ??
       user?.mustResetPassword ??
-      branchProfile?.mustResetPassword ??
-      registryBranch?.mustResetPassword,
+      branchProfile?.mustResetPassword,
   )
 
   const openResetPassword = () => {
