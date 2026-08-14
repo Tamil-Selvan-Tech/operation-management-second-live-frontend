@@ -9659,6 +9659,12 @@ tbody tr:hover {
   border-bottom: 1px solid #e8eef8;
 }
 
+.notification-dropdown-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .notification-dropdown-head strong {
   font-size: 1rem;
   font-weight: 800;
@@ -9674,6 +9680,26 @@ tbody tr:hover {
   font-weight: 700;
   cursor: pointer;
   padding: 0;
+}
+
+.notification-dropdown-close {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #1d4ed8;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.notification-dropdown-close:hover,
+.notification-dropdown-close:focus-visible {
+  background: #dbeafe;
+  color: #1e40af;
+  transform: translateY(-1px);
 }
 
 .notification-dropdown-list {

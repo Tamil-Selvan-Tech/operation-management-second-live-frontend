@@ -79,17 +79,20 @@ function formatGroupLabel(createdAt) {
   }).format(date)
 }
 
-function getNotificationIcon(kind) {
-  switch (kind) {
-    case 'branch-created':
-      return BadgeCheck
-    case 'branch-mail':
-      return Mail
-    case 'branch-login':
-      return CheckCircle2
-    default:
-      return Bell
+function NotificationIcon({ kind }) {
+  if (kind === 'branch-created') {
+    return <BadgeCheck size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
   }
+
+  if (kind === 'branch-mail') {
+    return <Mail size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+  }
+
+  if (kind === 'branch-login') {
+    return <CheckCircle2 size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+  }
+
+  return <Bell size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
 }
 
 function normalizeNotificationItem(notification = {}) {
@@ -133,12 +136,10 @@ function groupNotifications(notifications = []) {
 }
 
 function NotificationItem({ item, onView }) {
-  const Icon = getNotificationIcon(item.kind)
-
   return (
     <article className={`notifications-item ${item.read ? '' : 'is-unread'}`.trim()}>
       <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
-        <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+        <NotificationIcon kind={item.kind} />
       </span>
 
       <div className="notifications-item-copy">
@@ -195,7 +196,11 @@ export function SuperAdminNotificationsPage() {
   }
 
   useEffect(() => {
-    void loadAllNotifications()
+    const timerId = window.setTimeout(() => {
+      void loadAllNotifications()
+    }, 0)
+
+    return () => window.clearTimeout(timerId)
   }, [])
 
   useEffect(() => {
@@ -271,6 +276,8 @@ export function SuperAdminNotificationsPage() {
       })
     } catch {
       markNotificationsAsRead([notification.id])
+    } finally {
+      void loadAllNotifications()
     }
   }
 

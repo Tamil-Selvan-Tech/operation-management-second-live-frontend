@@ -355,7 +355,11 @@ export function SuperAdminDashboardPage() {
     isMobileSidebarOpen
 
   useEffect(() => {
-    void loadBranches()
+    const timerId = window.setTimeout(() => {
+      void loadBranches()
+    }, 0)
+
+    return () => window.clearTimeout(timerId)
   }, [loadBranches])
 
   useEffect(() => {
@@ -624,7 +628,11 @@ export function SuperAdminDashboardPage() {
   }, [isMobileSidebarOpen])
 
   useEffect(() => {
-    setActiveSection(getInitialSuperAdminSection(location.search))
+    const timerId = window.setTimeout(() => {
+      setActiveSection(getInitialSuperAdminSection(location.search))
+    }, 0)
+
+    return () => window.clearTimeout(timerId)
   }, [location.search])
 
   useEffect(() => {
