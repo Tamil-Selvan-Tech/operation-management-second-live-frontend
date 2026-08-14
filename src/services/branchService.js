@@ -18,6 +18,9 @@ function normalizeBranchRecord(record = {}) {
   const tempPassword = String(
     record.tempPassword || record.temporaryPassword || record.temporary_password || '',
   ).trim()
+  const resendMailStatus = String(record.resendMailStatus || '').trim().toLowerCase() === 'active'
+    ? 'Active'
+    : 'Inactive'
   return {
     id: String(record.id || ''),
     branchId: String(record.branchId || '').trim(),
@@ -31,6 +34,8 @@ function normalizeBranchRecord(record = {}) {
     status: normalizeStatus(record.status),
     createdAt: normalizeDate(record.createdAt),
     updatedAt: normalizeDate(record.updatedAt),
+    resendMailStatus,
+    welcomeMailSent: Boolean(record.welcomeMailSent || resendMailStatus === 'Active'),
   }
 }
 
@@ -65,6 +70,12 @@ function syncLocalBranchRecord(record) {
                 normalized.tempPassword ||
                 existing.tempPassword,
             ),
+        resendMailStatus:
+          String(normalized.resendMailStatus || existing.resendMailStatus || 'Inactive').trim().toLowerCase() ===
+          'active'
+            ? 'Active'
+            : 'Inactive',
+        welcomeMailSent: Boolean(normalized.welcomeMailSent || existing.welcomeMailSent),
       }
     : {
         ...normalized,
@@ -115,6 +126,11 @@ export async function listBranches(params = {}) {
           ...branch,
           tempPassword: branch.tempPassword || '',
           mustResetPassword: Boolean(branch.mustResetPassword || branch.tempPassword),
+          resendMailStatus:
+            String(branch.resendMailStatus || 'Inactive').trim().toLowerCase() === 'active'
+              ? 'Active'
+              : 'Inactive',
+          welcomeMailSent: Boolean(branch.welcomeMailSent || branch.resendMailStatus === 'Active'),
         }
       }
 
@@ -133,6 +149,12 @@ export async function listBranches(params = {}) {
                 branch.tempPassword ||
                 existing.tempPassword,
             ),
+        resendMailStatus:
+          String(branch.resendMailStatus || existing.resendMailStatus || 'Inactive').trim().toLowerCase() ===
+          'active'
+            ? 'Active'
+            : 'Inactive',
+        welcomeMailSent: Boolean(branch.welcomeMailSent || existing.welcomeMailSent),
       }
     })
 
@@ -184,7 +206,14 @@ export async function resendBranchInvitation(branchId) {
   })
 
   const branch = normalizeBranchRecord(response?.branch || response?.data?.branch || response?.data || {})
-  if (branch.branchEmail) syncLocalBranchRecord({ ...branch, mustResetPassword: true })
+  if (branch.branchEmail) {
+    syncLocalBranchRecord({
+      ...branch,
+      mustResetPassword: true,
+      resendMailStatus: 'Inactive',
+      welcomeMailSent: false,
+    })
+  }
 
   return {
     branch,

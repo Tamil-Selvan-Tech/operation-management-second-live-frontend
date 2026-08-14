@@ -7,7 +7,7 @@ import {
   setAuthTokens,
 } from './apiClient'
 import { roleLabels, dashboardPathByRole } from '../data/authData'
-import { findBranchByCredentials } from '../lib/branchAuth'
+import { findBranchByCredentials, markBranchWelcomeMailSent } from '../lib/branchAuth'
 
 const fixedAccounts = [
   {
@@ -114,6 +114,10 @@ function buildBranchSessionFromCredentials(credentials) {
 
   const matchedBranch = findBranchByCredentials(email, password)
   if (!matchedBranch) return null
+
+  if (String(matchedBranch.resendMailStatus || '').trim().toLowerCase() !== 'active') {
+    markBranchWelcomeMailSent(email)
+  }
 
   return {
     token: `mock-token-${Date.now()}`,

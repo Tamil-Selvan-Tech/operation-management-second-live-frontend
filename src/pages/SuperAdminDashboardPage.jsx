@@ -71,6 +71,149 @@ function formatDisplayDate(value) {
   }).format(date)
 }
 
+function getResendMailStatus(branch) {
+  const status = String(branch?.resendMailStatus || (branch?.welcomeMailSent ? 'Active' : 'Inactive'))
+    .trim()
+    .toLowerCase()
+
+  return status === 'active' ? 'Active' : 'Inactive'
+}
+
+function isResendMailActive(branch) {
+  return getResendMailStatus(branch) === 'Active'
+}
+
+const COUNTRY_OPTIONS = [
+  'India',
+  'United States',
+  'Canada',
+  'United Kingdom',
+  'Australia',
+  'Singapore',
+  'Malaysia',
+  'United Arab Emirates',
+  'Mauritius',
+  'Yemen',
+]
+
+const INDIA_STATE_OPTIONS = [
+  'Andhra Pradesh',
+  'Arunachal Pradesh',
+  'Assam',
+  'Bihar',
+  'Chhattisgarh',
+  'Goa',
+  'Gujarat',
+  'Haryana',
+  'Himachal Pradesh',
+  'Jharkhand',
+  'Karnataka',
+  'Kerala',
+  'Madhya Pradesh',
+  'Maharashtra',
+  'Manipur',
+  'Meghalaya',
+  'Mizoram',
+  'Nagaland',
+  'Odisha',
+  'Punjab',
+  'Rajasthan',
+  'Sikkim',
+  'Tamil Nadu',
+  'Telangana',
+  'Tripura',
+  'Uttar Pradesh',
+  'Uttarakhand',
+  'West Bengal',
+]
+
+const TAMIL_NADU_DISTRICT_OPTIONS = [
+  'Ariyalur',
+  'Chengalpattu',
+  'Chennai',
+  'Coimbatore',
+  'Cuddalore',
+  'Dharmapuri',
+  'Dindigul',
+  'Erode',
+  'Kallakurichi',
+  'Kancheepuram',
+  'Karur',
+  'Krishnagiri',
+  'Madurai',
+  'Mayiladuthurai',
+  'Nagapattinam',
+  'Namakkal',
+  'Nilgiris',
+  'Perambalur',
+  'Pudukkottai',
+  'Ramanathapuram',
+  'Ranipet',
+  'Salem',
+  'Sivaganga',
+  'Tenkasi',
+  'Thanjavur',
+  'Theni',
+  'Thoothukudi',
+  'Tiruchirappalli',
+  'Tirunelveli',
+  'Tirupathur',
+  'Tiruppur',
+  'Tiruvallur',
+  'Tiruvannamalai',
+  'Tiruvarur',
+  'Vellore',
+  'Viluppuram',
+  'Virudhunagar',
+]
+
+function getStateOptions(country) {
+  const normalizedCountry = String(country || '').trim().toLowerCase()
+  if (normalizedCountry === 'india') return INDIA_STATE_OPTIONS
+  return []
+}
+
+function getDistrictOptions(country, state) {
+  const normalizedCountry = String(country || '').trim().toLowerCase()
+  const normalizedState = String(state || '').trim().toLowerCase()
+
+  if (normalizedCountry === 'india' && normalizedState === 'tamil nadu') {
+    return TAMIL_NADU_DISTRICT_OPTIONS
+  }
+
+  return []
+}
+
+function parseBranchAddress(value) {
+  const parts = String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  if (parts.length !== 3) {
+    return {
+      branchCountry: '',
+      branchState: '',
+      branchDistrict: '',
+    }
+  }
+
+  const [branchDistrict, branchState, branchCountry] = parts
+  if (!COUNTRY_OPTIONS.includes(branchCountry)) {
+    return {
+      branchCountry: '',
+      branchState: '',
+      branchDistrict: '',
+    }
+  }
+
+  return {
+    branchCountry,
+    branchState,
+    branchDistrict,
+  }
+}
+
 function validateBranchField(field, value) {
   const text = String(value || '').trim()
 
@@ -94,6 +237,15 @@ function validateBranchField(field, value) {
     case 'branchPhone':
       if (!text) return 'Phone number is required'
       if (!/^\d{10}$/.test(text)) return 'Phone number must be exactly 10 digits'
+      return ''
+    case 'branchCountry':
+      if (!text) return 'Country is required'
+      return ''
+    case 'branchState':
+      if (!text) return 'State is required'
+      return ''
+    case 'branchDistrict':
+      if (!text) return 'District is required'
       return ''
     case 'branchAddress':
       if (!text) return 'Location is required'
@@ -138,7 +290,10 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
     branchAdminName: validateBranchField('branchAdminName', form.branchAdminName),
     branchEmail: validateBranchField('branchEmail', form.branchEmail) || duplicateEmailError,
     branchPhone: validateBranchField('branchPhone', form.branchPhone),
-    branchAddress: validateBranchField('branchAddress', form.branchAddress),
+    branchCountry: validateBranchField('branchCountry', form.branchCountry),
+    branchState: validateBranchField('branchState', form.branchState),
+    branchDistrict: validateBranchField('branchDistrict', form.branchDistrict),
+    branchAddress: '',
   }
 }
 
@@ -172,8 +327,19 @@ export function SuperAdminDashboardPage() {
     branchAdminName: '',
     branchEmail: '',
     branchPhone: '',
+    branchCountry: '',
+    branchState: '',
+    branchDistrict: '',
     branchAddress: '',
   })
+  const isOverlayOpen =
+    isAddBranchOpen ||
+    isSuccessOpen ||
+    isDeleteConfirmOpen ||
+    isResendConfirmOpen ||
+    isLogoutConfirmOpen ||
+    Boolean(viewTargetBranch) ||
+    isMobileSidebarOpen
 
   useEffect(() => {
     listBranches({
@@ -239,6 +405,26 @@ export function SuperAdminDashboardPage() {
   }, [isMobileSidebarOpen])
 
   useEffect(() => {
+    if (!isOverlayOpen) {
+      document.body.style.overflow = ''
+      document.body.style.paddingRight = ''
+      return undefined
+    }
+
+    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth
+    const previousOverflow = document.body.style.overflow
+    const previousPaddingRight = document.body.style.paddingRight
+
+    document.body.style.overflow = 'hidden'
+    document.body.style.paddingRight = scrollBarWidth > 0 ? `${scrollBarWidth}px` : previousPaddingRight
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.body.style.paddingRight = previousPaddingRight
+    }
+  }, [isOverlayOpen])
+
+  useEffect(() => {
     if (!actionMenuBranchId) return undefined
 
     const onPointerDown = (event) => {
@@ -288,6 +474,9 @@ export function SuperAdminDashboardPage() {
       branchAdminName: '',
       branchEmail: '',
       branchPhone: '',
+      branchCountry: '',
+      branchState: '',
+      branchDistrict: '',
       branchAddress: '',
     })
     setIsAddBranchOpen(true)
@@ -305,6 +494,7 @@ export function SuperAdminDashboardPage() {
       branchAdminName: branch.branchAdminName || '',
       branchEmail: branch.branchEmail || '',
       branchPhone: String(branch.branchPhone || '').replace(/\D+/g, '').slice(0, 10),
+      ...parseBranchAddress(branch.branchAddress),
       branchAddress: branch.branchAddress || '',
     })
     setIsAddBranchOpen(true)
@@ -422,6 +612,48 @@ export function SuperAdminDashboardPage() {
     setBranchErrors((current) => ({ ...current, branchPhone: '' }))
   }
 
+  const updateBranchCountry = (value) => {
+    const country = String(value || '').trim()
+    setForm((current) => ({
+      ...current,
+      branchCountry: country,
+      branchState: '',
+      branchDistrict: '',
+    }))
+    setBranchErrors((current) => ({
+      ...current,
+      branchCountry: '',
+      branchState: '',
+      branchDistrict: '',
+    }))
+  }
+
+  const updateBranchState = (value) => {
+    const state = String(value || '').trim()
+    setForm((current) => ({
+      ...current,
+      branchState: state,
+      branchDistrict: '',
+    }))
+    setBranchErrors((current) => ({
+      ...current,
+      branchState: '',
+      branchDistrict: '',
+    }))
+  }
+
+  const updateBranchDistrict = (value) => {
+    const district = String(value || '').trim()
+    setForm((current) => ({
+      ...current,
+      branchDistrict: district,
+    }))
+    setBranchErrors((current) => ({
+      ...current,
+      branchDistrict: '',
+    }))
+  }
+
   const handleAddBranch = async (event) => {
     event.preventDefault()
 
@@ -440,6 +672,9 @@ export function SuperAdminDashboardPage() {
       branchAdminName: form.branchAdminName.trim(),
       branchEmail: form.branchEmail.trim(),
       branchPhone: cleanedPhone,
+      branchCountry: form.branchCountry.trim(),
+      branchState: form.branchState.trim(),
+      branchDistrict: form.branchDistrict.trim(),
       branchAddress: form.branchAddress.trim(),
     }
 
@@ -678,13 +913,22 @@ export function SuperAdminDashboardPage() {
                             </td>
                             <td className="branch-table-col-created branch-created-at-cell">{branch.createdAt}</td>
                             <td className="branch-table-col-resend">
-                              <button
-                                type="button"
-                                className="branch-resend-inline-button"
-                                onClick={() => openResendMail(branch)}
-                              >
-                                Resend Mail
-                              </button>
+                              <div className="branch-resend-inline-cell">
+                                {isResendMailActive(branch) ? (
+                                  <span className="branch-mail-status-pill is-active">Active</span>
+                                ) : (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="branch-resend-inline-button"
+                                      onClick={() => openResendMail(branch)}
+                                    >
+                                      Resend Mail
+                                    </button>
+                                    <span className="branch-mail-status-pill">Inactive</span>
+                                  </>
+                                )}
+                              </div>
                             </td>
                             <td className="branch-table-col-actions">
                               <div
@@ -808,13 +1052,22 @@ export function SuperAdminDashboardPage() {
                             >
                               <ChevronRight size={16} strokeWidth={2.4} />
                             </button>
-                            <button
-                              type="button"
-                              className="branch-resend-inline-button"
-                              onClick={() => openResendMail(branch)}
-                            >
-                              Resend Mail
-                            </button>
+                            <div className="branch-resend-inline-cell">
+                              {isResendMailActive(branch) ? (
+                                <span className="branch-mail-status-pill is-active">Active</span>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="branch-resend-inline-button"
+                                    onClick={() => openResendMail(branch)}
+                                  >
+                                    Resend Mail
+                                  </button>
+                                  <span className="branch-mail-status-pill">Inactive</span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </article>
                       )
@@ -1014,8 +1267,88 @@ export function SuperAdminDashboardPage() {
                   value={form.branchEmail}
                   onChange={(event) => updateField('branchEmail', event.target.value)}
                   placeholder="Enter email"
+                  className="branch-email-input"
                 />
                 {branchErrors.branchEmail ? <small className="branch-field-error">{branchErrors.branchEmail}</small> : null}
+              </label>
+
+              <label className="branch-field">
+                <span>Country</span>
+                <select
+                  value={form.branchCountry}
+                  onChange={(event) => updateBranchCountry(event.target.value)}
+                  className="branch-location-select"
+                >
+                  <option value="">Select Country</option>
+                  {COUNTRY_OPTIONS.map((country) => (
+                    <option key={country} value={country}>
+                      {country}
+                    </option>
+                  ))}
+                </select>
+                {branchErrors.branchCountry ? <small className="branch-field-error">{branchErrors.branchCountry}</small> : null}
+              </label>
+
+              <label className="branch-field">
+                <span>State</span>
+                <select
+                  value={form.branchState}
+                  onChange={(event) => updateBranchState(event.target.value)}
+                  className="branch-location-select"
+                  disabled={!form.branchCountry}
+                >
+                  <option value="">
+                    {form.branchCountry ? 'Select State' : 'Select Country first'}
+                  </option>
+                  {getStateOptions(form.branchCountry).map((state) => (
+                    <option key={state} value={state}>
+                      {state}
+                    </option>
+                  ))}
+                  {form.branchCountry && getStateOptions(form.branchCountry).length === 0 ? (
+                    <option value="" disabled>
+                      No states available
+                    </option>
+                  ) : null}
+                </select>
+                {branchErrors.branchState ? <small className="branch-field-error">{branchErrors.branchState}</small> : null}
+              </label>
+
+              <label className="branch-field branch-field-full">
+                <span>District</span>
+                <select
+                  value={form.branchDistrict}
+                  onChange={(event) => updateBranchDistrict(event.target.value)}
+                  className="branch-location-select"
+                  disabled={!form.branchState}
+                >
+                  <option value="">
+                    {form.branchState ? 'Select District' : 'Select State first'}
+                  </option>
+                  {getDistrictOptions(form.branchCountry, form.branchState).map((district) => (
+                    <option key={district} value={district}>
+                      {district}
+                    </option>
+                  ))}
+                  {form.branchState && getDistrictOptions(form.branchCountry, form.branchState).length === 0 ? (
+                    <option value="" disabled>
+                      No districts available
+                    </option>
+                  ) : null}
+                </select>
+                {branchErrors.branchDistrict ? <small className="branch-field-error">{branchErrors.branchDistrict}</small> : null}
+              </label>
+
+              <label className="branch-field branch-field-full">
+                <span>Address</span>
+                <input
+                  type="text"
+                  value={form.branchAddress}
+                  onChange={(event) => updateField('branchAddress', event.target.value)}
+                  placeholder="Enter address"
+                  maxLength={160}
+                />
+                {branchErrors.branchAddress ? <small className="branch-field-error">{branchErrors.branchAddress}</small> : null}
               </label>
 
               <label className="branch-field">
@@ -1029,18 +1362,6 @@ export function SuperAdminDashboardPage() {
                   maxLength={10}
                 />
                 {branchErrors.branchPhone ? <small className="branch-field-error">{branchErrors.branchPhone}</small> : null}
-              </label>
-
-              <label className="branch-field branch-field-full">
-                <span>Location</span>
-                <input
-                  type="text"
-                  value={form.branchAddress}
-                  onChange={(event) => updateField('branchAddress', event.target.value)}
-                  placeholder="Enter location"
-                  maxLength={120}
-                />
-                {branchErrors.branchAddress ? <small className="branch-field-error">{branchErrors.branchAddress}</small> : null}
               </label>
             </div>
 

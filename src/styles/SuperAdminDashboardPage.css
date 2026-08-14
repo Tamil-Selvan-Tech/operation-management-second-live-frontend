@@ -1110,6 +1110,31 @@
   border-color: #93c5fd;
 }
 
+.branch-resend-inline-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.branch-mail-status-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  border-radius: 999px;
+  padding: 0 10px;
+  background: #fef2f2;
+  color: #dc2626;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.branch-mail-status-pill.is-active {
+  background: #e9f8ee;
+  color: #16a34a;
+}
+
 .branch-actions {
   position: relative;
   display: inline-flex;
@@ -1349,7 +1374,7 @@
 
 .branch-modal {
   position: relative;
-  width: min(92vw, 560px);
+  width: min(92vw, 640px);
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
@@ -1584,23 +1609,51 @@
   font-weight: 700;
 }
 
-.branch-field input {
+.branch-field input,
+.branch-field select {
   height: 42px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
   padding: 0 12px;
   color: #111827;
   font-size: 0.92rem;
   outline: none;
+  overflow-x: auto;
+  background: #fff;
+}
+
+.branch-email-input {
+  padding: 0 9px;
+  font-size: 0.78rem;
+  letter-spacing: -0.01em;
+}
+
+.branch-location-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 2px), calc(100% - 12px) calc(50% - 2px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
 }
 
 .branch-field input::placeholder {
   color: #9ca3af;
 }
 
-.branch-field input:focus {
+.branch-field input:focus,
+.branch-field select:focus {
   border-color: #cbd5e1;
   box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.12);
+}
+
+.branch-field select:disabled {
+  color: #9ca3af;
+  background-color: #f8fafc;
+  cursor: not-allowed;
 }
 
 .branch-field-error {
