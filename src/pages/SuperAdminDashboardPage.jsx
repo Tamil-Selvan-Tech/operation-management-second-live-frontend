@@ -574,6 +574,7 @@ export function SuperAdminDashboardPage() {
                         <th>Location</th>
                         <th>Contact</th>
                         <th>Created At</th>
+                        <th>Resend Mail</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -593,6 +594,15 @@ export function SuperAdminDashboardPage() {
                               <span className="branch-contact-phone">{branch.branchPhone}</span>
                             </td>
                             <td className="branch-created-at-cell">{branch.createdAt}</td>
+                            <td>
+                              <button
+                                type="button"
+                                className="branch-resend-inline-button"
+                                onClick={() => openResendMail(branch)}
+                              >
+                                Resend Mail
+                              </button>
+                            </td>
                             <td>
                               <div
                                 className={`branch-actions branch-actions-wrap ${isUpwardMenu ? 'is-upward' : ''} ${actionMenuBranchId === branch.id ? 'is-open' : ''}`.trim()}
@@ -620,9 +630,6 @@ export function SuperAdminDashboardPage() {
                                   <button type="button" role="menuitem" className="is-danger" onClick={() => openDeleteConfirm(branch)}>
                                     Delete
                                   </button>
-                                  <button type="button" role="menuitem" className="is-warning" onClick={() => openResendMail(branch)}>
-                                    Resend Mail
-                                  </button>
                                 </div>
                               </div>
                             </td>
@@ -633,24 +640,24 @@ export function SuperAdminDashboardPage() {
                   </table>
 
                   <div className="branch-table-footer">
-                    <span>
+                    <span className="branch-table-footer-summary">
                       Showing {filteredBranches.length === 0 ? 0 : (safeCurrentPage - 1) * rowsPerPage + 1}
                       {' '}to{' '}
                       {Math.min(safeCurrentPage * rowsPerPage, filteredBranches.length)}
                       {' '}of {filteredBranches.length} branches
                     </span>
-                  </div>
 
-                  <PaginationBar
-                    className="super-admin-pagination"
-                    currentPage={safeCurrentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                    label="Branch pagination"
-                    previousLabel="Prev"
-                    nextLabel="Next"
-                    showSummary={false}
-                  />
+                    <PaginationBar
+                      className="super-admin-pagination"
+                      currentPage={safeCurrentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      label="Branch pagination"
+                      previousLabel="Prev"
+                      nextLabel="Next"
+                      showSummary={false}
+                    />
+                  </div>
                 </div>
               </section>
             ) : (
