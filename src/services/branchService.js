@@ -1,6 +1,15 @@
 import { request } from './apiClient'
 import { clearBranchRegistry } from '../lib/branchAuth'
 
+function pickFirstNonEmpty(...values) {
+  for (const value of values) {
+    const text = String(value || '').trim()
+    if (text) return text
+  }
+
+  return ''
+}
+
 function normalizeStatus(value) {
   const text = String(value || '').trim().toUpperCase()
   return text === 'INACTIVE' ? 'Inactive' : 'Active'
@@ -26,11 +35,11 @@ function normalizeBranchRecord(record = {}) {
     branchEmail: String(record.branchEmail || '').trim().toLowerCase(),
     branchPhone: String(record.branchPhone || '').trim(),
     branchCountryCode: String(record.branchCountryCode || '').trim(),
-    branchCountry: String(record.branchCountry || '').trim(),
+    branchCountry: pickFirstNonEmpty(record.branchCountry, record.country),
     branchStateCode: String(record.branchStateCode || '').trim(),
-    branchState: String(record.branchState || '').trim(),
-    branchCity: String(record.branchCity || record.branchDistrict || '').trim(),
-    branchDistrict: String(record.branchDistrict || record.branchCity || '').trim(),
+    branchState: pickFirstNonEmpty(record.branchState, record.state),
+    branchCity: pickFirstNonEmpty(record.branchCity, record.city, record.branchDistrict, record.district),
+    branchDistrict: pickFirstNonEmpty(record.branchDistrict, record.district, record.branchCity, record.city),
     branchAddress: String(record.branchAddress || '').trim(),
     tempPassword,
     mustResetPassword: Boolean(record.mustResetPassword || tempPassword),

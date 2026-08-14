@@ -83,6 +83,15 @@ function isResendMailActive(branch) {
   return getResendMailStatus(branch) === 'Active'
 }
 
+function pickFirstNonEmpty(...values) {
+  for (const value of values) {
+    const text = String(value || '').trim()
+    if (text) return text
+  }
+
+  return ''
+}
+
 const BRANCH_ID_PREFIX = 'BR-'
 const DEFAULT_BRANCH_COUNTRY_NAME = 'India'
 const DEFAULT_BRANCH_STATE_NAME = 'Tamil Nadu'
@@ -861,10 +870,14 @@ export function SuperAdminDashboardPage() {
       branchPhone: cleanedPhone,
       branchCountryCode: nextForm.branchCountryCode.trim(),
       branchCountry: nextForm.branchCountry.trim(),
+      country: nextForm.branchCountry.trim(),
       branchStateCode: nextForm.branchStateCode.trim(),
       branchState: nextForm.branchState.trim(),
+      state: nextForm.branchState.trim(),
       branchCity: nextForm.branchDistrict.trim(),
+      city: nextForm.branchDistrict.trim(),
       branchDistrict: nextForm.branchDistrict.trim(),
+      district: nextForm.branchDistrict.trim(),
       branchAddress: nextForm.branchAddress.trim(),
     }
 
@@ -1379,9 +1392,27 @@ export function SuperAdminDashboardPage() {
                     { label: 'Branch ID', icon: <BadgeCheck size={18} strokeWidth={2.1} />, value: selectedBranch.branchId || '-' },
                     { label: 'Branch Name', icon: <Building2 size={18} strokeWidth={2.1} />, value: selectedBranch.branchName || '-' },
                     { label: 'Branch Admin', icon: <CircleUserRound size={18} strokeWidth={2.1} />, value: selectedBranch.branchAdminName || '-' },
-                    { label: 'Country', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchCountry || '-' },
-                    { label: 'State', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchState || '-' },
-                    { label: 'City', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchDistrict || selectedBranch.branchCity || '-' },
+                    {
+                      label: 'Country',
+                      icon: <MapPin size={18} strokeWidth={2.1} />,
+                      value: pickFirstNonEmpty(selectedBranch.branchCountry, selectedBranch.country) || '-',
+                    },
+                    {
+                      label: 'State',
+                      icon: <MapPin size={18} strokeWidth={2.1} />,
+                      value: pickFirstNonEmpty(selectedBranch.branchState, selectedBranch.state) || '-',
+                    },
+                    {
+                      label: 'City',
+                      icon: <MapPin size={18} strokeWidth={2.1} />,
+                      value:
+                        pickFirstNonEmpty(
+                          selectedBranch.branchDistrict,
+                          selectedBranch.branchCity,
+                          selectedBranch.district,
+                          selectedBranch.city,
+                        ) || '-',
+                    },
                     { label: 'Address', icon: <MapPin size={18} strokeWidth={2.1} />, value: selectedBranch.branchAddress || '-' },
                     { label: 'Email', icon: <Mail size={18} strokeWidth={2.1} />, value: selectedBranch.branchEmail || '-' },
                     { label: 'Phone', icon: <Phone size={18} strokeWidth={2.1} />, value: selectedBranch.branchPhone || '-' },

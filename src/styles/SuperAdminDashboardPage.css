@@ -363,6 +363,10 @@
   cursor: pointer;
 }
 
+.super-admin-notification-button {
+  margin-right: 4px;
+}
+
 .super-admin-icon-button:hover,
 .super-admin-notification-button:hover {
   background: #f7f7f7;
