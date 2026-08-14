@@ -639,7 +639,6 @@ export function SuperAdminDashboardPage() {
                         <th className="branch-table-col-id">Branch ID</th>
                         <th className="branch-table-col-name">Branch Name</th>
                         <th className="branch-table-col-admin">Branch Admin Name</th>
-                        <th className="branch-table-col-location">Location</th>
                         <th className="branch-table-col-contact">Contact</th>
                         <th className="branch-table-col-created">Created At</th>
                         <th className="branch-table-col-resend">Resend Mail</th>
@@ -673,7 +672,6 @@ export function SuperAdminDashboardPage() {
                             <td className="branch-table-col-admin">
                               <span>{branch.branchAdminName || 'Branch admin not set'}</span>
                             </td>
-                            <td className="branch-table-col-location">{branch.branchAddress}</td>
                             <td className="branch-table-col-contact branch-contact-cell">
                               <span className="branch-contact-email">{branch.branchEmail}</span>
                               <span className="branch-contact-phone">{branch.branchPhone}</span>
