@@ -13,7 +13,13 @@ import {
 
 import { useAuth } from '../auth/useAuth'
 import { request } from '../services/apiClient'
-import { loadNotifications, markNotificationsAsRead, subscribeNotifications } from '../lib/notificationStore'
+import {
+  loadNotifications,
+  markNotificationsAsRead,
+  mergeNotificationsWithStoredState,
+  saveNotifications,
+  subscribeNotifications,
+} from '../lib/notificationStore'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import '../styles/SuperAdminDashboardPage.css'
 
@@ -187,9 +193,11 @@ export function SuperAdminNotificationsPage() {
             ? response
             : []
 
-      setNotifications(data.map(normalizeNotificationItem))
+      const mergedNotifications = mergeNotificationsWithStoredState(data.map(normalizeNotificationItem))
+      saveNotifications(mergedNotifications)
+      setNotifications(mergedNotifications)
     } catch {
-      setNotifications(loadNotifications().map(normalizeNotificationItem))
+      setNotifications(mergeNotificationsWithStoredState(loadNotifications().map(normalizeNotificationItem)))
     } finally {
       setIsRefreshing(false)
     }
@@ -251,6 +259,7 @@ export function SuperAdminNotificationsPage() {
 
   const markAllAsRead = async () => {
     setNotifications((current) => current.map((item) => ({ ...item, read: true })))
+    markNotificationsAsRead()
 
     try {
       await request('/notifications/mark-read', {
@@ -268,6 +277,7 @@ export function SuperAdminNotificationsPage() {
     setNotifications((current) =>
       current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
     )
+    markNotificationsAsRead([notification.id])
 
     try {
       await request('/notifications/mark-read', {

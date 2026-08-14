@@ -10,6 +10,11 @@ import {
 } from 'lucide-react'
 
 import { request } from '../services/apiClient'
+import {
+  markNotificationsAsRead,
+  mergeNotificationsWithStoredState,
+  saveNotifications,
+} from '../lib/notificationStore'
 
 function formatNotificationTime(createdAt) {
   const date = new Date(createdAt)
@@ -58,7 +63,9 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
         method: 'GET',
       })
       const data = Array.isArray(response?.data) ? response.data : []
-      setNotifications(data)
+      const mergedNotifications = mergeNotificationsWithStoredState(data)
+      saveNotifications(mergedNotifications)
+      setNotifications(mergedNotifications)
     } catch {
       setNotifications([])
     } finally {
@@ -114,6 +121,7 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
     setNotifications((current) =>
       current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
     )
+    markNotificationsAsRead([notification.id])
 
     try {
       await request('/notifications/mark-read', {
@@ -136,6 +144,7 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
 
   const handleMarkAllAsRead = () => {
     setNotifications((current) => current.map((item) => ({ ...item, read: true })))
+    markNotificationsAsRead()
 
     void request('/notifications/mark-read', {
       method: 'PATCH',

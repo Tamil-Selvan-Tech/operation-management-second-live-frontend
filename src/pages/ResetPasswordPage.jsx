@@ -200,7 +200,7 @@ export function ResetPasswordPage() {
 
   if (isUpdated) {
     return (
-      <Card className="panel reset-password-shell reset-password-state">
+      <Card className="panel reset-password-shell reset-password-state reset-password-state-success">
         <div className="reset-password-badge reset-password-badge-success" aria-hidden="true">
           <SuccessIcon />
         </div>
@@ -225,10 +225,10 @@ export function ResetPasswordPage() {
         <div className="reset-password-copy">
           <p className="eyebrow">Security</p>
           <h2>Reset password</h2>
-          <p>
+          <p className="reset-password-intro">
             {isBranchResetFlow
               ? 'You are still using your temporary password. Create a new password now to continue using your branch dashboard safely.'
-              : 'Create a new password below and use it the next time you sign in.'}
+              : 'Create a new password below and use it the next time you log in.'}
           </p>
         </div>
       </div>
@@ -242,7 +242,7 @@ export function ResetPasswordPage() {
           </div>
         ) : null}
 
-        <FormField label="New password" hint="Minimum 8 characters">
+        <FormField label="New password">
           <div className="reset-password-input-wrap">
             <input
               name="newPassword"
