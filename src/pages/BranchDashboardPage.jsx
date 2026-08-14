@@ -206,8 +206,8 @@ export function BranchDashboardPage() {
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'students', label: 'Students', icon: Users },
           { id: 'courses', label: 'Courses', icon: BookOpen },
+          { id: 'students', label: 'Students', icon: Users },
           { id: 'batches', label: 'Batches', icon: Layers3 },
           { id: 'payments', label: 'Payments', icon: Wallet },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
