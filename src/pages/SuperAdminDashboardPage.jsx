@@ -172,6 +172,22 @@ function getDuplicateBranchEmailError(branchEmail, existingBranches = [], ignore
   return emailExists ? 'Email already exists' : ''
 }
 
+function getDuplicateBranchPhoneError(branchPhone, existingBranches = [], ignoreBranchId = null) {
+  const normalizedPhone = String(branchPhone || '').trim().replace(/\D+/g, '')
+  if (!normalizedPhone) return ''
+
+  const normalizedIgnoreBranchId = ignoreBranchId == null ? null : String(ignoreBranchId).trim().toLowerCase()
+  const branchesList = (Array.isArray(existingBranches) ? existingBranches : []).filter(
+    (branch) => String(branch?.id || '').trim().toLowerCase() !== normalizedIgnoreBranchId,
+  )
+
+  const phoneExists = branchesList.some(
+    (branch) => String(branch?.branchPhone || '').trim().replace(/\D+/g, '') === normalizedPhone,
+  )
+
+  return phoneExists ? 'Branch phone number already exists' : ''
+}
+
 function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) {
   const normalizedBranchId = String(form.branchId || '').trim().toLowerCase()
   const normalizedIgnoreBranchId = ignoreBranchId == null ? null : String(ignoreBranchId).trim().toLowerCase()
@@ -182,6 +198,7 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
     (branch) => String(branch?.branchId || '').trim().toLowerCase() === normalizedBranchId,
   )
   const duplicateEmailError = getDuplicateBranchEmailError(form.branchEmail, existingBranches, ignoreBranchId)
+  const duplicatePhoneError = getDuplicateBranchPhoneError(form.branchPhone, existingBranches, ignoreBranchId)
 
   return {
     branchId:
@@ -190,7 +207,7 @@ function validateBranchForm(form, existingBranches = [], ignoreBranchId = null) 
     branchName: validateBranchField('branchName', form.branchName),
     branchAdminName: validateBranchField('branchAdminName', form.branchAdminName),
     branchEmail: validateBranchField('branchEmail', form.branchEmail) || duplicateEmailError,
-    branchPhone: validateBranchField('branchPhone', form.branchPhone),
+    branchPhone: validateBranchField('branchPhone', form.branchPhone) || duplicatePhoneError,
     branchCountry: validateBranchField('branchCountry', form.branchCountry),
     branchState: validateBranchField('branchState', form.branchState),
     branchDistrict: validateBranchField('branchDistrict', form.branchDistrict),
@@ -709,11 +726,27 @@ export function SuperAdminDashboardPage() {
     updateField('branchAdminName', nextValue)
   }
 
+  const updateBranchEmail = (value) => {
+    const nextValue = String(value || '')
+    setForm((current) => ({ ...current, branchEmail: nextValue }))
+    setBranchErrors((current) => ({
+      ...current,
+      branchEmail:
+        validateBranchField('branchEmail', nextValue) ||
+        getDuplicateBranchEmailError(nextValue, branches, editingBranchId),
+    }))
+  }
+
   const updateBranchPhone = (value) => {
     const rawText = String(value || '')
     const nextValue = rawText.replace(/\D+/g, '').slice(0, 10)
     setForm((current) => ({ ...current, branchPhone: nextValue }))
-    setBranchErrors((current) => ({ ...current, branchPhone: '' }))
+    setBranchErrors((current) => ({
+      ...current,
+      branchPhone:
+        validateBranchField('branchPhone', nextValue) ||
+        getDuplicateBranchPhoneError(nextValue, branches, editingBranchId),
+    }))
   }
 
   const updateBranchCountry = (countryCode) => {
@@ -822,7 +855,17 @@ export function SuperAdminDashboardPage() {
       setSuccessMessage('Login credentials have been sent to the registered email.')
       setIsSuccessOpen(true)
     } catch (error) {
-      setActionError(error?.body?.message || error?.message || 'Unable to save branch right now.')
+      const errorMessage = String(error?.body?.message || error?.message || 'Unable to save branch right now.')
+      if (/phone/i.test(errorMessage) && /exist|duplicate|already/i.test(errorMessage)) {
+        setBranchErrors((current) => ({
+          ...current,
+          branchPhone: errorMessage,
+        }))
+        setActionError('')
+        return
+      }
+
+      setActionError(errorMessage)
     } finally {
       setIsSubmitting(false)
     }
@@ -1382,7 +1425,7 @@ export function SuperAdminDashboardPage() {
                 <input
                   type="email"
                   value={form.branchEmail}
-                  onChange={(event) => updateField('branchEmail', event.target.value)}
+                  onChange={(event) => updateBranchEmail(event.target.value)}
                   placeholder="Enter email"
                   className="branch-email-input"
                 />
@@ -1601,7 +1644,7 @@ export function SuperAdminDashboardPage() {
       {isLogoutConfirmOpen ? (
         <div className="branch-modal-backdrop" role="presentation" onClick={closeLogoutConfirm}>
           <div
-            className="branch-success-modal super-admin-logout-modal"
+            className="super-admin-logout-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="super-admin-logout-title"
@@ -1610,7 +1653,7 @@ export function SuperAdminDashboardPage() {
           >
             <button
               type="button"
-              className="branch-modal-close"
+              className="super-admin-logout-close"
               aria-label="Close logout confirmation"
               onClick={closeLogoutConfirm}
             >
@@ -1618,14 +1661,13 @@ export function SuperAdminDashboardPage() {
             </button>
 
             <h2 id="super-admin-logout-title">Are you sure you want to logout?</h2>
-           
 
-            <div className="branch-modal-actions super-admin-logout-actions">
-              <button type="button" className="branch-modal-cancel" onClick={closeLogoutConfirm}>
+            <div className="super-admin-logout-actions">
+              <button type="button" className="super-admin-logout-cancel" onClick={closeLogoutConfirm}>
                 Cancel
               </button>
-              <button type="button" className="branch-modal-submit" onClick={handleConfirmLogout}>
-                OK
+              <button type="button" className="super-admin-logout-submit" onClick={handleConfirmLogout}>
+                Logout
               </button>
             </div>
           </div>

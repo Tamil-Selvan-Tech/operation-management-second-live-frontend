@@ -414,25 +414,78 @@
 }
 
 .super-admin-logout-modal {
-  width: min(88vw, 360px);
-  min-height: 170px;
-  padding: 18px 18px 16px;
+  position: relative;
+  width: min(92vw, 520px);
+  border-radius: 30px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.18);
+  padding: 16px 22px 20px;
   text-align: center;
+  overflow: hidden;
+}
+
+.super-admin-logout-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #d9e2f2;
+  border-radius: 999px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 1.5rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
 }
 
 .super-admin-logout-modal h2 {
-  margin-top: 8px;
+  margin: 20px 52px 0;
   color: #0f172a;
-  font-size: 1.02rem;
+  font-size: 1.14rem;
   line-height: 1.35;
+  font-weight: 800;
   letter-spacing: -0.02em;
 }
 
-.super-admin-logout-modal p {
-  margin-top: 6px;
-  color: #64748b;
-  font-size: 0.88rem;
-  line-height: 1.6;
+.super-admin-logout-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 26px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.super-admin-logout-cancel,
+.super-admin-logout-submit {
+  height: 54px;
+  min-width: 154px;
+  border-radius: 14px;
+  padding: 0 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.super-admin-logout-cancel {
+  border: 1px solid #cfd8e6;
+  background: #fff;
+  color: #3f4f6b;
+  min-width: 132px;
+  height: 50px;
+  padding: 0 16px;
+}
+
+.super-admin-logout-submit {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
 }
 
 .branch-contact-cell {
@@ -943,7 +996,10 @@
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   background: #fff;
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
 }
 
 .branch-card-list {
@@ -952,7 +1008,9 @@
 
 .branch-table {
   width: 100%;
+  min-width: 1100px;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .branch-table thead th {
@@ -1480,10 +1538,16 @@
 .branch-modal {
   position: relative;
   width: min(92vw, 640px);
+  max-height: calc(100vh - 36px);
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
   padding: 26px 24px 22px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
+  overscroll-behavior: contain;
 }
 
 .branch-modal-close {
@@ -2111,6 +2175,12 @@
 
   .branch-modal {
     padding: 22px 18px 18px;
+    max-height: calc(100vh - 20px);
+  }
+
+  .super-admin-logout-modal {
+    width: min(92vw, 500px);
+    padding: 16px 18px 18px;
   }
 
   .branch-modal h2 {
@@ -2128,6 +2198,19 @@
 
   .branch-view-drawer {
     width: min(100%, 500px);
+  }
+
+  .super-admin-logout-actions {
+    flex-wrap: wrap;
+  }
+
+  .super-admin-logout-cancel,
+  .super-admin-logout-submit {
+    flex: 1 1 150px;
+  }
+
+  .super-admin-logout-cancel {
+    flex: 1 1 132px;
   }
 }
 
