@@ -14,6 +14,15 @@ import {
   Users,
   Wallet,
   CheckCircle2,
+    Eye,
+    Code2,
+CircleDot,
+CalendarDays,
+Monitor,
+Clock3,
+IndianRupee,
+FileText,
+Tag,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -280,6 +289,7 @@ export function BranchDashboardPage() {
   const [editingCourseId, setEditingCourseId] = useState('')
   const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
+  const [viewCourse, setViewCourse] = useState(null)
   const profileMenuRef = useRef(null)
   const courseActionMenuRef = useRef(null)
 
@@ -478,6 +488,14 @@ export function BranchDashboardPage() {
     setActiveSection('courses')
   }
 
+  const openViewCourseDrawer = (course) => {
+  setViewCourse(course)
+  setOpenCourseActionMenuId('')
+}
+
+const closeViewCourseDrawer = () => {
+  setViewCourse(null)
+}
   const openEditCourseModal = (course) => {
     setEditingCourseId(String(course?.id || '').trim())
     setAddCourseForm(buildBranchCourseFormFromRecord(course))
@@ -911,7 +929,11 @@ export function BranchDashboardPage() {
                             const absoluteIndex = (safeBranchCoursePage - 1) * BRANCH_COURSES_PER_PAGE + index + 1
 
                             return (
-                              <tr key={course.id}>
+                             <tr
+  key={course.id}
+  onClick={() => openViewCourseDrawer(course)}
+  className="branch-course-clickable-row"
+>
                                 <td>{absoluteIndex}</td>
                                 <td>
                                   <div className="branch-course-code-cell">
@@ -934,11 +956,11 @@ export function BranchDashboardPage() {
                                     {course.status || 'Active'}
                                   </span>
                                 </td>
-                                <td>
-                                  <div
-                                    className="branch-course-actions-wrap"
-                                    ref={openCourseActionMenuId === course.id ? courseActionMenuRef : null}
-                                  >
+                                <td onClick={(event) => event.stopPropagation()}>
+  <div
+    className="branch-course-actions-wrap"
+    ref={openCourseActionMenuId === course.id ? courseActionMenuRef : null}
+  >
                                     <button
                                       type="button"
                                       className="branch-course-actions-button"
@@ -953,25 +975,37 @@ export function BranchDashboardPage() {
                                     </button>
 
                                     {openCourseActionMenuId === course.id ? (
-                                      <div className="branch-course-actions-menu" role="menu" aria-label="Course actions">
-                                        <button
-                                          type="button"
-                                          className="branch-course-actions-menu-item"
-                                          onClick={() => openEditCourseModal(course)}
-                                          role="menuitem"
-                                        >
-                                          Edit
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="branch-course-actions-menu-item is-danger"
-                                          onClick={() => openDeleteCourseConfirm(course)}
-                                          role="menuitem"
-                                        >
-                                          Delete
-                                        </button>
-                                      </div>
-                                    ) : null}
+  <div className="branch-course-actions-menu" role="menu" aria-label="Course actions">
+
+    <button
+      type="button"
+      className="branch-course-actions-menu-item"
+      onClick={() => openViewCourseDrawer(course)}
+      role="menuitem"
+    >
+      View
+    </button>
+
+    <button
+      type="button"
+      className="branch-course-actions-menu-item"
+      onClick={() => openEditCourseModal(course)}
+      role="menuitem"
+    >
+      Edit
+    </button>
+
+    <button
+      type="button"
+      className="branch-course-actions-menu-item is-danger"
+      onClick={() => openDeleteCourseConfirm(course)}
+      role="menuitem"
+    >
+      Delete
+    </button>
+
+  </div>
+) : null}
                                   </div>
                                 </td>
                               </tr>
@@ -1302,6 +1336,175 @@ export function BranchDashboardPage() {
             </form>
           </div>
         ) : null}
+
+{viewCourse ? (
+  <div
+    className="branch-course-drawer-backdrop"
+    role="presentation"
+    onClick={closeViewCourseDrawer}
+  >
+    <aside
+      className="branch-course-view-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="branch-course-view-title"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <div className="branch-course-view-drawer-header">
+        <div>
+          <p className="section-kicker">Course Details</p>
+          <h2 id="branch-course-view-title">
+            {viewCourse.name || 'Course'}
+          </h2>
+          <span className="branch-course-view-code">
+            {viewCourse.courseCode || '-'}
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="branch-course-view-close"
+          onClick={closeViewCourseDrawer}
+          aria-label="Close course details"
+        >
+          X
+        </button>
+      </div>
+
+      <div className="branch-course-view-body">
+
+        <div className="branch-course-view-status-row">
+          <span>Status</span>
+          <strong
+            className={`branch-course-status-pill ${String(
+              viewCourse.status || 'Active'
+            ).toLowerCase()}`}
+          >
+            {viewCourse.status || 'Active'}
+          </strong>
+        </div>
+
+        <div className="branch-course-view-grid">
+
+          <div className="branch-course-view-item">
+            <span>Course Code</span>
+            <strong>{viewCourse.courseCode || '-'}</strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Course Name</span>
+            <strong>{viewCourse.name || '-'}</strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Mode</span>
+            <strong>{viewCourse.mode || '-'}</strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Duration</span>
+            <strong>
+              {viewCourse.duration
+                ? `${viewCourse.duration} month${
+                    viewCourse.duration === '1' ? '' : 's'
+                  }`
+                : '-'}
+            </strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Hours</span>
+            <strong>
+              {viewCourse.hours
+                ? `${viewCourse.hours} hour${
+                    viewCourse.hours === '1' ? '' : 's'
+                  }`
+                : '-'}
+            </strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Standard Course Fee</span>
+            <strong>
+              {formatBranchCourseAmount(viewCourse.actualFees)}
+            </strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Registration Fee</span>
+            <strong>
+              {formatBranchCourseAmount(viewCourse.registrationFees)}
+            </strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Discount</span>
+            <strong>
+              {formatBranchCourseAmount(viewCourse.discount || '0')}
+            </strong>
+          </div>
+
+          <div className="branch-course-view-item highlight">
+            <span>Final Fee</span>
+            <strong>
+              {formatBranchCourseFinalFee(viewCourse)}
+            </strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Created At</span>
+            <strong>
+              {formatBranchCourseDate(viewCourse.createdAt)}
+            </strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Total Batches</span>
+            <strong>{viewCourse.batches || 0}</strong>
+          </div>
+
+          <div className="branch-course-view-item">
+            <span>Total Students</span>
+            <strong>{viewCourse.students || 0}</strong>
+          </div>
+
+        </div>
+
+        <div className="branch-course-view-summary">
+          <span>Course Summary</span>
+          <p>
+            {viewCourse.summary ||
+              `${viewCourse.mode || '-'} | ${
+                viewCourse.duration || '-'
+              } months | ${viewCourse.hours || '-'} hours`}
+          </p>
+        </div>
+
+      </div>
+
+      <div className="branch-course-view-footer">
+        <button
+          type="button"
+          className="button button-ghost"
+          onClick={closeViewCourseDrawer}
+        >
+          Close
+        </button>
+
+        <button
+          type="button"
+          className="button button-solid"
+          onClick={() => {
+            closeViewCourseDrawer()
+            openEditCourseModal(viewCourse)
+          }}
+        >
+          Edit Course
+        </button>
+      </div>
+    </aside>
+  </div>
+) : null}
 
         {courseSaveSuccess ? (
           <div className="branch-modal-backdrop" role="presentation" onClick={closeCourseSaveSuccess}>
