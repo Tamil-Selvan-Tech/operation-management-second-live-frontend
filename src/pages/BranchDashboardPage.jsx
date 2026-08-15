@@ -1214,7 +1214,7 @@ export function BranchDashboardPage() {
                 <Field
                   label="Enter Registration Fee"
                   required
-                  hint="Separate fee head; refundable or non-refundable as needed"
+                  hint="Registration fee amount"
                   error={shouldShowAddCourseError('registrationFees') ? addCourseValidationErrors.registrationFees : ''}
                 >
                   <input
@@ -1230,7 +1230,7 @@ export function BranchDashboardPage() {
 
                 <Field
                   label="Enter Default Discount"
-                  hint="Optional template only"
+                  hint="Optional "
                   error={shouldShowAddCourseError('discount') ? addCourseValidationErrors.discount : ''}
                 >
                   <input
