@@ -1472,7 +1472,6 @@ export function CoursesPage() {
             <table className="course-table">
               <thead>
                 <tr>
-                  <th>Course Code</th>
                   <th>Course Name</th>
                   <th>Mode</th>
                   <th>Duration</th>
@@ -1486,11 +1485,11 @@ export function CoursesPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td className="course-empty-state" colSpan={9}>Loading courses...</td>
+                    <td className="course-empty-state" colSpan={8}>Loading courses...</td>
                   </tr>
                 ) : loadError && !visibleCourses.length ? (
                   <tr>
-                    <td className="course-empty-state" colSpan={9}>{loadError}</td>
+                    <td className="course-empty-state" colSpan={8}>{loadError}</td>
                   </tr>
                 ) : visibleCourses.length ? (
                   visibleCourses.map((course, index) => {
@@ -1499,7 +1498,6 @@ export function CoursesPage() {
 
                     return (
                       <tr key={course.id || `${course.name}-${course.mode}`} className={openActionMenuId === course.id ? 'course-row-actions-open' : ''}>
-                        <td><strong>{course.courseCode || course.code || '-'}</strong></td>
                         <td><strong>{course.name}</strong></td>
                         <td>{course.mode}</td>
                         <td>{formatDuration(course.duration)}</td>

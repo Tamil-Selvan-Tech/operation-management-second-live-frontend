@@ -19,7 +19,12 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { getCurrentBranchProfile } from '../services/branchService'
-import { createCourse, deleteCourse, listCourses, updateCourse } from '../services/courseService'
+import {
+  createBranchCourse,
+  deleteBranchCourse,
+  listBranchCourses,
+  updateBranchCourse,
+} from '../services/branchCourseService'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
@@ -243,7 +248,7 @@ export function BranchDashboardPage() {
   const courseActionMenuRef = useRef(null)
 
   const loadBranchCourses = useCallback(async () => {
-    const result = await listCourses({
+    const result = await listBranchCourses({
       page: 1,
       limit: 100,
       sortBy: 'createdAt',
@@ -487,7 +492,7 @@ export function BranchDashboardPage() {
     if (!courseDeleteTarget) return
 
     setIsAddCourseSaving(true)
-    deleteCourse(courseDeleteTarget.id)
+    deleteBranchCourse(courseDeleteTarget.id)
       .then(() => {
         const nextCards = branchCourseCards.filter((course) => String(course.id || '').trim() !== String(courseDeleteTarget.id || '').trim())
         setBranchCourseCards(nextCards)
@@ -552,8 +557,8 @@ export function BranchDashboardPage() {
 
       const payload = buildBranchCoursePayload(addCourseForm)
       const savedCourse = editingTargetId
-        ? await updateCourse(editingTargetId, payload)
-        : await createCourse(payload)
+        ? await updateBranchCourse(editingTargetId, payload)
+        : await createBranchCourse(payload)
 
       const normalizedCourse = {
         ...savedCourse,
