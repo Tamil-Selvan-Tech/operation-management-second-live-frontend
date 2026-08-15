@@ -866,16 +866,25 @@ export function BranchDashboardPage() {
                   title="Courses"
                   description="Add a course and the saved data will appear in the table below with every field from the form."
                 >
-                  <div className="branch-dashboard-section-toolbar">
-                    <div className="branch-dashboard-section-summary">
-                      <span>Saved courses</span>
-                      <strong>{branchCourseCards.length}</strong>
-                    </div>
+                 
+<div className="branch-dashboard-section-toolbar">
+  <div className="branch-dashboard-course-actions">
+    <button
+      type="button"
+      className="button button-solid"
+      onClick={openAddCourseModal}
+    >
+      + Add Course
+    </button>
 
-                    <button type="button" className="button button-solid" onClick={openAddCourseModal}>
-                      + Add Course
-                    </button>
-                  </div>
+    <div className="branch-dashboard-section-summary">
+      <span>Saved courses:</span>
+      <strong>{branchCourseCards.length}</strong>
+    </div>
+  </div>
+</div>
+
+  
                   <div className="branch-course-table-shell">
                     <table className="branch-course-table">
                       <thead>

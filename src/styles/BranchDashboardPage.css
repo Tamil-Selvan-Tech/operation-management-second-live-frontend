@@ -497,7 +497,7 @@
 }
 
 .branch-dashboard-section-heading p {
-  margin-top: 6px;
+  margin-top: 14px;
   color: #64748b;
   font-size: 0.94rem;
   line-height: 1.6;
@@ -535,30 +535,36 @@
 
 .branch-dashboard-section-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  justify-content: flex-end;
+  width: 100%;
+}
+
+.branch-dashboard-course-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  transform: translateY(-45px);
 }
 
 .branch-dashboard-section-summary {
-  display: grid;
-  gap: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .branch-dashboard-section-summary span {
   color: #64748b;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .branch-dashboard-section-summary strong {
   color: #0f172a;
-  font-size: 1.35rem;
-  line-height: 1;
-  letter-spacing: -0.04em;
+  font-size: 0.9rem;
+  font-weight: 800;
 }
 
 .branch-dashboard-info-card {
