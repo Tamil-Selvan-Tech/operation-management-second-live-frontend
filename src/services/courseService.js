@@ -26,7 +26,7 @@ function setCachedResult(cache, key, value) {
   })
 }
 
-function clearCourseListCache() {
+export function clearCourseListCache() {
   courseListCache.clear()
   courseListInflight.clear()
 }
@@ -43,10 +43,11 @@ function unwrapData(response) {
 
 function deriveAfterDiscount(course) {
   const actualFees = Number(course?.actualFees)
+  const registrationFees = Number(course?.registrationFees)
   const discount = Number(course?.discount)
 
-  if (Number.isFinite(actualFees) && Number.isFinite(discount)) {
-    return String(Math.max(actualFees - discount, 0))
+  if (Number.isFinite(actualFees) && Number.isFinite(registrationFees) && Number.isFinite(discount)) {
+    return String(Math.max(actualFees + registrationFees - discount, 0))
   }
 
   return ''

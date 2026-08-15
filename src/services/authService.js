@@ -8,6 +8,7 @@ import {
 } from './apiClient'
 import { roleLabels, dashboardPathByRole } from '../data/authData'
 import { findBranchByCredentials, markBranchWelcomeMailSent, recordBranchLogin } from '../lib/branchAuth'
+import { clearCourseListCache } from './courseService'
 
 const fixedAccounts = [
   {
@@ -210,6 +211,7 @@ export async function signInWithFallback(credentials) {
   const session = normalizeAuthSession(response, fallbackSession)
 
   setAuthTokens(session.token, session.refreshToken)
+  clearCourseListCache()
   return {
     session,
     redirectTo: dashboardPathByRole[session.user.role] || '/dashboard',
@@ -227,5 +229,6 @@ export async function refreshAuthSession() {
 }
 
 export async function signOutSession() {
+  clearCourseListCache()
   return logoutSession()
 }
