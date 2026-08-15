@@ -1028,6 +1028,13 @@
   border-bottom: 1px solid #e6e6e6;
 }
 
+.branch-course-header-content {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .branch-course-view-drawer-header h2 {
   margin: 4px 0 6px;
   font-size: 24px;
@@ -1040,6 +1047,13 @@
   font-size: 13px;
   font-weight: 700;
   color: #5f6b76;
+}
+
+.branch-course-view-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 .branch-course-view-close {
@@ -1056,6 +1070,23 @@
 .branch-course-view-close:hover {
   background: #f8f9fb;
   color: #0f1b25;
+}
+
+.branch-course-view-edit {
+  border: 1px solid #2563eb;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 9px 14px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.branch-course-view-edit:hover {
+  background: #dbeafe;
+  color: #1e40af;
 }
 
 .branch-course-view-body {
@@ -1164,6 +1195,14 @@
   .branch-course-view-footer {
     padding-left: 20px;
     padding-right: 20px;
+  }
+
+  .branch-course-view-header-actions {
+    gap: 8px;
+  }
+
+  .branch-course-view-edit {
+    padding-inline: 12px;
   }
 }
 

@@ -1341,7 +1341,6 @@ const closeViewCourseDrawer = () => {
   <div
     className="branch-course-drawer-backdrop"
     role="presentation"
-    onClick={closeViewCourseDrawer}
   >
     <aside
       className="branch-course-view-drawer"
@@ -1352,39 +1351,40 @@ const closeViewCourseDrawer = () => {
     >
       {/* Header */}
       <div className="branch-course-view-drawer-header">
-  <div className="branch-course-header-content">
+        <div className="branch-course-header-content">
+          <p className="section-kicker">COURSE DETAILS</p>
+          <h2 id="branch-course-view-title">{viewCourse.name || 'Course'}</h2>
+          <span className="branch-course-view-code">{viewCourse.courseCode || '-'}</span>
+        </div>
 
-    <div className="branch-course-title-row">
-      <p className="section-kicker">COURSE DETAILS</p>
+        <div className="branch-course-view-header-actions">
+          <strong
+            className={`branch-course-status-pill ${String(viewCourse.status || 'Active').toLowerCase()}`}
+          >
+            {viewCourse.status || 'Active'}
+          </strong>
 
-      <strong 
-  className={`branch-course-status-pill ${String(
-    viewCourse.status || 'Active'
-  ).toLowerCase()}`}
->
-  {viewCourse.status || 'Active'}
-</strong>
-    </div>
+          <button
+            type="button"
+            className="branch-course-view-edit"
+            onClick={() => {
+              closeViewCourseDrawer()
+              openEditCourseModal(viewCourse)
+            }}
+          >
+            Edit Course
+          </button>
 
-    <h2 id="branch-course-view-title">
-      {viewCourse.name || 'Course'}
-    </h2>
-
-    <span className="branch-course-view-code">
-      {viewCourse.courseCode || '-'}
-    </span>
-
-  </div>
-
-  <button
-    type="button"
-    className="branch-course-view-close"
-    onClick={closeViewCourseDrawer}
-    aria-label="Close course details"
-  >
-    X
-  </button>
-</div>
+          <button
+            type="button"
+            className="branch-course-view-close"
+            onClick={closeViewCourseDrawer}
+            aria-label="Close course details"
+          >
+            X
+          </button>
+        </div>
+      </div>
 
       {/* Details */}
       <div className="branch-course-view-body">
@@ -1492,24 +1492,13 @@ const closeViewCourseDrawer = () => {
       {/* 12. Bottom Buttons */}
       <div className="branch-course-view-footer">
 
-        <button
+        {/* <button
           type="button"
           className="button button-ghost"
           onClick={closeViewCourseDrawer}
         >
           Close
-        </button>
-
-        <button
-          type="button"
-          className="button button-solid"
-          onClick={() => {
-            closeViewCourseDrawer();
-            openEditCourseModal(viewCourse);
-          }}
-        >
-          Edit Course
-        </button>
+        </button> */}
 
       </div>
     </aside>
