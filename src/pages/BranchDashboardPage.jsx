@@ -117,12 +117,6 @@ function formatBranchAdminDisplayName(value) {
   return text.replace(/^KKJ\s*[-–—:]?\s*/i, '').trim() || 'Branch Admin'
 }
 
-function normalizeInstallmentCount(value) {
-  const amount = Number(value)
-  if (!Number.isFinite(amount) || amount < 1) return 0
-  return Math.floor(amount)
-}
-
 function formatBranchCourseMoney(value) {
   const text = String(value || '').trim()
   if (!text) return '-'
@@ -140,34 +134,19 @@ function formatBranchCourseDate(value) {
   }).format(date)
 }
 
-function formatBranchCourseInstallments(course) {
-  const installments = Array.isArray(course?.installments)
-    ? course.installments.map((value) => String(value ?? '').trim()).filter(Boolean)
-    : []
+function formatBranchCourseFinalFee(course) {
+  const actualFees = Number(course?.actualFees || 0)
+  const registrationFees = Number(course?.registrationFees || 0)
+  const discount = Number(course?.discount || 0)
 
-  if (installments.length) {
-    return installments.join(' • ')
+  if ([actualFees, registrationFees, discount].some((value) => Number.isNaN(value))) {
+    return '-'
   }
 
-  const fallbackCount = Number(course?.installmentCount || 0)
-  if (fallbackCount > 0) {
-    return `${fallbackCount} installment${fallbackCount === 1 ? '' : 's'}`
-  }
-
-  return '-'
-}
-
-function formatBranchCoursePlan(course) {
-  const count = Number(course?.installmentCount || 0)
-  if (!count) return '-'
-  return `${count} installment${count === 1 ? '' : 's'}`
+  return formatBranchCourseAmount(Math.max(actualFees + registrationFees - discount, 0))
 }
 
 function normalizeBranchCourseRecord(course = {}, index = 0) {
-  const installments = Array.isArray(course.installments)
-    ? course.installments.map((value) => String(value ?? '').trim()).filter(Boolean)
-    : []
-
   return {
     ...course,
     id: String(course.id || course.courseCode || course.name || `branch-course-${index + 1}`),
@@ -179,16 +158,6 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
     actualFees: String(course.actualFees ?? '').trim(),
     registrationFees: String(course.registrationFees ?? '').trim(),
     discount: String(course.discount ?? '').trim(),
-    afterDiscount: String(course.afterDiscount ?? course.defaultFinalFee ?? '').trim(),
-    defaultFinalFee: String(course.defaultFinalFee ?? course.afterDiscount ?? '').trim(),
-    installmentCount: String(course.installmentCount ?? '').trim(),
-    installment1: String(course.installment1 ?? '').trim(),
-    installment2: String(course.installment2 ?? '').trim(),
-    installment3: String(course.installment3 ?? '').trim(),
-    extraInstallments: Array.isArray(course.extraInstallments)
-      ? course.extraInstallments.map((value) => String(value ?? '').trim()).filter(Boolean)
-      : [],
-    installments,
     status: String(course.status || 'Active').trim(),
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
@@ -196,41 +165,8 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
   }
 }
 
-function getEffectiveInstallmentCount(form) {
-  if (form.installmentCount === 'custom') {
-    return normalizeInstallmentCount(form.customInstallmentCount)
-  }
-
-  return normalizeInstallmentCount(form.installmentCount)
-}
-
-function getInstallmentValue(form, index) {
-  if (index === 1) return form.installment1 ?? ''
-  if (index === 2) return form.installment2 ?? ''
-  if (index === 3) return form.installment3 ?? ''
-  return form.extraInstallments?.[index - 4] ?? ''
-}
-
-function setInstallmentValue(form, index, value) {
-  if (index === 1) return { ...form, installment1: value }
-  if (index === 2) return { ...form, installment2: value }
-  if (index === 3) return { ...form, installment3: value }
-
-  const extraIndex = index - 4
-  const extraInstallments = [...(form.extraInstallments || [])]
-  extraInstallments[extraIndex] = value
-  return { ...form, extraInstallments }
-}
-
 function buildBranchCoursePayload(form) {
-  const finalFee = Math.max(
-    Number(form.actualFees || 0) + Number(form.registrationFees || 0) - Number(form.discount || 0),
-    0,
-  )
-  const installmentCount = getEffectiveInstallmentCount(form)
-  const installments = Array.from({ length: installmentCount }, (_, index) => getInstallmentValue(form, index + 1))
-
-  const payload = {
+  return {
     courseCode: normalizeBranchCourseCode(form.courseCode),
     name: String(form.name || '').trim(),
     mode: form.mode,
@@ -239,20 +175,9 @@ function buildBranchCoursePayload(form) {
     actualFees: form.actualFees,
     registrationFees: form.registrationFees,
     discount: form.discount || '0',
-    afterDiscount: String(finalFee),
-    defaultFinalFee: String(finalFee),
-    installmentCount: String(installmentCount),
-    installments,
     status: form.status,
   }
-
-  installments.forEach((amount, index) => {
-    payload[`installment${index + 1}`] = amount
-  })
-
-  return payload
 }
-
 function createInitialBranchCourseForm() {
   return {
     courseCode: COURSE_CODE_PREFIX,
@@ -263,12 +188,6 @@ function createInitialBranchCourseForm() {
     actualFees: '',
     registrationFees: '',
     discount: '',
-    installmentCount: '2',
-    customInstallmentCount: '',
-    installment1: '',
-    installment2: '',
-    installment3: '',
-    extraInstallments: [],
     status: 'Active',
   }
 }
@@ -283,13 +202,6 @@ function normalizeBranchCourseCode(value = '') {
 }
 
 function buildBranchCourseFormFromRecord(course = {}) {
-  const installmentCount = String(course.installmentCount || '2').trim()
-  const effectiveInstallmentCount = installmentCount === 'custom' ? String(course.extraInstallments?.length || 0) : installmentCount
-  const numericInstallmentCount = Number(effectiveInstallmentCount || 0)
-  const installmentValues = Array.isArray(course.installments) && course.installments.length
-    ? course.installments.map((value) => String(value ?? ''))
-    : Array.from({ length: Number.isFinite(numericInstallmentCount) ? numericInstallmentCount : 0 }, (_, index) => String(course?.[`installment${index + 1}`] ?? ''))
-
   return {
     courseCode: String(course.courseCode || COURSE_CODE_PREFIX).trim() || COURSE_CODE_PREFIX,
     name: String(course.name || '').trim(),
@@ -299,12 +211,6 @@ function buildBranchCourseFormFromRecord(course = {}) {
     actualFees: String(course.actualFees ?? '').trim(),
     registrationFees: String(course.registrationFees ?? '').trim(),
     discount: String(course.discount ?? '').trim(),
-    installmentCount: installmentCount === 'custom' ? 'custom' : installmentCount || '2',
-    customInstallmentCount: installmentCount === 'custom' ? String(numericInstallmentCount || installmentValues.length || 0) : '',
-    installment1: installmentValues[0] ?? '',
-    installment2: installmentValues[1] ?? '',
-    installment3: installmentValues[2] ?? '',
-    extraInstallments: installmentValues.slice(3),
     status: String(course.status || 'Active').trim() || 'Active',
   }
 }
@@ -509,10 +415,11 @@ export function BranchDashboardPage() {
     [branchCourseCards, editingCourseId],
   )
 
-  const addCourseAfterDiscount = useMemo(() => {
+  const addCourseFinalFee = useMemo(() => {
     const actualFees = Number(addCourseForm.actualFees || 0)
     const registrationFees = Number(addCourseForm.registrationFees || 0)
     const discount = Number(addCourseForm.discount || 0)
+
     if (Number.isNaN(actualFees) || Number.isNaN(registrationFees) || Number.isNaN(discount)) return ''
     return String(Math.max(actualFees + registrationFees - discount, 0))
   }, [addCourseForm.actualFees, addCourseForm.discount, addCourseForm.registrationFees])
@@ -532,49 +439,10 @@ export function BranchDashboardPage() {
     if (addCourseForm.hours && Number(addCourseForm.hours) <= 0) errors.hours = 'Hours must be greater than zero.'
     if (!addCourseForm.actualFees) errors.actualFees = 'Standard Course Fee is required.'
     if (!addCourseForm.registrationFees) errors.registrationFees = 'Registration Fee is required.'
-    if (!addCourseForm.installmentCount) errors.installmentCount = 'Fee Plan Template is required.'
     if (!addCourseForm.status) errors.status = 'Status is required.'
-
-    const installmentCount = getEffectiveInstallmentCount(addCourseForm)
-    if (addCourseForm.installmentCount === 'custom' && !installmentCount) {
-      errors.customInstallmentCount = 'Custom Installment Count is required.'
-    }
-
-    for (let index = 1; index <= installmentCount; index += 1) {
-      if (!getInstallmentValue(addCourseForm, index)) {
-        errors[`installment${index}`] = `Installment ${index} is required.`
-      }
-    }
 
     if (addCourseForm.discount && Number(addCourseForm.discount) < 0) {
       errors.discount = 'Discount must be zero or greater.'
-    }
-
-    const allRequiredFilled =
-      hasCourseCodeSuffix &&
-      addCourseForm.name.trim() &&
-      addCourseForm.mode &&
-      addCourseForm.duration &&
-      addCourseForm.hours &&
-      addCourseForm.actualFees &&
-      addCourseForm.registrationFees &&
-      addCourseForm.installmentCount &&
-      addCourseForm.status &&
-      (addCourseForm.installmentCount !== 'custom' || installmentCount > 0) &&
-      Array.from({ length: installmentCount }, (_, index) => index + 1).every((index) => Boolean(getInstallmentValue(addCourseForm, index)))
-
-    if (allRequiredFilled) {
-      const finalFee = Number(addCourseForm.actualFees) + Number(addCourseForm.registrationFees) - Number(addCourseForm.discount || 0)
-      const installmentTotal = Array.from({ length: installmentCount }, (_, index) => Number(getInstallmentValue(addCourseForm, index + 1) || 0)).reduce(
-        (total, amount) => total + amount,
-        0,
-      )
-
-      if (installmentTotal !== Math.max(finalFee, 0)) {
-        for (let index = 1; index <= installmentCount; index += 1) {
-          errors[`installment${index}`] = `Installment total must match ${Math.max(finalFee, 0)}.`
-        }
-      }
     }
 
     return errors
@@ -592,26 +460,6 @@ export function BranchDashboardPage() {
 
   const updateAddCourseNumericField = (field, value) => {
     updateAddCourseField(field, value.replace(/[^\d]/g, ''))
-  }
-
-  const handleAddCourseInstallmentCountChange = (value) => {
-    setAddCourseError('')
-    setAddCourseForm((current) => ({
-      ...current,
-      installmentCount: value,
-      customInstallmentCount: value === 'custom' ? current.customInstallmentCount : '',
-      extraInstallments: value === 'custom' ? current.extraInstallments : [],
-    }))
-  }
-
-  const handleAddCourseCustomInstallmentCountChange = (value) => {
-    setAddCourseError('')
-    const nextDigits = value.replace(/[^\d]/g, '')
-    setAddCourseForm((current) => ({
-      ...current,
-      installmentCount: 'custom',
-      customInstallmentCount: nextDigits,
-    }))
   }
 
   const resetAddCourseForm = () => {
@@ -684,15 +532,7 @@ export function BranchDashboardPage() {
     nextTouched.hours = true
     nextTouched.actualFees = true
     nextTouched.registrationFees = true
-    nextTouched.installmentCount = true
     nextTouched.status = true
-    if (addCourseForm.installmentCount === 'custom') {
-      nextTouched.customInstallmentCount = true
-    }
-    const installmentCount = getEffectiveInstallmentCount(addCourseForm)
-    for (let index = 1; index <= installmentCount; index += 1) {
-      nextTouched[`installment${index}`] = true
-    }
     setAddCourseTouched(nextTouched)
 
     if (Object.keys(addCourseValidationErrors).length > 0) {
@@ -737,18 +577,12 @@ export function BranchDashboardPage() {
         batches: 0,
         students: 0,
         summary: `${payload.mode} | ${payload.duration} months | ${payload.hours} hours`,
-        detail: `Final fee ${payload.defaultFinalFee}`,
         mode: payload.mode,
         duration: payload.duration,
         hours: payload.hours,
         actualFees: payload.actualFees,
         registrationFees: payload.registrationFees,
         discount: payload.discount,
-        afterDiscount: payload.afterDiscount,
-        finalFee: payload.defaultFinalFee,
-        defaultFinalFee: payload.defaultFinalFee,
-        installmentCount: payload.installmentCount,
-        installments: payload.installments,
         status: payload.status,
       }
 
@@ -1056,8 +890,6 @@ export function BranchDashboardPage() {
                           <th>Registration Fee</th>
                           <th>Discount</th>
                           <th>Final Fee</th>
-                          <th>Fee Plan</th>
-                          <th>Installments</th>
                           <th>Created At</th>
                           <th>Status</th>
                           <th>Actions</th>
@@ -1086,9 +918,7 @@ export function BranchDashboardPage() {
                                 <td>{formatBranchCourseAmount(course.actualFees)}</td>
                                 <td>{formatBranchCourseAmount(course.registrationFees)}</td>
                                 <td>{formatBranchCourseAmount(course.discount || '0')}</td>
-                                <td>{formatBranchCourseAmount(course.afterDiscount || course.defaultFinalFee)}</td>
-                                <td>{formatBranchCoursePlan(course)}</td>
-                                <td className="branch-course-installments">{formatBranchCourseInstallments(course)}</td>
+                                <td>{formatBranchCourseFinalFee(course)}</td>
                                 <td>{formatBranchCourseDate(course.createdAt)}</td>
                                 <td>
                                   <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
@@ -1140,7 +970,7 @@ export function BranchDashboardPage() {
                           })
                         ) : (
                           <tr>
-                            <td colSpan="15" className="branch-course-empty-state">
+                            <td colSpan="12" className="branch-course-empty-state">
                               No courses saved yet. Use Add Course to create the first one.
                             </td>
                           </tr>
@@ -1414,69 +1244,9 @@ export function BranchDashboardPage() {
                   />
                 </Field>
 
-                <Field label="Default Final Fee (Auto Calculated)" hint="Standard fee + registration fee - default discount">
-                  <input type="text" value={addCourseAfterDiscount} readOnly />
+                <Field label="Final Fee" hint="Auto calculated from fee + registration - discount">
+                  <input type="text" value={addCourseFinalFee} readOnly />
                 </Field>
-
-                <Field
-                  label="Fee Plan Template"
-                  required
-                  hint="Choose 2, 3, or Custom"
-                  error={shouldShowAddCourseError('installmentCount') ? addCourseValidationErrors.installmentCount : ''}
-                >
-                  <select
-                    value={addCourseForm.installmentCount}
-                    onChange={(event) => handleAddCourseInstallmentCountChange(event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, installmentCount: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('installmentCount'))}
-                  >
-                    <option value="2">2 Installments</option>
-                    <option value="3">3 Installments</option>
-                    <option value="custom">Custom Installment</option>
-                  </select>
-                </Field>
-
-                {addCourseForm.installmentCount === 'custom' ? (
-                  <Field
-                    label="Enter Custom Installment Count"
-                    required
-                    hint="Type how many installment fields you need"
-                    error={shouldShowAddCourseError('customInstallmentCount') ? addCourseValidationErrors.customInstallmentCount : ''}
-                  >
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={addCourseForm.customInstallmentCount}
-                      onChange={(event) => handleAddCourseCustomInstallmentCountChange(event.target.value)}
-                      onBlur={() => setAddCourseTouched((current) => ({ ...current, customInstallmentCount: true }))}
-                      aria-invalid={Boolean(shouldShowAddCourseError('customInstallmentCount'))}
-                    />
-                  </Field>
-                ) : null}
-
-                {Array.from({ length: getEffectiveInstallmentCount(addCourseForm) }, (_, index) => index + 1).map((installmentNumber) => (
-                  <Field
-                    key={installmentNumber}
-                    label={`Enter Installment ${installmentNumber}`}
-                    required
-                    hint="Numbers only"
-                    error={shouldShowAddCourseError(`installment${installmentNumber}`) ? addCourseValidationErrors[`installment${installmentNumber}`] : ''}
-                  >
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={getInstallmentValue(addCourseForm, installmentNumber)}
-                      onChange={(event) => {
-                        const nextValue = event.target.value.replace(/[^\d]/g, '')
-                        setAddCourseForm((current) => setInstallmentValue(current, installmentNumber, nextValue))
-                      }}
-                      onBlur={() => setAddCourseTouched((current) => ({ ...current, [`installment${installmentNumber}`]: true }))}
-                      aria-invalid={Boolean(shouldShowAddCourseError(`installment${installmentNumber}`))}
-                    />
-                  </Field>
-                ))}
 
                 <Field
                   label="Select Status"
