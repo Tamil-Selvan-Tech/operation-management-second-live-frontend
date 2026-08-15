@@ -1417,8 +1417,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 4. Mode */}
           <div className="branch-course-view-item">
-            <span className="branch-course-view-item-label">
+            <span className="branch-course-view-icon" aria-hidden="true">
               <Monitor size={16} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span className="branch-course-view-item-label">
               <span>Mode</span>
             </span>
             <strong>
@@ -1428,8 +1430,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 5. Duration */}
           <div className="branch-course-view-item">
-            <span className="branch-course-view-item-label">
+            <span className="branch-course-view-icon" aria-hidden="true">
               <CalendarDays size={16} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span className="branch-course-view-item-label">
               <span>Duration</span>
             </span>
             <strong>
@@ -1443,8 +1447,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 6. Hours */}
           <div className="branch-course-view-item">
-            <span className="branch-course-view-item-label">
+            <span className="branch-course-view-icon" aria-hidden="true">
               <Clock3 size={16} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span className="branch-course-view-item-label">
               <span>Hours</span>
             </span>
             <strong>
@@ -1458,8 +1464,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 7. Standard Course Fee */}
           <div className="branch-course-view-item">
-            <span className="branch-course-view-item-label">
+            <span className="branch-course-view-icon" aria-hidden="true">
               <IndianRupee size={16} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span className="branch-course-view-item-label">
               <span>Standard Course Fee</span>
             </span>
             <strong>
@@ -1471,8 +1479,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 8. Registration Fee */}
           <div className="branch-course-view-item">
-            <span className="branch-course-view-item-label">
+            <span className="branch-course-view-icon" aria-hidden="true">
               <Tag size={16} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span className="branch-course-view-item-label">
               <span>Registration Fee</span>
             </span>
             <strong>
@@ -1484,8 +1494,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 9. Discount */}
           <div className="branch-course-view-item">
-            <span className="branch-course-view-item-label">
+            <span className="branch-course-view-icon" aria-hidden="true">
               <BadgeInfo size={16} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span className="branch-course-view-item-label">
               <span>Discount</span>
             </span>
             <strong>
@@ -1497,8 +1509,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 10. Final Fee */}
           <div className="branch-course-view-item highlight">
-            <span className="branch-course-view-item-label">
+            <span className="branch-course-view-icon" aria-hidden="true">
               <IndianRupee size={16} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span className="branch-course-view-item-label">
               <span>Final Fee</span>
             </span>
             <strong>
@@ -1508,8 +1522,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 11. Created At */}
           <div className="branch-course-view-item">
-            <span className="branch-course-view-item-label">
+            <span className="branch-course-view-icon" aria-hidden="true">
               <CalendarDays size={16} strokeWidth={2.1} aria-hidden="true" />
+            </span>
+            <span className="branch-course-view-item-label">
               <span>Created At</span>
             </span>
             <strong>
