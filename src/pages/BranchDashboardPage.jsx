@@ -1640,7 +1640,7 @@ const closeViewCourseDrawer = () => {
         {isLogoutConfirmOpen ? (
           <div className="branch-modal-backdrop" role="presentation" onClick={closeLogoutConfirm}>
             <div
-              className="branch-success-modal super-admin-logout-modal"
+              className="branch-logout-modal"
               role="dialog"
               aria-modal="true"
               aria-labelledby="branch-logout-title"
@@ -1649,26 +1649,24 @@ const closeViewCourseDrawer = () => {
             >
               <button
                 type="button"
-                className="branch-modal-close"
+                className="branch-logout-close"
                 aria-label="Close logout confirmation"
                 onClick={closeLogoutConfirm}
               >
-                X
+                ×
               </button>
 
-              <div className="super-admin-logout-icon" aria-hidden="true">
-                <LogOut size={28} strokeWidth={2.1} />
-              </div>
-
               <h2 id="branch-logout-title">Are you sure you want to logout?</h2>
-              
+              <p id="branch-logout-description" className="branch-logout-description sr-only">
+                You can always sign in again if you need access later.
+              </p>
 
-              <div className="branch-modal-actions">
-                <button type="button" className="branch-modal-cancel" onClick={closeLogoutConfirm}>
+              <div className="branch-logout-actions">
+                <button type="button" className="branch-logout-cancel" onClick={closeLogoutConfirm}>
                   Cancel
                 </button>
-                <button type="button" className="branch-modal-submit" onClick={handleConfirmLogout}>
-                  OK
+                <button type="button" className="branch-logout-submit" onClick={handleConfirmLogout}>
+                  Logout
                 </button>
               </div>
             </div>
