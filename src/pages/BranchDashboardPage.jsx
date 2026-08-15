@@ -1398,143 +1398,99 @@ const closeViewCourseDrawer = () => {
       {/* Details */}
       <div className="branch-course-view-body">
 
-        <div className="branch-course-view-list">
+        <div className="branch-course-view-table" role="table" aria-label="Course details">
+          <div className="branch-course-view-table-header" role="row">
+            <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
+            <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
+          </div>
 
-          {/* 1. Status */}
-          {/* <div className="branch-course-view-item">
-            <span>Status</span>
-
-            <strong
-              className={`branch-course-status-pill ${String(
-                viewCourse.status || 'Active'
-              ).toLowerCase()}`}
-            >
-              {viewCourse.status || 'Active'}
-            </strong>
-          </div> */}
-
-         
-
-          {/* 4. Mode */}
-          <div className="branch-course-view-item">
-            <span className="branch-course-view-icon" aria-hidden="true">
-              <Monitor size={16} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="branch-course-view-item-label">
+          <div className="branch-course-view-row" role="row">
+            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+              <Monitor size={20} strokeWidth={2.1} aria-hidden="true" />
               <span>Mode</span>
-            </span>
-            <strong>
-              {viewCourse.mode || '-'}
-            </strong>
+            </div>
+            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+              <strong>{viewCourse.mode || '-'}</strong>
+            </div>
           </div>
 
-          {/* 5. Duration */}
-          <div className="branch-course-view-item">
-            <span className="branch-course-view-icon" aria-hidden="true">
-              <CalendarDays size={16} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="branch-course-view-item-label">
+          <div className="branch-course-view-row" role="row">
+            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+              <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
               <span>Duration</span>
-            </span>
-            <strong>
-              {viewCourse.duration
-                ? `${viewCourse.duration} month${
-                    viewCourse.duration === '1' ? '' : 's'
-                  }`
-                : '-'}
-            </strong>
+            </div>
+            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+              <strong>
+                {viewCourse.duration
+                  ? `${viewCourse.duration} month${viewCourse.duration === '1' ? '' : 's'}`
+                  : '-'}
+              </strong>
+            </div>
           </div>
 
-          {/* 6. Hours */}
-          <div className="branch-course-view-item">
-            <span className="branch-course-view-icon" aria-hidden="true">
-              <Clock3 size={16} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="branch-course-view-item-label">
+          <div className="branch-course-view-row" role="row">
+            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+              <Clock3 size={20} strokeWidth={2.1} aria-hidden="true" />
               <span>Hours</span>
-            </span>
-            <strong>
-              {viewCourse.hours
-                ? `${viewCourse.hours} hour${
-                    viewCourse.hours === '1' ? '' : 's'
-                  }`
-                : '-'}
-            </strong>
+            </div>
+            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+              <strong>
+                {viewCourse.hours
+                  ? `${viewCourse.hours} hour${viewCourse.hours === '1' ? '' : 's'}`
+                  : '-'}
+              </strong>
+            </div>
           </div>
 
-          {/* 7. Standard Course Fee */}
-          <div className="branch-course-view-item">
-            <span className="branch-course-view-icon" aria-hidden="true">
-              <IndianRupee size={16} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="branch-course-view-item-label">
+          <div className="branch-course-view-row" role="row">
+            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+              <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
               <span>Standard Course Fee</span>
-            </span>
-            <strong>
-              {formatBranchCourseAmount(
-                viewCourse.actualFees
-              )}
-            </strong>
+            </div>
+            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+              <strong>{formatBranchCourseAmount(viewCourse.actualFees)}</strong>
+            </div>
           </div>
 
-          {/* 8. Registration Fee */}
-          <div className="branch-course-view-item">
-            <span className="branch-course-view-icon" aria-hidden="true">
-              <Tag size={16} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="branch-course-view-item-label">
+          <div className="branch-course-view-row" role="row">
+            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+              <Tag size={20} strokeWidth={2.1} aria-hidden="true" />
               <span>Registration Fee</span>
-            </span>
-            <strong>
-              {formatBranchCourseAmount(
-                viewCourse.registrationFees
-              )}
-            </strong>
+            </div>
+            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+              <strong>{formatBranchCourseAmount(viewCourse.registrationFees)}</strong>
+            </div>
           </div>
 
-          {/* 9. Discount */}
-          <div className="branch-course-view-item">
-            <span className="branch-course-view-icon" aria-hidden="true">
-              <BadgeInfo size={16} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="branch-course-view-item-label">
+          <div className="branch-course-view-row" role="row">
+            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+              <BadgeInfo size={20} strokeWidth={2.1} aria-hidden="true" />
               <span>Discount</span>
-            </span>
-            <strong>
-              {formatBranchCourseAmount(
-                viewCourse.discount || '0'
-              )}
-            </strong>
+            </div>
+            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+              <strong>{formatBranchCourseAmount(viewCourse.discount || '0')}</strong>
+            </div>
           </div>
 
-          {/* 10. Final Fee */}
-          <div className="branch-course-view-item highlight">
-            <span className="branch-course-view-icon" aria-hidden="true">
-              <IndianRupee size={16} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="branch-course-view-item-label">
+          <div className="branch-course-view-row is-highlight" role="row">
+            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+              <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
               <span>Final Fee</span>
-            </span>
-            <strong>
-              {formatBranchCourseFinalFee(viewCourse)}
-            </strong>
+            </div>
+            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+              <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
+            </div>
           </div>
 
-          {/* 11. Created At */}
-          <div className="branch-course-view-item">
-            <span className="branch-course-view-icon" aria-hidden="true">
-              <CalendarDays size={16} strokeWidth={2.1} aria-hidden="true" />
-            </span>
-            <span className="branch-course-view-item-label">
+          <div className="branch-course-view-row" role="row">
+            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+              <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
               <span>Created At</span>
-            </span>
-            <strong>
-              {formatBranchCourseDate(
-                viewCourse.createdAt
-              )}
-            </strong>
+            </div>
+            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+              <strong>{formatBranchCourseDate(viewCourse.createdAt)}</strong>
+            </div>
           </div>
-
         </div>
       </div>
 
