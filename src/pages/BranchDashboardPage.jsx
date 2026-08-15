@@ -14,6 +14,16 @@ import {
   Users,
   Wallet,
   CheckCircle2,
+    Eye,
+    Code2,
+CircleDot,
+CalendarDays,
+Monitor,
+Clock3,
+IndianRupee,
+FileText,
+Tag,
+  BadgeInfo,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -244,6 +254,7 @@ export function BranchDashboardPage() {
   const [editingCourseId, setEditingCourseId] = useState('')
   const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
+  const [viewCourse, setViewCourse] = useState(null)
   const profileMenuRef = useRef(null)
   const courseActionMenuRef = useRef(null)
 
@@ -457,6 +468,14 @@ export function BranchDashboardPage() {
     setActiveSection('courses')
   }
 
+  const openViewCourseDrawer = (course) => {
+  setViewCourse(course)
+  setOpenCourseActionMenuId('')
+}
+
+const closeViewCourseDrawer = () => {
+  setViewCourse(null)
+}
   const openEditCourseModal = (course) => {
     setEditingCourseId(String(course?.id || '').trim())
     setAddCourseForm(buildBranchCourseFormFromRecord(course))
@@ -608,6 +627,26 @@ export function BranchDashboardPage() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [isAddCourseOpen])
+
+  useEffect(() => {
+    if (!viewCourse) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeViewCourseDrawer()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [viewCourse])
 
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Branch navigation">
@@ -846,16 +885,25 @@ export function BranchDashboardPage() {
                   title="Courses"
                   description="Add a course and the saved data will appear in the table below with every field from the form."
                 >
-                  <div className="branch-dashboard-section-toolbar">
-                    <div className="branch-dashboard-section-summary">
-                      <span>Saved courses</span>
-                      <strong>{branchCourseCards.length}</strong>
-                    </div>
+                 
+<div className="branch-dashboard-section-toolbar">
+  <div className="branch-dashboard-course-actions">
+    <button
+      type="button"
+      className="button button-solid"
+      onClick={openAddCourseModal}
+    >
+      + Add Course
+    </button>
 
-                    <button type="button" className="button button-solid" onClick={openAddCourseModal}>
-                      + Add Course
-                    </button>
-                  </div>
+    <div className="branch-dashboard-section-summary">
+      <span>Saved courses:</span>
+      <strong>{branchCourseCards.length}</strong>
+    </div>
+  </div>
+</div>
+
+  
                   <div className="branch-course-table-shell">
                     <table className="branch-course-table">
                       <thead>
@@ -863,12 +911,12 @@ export function BranchDashboardPage() {
                           <th>S.No</th>
                           <th>Course Code</th>
                           <th>Course Name</th>
-                          <th>Mode</th>
+                          {/* <th>Mode</th>
                           <th>Duration</th>
-                          <th>Hours</th>
-                          <th>Standard Fee</th>
+                          <th>Hours</th> */}
+                          {/* <th>Standard Fee</th>
                           <th>Registration Fee</th>
-                          <th>Discount</th>
+                          <th>Discount</th> */}
                           <th>Final Fee</th>
                           <th>Created At</th>
                           <th>Status</th>
@@ -882,7 +930,11 @@ export function BranchDashboardPage() {
                             const absoluteIndex = (safeBranchCoursePage - 1) * BRANCH_COURSES_PER_PAGE + index + 1
 
                             return (
-                              <tr key={course.id}>
+                             <tr
+  key={course.id}
+  onClick={() => openViewCourseDrawer(course)}
+  className="branch-course-clickable-row"
+>
                                 <td>{absoluteIndex}</td>
                                 <td>
                                   <div className="branch-course-code-cell">
@@ -892,12 +944,12 @@ export function BranchDashboardPage() {
                                 <td>
                                   <strong className="branch-course-name">{course.name || '-'}</strong>
                                 </td>
-                                <td>{course.mode || '-'}</td>
+                                {/* <td>{course.mode || '-'}</td>
                                 <td>{course.duration ? `${course.duration} month${course.duration === '1' ? '' : 's'}` : '-'}</td>
-                                <td>{course.hours ? `${course.hours} hour${course.hours === '1' ? '' : 's'}` : '-'}</td>
-                                <td>{formatBranchCourseAmount(course.actualFees)}</td>
+                                <td>{course.hours ? `${course.hours} hour${course.hours === '1' ? '' : 's'}` : '-'}</td> */}
+                                {/* <td>{formatBranchCourseAmount(course.actualFees)}</td>
                                 <td>{formatBranchCourseAmount(course.registrationFees)}</td>
-                                <td>{formatBranchCourseAmount(course.discount || '0')}</td>
+                                <td>{formatBranchCourseAmount(course.discount || '0')}</td> */}
                                 <td>{formatBranchCourseFinalFee(course)}</td>
                                 <td>{formatBranchCourseDate(course.createdAt)}</td>
                                 <td>
@@ -905,11 +957,11 @@ export function BranchDashboardPage() {
                                     {course.status || 'Active'}
                                   </span>
                                 </td>
-                                <td>
-                                  <div
-                                    className="branch-course-actions-wrap"
-                                    ref={openCourseActionMenuId === course.id ? courseActionMenuRef : null}
-                                  >
+                                <td onClick={(event) => event.stopPropagation()}>
+  <div
+    className="branch-course-actions-wrap"
+    ref={openCourseActionMenuId === course.id ? courseActionMenuRef : null}
+  >
                                     <button
                                       type="button"
                                       className="branch-course-actions-button"
@@ -924,25 +976,37 @@ export function BranchDashboardPage() {
                                     </button>
 
                                     {openCourseActionMenuId === course.id ? (
-                                      <div className="branch-course-actions-menu" role="menu" aria-label="Course actions">
-                                        <button
-                                          type="button"
-                                          className="branch-course-actions-menu-item"
-                                          onClick={() => openEditCourseModal(course)}
-                                          role="menuitem"
-                                        >
-                                          Edit
-                                        </button>
-                                        <button
-                                          type="button"
-                                          className="branch-course-actions-menu-item is-danger"
-                                          onClick={() => openDeleteCourseConfirm(course)}
-                                          role="menuitem"
-                                        >
-                                          Delete
-                                        </button>
-                                      </div>
-                                    ) : null}
+  <div className="branch-course-actions-menu" role="menu" aria-label="Course actions">
+
+    <button
+      type="button"
+      className="branch-course-actions-menu-item"
+      onClick={() => openViewCourseDrawer(course)}
+      role="menuitem"
+    >
+      View
+    </button>
+
+    <button
+      type="button"
+      className="branch-course-actions-menu-item"
+      onClick={() => openEditCourseModal(course)}
+      role="menuitem"
+    >
+      Edit
+    </button>
+
+    <button
+      type="button"
+      className="branch-course-actions-menu-item is-danger"
+      onClick={() => openDeleteCourseConfirm(course)}
+      role="menuitem"
+    >
+      Delete
+    </button>
+
+  </div>
+) : null}
                                   </div>
                                 </td>
                               </tr>
@@ -1194,7 +1258,7 @@ export function BranchDashboardPage() {
                 <Field
                   label="Enter Registration Fee"
                   required
-                  hint="Separate fee head; refundable or non-refundable as needed"
+                  hint="Registration fee amount"
                   error={shouldShowAddCourseError('registrationFees') ? addCourseValidationErrors.registrationFees : ''}
                 >
                   <input
@@ -1210,7 +1274,7 @@ export function BranchDashboardPage() {
 
                 <Field
                   label="Enter Default Discount"
-                  hint="Optional template only"
+                  hint="Optional "
                   error={shouldShowAddCourseError('discount') ? addCourseValidationErrors.discount : ''}
                 >
                   <input
@@ -1274,6 +1338,199 @@ export function BranchDashboardPage() {
           </div>
         ) : null}
 
+{viewCourse ? (
+  <div
+    className="branch-course-drawer-backdrop"
+    role="presentation"
+  >
+    <aside
+      className="branch-course-view-drawer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="branch-course-view-title"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {/* Header */}
+      <div className="branch-course-view-drawer-header">
+        <div className="branch-course-header-content">
+          <p className="section-kicker">COURSE DETAILS</p>
+          <h2 id="branch-course-view-title">{viewCourse.name || 'Course'}</h2>
+          <span className="branch-course-view-code">{viewCourse.courseCode || '-'}</span>
+        </div>
+
+        <div className="branch-course-view-header-actions">
+          <div className="branch-course-view-header-actions-row">
+            <strong
+              className={`branch-course-status-pill ${String(viewCourse.status || 'Active').toLowerCase()}`}
+            >
+              {viewCourse.status || 'Active'}
+            </strong>
+
+            <button
+              type="button"
+              className="branch-course-view-close"
+              onClick={closeViewCourseDrawer}
+              aria-label="Close course details"
+            >
+              X
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="branch-course-view-edit"
+            onClick={() => {
+              closeViewCourseDrawer()
+              openEditCourseModal(viewCourse)
+            }}
+          >
+            Edit Course
+          </button>
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="branch-course-view-body">
+
+        <div className="branch-course-view-list">
+
+          {/* 1. Status */}
+          {/* <div className="branch-course-view-item">
+            <span>Status</span>
+
+            <strong
+              className={`branch-course-status-pill ${String(
+                viewCourse.status || 'Active'
+              ).toLowerCase()}`}
+            >
+              {viewCourse.status || 'Active'}
+            </strong>
+          </div> */}
+
+         
+
+          {/* 4. Mode */}
+          <div className="branch-course-view-item">
+            <span className="branch-course-view-item-label">
+              <Monitor size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Mode</span>
+            </span>
+            <strong>
+              {viewCourse.mode || '-'}
+            </strong>
+          </div>
+
+          {/* 5. Duration */}
+          <div className="branch-course-view-item">
+            <span className="branch-course-view-item-label">
+              <CalendarDays size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Duration</span>
+            </span>
+            <strong>
+              {viewCourse.duration
+                ? `${viewCourse.duration} month${
+                    viewCourse.duration === '1' ? '' : 's'
+                  }`
+                : '-'}
+            </strong>
+          </div>
+
+          {/* 6. Hours */}
+          <div className="branch-course-view-item">
+            <span className="branch-course-view-item-label">
+              <Clock3 size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Hours</span>
+            </span>
+            <strong>
+              {viewCourse.hours
+                ? `${viewCourse.hours} hour${
+                    viewCourse.hours === '1' ? '' : 's'
+                  }`
+                : '-'}
+            </strong>
+          </div>
+
+          {/* 7. Standard Course Fee */}
+          <div className="branch-course-view-item">
+            <span className="branch-course-view-item-label">
+              <IndianRupee size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Standard Course Fee</span>
+            </span>
+            <strong>
+              {formatBranchCourseAmount(
+                viewCourse.actualFees
+              )}
+            </strong>
+          </div>
+
+          {/* 8. Registration Fee */}
+          <div className="branch-course-view-item">
+            <span className="branch-course-view-item-label">
+              <Tag size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Registration Fee</span>
+            </span>
+            <strong>
+              {formatBranchCourseAmount(
+                viewCourse.registrationFees
+              )}
+            </strong>
+          </div>
+
+          {/* 9. Discount */}
+          <div className="branch-course-view-item">
+            <span className="branch-course-view-item-label">
+              <BadgeInfo size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Discount</span>
+            </span>
+            <strong>
+              {formatBranchCourseAmount(
+                viewCourse.discount || '0'
+              )}
+            </strong>
+          </div>
+
+          {/* 10. Final Fee */}
+          <div className="branch-course-view-item highlight">
+            <span className="branch-course-view-item-label">
+              <IndianRupee size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Final Fee</span>
+            </span>
+            <strong>
+              {formatBranchCourseFinalFee(viewCourse)}
+            </strong>
+          </div>
+
+          {/* 11. Created At */}
+          <div className="branch-course-view-item">
+            <span className="branch-course-view-item-label">
+              <CalendarDays size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Created At</span>
+            </span>
+            <strong>
+              {formatBranchCourseDate(
+                viewCourse.createdAt
+              )}
+            </strong>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 12. Bottom Buttons */}
+      <div className="branch-course-view-footer">
+
+        {/* <button
+          type="button"
+          className="button button-ghost"
+          onClick={closeViewCourseDrawer}
+        >
+          Close
+        </button> */}
+
+      </div>
+    </aside>
+  </div>
+) : null}
         {courseSaveSuccess ? (
           <div className="branch-modal-backdrop" role="presentation" onClick={closeCourseSaveSuccess}>
             <div
