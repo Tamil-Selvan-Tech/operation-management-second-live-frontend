@@ -10882,6 +10882,16 @@ tbody tr:hover {
   .notifications-page-actions {
     width: 100%;
     justify-content: flex-start;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .notifications-back-button,
+  .notifications-mark-read {
+    min-width: 0;
+    padding: 8px 12px;
+    font-size: 0.82rem;
   }
 
   .notifications-filter-dropdown {

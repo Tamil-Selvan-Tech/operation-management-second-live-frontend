@@ -14,6 +14,8 @@ import {
   ChevronRight,
   MapPin,
   Phone,
+  Menu,
+  X,
   Search,
   Shield,
 } from 'lucide-react'
@@ -1034,6 +1036,14 @@ export function SuperAdminDashboardPage() {
         >
           <div className="super-admin-sidebar-brand">
             <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Elite Admin logo" />
+            <button
+              type="button"
+              className="super-admin-sidebar-close"
+              aria-label="Close navigation menu"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            >
+              <X size={18} strokeWidth={2.6} aria-hidden="true" focusable="false" />
+            </button>
           </div>
 
           <nav className="super-admin-sidebar-nav">
@@ -1097,6 +1107,18 @@ export function SuperAdminDashboardPage() {
 
         <div className="super-admin-main">
           <header className="super-admin-topbar">
+            <div className="super-admin-topbar-left">
+              <button
+                type="button"
+                className="super-admin-sidebar-toggle"
+                aria-label="Open navigation menu"
+                aria-expanded={isMobileSidebarOpen}
+                onClick={() => setIsMobileSidebarOpen(true)}
+              >
+                <Menu size={20} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+              </button>
+            </div>
+
             <div className="super-admin-topbar-right">
               <SuperAdminNotificationBell
                 onOpenBranches={() => setActiveSection('branches')}

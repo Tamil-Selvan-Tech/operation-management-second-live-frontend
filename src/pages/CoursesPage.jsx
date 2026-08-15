@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { roleDashboards } from '../data/authData'
 import { OperationManagerHeader } from '../components/OperationManagerHeader'
 import { OperationManagerWorkspaceHeader } from '../components/OperationManagerWorkspaceHeader'
 import { SearchBar } from '../components/SearchBar'
 import { PaginationBar } from '../components/PaginationBar'
-import { createCourse, deleteCourse, listCourses, peekCourseList, updateCourse } from '../services/courseService'
+import { createCourse, findDuplicateCourse, listCourses, peekCourseList, updateCourse } from '../services/courseService'
 import { saveCourseRecords } from '../data/courseRecords'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { Eye, MoreVertical, PencilLine, Trash2 } from 'lucide-react'
@@ -42,13 +43,13 @@ function formatHours(value) {
 }
 
 const requiredFieldLabels = {
+  courseCode: 'Course Code',
   name: 'Course Name',
   mode: 'Mode',
   duration: 'Duration (Months)',
   hours: 'Hours',
-  actualFees: 'Actual Fees',
-  registrationFees: 'Registration Fees',
-  discount: 'Discount',
+  actualFees: 'Standard Course Fee',
+  registrationFees: 'Registration Fee',
   installmentCount: 'Installment Count',
   customInstallmentCount: 'Custom Installment Count',
   status: 'Status',
@@ -128,6 +129,7 @@ function buildCourseFormFromCourse(course) {
   const installments = buildInstallmentsFromCourse(course, Math.max(installmentCount, 3))
 
   return {
+    courseCode: course?.courseCode || course?.code || '',
     name: course?.name || '',
     mode: course?.mode || '',
     duration: course?.duration ?? '',
@@ -151,8 +153,9 @@ function normalizeCourseFormForSave(courseForm) {
   if (!effectiveInstallmentCount) return nextForm
 
   const actualFees = Number(nextForm.actualFees || 0)
+  const registrationFees = Number(nextForm.registrationFees || 0)
   const discount = Number(nextForm.discount || 0)
-  const discountedFee = Math.max(actualFees - discount, 0)
+  const discountedFee = Math.max(actualFees + registrationFees - discount, 0)
   const installmentValues = Array.from({ length: effectiveInstallmentCount }, (_, index) => Number(getInstallmentValue(nextForm, index + 1) || 0))
   const leadingTotal = installmentValues.slice(0, Math.max(0, effectiveInstallmentCount - 1)).reduce((total, amount) => total + amount, 0)
   const lastInstallment = Math.max(discountedFee - leadingTotal, 0)
@@ -171,6 +174,8 @@ function isDuplicateCourseError(error) {
 
 export function CoursesPage() {
   const { role } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
   const openMenu = useMobileMenu()
   const initialCourseList = peekCourseList(DEFAULT_COURSE_LIST_QUERY)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -194,6 +199,7 @@ export function CoursesPage() {
   const [openActionMenuMode, setOpenActionMenuMode] = useState('')
   const actionMenuCloseTimerRef = useRef(null)
   const [form, setForm] = useState({
+    courseCode: '',
     name: '',
     mode: '',
     duration: '',
@@ -216,6 +222,7 @@ export function CoursesPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [duplicateNameError, setDuplicateNameError] = useState('')
+  const [duplicateCourseCodeError, setDuplicateCourseCodeError] = useState('')
   const requestIdRef = useRef(0)
   const duplicateCheckRequestRef = useRef(0)
   const actionMenuButtonRefs = useRef(new Map())
@@ -228,14 +235,17 @@ export function CoursesPage() {
 
   const afterDiscount = useMemo(() => {
     const actualFees = Number(form.actualFees || 0)
+    const registrationFees = Number(form.registrationFees || 0)
     const discount = Number(form.discount || 0)
-    if (Number.isNaN(actualFees) || Number.isNaN(discount)) return ''
-    return String(Math.max(actualFees - discount, 0))
-  }, [form.actualFees, form.discount])
+    if (Number.isNaN(actualFees) || Number.isNaN(registrationFees) || Number.isNaN(discount)) return ''
+    return String(Math.max(actualFees + registrationFees - discount, 0))
+  }, [form.actualFees, form.discount, form.registrationFees])
 
   const validationErrors = useMemo(() => {
     const errors = {}
 
+    if (!form.courseCode.trim()) errors.courseCode = `${requiredFieldLabels.courseCode} is required.`
+    if (duplicateCourseCodeError) errors.courseCode = duplicateCourseCodeError
     if (!form.name.trim()) errors.name = `${requiredFieldLabels.name} is required.`
     if (duplicateNameError) errors.name = duplicateNameError
     if (!form.mode) errors.mode = `${requiredFieldLabels.mode} is required.`
@@ -245,7 +255,6 @@ export function CoursesPage() {
     if (form.hours && Number(form.hours) <= 0) errors.hours = 'Hours must be greater than zero.'
     if (!form.actualFees) errors.actualFees = `${requiredFieldLabels.actualFees} is required.`
     if (!form.registrationFees) errors.registrationFees = `${requiredFieldLabels.registrationFees} is required.`
-    if (!form.discount) errors.discount = `${requiredFieldLabels.discount} is required.`
     if (!form.installmentCount) errors.installmentCount = `${requiredFieldLabels.installmentCount} is required.`
     if (!form.status) errors.status = `${requiredFieldLabels.status} is required.`
 
@@ -260,25 +269,25 @@ export function CoursesPage() {
       }
     }
 
-    if (form.actualFees && form.discount && Number(form.discount) > Number(form.actualFees)) {
-      errors.discount = 'Discount must be less than or equal to actual fees.'
+    if (form.discount && Number(form.discount) < 0) {
+      errors.discount = 'Discount must be zero or greater.'
     }
 
     const allRequiredFilled =
+      form.courseCode.trim() &&
       form.name.trim() &&
       form.mode &&
       form.duration &&
       form.hours &&
       form.actualFees &&
       form.registrationFees &&
-      form.discount &&
       form.installmentCount &&
       form.status &&
       (form.installmentCount !== 'custom' || effectiveInstallmentCount > 0) &&
       Array.from({ length: effectiveInstallmentCount }, (_, index) => index + 1).every((index) => Boolean(getInstallmentValue(form, index)))
 
     if (allRequiredFilled) {
-      const discountedFee = Number(form.actualFees) - Number(form.discount)
+      const discountedFee = Number(form.actualFees) + Number(form.registrationFees) - Number(form.discount || 0)
       const installmentTotal = Array.from({ length: effectiveInstallmentCount }, (_, index) => Number(getInstallmentValue(form, index + 1) || 0)).reduce(
         (total, amount) => total + amount,
         0,
@@ -292,7 +301,7 @@ export function CoursesPage() {
     }
 
     return errors
-  }, [duplicateNameError, form, isCourseInlineEditing])
+  }, [duplicateCourseCodeError, duplicateNameError, form, isCourseInlineEditing])
 
   const totalPages = pagination.totalPages || 1
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -370,6 +379,7 @@ export function CoursesPage() {
   )
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
   }, [activeFilter, currentPage, loadCourses, searchTerm])
 
@@ -410,6 +420,7 @@ export function CoursesPage() {
   const updateField = (field, value) => {
     if (saveError) setSaveError('')
     if (field === 'name' && duplicateNameError) setDuplicateNameError('')
+    if (field === 'courseCode' && duplicateCourseCodeError) setDuplicateCourseCodeError('')
     setForm((current) => ({ ...current, [field]: value }))
   }
 
@@ -439,6 +450,7 @@ export function CoursesPage() {
 
   const resetForm = () => {
     setForm({
+      courseCode: '',
       name: '',
       mode: '',
       duration: '',
@@ -452,11 +464,12 @@ export function CoursesPage() {
       installment2: '',
       installment3: '',
       extraInstallments: [],
-      status: '',
+      status: 'Active',
     })
     setTouched({})
     setSaveError('')
     setDuplicateNameError('')
+    setDuplicateCourseCodeError('')
     setEditingCourseId(null)
   }
 
@@ -490,11 +503,25 @@ export function CoursesPage() {
     setIsCourseInlineEditing(false)
     setIsModalOpen(true)
     setDuplicateNameError('')
+    setDuplicateCourseCodeError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuPosition({ top: 0, right: 0 })
     setOpenActionMenuMode('')
   }
+
+  useEffect(() => {
+    const query = new URLSearchParams(location.search)
+    if (query.get('openAdd') === '1' && !isModalOpen && !viewTarget) {
+      const timerId = window.setTimeout(() => {
+        openCreateModal()
+        navigate(location.pathname, { replace: true })
+      }, 0)
+
+      return () => window.clearTimeout(timerId)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, location.pathname, location.search, navigate, viewTarget])
 
   const openEditModal = (course) => {
     if (!course) return
@@ -506,6 +533,7 @@ export function CoursesPage() {
     setIsCourseInlineEditing(false)
     setIsModalOpen(true)
     setDuplicateNameError('')
+    setDuplicateCourseCodeError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuPosition({ top: 0, right: 0 })
@@ -536,6 +564,7 @@ export function CoursesPage() {
     setTouched({})
     setSaveError('')
     setDuplicateNameError('')
+    setDuplicateCourseCodeError('')
     setOpenActionMenuId(null)
     setOpenActionMenuPlacement('bottom')
     setOpenActionMenuPosition({ top: 0, right: 0 })
@@ -554,6 +583,7 @@ export function CoursesPage() {
     setTouched({})
     setSaveError('')
     setDuplicateNameError('')
+    setDuplicateCourseCodeError('')
   }
 
   const goToPage = (page) => {
@@ -573,8 +603,9 @@ export function CoursesPage() {
   useEffect(() => {
     if (!isModalOpen && !isCourseInlineEditing) return
 
+    const trimmedCode = String(form.courseCode || '').trim().toLowerCase()
     const trimmedName = String(form.name || '').trim()
-    if (!trimmedName) {
+    if (!trimmedCode && !trimmedName) {
       return
     }
 
@@ -589,17 +620,26 @@ export function CoursesPage() {
         })
         if (requestId !== duplicateCheckRequestRef.current) return
 
-        const duplicateCourse = findDuplicateCourse(result.data || [], trimmedName, editingCourseId)
+        const duplicateCourse = trimmedName ? findDuplicateCourse(result.data || [], trimmedName, editingCourseId) : null
+        const duplicateCourseCode = trimmedCode
+          ? (result.data || []).find(
+              (course) =>
+                String(course?.id || '').trim() !== String(editingCourseId || '').trim() &&
+                String(course?.courseCode || course?.code || '').trim().toLowerCase() === trimmedCode,
+            )
+          : null
+        setDuplicateCourseCodeError(duplicateCourseCode ? 'Course code already exists.' : '')
         setDuplicateNameError(duplicateCourse ? 'Course already exists.' : '')
       } catch {
         if (requestId === duplicateCheckRequestRef.current) {
           setDuplicateNameError('')
+          setDuplicateCourseCodeError('')
         }
       }
     }, 250)
 
     return () => window.clearTimeout(timeoutId)
-  }, [editingCourseId, form.name, isCourseInlineEditing, isModalOpen])
+  }, [editingCourseId, form.courseCode, form.name, isCourseInlineEditing, isModalOpen])
 
   const isValid = Object.keys(validationErrors).length === 0
   const isBusinessOwner = role === 'business-owner'
@@ -636,20 +676,31 @@ export function CoursesPage() {
     setIsSaving(true)
 
     const saveForm = isCourseInlineEditing ? normalizeCourseFormForSave(form) : form
-    const saveAfterDiscount = String(Math.max(Number(saveForm.actualFees || 0) - Number(saveForm.discount || 0), 0))
+    const saveAfterDiscount = String(
+      Math.max(Number(saveForm.actualFees || 0) + Number(saveForm.registrationFees || 0) - Number(saveForm.discount || 0), 0),
+    )
     const saveEffectiveInstallmentCount = getEffectiveInstallmentCount(saveForm)
     const installmentsPayload = Array.from({ length: saveEffectiveInstallmentCount }, (_, index) => getInstallmentValue(saveForm, index + 1))
     const duplicateCheckResult = findDuplicateCourse(courses, saveForm.name, editingCourseId)
+    const duplicateCourseCode = saveForm.courseCode?.trim()
+      ? courses.find(
+          (course) =>
+            String(course?.id || '').trim() !== String(editingCourseId || '').trim() &&
+            String(course?.courseCode || course?.code || '').trim().toLowerCase() === String(saveForm.courseCode || '').trim().toLowerCase(),
+        )
+      : null
 
     const payload = {
+      courseCode: saveForm.courseCode.trim(),
       name: saveForm.name.trim(),
       mode: saveForm.mode,
       duration: saveForm.duration,
       hours: saveForm.hours,
       actualFees: saveForm.actualFees,
       registrationFees: saveForm.registrationFees,
-      discount: saveForm.discount,
+      discount: saveForm.discount || '0',
       afterDiscount: saveAfterDiscount,
+      defaultFinalFee: saveAfterDiscount,
       installmentCount: String(saveEffectiveInstallmentCount),
       installments: installmentsPayload,
       status: saveForm.status,
@@ -660,6 +711,13 @@ export function CoursesPage() {
     })
 
     try {
+      if (duplicateCourseCode) {
+        setDuplicateCourseCodeError('Course code already exists.')
+        setTouched((current) => ({ ...current, courseCode: true }))
+        setSaveError('')
+        return
+      }
+
       if (duplicateCheckResult) {
         throw new Error(`Course already exists: ${duplicateCheckResult.name || saveForm.name.trim()}`)
       }
@@ -746,9 +804,10 @@ export function CoursesPage() {
 
   const getAfterDiscountValue = (course) => {
     const actualFees = Number(course?.actualFees || 0)
+    const registrationFees = Number(course?.registrationFees || 0)
     const discount = Number(course?.discount || 0)
-    if (!Number.isFinite(actualFees) || !Number.isFinite(discount)) return course?.afterDiscount || '-'
-    return String(Math.max(actualFees - discount, 0))
+    if (!Number.isFinite(actualFees) || !Number.isFinite(registrationFees) || !Number.isFinite(discount)) return course?.afterDiscount || '-'
+    return String(Math.max(actualFees + registrationFees - discount, 0))
   }
 
   const syncOpenActionMenuPlacement = (buttonElement) => {
@@ -802,7 +861,7 @@ export function CoursesPage() {
     setIsDeleting(true)
 
     try {
-      await deleteCourse(deleteTarget.id)
+      await updateCourse(deleteTarget.id, { status: 'Inactive' })
       if (editingCourseId === deleteTarget.id) {
         closeModal()
       }
@@ -810,7 +869,7 @@ export function CoursesPage() {
       closeDeleteModal()
       await loadCourses({ page: currentPage, search: searchTerm, filter: activeFilter })
     } catch (error) {
-      setLoadError(error?.message || 'Unable to delete course right now.')
+      setLoadError(error?.message || 'Unable to deactivate course right now.')
       closeDeleteModal()
     } finally {
       setIsDeleting(false)
@@ -905,6 +964,17 @@ export function CoursesPage() {
             </div>
 
             <div className="course-form-grid">
+              <Field label="Enter Course Code" required hint="Recommended unique identifier for reports and integrations" error={shouldShowError('courseCode') ? validationErrors.courseCode : ''}>
+                <input
+                  type="text"
+                  placeholder="UIUX-06M"
+                  value={form.courseCode}
+                  onChange={(event) => updateField('courseCode', event.target.value)}
+                  onBlur={() => markTouched('courseCode')}
+                  aria-invalid={Boolean(shouldShowError('courseCode'))}
+                />
+              </Field>
+
               <Field label="Enter Course Name" required hint="Required field" error={shouldShowError('name') ? validationErrors.name : ''}>
                 <input
                   type="text"
@@ -962,7 +1032,7 @@ export function CoursesPage() {
                 </div>
               </Field>
 
-              <Field label="Enter Actual Fees" required hint="Numbers only" error={shouldShowError('actualFees') ? validationErrors.actualFees : ''}>
+              <Field label="Enter Standard Course Fee" required hint="Default/base fee before adjustments" error={shouldShowError('actualFees') ? validationErrors.actualFees : ''}>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -974,7 +1044,7 @@ export function CoursesPage() {
                 />
               </Field>
 
-              <Field label="Enter Registration Fees" required hint="Numbers only" error={shouldShowError('registrationFees') ? validationErrors.registrationFees : ''}>
+              <Field label="Enter Registration Fee" required hint="Separate fee head; refundable or non-refundable as needed" error={shouldShowError('registrationFees') ? validationErrors.registrationFees : ''}>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -986,7 +1056,7 @@ export function CoursesPage() {
                 />
               </Field>
 
-              <Field label="Enter Discount" required hint="Must be less than or equal to actual fees" error={shouldShowError('discount') ? validationErrors.discount : ''}>
+              <Field label="Enter Default Discount" hint="Optional template only" error={shouldShowError('discount') ? validationErrors.discount : ''}>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -998,11 +1068,11 @@ export function CoursesPage() {
                 />
               </Field>
 
-              <Field label="After Discount (Auto Calculated)" hint="Auto calculated from actual fees and discount">
+              <Field label="Default Final Fee (Auto Calculated)" hint="Standard fee + registration fee - default discount">
                 <input type="text" value={afterDiscount} readOnly />
               </Field>
 
-              <Field label="Select Installment Count" required hint="Choose 2, 3, or Custom" error={shouldShowError('installmentCount') ? validationErrors.installmentCount : ''}>
+              <Field label="Fee Plan Template" required hint="Choose 2, 3, or Custom" error={shouldShowError('installmentCount') ? validationErrors.installmentCount : ''}>
                 <select
                   value={form.installmentCount}
                   onChange={(event) => handleInstallmentCountChange(event.target.value)}
@@ -1155,6 +1225,19 @@ export function CoursesPage() {
               <table className="student-details-table course-details-table">
                 <tbody>
                   <tr>
+                    <th>Course Code</th>
+                    <td>
+                      {isCourseInlineEditing ? (
+                        <input
+                          className="student-drawer-inline-control"
+                          type="text"
+                          value={form.courseCode}
+                          onChange={(event) => updateField('courseCode', event.target.value)}
+                        />
+                      ) : (
+                        viewTarget.courseCode || '-'
+                      )}
+                    </td>
                     <th>Course Name</th>
                     <td>
                       {isCourseInlineEditing ? (
@@ -1215,7 +1298,7 @@ export function CoursesPage() {
                     </td>
                   </tr>
                   <tr>
-                    <th>Actual Fees</th>
+                    <th>Standard Course Fee</th>
                     <td>
                       {isCourseInlineEditing ? (
                         <input
@@ -1229,7 +1312,7 @@ export function CoursesPage() {
                         viewTarget.actualFees || '-'
                       )}
                     </td>
-                    <th>Registration Fees</th>
+                    <th>Registration Fee</th>
                     <td>
                       {isCourseInlineEditing ? (
                         <input
@@ -1259,7 +1342,7 @@ export function CoursesPage() {
                         viewTarget.discount || '-'
                       )}
                     </td>
-                    <th>After Discount</th>
+                    <th>Final Fee</th>
                     <td>{getAfterDiscountValue(isCourseInlineEditing ? form : viewTarget)}</td>
                   </tr>
                   {Array.from({ length: Math.ceil(drawerInstallmentCount / 2) }, (_, rowIndex) => {
@@ -1356,12 +1439,12 @@ export function CoursesPage() {
             </div>
             <div className="course-modal-header">
               <div>
-                <h3>Delete course</h3>
+                <h3>Deactivate course</h3>
               </div>
             </div>
 
             <p className="course-delete-text">
-              Are you sure you want to delete this course? This action cannot be undone.
+              Are you sure you want to deactivate this course? It will stay in the system but will not be available for new admissions.
             </p>
 
             <div className="course-form-actions">
@@ -1369,7 +1452,7 @@ export function CoursesPage() {
                 Cancel
               </button>
               <button type="button" className="button button-solid course-delete-confirm" onClick={confirmDelete} disabled={isDeleting}>
-                {isDeleting ? 'Deleting...' : 'Delete'}
+                {isDeleting ? 'Updating...' : 'Deactivate'}
               </button>
             </div>
           </div>
@@ -1389,12 +1472,13 @@ export function CoursesPage() {
             <table className="course-table">
               <thead>
                 <tr>
+                  <th>Course Code</th>
                   <th>Course Name</th>
                   <th>Mode</th>
                   <th>Duration</th>
-                  <th>Actual Fees</th>
-                  <th>Registration Fees</th>
-                  <th>After Discount</th>
+                  <th>Standard Fee</th>
+                  <th>Registration Fee</th>
+                  <th>Final Fee</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -1402,11 +1486,11 @@ export function CoursesPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td className="course-empty-state" colSpan={8}>Loading courses...</td>
+                    <td className="course-empty-state" colSpan={9}>Loading courses...</td>
                   </tr>
                 ) : loadError && !visibleCourses.length ? (
                   <tr>
-                    <td className="course-empty-state" colSpan={8}>{loadError}</td>
+                    <td className="course-empty-state" colSpan={9}>{loadError}</td>
                   </tr>
                 ) : visibleCourses.length ? (
                   visibleCourses.map((course, index) => {
@@ -1415,6 +1499,7 @@ export function CoursesPage() {
 
                     return (
                       <tr key={course.id || `${course.name}-${course.mode}`} className={openActionMenuId === course.id ? 'course-row-actions-open' : ''}>
+                        <td><strong>{course.courseCode || course.code || '-'}</strong></td>
                         <td><strong>{course.name}</strong></td>
                         <td>{course.mode}</td>
                         <td>{formatDuration(course.duration)}</td>
@@ -1530,7 +1615,7 @@ export function CoursesPage() {
                                   role="menuitem"
                                 >
                                   <Trash2 />
-                                  <span>Delete</span>
+                                  <span>Deactivate</span>
                                 </button>
                               </div>
                             ) : null}

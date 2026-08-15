@@ -111,6 +111,30 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
+
   const notificationCount = useMemo(
     () => notifications.filter((notification) => !notification.read).length,
     [notifications],
@@ -157,11 +181,7 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
   }
 
   return (
-    <div
-      ref={menuRef}
-      className="notification-menu super-admin-notification-menu"
-      onFocusCapture={() => setIsOpen(true)}
-    >
+    <div ref={menuRef} className="notification-menu super-admin-notification-menu">
       <button
         className="icon-chip notification-chip"
         type="button"

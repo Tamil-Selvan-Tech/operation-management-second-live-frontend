@@ -8,6 +8,8 @@ import {
   CircleUserRound,
   LogOut,
   Mail,
+  Menu,
+  X,
   Shield,
 } from 'lucide-react'
 
@@ -151,18 +153,20 @@ function NotificationItem({ item, onView }) {
       <div className="notifications-item-copy">
         <div className="notifications-item-title-row">
           <h3>{item.title}</h3>
-          <small>{formatNotificationTime(item.createdAt)}</small>
         </div>
         <p>{item.message}</p>
       </div>
 
       <div className="notifications-item-meta">
-        <span className={`notifications-item-chip tone-${item.tone}`}>
-          {item.targetBranchName || item.actionLabel || 'View'}
-        </span>
-        <button type="button" className="notifications-item-view-button" onClick={() => onView(item)}>
-          View
-        </button>
+        <div className="notifications-item-meta-row">
+          <span className={`notifications-item-chip tone-${item.tone}`}>
+            {item.targetBranchName || item.actionLabel || 'View'}
+          </span>
+          <button type="button" className="notifications-item-view-button" onClick={() => onView(item)}>
+            View
+          </button>
+        </div>
+        <small className="notifications-item-time">{formatNotificationTime(item.createdAt)}</small>
       </div>
     </article>
   )
@@ -326,6 +330,14 @@ export function SuperAdminNotificationsPage() {
         >
           <div className="super-admin-sidebar-brand">
             <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Elite Admin logo" />
+            <button
+              type="button"
+              className="super-admin-sidebar-close"
+              aria-label="Close navigation menu"
+              onClick={() => setIsMobileSidebarOpen(false)}
+            >
+              <X size={18} strokeWidth={2.6} aria-hidden="true" focusable="false" />
+            </button>
           </div>
 
           <nav className="super-admin-sidebar-nav">
@@ -389,6 +401,18 @@ export function SuperAdminNotificationsPage() {
 
         <div className="super-admin-main">
           <header className="super-admin-topbar">
+            <div className="super-admin-topbar-left">
+              <button
+                type="button"
+                className="super-admin-sidebar-toggle"
+                aria-label="Open navigation menu"
+                aria-expanded={isMobileSidebarOpen}
+                onClick={() => setIsMobileSidebarOpen(true)}
+              >
+                <Menu size={20} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+              </button>
+            </div>
+
             <div className="super-admin-topbar-right">
               <SuperAdminNotificationBell
                 onOpenBranches={() => navigate('/dashboard/super-admin?section=branches')}
