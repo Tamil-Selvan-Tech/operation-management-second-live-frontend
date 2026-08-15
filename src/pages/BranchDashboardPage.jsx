@@ -23,6 +23,7 @@ Clock3,
 IndianRupee,
 FileText,
 Tag,
+  BadgeInfo,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -646,6 +647,26 @@ const closeViewCourseDrawer = () => {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [isAddCourseOpen])
+
+  useEffect(() => {
+    if (!viewCourse) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeViewCourseDrawer()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [viewCourse])
 
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Branch navigation">
@@ -1358,11 +1379,22 @@ const closeViewCourseDrawer = () => {
         </div>
 
         <div className="branch-course-view-header-actions">
-          <strong
-            className={`branch-course-status-pill ${String(viewCourse.status || 'Active').toLowerCase()}`}
-          >
-            {viewCourse.status || 'Active'}
-          </strong>
+          <div className="branch-course-view-header-actions-row">
+            <strong
+              className={`branch-course-status-pill ${String(viewCourse.status || 'Active').toLowerCase()}`}
+            >
+              {viewCourse.status || 'Active'}
+            </strong>
+
+            <button
+              type="button"
+              className="branch-course-view-close"
+              onClick={closeViewCourseDrawer}
+              aria-label="Close course details"
+            >
+              X
+            </button>
+          </div>
 
           <button
             type="button"
@@ -1373,15 +1405,6 @@ const closeViewCourseDrawer = () => {
             }}
           >
             Edit Course
-          </button>
-
-          <button
-            type="button"
-            className="branch-course-view-close"
-            onClick={closeViewCourseDrawer}
-            aria-label="Close course details"
-          >
-            X
           </button>
         </div>
       </div>
@@ -1408,7 +1431,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 4. Mode */}
           <div className="branch-course-view-item">
-            <span>Mode</span>
+            <span className="branch-course-view-item-label">
+              <Monitor size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Mode</span>
+            </span>
             <strong>
               {viewCourse.mode || '-'}
             </strong>
@@ -1416,7 +1442,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 5. Duration */}
           <div className="branch-course-view-item">
-            <span>Duration</span>
+            <span className="branch-course-view-item-label">
+              <CalendarDays size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Duration</span>
+            </span>
             <strong>
               {viewCourse.duration
                 ? `${viewCourse.duration} month${
@@ -1428,7 +1457,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 6. Hours */}
           <div className="branch-course-view-item">
-            <span>Hours</span>
+            <span className="branch-course-view-item-label">
+              <Clock3 size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Hours</span>
+            </span>
             <strong>
               {viewCourse.hours
                 ? `${viewCourse.hours} hour${
@@ -1440,7 +1472,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 7. Standard Course Fee */}
           <div className="branch-course-view-item">
-            <span>Standard Course Fee</span>
+            <span className="branch-course-view-item-label">
+              <IndianRupee size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Standard Course Fee</span>
+            </span>
             <strong>
               {formatBranchCourseAmount(
                 viewCourse.actualFees
@@ -1450,7 +1485,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 8. Registration Fee */}
           <div className="branch-course-view-item">
-            <span>Registration Fee</span>
+            <span className="branch-course-view-item-label">
+              <Tag size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Registration Fee</span>
+            </span>
             <strong>
               {formatBranchCourseAmount(
                 viewCourse.registrationFees
@@ -1460,7 +1498,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 9. Discount */}
           <div className="branch-course-view-item">
-            <span>Discount</span>
+            <span className="branch-course-view-item-label">
+              <BadgeInfo size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Discount</span>
+            </span>
             <strong>
               {formatBranchCourseAmount(
                 viewCourse.discount || '0'
@@ -1470,7 +1511,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 10. Final Fee */}
           <div className="branch-course-view-item highlight">
-            <span>Final Fee</span>
+            <span className="branch-course-view-item-label">
+              <IndianRupee size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Final Fee</span>
+            </span>
             <strong>
               {formatBranchCourseFinalFee(viewCourse)}
             </strong>
@@ -1478,7 +1522,10 @@ const closeViewCourseDrawer = () => {
 
           {/* 11. Created At */}
           <div className="branch-course-view-item">
-            <span>Created At</span>
+            <span className="branch-course-view-item-label">
+              <CalendarDays size={16} strokeWidth={2.1} aria-hidden="true" />
+              <span>Created At</span>
+            </span>
             <strong>
               {formatBranchCourseDate(
                 viewCourse.createdAt
