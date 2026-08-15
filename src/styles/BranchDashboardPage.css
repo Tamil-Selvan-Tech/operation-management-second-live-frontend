@@ -1139,7 +1139,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
   color: #5f6b76;
   min-width: 0;
@@ -1152,11 +1152,13 @@
 
 .branch-course-view-item strong {
   display: inline-block;
-  font-size: 14px;
-  color: #0f1b25;
+  font-size: 16px;
+  color: #475569;
+  font-weight: 700;
   word-break: break-word;
   text-align: right;
   flex: 0 0 auto;
+  padding-right: 8px;
 }
 
 .branch-course-view-item.highlight {
@@ -1165,7 +1167,7 @@
 }
 
 .branch-course-view-item.highlight strong {
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .branch-course-view-summary {
