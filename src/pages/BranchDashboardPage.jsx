@@ -910,14 +910,14 @@ const closeViewCourseDrawer = () => {
                           <th>S.No</th>
                           <th>Course Code</th>
                           <th>Course Name</th>
-                          <th>Mode</th>
+                          {/* <th>Mode</th>
                           <th>Duration</th>
-                          <th>Hours</th>
-                          <th>Standard Fee</th>
+                          <th>Hours</th> */}
+                          {/* <th>Standard Fee</th>
                           <th>Registration Fee</th>
-                          <th>Discount</th>
+                          <th>Discount</th> */}
                           <th>Final Fee</th>
-                          <th>Created At</th>
+                          {/* <th>Created At</th> */}
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
@@ -943,14 +943,14 @@ const closeViewCourseDrawer = () => {
                                 <td>
                                   <strong className="branch-course-name">{course.name || '-'}</strong>
                                 </td>
-                                <td>{course.mode || '-'}</td>
+                                {/* <td>{course.mode || '-'}</td>
                                 <td>{course.duration ? `${course.duration} month${course.duration === '1' ? '' : 's'}` : '-'}</td>
-                                <td>{course.hours ? `${course.hours} hour${course.hours === '1' ? '' : 's'}` : '-'}</td>
-                                <td>{formatBranchCourseAmount(course.actualFees)}</td>
+                                <td>{course.hours ? `${course.hours} hour${course.hours === '1' ? '' : 's'}` : '-'}</td> */}
+                                {/* <td>{formatBranchCourseAmount(course.actualFees)}</td>
                                 <td>{formatBranchCourseAmount(course.registrationFees)}</td>
-                                <td>{formatBranchCourseAmount(course.discount || '0')}</td>
+                                <td>{formatBranchCourseAmount(course.discount || '0')}</td> */}
                                 <td>{formatBranchCourseFinalFee(course)}</td>
-                                <td>{formatBranchCourseDate(course.createdAt)}</td>
+                                {/* <td>{formatBranchCourseDate(course.createdAt)}</td> */}
                                 <td>
                                   <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
                                     {course.status || 'Active'}
