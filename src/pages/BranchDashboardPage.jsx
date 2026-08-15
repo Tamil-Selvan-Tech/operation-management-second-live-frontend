@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -20,6 +20,8 @@ import { getCurrentBranchProfile } from '../services/branchService'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
+const BRANCH_COURSE_STORAGE_KEY = 'cispro.branch-dashboard.courses'
+
 const overviewStats = [
   { label: 'Total Students', value: '246', note: 'Active learners this month' },
   { label: 'Total Courses', value: '18', note: 'Published course catalog' },
@@ -34,7 +36,7 @@ const studentRows = [
   ['Arun V', 'Batch C-01', 'Pending'],
 ]
 
-const courseCards = [
+const defaultCourseCards = [
   { name: 'Full Stack Development', batches: 4, students: 78 },
   { name: 'UI/UX Design', batches: 2, students: 34 },
   { name: 'Data Analytics', batches: 3, students: 51 },
@@ -63,6 +65,20 @@ function BranchDashboardSection({ title, description, children }) {
       </div>
       {children}
     </section>
+  )
+}
+
+function Field({ label, hint, error, children, required = false }) {
+  return (
+    <label className="course-field">
+      <span>
+        {label}
+        {required ? <b>*</b> : null}
+      </span>
+      {children}
+      {hint ? <small>{hint}</small> : null}
+      {error ? <small className="course-field-error">{error}</small> : null}
+    </label>
   )
 }
 
@@ -102,6 +118,155 @@ function formatBranchAdminDisplayName(value) {
   return text.replace(/^KKJ\s*[-–—:]?\s*/i, '').trim() || 'Branch Admin'
 }
 
+function normalizeInstallmentCount(value) {
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount < 1) return 0
+  return Math.floor(amount)
+}
+
+function getEffectiveInstallmentCount(form) {
+  if (form.installmentCount === 'custom') {
+    return normalizeInstallmentCount(form.customInstallmentCount)
+  }
+
+  return normalizeInstallmentCount(form.installmentCount)
+}
+
+function getInstallmentValue(form, index) {
+  if (index === 1) return form.installment1 ?? ''
+  if (index === 2) return form.installment2 ?? ''
+  if (index === 3) return form.installment3 ?? ''
+  return form.extraInstallments?.[index - 4] ?? ''
+}
+
+function setInstallmentValue(form, index, value) {
+  if (index === 1) return { ...form, installment1: value }
+  if (index === 2) return { ...form, installment2: value }
+  if (index === 3) return { ...form, installment3: value }
+
+  const extraIndex = index - 4
+  const extraInstallments = [...(form.extraInstallments || [])]
+  extraInstallments[extraIndex] = value
+  return { ...form, extraInstallments }
+}
+
+function buildBranchCoursePayload(form) {
+  const finalFee = Math.max(
+    Number(form.actualFees || 0) + Number(form.registrationFees || 0) - Number(form.discount || 0),
+    0,
+  )
+  const installmentCount = getEffectiveInstallmentCount(form)
+  const installments = Array.from({ length: installmentCount }, (_, index) => getInstallmentValue(form, index + 1))
+
+  const payload = {
+    courseCode: String(form.courseCode || '').trim(),
+    name: String(form.name || '').trim(),
+    mode: form.mode,
+    duration: form.duration,
+    hours: form.hours,
+    actualFees: form.actualFees,
+    registrationFees: form.registrationFees,
+    discount: form.discount || '0',
+    afterDiscount: String(finalFee),
+    defaultFinalFee: String(finalFee),
+    installmentCount: String(installmentCount),
+    installments,
+    status: form.status,
+  }
+
+  installments.forEach((amount, index) => {
+    payload[`installment${index + 1}`] = amount
+  })
+
+  return payload
+}
+
+function createInitialBranchCourseForm() {
+  return {
+    courseCode: '',
+    name: '',
+    mode: '',
+    duration: '',
+    hours: '',
+    actualFees: '',
+    registrationFees: '',
+    discount: '',
+    installmentCount: '2',
+    customInstallmentCount: '',
+    installment1: '',
+    installment2: '',
+    installment3: '',
+    extraInstallments: [],
+    status: 'Active',
+  }
+}
+
+function apiErrorMessage(error, fallback) {
+  return error?.body?.message || error?.body?.error || error?.message || fallback
+}
+
+function buildDefaultBranchCourseCards() {
+  return defaultCourseCards.map((course) => ({
+    id: course.name,
+    courseCode: '',
+    name: course.name,
+    batches: course.batches,
+    students: course.students,
+    summary: `${course.batches} batches`,
+    detail: `${course.students} students`,
+  }))
+}
+
+function loadBranchCourseCards() {
+  if (typeof window === 'undefined') {
+    return buildDefaultBranchCourseCards()
+  }
+
+  try {
+    const raw = window.localStorage.getItem(BRANCH_COURSE_STORAGE_KEY)
+    if (!raw) return buildDefaultBranchCourseCards()
+
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed) || !parsed.length) {
+      return buildDefaultBranchCourseCards()
+    }
+
+    return parsed
+      .filter(Boolean)
+      .map((course) => ({
+        id: String(course.id || course.courseCode || course.name || Date.now()),
+        courseCode: String(course.courseCode || '').trim(),
+        name: String(course.name || '').trim(),
+        batches: Number(course.batches || 0),
+        students: Number(course.students || 0),
+        summary: String(course.summary || '').trim(),
+        detail: String(course.detail || '').trim(),
+        mode: String(course.mode || '').trim(),
+        duration: String(course.duration || '').trim(),
+        hours: String(course.hours || '').trim(),
+        actualFees: String(course.actualFees || '').trim(),
+        registrationFees: String(course.registrationFees || '').trim(),
+        discount: String(course.discount || '').trim(),
+        finalFee: String(course.finalFee || '').trim(),
+        installmentCount: String(course.installmentCount || '').trim(),
+        installments: Array.isArray(course.installments) ? course.installments.map((value) => String(value ?? '')) : [],
+        status: String(course.status || 'Active').trim(),
+      }))
+  } catch {
+    return buildDefaultBranchCourseCards()
+  }
+}
+
+function saveBranchCourseCards(records) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(BRANCH_COURSE_STORAGE_KEY, JSON.stringify(records))
+  } catch {
+    // ignore storage failures
+  }
+}
+
 export function BranchDashboardPage() {
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
@@ -110,6 +275,13 @@ export function BranchDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
+  const [isAddCourseSaving, setIsAddCourseSaving] = useState(false)
+  const [addCourseError, setAddCourseError] = useState('')
+  const [addCourseSuccess, setAddCourseSuccess] = useState('')
+  const [addCourseForm, setAddCourseForm] = useState(() => createInitialBranchCourseForm())
+  const [addCourseTouched, setAddCourseTouched] = useState({})
+  const [branchCourseCards, setBranchCourseCards] = useState(() => loadBranchCourseCards())
   const profileMenuRef = useRef(null)
 
   useEffect(() => {
@@ -196,6 +368,228 @@ export function BranchDashboardPage() {
     setIsProfileMenuOpen(false)
     setActiveSection('profile')
   }
+
+  const addCourseAfterDiscount = useMemo(() => {
+    const actualFees = Number(addCourseForm.actualFees || 0)
+    const registrationFees = Number(addCourseForm.registrationFees || 0)
+    const discount = Number(addCourseForm.discount || 0)
+    if (Number.isNaN(actualFees) || Number.isNaN(registrationFees) || Number.isNaN(discount)) return ''
+    return String(Math.max(actualFees + registrationFees - discount, 0))
+  }, [addCourseForm.actualFees, addCourseForm.discount, addCourseForm.registrationFees])
+
+  const addCourseValidationErrors = useMemo(() => {
+    const errors = {}
+
+    if (!addCourseForm.courseCode.trim()) errors.courseCode = 'Course Code is required.'
+    if (!addCourseForm.name.trim()) errors.name = 'Course Name is required.'
+    if (!addCourseForm.mode) errors.mode = 'Mode is required.'
+    if (!addCourseForm.duration) errors.duration = 'Duration (Months) is required.'
+    if (addCourseForm.duration && Number(addCourseForm.duration) <= 0) errors.duration = 'Duration must be greater than zero.'
+    if (!addCourseForm.hours) errors.hours = 'Hours is required.'
+    if (addCourseForm.hours && Number(addCourseForm.hours) <= 0) errors.hours = 'Hours must be greater than zero.'
+    if (!addCourseForm.actualFees) errors.actualFees = 'Standard Course Fee is required.'
+    if (!addCourseForm.registrationFees) errors.registrationFees = 'Registration Fee is required.'
+    if (!addCourseForm.installmentCount) errors.installmentCount = 'Fee Plan Template is required.'
+    if (!addCourseForm.status) errors.status = 'Status is required.'
+
+    const installmentCount = getEffectiveInstallmentCount(addCourseForm)
+    if (addCourseForm.installmentCount === 'custom' && !installmentCount) {
+      errors.customInstallmentCount = 'Custom Installment Count is required.'
+    }
+
+    for (let index = 1; index <= installmentCount; index += 1) {
+      if (!getInstallmentValue(addCourseForm, index)) {
+        errors[`installment${index}`] = `Installment ${index} is required.`
+      }
+    }
+
+    if (addCourseForm.discount && Number(addCourseForm.discount) < 0) {
+      errors.discount = 'Discount must be zero or greater.'
+    }
+
+    const allRequiredFilled =
+      addCourseForm.courseCode.trim() &&
+      addCourseForm.name.trim() &&
+      addCourseForm.mode &&
+      addCourseForm.duration &&
+      addCourseForm.hours &&
+      addCourseForm.actualFees &&
+      addCourseForm.registrationFees &&
+      addCourseForm.installmentCount &&
+      addCourseForm.status &&
+      (addCourseForm.installmentCount !== 'custom' || installmentCount > 0) &&
+      Array.from({ length: installmentCount }, (_, index) => index + 1).every((index) => Boolean(getInstallmentValue(addCourseForm, index)))
+
+    if (allRequiredFilled) {
+      const finalFee = Number(addCourseForm.actualFees) + Number(addCourseForm.registrationFees) - Number(addCourseForm.discount || 0)
+      const installmentTotal = Array.from({ length: installmentCount }, (_, index) => Number(getInstallmentValue(addCourseForm, index + 1) || 0)).reduce(
+        (total, amount) => total + amount,
+        0,
+      )
+
+      if (installmentTotal !== Math.max(finalFee, 0)) {
+        for (let index = 1; index <= installmentCount; index += 1) {
+          errors[`installment${index}`] = `Installment total must match ${Math.max(finalFee, 0)}.`
+        }
+      }
+    }
+
+    return errors
+  }, [addCourseForm])
+
+  const shouldShowAddCourseError = (field) => Boolean(addCourseTouched[field] && addCourseValidationErrors[field])
+
+  const updateAddCourseField = (field, value) => {
+    setAddCourseError('')
+    setAddCourseSuccess('')
+    setAddCourseForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const updateAddCourseNumericField = (field, value) => {
+    updateAddCourseField(field, value.replace(/[^\d]/g, ''))
+  }
+
+  const handleAddCourseInstallmentCountChange = (value) => {
+    setAddCourseError('')
+    setAddCourseSuccess('')
+    setAddCourseForm((current) => ({
+      ...current,
+      installmentCount: value,
+      customInstallmentCount: value === 'custom' ? current.customInstallmentCount : '',
+      extraInstallments: value === 'custom' ? current.extraInstallments : [],
+    }))
+  }
+
+  const handleAddCourseCustomInstallmentCountChange = (value) => {
+    setAddCourseError('')
+    setAddCourseSuccess('')
+    const nextDigits = value.replace(/[^\d]/g, '')
+    setAddCourseForm((current) => ({
+      ...current,
+      installmentCount: 'custom',
+      customInstallmentCount: nextDigits,
+    }))
+  }
+
+  const resetAddCourseForm = () => {
+    setAddCourseForm(createInitialBranchCourseForm())
+    setAddCourseTouched({})
+    setAddCourseError('')
+  }
+
+  const openAddCourseModal = () => {
+    resetAddCourseForm()
+    setIsAddCourseOpen(true)
+    setActiveSection('courses')
+  }
+
+  const closeAddCourseModal = () => {
+    setIsAddCourseOpen(false)
+  }
+
+  const handleAddCourseSubmit = async (event) => {
+    event?.preventDefault()
+    const nextTouched = Object.keys(addCourseValidationErrors).reduce((acc, key) => {
+      acc[key] = true
+      return acc
+    }, {})
+    nextTouched.courseCode = true
+    nextTouched.name = true
+    nextTouched.mode = true
+    nextTouched.duration = true
+    nextTouched.hours = true
+    nextTouched.actualFees = true
+    nextTouched.registrationFees = true
+    nextTouched.installmentCount = true
+    nextTouched.status = true
+    if (addCourseForm.installmentCount === 'custom') {
+      nextTouched.customInstallmentCount = true
+    }
+    const installmentCount = getEffectiveInstallmentCount(addCourseForm)
+    for (let index = 1; index <= installmentCount; index += 1) {
+      nextTouched[`installment${index}`] = true
+    }
+    setAddCourseTouched(nextTouched)
+
+    if (Object.keys(addCourseValidationErrors).length > 0) {
+      setAddCourseError(Object.values(addCourseValidationErrors)[0] || 'Please fill all required fields before saving.')
+      return
+    }
+
+    setIsAddCourseSaving(true)
+    try {
+      const duplicateCourse = branchCourseCards.find(
+        (course) => String(course.name || '').trim().toLowerCase() === String(addCourseForm.name || '').trim().toLowerCase(),
+      )
+      const duplicateCourseCode = branchCourseCards.find(
+        (course) =>
+          String(course.courseCode || '').trim().toLowerCase() === String(addCourseForm.courseCode || '').trim().toLowerCase(),
+      )
+
+      if (duplicateCourseCode) {
+        setAddCourseError('Course code already exists.')
+        return
+      }
+
+      if (duplicateCourse) {
+        setAddCourseError('Course already exists.')
+        return
+      }
+
+      const payload = buildBranchCoursePayload(addCourseForm)
+      const nextCourseCard = {
+        id: payload.courseCode || payload.name || `branch-course-${Date.now()}`,
+        courseCode: payload.courseCode,
+        name: payload.name,
+        batches: 0,
+        students: 0,
+        summary: `${payload.mode} | ${payload.duration} months | ${payload.hours} hours`,
+        detail: `Final fee ${payload.defaultFinalFee}`,
+        mode: payload.mode,
+        duration: payload.duration,
+        hours: payload.hours,
+        actualFees: payload.actualFees,
+        registrationFees: payload.registrationFees,
+        discount: payload.discount,
+        finalFee: payload.defaultFinalFee,
+        installmentCount: payload.installmentCount,
+        installments: payload.installments,
+        status: payload.status,
+      }
+
+      const nextCards = [nextCourseCard, ...branchCourseCards]
+      setBranchCourseCards(nextCards)
+      saveBranchCourseCards(nextCards)
+      setAddCourseSuccess(`Course "${addCourseForm.name.trim()}" created successfully.`)
+      setIsAddCourseOpen(false)
+      setAddCourseForm(createInitialBranchCourseForm())
+      setAddCourseTouched({})
+    } catch (error) {
+      setAddCourseError(apiErrorMessage(error, 'Unable to save course right now.'))
+    } finally {
+      setIsAddCourseSaving(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!isAddCourseOpen) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsAddCourseOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isAddCourseOpen])
 
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Branch navigation">
@@ -431,12 +825,22 @@ export function BranchDashboardPage() {
 
               {activeSection === 'courses' ? (
                 <BranchDashboardSection title="Courses" description="A small sample of active course offerings.">
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                    <button type="button" className="button button-solid" onClick={openAddCourseModal}>
+                      + Add Course
+                    </button>
+                  </div>
+                  {addCourseSuccess ? (
+                    <div className="course-validation-note" style={{ marginBottom: '1rem', color: '#166534' }}>
+                      <span style={{ color: '#166534' }}>{addCourseSuccess}</span>
+                    </div>
+                  ) : null}
                   <div className="branch-dashboard-card-grid">
-                    {courseCards.map((course) => (
-                      <article key={course.name} className="branch-dashboard-info-card">
+                    {branchCourseCards.map((course) => (
+                      <article key={course.id} className="branch-dashboard-info-card">
                         <strong>{course.name}</strong>
-                        <span>{course.batches} batches</span>
-                        <small>{course.students} students</small>
+                        <span>{course.courseCode || course.summary || `${course.batches || 0} batches`}</span>
+                        <small>{course.detail || `${course.students || 0} students`}</small>
                       </article>
                     ))}
                   </div>
@@ -507,6 +911,278 @@ export function BranchDashboardPage() {
             </div>
           </main>
         </div>
+
+        {isAddCourseOpen ? (
+          <div className="course-modal-backdrop" role="presentation" onClick={closeAddCourseModal}>
+            <form
+              className="course-modal panel-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="branch-add-course-title"
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={handleAddCourseSubmit}
+            >
+              <div className="course-modal-header">
+                <div>
+                  <p className="section-kicker">Course Entry</p>
+                  <h3 id="branch-add-course-title">Add Course</h3>
+                </div>
+                <span className="detail-badge">Required fields marked *</span>
+              </div>
+
+              <div className="course-form-grid">
+                <Field
+                  label="Enter Course Code"
+                  required
+                  hint="Recommended unique identifier for reports and integrations"
+                  error={shouldShowAddCourseError('courseCode') ? addCourseValidationErrors.courseCode : ''}
+                >
+                  <input
+                    type="text"
+                    placeholder="UIUX-06M"
+                    value={addCourseForm.courseCode}
+                    onChange={(event) => updateAddCourseField('courseCode', event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, courseCode: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('courseCode'))}
+                  />
+                </Field>
+
+                <Field
+                  label="Enter Course Name"
+                  required
+                  hint="Required field"
+                  error={shouldShowAddCourseError('name') ? addCourseValidationErrors.name : ''}
+                >
+                  <input
+                    type="text"
+                    placeholder="Enter Course Name"
+                    value={addCourseForm.name}
+                    onChange={(event) => updateAddCourseField('name', event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, name: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('name'))}
+                  />
+                </Field>
+
+                <Field
+                  label="Select Mode"
+                  required
+                  hint="Online / Offline / Hybrid"
+                  error={shouldShowAddCourseError('mode') ? addCourseValidationErrors.mode : ''}
+                >
+                  <select
+                    value={addCourseForm.mode}
+                    onChange={(event) => updateAddCourseField('mode', event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, mode: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('mode'))}
+                  >
+                    <option value="" disabled>
+                      Select Mode
+                    </option>
+                    <option>Online</option>
+                    <option>Offline</option>
+                    <option>Hybrid</option>
+                  </select>
+                </Field>
+
+                <Field
+                  label="Enter Duration (Months)"
+                  required
+                  hint="Numbers only"
+                  error={shouldShowAddCourseError('duration') ? addCourseValidationErrors.duration : ''}
+                >
+                  <div className="course-input-with-suffix">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={addCourseForm.duration}
+                      onChange={(event) => updateAddCourseNumericField('duration', event.target.value)}
+                      onBlur={() => setAddCourseTouched((current) => ({ ...current, duration: true }))}
+                      aria-invalid={Boolean(shouldShowAddCourseError('duration'))}
+                    />
+                    <span>{Number(addCourseForm.duration) === 1 ? 'month' : 'months'}</span>
+                  </div>
+                </Field>
+
+                <Field
+                  label="Enter Hours"
+                  required
+                  hint="Numbers only"
+                  error={shouldShowAddCourseError('hours') ? addCourseValidationErrors.hours : ''}
+                >
+                  <div className="course-input-with-suffix">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={addCourseForm.hours}
+                      onChange={(event) => updateAddCourseNumericField('hours', event.target.value)}
+                      onBlur={() => setAddCourseTouched((current) => ({ ...current, hours: true }))}
+                      aria-invalid={Boolean(shouldShowAddCourseError('hours'))}
+                    />
+                    <span>{Number(addCourseForm.hours) === 1 ? 'hour' : 'hours'}</span>
+                  </div>
+                </Field>
+
+                <Field
+                  label="Enter Standard Course Fee"
+                  required
+                  hint="Default/base fee before adjustments"
+                  error={shouldShowAddCourseError('actualFees') ? addCourseValidationErrors.actualFees : ''}
+                >
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={addCourseForm.actualFees}
+                    onChange={(event) => updateAddCourseNumericField('actualFees', event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, actualFees: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('actualFees'))}
+                  />
+                </Field>
+
+                <Field
+                  label="Enter Registration Fee"
+                  required
+                  hint="Separate fee head; refundable or non-refundable as needed"
+                  error={shouldShowAddCourseError('registrationFees') ? addCourseValidationErrors.registrationFees : ''}
+                >
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={addCourseForm.registrationFees}
+                    onChange={(event) => updateAddCourseNumericField('registrationFees', event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, registrationFees: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('registrationFees'))}
+                  />
+                </Field>
+
+                <Field
+                  label="Enter Default Discount"
+                  hint="Optional template only"
+                  error={shouldShowAddCourseError('discount') ? addCourseValidationErrors.discount : ''}
+                >
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={addCourseForm.discount}
+                    onChange={(event) => updateAddCourseNumericField('discount', event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, discount: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('discount'))}
+                  />
+                </Field>
+
+                <Field label="Default Final Fee (Auto Calculated)" hint="Standard fee + registration fee - default discount">
+                  <input type="text" value={addCourseAfterDiscount} readOnly />
+                </Field>
+
+                <Field
+                  label="Fee Plan Template"
+                  required
+                  hint="Choose 2, 3, or Custom"
+                  error={shouldShowAddCourseError('installmentCount') ? addCourseValidationErrors.installmentCount : ''}
+                >
+                  <select
+                    value={addCourseForm.installmentCount}
+                    onChange={(event) => handleAddCourseInstallmentCountChange(event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, installmentCount: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('installmentCount'))}
+                  >
+                    <option value="2">2 Installments</option>
+                    <option value="3">3 Installments</option>
+                    <option value="custom">Custom Installment</option>
+                  </select>
+                </Field>
+
+                {addCourseForm.installmentCount === 'custom' ? (
+                  <Field
+                    label="Enter Custom Installment Count"
+                    required
+                    hint="Type how many installment fields you need"
+                    error={shouldShowAddCourseError('customInstallmentCount') ? addCourseValidationErrors.customInstallmentCount : ''}
+                  >
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={addCourseForm.customInstallmentCount}
+                      onChange={(event) => handleAddCourseCustomInstallmentCountChange(event.target.value)}
+                      onBlur={() => setAddCourseTouched((current) => ({ ...current, customInstallmentCount: true }))}
+                      aria-invalid={Boolean(shouldShowAddCourseError('customInstallmentCount'))}
+                    />
+                  </Field>
+                ) : null}
+
+                {Array.from({ length: getEffectiveInstallmentCount(addCourseForm) }, (_, index) => index + 1).map((installmentNumber) => (
+                  <Field
+                    key={installmentNumber}
+                    label={`Enter Installment ${installmentNumber}`}
+                    required
+                    hint="Numbers only"
+                    error={shouldShowAddCourseError(`installment${installmentNumber}`) ? addCourseValidationErrors[`installment${installmentNumber}`] : ''}
+                  >
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={getInstallmentValue(addCourseForm, installmentNumber)}
+                      onChange={(event) => {
+                        const nextValue = event.target.value.replace(/[^\d]/g, '')
+                        setAddCourseForm((current) => setInstallmentValue(current, installmentNumber, nextValue))
+                      }}
+                      onBlur={() => setAddCourseTouched((current) => ({ ...current, [`installment${installmentNumber}`]: true }))}
+                      aria-invalid={Boolean(shouldShowAddCourseError(`installment${installmentNumber}`))}
+                    />
+                  </Field>
+                ))}
+
+                <Field
+                  label="Select Status"
+                  required
+                  hint="Active or Inactive"
+                  error={shouldShowAddCourseError('status') ? addCourseValidationErrors.status : ''}
+                >
+                  <select
+                    value={addCourseForm.status}
+                    onChange={(event) => updateAddCourseField('status', event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, status: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('status'))}
+                  >
+                    <option value="Active">Active</option>
+                    <option>Inactive</option>
+                  </select>
+                </Field>
+              </div>
+
+              {Object.keys(addCourseTouched).length > 0 && Object.keys(addCourseValidationErrors).length > 0 ? (
+                <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
+                  <span style={{ color: '#dc2626' }}>
+                    {addCourseError || Object.values(addCourseValidationErrors)[0] || 'Please fill all required fields before saving.'}
+                  </span>
+                </div>
+              ) : addCourseError ? (
+                <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
+                  <span style={{ color: '#dc2626' }}>{addCourseError}</span>
+                </div>
+              ) : null}
+
+              <div className="course-form-actions">
+                <button type="button" className="button button-ghost" onClick={resetAddCourseForm} disabled={isAddCourseSaving}>
+                  Reset
+                </button>
+                <button type="submit" className="button button-solid" disabled={isAddCourseSaving}>
+                  {isAddCourseSaving ? 'Saving...' : 'Save Course'}
+                </button>
+              </div>
+
+              <button type="button" className="course-modal-close" onClick={closeAddCourseModal} aria-label="Close course form" disabled={isAddCourseSaving}>
+                X
+              </button>
+            </form>
+          </div>
+        ) : null}
 
         {isLogoutConfirmOpen ? (
           <div className="branch-modal-backdrop" role="presentation" onClick={closeLogoutConfirm}>
