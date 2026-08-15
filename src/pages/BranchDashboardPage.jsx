@@ -1350,57 +1350,71 @@ const closeViewCourseDrawer = () => {
       aria-labelledby="branch-course-view-title"
       onClick={(event) => event.stopPropagation()}
     >
+      {/* Header */}
       <div className="branch-course-view-drawer-header">
-        <div>
-          <p className="section-kicker">Course Details</p>
-          <h2 id="branch-course-view-title">
-            {viewCourse.name || 'Course'}
-          </h2>
-          <span className="branch-course-view-code">
-            {viewCourse.courseCode || '-'}
-          </span>
-        </div>
+  <div className="branch-course-header-content">
 
-        <button
-          type="button"
-          className="branch-course-view-close"
-          onClick={closeViewCourseDrawer}
-          aria-label="Close course details"
-        >
-          X
-        </button>
-      </div>
+    <div className="branch-course-title-row">
+      <p className="section-kicker">COURSE DETAILS</p>
 
+      <strong 
+  className={`branch-course-status-pill ${String(
+    viewCourse.status || 'Active'
+  ).toLowerCase()}`}
+>
+  {viewCourse.status || 'Active'}
+</strong>
+    </div>
+
+    <h2 id="branch-course-view-title">
+      {viewCourse.name || 'Course'}
+    </h2>
+
+    <span className="branch-course-view-code">
+      {viewCourse.courseCode || '-'}
+    </span>
+
+  </div>
+
+  <button
+    type="button"
+    className="branch-course-view-close"
+    onClick={closeViewCourseDrawer}
+    aria-label="Close course details"
+  >
+    X
+  </button>
+</div>
+
+      {/* Details */}
       <div className="branch-course-view-body">
 
-        <div className="branch-course-view-status-row">
-          <span>Status</span>
-          <strong
-            className={`branch-course-status-pill ${String(
-              viewCourse.status || 'Active'
-            ).toLowerCase()}`}
-          >
-            {viewCourse.status || 'Active'}
-          </strong>
-        </div>
+        <div className="branch-course-view-list">
 
-        <div className="branch-course-view-grid">
+          {/* 1. Status */}
+          {/* <div className="branch-course-view-item">
+            <span>Status</span>
 
-          <div className="branch-course-view-item">
-            <span>Course Code</span>
-            <strong>{viewCourse.courseCode || '-'}</strong>
-          </div>
+            <strong
+              className={`branch-course-status-pill ${String(
+                viewCourse.status || 'Active'
+              ).toLowerCase()}`}
+            >
+              {viewCourse.status || 'Active'}
+            </strong>
+          </div> */}
 
-          <div className="branch-course-view-item">
-            <span>Course Name</span>
-            <strong>{viewCourse.name || '-'}</strong>
-          </div>
+         
 
+          {/* 4. Mode */}
           <div className="branch-course-view-item">
             <span>Mode</span>
-            <strong>{viewCourse.mode || '-'}</strong>
+            <strong>
+              {viewCourse.mode || '-'}
+            </strong>
           </div>
 
+          {/* 5. Duration */}
           <div className="branch-course-view-item">
             <span>Duration</span>
             <strong>
@@ -1412,6 +1426,7 @@ const closeViewCourseDrawer = () => {
             </strong>
           </div>
 
+          {/* 6. Hours */}
           <div className="branch-course-view-item">
             <span>Hours</span>
             <strong>
@@ -1423,27 +1438,37 @@ const closeViewCourseDrawer = () => {
             </strong>
           </div>
 
+          {/* 7. Standard Course Fee */}
           <div className="branch-course-view-item">
             <span>Standard Course Fee</span>
             <strong>
-              {formatBranchCourseAmount(viewCourse.actualFees)}
+              {formatBranchCourseAmount(
+                viewCourse.actualFees
+              )}
             </strong>
           </div>
 
+          {/* 8. Registration Fee */}
           <div className="branch-course-view-item">
             <span>Registration Fee</span>
             <strong>
-              {formatBranchCourseAmount(viewCourse.registrationFees)}
+              {formatBranchCourseAmount(
+                viewCourse.registrationFees
+              )}
             </strong>
           </div>
 
+          {/* 9. Discount */}
           <div className="branch-course-view-item">
             <span>Discount</span>
             <strong>
-              {formatBranchCourseAmount(viewCourse.discount || '0')}
+              {formatBranchCourseAmount(
+                viewCourse.discount || '0'
+              )}
             </strong>
           </div>
 
+          {/* 10. Final Fee */}
           <div className="branch-course-view-item highlight">
             <span>Final Fee</span>
             <strong>
@@ -1451,38 +1476,22 @@ const closeViewCourseDrawer = () => {
             </strong>
           </div>
 
+          {/* 11. Created At */}
           <div className="branch-course-view-item">
             <span>Created At</span>
             <strong>
-              {formatBranchCourseDate(viewCourse.createdAt)}
+              {formatBranchCourseDate(
+                viewCourse.createdAt
+              )}
             </strong>
           </div>
 
-          <div className="branch-course-view-item">
-            <span>Total Batches</span>
-            <strong>{viewCourse.batches || 0}</strong>
-          </div>
-
-          <div className="branch-course-view-item">
-            <span>Total Students</span>
-            <strong>{viewCourse.students || 0}</strong>
-          </div>
-
         </div>
-
-        <div className="branch-course-view-summary">
-          <span>Course Summary</span>
-          <p>
-            {viewCourse.summary ||
-              `${viewCourse.mode || '-'} | ${
-                viewCourse.duration || '-'
-              } months | ${viewCourse.hours || '-'} hours`}
-          </p>
-        </div>
-
       </div>
 
+      {/* 12. Bottom Buttons */}
       <div className="branch-course-view-footer">
+
         <button
           type="button"
           className="button button-ghost"
@@ -1495,17 +1504,17 @@ const closeViewCourseDrawer = () => {
           type="button"
           className="button button-solid"
           onClick={() => {
-            closeViewCourseDrawer()
-            openEditCourseModal(viewCourse)
+            closeViewCourseDrawer();
+            openEditCourseModal(viewCourse);
           }}
         >
           Edit Course
         </button>
+
       </div>
     </aside>
   </div>
 ) : null}
-
         {courseSaveSuccess ? (
           <div className="branch-modal-backdrop" role="presentation" onClick={closeCourseSaveSuccess}>
             <div
