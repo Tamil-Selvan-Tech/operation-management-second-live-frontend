@@ -24,6 +24,7 @@ IndianRupee,
 FileText,
 Tag,
   BadgeInfo,
+  BadgePercent,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -1453,24 +1454,26 @@ const closeViewCourseDrawer = () => {
           </div>
 
           <div className="branch-course-view-row" role="row">
-            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-              <Tag size={20} strokeWidth={2.1} aria-hidden="true" />
-              <span>Registration Fee</span>
-            </div>
-            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-              <strong>{formatBranchCourseAmount(viewCourse.registrationFees)}</strong>
-            </div>
-          </div>
+  <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+    <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
+    <span>Registration Fee</span>
+  </div>
+
+  <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+    <strong>{formatBranchCourseAmount(viewCourse.registrationFees)}</strong>
+  </div>
+</div>
 
           <div className="branch-course-view-row" role="row">
-            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-              <BadgeInfo size={20} strokeWidth={2.1} aria-hidden="true" />
-              <span>Discount</span>
-            </div>
-            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-              <strong>{formatBranchCourseAmount(viewCourse.discount || '0')}</strong>
-            </div>
-          </div>
+  <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+    <BadgePercent size={20} strokeWidth={2.1} aria-hidden="true" />
+    <span>Discount</span>
+  </div>
+
+  <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+    <strong>{formatBranchCourseAmount(viewCourse.discount || '0')}</strong>
+  </div>
+</div>
 
           <div className="branch-course-view-row is-highlight" role="row">
             <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
