@@ -254,7 +254,9 @@
 }
 
 .super-admin-topbar-left {
-  display: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex: 0 0 auto;
 }
 
@@ -264,7 +266,7 @@
 }
 
 .super-admin-sidebar-toggle {
-  display: inline-grid;
+  display: none;
   place-items: center;
   width: 38px;
   height: 38px;
@@ -280,6 +282,21 @@
 .super-admin-sidebar-toggle:focus-visible {
   background: #f8fbff;
   outline: none;
+}
+
+.super-admin-header-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+@media (max-width: 575px) {
+  .super-admin-header-title {
+    font-size: 1.05rem;
+  }
 }
 
 .super-admin-content {
@@ -762,6 +779,10 @@
 
   .super-admin-topbar-left {
     display: flex;
+  }
+
+  .super-admin-sidebar-toggle {
+    display: inline-grid;
   }
 
   .super-admin-topbar-right {

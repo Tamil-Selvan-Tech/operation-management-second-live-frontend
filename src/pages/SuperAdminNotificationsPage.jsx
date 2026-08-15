@@ -411,6 +411,7 @@ export function SuperAdminNotificationsPage() {
               >
                 <Menu size={20} strokeWidth={2.4} aria-hidden="true" focusable="false" />
               </button>
+              <h1 className="super-admin-header-title">Super Admin Dashboard</h1>
             </div>
 
             <div className="super-admin-topbar-right">

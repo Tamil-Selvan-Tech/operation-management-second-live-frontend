@@ -1117,6 +1117,7 @@ export function SuperAdminDashboardPage() {
               >
                 <Menu size={20} strokeWidth={2.4} aria-hidden="true" focusable="false" />
               </button>
+              <h1 className="super-admin-header-title">Super Admin Dashboard</h1>
             </div>
 
             <div className="super-admin-topbar-right">
@@ -1233,7 +1234,7 @@ export function SuperAdminDashboardPage() {
                             <td className="branch-table-col-admin">
                               <div className="branch-table-detail-cell">
                                 <strong>{branch.branchAdminName || 'Branch admin not set'}</strong>
-                                <span className="branch-contact-email">{branch.branchEmail || '-'}</span>
+                                {/* <span className="branch-contact-email">{branch.branchEmail || '-'}</span> */}
                               </div>
                             </td>
                             <td className="branch-table-col-created">{formatDisplayDate(branch.createdAt)}</td>
