@@ -3,11 +3,12 @@ export const seedBranches = [
     id: 1,
     branchId: 'BR-001',
     branchName: 'City Center',
-    branchAdminName: '',
+    branchAdminName: 'City Admin',
     branchEmail: 'citycenter@company.com',
     branchPhone: '440-231-4037',
     branchAddress: '1157 Stracke Throughway, Guymouth, Nevada, Mauritius, 48423-8359',
     status: 'Active',
+    tempPassword: 'Password123!',
     createdAt: '2025-09-10',
   },
   {

@@ -1791,18 +1791,22 @@
   white-space: nowrap;
 }
 
-.branch-course-view-row.is-highlight .branch-course-view-cell-label span,
+.branch-course-view-row.is-highlight .branch-course-view-cell-label span {
+  color: #6b7280;
+  font-weight: 500;
+}
+
 .branch-course-view-row.is-highlight .branch-course-view-cell-value strong {
-  color: #16a34a;
+  color: #111827;
   font-weight: 800;
 }
 
 .branch-course-view-row.is-highlight .branch-course-view-cell-label svg {
-  color: #16a34a;
+  color: #2563eb;
 }
 
 .branch-course-view-row.is-highlight {
-  background: #f0fdf4;
+  background: #eff6ff;
 }
 
 @media (max-width: 640px) {
