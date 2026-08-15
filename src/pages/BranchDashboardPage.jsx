@@ -917,7 +917,7 @@ const closeViewCourseDrawer = () => {
                           <th>Registration Fee</th>
                           <th>Discount</th> */}
                           <th>Final Fee</th>
-                          {/* <th>Created At</th> */}
+                          <th>Created At</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
@@ -950,7 +950,7 @@ const closeViewCourseDrawer = () => {
                                 <td>{formatBranchCourseAmount(course.registrationFees)}</td>
                                 <td>{formatBranchCourseAmount(course.discount || '0')}</td> */}
                                 <td>{formatBranchCourseFinalFee(course)}</td>
-                                {/* <td>{formatBranchCourseDate(course.createdAt)}</td> */}
+                                <td>{formatBranchCourseDate(course.createdAt)}</td>
                                 <td>
                                   <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
                                     {course.status || 'Active'}
