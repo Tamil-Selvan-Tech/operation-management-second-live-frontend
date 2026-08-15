@@ -38,13 +38,6 @@ import {
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
-const overviewStats = [
-  { label: 'Total Students', value: '246', note: 'Active learners this month' },
-  { label: 'Total Courses', value: '18', note: 'Published course catalog' },
-  { label: 'Active Batches', value: '11', note: 'Running live batches' },
-  { label: 'Pending Payments', value: '14', note: 'Needs follow-up today' },
-]
-
 const studentRows = [
   ['Ananya S', 'Batch A-11', 'Paid'],
   ['Rahul P', 'Batch A-08', 'Pending'],
@@ -65,12 +58,15 @@ const paymentRows = [
   ['Arun V', '₹6,000', 'Pending'],
 ]
 
-function BranchDashboardSection({ title, description, children }) {
+function BranchDashboardSection({ title, description, actions, children }) {
   return (
     <section className="branch-dashboard-section">
       <div className="branch-dashboard-section-heading">
-        <h2>{title}</h2>
-        <p>{description}</p>
+        <div className="branch-dashboard-section-heading-copy">
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        {actions ? <div className="branch-dashboard-section-heading-actions">{actions}</div> : null}
       </div>
       {children}
     </section>
@@ -376,6 +372,19 @@ export function BranchDashboardPage() {
     session?.user?.mustResetPassword ??
       user?.mustResetPassword ??
       branchProfile?.mustResetPassword,
+  )
+  const overviewStats = useMemo(
+    () => [
+      { label: 'Total Students', value: '246', note: 'Active learners this month' },
+      {
+        label: 'Total Courses',
+        value: String(branchCourseCards.length),
+        note: 'Published course catalog',
+      },
+      { label: 'Active Batches', value: '11', note: 'Running live batches' },
+      { label: 'Pending Payments', value: '14', note: 'Needs follow-up today' },
+    ],
+    [branchCourseCards.length],
   )
 
   const openResetPassword = () => {
@@ -884,26 +893,23 @@ const closeViewCourseDrawer = () => {
                 <BranchDashboardSection
                   title="Courses"
                   description="Add a course and the saved data will appear in the table below with every field from the form."
+                  actions={(
+                    <>
+                      <button
+                        type="button"
+                        className="button button-solid"
+                        onClick={openAddCourseModal}
+                      >
+                        + Add Course
+                      </button>
+
+                      <div className="branch-dashboard-section-summary">
+                        <span>Saved courses:</span>
+                        <strong>{branchCourseCards.length}</strong>
+                      </div>
+                    </>
+                  )}
                 >
-                 
-<div className="branch-dashboard-section-toolbar">
-  <div className="branch-dashboard-course-actions">
-    <button
-      type="button"
-      className="button button-solid"
-      onClick={openAddCourseModal}
-    >
-      + Add Course
-    </button>
-
-    <div className="branch-dashboard-section-summary">
-      <span>Saved courses:</span>
-      <strong>{branchCourseCards.length}</strong>
-    </div>
-  </div>
-</div>
-
-  
                   <div className="branch-course-table-shell">
                     <table className="branch-course-table">
                       <thead>
