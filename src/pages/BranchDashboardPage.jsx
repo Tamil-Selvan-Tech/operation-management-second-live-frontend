@@ -8,19 +8,20 @@ import {
   LayoutDashboard,
   Layers3,
   LogOut,
+  MoreVertical,
   RefreshCcw,
   Shield,
   Users,
   Wallet,
+  CheckCircle2,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
+import { COURSE_RECORD_SYNC_EVENT, loadCourseRecords, saveCourseRecords } from '../data/courseRecords'
 import { getCurrentBranchProfile } from '../services/branchService'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
-
-const BRANCH_COURSE_STORAGE_KEY = 'cispro.branch-dashboard.courses'
 
 const overviewStats = [
   { label: 'Total Students', value: '246', note: 'Active learners this month' },
@@ -34,13 +35,6 @@ const studentRows = [
   ['Rahul P', 'Batch A-08', 'Pending'],
   ['Meena K', 'Batch B-02', 'Paid'],
   ['Arun V', 'Batch C-01', 'Pending'],
-]
-
-const defaultCourseCards = [
-  { name: 'Full Stack Development', batches: 4, students: 78 },
-  { name: 'UI/UX Design', batches: 2, students: 34 },
-  { name: 'Data Analytics', batches: 3, students: 51 },
-  { name: 'Digital Marketing', batches: 2, students: 29 },
 ]
 
 const batchCards = [
@@ -82,6 +76,8 @@ function Field({ label, hint, error, children, required = false }) {
   )
 }
 
+const BRANCH_COURSES_PER_PAGE = 5
+
 function AvatarBadge() {
   return (
     <span className="super-admin-avatar" aria-hidden="true">
@@ -111,6 +107,9 @@ function buildFallbackBranchProfile(user, session) {
   }
 }
 
+const formatBranchCourseAmount = formatBranchCourseMoney
+const COURSE_CODE_PREFIX = 'CIS-'
+
 function formatBranchAdminDisplayName(value) {
   const text = String(value || '').trim()
   if (!text) return 'Branch Admin'
@@ -122,6 +121,79 @@ function normalizeInstallmentCount(value) {
   const amount = Number(value)
   if (!Number.isFinite(amount) || amount < 1) return 0
   return Math.floor(amount)
+}
+
+function formatBranchCourseMoney(value) {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+  return `₹${text}`
+}
+
+function formatBranchCourseDate(value) {
+  const date = new Date(String(value || '').trim())
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatBranchCourseInstallments(course) {
+  const installments = Array.isArray(course?.installments)
+    ? course.installments.map((value) => String(value ?? '').trim()).filter(Boolean)
+    : []
+
+  if (installments.length) {
+    return installments.join(' • ')
+  }
+
+  const fallbackCount = Number(course?.installmentCount || 0)
+  if (fallbackCount > 0) {
+    return `${fallbackCount} installment${fallbackCount === 1 ? '' : 's'}`
+  }
+
+  return '-'
+}
+
+function formatBranchCoursePlan(course) {
+  const count = Number(course?.installmentCount || 0)
+  if (!count) return '-'
+  return `${count} installment${count === 1 ? '' : 's'}`
+}
+
+function normalizeBranchCourseRecord(course = {}, index = 0) {
+  const installments = Array.isArray(course.installments)
+    ? course.installments.map((value) => String(value ?? '').trim()).filter(Boolean)
+    : []
+
+  return {
+    ...course,
+    id: String(course.id || course.courseCode || course.name || `branch-course-${index + 1}`),
+    courseCode: String(course.courseCode || '').trim(),
+    name: String(course.name || '').trim(),
+    mode: String(course.mode || '').trim(),
+    duration: String(course.duration ?? '').trim(),
+    hours: String(course.hours ?? '').trim(),
+    actualFees: String(course.actualFees ?? '').trim(),
+    registrationFees: String(course.registrationFees ?? '').trim(),
+    discount: String(course.discount ?? '').trim(),
+    afterDiscount: String(course.afterDiscount ?? course.defaultFinalFee ?? '').trim(),
+    defaultFinalFee: String(course.defaultFinalFee ?? course.afterDiscount ?? '').trim(),
+    installmentCount: String(course.installmentCount ?? '').trim(),
+    installment1: String(course.installment1 ?? '').trim(),
+    installment2: String(course.installment2 ?? '').trim(),
+    installment3: String(course.installment3 ?? '').trim(),
+    extraInstallments: Array.isArray(course.extraInstallments)
+      ? course.extraInstallments.map((value) => String(value ?? '').trim()).filter(Boolean)
+      : [],
+    installments,
+    status: String(course.status || 'Active').trim(),
+    batches: Number(course.batches || 0),
+    students: Number(course.students || 0),
+    createdAt: String(course.createdAt || new Date().toISOString()),
+  }
 }
 
 function getEffectiveInstallmentCount(form) {
@@ -159,7 +231,7 @@ function buildBranchCoursePayload(form) {
   const installments = Array.from({ length: installmentCount }, (_, index) => getInstallmentValue(form, index + 1))
 
   const payload = {
-    courseCode: String(form.courseCode || '').trim(),
+    courseCode: normalizeBranchCourseCode(form.courseCode),
     name: String(form.name || '').trim(),
     mode: form.mode,
     duration: form.duration,
@@ -183,7 +255,7 @@ function buildBranchCoursePayload(form) {
 
 function createInitialBranchCourseForm() {
   return {
-    courseCode: '',
+    courseCode: COURSE_CODE_PREFIX,
     name: '',
     mode: '',
     duration: '',
@@ -201,29 +273,62 @@ function createInitialBranchCourseForm() {
   }
 }
 
+function normalizeBranchCourseCode(value = '') {
+  const normalized = String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+
+  const suffix = normalized.startsWith('CIS') ? normalized.slice(3) : normalized
+  return `${COURSE_CODE_PREFIX}${suffix}`
+}
+
+function buildBranchCourseFormFromRecord(course = {}) {
+  const installmentCount = String(course.installmentCount || '2').trim()
+  const effectiveInstallmentCount = installmentCount === 'custom' ? String(course.extraInstallments?.length || 0) : installmentCount
+  const numericInstallmentCount = Number(effectiveInstallmentCount || 0)
+  const installmentValues = Array.isArray(course.installments) && course.installments.length
+    ? course.installments.map((value) => String(value ?? ''))
+    : Array.from({ length: Number.isFinite(numericInstallmentCount) ? numericInstallmentCount : 0 }, (_, index) => String(course?.[`installment${index + 1}`] ?? ''))
+
+  return {
+    courseCode: String(course.courseCode || COURSE_CODE_PREFIX).trim() || COURSE_CODE_PREFIX,
+    name: String(course.name || '').trim(),
+    mode: String(course.mode || '').trim(),
+    duration: String(course.duration ?? '').trim(),
+    hours: String(course.hours ?? '').trim(),
+    actualFees: String(course.actualFees ?? '').trim(),
+    registrationFees: String(course.registrationFees ?? '').trim(),
+    discount: String(course.discount ?? '').trim(),
+    installmentCount: installmentCount === 'custom' ? 'custom' : installmentCount || '2',
+    customInstallmentCount: installmentCount === 'custom' ? String(numericInstallmentCount || installmentValues.length || 0) : '',
+    installment1: installmentValues[0] ?? '',
+    installment2: installmentValues[1] ?? '',
+    installment3: installmentValues[2] ?? '',
+    extraInstallments: installmentValues.slice(3),
+    status: String(course.status || 'Active').trim() || 'Active',
+  }
+}
+
 function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.body?.error || error?.message || fallback
 }
 
 function buildDefaultBranchCourseCards() {
-  return defaultCourseCards.map((course) => ({
-    id: course.name,
-    courseCode: '',
-    name: course.name,
-    batches: course.batches,
-    students: course.students,
-    summary: `${course.batches} batches`,
-    detail: `${course.students} students`,
-  }))
+  return []
 }
 
 function loadBranchCourseCards() {
+  const storedCourses = loadCourseRecords()
+  if (storedCourses.length) {
+    return storedCourses.map((course, index) => normalizeBranchCourseRecord(course, index))
+  }
+
   if (typeof window === 'undefined') {
     return buildDefaultBranchCourseCards()
   }
 
   try {
-    const raw = window.localStorage.getItem(BRANCH_COURSE_STORAGE_KEY)
+    const raw = window.localStorage.getItem('cispro.branch-dashboard.courses')
     if (!raw) return buildDefaultBranchCourseCards()
 
     const parsed = JSON.parse(raw)
@@ -231,37 +336,20 @@ function loadBranchCourseCards() {
       return buildDefaultBranchCourseCards()
     }
 
-    return parsed
-      .filter(Boolean)
-      .map((course) => ({
-        id: String(course.id || course.courseCode || course.name || Date.now()),
-        courseCode: String(course.courseCode || '').trim(),
-        name: String(course.name || '').trim(),
-        batches: Number(course.batches || 0),
-        students: Number(course.students || 0),
-        summary: String(course.summary || '').trim(),
-        detail: String(course.detail || '').trim(),
-        mode: String(course.mode || '').trim(),
-        duration: String(course.duration || '').trim(),
-        hours: String(course.hours || '').trim(),
-        actualFees: String(course.actualFees || '').trim(),
-        registrationFees: String(course.registrationFees || '').trim(),
-        discount: String(course.discount || '').trim(),
-        finalFee: String(course.finalFee || '').trim(),
-        installmentCount: String(course.installmentCount || '').trim(),
-        installments: Array.isArray(course.installments) ? course.installments.map((value) => String(value ?? '')) : [],
-        status: String(course.status || 'Active').trim(),
-      }))
+    return parsed.filter(Boolean).map((course, index) => normalizeBranchCourseRecord(course, index))
   } catch {
     return buildDefaultBranchCourseCards()
   }
 }
 
 function saveBranchCourseCards(records) {
+  const nextRecords = Array.isArray(records) ? records.map((record, index) => normalizeBranchCourseRecord(record, index)) : []
+  saveCourseRecords(nextRecords)
+
   if (typeof window === 'undefined') return
 
   try {
-    window.localStorage.setItem(BRANCH_COURSE_STORAGE_KEY, JSON.stringify(records))
+    window.localStorage.setItem('cispro.branch-dashboard.courses', JSON.stringify(nextRecords))
   } catch {
     // ignore storage failures
   }
@@ -278,11 +366,16 @@ export function BranchDashboardPage() {
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
   const [isAddCourseSaving, setIsAddCourseSaving] = useState(false)
   const [addCourseError, setAddCourseError] = useState('')
-  const [addCourseSuccess, setAddCourseSuccess] = useState('')
+  const [courseSaveSuccess, setCourseSaveSuccess] = useState(null)
   const [addCourseForm, setAddCourseForm] = useState(() => createInitialBranchCourseForm())
   const [addCourseTouched, setAddCourseTouched] = useState({})
   const [branchCourseCards, setBranchCourseCards] = useState(() => loadBranchCourseCards())
+  const [branchCoursePage, setBranchCoursePage] = useState(1)
+  const [editingCourseId, setEditingCourseId] = useState('')
+  const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
+  const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
   const profileMenuRef = useRef(null)
+  const courseActionMenuRef = useRef(null)
 
   useEffect(() => {
     if (!isAuthenticated || role !== 'branch-admin') {
@@ -325,6 +418,42 @@ export function BranchDashboardPage() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [isProfileMenuOpen])
+
+  useEffect(() => {
+    if (!openCourseActionMenuId) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (courseActionMenuRef.current?.contains(target)) return
+      setOpenCourseActionMenuId('')
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setOpenCourseActionMenuId('')
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [openCourseActionMenuId])
+
+  useEffect(() => {
+    const syncCourses = () => {
+      setBranchCourseCards(loadBranchCourseCards())
+    }
+
+    syncCourses()
+    window.addEventListener(COURSE_RECORD_SYNC_EVENT, syncCourses)
+
+    return () => window.removeEventListener(COURSE_RECORD_SYNC_EVENT, syncCourses)
+  }, [])
 
   const openLogoutConfirm = () => {
     setIsProfileMenuOpen(false)
@@ -369,6 +498,17 @@ export function BranchDashboardPage() {
     setActiveSection('profile')
   }
 
+  const totalBranchCoursePages = Math.max(1, Math.ceil(branchCourseCards.length / BRANCH_COURSES_PER_PAGE))
+  const safeBranchCoursePage = Math.min(branchCoursePage, totalBranchCoursePages)
+  const visibleBranchCourses = useMemo(() => {
+    const start = (safeBranchCoursePage - 1) * BRANCH_COURSES_PER_PAGE
+    return branchCourseCards.slice(start, start + BRANCH_COURSES_PER_PAGE)
+  }, [branchCourseCards, safeBranchCoursePage])
+  const editingCourseRecord = useMemo(
+    () => branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || null,
+    [branchCourseCards, editingCourseId],
+  )
+
   const addCourseAfterDiscount = useMemo(() => {
     const actualFees = Number(addCourseForm.actualFees || 0)
     const registrationFees = Number(addCourseForm.registrationFees || 0)
@@ -380,7 +520,10 @@ export function BranchDashboardPage() {
   const addCourseValidationErrors = useMemo(() => {
     const errors = {}
 
-    if (!addCourseForm.courseCode.trim()) errors.courseCode = 'Course Code is required.'
+    const normalizedCourseCode = normalizeBranchCourseCode(addCourseForm.courseCode)
+    const hasCourseCodeSuffix = normalizedCourseCode.length > COURSE_CODE_PREFIX.length
+
+    if (!hasCourseCodeSuffix) errors.courseCode = 'Course Code is required.'
     if (!addCourseForm.name.trim()) errors.name = 'Course Name is required.'
     if (!addCourseForm.mode) errors.mode = 'Mode is required.'
     if (!addCourseForm.duration) errors.duration = 'Duration (Months) is required.'
@@ -408,7 +551,7 @@ export function BranchDashboardPage() {
     }
 
     const allRequiredFilled =
-      addCourseForm.courseCode.trim() &&
+      hasCourseCodeSuffix &&
       addCourseForm.name.trim() &&
       addCourseForm.mode &&
       addCourseForm.duration &&
@@ -441,8 +584,10 @@ export function BranchDashboardPage() {
 
   const updateAddCourseField = (field, value) => {
     setAddCourseError('')
-    setAddCourseSuccess('')
-    setAddCourseForm((current) => ({ ...current, [field]: value }))
+    setAddCourseForm((current) => ({
+      ...current,
+      [field]: field === 'courseCode' ? normalizeBranchCourseCode(value) : value,
+    }))
   }
 
   const updateAddCourseNumericField = (field, value) => {
@@ -451,7 +596,6 @@ export function BranchDashboardPage() {
 
   const handleAddCourseInstallmentCountChange = (value) => {
     setAddCourseError('')
-    setAddCourseSuccess('')
     setAddCourseForm((current) => ({
       ...current,
       installmentCount: value,
@@ -462,7 +606,6 @@ export function BranchDashboardPage() {
 
   const handleAddCourseCustomInstallmentCountChange = (value) => {
     setAddCourseError('')
-    setAddCourseSuccess('')
     const nextDigits = value.replace(/[^\d]/g, '')
     setAddCourseForm((current) => ({
       ...current,
@@ -472,19 +615,60 @@ export function BranchDashboardPage() {
   }
 
   const resetAddCourseForm = () => {
-    setAddCourseForm(createInitialBranchCourseForm())
+    setAddCourseForm(
+      editingCourseRecord ? buildBranchCourseFormFromRecord(editingCourseRecord) : createInitialBranchCourseForm(),
+    )
     setAddCourseTouched({})
     setAddCourseError('')
   }
 
   const openAddCourseModal = () => {
     resetAddCourseForm()
+    setEditingCourseId('')
+    setCourseSaveSuccess(null)
+    setIsAddCourseOpen(true)
+    setActiveSection('courses')
+  }
+
+  const openEditCourseModal = (course) => {
+    setEditingCourseId(String(course?.id || '').trim())
+    setAddCourseForm(buildBranchCourseFormFromRecord(course))
+    setAddCourseTouched({})
+    setAddCourseError('')
+    setOpenCourseActionMenuId('')
     setIsAddCourseOpen(true)
     setActiveSection('courses')
   }
 
   const closeAddCourseModal = () => {
     setIsAddCourseOpen(false)
+    setEditingCourseId('')
+    setOpenCourseActionMenuId('')
+  }
+
+  const closeCourseSaveSuccess = () => {
+    setCourseSaveSuccess(null)
+  }
+
+  const openDeleteCourseConfirm = (course) => {
+    setCourseDeleteTarget(course)
+    setOpenCourseActionMenuId('')
+  }
+
+  const closeDeleteCourseConfirm = () => {
+    setCourseDeleteTarget(null)
+  }
+
+  const handleDeleteCourseConfirm = () => {
+    if (!courseDeleteTarget) return
+
+    const nextCards = branchCourseCards.filter((course) => String(course.id || '').trim() !== String(courseDeleteTarget.id || '').trim())
+    setBranchCourseCards(nextCards)
+    saveBranchCourseCards(nextCards)
+
+    const nextTotalPages = Math.max(1, Math.ceil(nextCards.length / BRANCH_COURSES_PER_PAGE))
+    setBranchCoursePage((current) => Math.min(current, nextTotalPages))
+    setCourseDeleteTarget(null)
   }
 
   const handleAddCourseSubmit = async (event) => {
@@ -518,12 +702,18 @@ export function BranchDashboardPage() {
 
     setIsAddCourseSaving(true)
     try {
+      const normalizedCourseCode = normalizeBranchCourseCode(addCourseForm.courseCode)
+      const editingTargetId = String(editingCourseId || '').trim()
       const duplicateCourse = branchCourseCards.find(
-        (course) => String(course.name || '').trim().toLowerCase() === String(addCourseForm.name || '').trim().toLowerCase(),
+        (course) =>
+          String(course.id || '').trim() !== editingTargetId &&
+          String(course.name || '').trim().toLowerCase() === String(addCourseForm.name || '').trim().toLowerCase(),
       )
       const duplicateCourseCode = branchCourseCards.find(
         (course) =>
-          String(course.courseCode || '').trim().toLowerCase() === String(addCourseForm.courseCode || '').trim().toLowerCase(),
+          String(course.id || '').trim() !== editingTargetId &&
+          String(course.courseCode || '').trim().toLowerCase() ===
+          String(normalizedCourseCode).trim().toLowerCase(),
       )
 
       if (duplicateCourseCode) {
@@ -538,9 +728,12 @@ export function BranchDashboardPage() {
 
       const payload = buildBranchCoursePayload(addCourseForm)
       const nextCourseCard = {
-        id: payload.courseCode || payload.name || `branch-course-${Date.now()}`,
+        id: editingTargetId || payload.courseCode || payload.name || `branch-course-${Date.now()}`,
         courseCode: payload.courseCode,
         name: payload.name,
+        createdAt:
+          branchCourseCards.find((course) => String(course.id || '').trim() === editingTargetId)?.createdAt ||
+          new Date().toISOString(),
         batches: 0,
         students: 0,
         summary: `${payload.mode} | ${payload.duration} months | ${payload.hours} hours`,
@@ -551,19 +744,30 @@ export function BranchDashboardPage() {
         actualFees: payload.actualFees,
         registrationFees: payload.registrationFees,
         discount: payload.discount,
+        afterDiscount: payload.afterDiscount,
         finalFee: payload.defaultFinalFee,
+        defaultFinalFee: payload.defaultFinalFee,
         installmentCount: payload.installmentCount,
         installments: payload.installments,
         status: payload.status,
       }
 
-      const nextCards = [nextCourseCard, ...branchCourseCards]
+      const nextCards = editingTargetId
+        ? branchCourseCards.map((course) => (String(course.id || '').trim() === editingTargetId ? nextCourseCard : course))
+        : [nextCourseCard, ...branchCourseCards]
       setBranchCourseCards(nextCards)
       saveBranchCourseCards(nextCards)
-      setAddCourseSuccess(`Course "${addCourseForm.name.trim()}" created successfully.`)
+      setBranchCoursePage(1)
+      setCourseSaveSuccess({
+        title: editingTargetId ? 'Course updated' : 'Course created',
+        message: editingTargetId
+          ? 'The course details have been updated successfully.'
+          : 'The course has been saved successfully.',
+      })
       setIsAddCourseOpen(false)
       setAddCourseForm(createInitialBranchCourseForm())
       setAddCourseTouched({})
+      setEditingCourseId('')
     } catch (error) {
       setAddCourseError(apiErrorMessage(error, 'Unable to save course right now.'))
     } finally {
@@ -824,26 +1028,162 @@ export function BranchDashboardPage() {
               ) : null}
 
               {activeSection === 'courses' ? (
-                <BranchDashboardSection title="Courses" description="A small sample of active course offerings.">
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                <BranchDashboardSection
+                  title="Courses"
+                  description="Add a course and the saved data will appear in the table below with every field from the form."
+                >
+                  <div className="branch-dashboard-section-toolbar">
+                    <div className="branch-dashboard-section-summary">
+                      <span>Saved courses</span>
+                      <strong>{branchCourseCards.length}</strong>
+                    </div>
+
                     <button type="button" className="button button-solid" onClick={openAddCourseModal}>
                       + Add Course
                     </button>
                   </div>
-                  {addCourseSuccess ? (
-                    <div className="course-validation-note" style={{ marginBottom: '1rem', color: '#166534' }}>
-                      <span style={{ color: '#166534' }}>{addCourseSuccess}</span>
+                  <div className="branch-course-table-shell">
+                    <table className="branch-course-table">
+                      <thead>
+                        <tr>
+                          <th>S.No</th>
+                          <th>Course Code</th>
+                          <th>Course Name</th>
+                          <th>Mode</th>
+                          <th>Duration</th>
+                          <th>Hours</th>
+                          <th>Standard Fee</th>
+                          <th>Registration Fee</th>
+                          <th>Discount</th>
+                          <th>Final Fee</th>
+                          <th>Fee Plan</th>
+                          <th>Installments</th>
+                          <th>Created At</th>
+                          <th>Status</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                          {visibleBranchCourses.length ? (
+                          visibleBranchCourses.map((course, index) => {
+                            const normalizedStatus = String(course.status || 'Active').toLowerCase()
+                            const absoluteIndex = (safeBranchCoursePage - 1) * BRANCH_COURSES_PER_PAGE + index + 1
+
+                            return (
+                              <tr key={course.id}>
+                                <td>{absoluteIndex}</td>
+                                <td>
+                                  <div className="branch-course-code-cell">
+                                    <strong>{course.courseCode || '-'}</strong>
+                                  </div>
+                                </td>
+                                <td>
+                                  <strong className="branch-course-name">{course.name || '-'}</strong>
+                                </td>
+                                <td>{course.mode || '-'}</td>
+                                <td>{course.duration ? `${course.duration} month${course.duration === '1' ? '' : 's'}` : '-'}</td>
+                                <td>{course.hours ? `${course.hours} hour${course.hours === '1' ? '' : 's'}` : '-'}</td>
+                                <td>{formatBranchCourseAmount(course.actualFees)}</td>
+                                <td>{formatBranchCourseAmount(course.registrationFees)}</td>
+                                <td>{formatBranchCourseAmount(course.discount || '0')}</td>
+                                <td>{formatBranchCourseAmount(course.afterDiscount || course.defaultFinalFee)}</td>
+                                <td>{formatBranchCoursePlan(course)}</td>
+                                <td className="branch-course-installments">{formatBranchCourseInstallments(course)}</td>
+                                <td>{formatBranchCourseDate(course.createdAt)}</td>
+                                <td>
+                                  <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
+                                    {course.status || 'Active'}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div
+                                    className="branch-course-actions-wrap"
+                                    ref={openCourseActionMenuId === course.id ? courseActionMenuRef : null}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="branch-course-actions-button"
+                                      aria-label={`Course actions for ${course.name || course.courseCode || 'course'}`}
+                                      aria-haspopup="menu"
+                                      aria-expanded={openCourseActionMenuId === course.id}
+                                      onClick={() =>
+                                        setOpenCourseActionMenuId((current) => (current === course.id ? '' : course.id))
+                                      }
+                                    >
+                                      <MoreVertical size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                                    </button>
+
+                                    {openCourseActionMenuId === course.id ? (
+                                      <div className="branch-course-actions-menu" role="menu" aria-label="Course actions">
+                                        <button
+                                          type="button"
+                                          className="branch-course-actions-menu-item"
+                                          onClick={() => openEditCourseModal(course)}
+                                          role="menuitem"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="branch-course-actions-menu-item is-danger"
+                                          onClick={() => openDeleteCourseConfirm(course)}
+                                          role="menuitem"
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan="15" className="branch-course-empty-state">
+                              No courses saved yet. Use Add Course to create the first one.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {branchCourseCards.length > BRANCH_COURSES_PER_PAGE ? (
+                    <div className="branch-course-pagination">
+                      <button
+                        type="button"
+                        className="branch-course-pagination-button"
+                        onClick={() => setBranchCoursePage((current) => Math.max(1, current - 1))}
+                        disabled={safeBranchCoursePage === 1}
+                      >
+                        Prev
+                      </button>
+
+                      <div className="branch-course-pagination-pages" role="navigation" aria-label="Course pagination">
+                        {Array.from({ length: totalBranchCoursePages }, (_, index) => index + 1).map((page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            className={`branch-course-pagination-page ${page === safeBranchCoursePage ? 'is-active' : ''}`.trim()}
+                            onClick={() => setBranchCoursePage(page)}
+                            aria-current={page === safeBranchCoursePage ? 'page' : undefined}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="branch-course-pagination-button"
+                        onClick={() => setBranchCoursePage((current) => Math.min(totalBranchCoursePages, current + 1))}
+                        disabled={safeBranchCoursePage === totalBranchCoursePages}
+                      >
+                        Next
+                      </button>
                     </div>
                   ) : null}
-                  <div className="branch-dashboard-card-grid">
-                    {branchCourseCards.map((course) => (
-                      <article key={course.id} className="branch-dashboard-info-card">
-                        <strong>{course.name}</strong>
-                        <span>{course.courseCode || course.summary || `${course.batches || 0} batches`}</span>
-                        <small>{course.detail || `${course.students || 0} students`}</small>
-                      </article>
-                    ))}
-                  </div>
                 </BranchDashboardSection>
               ) : null}
 
@@ -913,7 +1253,7 @@ export function BranchDashboardPage() {
         </div>
 
         {isAddCourseOpen ? (
-          <div className="course-modal-backdrop" role="presentation" onClick={closeAddCourseModal}>
+          <div className="course-modal-backdrop" role="presentation">
             <form
               className="course-modal panel-card"
               role="dialog"
@@ -925,7 +1265,7 @@ export function BranchDashboardPage() {
               <div className="course-modal-header">
                 <div>
                   <p className="section-kicker">Course Entry</p>
-                  <h3 id="branch-add-course-title">Add Course</h3>
+                  <h3 id="branch-add-course-title">{editingCourseId ? 'Edit Course' : 'Add Course'}</h3>
                 </div>
                 <span className="detail-badge">Required fields marked *</span>
               </div>
@@ -937,14 +1277,14 @@ export function BranchDashboardPage() {
                   hint="Recommended unique identifier for reports and integrations"
                   error={shouldShowAddCourseError('courseCode') ? addCourseValidationErrors.courseCode : ''}
                 >
-                  <input
-                    type="text"
-                    placeholder="UIUX-06M"
-                    value={addCourseForm.courseCode}
-                    onChange={(event) => updateAddCourseField('courseCode', event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, courseCode: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('courseCode'))}
-                  />
+                    <input
+                      type="text"
+                      placeholder="UIUX-06M"
+                      value={addCourseForm.courseCode || COURSE_CODE_PREFIX}
+                      onChange={(event) => updateAddCourseField('courseCode', event.target.value)}
+                      onBlur={() => setAddCourseTouched((current) => ({ ...current, courseCode: true }))}
+                      aria-invalid={Boolean(shouldShowAddCourseError('courseCode'))}
+                    />
                 </Field>
 
                 <Field
@@ -1173,7 +1513,7 @@ export function BranchDashboardPage() {
                   Reset
                 </button>
                 <button type="submit" className="button button-solid" disabled={isAddCourseSaving}>
-                  {isAddCourseSaving ? 'Saving...' : 'Save Course'}
+                  {isAddCourseSaving ? 'Saving...' : editingCourseId ? 'Update Course' : 'Save Course'}
                 </button>
               </div>
 
@@ -1181,6 +1521,88 @@ export function BranchDashboardPage() {
                 X
               </button>
             </form>
+          </div>
+        ) : null}
+
+        {courseSaveSuccess ? (
+          <div className="branch-modal-backdrop" role="presentation" onClick={closeCourseSaveSuccess}>
+            <div
+              className="branch-success-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="branch-course-success-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close success popup"
+                onClick={closeCourseSaveSuccess}
+              >
+                X
+              </button>
+
+              <div className="branch-success-hero" aria-hidden="true">
+                <span className="branch-success-hero-ring" />
+                <span className="branch-success-hero-icon">
+                  <CheckCircle2 size={30} strokeWidth={2.1} />
+                </span>
+              </div>
+
+              <div className="branch-success-copy">
+                <p className="branch-success-kicker">Success</p>
+                <h2 id="branch-course-success-title">{courseSaveSuccess.title}</h2>
+                <p>{courseSaveSuccess.message}</p>
+              </div>
+
+              <div className="branch-success-actions">
+                <button type="button" className="branch-success-secondary" onClick={closeCourseSaveSuccess}>
+                  Close
+                </button>
+                <button type="button" className="branch-success-primary" onClick={closeCourseSaveSuccess}>
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {courseDeleteTarget ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <div
+              className="branch-success-modal super-admin-logout-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="branch-delete-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close delete confirmation"
+                onClick={closeDeleteCourseConfirm}
+              >
+                X
+              </button>
+
+              <div className="super-admin-logout-icon is-danger" aria-hidden="true">
+                <LogOut size={28} strokeWidth={2.1} />
+              </div>
+
+              <h2 id="branch-delete-title">Delete this course?</h2>
+              <p className="branch-delete-copy">
+                {courseDeleteTarget.name || courseDeleteTarget.courseCode || 'This course'} will be removed from the table.
+              </p>
+
+              <div className="branch-modal-actions">
+                <button type="button" className="branch-modal-cancel" onClick={closeDeleteCourseConfirm}>
+                  Cancel
+                </button>
+                <button type="button" className="branch-modal-submit is-danger" onClick={handleDeleteCourseConfirm}>
+                  Delete
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
 
