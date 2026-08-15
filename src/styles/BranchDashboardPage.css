@@ -624,38 +624,36 @@
 }
 
 .branch-course-table-shell {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   border: 1px solid #dbe4f0;
   border-radius: 20px;
   background: #fff;
   box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
-  -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable both-edges;
 }
 
 .branch-course-table {
   width: 100%;
-  min-width: 1480px;
+  min-width: 0;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
 .branch-course-table thead th {
-  padding: 16px 14px;
+  padding: 14px 12px;
   background: #f8fafc;
   border-bottom: 1px solid #e5e7eb;
   color: #64748b;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 800;
   text-align: left;
   white-space: nowrap;
 }
 
 .branch-course-table tbody td {
-  padding: 16px 14px;
+  padding: 14px 12px;
   border-bottom: 1px solid #eef2f7;
   color: #334155;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   vertical-align: top;
 }
 
@@ -677,6 +675,11 @@
 }
 
 .branch-course-name {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 800;
   color: #0f172a;
 }
@@ -703,8 +706,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 74px;
-  padding: 6px 12px;
+  min-width: 66px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: #ecfdf3;
   color: #15803d;
@@ -721,8 +724,8 @@
 .branch-course-actions-button {
   display: inline-grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border: 0;
   border-radius: 12px;
   background: #f8fafc;
@@ -1310,4 +1313,34 @@
 
 .branch-course-title-row h2 {
   margin: 0 0 2px;
+}
+
+.branch-course-table th:nth-child(1),
+.branch-course-table td:nth-child(1) {
+  width: 8%;
+}
+
+.branch-course-table th:nth-child(2),
+.branch-course-table td:nth-child(2) {
+  width: 22%;
+}
+
+.branch-course-table th:nth-child(3),
+.branch-course-table td:nth-child(3) {
+  width: 28%;
+}
+
+.branch-course-table th:nth-child(4),
+.branch-course-table td:nth-child(4) {
+  width: 16%;
+}
+
+.branch-course-table th:nth-child(5),
+.branch-course-table td:nth-child(5) {
+  width: 16%;
+}
+
+.branch-course-table th:nth-child(6),
+.branch-course-table td:nth-child(6) {
+  width: 10%;
 }
