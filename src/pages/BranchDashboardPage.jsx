@@ -1594,7 +1594,7 @@ const closeViewCourseDrawer = () => {
         ) : null}
 
         {isLogoutConfirmOpen ? (
-          <div className="branch-modal-backdrop" role="presentation" onClick={closeLogoutConfirm}>
+          <div className="branch-modal-backdrop" role="presentation">
             <div
               className="branch-logout-modal"
               role="dialog"

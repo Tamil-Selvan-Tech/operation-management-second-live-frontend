@@ -267,7 +267,7 @@ export function AppSidebar({
 
       {isLogoutConfirmOpen && typeof document !== 'undefined'
         ? createPortal(
-            <div className="logout-modal-backdrop" role="presentation" onClick={() => setIsLogoutConfirmOpen(false)}>
+            <div className="logout-modal-backdrop" role="presentation">
               <div
                 className="logout-modal"
                 role="dialog"
