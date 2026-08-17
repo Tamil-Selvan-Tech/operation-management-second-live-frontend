@@ -20,6 +20,12 @@ import {
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
 import { loadFacultyRegistry, saveFacultyRegistry } from '../lib/facultyAuth'
 import '../styles/BranchFacultyPage.css'
+import {
+  listBranchFaculty,
+  createBranchFaculty,
+  updateBranchFaculty,
+  deleteBranchFaculty,
+} from '../services/branchFacultyService'
 
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
@@ -124,6 +130,37 @@ export function BranchFacultyPage() {
     }
   }, [])
 
+  // Load faculty list from backend
+  const fetchFaculty = async () => {
+    try {
+      const res = await listBranchFaculty()
+      if (res?.data) {
+        // Map backend representation to UI expectation
+        const mapped = res.data.map((f) => ({
+          dbId: f.id,
+          id: f.facultyId,
+          name: f.name,
+          email: f.email,
+          phone: f.phone,
+          country: f.country,
+          countryCode: f.countryCode,
+          state: f.state,
+          stateCode: f.stateCode,
+          city: f.city,
+          address: f.address,
+          status: f.status,
+        }))
+        setFacultyList(mapped)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branch faculty:', error)
+    }
+  }
+
+  useEffect(() => {
+    fetchFaculty()
+  }, [])
+
   // Load states on country code change
   useEffect(() => {
     if (!modalForm.countryCode) {
@@ -188,7 +225,7 @@ export function BranchFacultyPage() {
   const getNextAvailableIdDigits = (list) => {
     let maxNum = 0
     list.forEach((f) => {
-      const parts = f.id.split('-')
+      const parts = (f.id || '').split('-')
       if (parts.length === 2 && parts[0] === FACULTY_ID_PREFIX.replace('-', '')) {
         const num = parseInt(parts[1], 10)
         if (!isNaN(num) && num > maxNum) {
@@ -202,23 +239,23 @@ export function BranchFacultyPage() {
 
   // Filtered list
   const filteredFaculty = useMemo(() => {
-    return facultyList.filter((faculty) => {
-      const query = searchQuery.toLowerCase()
+    const query = searchQuery.trim().toLowerCase()
 
-      return (
-        faculty.id.toLowerCase().includes(query) ||
-        faculty.name.toLowerCase().includes(query) ||
-        faculty.email.toLowerCase().includes(query) ||
-        faculty.phone.includes(query) ||
-        (faculty.country &&
-          faculty.country.toLowerCase().includes(query)) ||
-        (faculty.state &&
-          faculty.state.toLowerCase().includes(query)) ||
-        (faculty.city &&
-          faculty.city.toLowerCase().includes(query)) ||
-        (faculty.address &&
-          faculty.address.toLowerCase().includes(query))
-      )
+    if (!query) return facultyList
+
+    return facultyList.filter((faculty) => {
+      const searchableText = [
+        faculty.id || '',
+        faculty.name || '',
+        faculty.email || '',
+        faculty.phone || '',
+        faculty.country || '',
+        faculty.state || '',
+        faculty.city || '',
+        faculty.address || '',
+      ].join(' ').toLowerCase()
+
+      return searchableText.includes(query)
     })
   }, [facultyList, searchQuery])
 
@@ -577,7 +614,7 @@ export function BranchFacultyPage() {
   }
 
   // Submit Handler for Add / Edit
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault()
 
     const idDigitsErr = validateIdDigits(modalForm.idDigits, editingId, facultyList)
@@ -616,56 +653,48 @@ export function BranchFacultyPage() {
     if (hasErrors) return
 
     const fullId = `${FACULTY_ID_PREFIX}${modalForm.idDigits}`
-
-    if (editingId) {
-      // Edit Save Flow
-      const updatedList = facultyList.map((f) =>
-        f.id === editingId
-          ? {
-            ...f,
-            id: fullId,
-            name: modalForm.name,
-            email: modalForm.email,
-            phone: modalForm.phone,
-            country: modalForm.country,
-            state: modalForm.state,
-            city: modalForm.city,
-            address: modalForm.address,
-            status: modalForm.status,
-          }
-          : f
-      )
-      setFacultyList(updatedList)
-      saveFacultyRegistry(updatedList)
-      setSuccessAlert({
-        title: '✓ Faculty Updated Successfully',
-        message: 'Faculty details have been updated successfully.',
-      })
-    } else {
-      // Add Save Flow
-      const tempPass = `Pass-${Math.floor(100 + Math.random() * 900)}`
-      const newFaculty = {
-        id: fullId,
-        name: modalForm.name,
-        email: modalForm.email,
-        phone: modalForm.phone,
-        country: modalForm.country,
-        state: modalForm.state,
-        city: modalForm.city,
-        address: modalForm.address,
-        tempPassword: tempPass,
-        status: modalForm.status,
-      }
-      const updatedList = [newFaculty, ...facultyList]
-      setFacultyList(updatedList)
-      saveFacultyRegistry(updatedList)
-      setSuccessAlert({
-        title: '✓ Faculty Added Successfully',
-        message: `New faculty has been onboarded successfully. A login email has been mock-sent to ${modalForm.email} with temporary password: ${tempPass}`,
-      })
+    const payload = {
+      facultyId: fullId,
+      name: modalForm.name,
+      email: modalForm.email,
+      phone: modalForm.phone,
+      country: modalForm.country,
+      countryCode: modalForm.countryCode,
+      state: modalForm.state,
+      stateCode: modalForm.stateCode,
+      city: modalForm.city,
+      address: modalForm.address,
+      status: modalForm.status,
     }
 
-    setIsModalOpen(false)
+    try {
+      if (editingId) {
+        const targetFaculty = facultyList.find((f) => f.id === editingId)
+        if (targetFaculty?.dbId) {
+          await updateBranchFaculty(targetFaculty.dbId, payload)
+        }
+        await fetchFaculty()
+        setSuccessAlert({
+          title: '✓ Faculty Updated Successfully',
+          message: 'Faculty details have been updated successfully.',
+        })
+      } else {
+        await createBranchFaculty(payload)
+        await fetchFaculty()
+        setSuccessAlert({
+          title: '✓ Faculty Added Successfully',
+          message: 'New faculty has been onboarded successfully.',
+        })
+      }
+
+      setIsModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      setErrors((prev) => ({
+        ...prev,
+        email: err?.body?.message || 'Error saving faculty. Please try again.',
+      }))
+    }
   }
 
   // Delete Action Trigger
@@ -675,16 +704,22 @@ export function BranchFacultyPage() {
     setOpenActionId('')
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirmTarget) return
-    const updatedList = facultyList.filter((f) => f.id !== deleteConfirmTarget.id)
-    setFacultyList(updatedList)
-    saveFacultyRegistry(updatedList)
-    setDeleteConfirmTarget(null)
-    setSuccessAlert({
-      title: '✓ Faculty Deleted Successfully',
-      message: 'Faculty has been deleted successfully.',
-    })
+    try {
+      if (deleteConfirmTarget.dbId) {
+        await deleteBranchFaculty(deleteConfirmTarget.dbId)
+      }
+      await fetchFaculty()
+      setDeleteConfirmTarget(null)
+      setSuccessAlert({
+        title: '✓ Faculty Deleted Successfully',
+        message: 'Faculty has been deleted successfully.',
+      })
+    } catch (error) {
+      console.error(error)
+      // Normally we would show an error alert here
+    }
   }
 
   return (<div className="branch-dashboard-section">
@@ -742,7 +777,6 @@ export function BranchFacultyPage() {
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
-            {/* <th>Location</th> */}
             <th>Status</th>
             <th style={{ width: '80px', textAlign: 'center' }}>Actions</th>
           </tr>
@@ -759,9 +793,7 @@ export function BranchFacultyPage() {
                     <strong style={{ color: '#0f172a' }}>{faculty.id}</strong>
                   </td>
                   <td>
-                    <strong className="branch-course-name">
-                      {faculty.name}
-                    </strong>
+                    <strong className="branch-course-name">{faculty.name}</strong>
                   </td>
                   <td>
                     <span className="faculty-info-link">
@@ -775,38 +807,30 @@ export function BranchFacultyPage() {
                       {faculty.phone}
                     </span>
                   </td>
-
                   <td>
                     <span className={`branch-course-status-pill ${normStatus}`}>
                       {faculty.status}
                     </span>
                   </td>
                   <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-
                     <button
                       type="button"
                       className="branch-course-actions-button"
-
                       onMouseEnter={(e) => {
                         e.stopPropagation()
-
                         if (actionCloseTimer.current) {
                           clearTimeout(actionCloseTimer.current)
                         }
-
                         openActionMenu(faculty, e.currentTarget)
                       }}
-
                       onMouseLeave={() => {
                         actionCloseTimer.current = setTimeout(() => {
                           setOpenActionId('')
                           setActionMenuPosition(null)
                         }, 200)
                       }}
-
                       onClick={(e) => {
                         e.stopPropagation()
-
                         if (openActionId === faculty.id) {
                           setOpenActionId('')
                           setActionMenuPosition(null)
@@ -817,7 +841,6 @@ export function BranchFacultyPage() {
                     >
                       <MoreVertical size={16} />
                     </button>
-
                   </td>
                   {openActionId &&
                     actionMenuPosition &&
@@ -832,28 +855,25 @@ export function BranchFacultyPage() {
                           left: `${actionMenuPosition.left}px`,
                           zIndex: 999999,
                         }}
-
                         onMouseEnter={() => {
                           if (actionCloseTimer.current) {
                             clearTimeout(actionCloseTimer.current)
                           }
                         }}
-
                         onMouseLeave={() => {
                           actionCloseTimer.current = setTimeout(() => {
                             setOpenActionId('')
                             setActionMenuPosition(null)
                           }, 200)
                         }}
-
                         onClick={(e) => e.stopPropagation()}
                       >
                         {(() => {
-                          const faculty = filteredFaculty.find(
+                          const selectedFaculty = filteredFaculty.find(
                             (item) => item.id === openActionId
                           )
 
-                          if (!faculty) return null
+                          if (!selectedFaculty) return null
 
                           return (
                             <>
@@ -861,18 +881,12 @@ export function BranchFacultyPage() {
                                 type="button"
                                 className="branch-course-actions-menu-item"
                                 onClick={() => {
-                                  setViewFaculty(faculty)
+                                  setViewFaculty(selectedFaculty)
                                   setOpenActionId('')
                                   setActionMenuPosition(null)
                                 }}
                               >
-                                <span
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                  }}
-                                >
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                   <Eye size={14} />
                                   View
                                 </span>
@@ -882,17 +896,11 @@ export function BranchFacultyPage() {
                                 type="button"
                                 className="branch-course-actions-menu-item"
                                 onClick={(e) => {
-                                  openEditModal(faculty, e)
+                                  openEditModal(selectedFaculty, e)
                                   setActionMenuPosition(null)
                                 }}
                               >
-                                <span
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                  }}
-                                >
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                   <Edit size={14} />
                                   Edit
                                 </span>
@@ -902,17 +910,11 @@ export function BranchFacultyPage() {
                                 type="button"
                                 className="branch-course-actions-menu-item is-danger"
                                 onClick={(e) => {
-                                  triggerDelete(faculty, e)
+                                  triggerDelete(selectedFaculty, e)
                                   setActionMenuPosition(null)
                                 }}
                               >
-                                <span
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                  }}
-                                >
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                                   <Trash2 size={14} />
                                   Delete
                                 </span>

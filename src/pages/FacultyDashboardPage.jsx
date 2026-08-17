@@ -259,6 +259,20 @@ export function FacultyDashboardPage() {
 
           <main className="super-admin-content">
             <div className="branch-dashboard-content">
+              {user && user.mustResetPassword ? (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '16px 20px', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ background: '#fee2e2', padding: '8px', borderRadius: '50%', display: 'flex' }}>
+                    <ShieldCheck size={24} style={{ color: '#ef4444' }} />
+                  </div>
+                  <div>
+                    <h3 style={{ color: '#991b1b', margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: 700 }}>Action Required: Reset Your Password</h3>
+                    <p style={{ color: '#b91c1c', margin: 0, fontSize: '0.95rem' }}>
+                      You are currently logging in with a temporary password. For your security, please update your password immediately.
+                    </p>
+                  </div>
+                </div>
+              ) : null}
+
               {activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
