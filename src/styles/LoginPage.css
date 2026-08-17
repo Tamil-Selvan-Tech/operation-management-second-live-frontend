@@ -544,7 +544,7 @@
 }
 
 .reset-password-intro {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .reset-password-badge {

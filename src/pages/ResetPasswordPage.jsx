@@ -84,7 +84,7 @@ export function ResetPasswordPage() {
   const authenticatedBranchEmail = String(session?.user?.email || '').trim().toLowerCase()
   const isBranchResetFlow = Boolean(
     (isBranchResetParam ||
-      (isAuthenticated && role === 'branch-admin')) &&
+      (isAuthenticated && (role === 'branch-admin' || role === 'faculty'))) &&
       session?.user?.mustResetPassword,
   )
   const redirectTo =
@@ -227,8 +227,8 @@ export function ResetPasswordPage() {
           <h2>Reset password</h2>
           <p className="reset-password-intro">
             {isBranchResetFlow
-              ? 'You are still using your temporary password. Create a new password now to continue using your branch dashboard safely.'
-              : 'Create a new password below and use it the next time you log in.'}
+              ? 'You are still using your temporary password. Create a new password now to continue using your dashboard safely.'
+              : 'Create a new, strong password for your account.'}
           </p>
         </div>
       </div>

@@ -224,6 +224,9 @@ export function FacultyDashboardPage() {
 
   const renderTopbar = () => (
     <header className="super-admin-topbar">
+      <div className="super-admin-topbar-left">
+        <h2 className="super-admin-topbar-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: 600 }}>Faculty Dashboard</h2>
+      </div>
       <div className="super-admin-topbar-right">
         <button type="button" className="super-admin-notification-button" aria-label="Notifications">
           <Bell size={22} strokeWidth={2.1} />
@@ -298,8 +301,7 @@ export function FacultyDashboardPage() {
               {activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
-                    <h1>Dashboard</h1>
-                    <p>Welcome back, {facultyName}! Here&apos;s an overview of your active courses, batches, and student attendance metrics.</p>
+                    <p style={{ marginTop: '12px' }}>Welcome back, {facultyName}! Here&apos;s an overview of your active courses, batches, and student attendance metrics.</p>
                   </div>
 
                   <div className="branch-dashboard-stats">
