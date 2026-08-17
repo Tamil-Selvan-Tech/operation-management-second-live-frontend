@@ -1,6 +1,20 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  Bell,
+  ChevronDown,
+  CircleUserRound,
+  Layers3,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  UserRound,
+  Users,
+} from 'lucide-react'
+import {
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
   getAttendanceDateKey,
   loadFacultyBatchAttendanceState,
@@ -18,6 +32,8 @@ import { getCurrentFacultyProfile } from '../services/facultyService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
+import { useAuth } from '../auth/useAuth'
+import { loadFacultyRegistry } from '../lib/facultyAuth'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -59,7 +75,7 @@ function formatMinutesLabel(value = 0) {
   return `${count} minute${count === 1 ? '' : 's'}`
 }
 
-function FacultyProfileStat({ icon: Icon, label, value, tone = 'blue' }) {
+function SidebarUserAvatar() {
   return (
     <span className="super-admin-sidebar-user-avatar" aria-hidden="true">
       <CircleUserRound size={34} strokeWidth={1.9} />
@@ -504,3 +520,5 @@ export function FacultyDashboardPage() {
     </section>
   )
 }
+
+export { FacultyDashboardPage as FacultyMyBatchesPage }

@@ -571,12 +571,12 @@ export function BranchFacultyPage() {
       name: '',
       email: '',
       phone: '',
-      country: '',
-      countryCode: '',
-      state: '',
-      stateCode: '',
-      city: '',
-      address: '',
+      country: 'India',
+    countryCode: 'IN',
+    state: 'Tamil Nadu',
+    stateCode: 'TN',
+    city: '',
+    address: '',
       status: 'Active',
     })
     setErrors({})
