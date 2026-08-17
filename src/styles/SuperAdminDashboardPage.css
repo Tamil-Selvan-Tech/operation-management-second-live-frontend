@@ -1430,7 +1430,7 @@
   max-width: 100%;
 }
 
-.branch-inline-view-cell > strong {
+.branch-inline-view-cell>strong {
   min-width: 0;
   color: #111827;
   font-weight: 800;
@@ -1447,7 +1447,7 @@
   flex: 0 0 auto;
   padding: 0;
   margin-top: 0;
-  cursor: help;
+  cursor: default;
   overflow: visible;
 }
 
@@ -2478,6 +2478,7 @@
 }
 
 @media (max-width: 900px) {
+
   .branch-management-header,
   .branch-management-toolbar,
   .branch-table-footer {

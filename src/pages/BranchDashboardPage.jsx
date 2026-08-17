@@ -6,6 +6,8 @@ import {
   BookOpen,
   CircleUserRound,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
   Layers3,
   LogOut,
@@ -15,15 +17,15 @@ import {
   Users,
   Wallet,
   CheckCircle2,
-    Eye,
-    Code2,
-CircleDot,
-CalendarDays,
-Monitor,
-Clock3,
-IndianRupee,
-FileText,
-Tag,
+  Eye,
+  Code2,
+  CircleDot,
+  CalendarDays,
+  Monitor,
+  Clock3,
+  IndianRupee,
+  FileText,
+  Tag,
   BadgeInfo,
   BadgePercent,
   UserRound,
@@ -32,6 +34,7 @@ Tag,
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { getCurrentBranchProfile } from '../services/branchService'
+import { listBranchFaculty } from '../services/branchFacultyService'
 import {
   createBranchCourse,
   deleteBranchCourse,
@@ -255,18 +258,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
   const [courseActionMenuPosition, setCourseActionMenuPosition] = useState({ top: 0, left: 0 })
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
-    const [viewCourse, setViewCourse] = useState(null)
+  const [viewCourse, setViewCourse] = useState(null)
 
   const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
-const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
-const [selectedFacultyIds, setSelectedFacultyIds] = useState([])
-const facultyList = [
-  { id: 'FAC-001', name: 'Arun Kumar' },
-  { id: 'FAC-002', name: 'Priya S' },
-  { id: 'FAC-003', name: 'Karthik M' },
-  { id: 'FAC-004', name: 'Divya R' },
-  { id: 'FAC-005', name: 'Manoj T' },
-]
+  const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
+  const [selectedFacultyIds, setSelectedFacultyIds] = useState([])
+  const [facultyList, setFacultyList] = useState([])
+  const [assignFacultyPage, setAssignFacultyPage] = useState(1)
+  const [assignFacultySuccess, setAssignFacultySuccess] = useState(null)
+
   const profileMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
 
@@ -280,6 +280,24 @@ const facultyList = [
 
     setBranchCourseCards(Array.isArray(result?.data) ? result.data : [])
     return result
+  }, [])
+
+  const loadFacultyList = useCallback(async () => {
+    try {
+      const res = await listBranchFaculty()
+      if (res?.data) {
+        const mapped = res.data.map((f) => ({
+          id: f.facultyId || f.id,
+          name: f.name,
+          email: f.email,
+          phone: f.phone,
+          status: f.status,
+        }))
+        setFacultyList(mapped)
+      }
+    } catch (error) {
+      console.error('Failed to fetch faculty list:', error)
+    }
   }, [])
 
   useEffect(() => {
@@ -309,7 +327,7 @@ const facultyList = [
       return
     }
 
-    Promise.allSettled([getCurrentBranchProfile(), loadBranchCourses()]).then(([branchResult, coursesResult]) => {
+    Promise.allSettled([getCurrentBranchProfile(), loadBranchCourses(), loadFacultyList()]).then(([branchResult, coursesResult]) => {
       if (!isMounted) return
 
       if (branchResult.status === 'fulfilled') {
@@ -330,7 +348,7 @@ const facultyList = [
     return () => {
       isMounted = false
     }
-  }, [isAuthenticated, loadBranchCourses, navigate, role, session, user])
+  }, [isAuthenticated, loadBranchCourses, loadFacultyList, navigate, role, session, user])
 
   useEffect(() => {
     if (!isProfileMenuOpen) return undefined
@@ -363,11 +381,11 @@ const facultyList = [
     const onPointerDown = (event) => {
       const target = event.target
       if (!(target instanceof Element)) return
-      
+
       // Check if click is on the action menu or action button
       if (target.closest('.branch-course-actions-menu')) return
       if (target.closest('.branch-course-actions-button')) return
-      
+
       setOpenCourseActionMenuId('')
       setCourseActionMenuPosition({ top: 0, left: 0 })
     }
@@ -397,54 +415,62 @@ const facultyList = [
     setIsLogoutConfirmOpen(false)
   }
 
-  
-const openAssignFacultyModal = (course) => {
-  setAssignFacultyCourse(course)
-  setSelectedFacultyIds(
-    Array.isArray(course?.assignedFaculty)
-      ? course.assignedFaculty.map((faculty) => String(faculty.id))
-      : []
-  )
 
-  setOpenCourseActionMenuId('')
-  setCourseActionMenuPosition({ top: 0, left: 0 })
-  setIsAssignFacultyOpen(true)
-}
+  const openAssignFacultyModal = (course) => {
+    setAssignFacultyCourse(course)
+    setSelectedFacultyIds(
+      Array.isArray(course?.assignedFaculty)
+        ? course.assignedFaculty.map((faculty) => String(faculty.id))
+        : []
+    )
 
-const closeAssignFacultyModal = () => {
-  setIsAssignFacultyOpen(false)
-  setAssignFacultyCourse(null)
-  setSelectedFacultyIds([])
-}
+    setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
+    setAssignFacultyPage(1)
+    setIsAssignFacultyOpen(true)
+    loadFacultyList()
+  }
 
-const toggleFacultySelection = (facultyId) => {
-  setSelectedFacultyIds((current) =>
-    current.includes(facultyId)
-      ? current.filter((id) => id !== facultyId)
-      : [...current, facultyId]
-  )
-}
+  const closeAssignFacultyModal = () => {
+    setIsAssignFacultyOpen(false)
+    setAssignFacultyCourse(null)
+    setSelectedFacultyIds([])
+    setAssignFacultyPage(1)
+  }
 
-const handleAssignFaculty = () => {
-  if (!assignFacultyCourse) return
+  const toggleFacultySelection = (facultyId) => {
+    setSelectedFacultyIds((current) =>
+      current.includes(facultyId)
+        ? current.filter((id) => id !== facultyId)
+        : [...current, facultyId]
+    )
+  }
 
-  const assignedFaculty = facultyList.filter((faculty) =>
-    selectedFacultyIds.includes(faculty.id)
-  )
+  const handleAssignFaculty = () => {
+    if (!assignFacultyCourse) return
 
-  setBranchCourseCards((current) =>
-    current.map((course) =>
-      String(course.id) === String(assignFacultyCourse.id)
-        ? {
+    const assignedFaculty = facultyList.filter((faculty) =>
+      selectedFacultyIds.includes(faculty.id)
+    )
+
+    setBranchCourseCards((current) =>
+      current.map((course) =>
+        String(course.id) === String(assignFacultyCourse.id)
+          ? {
             ...course,
             assignedFaculty,
           }
-        : course
+          : course
+      )
     )
-  )
 
-  closeAssignFacultyModal()
-}
+    setAssignFacultySuccess({
+      courseName: assignFacultyCourse?.name || 'Course',
+      facultyNames: assignedFaculty.map((f) => f.name),
+    })
+
+    closeAssignFacultyModal()
+  }
 
 
   const openCourseActionMenu = (button) => {
@@ -493,8 +519,8 @@ const handleAssignFaculty = () => {
   const branchLocation = branchProfile?.branchAddress || 'Assigned location'
   const mustResetPassword = Boolean(
     session?.user?.mustResetPassword ??
-      user?.mustResetPassword ??
-      branchProfile?.mustResetPassword,
+    user?.mustResetPassword ??
+    branchProfile?.mustResetPassword,
   )
   const overviewStats = useMemo(
     () => [
@@ -601,14 +627,14 @@ const handleAssignFaculty = () => {
   }
 
   const openViewCourseDrawer = (course) => {
-  setViewCourse(course)
-  setOpenCourseActionMenuId('')
-  setCourseActionMenuPosition({ top: 0, left: 0 })
-}
+    setViewCourse(course)
+    setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
+  }
 
-const closeViewCourseDrawer = () => {
-  setViewCourse(null)
-}
+  const closeViewCourseDrawer = () => {
+    setViewCourse(null)
+  }
   const openEditCourseModal = (course) => {
     setEditingCourseId(String(course?.id || '').trim())
     setAddCourseForm(buildBranchCourseFormFromRecord(course))
@@ -842,6 +868,9 @@ const closeViewCourseDrawer = () => {
 
   const renderTopbar = () => (
     <header className="super-admin-topbar">
+      <div className="branch-dashboard-topbar-title">
+        <h1>Branch Dashboard</h1>
+      </div>
       <div className="super-admin-topbar-right">
         {!embeddedMode && (
           <button type="button" className="super-admin-notification-button" aria-label="Notifications">
@@ -1056,23 +1085,24 @@ const closeViewCourseDrawer = () => {
                           <th>Registration Fee</th>
                           <th>Discount</th> */}
                           <th>Final Fee</th>
-                        
+
+                          <th>Faculty</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                          {visibleBranchCourses.length ? (
+                        {visibleBranchCourses.length ? (
                           visibleBranchCourses.map((course, index) => {
                             const normalizedStatus = String(course.status || 'Active').toLowerCase()
                             const absoluteIndex = (safeBranchCoursePage - 1) * BRANCH_COURSES_PER_PAGE + index + 1
 
                             return (
-                             <tr
-  key={course.id}
-  onClick={() => openViewCourseDrawer(course)}
-  className="branch-course-clickable-row"
->
+                              <tr
+                                key={course.id}
+                                onClick={() => openViewCourseDrawer(course)}
+                                className="branch-course-clickable-row"
+                              >
                                 <td>{absoluteIndex}</td>
                                 <td>
                                   <div className="branch-course-code-cell">
@@ -1089,14 +1119,47 @@ const closeViewCourseDrawer = () => {
                                 <td>{formatBranchCourseAmount(course.registrationFees)}</td>
                                 <td>{formatBranchCourseAmount(course.discount || '0')}</td> */}
                                 <td>{formatBranchCourseFinalFee(course)}</td>
-                                
+
+                                <td>
+                                  <span className="branch-course-faculty-cell">
+                                    {Array.isArray(course.assignedFaculty) && course.assignedFaculty.length > 0 ? (
+                                      <span className="branch-course-faculty-summary">
+                                        <span className="branch-course-faculty-primary">
+                                          {course.assignedFaculty[0]?.name}
+                                        </span>
+
+                                        {course.assignedFaculty.length > 1 ? (
+                                          <span className="branch-course-faculty-more-wrap">
+                                            <button
+                                              type="button"
+                                              className="branch-course-faculty-more"
+                                              onClick={(event) => event.stopPropagation()}
+                                            >
+                                              +{course.assignedFaculty.length - 1}
+                                            </button>
+
+                                            <span className="branch-course-faculty-tooltip">
+                                              {course.assignedFaculty.slice(1).map((faculty) => (
+                                                <span key={faculty.id} className="branch-course-faculty-tooltip-item">
+                                                  {faculty.name}
+                                                </span>
+                                              ))}
+                                            </span>
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    ) : (
+                                      'Not Assigned'
+                                    )}
+                                  </span>
+                                </td>
                                 <td>
                                   <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
                                     {course.status || 'Active'}
                                   </span>
                                 </td>
                                 <td onClick={(event) => event.stopPropagation()}>
-  <div className="branch-course-actions-wrap">
+                                  <div className="branch-course-actions-wrap">
                                     <button
                                       type="button"
                                       className="branch-course-actions-button"
@@ -1131,66 +1194,66 @@ const closeViewCourseDrawer = () => {
 
                                     {openCourseActionMenuId === course.id && courseActionMenuPosition && typeof document !== 'undefined'
                                       ? createPortal(
-                                          <div 
-                                            className="branch-course-actions-menu" 
-                                            role="menu" 
-                                            aria-label="Course actions"
-                                            style={{
-                                              position: 'fixed',
-                                              top: `${courseActionMenuPosition.top}px`,
-                                              left: `${courseActionMenuPosition.left}px`,
-                                              zIndex: 999999,
-                                            }}
-                                            onMouseEnter={() => {
-                                              if (courseActionCloseTimer.current) {
-                                                clearTimeout(courseActionCloseTimer.current)
-                                              }
-                                            }}
-                                            onMouseLeave={() => {
-                                              courseActionCloseTimer.current = setTimeout(() => {
-                                                setOpenCourseActionMenuId('')
-                                                setCourseActionMenuPosition({ top: 0, left: 0 })
-                                              }, 200)
-                                            }}
-                                            onClick={(e) => e.stopPropagation()}
+                                        <div
+                                          className="branch-course-actions-menu"
+                                          role="menu"
+                                          aria-label="Course actions"
+                                          style={{
+                                            position: 'fixed',
+                                            top: `${courseActionMenuPosition.top}px`,
+                                            left: `${courseActionMenuPosition.left}px`,
+                                            zIndex: 999999,
+                                          }}
+                                          onMouseEnter={() => {
+                                            if (courseActionCloseTimer.current) {
+                                              clearTimeout(courseActionCloseTimer.current)
+                                            }
+                                          }}
+                                          onMouseLeave={() => {
+                                            courseActionCloseTimer.current = setTimeout(() => {
+                                              setOpenCourseActionMenuId('')
+                                              setCourseActionMenuPosition({ top: 0, left: 0 })
+                                            }, 200)
+                                          }}
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <button
+                                            type="button"
+                                            className="branch-course-actions-menu-item"
+                                            onClick={() => { openViewCourseDrawer(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
+                                            role="menuitem"
                                           >
-                                            <button
-                                              type="button"
-                                              className="branch-course-actions-menu-item"
-                                              onClick={() => { openViewCourseDrawer(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
-                                              role="menuitem"
-                                            >
-                                              View
-                                            </button>
-                                            <button
-  type="button"
-  className="branch-course-actions-menu-item"
-  onClick={() => {
-    openAssignFacultyModal(course)
-  }}
-  role="menuitem"
->
-  Assign Faculty
-</button>
-                                            <button
-                                              type="button"
-                                              className="branch-course-actions-menu-item"
-                                              onClick={() => { openEditCourseModal(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
-                                              role="menuitem"
-                                            >
-                                              Edit
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className="branch-course-actions-menu-item is-danger"
-                                              onClick={() => { openDeleteCourseConfirm(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
-                                              role="menuitem"
-                                            >
-                                              Delete
-                                            </button>
-                                          </div>,
-                                          document.body
-                                        )
+                                            View
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="branch-course-actions-menu-item"
+                                            onClick={() => {
+                                              openAssignFacultyModal(course)
+                                            }}
+                                            role="menuitem"
+                                          >
+                                            Assign Faculty
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="branch-course-actions-menu-item"
+                                            onClick={() => { openEditCourseModal(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
+                                            role="menuitem"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="branch-course-actions-menu-item is-danger"
+                                            onClick={() => { openDeleteCourseConfirm(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
+                                            role="menuitem"
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>,
+                                        document.body
+                                      )
                                       : null}
                                   </div>
                                 </td>
@@ -1340,14 +1403,14 @@ const closeViewCourseDrawer = () => {
                   hint="Recommended unique identifier for reports and integrations"
                   error={shouldShowAddCourseError('courseCode') ? addCourseValidationErrors.courseCode : ''}
                 >
-                    <input
-                      type="text"
-                      placeholder="UIUX-06M"
-                      value={addCourseForm.courseCode || COURSE_CODE_PREFIX}
-                      onChange={(event) => updateAddCourseField('courseCode', event.target.value)}
-                      onBlur={() => setAddCourseTouched((current) => ({ ...current, courseCode: true }))}
-                      aria-invalid={Boolean(shouldShowAddCourseError('courseCode'))}
-                    />
+                  <input
+                    type="text"
+                    placeholder="UIUX-06M"
+                    value={addCourseForm.courseCode || COURSE_CODE_PREFIX}
+                    onChange={(event) => updateAddCourseField('courseCode', event.target.value)}
+                    onBlur={() => setAddCourseTouched((current) => ({ ...current, courseCode: true }))}
+                    aria-invalid={Boolean(shouldShowAddCourseError('courseCode'))}
+                  />
                 </Field>
 
                 <Field
@@ -1528,248 +1591,359 @@ const closeViewCourseDrawer = () => {
         ) : null}
 
 
-         {isAddCourseOpen ? ( 
-          <div className="course-modal-backdrop" role="presentation"> 
-            ...
-          </div> 
-        ) : null} 
+
 
 
         {/* STEP 5 — ASSIGN FACULTY MODAL */}
-        {isAssignFacultyOpen ? (
+        {isAssignFacultyOpen ? (() => {
+          const FACULTY_PER_PAGE = 3
+          const totalFacultyPages = Math.max(1, Math.ceil(facultyList.length / FACULTY_PER_PAGE))
+          const safeAssignPage = Math.min(assignFacultyPage, totalFacultyPages)
+          const facultyStart = (safeAssignPage - 1) * FACULTY_PER_PAGE
+          const visibleFaculty = facultyList.slice(facultyStart, facultyStart + FACULTY_PER_PAGE)
+
+          return (
+            <div
+              className="branch-modal-backdrop"
+              role="presentation"
+
+            >
+              <div
+                className="assign-faculty-modal-v2"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="assign-faculty-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {/* Close button */}
+                <button
+                  type="button"
+                  className="assign-faculty-v2-close"
+                  aria-label="Close assign faculty modal"
+                  onClick={closeAssignFacultyModal}
+                >
+                  ✕
+                </button>
+
+                {/* Header */}
+                <div className="assign-faculty-v2-header">
+                  <span className="assign-faculty-v2-kicker">ASSIGN FACULTY</span>
+                  <h2 id="assign-faculty-title">
+                    {assignFacultyCourse?.name || 'Course'}
+                  </h2>
+                  <div className="assign-faculty-v2-course-meta">
+                    <span className="assign-faculty-v2-meta-pill">
+                      <Code2 size={13} strokeWidth={2.4} />
+                      {assignFacultyCourse?.courseCode || '-'}
+                    </span>
+                    <span className="assign-faculty-v2-meta-pill">
+                      <BookOpen size={13} strokeWidth={2.4} />
+                      {assignFacultyCourse?.name || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Faculty cards — vertical list */}
+                <div className="assign-faculty-v2-body">
+                  <div className="assign-faculty-v2-label">
+                    Select Faculty
+                    <span className="assign-faculty-v2-count">
+                      {selectedFacultyIds.length} selected
+                    </span>
+                  </div>
+
+                  {facultyList.length > 0 ? (
+                    <div className="assign-faculty-v2-cards">
+                      {visibleFaculty.map((faculty) => {
+                        const isChecked = selectedFacultyIds.includes(faculty.id)
+                        return (
+                          <label
+                            key={faculty.id}
+                            className={`assign-faculty-v2-card ${isChecked ? 'is-selected' : ''}`.trim()}
+                          >
+                            <input
+                              type="checkbox"
+                              className="assign-faculty-v2-checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleFacultySelection(faculty.id)}
+                            />
+                            <span className="assign-faculty-v2-check-icon">
+                              {isChecked ? <CheckCircle2 size={20} strokeWidth={2.4} /> : <CircleDot size={20} strokeWidth={1.8} />}
+                            </span>
+                            <div className="assign-faculty-v2-card-info">
+                              <strong>{faculty.name}</strong>
+                              <small>{faculty.id}</small>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="assign-faculty-v2-empty">
+                      No faculty found. Add faculty in the Faculty tab first.
+                    </div>
+                  )}
+
+                  {/* Pagination */}
+                  {totalFacultyPages > 1 ? (
+                    <div className="assign-faculty-v2-pagination">
+                      <button
+                        type="button"
+                        className="assign-faculty-v2-page-btn"
+                        disabled={safeAssignPage === 1}
+                        onClick={() => setAssignFacultyPage((p) => Math.max(1, p - 1))}
+                      >
+                        <ChevronLeft size={16} strokeWidth={2.5} />
+                        Prev
+                      </button>
+
+                      <div className="assign-faculty-v2-page-dots">
+                        {Array.from({ length: totalFacultyPages }, (_, i) => i + 1).map((page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            className={`assign-faculty-v2-dot ${page === safeAssignPage ? 'is-active' : ''}`.trim()}
+                            onClick={() => setAssignFacultyPage(page)}
+                            aria-label={`Page ${page}`}
+                            aria-current={page === safeAssignPage ? 'page' : undefined}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="assign-faculty-v2-page-btn"
+                        disabled={safeAssignPage === totalFacultyPages}
+                        onClick={() => setAssignFacultyPage((p) => Math.min(totalFacultyPages, p + 1))}
+                      >
+                        Next
+                        <ChevronRight size={16} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Footer */}
+                <div className="assign-faculty-v2-footer">
+                  <button
+                    type="button"
+                    className="assign-faculty-v2-cancel"
+                    onClick={closeAssignFacultyModal}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="assign-faculty-v2-submit"
+                    onClick={handleAssignFaculty}
+                  >
+                    Assign Faculty ({selectedFacultyIds.length})
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })() : null}
+
+
+        {/* ASSIGN FACULTY SUCCESS POPUP */}
+        {assignFacultySuccess ? (
           <div
             className="branch-modal-backdrop"
             role="presentation"
-            onClick={closeAssignFacultyModal}
           >
             <div
-              className="branch-success-modal"
+              className="assign-faculty-success-popup"
               role="dialog"
               aria-modal="true"
-              aria-labelledby="assign-faculty-title"
               onClick={(event) => event.stopPropagation()}
             >
+              <div className="assign-faculty-success-icon">
+                <CheckCircle2 size={40} strokeWidth={2} />
+              </div>
+
+              <h3>Faculty Assigned!</h3>
+
+              <p className="assign-faculty-success-course">
+                {assignFacultySuccess.courseName}
+              </p>
+
+              <p className="assign-faculty-success-detail">
+                {assignFacultySuccess.facultyNames.length > 0
+                  ? <>Assigned to: <strong>{assignFacultySuccess.facultyNames.join(', ')}</strong></>
+                  : 'All faculty removed from this course.'}
+              </p>
+
               <button
                 type="button"
-                className="branch-modal-close"
-                aria-label="Close assign faculty modal"
-                onClick={closeAssignFacultyModal}
+                className="assign-faculty-success-btn"
+                onClick={() => setAssignFacultySuccess(null)}
               >
-                X
+                OK
               </button>
-
-              <div className="branch-success-copy">
-                <p className="branch-success-kicker">Faculty Assignment</p>
-
-                <h2 id="assign-faculty-title">
-                  Assign Faculty
-                </h2>
-
-                <p>
-                  {assignFacultyCourse?.name || 'Course'}
-                </p>
-              </div>
-
-              <div className="assign-faculty-list">
-                {facultyList.map((faculty) => (
-                  <label
-                    key={faculty.id}
-                    className="assign-faculty-item"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedFacultyIds.includes(faculty.id)}
-                      onChange={() =>
-                        toggleFacultySelection(faculty.id)
-                      }
-                    />
-
-                    <span>
-                      <strong>{faculty.name}</strong>
-                      <small>{faculty.id}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-
-              <div className="branch-modal-actions">
-                <button
-                  type="button"
-                  className="branch-modal-cancel"
-                  onClick={closeAssignFacultyModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  className="branch-modal-submit"
-                  onClick={handleAssignFaculty}
-                >
-                  Assign Faculty
-                </button>
-              </div>
             </div>
           </div>
         ) : null}
 
-
-{viewCourse ? (
-  <div
-    className="branch-course-drawer-backdrop"
-    role="presentation"
-  >
-    <aside
-      className="branch-course-view-drawer"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="branch-course-view-title"
-      onClick={(event) => event.stopPropagation()}
-    >
-      {/* Header */}
-      <div className="branch-course-view-drawer-header">
-        <div className="branch-course-header-content">
-          <p className="section-kicker">COURSE DETAILS</p>
-          <h2 id="branch-course-view-title">{viewCourse.name || 'Course'}</h2>
-          <span className="branch-course-view-code">{viewCourse.courseCode || '-'}</span>
-        </div>
-
-        <div className="branch-course-view-header-actions">
-          <div className="branch-course-view-header-actions-row">
-            <strong
-              className={`branch-course-status-pill ${String(viewCourse.status || 'Active').toLowerCase()}`}
-            >
-              {viewCourse.status || 'Active'}
-            </strong>
-
-            <button
-              type="button"
-              className="branch-course-view-close"
-              onClick={closeViewCourseDrawer}
-              aria-label="Close course details"
-            >
-              X
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className="branch-course-view-edit"
-            onClick={() => {
-              closeViewCourseDrawer()
-              openEditCourseModal(viewCourse)
-            }}
+        {viewCourse ? (
+          <div
+            className="branch-course-drawer-backdrop"
+            role="presentation"
           >
-            Edit Course
-          </button>
-        </div>
-      </div>
+            <aside
+              className="branch-course-view-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="branch-course-view-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="branch-course-view-drawer-header">
+                <div className="branch-course-header-content">
+                  <p className="section-kicker">COURSE DETAILS</p>
+                  <h2 id="branch-course-view-title">{viewCourse.name || 'Course'}</h2>
+                  <span className="branch-course-view-code">{viewCourse.courseCode || '-'}</span>
+                </div>
 
-      {/* Details */}
-      <div className="branch-course-view-body">
+                <div className="branch-course-view-header-actions">
+                  <div className="branch-course-view-header-actions-row">
+                    <strong
+                      className={`branch-course-status-pill ${String(viewCourse.status || 'Active').toLowerCase()}`}
+                    >
+                      {viewCourse.status || 'Active'}
+                    </strong>
 
-        <div className="branch-course-view-table" role="table" aria-label="Course details">
-          <div className="branch-course-view-table-header" role="row">
-            <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
-            <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
-          </div>
+                    <button
+                      type="button"
+                      className="branch-course-view-close"
+                      onClick={closeViewCourseDrawer}
+                      aria-label="Close course details"
+                    >
+                      X
+                    </button>
+                  </div>
 
-          <div className="branch-course-view-row" role="row">
-            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-              <Monitor size={20} strokeWidth={2.1} aria-hidden="true" />
-              <span>Mode</span>
-            </div>
-            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-              <strong>{viewCourse.mode || '-'}</strong>
-            </div>
-          </div>
+                  <button
+                    type="button"
+                    className="branch-course-view-edit"
+                    onClick={() => {
+                      closeViewCourseDrawer()
+                      openEditCourseModal(viewCourse)
+                    }}
+                  >
+                    Edit Course
+                  </button>
+                </div>
+              </div>
 
-          <div className="branch-course-view-row" role="row">
-            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-              <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
-              <span>Duration</span>
-            </div>
-            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-              <strong>
-                {viewCourse.duration
-                  ? `${viewCourse.duration} month${viewCourse.duration === '1' ? '' : 's'}`
-                  : '-'}
-              </strong>
-            </div>
-          </div>
+              {/* Details */}
+              <div className="branch-course-view-body">
 
-          <div className="branch-course-view-row" role="row">
-            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-              <Clock3 size={20} strokeWidth={2.1} aria-hidden="true" />
-              <span>Hours</span>
-            </div>
-            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-              <strong>
-                {viewCourse.hours
-                  ? `${viewCourse.hours} hour${viewCourse.hours === '1' ? '' : 's'}`
-                  : '-'}
-              </strong>
-            </div>
-          </div>
+                <div className="branch-course-view-table" role="table" aria-label="Course details">
+                  <div className="branch-course-view-table-header" role="row">
+                    <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
+                    <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
+                  </div>
 
-          <div className="branch-course-view-row" role="row">
-            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-              <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
-              <span>Standard Course Fee</span>
-            </div>
-            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-              <strong>{formatBranchCourseAmount(viewCourse.actualFees)}</strong>
-            </div>
-          </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <Monitor size={20} strokeWidth={2.1} aria-hidden="true" />
+                      <span>Mode</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewCourse.mode || '-'}</strong>
+                    </div>
+                  </div>
 
-          <div className="branch-course-view-row" role="row">
-  <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-    <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
-    <span>Registration Fee</span>
-  </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
+                      <span>Duration</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>
+                        {viewCourse.duration
+                          ? `${viewCourse.duration} month${viewCourse.duration === '1' ? '' : 's'}`
+                          : '-'}
+                      </strong>
+                    </div>
+                  </div>
 
-  <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-    <strong>{formatBranchCourseAmount(viewCourse.registrationFees)}</strong>
-  </div>
-</div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <Clock3 size={20} strokeWidth={2.1} aria-hidden="true" />
+                      <span>Hours</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>
+                        {viewCourse.hours
+                          ? `${viewCourse.hours} hour${viewCourse.hours === '1' ? '' : 's'}`
+                          : '-'}
+                      </strong>
+                    </div>
+                  </div>
 
-          <div className="branch-course-view-row" role="row">
-  <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-    <BadgePercent size={20} strokeWidth={2.1} aria-hidden="true" />
-    <span>Discount</span>
-  </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
+                      <span>Standard Course Fee</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{formatBranchCourseAmount(viewCourse.actualFees)}</strong>
+                    </div>
+                  </div>
 
-  <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-    <strong>{formatBranchCourseAmount(viewCourse.discount || '0')}</strong>
-  </div>
-</div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
+                      <span>Registration Fee</span>
+                    </div>
 
-          <div className="branch-course-view-row is-highlight" role="row">
-            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-              <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
-              <span>Final Fee</span>
-            </div>
-            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-              <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
-            </div>
-          </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{formatBranchCourseAmount(viewCourse.registrationFees)}</strong>
+                    </div>
+                  </div>
 
-          <div className="branch-course-view-row" role="row">
-            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-              <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
-              <span>Created At</span>
-            </div>
-            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-              <strong>{formatBranchCourseDate(viewCourse.createdAt)}</strong>
-            </div>
-          </div>
-        </div>
-      </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <BadgePercent size={20} strokeWidth={2.1} aria-hidden="true" />
+                      <span>Discount</span>
+                    </div>
 
-      {/* 12. Bottom Buttons */}
-      <div className="branch-course-view-footer">
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{formatBranchCourseAmount(viewCourse.discount || '0')}</strong>
+                    </div>
+                  </div>
 
-        {/* <button
+                  <div className="branch-course-view-row is-highlight" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
+                      <span>Final Fee</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
+                    </div>
+                  </div>
+
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
+                      <span>Created At</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{formatBranchCourseDate(viewCourse.createdAt)}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 12. Bottom Buttons */}
+              <div className="branch-course-view-footer">
+
+                {/* <button
           type="button"
           className="button button-ghost"
           onClick={closeViewCourseDrawer}
@@ -1777,10 +1951,10 @@ const closeViewCourseDrawer = () => {
           Close
         </button> */}
 
-      </div>
-    </aside>
-  </div>
-) : null}
+              </div>
+            </aside>
+          </div>
+        ) : null}
         {courseSaveSuccess ? (
           <div className="branch-modal-backdrop" role="presentation" onClick={closeCourseSaveSuccess}>
             <div
@@ -1842,7 +2016,7 @@ const closeViewCourseDrawer = () => {
                 X
               </button>
 
-             
+
 
               <h2 id="branch-delete-title">Delete this course?</h2>
               <p className="branch-delete-copy">

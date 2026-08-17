@@ -18,7 +18,6 @@ import {
   MapPin,
 } from 'lucide-react'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
-import { loadFacultyRegistry, saveFacultyRegistry } from '../lib/facultyAuth'
 import '../styles/BranchFacultyPage.css'
 import {
   listBranchFaculty,
@@ -31,7 +30,7 @@ import {
 const FACULTY_ID_PREFIX = 'FC-'
 
 export function BranchFacultyPage() {
-  const [facultyList, setFacultyList] = useState(() => loadFacultyRegistry())
+  const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 5
