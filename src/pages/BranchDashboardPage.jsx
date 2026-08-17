@@ -255,7 +255,18 @@ export function BranchDashboardPage() {
   const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
   const [courseActionMenuPosition, setCourseActionMenuPosition] = useState({ top: 0, left: 0 })
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
-  const [viewCourse, setViewCourse] = useState(null)
+    const [viewCourse, setViewCourse] = useState(null)
+
+  const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
+const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
+const [selectedFacultyIds, setSelectedFacultyIds] = useState([])
+const facultyList = [
+  { id: 'FAC-001', name: 'Arun Kumar' },
+  { id: 'FAC-002', name: 'Priya S' },
+  { id: 'FAC-003', name: 'Karthik M' },
+  { id: 'FAC-004', name: 'Divya R' },
+  { id: 'FAC-005', name: 'Manoj T' },
+]
   const profileMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
 
@@ -366,6 +377,56 @@ export function BranchDashboardPage() {
   const closeLogoutConfirm = () => {
     setIsLogoutConfirmOpen(false)
   }
+
+  
+const openAssignFacultyModal = (course) => {
+  setAssignFacultyCourse(course)
+  setSelectedFacultyIds(
+    Array.isArray(course?.assignedFaculty)
+      ? course.assignedFaculty.map((faculty) => String(faculty.id))
+      : []
+  )
+
+  setOpenCourseActionMenuId('')
+  setCourseActionMenuPosition({ top: 0, left: 0 })
+  setIsAssignFacultyOpen(true)
+}
+
+const closeAssignFacultyModal = () => {
+  setIsAssignFacultyOpen(false)
+  setAssignFacultyCourse(null)
+  setSelectedFacultyIds([])
+}
+
+const toggleFacultySelection = (facultyId) => {
+  setSelectedFacultyIds((current) =>
+    current.includes(facultyId)
+      ? current.filter((id) => id !== facultyId)
+      : [...current, facultyId]
+  )
+}
+
+const handleAssignFaculty = () => {
+  if (!assignFacultyCourse) return
+
+  const assignedFaculty = facultyList.filter((faculty) =>
+    selectedFacultyIds.includes(faculty.id)
+  )
+
+  setBranchCourseCards((current) =>
+    current.map((course) =>
+      String(course.id) === String(assignFacultyCourse.id)
+        ? {
+            ...course,
+            assignedFaculty,
+          }
+        : course
+    )
+  )
+
+  closeAssignFacultyModal()
+}
+
 
   const openCourseActionMenu = (button) => {
     if (courseActionCloseTimer.current) {
@@ -972,7 +1033,7 @@ const closeViewCourseDrawer = () => {
                           <th>Registration Fee</th>
                           <th>Discount</th> */}
                           <th>Final Fee</th>
-                          <th>Created At</th>
+                        
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
@@ -1005,7 +1066,7 @@ const closeViewCourseDrawer = () => {
                                 <td>{formatBranchCourseAmount(course.registrationFees)}</td>
                                 <td>{formatBranchCourseAmount(course.discount || '0')}</td> */}
                                 <td>{formatBranchCourseFinalFee(course)}</td>
-                                <td>{formatBranchCourseDate(course.createdAt)}</td>
+                                
                                 <td>
                                   <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
                                     {course.status || 'Active'}
@@ -1078,6 +1139,16 @@ const closeViewCourseDrawer = () => {
                                             >
                                               View
                                             </button>
+                                            <button
+  type="button"
+  className="branch-course-actions-menu-item"
+  onClick={() => {
+    openAssignFacultyModal(course)
+  }}
+  role="menuitem"
+>
+  Assign Faculty
+</button>
                                             <button
                                               type="button"
                                               className="branch-course-actions-menu-item"
@@ -1433,6 +1504,93 @@ const closeViewCourseDrawer = () => {
           </div>
         ) : null}
 
+
+         {isAddCourseOpen ? ( 
+          <div className="course-modal-backdrop" role="presentation"> 
+            ...
+          </div> 
+        ) : null} 
+
+
+        {/* STEP 5 — ASSIGN FACULTY MODAL */}
+        {isAssignFacultyOpen ? (
+          <div
+            className="branch-modal-backdrop"
+            role="presentation"
+            onClick={closeAssignFacultyModal}
+          >
+            <div
+              className="branch-success-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="assign-faculty-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close assign faculty modal"
+                onClick={closeAssignFacultyModal}
+              >
+                X
+              </button>
+
+              <div className="branch-success-copy">
+                <p className="branch-success-kicker">Faculty Assignment</p>
+
+                <h2 id="assign-faculty-title">
+                  Assign Faculty
+                </h2>
+
+                <p>
+                  {assignFacultyCourse?.name || 'Course'}
+                </p>
+              </div>
+
+              <div className="assign-faculty-list">
+                {facultyList.map((faculty) => (
+                  <label
+                    key={faculty.id}
+                    className="assign-faculty-item"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFacultyIds.includes(faculty.id)}
+                      onChange={() =>
+                        toggleFacultySelection(faculty.id)
+                      }
+                    />
+
+                    <span>
+                      <strong>{faculty.name}</strong>
+                      <small>{faculty.id}</small>
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              <div className="branch-modal-actions">
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={closeAssignFacultyModal}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="branch-modal-submit"
+                  onClick={handleAssignFaculty}
+                >
+                  Assign Faculty
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+
 {viewCourse ? (
   <div
     className="branch-course-drawer-backdrop"
@@ -1661,9 +1819,7 @@ const closeViewCourseDrawer = () => {
                 X
               </button>
 
-              <div className="super-admin-logout-icon is-danger" aria-hidden="true">
-                <LogOut size={28} strokeWidth={2.1} />
-              </div>
+             
 
               <h2 id="branch-delete-title">Delete this course?</h2>
               <p className="branch-delete-copy">
