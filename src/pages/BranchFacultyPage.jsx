@@ -52,7 +52,7 @@ export function BranchFacultyPage() {
   })
   const [editingId, setEditingId] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-const [isDeleting, setIsDeleting] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Options for dropdown selectors
   const [countryOptions, setCountryOptions] = useState([])
@@ -573,11 +573,11 @@ const [isDeleting, setIsDeleting] = useState(false)
       email: '',
       phone: '',
       country: 'India',
-    countryCode: 'IN',
-    state: 'Tamil Nadu',
-    stateCode: 'TN',
-    city: '',
-    address: '',
+      countryCode: 'IN',
+      state: 'Tamil Nadu',
+      stateCode: 'TN',
+      city: '',
+      address: '',
       status: 'Active',
     })
     setErrors({})
@@ -615,123 +615,123 @@ const [isDeleting, setIsDeleting] = useState(false)
   }
 
   // Submit Handler for Add / Edit
- 
-const handleFormSubmit = async (e) => {
-  e.preventDefault()
 
-  const idDigitsErr = validateIdDigits(
-    modalForm.idDigits,
-    editingId,
-    facultyList
-  )
-  const nameErr = validateName(modalForm.name)
-  const emailErr = validateEmail(
-    modalForm.email,
-    editingId,
-    facultyList
-  )
-  const phoneErr = validatePhone(
-    modalForm.phone,
-    editingId,
-    facultyList
-  )
-  const countryErr = validateCountry(modalForm.country)
-  const stateErr = validateState(modalForm.state)
-  const cityErr = validateCity(modalForm.city)
-  const addressErr = validateAddress(modalForm.address)
+  const handleFormSubmit = async (e) => {
+    e.preventDefault()
 
-  const nextErrors = {
-    idDigits: idDigitsErr,
-    name: nameErr,
-    email: emailErr,
-    phone: phoneErr,
-    country: countryErr,
-    state: stateErr,
-    city: cityErr,
-    address: addressErr,
-  }
+    const idDigitsErr = validateIdDigits(
+      modalForm.idDigits,
+      editingId,
+      facultyList
+    )
+    const nameErr = validateName(modalForm.name)
+    const emailErr = validateEmail(
+      modalForm.email,
+      editingId,
+      facultyList
+    )
+    const phoneErr = validatePhone(
+      modalForm.phone,
+      editingId,
+      facultyList
+    )
+    const countryErr = validateCountry(modalForm.country)
+    const stateErr = validateState(modalForm.state)
+    const cityErr = validateCity(modalForm.city)
+    const addressErr = validateAddress(modalForm.address)
 
-  setErrors(nextErrors)
-
-  setTouched({
-    idDigits: true,
-    name: true,
-    email: true,
-    phone: true,
-    country: true,
-    state: true,
-    city: true,
-    address: true,
-  })
-
-  const hasErrors = Object.values(nextErrors).some(Boolean)
-
-  if (hasErrors) return
-
-  const fullId = `${FACULTY_ID_PREFIX}${modalForm.idDigits}`
-
-  const payload = {
-    facultyId: fullId,
-    name: modalForm.name,
-    email: modalForm.email,
-    phone: modalForm.phone,
-    country: modalForm.country,
-    countryCode: modalForm.countryCode,
-    state: modalForm.state,
-    stateCode: modalForm.stateCode,
-    city: modalForm.city,
-    address: modalForm.address,
-    status: modalForm.status,
-  }
-
-  try {
-    setIsSubmitting(true)
-
-    if (editingId) {
-      const targetFaculty = facultyList.find(
-        (f) => f.id === editingId
-      )
-
-      if (targetFaculty?.dbId) {
-        await updateBranchFaculty(
-          targetFaculty.dbId,
-          payload
-        )
-      }
-
-      await fetchFaculty()
-
-      setIsModalOpen(false)
-
-      setSuccessAlert({
-        title: '✓ Faculty Updated Successfully',
-        message: 'Faculty details have been updated successfully.',
-      })
-    } else {
-      await createBranchFaculty(payload)
-
-      await fetchFaculty()
-
-      setIsModalOpen(false)
-
-      setSuccessAlert({
-        title: '✓ Faculty Added Successfully',
-        message: 'New faculty has been onboarded successfully.',
-      })
+    const nextErrors = {
+      idDigits: idDigitsErr,
+      name: nameErr,
+      email: emailErr,
+      phone: phoneErr,
+      country: countryErr,
+      state: stateErr,
+      city: cityErr,
+      address: addressErr,
     }
-  } catch (err) {
-    console.error(err)
 
-    setErrors((prev) => ({
-      ...prev,
-      email:
-        err?.body?.message ||
-        'Error saving faculty. Please try again.',
-    }))
-  } finally {
-    setIsSubmitting(false)
+    setErrors(nextErrors)
+
+    setTouched({
+      idDigits: true,
+      name: true,
+      email: true,
+      phone: true,
+      country: true,
+      state: true,
+      city: true,
+      address: true,
+    })
+
+    const hasErrors = Object.values(nextErrors).some(Boolean)
+
+    if (hasErrors) return
+
+    const fullId = `${FACULTY_ID_PREFIX}${modalForm.idDigits}`
+
+    const payload = {
+      facultyId: fullId,
+      name: modalForm.name,
+      email: modalForm.email,
+      phone: modalForm.phone,
+      country: modalForm.country,
+      countryCode: modalForm.countryCode,
+      state: modalForm.state,
+      stateCode: modalForm.stateCode,
+      city: modalForm.city,
+      address: modalForm.address,
+      status: modalForm.status,
+    }
+
+    try {
+      setIsSubmitting(true)
+
+      if (editingId) {
+        const targetFaculty = facultyList.find(
+          (f) => f.id === editingId
+        )
+
+        if (targetFaculty?.dbId) {
+          await updateBranchFaculty(
+            targetFaculty.dbId,
+            payload
+          )
+        }
+
+        await fetchFaculty()
+
+        setIsModalOpen(false)
+
+        setSuccessAlert({
+          title: '✓ Faculty Updated Successfully',
+          message: 'Faculty details have been updated successfully.',
+        })
+      } else {
+        await createBranchFaculty(payload)
+
+        await fetchFaculty()
+
+        setIsModalOpen(false)
+
+        setSuccessAlert({
+          title: '✓ Faculty Added Successfully',
+          message: 'New faculty has been onboarded successfully.',
+        })
+      }
+    } catch (err) {
+      console.error(err)
+
+      setErrors((prev) => ({
+        ...prev,
+        email:
+          err?.body?.message ||
+          'Error saving faculty. Please try again.',
+      }))
+    } finally {
+      setIsSubmitting(false)
+    }
   }
-}
   // Delete Action Trigger
   const triggerDelete = (faculty, e) => {
     if (e) e.stopPropagation()
@@ -740,30 +740,30 @@ const handleFormSubmit = async (e) => {
   }
 
   const confirmDelete = async () => {
-  if (!deleteConfirmTarget) return
+    if (!deleteConfirmTarget) return
 
-  try {
-    setIsDeleting(true)
+    try {
+      setIsDeleting(true)
 
-    if (deleteConfirmTarget.dbId) {
-      await deleteBranchFaculty(deleteConfirmTarget.dbId)
+      if (deleteConfirmTarget.dbId) {
+        await deleteBranchFaculty(deleteConfirmTarget.dbId)
+      }
+
+      await fetchFaculty()
+
+      setDeleteConfirmTarget(null)
+
+      setSuccessAlert({
+        title: '✓ Faculty Deleted Successfully',
+        message: 'Faculty has been deleted successfully.',
+      })
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setIsDeleting(false)
     }
-
-    await fetchFaculty()
-
-    setDeleteConfirmTarget(null)
-
-    setSuccessAlert({
-      title: '✓ Faculty Deleted Successfully',
-      message: 'Faculty has been deleted successfully.',
-    })
-  } catch (error) {
-    console.error(error)
-  } finally {
-    setIsDeleting(false)
   }
-}
-  
+
   return (<div className="branch-dashboard-section">
 
     <div className="branch-dashboard-section-heading">
@@ -812,22 +812,13 @@ const handleFormSubmit = async (e) => {
     {/* Table */}
     <div className="faculty-table-shell">
       <div className="faculty-table-scroll">
-        <table className="branch-dashboard-table">
-          <colgroup>
-            <col style={{ width: '56px' }} />
-            <col style={{ width: '140px' }} />
-            <col style={{ width: '160px' }} />
-            <col style={{ minWidth: '200px' }} />
-            <col style={{ width: '130px' }} />
-            <col style={{ width: '100px' }} />
-            <col style={{ width: '72px' }} />
-          </colgroup>
+        <table className="branch-dashboard-table" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr>
               <th>S.No</th>
               <th>Faculty ID</th>
               <th>Name</th>
-              <th>Email</th>
+
               <th>Phone</th>
               <th>Status</th>
               <th style={{ textAlign: 'center' }}>Actions</th>
@@ -850,12 +841,7 @@ const handleFormSubmit = async (e) => {
                         <strong className="branch-course-name" style={{ maxWidth: '130px' }}>{faculty.name}</strong>
                       </div>
                     </td>
-                    <td>
-                      <span className="faculty-info-link" style={{ maxWidth: '190px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-flex' }}>
-                        <Mail size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{faculty.email}</span>
-                      </span>
-                    </td>
+
                     <td>
                       <span className="faculty-info-link">
                         <Phone size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
@@ -1272,25 +1258,25 @@ const handleFormSubmit = async (e) => {
 
               {/* Action Buttons */}
               {/* Action Buttons */}
-<div className="faculty-modal-actions">
-  <button
-    type="button"
-    onClick={() => setIsModalOpen(false)}
-    className="faculty-btn-cancel"
-  >
-    Cancel
-  </button>
+              <div className="faculty-modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="faculty-btn-cancel"
+                >
+                  Cancel
+                </button>
 
-  <button
-    type="submit"
-    className="faculty-btn-submit"
-    disabled={isSubmitting}
-  >
-    {isSubmitting
-      ? (editingId ? 'Saving...' : 'Submitting...')
-      : (editingId ? 'Save Changes' : 'Submit')}
-  </button>
-</div>
+                <button
+                  type="submit"
+                  className="faculty-btn-submit"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? (editingId ? 'Saving...' : 'Submitting...')
+                    : (editingId ? 'Save Changes' : 'Submit')}
+                </button>
+              </div>
             </form>
           </div>,
           document.body
@@ -1490,13 +1476,13 @@ const handleFormSubmit = async (e) => {
                   Cancel
                 </button>
                 <button
-  type="button"
-  className="faculty-btn-delete-confirm"
-  onClick={confirmDelete}
-  disabled={isDeleting}
->
-  {isDeleting ? 'Deleting...' : 'Delete'}
-</button>
+                  type="button"
+                  className="faculty-btn-delete-confirm"
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
               </div>
             </div>
           </div>,
