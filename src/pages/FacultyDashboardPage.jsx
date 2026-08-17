@@ -34,6 +34,7 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
+import { Button } from '../components/Button'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -114,7 +115,7 @@ export function FacultyDashboardPage() {
     if (matched) return matched
 
     return {
-      id: 'FC-MOCK',
+      id: user?.userCode?.includes('-FC-') ? 'FC-' + user.userCode.split('-FC-')[1] : (user?.userCode || user?.id || 'FC-MOCK'),
       name: user?.name || 'Faculty Member',
       email: user?.email || 'faculty@cispro.local',
       phone: '9876543210',
@@ -163,6 +164,11 @@ export function FacultyDashboardPage() {
   const handleConfirmLogout = async () => {
     await signOut()
     navigate('/login')
+  }
+
+  const openResetPassword = () => {
+    navigate('/reset-password')
+    setIsProfileMenuOpen(false)
   }
 
   const renderSidebar = () => (
@@ -276,17 +282,17 @@ export function FacultyDashboardPage() {
           <main className="super-admin-content">
             <div className="branch-dashboard-content">
               {user && user.mustResetPassword ? (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '16px 20px', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ background: '#fee2e2', padding: '8px', borderRadius: '50%', display: 'flex' }}>
-                    <ShieldCheck size={24} style={{ color: '#ef4444' }} />
-                  </div>
-                  <div>
-                    <h3 style={{ color: '#991b1b', margin: '0 0 4px 0', fontSize: '1.05rem', fontWeight: 700 }}>Action Required: Reset Your Password</h3>
-                    <p style={{ color: '#b91c1c', margin: 0, fontSize: '0.95rem' }}>
-                      You are currently logging in with a temporary password. For your security, please update your password immediately.
+                <section className="branch-dashboard-password-alert" aria-live="polite">
+                  <div className="branch-dashboard-password-alert-copy">
+                    <strong>Temporary password still active</strong>
+                    <p>
+                      You have not reset your temporary password yet. Please reset it now to secure your faculty dashboard account.
                     </p>
                   </div>
-                </div>
+                  <Button type="button" onClick={openResetPassword}>
+                    Reset Password
+                  </Button>
+                </section>
               ) : null}
 
               {activeSection === 'dashboard' ? (

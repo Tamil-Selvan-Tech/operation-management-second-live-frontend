@@ -164,6 +164,7 @@ export function normalizeAuthSession(response, fallbackSession) {
     refreshToken,
     user: {
       id: user?.id ?? fallbackSession.user.id,
+      userCode: user?.userCode ?? fallbackSession.user.userCode,
       name: user?.name ?? user?.fullName ?? fallbackSession.user.name,
       email: user?.email ?? fallbackSession.user.email,
       role: roleFromBackend(user?.role ?? fallbackSession.user.role),
