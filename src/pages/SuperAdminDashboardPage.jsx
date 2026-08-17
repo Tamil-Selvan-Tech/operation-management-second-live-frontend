@@ -285,6 +285,7 @@ export function SuperAdminDashboardPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const previousBranchSnapshotRef = useRef(null)
+  const actionMenuCloseTimerRef = useRef(null)
   const [form, setForm] = useState({
     branchId: '',
     branchName: '',
@@ -1353,7 +1354,17 @@ export function SuperAdminDashboardPage() {
                             >
                               <div
                                 className={`branch-actions branch-actions-wrap ${isUpwardMenu ? 'is-upward' : ''} ${actionMenuBranchId === branch.id ? 'is-open' : ''}`.trim()}
-                                onMouseEnter={() => setActionMenuBranchId(branch.id)}
+                                onMouseEnter={() => {
+                                  if (actionMenuCloseTimerRef.current) {
+                                    clearTimeout(actionMenuCloseTimerRef.current)
+                                  }
+                                  setActionMenuBranchId(branch.id)
+                                }}
+                                onMouseLeave={() => {
+                                  actionMenuCloseTimerRef.current = setTimeout(() => {
+                                    setActionMenuBranchId(null)
+                                  }, 200)
+                                }}
                               >
                                 <button
                                   type="button"
@@ -1413,7 +1424,17 @@ export function SuperAdminDashboardPage() {
 
                               <div
                                 className={`branch-actions branch-actions-wrap ${isUpwardMenu ? 'is-upward' : ''} ${actionMenuBranchId === branch.id ? 'is-open' : ''}`.trim()}
-                                onMouseEnter={() => setActionMenuBranchId(branch.id)}
+                                onMouseEnter={() => {
+                                  if (actionMenuCloseTimerRef.current) {
+                                    clearTimeout(actionMenuCloseTimerRef.current)
+                                  }
+                                  setActionMenuBranchId(branch.id)
+                                }}
+                                onMouseLeave={() => {
+                                  actionMenuCloseTimerRef.current = setTimeout(() => {
+                                    setActionMenuBranchId(null)
+                                  }, 200)
+                                }}
                               >
                                 <button
                                   type="button"

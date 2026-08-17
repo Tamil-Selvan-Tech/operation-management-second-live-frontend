@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { roleDashboards } from '../data/authData'
@@ -1531,6 +1532,12 @@ export function CoursesPage() {
                               className={`course-row-action course-row-menu-trigger ${openActionMenuId === course.id ? 'is-open' : ''}`.trim()}
                               onMouseEnter={() => {
                                 clearActionMenuCloseTimer()
+                                setOpenActionMenuId(course.id)
+                                setOpenActionMenuMode('hover')
+                                syncOpenActionMenuPlacement(actionMenuButtonRefs.current.get(course.id))
+                              }}
+                              onMouseLeave={() => {
+                                scheduleActionMenuClose()
                               }}
                               onClick={(event) => {
                                 const nextIsOpen = openActionMenuId !== course.id || openActionMenuMode !== 'click'
@@ -1552,71 +1559,77 @@ export function CoursesPage() {
                             >
                               <MoreVertical />
                             </button>
-                            {openActionMenuId === course.id ? (
-                              <div
-                                className={`course-row-action-menu ${menuPlacement === 'top' ? 'course-row-action-menu-top' : 'course-row-action-menu-bottom'}`.trim()}
-                                role="menu"
-                                aria-label={`${course.name || 'course'} actions`}
-                                style={{
-                                  top: `${openActionMenuPosition.top}px`,
-                                  right: `${openActionMenuPosition.right}px`,
-                                  bottom: 'auto',
-                                  left: 'auto',
-                                }}
-                                onMouseEnter={clearActionMenuCloseTimer}
-                                onMouseLeave={() => {
-                                  if (openActionMenuMode === 'hover') {
-                                    scheduleActionMenuClose()
-                                  }
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  className="course-row-action-menu-item"
-                                  onClick={() => {
-                                    setOpenActionMenuId(null)
-                                    setOpenActionMenuPlacement('bottom')
-                                    setOpenActionMenuPosition({ top: 0, right: 0 })
-                                    setOpenActionMenuMode('')
-                                    openViewModal(course)
-                                  }}
-                                  role="menuitem"
-                                >
-                                  <Eye />
-                                  <span>View</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="course-row-action-menu-item"
-                                  onClick={() => {
-                                    setOpenActionMenuId(null)
-                                    setOpenActionMenuPlacement('bottom')
-                                    setOpenActionMenuPosition({ top: 0, right: 0 })
-                                    setOpenActionMenuMode('')
-                                    openEditModal(course)
-                                  }}
-                                  role="menuitem"
-                                >
-                                  <PencilLine />
-                                  <span>Edit</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="course-row-action-menu-item danger"
-                                  onClick={() => {
-                                    setOpenActionMenuId(null)
-                                    setOpenActionMenuPlacement('bottom')
-                                    setOpenActionMenuPosition({ top: 0, right: 0 })
-                                    setOpenActionMenuMode('')
-                                    handleDelete(course.id)
-                                  }}
-                                  role="menuitem"
-                                >
-                                  <Trash2 />
-                                  <span>Deactivate</span>
-                                </button>
-                              </div>
-                            ) : null}
+                            {openActionMenuId === course.id && typeof document !== 'undefined'
+                              ? createPortal(
+                                  <div
+                                    className={`course-row-action-menu ${menuPlacement === 'top' ? 'course-row-action-menu-top' : 'course-row-action-menu-bottom'}`.trim()}
+                                    role="menu"
+                                    aria-label={`${course.name || 'course'} actions`}
+                                    style={{
+                                      position: 'fixed',
+                                      top: `${openActionMenuPosition.top}px`,
+                                      right: `${openActionMenuPosition.right}px`,
+                                      bottom: 'auto',
+                                      left: 'auto',
+                                      zIndex: 999999,
+                                    }}
+                                    onMouseEnter={clearActionMenuCloseTimer}
+                                    onMouseLeave={() => {
+                                      if (openActionMenuMode === 'hover') {
+                                        scheduleActionMenuClose()
+                                      }
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="course-row-action-menu-item"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null)
+                                        setOpenActionMenuPlacement('bottom')
+                                        setOpenActionMenuPosition({ top: 0, right: 0 })
+                                        setOpenActionMenuMode('')
+                                        openViewModal(course)
+                                      }}
+                                      role="menuitem"
+                                    >
+                                      <Eye />
+                                      <span>View</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="course-row-action-menu-item"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null)
+                                        setOpenActionMenuPlacement('bottom')
+                                        setOpenActionMenuPosition({ top: 0, right: 0 })
+                                        setOpenActionMenuMode('')
+                                        openEditModal(course)
+                                      }}
+                                      role="menuitem"
+                                    >
+                                      <PencilLine />
+                                      <span>Edit</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="course-row-action-menu-item danger"
+                                      onClick={() => {
+                                        setOpenActionMenuId(null)
+                                        setOpenActionMenuPlacement('bottom')
+                                        setOpenActionMenuPosition({ top: 0, right: 0 })
+                                        setOpenActionMenuMode('')
+                                        handleDelete(course.id)
+                                      }}
+                                      role="menuitem"
+                                    >
+                                      <Trash2 />
+                                      <span>Deactivate</span>
+                                    </button>
+                                  </div>,
+                                  document.body
+                                )
+                              : null}
                           </div>
                         </td>
                       </tr>
