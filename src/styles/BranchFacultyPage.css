@@ -805,4 +805,28 @@
   background: #f1f5f9;
 }
 
+.branch-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #6b7280;
+  border-radius: 6px;
+}
 
+.branch-modal-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+
+.faculty-delete-modal-card {
+  position: relative;
+}

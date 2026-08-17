@@ -775,7 +775,7 @@ export function BranchFacultyPage() {
             <th style={{ width: '60px' }}>S.No</th>
             <th>Faculty ID</th>
             <th>Name</th>
-            <th>Email</th>
+
             <th>Phone</th>
             <th>Status</th>
             <th style={{ width: '80px', textAlign: 'center' }}>Actions</th>
@@ -795,12 +795,12 @@ export function BranchFacultyPage() {
                   <td>
                     <strong className="branch-course-name">{faculty.name}</strong>
                   </td>
-                  <td>
+                  {/* <td>
                     <span className="faculty-info-link">
                       <Mail size={14} style={{ color: '#94a3b8' }} />
                       {faculty.email}
                     </span>
-                  </td>
+                  </td> */}
                   <td>
                     <span className="faculty-info-link">
                       <Phone size={14} style={{ color: '#94a3b8' }} />
@@ -1402,10 +1402,10 @@ export function BranchFacultyPage() {
                 aria-label="Close delete confirmation"
                 onClick={() => setDeleteConfirmTarget(null)}
               >
-                X
+                <X size={20} strokeWidth={2} />
               </button>
 
-              
+
 
               <h2 id="faculty-delete-title" className="faculty-delete-title">Delete Faculty?</h2>
 
