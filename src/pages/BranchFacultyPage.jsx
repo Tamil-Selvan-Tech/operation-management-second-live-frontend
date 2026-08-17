@@ -30,8 +30,6 @@ export function BranchFacultyPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 5
 
-
-
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalForm, setModalForm] = useState({
@@ -224,32 +222,17 @@ export function BranchFacultyPage() {
     })
   }, [facultyList, searchQuery])
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredFaculty.length / rowsPerPage))
-  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages)
+  const safeCurrentPage = Math.min(currentPage, totalPages)
+
+  useEffect(() => {
+    setCurrentPage((prevPage) => Math.min(prevPage, totalPages))
+  }, [totalPages])
 
   const paginatedFaculty = useMemo(() => {
     const startIndex = (safeCurrentPage - 1) * rowsPerPage
-    const endIndex = startIndex + rowsPerPage
-
-    return filteredFaculty.slice(startIndex, endIndex)
+    return filteredFaculty.slice(startIndex, startIndex + rowsPerPage)
   }, [filteredFaculty, safeCurrentPage])
-
-  const goToPage = (page) => {
-    setCurrentPage(Math.min(Math.max(1, page), totalPages))
-  }
-
-  // Search result குறைந்தால் current page reset
-  useEffect(() => {
-    if (currentPage !== safeCurrentPage) {
-      setCurrentPage(safeCurrentPage)
-    }
-  }, [currentPage, safeCurrentPage])
-
-  // Search செய்யும்போது Page 1க்கு வர
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery])
 
   // Individual Field Validators
   // =========================================
@@ -654,7 +637,6 @@ export function BranchFacultyPage() {
       )
       setFacultyList(updatedList)
       saveFacultyRegistry(updatedList)
-      setCurrentPage(1)
       setSuccessAlert({
         title: '✓ Faculty Updated Successfully',
         message: 'Faculty details have been updated successfully.',
@@ -677,7 +659,6 @@ export function BranchFacultyPage() {
       const updatedList = [newFaculty, ...facultyList]
       setFacultyList(updatedList)
       saveFacultyRegistry(updatedList)
-      setCurrentPage(1)
       setSuccessAlert({
         title: '✓ Faculty Added Successfully',
         message: `New faculty has been onboarded successfully. A login email has been mock-sent to ${modalForm.email} with temporary password: ${tempPass}`,
@@ -699,7 +680,6 @@ export function BranchFacultyPage() {
     const updatedList = facultyList.filter((f) => f.id !== deleteConfirmTarget.id)
     setFacultyList(updatedList)
     saveFacultyRegistry(updatedList)
-    setCurrentPage(1)
     setDeleteConfirmTarget(null)
     setSuccessAlert({
       title: '✓ Faculty Deleted Successfully',
@@ -768,12 +748,13 @@ export function BranchFacultyPage() {
           </tr>
         </thead>
         <tbody>
-          {filteredFaculty.length > 0 ? (
+          {paginatedFaculty.length > 0 ? (
             paginatedFaculty.map((faculty, index) => {
               const normStatus = String(faculty.status || 'Active').toLowerCase()
+              const rowNumber = (safeCurrentPage - 1) * rowsPerPage + index + 1
               return (
                 <tr key={faculty.id} style={{ cursor: 'pointer' }} onClick={() => setViewFaculty(faculty)}>
-                  <td>{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td>
+                  <td>{rowNumber}</td>
                   <td>
                     <strong style={{ color: '#0f172a' }}>{faculty.id}</strong>
                   </td>
@@ -955,38 +936,36 @@ export function BranchFacultyPage() {
         </tbody>
       </table>
     </div>
+
     {totalPages > 1 && (
       <div className="faculty-pagination">
         <button
           type="button"
-          className="faculty-pagination-btn"
+          className="faculty-pagination-button"
+          onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
           disabled={safeCurrentPage === 1}
-          onClick={() => goToPage(safeCurrentPage - 1)}
         >
           Previous
         </button>
 
         <div className="faculty-pagination-pages">
-          {Array.from({ length: totalPages }, (_, index) => index + 1).map(
-            (page) => (
-              <button
-                key={page}
-                type="button"
-                className={`faculty-pagination-page ${safeCurrentPage === page ? 'active' : ''
-                  }`}
-                onClick={() => goToPage(page)}
-              >
-                {page}
-              </button>
-            )
-          )}
+          {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
+            <button
+              key={page}
+              type="button"
+              className={`faculty-pagination-page ${page === safeCurrentPage ? 'is-active' : ''}`}
+              onClick={() => setCurrentPage(page)}
+            >
+              {page}
+            </button>
+          ))}
         </div>
 
         <button
           type="button"
-          className="faculty-pagination-btn"
+          className="faculty-pagination-button"
+          onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
           disabled={safeCurrentPage === totalPages}
-          onClick={() => goToPage(safeCurrentPage + 1)}
         >
           Next
         </button>

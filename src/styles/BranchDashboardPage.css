@@ -599,14 +599,17 @@
 }
 
 .branch-dashboard-table-shell {
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   border: 1px solid #dbe4f0;
   border-radius: 18px;
   background: #fff;
+  -webkit-overflow-scrolling: touch;
 }
 
 .branch-dashboard-table {
   width: 100%;
+  min-width: 820px;
   border-collapse: collapse;
 }
 
