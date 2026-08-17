@@ -30,7 +30,7 @@ import { roleDashboards } from '../data/authData'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { listStudents } from '../services/studentService'
 import { StudentDashboard } from './StudentDashboard'
-import { FacultyDashboardPage } from './FacultyDashboardPage'
+import { Navigate } from 'react-router-dom'
 
 const attendanceComparisonData = [
   { month: 'Jan', attendance: 82, students: 240 },
@@ -1656,7 +1656,7 @@ export function DashboardPage({ role }) {
   }
 
   if (role === 'faculty') {
-    return <FacultyDashboardPage dashboard={dashboard} />
+    return <Navigate to="/dashboard/faculty/my-batches" replace />
   }
 
   return <GenericDashboard role={role} />

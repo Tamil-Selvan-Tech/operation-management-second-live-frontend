@@ -210,7 +210,6 @@ function AppLayout() {
     location.pathname !== '/dashboard/operation-manager/student-management' &&
     location.pathname !== '/dashboard/operation-manager/faculty-management' &&
     location.pathname !== '/dashboard/faculty' &&
-    location.pathname !== '/dashboard/faculty/my-batches' &&
     location.pathname !== '/dashboard/student' &&
     location.pathname !== '/notifications' &&
     location.pathname !== '/courses' &&
@@ -341,6 +340,14 @@ export function AppRouter() {
 
           <Route
             element={
+              <ProtectedRoute allowedRoles={['faculty']} />
+            }
+          >
+            <Route path="/dashboard/faculty/my-batches" element={<FacultyMyBatchesPage />} />
+          </Route>
+
+          <Route
+            element={
               <ProtectedRoute
                 allowedRoles={['business-owner', 'operation-manager', 'super-admin', 'hr', 'faculty', 'student']}
               />
@@ -362,8 +369,7 @@ export function AppRouter() {
                 element={<FacultyManagementPage />}
               />
               <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
-              <Route path="/dashboard/faculty" element={<DashboardPage role="faculty" />} />
-              <Route path="/dashboard/faculty/my-batches" element={<FacultyMyBatchesPage />} />
+              <Route path="/dashboard/faculty" element={<Navigate to="/dashboard/faculty/my-batches" replace />} />
               <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>

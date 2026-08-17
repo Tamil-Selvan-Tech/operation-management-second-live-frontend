@@ -68,7 +68,7 @@ export const dashboardPathByRole = {
   'super-admin': '/dashboard/super-admin',
   'branch-admin': '/branch-dashboard',
   hr: '/dashboard/hr',
-  faculty: '/dashboard/faculty',
+  faculty: '/dashboard/faculty/my-batches',
   student: '/dashboard/student',
 }
 
