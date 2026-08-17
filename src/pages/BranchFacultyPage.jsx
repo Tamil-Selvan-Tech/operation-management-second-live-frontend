@@ -52,6 +52,8 @@ export function BranchFacultyPage() {
     status: 'Active',
   })
   const [editingId, setEditingId] = useState(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+const [isDeleting, setIsDeleting] = useState(false)
 
   // Options for dropdown selectors
   const [countryOptions, setCountryOptions] = useState([])
@@ -614,89 +616,123 @@ export function BranchFacultyPage() {
   }
 
   // Submit Handler for Add / Edit
-  const handleFormSubmit = async (e) => {
-    e.preventDefault()
+ 
+const handleFormSubmit = async (e) => {
+  e.preventDefault()
 
-    const idDigitsErr = validateIdDigits(modalForm.idDigits, editingId, facultyList)
-    const nameErr = validateName(modalForm.name)
-    const emailErr = validateEmail(modalForm.email, editingId, facultyList)
-    const phoneErr = validatePhone(modalForm.phone, editingId, facultyList)
-    const countryErr = validateCountry(modalForm.country)
-    const stateErr = validateState(modalForm.state)
-    const cityErr = validateCity(modalForm.city)
-    const addressErr = validateAddress(modalForm.address)
+  const idDigitsErr = validateIdDigits(
+    modalForm.idDigits,
+    editingId,
+    facultyList
+  )
+  const nameErr = validateName(modalForm.name)
+  const emailErr = validateEmail(
+    modalForm.email,
+    editingId,
+    facultyList
+  )
+  const phoneErr = validatePhone(
+    modalForm.phone,
+    editingId,
+    facultyList
+  )
+  const countryErr = validateCountry(modalForm.country)
+  const stateErr = validateState(modalForm.state)
+  const cityErr = validateCity(modalForm.city)
+  const addressErr = validateAddress(modalForm.address)
 
-    const nextErrors = {
-      idDigits: idDigitsErr,
-      name: nameErr,
-      email: emailErr,
-      phone: phoneErr,
-      country: countryErr,
-      state: stateErr,
-      city: cityErr,
-      address: addressErr,
-    }
-
-    setErrors(nextErrors)
-    setTouched({
-      idDigits: true,
-      name: true,
-      email: true,
-      phone: true,
-      country: true,
-      state: true,
-      city: true,
-      address: true,
-    })
-
-    const hasErrors = Object.values(nextErrors).some((err) => !!err)
-    if (hasErrors) return
-
-    const fullId = `${FACULTY_ID_PREFIX}${modalForm.idDigits}`
-    const payload = {
-      facultyId: fullId,
-      name: modalForm.name,
-      email: modalForm.email,
-      phone: modalForm.phone,
-      country: modalForm.country,
-      countryCode: modalForm.countryCode,
-      state: modalForm.state,
-      stateCode: modalForm.stateCode,
-      city: modalForm.city,
-      address: modalForm.address,
-      status: modalForm.status,
-    }
-
-    try {
-      if (editingId) {
-        const targetFaculty = facultyList.find((f) => f.id === editingId)
-        if (targetFaculty?.dbId) {
-          await updateBranchFaculty(targetFaculty.dbId, payload)
-        }
-        await fetchFaculty()
-        setSuccessAlert({
-          title: '✓ Faculty Updated Successfully',
-          message: 'Faculty details have been updated successfully.',
-        })
-      } else {
-        await createBranchFaculty(payload)
-        await fetchFaculty()
-        setSuccessAlert({
-          title: '✓ Faculty Added Successfully',
-          message: 'New faculty has been onboarded successfully.',
-        })
-      }
-
-      setIsModalOpen(false)
-    } catch (err) {
-      console.error(err)
-      setErrors((prev) => ({
-        ...prev,
-        email: err?.body?.message || 'Error saving faculty. Please try again.',
-      }))
-    }
+  const nextErrors = {
+    idDigits: idDigitsErr,
+    name: nameErr,
+    email: emailErr,
+    phone: phoneErr,
+    country: countryErr,
+    state: stateErr,
+    city: cityErr,
+    address: addressErr,
   }
 
+  setErrors(nextErrors)
+
+  setTouched({
+    idDigits: true,
+    name: true,
+    email: true,
+    phone: true,
+    country: true,
+    state: true,
+    city: true,
+    address: true,
+  })
+
+  const hasErrors = Object.values(nextErrors).some(Boolean)
+
+  if (hasErrors) return
+
+  const fullId = `${FACULTY_ID_PREFIX}${modalForm.idDigits}`
+
+  const payload = {
+    facultyId: fullId,
+    name: modalForm.name,
+    email: modalForm.email,
+    phone: modalForm.phone,
+    country: modalForm.country,
+    countryCode: modalForm.countryCode,
+    state: modalForm.state,
+    stateCode: modalForm.stateCode,
+    city: modalForm.city,
+    address: modalForm.address,
+    status: modalForm.status,
+  }
+
+  try {
+    setIsSubmitting(true)
+
+    if (editingId) {
+      const targetFaculty = facultyList.find(
+        (f) => f.id === editingId
+      )
+
+      if (targetFaculty?.dbId) {
+        await updateBranchFaculty(
+          targetFaculty.dbId,
+          payload
+        )
+      }
+
+      await fetchFaculty()
+
+      setIsModalOpen(false)
+
+      setSuccessAlert({
+        title: '✓ Faculty Updated Successfully',
+        message: 'Faculty details have been updated successfully.',
+      })
+    } else {
+      await createBranchFaculty(payload)
+
+      await fetchFaculty()
+
+      setIsModalOpen(false)
+
+      setSuccessAlert({
+        title: '✓ Faculty Added Successfully',
+        message: 'New faculty has been onboarded successfully.',
+      })
+    }
+  } catch (err) {
+    console.error(err)
+
+    setErrors((prev) => ({
+      ...prev,
+      email:
+        err?.body?.message ||
+        'Error saving faculty. Please try again.',
+    }))
+  } finally {
+    setIsSubmitting(false)
+  }
+}
   // Delete Action Trigger
   const triggerDelete = (faculty, e) => {
     if (e) e.stopPropagation()
@@ -705,23 +741,30 @@ export function BranchFacultyPage() {
   }
 
   const confirmDelete = async () => {
-    if (!deleteConfirmTarget) return
-    try {
-      if (deleteConfirmTarget.dbId) {
-        await deleteBranchFaculty(deleteConfirmTarget.dbId)
-      }
-      await fetchFaculty()
-      setDeleteConfirmTarget(null)
-      setSuccessAlert({
-        title: '✓ Faculty Deleted Successfully',
-        message: 'Faculty has been deleted successfully.',
-      })
-    } catch (error) {
-      console.error(error)
-      // Normally we would show an error alert here
-    }
-  }
+  if (!deleteConfirmTarget) return
 
+  try {
+    setIsDeleting(true)
+
+    if (deleteConfirmTarget.dbId) {
+      await deleteBranchFaculty(deleteConfirmTarget.dbId)
+    }
+
+    await fetchFaculty()
+
+    setDeleteConfirmTarget(null)
+
+    setSuccessAlert({
+      title: '✓ Faculty Deleted Successfully',
+      message: 'Faculty has been deleted successfully.',
+    })
+  } catch (error) {
+    console.error(error)
+  } finally {
+    setIsDeleting(false)
+  }
+}
+  
   return (<div className="branch-dashboard-section">
 
     <div className="branch-dashboard-section-heading">
@@ -1213,18 +1256,26 @@ export function BranchFacultyPage() {
               <div className="faculty-modal-divider" />
 
               {/* Action Buttons */}
-              <div className="faculty-modal-actions">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="faculty-btn-cancel"
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="faculty-btn-submit">
-                  {editingId ? 'Save Changes' : 'Submit'}
-                </button>
-              </div>
+              {/* Action Buttons */}
+<div className="faculty-modal-actions">
+  <button
+    type="button"
+    onClick={() => setIsModalOpen(false)}
+    className="faculty-btn-cancel"
+  >
+    Cancel
+  </button>
+
+  <button
+    type="submit"
+    className="faculty-btn-submit"
+    disabled={isSubmitting}
+  >
+    {isSubmitting
+      ? (editingId ? 'Saving...' : 'Submitting...')
+      : (editingId ? 'Save Changes' : 'Submit')}
+  </button>
+</div>
             </form>
           </div>,
           document.body
@@ -1424,12 +1475,13 @@ export function BranchFacultyPage() {
                   Cancel
                 </button>
                 <button
-                  type="button"
-                  className="faculty-btn-delete-confirm"
-                  onClick={confirmDelete}
-                >
-                  Delete
-                </button>
+  type="button"
+  className="faculty-btn-delete-confirm"
+  onClick={confirmDelete}
+  disabled={isDeleting}
+>
+  {isDeleting ? 'Deleting...' : 'Delete'}
+</button>
               </div>
             </div>
           </div>,
