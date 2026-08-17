@@ -18,6 +18,7 @@ import {
   MapPin,
 } from 'lucide-react'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
+import { loadFacultyRegistry, saveFacultyRegistry } from '../lib/facultyAuth'
 import '../styles/BranchFacultyPage.css'
 import {
   listBranchFaculty,
@@ -30,10 +31,12 @@ import {
 const FACULTY_ID_PREFIX = 'FC-'
 
 export function BranchFacultyPage() {
-  const [facultyList, setFacultyList] = useState([])
+  const [facultyList, setFacultyList] = useState(() => loadFacultyRegistry())
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [filterStatus, setFilterStatus] = useState('All')
   const [showFacultyFilters, setShowFacultyFilters] = useState(false)
+
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -183,7 +186,7 @@ export function BranchFacultyPage() {
   const getNextAvailableIdDigits = (list) => {
     let maxNum = 0
     list.forEach((f) => {
-      const parts = f.id.split('-')
+      const parts = (f.id || '').split('-')
       if (parts.length === 2 && parts[0] === FACULTY_ID_PREFIX.replace('-', '')) {
         const num = parseInt(parts[1], 10)
         if (!isNaN(num) && num > maxNum) {
@@ -200,10 +203,10 @@ export function BranchFacultyPage() {
     return facultyList.filter((faculty) => {
       const query = searchQuery.toLowerCase()
       const matchesSearch =
-        faculty.id.toLowerCase().includes(query) ||
-        faculty.name.toLowerCase().includes(query) ||
-        faculty.email.toLowerCase().includes(query) ||
-        faculty.phone.includes(query) ||
+        (faculty.id || '').toLowerCase().includes(query) ||
+        (faculty.name || '').toLowerCase().includes(query) ||
+        (faculty.email || '').toLowerCase().includes(query) ||
+        (faculty.phone || '').includes(query) ||
         (faculty.country && faculty.country.toLowerCase().includes(query)) ||
         (faculty.state && faculty.state.toLowerCase().includes(query)) ||
         (faculty.city && faculty.city.toLowerCase().includes(query)) ||
@@ -691,7 +694,7 @@ export function BranchFacultyPage() {
 
         {/* Search */}
         <div className="faculty-search-wrapper">
-          <Search size={21} className="faculty-search-icon" />
+          {/* <Search size={21} className="faculty-search-icon" /> */}
 
           <input
             type="text"
@@ -708,34 +711,103 @@ export function BranchFacultyPage() {
           <button
             type="button"
             className="faculty-filter-button"
-            onClick={() => setShowFacultyFilters((prev) => !prev)}
+            onClick={() => {
+              setFilterStatus(statusFilter)
+              setShowFacultyFilters((prev) => !prev)
+            }}
             aria-label="Open filters"
           >
-            <SlidersHorizontal size={30} />
+            <SlidersHorizontal size={24} />
           </button>
 
           {/* Filter Dropdown */}
           {showFacultyFilters && (
-            <div className="faculty-filter-dropdown">
-
+            <div
+              className="faculty-filter-dropdown"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
               <div className="faculty-filter-dropdown-title">
                 <span>Filter</span>
               </div>
 
+              {/* Status */}
               <div className="faculty-filter-field">
                 <label>Status</label>
 
                 <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
                   className="faculty-status-filter-select"
                 >
-                  <option value="All">All Statuses</option>
+                  <option value="All">Select Status</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
+              {/* Checkbox Options */}
+              <div className="faculty-filter-checkbox-group">
+
+                {/* All Statuses */}
+                <label className="faculty-filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filterStatus === 'All'}
+                    onChange={() => setFilterStatus('All')}
+                  />
+                  <span className="faculty-custom-checkbox"></span>
+                  <span>All Statuses</span>
+                </label>
+
+                {/* Active */}
+                <label className="faculty-filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filterStatus === 'Active'}
+                    onChange={() => setFilterStatus('Active')}
+                  />
+                  <span className="faculty-custom-checkbox"></span>
+                  <span>Active</span>
+                </label>
+
+                {/* Inactive */}
+                <label className="faculty-filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filterStatus === 'Inactive'}
+                    onChange={() => setFilterStatus('Inactive')}
+                  />
+                  <span className="faculty-custom-checkbox"></span>
+                  <span>Inactive</span>
+                </label>
+
+              </div>
+
+              {/* Footer */}
+              <div className="faculty-filter-footer">
+                <button
+                  type="button"
+                  className="faculty-filter-cancel"
+                  onClick={() => {
+                    setFilterStatus(statusFilter)
+                    setShowFacultyFilters(false)
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="faculty-filter-apply"
+                  onClick={() => {
+                    setStatusFilter(filterStatus)
+                    setShowFacultyFilters(false)
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
             </div>
           )}
 
@@ -770,9 +842,9 @@ export function BranchFacultyPage() {
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div className="faculty-avatar">
-                          {faculty.name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
+                          {String(faculty.name || 'U').split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
                         </div>
-                        <strong className="branch-course-name">{faculty.name}</strong>
+                        <strong className="branch-course-name">{faculty.name || '-'}</strong>
                       </div>
                     </td>
                     <td>
@@ -866,13 +938,14 @@ export function BranchFacultyPage() {
       {/* Add / Edit modal using 2-column layout matching design specs screenshot */}
       {isModalOpen && typeof document !== 'undefined'
         ? createPortal(
-          <div role="presentation" onClick={() => setIsModalOpen(false)} className="faculty-portal-backdrop">
+          <div role="presentation" className="faculty-portal-backdrop">
             <form
               role="dialog"
               aria-modal="true"
               onClick={(e) => e.stopPropagation()}
               onSubmit={handleFormSubmit}
               className="faculty-modal-card"
+              noValidate
             >
               {/* Header */}
               <div className="faculty-modal-header">
@@ -912,11 +985,11 @@ export function BranchFacultyPage() {
 
                     />
                   </div>
-                  {touched.idDigits && errors.idDigits && (
+                  {((touched.idDigits || modalForm.idDigits) && errors.idDigits) ? (
                     <small className="faculty-error-message">
                       {errors.idDigits}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Faculty Name */}
@@ -933,11 +1006,11 @@ export function BranchFacultyPage() {
                     className="faculty-text-input"
 
                   />
-                  {touched.name && errors.name && (
+                  {((touched.name || modalForm.name) && errors.name) ? (
                     <small className="faculty-error-message">
                       {errors.name}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Faculty Email */}
@@ -954,11 +1027,11 @@ export function BranchFacultyPage() {
                     className="faculty-text-input"
 
                   />
-                  {touched.email && errors.email && (
+                  {((touched.email || modalForm.email) && errors.email) ? (
                     <small className="faculty-error-message">
                       {errors.email}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Faculty Phone Number */}
@@ -975,11 +1048,11 @@ export function BranchFacultyPage() {
                     className="faculty-text-input"
 
                   />
-                  {touched.phone && errors.phone && (
+                  {((touched.phone || modalForm.phone) && errors.phone) ? (
                     <small className="faculty-error-message">
                       {errors.phone}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Country */}
@@ -1001,11 +1074,11 @@ export function BranchFacultyPage() {
                       </option>
                     ))}
                   </select>
-                  {touched.country && errors.country && (
+                  {((touched.country || modalForm.country) && errors.country) ? (
                     <small className="faculty-error-message">
                       {errors.country}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* State */}
@@ -1028,11 +1101,11 @@ export function BranchFacultyPage() {
                       </option>
                     ))}
                   </select>
-                  {touched.state && errors.state && (
+                  {((touched.state || modalForm.state) && errors.state) ? (
                     <small className="faculty-error-message">
                       {errors.state}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* City */}
@@ -1055,11 +1128,11 @@ export function BranchFacultyPage() {
                       </option>
                     ))}
                   </select>
-                  {touched.city && errors.city && (
+                  {((touched.city || modalForm.city) && errors.city) ? (
                     <small className="faculty-error-message">
                       {errors.city}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Status */}
@@ -1090,11 +1163,11 @@ export function BranchFacultyPage() {
                     className="faculty-textarea-input"
 
                   />
-                  {touched.address && errors.address && (
+                  {((touched.address || modalForm.address) && errors.address) ? (
                     <small className="faculty-error-message">
                       {errors.address}
                     </small>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -1336,39 +1409,43 @@ export function BranchFacultyPage() {
       {/* Success alert popups with exact text specified by user */}
       {successAlert && typeof document !== 'undefined'
         ? createPortal(
-          <div role="presentation" onClick={() => setSuccessAlert(null)} className="faculty-portal-backdrop">
-            <div className="faculty-success-modal-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="faculty-success-backdrop">
+            <div
+              className="faculty-success-modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="faculty-success-title"
+            >
+              {/* Success Icon */}
+              <div className="faculty-success-icon-wrapper">
+                <div className="faculty-success-icon">
+                  <CheckCircle2 size={34} strokeWidth={2.5} />
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="faculty-success-content">
+                <span className="faculty-success-label">
+                  Success
+                </span>
+
+                <h2 id="faculty-success-title">
+                  {successAlert.title.replace('✓ ', '')}
+                </h2>
+
+                <p>
+                  {successAlert.message}
+                </p>
+              </div>
+
+              {/* Button */}
               <button
                 type="button"
-                className="branch-modal-close"
-                aria-label="Close alert"
+                className="faculty-success-ok-btn"
                 onClick={() => setSuccessAlert(null)}
               >
-                X
+                OK
               </button>
-
-              <div className="faculty-success-hero" aria-hidden="true">
-                <span className="faculty-success-ring" />
-                <span className="faculty-success-icon-container">
-                  <CheckCircle2 size={30} style={{ color: '#22c55e' }} />
-                </span>
-              </div>
-
-              <div className="branch-success-copy">
-                <p className="faculty-success-kicker">Success</p>
-                <h2 className="faculty-success-title">{successAlert.title}</h2>
-                <p className="faculty-success-copy">{successAlert.message}</p>
-              </div>
-
-              <div className="faculty-success-actions">
-                <button
-                  type="button"
-                  className="faculty-success-btn-ok"
-                  onClick={() => setSuccessAlert(null)}
-                >
-                  OK
-                </button>
-              </div>
             </div>
           </div>,
           document.body
