@@ -1,28 +1,65 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Bell,
-  BookOpen,
-  CircleUserRound,
-  ChevronDown,
-  LayoutDashboard,
-  Layers3,
-  LogOut,
-  Users,
-  ShieldCheck,
-  CalendarDays,
-  Clock3,
-  MapPin,
-  Mail,
-  Phone,
-  UserRound,
-} from 'lucide-react'
+  FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
+  getAttendanceDateKey,
+  loadFacultyBatchAttendanceState,
+  loadFacultyAttendanceState,
+  resolveBatchAttendanceWindow,
+  resolveTodayFacultyAttendanceStatus,
+  normalizeAttendanceSessions,
+  formatAttendanceTimeLabel,
+  saveFacultyBatchAttendanceState,
+} from '../lib/facultyAttendanceStore'
+import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
+import { markFacultyStudentAttendance } from '../services/attendanceService'
+import { getFacultyMyBatchesSummary } from '../services/dashboardService'
+import { getCurrentFacultyProfile } from '../services/facultyService'
+import { useMobileMenu } from '../layouts/mobileMenuContext'
+import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
+import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 
-import { useAuth } from '../auth/useAuth'
-import { loadFacultyRegistry } from '../lib/facultyAuth'
-import '../styles/BranchDashboardPage.css'
+function getInitials(name) {
+  const value = String(name || '').trim()
+  if (!value) return 'ST'
+  return value
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('')
+    .slice(0, 2)
+}
 
-function SidebarUserAvatar() {
+function formatDisplayDate(value) {
+  if (!value) return '-'
+
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatDisplayTime(value) {
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+function formatMinutesLabel(value = 0) {
+  const count = Math.max(0, Math.floor(Number(value) || 0))
+  return `${count} minute${count === 1 ? '' : 's'}`
+}
+
+function FacultyProfileStat({ icon: Icon, label, value, tone = 'blue' }) {
   return (
     <span className="super-admin-sidebar-user-avatar" aria-hidden="true">
       <CircleUserRound size={34} strokeWidth={1.9} />
