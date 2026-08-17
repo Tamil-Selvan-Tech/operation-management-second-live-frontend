@@ -64,7 +64,9 @@ export function BranchFacultyPage() {
   const [facultyList, setFacultyList] = useState(initialFaculty)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [filterStatus, setFilterStatus] = useState('All')
   const [showFacultyFilters, setShowFacultyFilters] = useState(false)
+
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -684,7 +686,7 @@ export function BranchFacultyPage() {
 
         {/* Search */}
         <div className="faculty-search-wrapper">
-          <Search size={21} className="faculty-search-icon" />
+          {/* <Search size={21} className="faculty-search-icon" /> */}
 
           <input
             type="text"
@@ -701,34 +703,103 @@ export function BranchFacultyPage() {
           <button
             type="button"
             className="faculty-filter-button"
-            onClick={() => setShowFacultyFilters((prev) => !prev)}
+            onClick={() => {
+              setFilterStatus(statusFilter)
+              setShowFacultyFilters((prev) => !prev)
+            }}
             aria-label="Open filters"
           >
-            <SlidersHorizontal size={30} />
+            <SlidersHorizontal size={24} />
           </button>
 
           {/* Filter Dropdown */}
           {showFacultyFilters && (
-            <div className="faculty-filter-dropdown">
-
+            <div
+              className="faculty-filter-dropdown"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
               <div className="faculty-filter-dropdown-title">
                 <span>Filter</span>
               </div>
 
+              {/* Status */}
               <div className="faculty-filter-field">
                 <label>Status</label>
 
                 <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
                   className="faculty-status-filter-select"
                 >
-                  <option value="All">All Statuses</option>
+                  <option value="All">Select Status</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
                 </select>
               </div>
 
+              {/* Checkbox Options */}
+              <div className="faculty-filter-checkbox-group">
+
+                {/* All Statuses */}
+                <label className="faculty-filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filterStatus === 'All'}
+                    onChange={() => setFilterStatus('All')}
+                  />
+                  <span className="faculty-custom-checkbox"></span>
+                  <span>All Statuses</span>
+                </label>
+
+                {/* Active */}
+                <label className="faculty-filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filterStatus === 'Active'}
+                    onChange={() => setFilterStatus('Active')}
+                  />
+                  <span className="faculty-custom-checkbox"></span>
+                  <span>Active</span>
+                </label>
+
+                {/* Inactive */}
+                <label className="faculty-filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={filterStatus === 'Inactive'}
+                    onChange={() => setFilterStatus('Inactive')}
+                  />
+                  <span className="faculty-custom-checkbox"></span>
+                  <span>Inactive</span>
+                </label>
+
+              </div>
+
+              {/* Footer */}
+              <div className="faculty-filter-footer">
+                <button
+                  type="button"
+                  className="faculty-filter-cancel"
+                  onClick={() => {
+                    setFilterStatus(statusFilter)
+                    setShowFacultyFilters(false)
+                  }}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="faculty-filter-apply"
+                  onClick={() => {
+                    setStatusFilter(filterStatus)
+                    setShowFacultyFilters(false)
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
             </div>
           )}
 
@@ -859,7 +930,7 @@ export function BranchFacultyPage() {
       {/* Add / Edit modal using 2-column layout matching design specs screenshot */}
       {isModalOpen && typeof document !== 'undefined'
         ? createPortal(
-          <div role="presentation" onClick={() => setIsModalOpen(false)} className="faculty-portal-backdrop">
+          <div role="presentation" className="faculty-portal-backdrop">
             <form
               role="dialog"
               aria-modal="true"
@@ -1329,39 +1400,43 @@ export function BranchFacultyPage() {
       {/* Success alert popups with exact text specified by user */}
       {successAlert && typeof document !== 'undefined'
         ? createPortal(
-          <div role="presentation" onClick={() => setSuccessAlert(null)} className="faculty-portal-backdrop">
-            <div className="faculty-success-modal-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="faculty-success-backdrop">
+            <div
+              className="faculty-success-modal-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="faculty-success-title"
+            >
+              {/* Success Icon */}
+              <div className="faculty-success-icon-wrapper">
+                <div className="faculty-success-icon">
+                  <CheckCircle2 size={34} strokeWidth={2.5} />
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="faculty-success-content">
+                <span className="faculty-success-label">
+                  Success
+                </span>
+
+                <h2 id="faculty-success-title">
+                  {successAlert.title.replace('✓ ', '')}
+                </h2>
+
+                <p>
+                  {successAlert.message}
+                </p>
+              </div>
+
+              {/* Button */}
               <button
                 type="button"
-                className="branch-modal-close"
-                aria-label="Close alert"
+                className="faculty-success-ok-btn"
                 onClick={() => setSuccessAlert(null)}
               >
-                X
+                OK
               </button>
-
-              <div className="faculty-success-hero" aria-hidden="true">
-                <span className="faculty-success-ring" />
-                <span className="faculty-success-icon-container">
-                  <CheckCircle2 size={30} style={{ color: '#22c55e' }} />
-                </span>
-              </div>
-
-              <div className="branch-success-copy">
-                <p className="faculty-success-kicker">Success</p>
-                <h2 className="faculty-success-title">{successAlert.title}</h2>
-                <p className="faculty-success-copy">{successAlert.message}</p>
-              </div>
-
-              <div className="faculty-success-actions">
-                <button
-                  type="button"
-                  className="faculty-success-btn-ok"
-                  onClick={() => setSuccessAlert(null)}
-                >
-                  OK
-                </button>
-              </div>
             </div>
           </div>,
           document.body
