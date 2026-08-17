@@ -19,49 +19,18 @@ import {
 } from 'lucide-react'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
 import '../styles/BranchFacultyPage.css'
+import {
+  listBranchFaculty,
+  createBranchFaculty,
+  updateBranchFaculty,
+  deleteBranchFaculty,
+} from '../services/branchFacultyService'
 
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
 
-// Initial seed faculty matching user requirement values
-const initialFaculty = [
-  {
-    id: 'FC-001',
-    name: 'Arun Kumar',
-    email: 'arun@gmail.com',
-    phone: '9876543210',
-    country: 'India',
-    state: 'Tamil Nadu',
-    city: 'Chennai',
-    address: 'No. 12, Main Street, Chennai',
-    status: 'Active',
-  },
-  {
-    id: 'FC-002',
-    name: 'Priya Raj',
-    email: 'priya.raj@cispro.com',
-    phone: '9876543211',
-    country: 'India',
-    state: 'Tamil Nadu',
-    city: 'Madurai',
-    address: 'No. 45, Bypass Road, Madurai',
-    status: 'Active',
-  },
-  {
-    id: 'FC-003',
-    name: 'Karthik Raja',
-    email: 'karthik.raja@cispro.com',
-    phone: '9876543212',
-    country: 'India',
-    state: 'Tamil Nadu',
-    city: 'Coimbatore',
-    address: 'No. 78, Cross Cut Road, Coimbatore',
-    status: 'Inactive',
-  },
-]
-
 export function BranchFacultyPage() {
-  const [facultyList, setFacultyList] = useState(initialFaculty)
+  const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [showFacultyFilters, setShowFacultyFilters] = useState(false)
@@ -117,6 +86,37 @@ export function BranchFacultyPage() {
     return () => {
       cancelled = true
     }
+  }, [])
+
+  // Load faculty list from backend
+  const fetchFaculty = async () => {
+    try {
+      const res = await listBranchFaculty()
+      if (res?.data) {
+        // Map backend representation to UI expectation
+        const mapped = res.data.map((f) => ({
+          dbId: f.id,
+          id: f.facultyId,
+          name: f.name,
+          email: f.email,
+          phone: f.phone,
+          country: f.country,
+          countryCode: f.countryCode,
+          state: f.state,
+          stateCode: f.stateCode,
+          city: f.city,
+          address: f.address,
+          status: f.status,
+        }))
+        setFacultyList(mapped)
+      }
+    } catch (error) {
+      console.error('Failed to fetch branch faculty:', error)
+    }
+  }
+
+  useEffect(() => {
+    fetchFaculty()
   }, [])
 
   // Load states on country code change
@@ -551,7 +551,7 @@ export function BranchFacultyPage() {
   }
 
   // Submit Handler for Add / Edit
-  const handleFormSubmit = (e) => {
+  const handleFormSubmit = async (e) => {
     e.preventDefault()
 
     const idDigitsErr = validateIdDigits(modalForm.idDigits, editingId, facultyList)
@@ -591,51 +591,50 @@ export function BranchFacultyPage() {
 
     const fullId = `${FACULTY_ID_PREFIX}${modalForm.idDigits}`
 
-    if (editingId) {
-      // Edit Save Flow
-      setFacultyList((prev) =>
-        prev.map((f) =>
-          f.id === editingId
-            ? {
-              ...f,
-              id: fullId,
-              name: modalForm.name,
-              email: modalForm.email,
-              phone: modalForm.phone,
-              country: modalForm.country,
-              state: modalForm.state,
-              city: modalForm.city,
-              address: modalForm.address,
-              status: modalForm.status,
-            }
-            : f
-        )
-      )
-      setSuccessAlert({
-        title: '✓ Faculty Updated Successfully',
-        message: 'Faculty details have been updated successfully.',
-      })
-    } else {
-      // Add Save Flow
-      const newFaculty = {
-        id: fullId,
-        name: modalForm.name,
-        email: modalForm.email,
-        phone: modalForm.phone,
-        country: modalForm.country,
-        state: modalForm.state,
-        city: modalForm.city,
-        address: modalForm.address,
-        status: modalForm.status,
-      }
-      setFacultyList((prev) => [newFaculty, ...prev])
-      setSuccessAlert({
-        title: '✓ Faculty Added Successfully',
-        message: 'New faculty has been onboarded successfully.',
-      })
+    const payload = {
+      facultyId: fullId,
+      name: modalForm.name,
+      email: modalForm.email,
+      phone: modalForm.phone,
+      country: modalForm.country,
+      countryCode: modalForm.countryCode,
+      state: modalForm.state,
+      stateCode: modalForm.stateCode,
+      city: modalForm.city,
+      address: modalForm.address,
+      status: modalForm.status,
     }
 
-    setIsModalOpen(false)
+    try {
+      if (editingId) {
+        // Edit Save Flow
+        const targetFaculty = facultyList.find((f) => f.id === editingId)
+        if (targetFaculty?.dbId) {
+          await updateBranchFaculty(targetFaculty.dbId, payload)
+        }
+        await fetchFaculty()
+        setSuccessAlert({
+          title: '✓ Faculty Updated Successfully',
+          message: 'Faculty details have been updated successfully.',
+        })
+      } else {
+        // Add Save Flow
+        await createBranchFaculty(payload)
+        await fetchFaculty()
+        setSuccessAlert({
+          title: '✓ Faculty Added Successfully',
+          message: 'New faculty has been onboarded successfully.',
+        })
+      }
+
+      setIsModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      setErrors((prev) => ({
+        ...prev,
+        email: err?.body?.message || 'Error saving faculty. Please try again.',
+      }))
+    }
   }
 
   // Delete Action Trigger
@@ -645,14 +644,22 @@ export function BranchFacultyPage() {
     setOpenActionId('')
   }
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteConfirmTarget) return
-    setFacultyList((prev) => prev.filter((f) => f.id !== deleteConfirmTarget.id))
-    setDeleteConfirmTarget(null)
-    setSuccessAlert({
-      title: '✓ Faculty Deleted Successfully',
-      message: 'Faculty has been deleted successfully.',
-    })
+    try {
+      if (deleteConfirmTarget.dbId) {
+        await deleteBranchFaculty(deleteConfirmTarget.dbId)
+      }
+      await fetchFaculty()
+      setDeleteConfirmTarget(null)
+      setSuccessAlert({
+        title: '✓ Faculty Deleted Successfully',
+        message: 'Faculty has been deleted successfully.',
+      })
+    } catch (error) {
+      console.error(error)
+      // Normally we would show an error alert here
+    }
   }
 
   return (
