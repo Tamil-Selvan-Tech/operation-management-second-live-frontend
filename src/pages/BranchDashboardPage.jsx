@@ -25,6 +25,7 @@ FileText,
 Tag,
   BadgeInfo,
   BadgePercent,
+  UserRound,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -36,6 +37,7 @@ import {
   listBranchCourses,
   updateBranchCourse,
 } from '../services/branchCourseService'
+import { BranchFacultyPage } from './BranchFacultyPage'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
@@ -668,6 +670,7 @@ const closeViewCourseDrawer = () => {
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'courses', label: 'Courses', icon: BookOpen },
+          { id: 'faculty', label: 'Faculty', icon: UserRound },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'batches', label: 'Batches', icon: Layers3 },
           { id: 'payments', label: 'Payments', icon: Wallet },
@@ -1128,6 +1131,10 @@ const closeViewCourseDrawer = () => {
                     </article>
                   </div>
                 </BranchDashboardSection>
+              ) : null}
+
+              {activeSection === 'faculty' ? (
+                <BranchFacultyPage />
               ) : null}
             </div>
           </main>

@@ -1,0 +1,468 @@
+/* BranchFacultyPage.css */
+
+/* Filter and Search Bar */
+.faculty-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.02);
+}
+
+.faculty-search-wrapper {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+}
+
+.faculty-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.faculty-search-input {
+  width: 100%;
+  padding: 10px 12px 10px 38px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  outline: none;
+  background: #ffffff;
+  color: #0f172a;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.faculty-search-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.faculty-status-filter-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.faculty-status-filter-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.faculty-status-filter-select {
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  outline: none;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.faculty-status-filter-select:focus {
+  border-color: #2563eb;
+}
+
+/* Table Details styling */
+.faculty-table-shell {
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.faculty-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e0f2fe;
+  color: #0369a1;
+  display: grid;
+  place-items: center;
+  font-weight: bold;
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+.faculty-info-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  text-decoration: none;
+}
+
+/* Portal Modals Backdrop styling */
+.faculty-portal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+}
+
+/* Modal Card Form styling */
+.faculty-modal-card {
+  position: relative;
+  width: min(92vw, 810px);
+  height: auto;
+  max-height: calc(100vh - 40px);
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 40px 42px 30px;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.faculty-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.faculty-modal-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.faculty-modal-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #475569;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.faculty-modal-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Form Fields */
+.faculty-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 24px;
+  box-sizing: border-box;
+}
+
+.faculty-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.faculty-field-label {
+  color: #334155;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.faculty-field-label b {
+  color: #ef4444;
+  margin-left: 2px;
+}
+
+/* Custom ID digits with fixed prefix box styling */
+.faculty-id-input-container {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  border: 1px solid #D9E2EC;
+  border-radius: 10px;
+  background: #ffffff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.faculty-id-prefix-badge {
+  padding: 0 16px;
+  background: #f8fafc;
+  border-right: 1px solid #D9E2EC;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.94rem;
+  user-select: none;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.faculty-id-input {
+  border: none;
+  height: 100%;
+  padding: 0 16px;
+  border-radius: 0;
+  flex: 1;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 0.94rem;
+  box-sizing: border-box;
+}
+/* Standard Inputs, textareas & dropdowns styling */
+.faculty-text-input,
+.faculty-select-input,
+.faculty-textarea-input {
+  width: 100%;
+  border: 1px solid #D9E2EC;
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.94rem;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-family: inherit;
+}
+
+.faculty-text-input,
+.faculty-select-input {
+  height: 50px;
+  padding: 0 16px;
+}
+
+.faculty-textarea-input {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.faculty-text-input:focus,
+.faculty-select-input:focus,
+.faculty-textarea-input:focus,
+.faculty-id-input-container:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.faculty-select-input {
+  cursor: pointer;
+}
+.faculty-error-message {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.faculty-modal-divider {
+  border-top: 1px solid #e5e7eb;
+  margin: 28px 0 16px 0;
+}
+
+.faculty-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.faculty-btn-cancel {
+  height: 42px;
+  padding: 0 24px;
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #2563eb;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.faculty-btn-cancel:hover {
+  background: #eff6ff;
+}
+
+.faculty-btn-submit {
+  height: 42px;
+  padding: 0 24px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.faculty-btn-submit:hover {
+  background: #1d4ed8;
+}
+
+/* Delete Confirmation Modal card details */
+.faculty-delete-modal-card {
+  max-width: 400px;
+  width: 100%;
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+  box-sizing: border-box;
+}
+
+.faculty-delete-icon-wrapper {
+  margin: 0 auto;
+}
+
+.faculty-delete-title {
+  margin-top: 16px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.faculty-delete-copy {
+  color: #475569;
+  font-size: 0.94rem;
+  margin: 12px 0 4px;
+}
+
+.faculty-delete-copy strong {
+  color: #0f172a;
+}
+
+.faculty-delete-subcopy {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+}
+
+.faculty-delete-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.faculty-btn-delete-confirm {
+  flex: 1;
+  padding: 10px;
+  background: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.faculty-btn-delete-confirm:hover {
+  background: #b91c1c;
+}
+
+/* Success Modal styling */
+.faculty-success-modal-card {
+  max-width: 420px;
+  width: 100%;
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.15);
+  box-sizing: border-box;
+}
+
+.faculty-success-hero {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+}
+
+.faculty-success-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+}
+
+.faculty-success-icon-container {
+  position: absolute;
+  inset: 12px;
+  border-radius: 50%;
+  background: #dcfce7;
+  display: grid;
+  place-items: center;
+}
+
+.faculty-success-kicker {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: #16a34a;
+  margin-bottom: 4px;
+}
+
+.faculty-success-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.faculty-success-copy {
+  color: #475569;
+  font-size: 0.94rem;
+  margin-top: 6px;
+}
+
+.faculty-success-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.faculty-success-btn-ok {
+  min-width: 120px;
+  padding: 10px 24px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.faculty-success-btn-ok:hover {
+  background: #1d4ed8;
+}
