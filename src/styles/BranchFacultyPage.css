@@ -1,77 +1,213 @@
 /* BranchFacultyPage.css */
 
 /* Filter and Search Bar */
-.faculty-filter-bar {
+
+/* =========================================
+   Faculty Search + Filter Bar
+========================================= */
+
+.faculty-search-filter-bar {
+  width: 100%;
+  height: 54px;
+
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
   align-items: center;
-  justify-content: space-between;
-  background: #ffffff;
-  padding: 12px 16px;
-  border-radius: 14px;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.02);
+  gap: 10px;
+
+  padding: 0;
+  margin-bottom: 18px;
+
+  background: transparent;
+  border-radius: 0;
+
+  box-sizing: border-box;
 }
+
+
+/* =========================================
+   Search
+========================================= */
 
 .faculty-search-wrapper {
   position: relative;
-  flex: 1;
-  min-width: 240px;
+
+  width: 30%;
+  flex: none;
+
+  height: 46px;
 }
+
 
 .faculty-search-icon {
   position: absolute;
-  left: 12px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  color: #94a3b8;
+
+  width: 18px;
+  height: 18px;
+
+  color: #64748b;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .faculty-search-input {
   width: 100%;
-  padding: 10px 12px 10px 38px;
+  height: 46px;
+
+  padding: 0 14px 0 52px;
+
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  outline: none;
+  border-radius: 8px;
+
   background: #ffffff;
   color: #0f172a;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  font-size: 15px;
+  font-weight: 500;
+
+  outline: none;
+  box-sizing: border-box;
+
+  transition: all 0.2s ease;
+}
+
+.faculty-search-input::placeholder {
+  color: #64748b;
+  opacity: 1;
 }
 
 .faculty-search-input:focus {
   border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
-.faculty-status-filter-wrapper {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
 
-.faculty-status-filter-label {
-  font-size: 0.85rem;
-  font-weight: 700;
+/* Search Icon */
+
+.faculty-search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+
+  width: 19px;
+  height: 19px;
+
+  transform: translateY(-50%);
+
   color: #64748b;
+  pointer-events: none;
+  z-index: 2;
 }
+
+
+/* Filter Button */
+
+.faculty-filter-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.faculty-filter-button {
+  width: 44px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  background: transparent;
+
+  color: #475569;
+
+  cursor: pointer;
+  border-radius: 8px;
+
+  transition: all 0.2s ease;
+}
+
+.faculty-filter-button:hover {
+  background: #f1f5f9;
+  color: #2563eb;
+}
+
+
+/* =========================================
+   Filter Dropdown
+========================================= */
+
+.faculty-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+
+  width: 240px;
+
+  padding: 16px;
+
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.16);
+
+  z-index: 100;
+}
+
+
+.faculty-filter-dropdown-title {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+
+  border-bottom: 1px solid #e5e7eb;
+}
+
+
+.faculty-filter-dropdown-title span {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+
+.faculty-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+
+.faculty-filter-field label {
+  color: #475569;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 
 .faculty-status-filter-select {
-  padding: 9px 12px;
+  width: 100%;
+  height: 42px;
+
+  padding: 0 12px;
+
   border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  font-size: 0.9rem;
-  outline: none;
+  border-radius: 8px;
+
   background: #ffffff;
   color: #0f172a;
+
+  font-size: 0.88rem;
+
+  outline: none;
   cursor: pointer;
-  transition: border-color 0.15s ease;
 }
+
 
 .faculty-status-filter-select:focus {
   border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 /* Table Details styling */
@@ -237,6 +373,7 @@
   font-size: 0.94rem;
   box-sizing: border-box;
 }
+
 /* Standard Inputs, textareas & dropdowns styling */
 .faculty-text-input,
 .faculty-select-input,
@@ -276,6 +413,7 @@
 .faculty-select-input {
   cursor: pointer;
 }
+
 .faculty-error-message {
   color: #ef4444;
   font-size: 0.75rem;

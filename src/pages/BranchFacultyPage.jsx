@@ -4,6 +4,8 @@ import {
   Plus,
   Search,
   MoreVertical,
+  SlidersHorizontal,
+
   X,
   CheckCircle2,
   Mail,
@@ -62,7 +64,8 @@ export function BranchFacultyPage() {
   const [facultyList, setFacultyList] = useState(initialFaculty)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
-  
+  const [showFacultyFilters, setShowFacultyFilters] = useState(false)
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalForm, setModalForm] = useState({
@@ -84,16 +87,16 @@ export function BranchFacultyPage() {
   const [countryOptions, setCountryOptions] = useState([])
   const [stateOptions, setStateOptions] = useState([])
   const [cityOptions, setCityOptions] = useState([])
-  
+
   // Validation errors & touched states
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
-  
+
   // Custom dialog/alert states
   const [successAlert, setSuccessAlert] = useState(null) // { title, message }
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null) // faculty object
   const [viewFaculty, setViewFaculty] = useState(null) // faculty object for details drawer
-  
+
   // Actions dropdown
   const [openActionId, setOpenActionId] = useState('')
 
@@ -214,56 +217,106 @@ export function BranchFacultyPage() {
   }, [facultyList, searchQuery, statusFilter])
 
   // Individual Field Validators
+  // =========================================
+  // Field Validators
+  // =========================================
+
   const validateIdDigits = (digits, currentId, allFaculty) => {
-    if (!digits) return 'Faculty ID digits are required.'
-    if (!/^\d{3}$/.test(digits)) return 'Faculty ID suffix must be exactly 3 numbers.'
+    if (!digits.trim()) return 'This field is required.'
+
+    if (!/^\d{3}$/.test(digits)) {
+      return 'Faculty ID must be exactly 3 numbers.'
+    }
+
     const fullId = `${FACULTY_ID_PREFIX}${digits}`
-    const isDuplicate = allFaculty.some((f) => f.id === fullId && f.id !== currentId)
-    if (isDuplicate) return `Faculty ID ${fullId} already exists.`
+
+    const isDuplicate = allFaculty.some(
+      (f) => f.id === fullId && f.id !== currentId
+    )
+
+    if (isDuplicate) {
+      return 'Faculty ID already exists.'
+    }
+
     return ''
   }
 
+
   const validateName = (name) => {
-    if (!name.trim()) return 'Faculty Name is required.'
-    if (!/^[A-Za-z\s]+$/.test(name)) return 'Faculty Name must contain letters and spaces only.'
+    if (!name.trim()) return 'This field is required.'
+
+    if (!/^[A-Za-z\s]+$/.test(name)) {
+      return 'Faculty Name must contain letters and spaces only.'
+    }
+
     return ''
   }
 
   const validateEmail = (email, currentId, allFaculty) => {
-    if (!email.trim()) return 'Email is required.'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Invalid email format.'
+    const trimmedEmail = email.trim()
+
+    if (!trimmedEmail) {
+      return 'This field is required.'
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      return 'Invalid email format.'
+    }
+
     const isDuplicate = allFaculty.some(
-      (f) => f.email.toLowerCase() === email.trim().toLowerCase() && f.id !== currentId
+      (f) =>
+        f.email?.trim().toLowerCase() === trimmedEmail.toLowerCase() &&
+        f.id !== currentId
     )
-    if (isDuplicate) return 'This email address is already registered.'
+
+    if (isDuplicate) {
+      return 'Email already exists.'
+    }
+
     return ''
   }
 
   const validatePhone = (phone, currentId, allFaculty) => {
-    if (!phone.trim()) return 'Phone number is required.'
-    if (!/^\d{10}$/.test(phone.trim())) return 'Phone number must be exactly 10 digits.'
-    const isDuplicate = allFaculty.some((f) => f.phone.trim() === phone.trim() && f.id !== currentId)
-    if (isDuplicate) return 'This phone number is already registered.'
+    if (!phone.trim()) return 'This field is required.'
+
+    if (!/^\d{10}$/.test(phone.trim())) {
+      return 'Phone number must be exactly 10 digits.'
+    }
+
+    const isDuplicate = allFaculty.some(
+      (f) =>
+        f.phone.trim() === phone.trim() &&
+        f.id !== currentId
+    )
+
+    if (isDuplicate) {
+      return 'Phone number already exists.'
+    }
+
     return ''
   }
+
 
   const validateCountry = (country) => {
-    if (!country) return 'Country is required.'
+    if (!country) return 'This field is required.'
     return ''
   }
+
 
   const validateState = (state) => {
-    if (!state) return 'State is required.'
+    if (!state) return 'This field is required.'
     return ''
   }
+
 
   const validateCity = (city) => {
-    if (!city) return 'City is required.'
+    if (!city) return 'This field is required.'
     return ''
   }
 
+
   const validateAddress = (address) => {
-    if (!address.trim()) return 'Address is required.'
+    if (!address.trim()) return 'This field is required.'
     return ''
   }
 
@@ -282,17 +335,96 @@ export function BranchFacultyPage() {
   }
 
   const handleEmailChange = (val) => {
-    setModalForm((prev) => ({ ...prev, email: val }))
-    const err = validateEmail(val, editingId, facultyList)
-    setErrors((prev) => ({ ...prev, email: err }))
+    setModalForm((prev) => ({
+      ...prev,
+      email: val,
+    }))
+
+    const trimmedEmail = val.trim()
+
+    // Empty field
+    if (!trimmedEmail) {
+      setErrors((prev) => ({
+        ...prev,
+        email: 'This field is required.',
+      }))
+      setTouched((prev) => ({
+        ...prev,
+        email: true,
+      }))
+      return
+    }
+
+    // Check email format first
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setErrors((prev) => ({
+        ...prev,
+        email: 'Invalid email format.',
+      }))
+      setTouched((prev) => ({
+        ...prev,
+        email: true,
+      }))
+      return
+    }
+
+    // Check duplicate email
+    const isDuplicate = facultyList.some(
+      (f) =>
+        f.email?.trim().toLowerCase() === trimmedEmail.toLowerCase() &&
+        f.id !== editingId
+    )
+
+    setErrors((prev) => ({
+      ...prev,
+      email: isDuplicate ? 'Email already exists.' : '',
+    }))
+
+    setTouched((prev) => ({
+      ...prev,
+      email: true,
+    }))
   }
 
   const handlePhoneChange = (val) => {
-    const cleanPhone = val.replace(/\D/g, '').substring(0, 10)
-    setModalForm((prev) => ({ ...prev, phone: cleanPhone }))
-    const err = validatePhone(cleanPhone, editingId, facultyList)
-    setErrors((prev) => ({ ...prev, phone: err }))
+    const cleanPhone = val
+      .replace(/\D/g, '')
+      .substring(0, 10)
+
+    setModalForm((prev) => ({
+      ...prev,
+      phone: cleanPhone,
+    }))
+
+    let error = ''
+
+    if (!cleanPhone) {
+      error = 'This field is required.'
+    } else if (cleanPhone.length < 10) {
+      error = 'Phone number must be exactly 10 digits.'
+    } else {
+      const isDuplicate = facultyList.some(
+        (f) =>
+          f.phone?.trim() === cleanPhone &&
+          f.id !== editingId
+      )
+
+      if (isDuplicate) {
+        error = 'Phone number already exists.'
+      }
+    }
+
+    setErrors((prev) => ({
+      ...prev,
+      phone: error,
+    }))
+
+    setTouched((prev) => ({
+      ...prev,
+      phone: true,
+    }))
   }
+
 
   const handleCountryChange = (countryName) => {
     const selected = countryOptions.find((c) => c.name === countryName)
@@ -394,7 +526,7 @@ export function BranchFacultyPage() {
     if (e) e.stopPropagation()
     const parts = faculty.id.split('-')
     const digits = parts.length === 2 ? parts[1] : ''
-    
+
     const countryObj = countryOptions.find((c) => c.name === faculty.country)
     const cCode = countryObj ? countryObj.iso2 : ''
 
@@ -421,7 +553,7 @@ export function BranchFacultyPage() {
   // Submit Handler for Add / Edit
   const handleFormSubmit = (e) => {
     e.preventDefault()
-    
+
     const idDigitsErr = validateIdDigits(modalForm.idDigits, editingId, facultyList)
     const nameErr = validateName(modalForm.name)
     const emailErr = validateEmail(modalForm.email, editingId, facultyList)
@@ -465,17 +597,17 @@ export function BranchFacultyPage() {
         prev.map((f) =>
           f.id === editingId
             ? {
-                ...f,
-                id: fullId,
-                name: modalForm.name,
-                email: modalForm.email,
-                phone: modalForm.phone,
-                country: modalForm.country,
-                state: modalForm.state,
-                city: modalForm.city,
-                address: modalForm.address,
-                status: modalForm.status,
-              }
+              ...f,
+              id: fullId,
+              name: modalForm.name,
+              email: modalForm.email,
+              phone: modalForm.phone,
+              country: modalForm.country,
+              state: modalForm.state,
+              city: modalForm.city,
+              address: modalForm.address,
+              status: modalForm.status,
+            }
             : f
         )
       )
@@ -539,7 +671,7 @@ export function BranchFacultyPage() {
           >
             <Plus size={16} /> Add Faculty
           </button>
-          
+
           <div className="branch-dashboard-section-summary">
             <span>Total Faculty:</span>
             <strong>{facultyList.length}</strong>
@@ -547,30 +679,59 @@ export function BranchFacultyPage() {
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="faculty-filter-bar">
+      {/* Search + Filter Bar */}
+      <div className="faculty-search-filter-bar">
+
+        {/* Search */}
         <div className="faculty-search-wrapper">
-          <Search size={18} className="faculty-search-icon" />
+          <Search size={21} className="faculty-search-icon" />
+
           <input
             type="text"
-            placeholder="Search faculty by ID, name, email or specialization..."
+            placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="faculty-search-input"
           />
         </div>
-        
-        <div className="faculty-status-filter-wrapper">
-          <span className="faculty-status-filter-label">Status:</span>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="faculty-status-filter-select"
+
+        {/* Filter Button */}
+        <div className="faculty-filter-wrapper">
+
+          <button
+            type="button"
+            className="faculty-filter-button"
+            onClick={() => setShowFacultyFilters((prev) => !prev)}
+            aria-label="Open filters"
           >
-            <option value="All">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+            <SlidersHorizontal size={30} />
+          </button>
+
+          {/* Filter Dropdown */}
+          {showFacultyFilters && (
+            <div className="faculty-filter-dropdown">
+
+              <div className="faculty-filter-dropdown-title">
+                <span>Filter</span>
+              </div>
+
+              <div className="faculty-filter-field">
+                <label>Status</label>
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="faculty-status-filter-select"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -662,21 +823,21 @@ export function BranchFacultyPage() {
                               setOpenActionId('')
                             }}
                           >
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Eye size={14}/> View</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Eye size={14} /> View</span>
                           </button>
                           <button
                             type="button"
                             className="branch-course-actions-menu-item"
                             onClick={(e) => openEditModal(faculty, e)}
                           >
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Edit size={14}/> Edit</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Edit size={14} /> Edit</span>
                           </button>
                           <button
                             type="button"
                             className="branch-course-actions-menu-item is-danger"
                             onClick={(e) => triggerDelete(faculty, e)}
                           >
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Trash2 size={14}/> Delete</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Trash2 size={14} /> Delete</span>
                           </button>
                         </div>
                       )}
@@ -698,513 +859,513 @@ export function BranchFacultyPage() {
       {/* Add / Edit modal using 2-column layout matching design specs screenshot */}
       {isModalOpen && typeof document !== 'undefined'
         ? createPortal(
-            <div role="presentation" onClick={() => setIsModalOpen(false)} className="faculty-portal-backdrop">
-              <form
-                role="dialog"
-                aria-modal="true"
-                onClick={(e) => e.stopPropagation()}
-                onSubmit={handleFormSubmit}
-                className="faculty-modal-card"
-              >
-                {/* Header */}
-                <div className="faculty-modal-header">
-                  <h2 className="faculty-modal-title">
-                    {editingId ? 'Edit Faculty' : 'Create Faculty'}
-                  </h2>
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    aria-label="Close form"
-                    className="faculty-modal-close-btn"
-                  >
-                    ×
-                  </button>
-                </div>
+          <div role="presentation" onClick={() => setIsModalOpen(false)} className="faculty-portal-backdrop">
+            <form
+              role="dialog"
+              aria-modal="true"
+              onClick={(e) => e.stopPropagation()}
+              onSubmit={handleFormSubmit}
+              className="faculty-modal-card"
+            >
+              {/* Header */}
+              <div className="faculty-modal-header">
+                <h2 className="faculty-modal-title">
+                  {editingId ? 'Edit Faculty' : 'Create Faculty'}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  aria-label="Close form"
+                  className="faculty-modal-close-btn"
+                >
+                  ×
+                </button>
+              </div>
 
-                {/* 2-Column Grid Layout */}
-                <div className="faculty-modal-grid">
-                  {/* Faculty ID (Fixed Prefix) */}
-                  <div className="faculty-field-group">
-                    <span className="faculty-field-label">
-                      Faculty ID <b>*</b>
-                    </span>
-                    <div className="faculty-id-input-container">
-                      <span className="faculty-id-prefix-badge">
-                        {FACULTY_ID_PREFIX}
-                      </span>
-                      <input
-                        type="text"
-                        maxLength={3}
-                        placeholder="001"
-                        value={modalForm.idDigits}
-                        onChange={(e) => handleIdDigitsChange(e.target.value)}
-                        onBlur={() => setTouched((prev) => ({ ...prev, idDigits: true }))}
-                        className="faculty-id-input"
-                        disabled={!!editingId}
-                        required
-                      />
-                    </div>
-                    {touched.idDigits && errors.idDigits && (
-                      <small className="faculty-error-message">
-                        {errors.idDigits}
-                      </small>
-                    )}
-                  </div>
-
-                  {/* Faculty Name */}
-                  <div className="faculty-field-group">
-                    <span className="faculty-field-label">
-                      Faculty Name <b>*</b>
+              {/* 2-Column Grid Layout */}
+              <div className="faculty-modal-grid">
+                {/* Faculty ID (Fixed Prefix) */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">
+                    Faculty ID <b>*</b>
+                  </span>
+                  <div className="faculty-id-input-container">
+                    <span className="faculty-id-prefix-badge">
+                      {FACULTY_ID_PREFIX}
                     </span>
                     <input
                       type="text"
-                      placeholder="Enter faculty name"
-                      value={modalForm.name}
-                      onChange={(e) => handleNameChange(e.target.value)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
-                      className="faculty-text-input"
-                      required
+                      maxLength={3}
+                      placeholder="001"
+                      value={modalForm.idDigits}
+                      onChange={(e) => handleIdDigitsChange(e.target.value)}
+                      onBlur={() => setTouched((prev) => ({ ...prev, idDigits: true }))}
+                      className="faculty-id-input"
+                      disabled={!!editingId}
+
                     />
-                    {touched.name && errors.name && (
-                      <small className="faculty-error-message">
-                        {errors.name}
-                      </small>
-                    )}
                   </div>
-
-                  {/* Faculty Email */}
-                  <div className="faculty-field-group">
-                    <span className="faculty-field-label">
-                      Faculty Email <b>*</b>
-                    </span>
-                    <input
-                      type="email"
-                      placeholder="Enter email address"
-                      value={modalForm.email}
-                      onChange={(e) => handleEmailChange(e.target.value)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
-                      className="faculty-text-input"
-                      required
-                    />
-                    {touched.email && errors.email && (
-                      <small className="faculty-error-message">
-                        {errors.email}
-                      </small>
-                    )}
-                  </div>
-
-                  {/* Faculty Phone Number */}
-                  <div className="faculty-field-group">
-                    <span className="faculty-field-label">
-                      Faculty Phone Number <b>*</b>
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Enter 10 digit number"
-                      value={modalForm.phone}
-                      onChange={(e) => handlePhoneChange(e.target.value)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
-                      className="faculty-text-input"
-                      required
-                    />
-                    {touched.phone && errors.phone && (
-                      <small className="faculty-error-message">
-                        {errors.phone}
-                      </small>
-                    )}
-                  </div>
-
-                  {/* Country */}
-                  <div className="faculty-field-group">
-                    <span className="faculty-field-label">
-                      Country <b>*</b>
-                    </span>
-                    <select
-                      value={modalForm.country}
-                      onChange={(e) => handleCountryChange(e.target.value)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, country: true }))}
-                      className="faculty-select-input"
-                      required
-                    >
-                      <option value="">Select Country</option>
-                      {countryOptions.map((c) => (
-                        <option key={c.iso2} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                    {touched.country && errors.country && (
-                      <small className="faculty-error-message">
-                        {errors.country}
-                      </small>
-                    )}
-                  </div>
-
-                  {/* State */}
-                  <div className="faculty-field-group">
-                    <span className="faculty-field-label">
-                      State <b>*</b>
-                    </span>
-                    <select
-                      value={modalForm.state}
-                      onChange={(e) => handleStateChange(e.target.value)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, state: true }))}
-                      className="faculty-select-input"
-                      disabled={!modalForm.countryCode}
-                      required
-                    >
-                      <option value="">Select State</option>
-                      {stateOptions.map((s) => (
-                        <option key={s.iso2} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                    {touched.state && errors.state && (
-                      <small className="faculty-error-message">
-                        {errors.state}
-                      </small>
-                    )}
-                  </div>
-
-                  {/* City */}
-                  <div className="faculty-field-group">
-                    <span className="faculty-field-label">
-                      City <b>*</b>
-                    </span>
-                    <select
-                      value={modalForm.city}
-                      onChange={(e) => handleCityChange(e.target.value)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, city: true }))}
-                      className="faculty-select-input"
-                      disabled={!modalForm.stateCode}
-                      required
-                    >
-                      <option value="">Select City</option>
-                      {cityOptions.map((c) => (
-                        <option key={c.name} value={c.name}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                    {touched.city && errors.city && (
-                      <small className="faculty-error-message">
-                        {errors.city}
-                      </small>
-                    )}
-                  </div>
-
-                  {/* Status */}
-                  <div className="faculty-field-group">
-                    <span className="faculty-field-label">
-                      Status <b>*</b>
-                    </span>
-                    <select
-                      value={modalForm.status}
-                      onChange={(e) => handleInputChange('status', e.target.value)}
-                      className="faculty-select-input"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-
-                  {/* Address */}
-                  <div className="faculty-field-group" style={{ gridColumn: '1 / span 2' }}>
-                    <span className="faculty-field-label">
-                      Address <b>*</b>
-                    </span>
-                    <textarea
-                      placeholder="Enter street address"
-                      value={modalForm.address}
-                      onChange={(e) => handleAddressChange(e.target.value)}
-                      onBlur={() => setTouched((prev) => ({ ...prev, address: true }))}
-                      className="faculty-textarea-input"
-                      required
-                    />
-                    {touched.address && errors.address && (
-                      <small className="faculty-error-message">
-                        {errors.address}
-                      </small>
-                    )}
-                  </div>
+                  {touched.idDigits && errors.idDigits && (
+                    <small className="faculty-error-message">
+                      {errors.idDigits}
+                    </small>
+                  )}
                 </div>
 
-                {/* Divider above buttons */}
-                <div className="faculty-modal-divider" />
+                {/* Faculty Name */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">
+                    Faculty Name <b>*</b>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Enter faculty name"
+                    value={modalForm.name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, name: true }))}
+                    className="faculty-text-input"
 
-                {/* Action Buttons */}
-                <div className="faculty-modal-actions">
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="faculty-btn-cancel"
+                  />
+                  {touched.name && errors.name && (
+                    <small className="faculty-error-message">
+                      {errors.name}
+                    </small>
+                  )}
+                </div>
+
+                {/* Faculty Email */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">
+                    Faculty Email <b>*</b>
+                  </span>
+                  <input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={modalForm.email}
+                    onChange={(e) => handleEmailChange(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
+                    className="faculty-text-input"
+
+                  />
+                  {touched.email && errors.email && (
+                    <small className="faculty-error-message">
+                      {errors.email}
+                    </small>
+                  )}
+                </div>
+
+                {/* Faculty Phone Number */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">
+                    Faculty Phone Number <b>*</b>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Enter 10 digit number"
+                    value={modalForm.phone}
+                    onChange={(e) => handlePhoneChange(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
+                    className="faculty-text-input"
+
+                  />
+                  {touched.phone && errors.phone && (
+                    <small className="faculty-error-message">
+                      {errors.phone}
+                    </small>
+                  )}
+                </div>
+
+                {/* Country */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">
+                    Country <b>*</b>
+                  </span>
+                  <select
+                    value={modalForm.country}
+                    onChange={(e) => handleCountryChange(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, country: true }))}
+                    className="faculty-select-input"
+
                   >
-                    Cancel
-                  </button>
-                  <button type="submit" className="faculty-btn-submit">
-                    {editingId ? 'Save Changes' : 'Submit'}
-                  </button>
+                    <option value="">Select Country</option>
+                    {countryOptions.map((c) => (
+                      <option key={c.iso2} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {touched.country && errors.country && (
+                    <small className="faculty-error-message">
+                      {errors.country}
+                    </small>
+                  )}
                 </div>
-              </form>
-            </div>,
-            document.body
-          )
+
+                {/* State */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">
+                    State <b>*</b>
+                  </span>
+                  <select
+                    value={modalForm.state}
+                    onChange={(e) => handleStateChange(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, state: true }))}
+                    className="faculty-select-input"
+                    disabled={!modalForm.countryCode}
+
+                  >
+                    <option value="">Select State</option>
+                    {stateOptions.map((s) => (
+                      <option key={s.iso2} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  {touched.state && errors.state && (
+                    <small className="faculty-error-message">
+                      {errors.state}
+                    </small>
+                  )}
+                </div>
+
+                {/* City */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">
+                    City <b>*</b>
+                  </span>
+                  <select
+                    value={modalForm.city}
+                    onChange={(e) => handleCityChange(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, city: true }))}
+                    className="faculty-select-input"
+                    disabled={!modalForm.stateCode}
+
+                  >
+                    <option value="">Select City</option>
+                    {cityOptions.map((c) => (
+                      <option key={c.name} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {touched.city && errors.city && (
+                    <small className="faculty-error-message">
+                      {errors.city}
+                    </small>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">
+                    Status <b>*</b>
+                  </span>
+                  <select
+                    value={modalForm.status}
+                    onChange={(e) => handleInputChange('status', e.target.value)}
+                    className="faculty-select-input"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                {/* Address */}
+                <div className="faculty-field-group" style={{ gridColumn: '1 / span 2' }}>
+                  <span className="faculty-field-label">
+                    Address <b>*</b>
+                  </span>
+                  <textarea
+                    placeholder="Enter street address"
+                    value={modalForm.address}
+                    onChange={(e) => handleAddressChange(e.target.value)}
+                    onBlur={() => setTouched((prev) => ({ ...prev, address: true }))}
+                    className="faculty-textarea-input"
+
+                  />
+                  {touched.address && errors.address && (
+                    <small className="faculty-error-message">
+                      {errors.address}
+                    </small>
+                  )}
+                </div>
+              </div>
+
+              {/* Divider above buttons */}
+              <div className="faculty-modal-divider" />
+
+              {/* Action Buttons */}
+              <div className="faculty-modal-actions">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="faculty-btn-cancel"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="faculty-btn-submit">
+                  {editingId ? 'Save Changes' : 'Submit'}
+                </button>
+              </div>
+            </form>
+          </div>,
+          document.body
+        )
         : null}
 
 
       {/* Right Drawer Slide-out for Viewing Faculty Details */}
       {viewFaculty && typeof document !== 'undefined'
         ? createPortal(
-            <div 
-              className="branch-course-drawer-backdrop" 
-              role="presentation" 
-              onClick={() => setViewFaculty(null)}
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: '100vh',
-                background: 'rgba(15, 23, 42, 0.45)',
-                backdropFilter: 'blur(5px)',
-                WebkitBackdropFilter: 'blur(5px)',
-                zIndex: 1400,
-              }}
+          <div
+            className="branch-course-drawer-backdrop"
+            role="presentation"
+            onClick={() => setViewFaculty(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              background: 'rgba(15, 23, 42, 0.45)',
+              backdropFilter: 'blur(5px)',
+              WebkitBackdropFilter: 'blur(5px)',
+              zIndex: 1400,
+            }}
+          >
+            <aside
+              className="branch-course-view-drawer"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="branch-faculty-view-title"
+              onClick={(e) => e.stopPropagation()}
             >
-              <aside
-                className="branch-course-view-drawer"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="branch-faculty-view-title"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Header */}
-                <div className="branch-course-view-drawer-header">
-                  <div className="branch-course-header-content">
-                    <p className="section-kicker">FACULTY DETAILS</p>
-                    <h2 id="branch-faculty-view-title">{viewFaculty.name}</h2>
-                    <span className="branch-course-view-code">{viewFaculty.id}</span>
-                  </div>
+              {/* Header */}
+              <div className="branch-course-view-drawer-header">
+                <div className="branch-course-header-content">
+                  <p className="section-kicker">FACULTY DETAILS</p>
+                  <h2 id="branch-faculty-view-title">{viewFaculty.name}</h2>
+                  <span className="branch-course-view-code">{viewFaculty.id}</span>
+                </div>
 
-                  <div className="branch-course-view-header-actions">
-                    <div className="branch-course-view-header-actions-row">
-                      <strong className={`branch-course-status-pill ${String(viewFaculty.status).toLowerCase()}`}>
-                        {viewFaculty.status}
-                      </strong>
-
-                      <button
-                        type="button"
-                        className="branch-course-view-close"
-                        onClick={() => setViewFaculty(null)}
-                        aria-label="Close faculty details"
-                      >
-                        X
-                      </button>
-                    </div>
+                <div className="branch-course-view-header-actions">
+                  <div className="branch-course-view-header-actions-row">
+                    <strong className={`branch-course-status-pill ${String(viewFaculty.status).toLowerCase()}`}>
+                      {viewFaculty.status}
+                    </strong>
 
                     <button
                       type="button"
-                      className="branch-course-view-edit"
-                      onClick={() => {
-                        const facultyToEdit = viewFaculty
-                        setViewFaculty(null)
-                        openEditModal(facultyToEdit)
-                      }}
+                      className="branch-course-view-close"
+                      onClick={() => setViewFaculty(null)}
+                      aria-label="Close faculty details"
                     >
-                      Edit Faculty
+                      X
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    className="branch-course-view-edit"
+                    onClick={() => {
+                      const facultyToEdit = viewFaculty
+                      setViewFaculty(null)
+                      openEditModal(facultyToEdit)
+                    }}
+                  >
+                    Edit Faculty
+                  </button>
                 </div>
+              </div>
 
-                {/* Details Table */}
-                <div className="branch-course-view-body">
-                  <div className="branch-course-view-table" role="table" aria-label="Faculty information details">
-                    <div className="branch-course-view-table-header" role="row">
-                      <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
-                      <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
+              {/* Details Table */}
+              <div className="branch-course-view-body">
+                <div className="branch-course-view-table" role="table" aria-label="Faculty information details">
+                  <div className="branch-course-view-table-header" role="row">
+                    <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
+                    <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
+                  </div>
+
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>Faculty ID</span>
                     </div>
-
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>Faculty ID</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong>{viewFaculty.id}</strong>
-                      </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewFaculty.id}</strong>
                     </div>
+                  </div>
 
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>Faculty Name</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong>{viewFaculty.name}</strong>
-                      </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>Faculty Name</span>
                     </div>
-
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>Email Address</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong>{viewFaculty.email}</strong>
-                      </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewFaculty.name}</strong>
                     </div>
+                  </div>
 
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>Phone Number</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong>{viewFaculty.phone}</strong>
-                      </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>Email Address</span>
                     </div>
-
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>Country</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong>{viewFaculty.country}</strong>
-                      </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewFaculty.email}</strong>
                     </div>
+                  </div>
 
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>State</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong>{viewFaculty.state}</strong>
-                      </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>Phone Number</span>
                     </div>
-
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>City</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong>{viewFaculty.city}</strong>
-                      </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewFaculty.phone}</strong>
                     </div>
+                  </div>
 
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>Address</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong>{viewFaculty.address}</strong>
-                      </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>Country</span>
                     </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewFaculty.country}</strong>
+                    </div>
+                  </div>
 
-                    <div className="branch-course-view-row" role="row">
-                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                        <span>Status</span>
-                      </div>
-                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                        <strong className={`branch-course-status-pill ${String(viewFaculty.status).toLowerCase()}`}>
-                          {viewFaculty.status}
-                        </strong>
-                      </div>
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>State</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewFaculty.state}</strong>
+                    </div>
+                  </div>
+
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>City</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewFaculty.city}</strong>
+                    </div>
+                  </div>
+
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>Address</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong>{viewFaculty.address}</strong>
+                    </div>
+                  </div>
+
+                  <div className="branch-course-view-row" role="row">
+                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                      <span>Status</span>
+                    </div>
+                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                      <strong className={`branch-course-status-pill ${String(viewFaculty.status).toLowerCase()}`}>
+                        {viewFaculty.status}
+                      </strong>
                     </div>
                   </div>
                 </div>
-              </aside>
-            </div>,
-            document.body
-          )
+              </div>
+            </aside>
+          </div>,
+          document.body
+        )
         : null}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmTarget && typeof document !== 'undefined'
         ? createPortal(
-            <div role="presentation" className="faculty-portal-backdrop">
-              <div className="faculty-delete-modal-card" role="dialog" aria-modal="true" aria-labelledby="faculty-delete-title" onClick={(e) => e.stopPropagation()}>
+          <div role="presentation" className="faculty-portal-backdrop">
+            <div className="faculty-delete-modal-card" role="dialog" aria-modal="true" aria-labelledby="faculty-delete-title" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close delete confirmation"
+                onClick={() => setDeleteConfirmTarget(null)}
+              >
+                X
+              </button>
+
+              <div className="super-admin-logout-icon is-danger" aria-hidden="true">
+                <Trash2 size={28} />
+              </div>
+
+              <h2 id="faculty-delete-title" className="faculty-delete-title">Delete Faculty?</h2>
+
+              <p className="faculty-delete-copy">
+                Are you sure you want to delete <strong>"{deleteConfirmTarget.name}"</strong>?
+              </p>
+              <p className="faculty-delete-subcopy">
+                This action cannot be undone.
+              </p>
+
+              <div className="faculty-delete-actions">
                 <button
                   type="button"
-                  className="branch-modal-close"
-                  aria-label="Close delete confirmation"
+                  className="branch-modal-cancel"
                   onClick={() => setDeleteConfirmTarget(null)}
+                  style={{ flex: 1, padding: '10px' }}
                 >
-                  X
+                  Cancel
                 </button>
-
-                <div className="super-admin-logout-icon is-danger" aria-hidden="true">
-                  <Trash2 size={28} />
-                </div>
-
-                <h2 id="faculty-delete-title" className="faculty-delete-title">Delete Faculty?</h2>
-                
-                <p className="faculty-delete-copy">
-                  Are you sure you want to delete <strong>"{deleteConfirmTarget.name}"</strong>?
-                </p>
-                <p className="faculty-delete-subcopy">
-                  This action cannot be undone.
-                </p>
-
-                <div className="faculty-delete-actions">
-                  <button
-                    type="button"
-                    className="branch-modal-cancel"
-                    onClick={() => setDeleteConfirmTarget(null)}
-                    style={{ flex: 1, padding: '10px' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="faculty-btn-delete-confirm"
-                    onClick={confirmDelete}
-                  >
-                    Delete
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="faculty-btn-delete-confirm"
+                  onClick={confirmDelete}
+                >
+                  Delete
+                </button>
               </div>
-            </div>,
-            document.body
-          )
+            </div>
+          </div>,
+          document.body
+        )
         : null}
 
       {/* Success alert popups with exact text specified by user */}
       {successAlert && typeof document !== 'undefined'
         ? createPortal(
-            <div role="presentation" onClick={() => setSuccessAlert(null)} className="faculty-portal-backdrop">
-              <div className="faculty-success-modal-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div role="presentation" onClick={() => setSuccessAlert(null)} className="faculty-portal-backdrop">
+            <div className="faculty-success-modal-card" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close alert"
+                onClick={() => setSuccessAlert(null)}
+              >
+                X
+              </button>
+
+              <div className="faculty-success-hero" aria-hidden="true">
+                <span className="faculty-success-ring" />
+                <span className="faculty-success-icon-container">
+                  <CheckCircle2 size={30} style={{ color: '#22c55e' }} />
+                </span>
+              </div>
+
+              <div className="branch-success-copy">
+                <p className="faculty-success-kicker">Success</p>
+                <h2 className="faculty-success-title">{successAlert.title}</h2>
+                <p className="faculty-success-copy">{successAlert.message}</p>
+              </div>
+
+              <div className="faculty-success-actions">
                 <button
                   type="button"
-                  className="branch-modal-close"
-                  aria-label="Close alert"
+                  className="faculty-success-btn-ok"
                   onClick={() => setSuccessAlert(null)}
                 >
-                  X
+                  OK
                 </button>
-
-                <div className="faculty-success-hero" aria-hidden="true">
-                  <span className="faculty-success-ring" />
-                  <span className="faculty-success-icon-container">
-                    <CheckCircle2 size={30} style={{ color: '#22c55e' }} />
-                  </span>
-                </div>
-
-                <div className="branch-success-copy">
-                  <p className="faculty-success-kicker">Success</p>
-                  <h2 className="faculty-success-title">{successAlert.title}</h2>
-                  <p className="faculty-success-copy">{successAlert.message}</p>
-                </div>
-
-                <div className="faculty-success-actions">
-                  <button
-                    type="button"
-                    className="faculty-success-btn-ok"
-                    onClick={() => setSuccessAlert(null)}
-                  >
-                    OK
-                  </button>
-                </div>
               </div>
-            </div>,
-            document.body
-          )
+            </div>
+          </div>,
+          document.body
+        )
         : null}
 
     </div>
