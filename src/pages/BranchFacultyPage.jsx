@@ -18,50 +18,14 @@ import {
   MapPin,
 } from 'lucide-react'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
+import { loadFacultyRegistry, saveFacultyRegistry } from '../lib/facultyAuth'
 import '../styles/BranchFacultyPage.css'
 
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
 
-// Initial seed faculty matching user requirement values
-const initialFaculty = [
-  {
-    id: 'FC-001',
-    name: 'Arun Kumar',
-    email: 'arun@gmail.com',
-    phone: '9876543210',
-    country: 'India',
-    state: 'Tamil Nadu',
-    city: 'Chennai',
-    address: 'No. 12, Main Street, Chennai',
-    status: 'Active',
-  },
-  {
-    id: 'FC-002',
-    name: 'Priya Raj',
-    email: 'priya.raj@cispro.com',
-    phone: '9876543211',
-    country: 'India',
-    state: 'Tamil Nadu',
-    city: 'Madurai',
-    address: 'No. 45, Bypass Road, Madurai',
-    status: 'Active',
-  },
-  {
-    id: 'FC-003',
-    name: 'Karthik Raja',
-    email: 'karthik.raja@cispro.com',
-    phone: '9876543212',
-    country: 'India',
-    state: 'Tamil Nadu',
-    city: 'Coimbatore',
-    address: 'No. 78, Cross Cut Road, Coimbatore',
-    status: 'Inactive',
-  },
-]
-
 export function BranchFacultyPage() {
-  const [facultyList, setFacultyList] = useState(initialFaculty)
+  const [facultyList, setFacultyList] = useState(() => loadFacultyRegistry())
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [filterStatus, setFilterStatus] = useState('All')
@@ -595,10 +559,9 @@ export function BranchFacultyPage() {
 
     if (editingId) {
       // Edit Save Flow
-      setFacultyList((prev) =>
-        prev.map((f) =>
-          f.id === editingId
-            ? {
+      const updatedList = facultyList.map((f) =>
+        f.id === editingId
+          ? {
               ...f,
               id: fullId,
               name: modalForm.name,
@@ -610,15 +573,17 @@ export function BranchFacultyPage() {
               address: modalForm.address,
               status: modalForm.status,
             }
-            : f
-        )
+          : f
       )
+      setFacultyList(updatedList)
+      saveFacultyRegistry(updatedList)
       setSuccessAlert({
         title: '✓ Faculty Updated Successfully',
         message: 'Faculty details have been updated successfully.',
       })
     } else {
       // Add Save Flow
+      const tempPass = `Pass-${Math.floor(100 + Math.random() * 900)}`
       const newFaculty = {
         id: fullId,
         name: modalForm.name,
@@ -628,12 +593,15 @@ export function BranchFacultyPage() {
         state: modalForm.state,
         city: modalForm.city,
         address: modalForm.address,
+        tempPassword: tempPass,
         status: modalForm.status,
       }
-      setFacultyList((prev) => [newFaculty, ...prev])
+      const updatedList = [newFaculty, ...facultyList]
+      setFacultyList(updatedList)
+      saveFacultyRegistry(updatedList)
       setSuccessAlert({
         title: '✓ Faculty Added Successfully',
-        message: 'New faculty has been onboarded successfully.',
+        message: `New faculty has been onboarded successfully. A login email has been mock-sent to ${modalForm.email} with temporary password: ${tempPass}`,
       })
     }
 
@@ -649,7 +617,9 @@ export function BranchFacultyPage() {
 
   const confirmDelete = () => {
     if (!deleteConfirmTarget) return
-    setFacultyList((prev) => prev.filter((f) => f.id !== deleteConfirmTarget.id))
+    const updatedList = facultyList.filter((f) => f.id !== deleteConfirmTarget.id)
+    setFacultyList(updatedList)
+    saveFacultyRegistry(updatedList)
     setDeleteConfirmTarget(null)
     setSuccessAlert({
       title: '✓ Faculty Deleted Successfully',
@@ -937,6 +907,7 @@ export function BranchFacultyPage() {
               onClick={(e) => e.stopPropagation()}
               onSubmit={handleFormSubmit}
               className="faculty-modal-card"
+              noValidate
             >
               {/* Header */}
               <div className="faculty-modal-header">
@@ -976,11 +947,11 @@ export function BranchFacultyPage() {
 
                     />
                   </div>
-                  {touched.idDigits && errors.idDigits && (
+                  {((touched.idDigits || modalForm.idDigits) && errors.idDigits) ? (
                     <small className="faculty-error-message">
                       {errors.idDigits}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Faculty Name */}
@@ -997,11 +968,11 @@ export function BranchFacultyPage() {
                     className="faculty-text-input"
 
                   />
-                  {touched.name && errors.name && (
+                  {((touched.name || modalForm.name) && errors.name) ? (
                     <small className="faculty-error-message">
                       {errors.name}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Faculty Email */}
@@ -1018,11 +989,11 @@ export function BranchFacultyPage() {
                     className="faculty-text-input"
 
                   />
-                  {touched.email && errors.email && (
+                  {((touched.email || modalForm.email) && errors.email) ? (
                     <small className="faculty-error-message">
                       {errors.email}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Faculty Phone Number */}
@@ -1039,11 +1010,11 @@ export function BranchFacultyPage() {
                     className="faculty-text-input"
 
                   />
-                  {touched.phone && errors.phone && (
+                  {((touched.phone || modalForm.phone) && errors.phone) ? (
                     <small className="faculty-error-message">
                       {errors.phone}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Country */}
@@ -1065,11 +1036,11 @@ export function BranchFacultyPage() {
                       </option>
                     ))}
                   </select>
-                  {touched.country && errors.country && (
+                  {((touched.country || modalForm.country) && errors.country) ? (
                     <small className="faculty-error-message">
                       {errors.country}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* State */}
@@ -1092,11 +1063,11 @@ export function BranchFacultyPage() {
                       </option>
                     ))}
                   </select>
-                  {touched.state && errors.state && (
+                  {((touched.state || modalForm.state) && errors.state) ? (
                     <small className="faculty-error-message">
                       {errors.state}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* City */}
@@ -1119,11 +1090,11 @@ export function BranchFacultyPage() {
                       </option>
                     ))}
                   </select>
-                  {touched.city && errors.city && (
+                  {((touched.city || modalForm.city) && errors.city) ? (
                     <small className="faculty-error-message">
                       {errors.city}
                     </small>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Status */}
@@ -1154,11 +1125,11 @@ export function BranchFacultyPage() {
                     className="faculty-textarea-input"
 
                   />
-                  {touched.address && errors.address && (
+                  {((touched.address || modalForm.address) && errors.address) ? (
                     <small className="faculty-error-message">
                       {errors.address}
                     </small>
-                  )}
+                  ) : null}
                 </div>
               </div>
 

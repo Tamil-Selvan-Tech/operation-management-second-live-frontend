@@ -8,6 +8,7 @@ import {
 } from './apiClient'
 import { roleLabels, dashboardPathByRole } from '../data/authData'
 import { findBranchByCredentials, markBranchWelcomeMailSent, recordBranchLogin } from '../lib/branchAuth'
+import { buildFacultySessionFromCredentials } from '../lib/facultyAuth'
 import { clearCourseListCache } from './courseService'
 import { clearBranchCourseListCache } from './branchCourseService'
 
@@ -185,6 +186,15 @@ export async function signInWithFallback(credentials) {
         session: branchSession,
         redirectTo: '/branch-dashboard',
         source: 'mock-branch',
+      }
+    }
+
+    const facultySession = buildFacultySessionFromCredentials(credentials)
+    if (facultySession) {
+      return {
+        session: facultySession,
+        redirectTo: '/dashboard/faculty',
+        source: 'mock-faculty',
       }
     }
 
