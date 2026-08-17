@@ -28,6 +28,11 @@ export const API_BASE_URL =
 let accessToken = null
 let refreshToken = null
 let sessionExpiredHandler = null
+export let impersonateBranchId = null
+
+export function setImpersonateBranchId(id) {
+  impersonateBranchId = id || null
+}
 
 function parseFileNameFromContentDisposition(headerValue = '') {
   const value = String(headerValue || '').trim()
@@ -72,6 +77,10 @@ async function request(path, options = {}, retryCount = 0) {
 
   if (skipAuth !== true && accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`)
+  }
+
+  if (impersonateBranchId) {
+    headers.set('X-Impersonate-Branch-Id', impersonateBranchId)
   }
 
   if (body && !headers.has('Content-Type')) {

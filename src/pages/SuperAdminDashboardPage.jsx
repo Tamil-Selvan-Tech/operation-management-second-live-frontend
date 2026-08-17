@@ -29,6 +29,8 @@ import {
 } from '../lib/notificationStore'
 import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
+import { BranchDashboardPage } from './BranchDashboardPage'
+import { setImpersonateBranchId } from '../services/apiClient'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -264,6 +266,13 @@ export function SuperAdminDashboardPage() {
   const [isResendConfirmOpen, setIsResendConfirmOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [viewTargetBranch, setViewTargetBranch] = useState(null)
+  
+  // Immersive Dashboard viewing states
+  const [viewDashboardBranch, setViewDashboardBranch] = useState(null)
+  const [isViewDashboardConfirmOpen, setIsViewDashboardConfirmOpen] = useState(false)
+  const [embeddedBranch, setEmbeddedBranch] = useState(null)
+  const [isExitDashboardConfirmOpen, setIsExitDashboardConfirmOpen] = useState(false)
+
   const [editingBranchId, setEditingBranchId] = useState(null)
   const [deleteTargetBranch, setDeleteTargetBranch] = useState(null)
   const [resendTargetBranch, setResendTargetBranch] = useState(null)
@@ -354,6 +363,8 @@ export function SuperAdminDashboardPage() {
     isResendConfirmOpen ||
     isLogoutConfirmOpen ||
     Boolean(viewTargetBranch) ||
+    isViewDashboardConfirmOpen ||
+    isExitDashboardConfirmOpen ||
     isMobileSidebarOpen
 
   useEffect(() => {
@@ -785,6 +796,39 @@ export function SuperAdminDashboardPage() {
     setViewTargetBranch(null)
   }
 
+  // View Dashboard Handlers
+  const openViewDashboardConfirm = (branch) => {
+    setViewDashboardBranch(branch)
+    setIsViewDashboardConfirmOpen(true)
+    setActionMenuBranchId(null)
+  }
+
+  const handleConfirmViewDashboard = () => {
+    setEmbeddedBranch(viewDashboardBranch)
+    setImpersonateBranchId(viewDashboardBranch?.id || viewDashboardBranch?.branchId || null)
+    setIsViewDashboardConfirmOpen(false)
+    setViewDashboardBranch(null)
+  }
+
+  const closeViewDashboardConfirm = () => {
+    setIsViewDashboardConfirmOpen(false)
+    setViewDashboardBranch(null)
+  }
+
+  const handleExitDashboardClick = () => {
+    setIsExitDashboardConfirmOpen(true)
+  }
+
+  const handleConfirmExitDashboard = () => {
+    setEmbeddedBranch(null)
+    setImpersonateBranchId(null)
+    setIsExitDashboardConfirmOpen(false)
+  }
+
+  const closeExitDashboardConfirm = () => {
+    setIsExitDashboardConfirmOpen(false)
+  }
+
   const handleDeleteBranch = async () => {
     if (!deleteTargetBranch) return
 
@@ -1018,6 +1062,54 @@ export function SuperAdminDashboardPage() {
   const selectedBranch = viewTargetBranch
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
 
+  if (embeddedBranch) {
+    return (
+      <div className="sa-embedded-wrapper">
+        <div className="sa-embedded-banner">
+          <button type="button" className="sa-embedded-exit-btn" onClick={handleExitDashboardClick}>
+            <LogOut size={16} strokeWidth={2.3} />
+            Exit Dashboard
+          </button>
+        </div>
+
+        <BranchDashboardPage embeddedMode={true} branchData={embeddedBranch} />
+
+
+        {isExitDashboardConfirmOpen ? (
+          <div className="branch-modal-backdrop" role="presentation" style={{ zIndex: 9999 }}>
+            <div
+              className="branch-delete-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="exit-dashboard-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="branch-delete-header">
+                <div className="branch-delete-icon" aria-hidden="true">
+                  <LogOut size={24} strokeWidth={2.1} />
+                </div>
+                <h2 id="exit-dashboard-title">Exit Dashboard</h2>
+              </div>
+              
+              <p>
+                Are you sure you want to leave <strong>{embeddedBranch.branchName}</strong>'s dashboard and return to the Super Admin panel?
+              </p>
+
+              <div className="branch-delete-actions">
+                <button type="button" className="branch-delete-cancel" onClick={closeExitDashboardConfirm}>
+                  Cancel
+                </button>
+                <button type="button" className="sa-view-dashboard-btn" onClick={handleConfirmExitDashboard} style={{ background: '#0f4fb8', color: '#fff', border: 'none' }}>
+                  Exit Dashboard
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <section className="super-admin-page">
       <div className="super-admin-shell">
@@ -1183,8 +1275,8 @@ export function SuperAdminDashboardPage() {
                         <th className="branch-table-col-id">Branch ID</th>
                         <th className="branch-table-col-name">Branch Name</th>
                         <th className="branch-table-col-admin">Branch Admin Name</th>
-                        <th className="branch-table-col-created">Created At</th>
-                        <th className="branch-table-col-actions">Actions</th>
+                        <th className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>Dashboard</th>
+                        <th className="branch-table-col-actions" style={{ textAlign: 'center' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1234,12 +1326,28 @@ export function SuperAdminDashboardPage() {
                             <td className="branch-table-col-admin">
                               <div className="branch-table-detail-cell">
                                 <strong>{branch.branchAdminName || 'Branch admin not set'}</strong>
-                                {/* <span className="branch-contact-email">{branch.branchEmail || '-'}</span> */}
                               </div>
                             </td>
-                            <td className="branch-table-col-created">{formatDisplayDate(branch.createdAt)}</td>
+                            <td className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>
+                              {getNormalizedBranchStatus(branch) === 'Active' ? (
+                                <button 
+                                  type="button" 
+                                  className="sa-view-dashboard-btn"
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    openViewDashboardConfirm(branch)
+                                  }}
+                                >
+                                  <LayoutDashboard size={14} strokeWidth={2.3} />
+                                  View
+                                </button>
+                              ) : (
+                                <span className="branch-contact-email" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Inactive</span>
+                              )}
+                            </td>
                             <td
                               className="branch-table-col-actions"
+                              style={{ textAlign: 'center' }}
                               onClick={(event) => event.stopPropagation()}
                               onKeyDown={(event) => event.stopPropagation()}
                             >
@@ -1354,8 +1462,24 @@ export function SuperAdminDashboardPage() {
                               </dd>
                             </div>
                             <div>
-                              <dt>Created At</dt>
-                              <dd>{branch.createdAt ? formatDisplayDate(branch.createdAt) : '-'}</dd>
+                              <dt>Dashboard</dt>
+                              <dd>
+                                {getNormalizedBranchStatus(branch) === 'Active' ? (
+                                  <button 
+                                    type="button" 
+                                    className="sa-view-dashboard-btn"
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      openViewDashboardConfirm(branch)
+                                    }}
+                                  >
+                                    <LayoutDashboard size={14} strokeWidth={2.3} />
+                                    View
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Inactive</span>
+                                )}
+                              </dd>
                             </div>
                           </dl>
 
@@ -1851,6 +1975,39 @@ export function SuperAdminDashboardPage() {
           </div>
         </div>
       ) : null}
+
+      {isViewDashboardConfirmOpen && viewDashboardBranch ? (
+        <div className="branch-modal-backdrop" role="presentation">
+          <div
+            className="branch-delete-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="view-dashboard-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="branch-delete-header">
+              <div className="branch-delete-icon" aria-hidden="true">
+                <LayoutDashboard size={24} strokeWidth={2.1} />
+              </div>
+              <h2 id="view-dashboard-title">View Dashboard</h2>
+            </div>
+            
+            <p>
+              Are you sure you want to view <strong>{viewDashboardBranch.branchName}</strong>'s dashboard? You will be able to manage this branch's data.
+            </p>
+
+            <div className="branch-delete-actions">
+              <button type="button" className="branch-delete-cancel" onClick={closeViewDashboardConfirm}>
+                Cancel
+              </button>
+              <button type="button" className="sa-view-dashboard-btn" onClick={handleConfirmViewDashboard} style={{ background: '#0f4fb8', color: '#fff', border: 'none' }}>
+                View Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
     </section>
   )
 }

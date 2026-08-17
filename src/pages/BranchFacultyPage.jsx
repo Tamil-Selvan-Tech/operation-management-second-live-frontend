@@ -769,96 +769,72 @@ export function BranchFacultyPage() {
 
     {/* Table */}
     <div className="faculty-table-shell">
-      <table className="branch-dashboard-table">
-        <thead>
-          <tr>
-            <th style={{ width: '60px' }}>S.No</th>
-            <th>Faculty ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Status</th>
-            <th style={{ width: '80px', textAlign: 'center' }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paginatedFaculty.length > 0 ? (
-            paginatedFaculty.map((faculty, index) => {
-              const normStatus = String(faculty.status || 'Active').toLowerCase()
-              const rowNumber = (safeCurrentPage - 1) * rowsPerPage + index + 1
-              return (
-                <tr key={faculty.id} style={{ cursor: 'pointer' }} onClick={() => setViewFaculty(faculty)}>
-                  <td>{rowNumber}</td>
-                  <td>
-                    <strong style={{ color: '#0f172a' }}>{faculty.id}</strong>
-                  </td>
-                  <td>
-                    <strong className="branch-course-name">{faculty.name}</strong>
-                  </td>
-                  <td>
-                    <span className="faculty-info-link">
-                      <Mail size={14} style={{ color: '#94a3b8' }} />
-                      {faculty.email}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="faculty-info-link">
-                      <Phone size={14} style={{ color: '#94a3b8' }} />
-                      {faculty.phone}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`branch-course-status-pill ${normStatus}`}>
-                      {faculty.status}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-                    <button
-                      type="button"
-                      className="branch-course-actions-button"
-                      onMouseEnter={(e) => {
-                        e.stopPropagation()
-                        if (actionCloseTimer.current) {
-                          clearTimeout(actionCloseTimer.current)
-                        }
-                        openActionMenu(faculty, e.currentTarget)
-                      }}
-                      onMouseLeave={() => {
-                        actionCloseTimer.current = setTimeout(() => {
-                          setOpenActionId('')
-                          setActionMenuPosition(null)
-                        }, 200)
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (openActionId === faculty.id) {
-                          setOpenActionId('')
-                          setActionMenuPosition(null)
-                        } else {
-                          openActionMenu(faculty, e.currentTarget)
-                        }
-                      }}
-                    >
-                      <MoreVertical size={16} />
-                    </button>
-                  </td>
-                  {openActionId &&
-                    actionMenuPosition &&
-                    typeof document !== 'undefined' &&
-                    createPortal(
-                      <div
-                        className="branch-course-actions-menu"
-                        role="menu"
-                        style={{
-                          position: 'fixed',
-                          top: `${actionMenuPosition.top}px`,
-                          left: `${actionMenuPosition.left}px`,
-                          zIndex: 999999,
-                        }}
-                        onMouseEnter={() => {
+      <div className="faculty-table-scroll">
+        <table className="branch-dashboard-table">
+          <colgroup>
+            <col style={{ width: '56px' }} />
+            <col style={{ width: '140px' }} />
+            <col style={{ width: '160px' }} />
+            <col style={{ minWidth: '200px' }} />
+            <col style={{ width: '130px' }} />
+            <col style={{ width: '100px' }} />
+            <col style={{ width: '72px' }} />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Faculty ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th style={{ textAlign: 'center' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedFaculty.length > 0 ? (
+              paginatedFaculty.map((faculty, index) => {
+                const normStatus = String(faculty.status || 'Active').toLowerCase()
+                const rowNumber = (safeCurrentPage - 1) * rowsPerPage + index + 1
+                return (
+                  <tr key={faculty.id} style={{ cursor: 'pointer' }} onClick={() => setViewFaculty(faculty)}>
+                    <td>{rowNumber}</td>
+                    <td>
+                      <strong style={{ color: '#0f172a', fontSize: '0.82rem', fontFamily: 'monospace' }}>{faculty.facultyId || faculty.id}</strong>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="faculty-avatar">{String(faculty.name || '').charAt(0).toUpperCase()}</span>
+                        <strong className="branch-course-name" style={{ maxWidth: '130px' }}>{faculty.name}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="faculty-info-link" style={{ maxWidth: '190px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-flex' }}>
+                        <Mail size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{faculty.email}</span>
+                      </span>
+                    </td>
+                    <td>
+                      <span className="faculty-info-link">
+                        <Phone size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                        {faculty.phone}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`branch-course-status-pill ${normStatus}`}>
+                        {faculty.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="branch-course-actions-button"
+                        onMouseEnter={(e) => {
+                          e.stopPropagation()
                           if (actionCloseTimer.current) {
                             clearTimeout(actionCloseTimer.current)
                           }
+                          openActionMenu(faculty, e.currentTarget)
                         }}
                         onMouseLeave={() => {
                           actionCloseTimer.current = setTimeout(() => {
@@ -866,77 +842,115 @@ export function BranchFacultyPage() {
                             setActionMenuPosition(null)
                           }, 200)
                         }}
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (openActionId === faculty.id) {
+                            setOpenActionId('')
+                            setActionMenuPosition(null)
+                          } else {
+                            openActionMenu(faculty, e.currentTarget)
+                          }
+                        }}
                       >
-                        {(() => {
-                          const selectedFaculty = filteredFaculty.find(
-                            (item) => item.id === openActionId
-                          )
+                        <MoreVertical size={16} />
+                      </button>
+                    </td>
+                    {openActionId &&
+                      actionMenuPosition &&
+                      typeof document !== 'undefined' &&
+                      createPortal(
+                        <div
+                          className="branch-course-actions-menu"
+                          role="menu"
+                          style={{
+                            position: 'fixed',
+                            top: `${actionMenuPosition.top}px`,
+                            left: `${actionMenuPosition.left}px`,
+                            zIndex: 999999,
+                          }}
+                          onMouseEnter={() => {
+                            if (actionCloseTimer.current) {
+                              clearTimeout(actionCloseTimer.current)
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            actionCloseTimer.current = setTimeout(() => {
+                              setOpenActionId('')
+                              setActionMenuPosition(null)
+                            }, 200)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {(() => {
+                            const selectedFaculty = filteredFaculty.find(
+                              (item) => item.id === openActionId
+                            )
 
-                          if (!selectedFaculty) return null
+                            if (!selectedFaculty) return null
 
-                          return (
-                            <>
-                              <button
-                                type="button"
-                                className="branch-course-actions-menu-item"
-                                onClick={() => {
-                                  setViewFaculty(selectedFaculty)
-                                  setOpenActionId('')
-                                  setActionMenuPosition(null)
-                                }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <Eye size={14} />
-                                  View
-                                </span>
-                              </button>
+                            return (
+                              <>
+                                <button
+                                  type="button"
+                                  className="branch-course-actions-menu-item"
+                                  onClick={() => {
+                                    setViewFaculty(selectedFaculty)
+                                    setOpenActionId('')
+                                    setActionMenuPosition(null)
+                                  }}
+                                >
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                    <Eye size={14} />
+                                    View
+                                  </span>
+                                </button>
 
-                              <button
-                                type="button"
-                                className="branch-course-actions-menu-item"
-                                onClick={(e) => {
-                                  openEditModal(selectedFaculty, e)
-                                  setActionMenuPosition(null)
-                                }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <Edit size={14} />
-                                  Edit
-                                </span>
-                              </button>
+                                <button
+                                  type="button"
+                                  className="branch-course-actions-menu-item"
+                                  onClick={(e) => {
+                                    openEditModal(selectedFaculty, e)
+                                    setActionMenuPosition(null)
+                                  }}
+                                >
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                    <Edit size={14} />
+                                    Edit
+                                  </span>
+                                </button>
 
-                              <button
-                                type="button"
-                                className="branch-course-actions-menu-item is-danger"
-                                onClick={(e) => {
-                                  triggerDelete(selectedFaculty, e)
-                                  setActionMenuPosition(null)
-                                }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <Trash2 size={14} />
-                                  Delete
-                                </span>
-                              </button>
-                            </>
-                          )
-                        })()}
-                      </div>,
-                      document.body
-                    )}
-                </tr>
-              )
-            })
-          ) : (
-            <tr>
-              <td colSpan="8" className="branch-course-empty-state">
-                No faculty found matching search criteria.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+                                <button
+                                  type="button"
+                                  className="branch-course-actions-menu-item is-danger"
+                                  onClick={(e) => {
+                                    triggerDelete(selectedFaculty, e)
+                                    setActionMenuPosition(null)
+                                  }}
+                                >
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                    <Trash2 size={14} />
+                                    Delete
+                                  </span>
+                                </button>
+                              </>
+                            )
+                          })()}
+                        </div>,
+                        document.body
+                      )}
+                  </tr>
+                )
+              })
+            ) : (
+              <tr>
+                <td colSpan="7" className="branch-course-empty-state">
+                  No faculty found matching search criteria.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     {totalPages > 1 && (

@@ -233,7 +233,7 @@ function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.body?.error || error?.message || fallback
 }
 
-export function BranchDashboardPage() {
+export function BranchDashboardPage({ embeddedMode = false, branchData = null }) {
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
   const [activeSection, setActiveSection] = useState('dashboard')
@@ -270,12 +270,31 @@ export function BranchDashboardPage() {
   }, [])
 
   useEffect(() => {
-    if (!isAuthenticated || role !== 'branch-admin') {
+    if (!embeddedMode && (!isAuthenticated || role !== 'branch-admin')) {
       navigate('/login', { replace: true })
       return
     }
 
     let isMounted = true
+
+    if (embeddedMode && branchData) {
+      setBranchProfile(branchData)
+      loadBranchCourses().then((coursesResult) => {
+        if (!isMounted) return
+        if (coursesResult.status === 'fulfilled' || coursesResult.data) {
+          setBranchCourseCards(Array.isArray(coursesResult?.data) ? coursesResult.data : [])
+        } else {
+          setBranchCourseCards([])
+        }
+        setIsLoading(false)
+      }).catch((error) => {
+        if (!isMounted) return
+        console.error('Failed to load courses in embedded mode:', error)
+        setBranchCourseCards([])
+        setIsLoading(false)
+      })
+      return
+    }
 
     Promise.allSettled([getCurrentBranchProfile(), loadBranchCourses()]).then(([branchResult, coursesResult]) => {
       if (!isMounted) return
@@ -719,12 +738,15 @@ const closeViewCourseDrawer = () => {
   const renderTopbar = () => (
     <header className="super-admin-topbar">
       <div className="super-admin-topbar-right">
-        <button type="button" className="super-admin-notification-button" aria-label="Notifications">
-          <Bell size={22} strokeWidth={2.1} />
-          <span className="super-admin-notification-badge">8</span>
-        </button>
+        {!embeddedMode && (
+          <button type="button" className="super-admin-notification-button" aria-label="Notifications">
+            <Bell size={22} strokeWidth={2.1} />
+            <span className="super-admin-notification-badge">8</span>
+          </button>
+        )}
 
-        <div ref={profileMenuRef} className="branch-dashboard-profile-menu-wrap">
+        {!embeddedMode && (
+          <div ref={profileMenuRef} className="branch-dashboard-profile-menu-wrap">
           <button
             type="button"
             className="super-admin-profile branch-dashboard-profile-trigger"
@@ -780,6 +802,7 @@ const closeViewCourseDrawer = () => {
             </div>
           ) : null}
         </div>
+        )}
       </div>
     </header>
   )
@@ -825,7 +848,7 @@ const closeViewCourseDrawer = () => {
                     <p>Welcome back! Here&apos;s an overview of your operations and today&apos;s activities.</p>
                   </div>
 
-                  {mustResetPassword ? (
+                  {!embeddedMode && mustResetPassword ? (
                     <section className="branch-dashboard-password-alert" aria-live="polite">
                       <div className="branch-dashboard-password-alert-copy">
                         <strong>Temporary password still active</strong>

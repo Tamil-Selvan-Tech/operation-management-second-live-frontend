@@ -192,16 +192,27 @@
 
 /* Table Details styling */
 .faculty-table-shell {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #e2e8f0;
   border-radius: 14px;
+  background: #ffffff;
+  /* overflow: visible is needed for the portal-based action menu to work correctly */
+  overflow: visible;
+  position: relative;
+}
+
+/* Inner scroll wrapper that allows horizontal scrolling */
+.faculty-table-scroll {
   overflow-x: auto;
   overflow-y: hidden;
-  background: #ffffff;
+  border-radius: 14px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
 
 .faculty-table-shell .branch-dashboard-table {
   min-width: 860px;
+  width: 100%;
 }
 
 .faculty-avatar {
@@ -734,12 +745,7 @@
 /* =========================================
    Faculty Actions Dropdown
 ========================================= */
-.faculty-table-shell {
-  position: relative;
-  border: 1px solid #cbd5e1;
-  border-radius: 14px;
-  overflow: visible !important;
-}
+/* .faculty-table-shell override removed - consolidated above */
 
 .branch-course-actions-menu {
   position: absolute;
