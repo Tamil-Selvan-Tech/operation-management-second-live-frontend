@@ -841,90 +841,88 @@ export function BranchFacultyPage() {
                     >
                       <MoreVertical size={16} />
                     </button>
+                    {openActionId && actionMenuPosition && typeof document !== 'undefined'
+                      ? createPortal(
+                          <div
+                            className="branch-course-actions-menu"
+                            role="menu"
+                            aria-label="Course actions"
+                            style={{
+                              position: 'fixed',
+                              top: `${actionMenuPosition.top}px`,
+                              left: `${actionMenuPosition.left}px`,
+                              zIndex: 999999,
+                            }}
+                            onMouseEnter={() => {
+                              if (actionCloseTimer.current) {
+                                clearTimeout(actionCloseTimer.current)
+                              }
+                            }}
+                            onMouseLeave={() => {
+                              actionCloseTimer.current = setTimeout(() => {
+                                setOpenActionId('')
+                                setActionMenuPosition(null)
+                              }, 200)
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {(() => {
+                              const selectedFaculty = filteredFaculty.find(
+                                (item) => item.id === openActionId
+                              )
+                              if (!selectedFaculty) return null
+                              return (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="branch-course-actions-menu-item"
+                                    onClick={() => {
+                                      setViewFaculty(selectedFaculty)
+                                      setOpenActionId('')
+                                      setActionMenuPosition(null)
+                                    }}
+                                  >
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                      <Eye size={14} />
+                                      View
+                                    </span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className="branch-course-actions-menu-item"
+                                    onClick={(e) => {
+                                      openEditModal(selectedFaculty, e)
+                                      setActionMenuPosition(null)
+                                    }}
+                                  >
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                      <Edit size={14} />
+                                      Edit
+                                    </span>
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    className="branch-course-actions-menu-item is-danger"
+                                    onClick={(e) => {
+                                      triggerDelete(selectedFaculty, e)
+                                      setActionMenuPosition(null)
+                                    }}
+                                  >
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                      <Trash2 size={14} />
+                                      Delete
+                                    </span>
+                                  </button>
+                                </>
+                              )
+                            })()}
+                          </div>,
+                          document.body
+                        )
+                      : null}
                   </td>
-                  {openActionId &&
-                    actionMenuPosition &&
-                    typeof document !== 'undefined' &&
-                    createPortal(
-                      <div
-                        className="branch-course-actions-menu"
-                        role="menu"
-                        style={{
-                          position: 'fixed',
-                          top: `${actionMenuPosition.top}px`,
-                          left: `${actionMenuPosition.left}px`,
-                          zIndex: 999999,
-                        }}
-                        onMouseEnter={() => {
-                          if (actionCloseTimer.current) {
-                            clearTimeout(actionCloseTimer.current)
-                          }
-                        }}
-                        onMouseLeave={() => {
-                          actionCloseTimer.current = setTimeout(() => {
-                            setOpenActionId('')
-                            setActionMenuPosition(null)
-                          }, 200)
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {(() => {
-                          const selectedFaculty = filteredFaculty.find(
-                            (item) => item.id === openActionId
-                          )
-
-                          if (!selectedFaculty) return null
-
-                          return (
-                            <>
-                              <button
-                                type="button"
-                                className="branch-course-actions-menu-item"
-                                onClick={() => {
-                                  setViewFaculty(selectedFaculty)
-                                  setOpenActionId('')
-                                  setActionMenuPosition(null)
-                                }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <Eye size={14} />
-                                  View
-                                </span>
-                              </button>
-
-                              <button
-                                type="button"
-                                className="branch-course-actions-menu-item"
-                                onClick={(e) => {
-                                  openEditModal(selectedFaculty, e)
-                                  setActionMenuPosition(null)
-                                }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <Edit size={14} />
-                                  Edit
-                                </span>
-                              </button>
-
-                              <button
-                                type="button"
-                                className="branch-course-actions-menu-item is-danger"
-                                onClick={(e) => {
-                                  triggerDelete(selectedFaculty, e)
-                                  setActionMenuPosition(null)
-                                }}
-                              >
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <Trash2 size={14} />
-                                  Delete
-                                </span>
-                              </button>
-                            </>
-                          )
-                        })()}
-                      </div>,
-                      document.body
-                    )}
                 </tr>
               )
             })

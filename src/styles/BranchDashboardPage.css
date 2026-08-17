@@ -600,7 +600,7 @@
 
 .branch-dashboard-table-shell {
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible;
   border: 1px solid #dbe4f0;
   border-radius: 18px;
   background: #fff;
@@ -651,14 +651,14 @@
 .branch-course-actions-wrap {
   position: relative;
   display: inline-flex;
-  z-index: 50;
+  z-index: 1000;
 }
 
 .branch-course-actions-menu {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  z-index: 9999;
+  z-index: 99999;
   min-width: 140px;
   padding: 6px;
   border: 1px solid #dbe4f0;
@@ -666,6 +666,7 @@
   background: #fff;
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.15);
 }
+
 .branch-course-table {
   width: 100%;
   min-width: 0;
@@ -1292,7 +1293,7 @@
   border-radius: 10px;
 }
 
-.branch-course-view-status-row > span {
+.branch-course-view-status-row>span {
   font-size: 14px;
   font-weight: 600;
   color: #5f6b76;
@@ -1477,6 +1478,7 @@
 .branch-course-clickable-row td:last-child {
   cursor: default;
 }
+
 .branch-course-view-list {
   display: flex;
   flex-direction: column;
@@ -1554,9 +1556,10 @@
 }
 
 .branch-course-title-row h2 {
-    margin-top: 0;
+  margin-top: 0;
   margin-bottom: 2px;
 }
+
 .branch-course-title-row p {
   margin-top: 0;
 }
@@ -1676,7 +1679,7 @@
 .section-kicker {
   color: #2563eb;
   font-weight: 600;
-   margin: 0 0 4px;
+  margin: 0 0 4px;
 }
 
 .branch-course-title-row h2 {
@@ -1836,6 +1839,7 @@
 }
 
 @media (max-width: 640px) {
+
   .branch-course-view-drawer-header,
   .branch-course-view-body,
   .branch-course-view-footer {

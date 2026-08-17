@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
@@ -252,10 +253,11 @@ export function BranchDashboardPage() {
   const [branchCoursePage, setBranchCoursePage] = useState(1)
   const [editingCourseId, setEditingCourseId] = useState('')
   const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
+  const [courseActionMenuPosition, setCourseActionMenuPosition] = useState({ top: 0, left: 0 })
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
   const [viewCourse, setViewCourse] = useState(null)
   const profileMenuRef = useRef(null)
-  const courseActionMenuRef = useRef(null)
+  const courseActionCloseTimer = useRef(null)
 
   const loadBranchCourses = useCallback(async () => {
     const result = await listBranchCourses({
@@ -331,13 +333,19 @@ export function BranchDashboardPage() {
     const onPointerDown = (event) => {
       const target = event.target
       if (!(target instanceof Element)) return
-      if (courseActionMenuRef.current?.contains(target)) return
+      
+      // Check if click is on the action menu or action button
+      if (target.closest('.branch-course-actions-menu')) return
+      if (target.closest('.branch-course-actions-button')) return
+      
       setOpenCourseActionMenuId('')
+      setCourseActionMenuPosition({ top: 0, left: 0 })
     }
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         setOpenCourseActionMenuId('')
+        setCourseActionMenuPosition({ top: 0, left: 0 })
       }
     }
 
@@ -357,6 +365,38 @@ export function BranchDashboardPage() {
 
   const closeLogoutConfirm = () => {
     setIsLogoutConfirmOpen(false)
+  }
+
+  const openCourseActionMenu = (button) => {
+    if (courseActionCloseTimer.current) {
+      clearTimeout(courseActionCloseTimer.current)
+    }
+
+    const rect = button.getBoundingClientRect()
+    const menuWidth = 140
+    const menuHeight = 110
+    const gap = 8
+
+    let left = rect.right - menuWidth
+    let top = rect.bottom + gap
+
+    if (left < 8) {
+      left = 8
+    }
+
+    if (left + menuWidth > window.innerWidth - 8) {
+      left = window.innerWidth - menuWidth - 8
+    }
+
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = rect.top - menuHeight - gap
+    }
+
+    if (top < 8) {
+      top = 8
+    }
+
+    setCourseActionMenuPosition({ top, left })
   }
 
   const handleConfirmLogout = async () => {
@@ -483,6 +523,7 @@ export function BranchDashboardPage() {
   const openViewCourseDrawer = (course) => {
   setViewCourse(course)
   setOpenCourseActionMenuId('')
+  setCourseActionMenuPosition({ top: 0, left: 0 })
 }
 
 const closeViewCourseDrawer = () => {
@@ -494,6 +535,7 @@ const closeViewCourseDrawer = () => {
     setAddCourseTouched({})
     setAddCourseError('')
     setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
     setIsAddCourseOpen(true)
     setActiveSection('courses')
   }
@@ -502,6 +544,7 @@ const closeViewCourseDrawer = () => {
     setIsAddCourseOpen(false)
     setEditingCourseId('')
     setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
   }
 
   const closeCourseSaveSuccess = () => {
@@ -512,6 +555,7 @@ const closeViewCourseDrawer = () => {
     setCourseDeleteTarget(course)
     setCourseActionError('')
     setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
   }
 
   const closeDeleteCourseConfirm = () => {
@@ -968,55 +1012,92 @@ const closeViewCourseDrawer = () => {
                                   </span>
                                 </td>
                                 <td onClick={(event) => event.stopPropagation()}>
-  <div
-    className="branch-course-actions-wrap"
-    ref={openCourseActionMenuId === course.id ? courseActionMenuRef : null}
-  >
+  <div className="branch-course-actions-wrap">
                                     <button
                                       type="button"
                                       className="branch-course-actions-button"
                                       aria-label={`Course actions for ${course.name || course.courseCode || 'course'}`}
                                       aria-haspopup="menu"
                                       aria-expanded={openCourseActionMenuId === course.id}
-                                      onClick={() =>
-                                        setOpenCourseActionMenuId((current) => (current === course.id ? '' : course.id))
-                                      }
+                                      onMouseEnter={(e) => {
+                                        if (courseActionCloseTimer.current) {
+                                          clearTimeout(courseActionCloseTimer.current)
+                                        }
+                                        setOpenCourseActionMenuId(course.id)
+                                        openCourseActionMenu(e.currentTarget)
+                                      }}
+                                      onMouseLeave={() => {
+                                        courseActionCloseTimer.current = setTimeout(() => {
+                                          setOpenCourseActionMenuId('')
+                                          setCourseActionMenuPosition({ top: 0, left: 0 })
+                                        }, 200)
+                                      }}
+                                      onClick={(e) => {
+                                        if (openCourseActionMenuId === course.id) {
+                                          setOpenCourseActionMenuId('')
+                                          setCourseActionMenuPosition({ top: 0, left: 0 })
+                                        } else {
+                                          setOpenCourseActionMenuId(course.id)
+                                          openCourseActionMenu(e.currentTarget)
+                                        }
+                                      }}
                                     >
                                       <MoreVertical size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                                     </button>
 
-                                    {openCourseActionMenuId === course.id ? (
-  <div className="branch-course-actions-menu" role="menu" aria-label="Course actions">
-
-    <button
-      type="button"
-      className="branch-course-actions-menu-item"
-      onClick={() => openViewCourseDrawer(course)}
-      role="menuitem"
-    >
-      View
-    </button>
-
-    <button
-      type="button"
-      className="branch-course-actions-menu-item"
-      onClick={() => openEditCourseModal(course)}
-      role="menuitem"
-    >
-      Edit
-    </button>
-
-    <button
-      type="button"
-      className="branch-course-actions-menu-item is-danger"
-      onClick={() => openDeleteCourseConfirm(course)}
-      role="menuitem"
-    >
-      Delete
-    </button>
-
-  </div>
-) : null}
+                                    {openCourseActionMenuId === course.id && courseActionMenuPosition && typeof document !== 'undefined'
+                                      ? createPortal(
+                                          <div 
+                                            className="branch-course-actions-menu" 
+                                            role="menu" 
+                                            aria-label="Course actions"
+                                            style={{
+                                              position: 'fixed',
+                                              top: `${courseActionMenuPosition.top}px`,
+                                              left: `${courseActionMenuPosition.left}px`,
+                                              zIndex: 999999,
+                                            }}
+                                            onMouseEnter={() => {
+                                              if (courseActionCloseTimer.current) {
+                                                clearTimeout(courseActionCloseTimer.current)
+                                              }
+                                            }}
+                                            onMouseLeave={() => {
+                                              courseActionCloseTimer.current = setTimeout(() => {
+                                                setOpenCourseActionMenuId('')
+                                                setCourseActionMenuPosition({ top: 0, left: 0 })
+                                              }, 200)
+                                            }}
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <button
+                                              type="button"
+                                              className="branch-course-actions-menu-item"
+                                              onClick={() => { openViewCourseDrawer(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
+                                              role="menuitem"
+                                            >
+                                              View
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="branch-course-actions-menu-item"
+                                              onClick={() => { openEditCourseModal(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
+                                              role="menuitem"
+                                            >
+                                              Edit
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="branch-course-actions-menu-item is-danger"
+                                              onClick={() => { openDeleteCourseConfirm(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
+                                              role="menuitem"
+                                            >
+                                              Delete
+                                            </button>
+                                          </div>,
+                                          document.body
+                                        )
+                                      : null}
                                   </div>
                                 </td>
                               </tr>
