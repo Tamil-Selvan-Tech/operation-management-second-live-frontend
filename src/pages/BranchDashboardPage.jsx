@@ -6,6 +6,8 @@ import {
   BookOpen,
   CircleUserRound,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   LayoutDashboard,
   Layers3,
   LogOut,
@@ -32,6 +34,7 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { getCurrentBranchProfile } from '../services/branchService'
+import { listBranchFaculty } from '../services/branchFacultyService'
 import {
   createBranchCourse,
   deleteBranchCourse,
@@ -61,25 +64,6 @@ const paymentRows = [
   ['Meena K', '₹15,000', 'Collected'],
   ['Arun V', '₹6,000', 'Pending'],
 ]
-const facultyList = [
-  {
-    id: 'FAC-001',
-    name: 'Arun Kumar',
-  },
-  {
-    id: 'FAC-002',
-    name: 'Priya S',
-  },
-  {
-    id: 'FAC-003',
-    name: 'Rahul Kumar',
-  },
-  {
-    id: 'FAC-004',
-    name: 'Divya R',
-  },
-]
-
 
 function BranchDashboardSection({ title, description, actions, children }) {
   return (
@@ -279,6 +263,9 @@ export function BranchDashboardPage() {
   const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
   const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
   const [selectedFacultyIds, setSelectedFacultyIds] = useState([])
+  const [facultyList, setFacultyList] = useState([])
+  const [assignFacultyPage, setAssignFacultyPage] = useState(1)
+  const [assignFacultySuccess, setAssignFacultySuccess] = useState(null)
 
   const profileMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
@@ -295,6 +282,24 @@ export function BranchDashboardPage() {
     return result
   }, [])
 
+  const loadFacultyList = useCallback(async () => {
+    try {
+      const res = await listBranchFaculty()
+      if (res?.data) {
+        const mapped = res.data.map((f) => ({
+          id: f.facultyId || f.id,
+          name: f.name,
+          email: f.email,
+          phone: f.phone,
+          status: f.status,
+        }))
+        setFacultyList(mapped)
+      }
+    } catch (error) {
+      console.error('Failed to fetch faculty list:', error)
+    }
+  }, [])
+
   useEffect(() => {
     if (!isAuthenticated || role !== 'branch-admin') {
       navigate('/login', { replace: true })
@@ -303,7 +308,7 @@ export function BranchDashboardPage() {
 
     let isMounted = true
 
-    Promise.allSettled([getCurrentBranchProfile(), loadBranchCourses()]).then(([branchResult, coursesResult]) => {
+    Promise.allSettled([getCurrentBranchProfile(), loadBranchCourses(), loadFacultyList()]).then(([branchResult, coursesResult]) => {
       if (!isMounted) return
 
       if (branchResult.status === 'fulfilled') {
@@ -324,7 +329,7 @@ export function BranchDashboardPage() {
     return () => {
       isMounted = false
     }
-  }, [isAuthenticated, loadBranchCourses, navigate, role, session, user])
+  }, [isAuthenticated, loadBranchCourses, loadFacultyList, navigate, role, session, user])
 
   useEffect(() => {
     if (!isProfileMenuOpen) return undefined
@@ -402,13 +407,16 @@ export function BranchDashboardPage() {
 
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
+    setAssignFacultyPage(1)
     setIsAssignFacultyOpen(true)
+    loadFacultyList()
   }
 
   const closeAssignFacultyModal = () => {
     setIsAssignFacultyOpen(false)
     setAssignFacultyCourse(null)
     setSelectedFacultyIds([])
+    setAssignFacultyPage(1)
   }
 
   const toggleFacultySelection = (facultyId) => {
@@ -436,6 +444,11 @@ export function BranchDashboardPage() {
           : course
       )
     )
+
+    setAssignFacultySuccess({
+      courseName: assignFacultyCourse?.name || 'Course',
+      facultyNames: assignedFaculty.map((f) => f.name),
+    })
 
     closeAssignFacultyModal()
   }
@@ -834,13 +847,13 @@ export function BranchDashboardPage() {
     </aside>
   )
 
- const renderTopbar = () => (
-  <header className="super-admin-topbar">
-    <div className="branch-dashboard-topbar-title">
-      <h1>Branch Dashboard</h1>
-    </div>
+  const renderTopbar = () => (
+    <header className="super-admin-topbar">
+      <div className="branch-dashboard-topbar-title">
+        <h1>Branch Dashboard</h1>
+      </div>
       <div className="super-admin-topbar-right">
-        
+
         <button type="button" className="super-admin-notification-button" aria-label="Notifications">
           <Bell size={22} strokeWidth={2.1} />
           <span className="super-admin-notification-badge">8</span>
@@ -1051,6 +1064,7 @@ export function BranchDashboardPage() {
                           <th>Discount</th> */}
                           <th>Final Fee</th>
 
+                          <th>Faculty</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
@@ -1084,6 +1098,39 @@ export function BranchDashboardPage() {
                                 <td>{formatBranchCourseAmount(course.discount || '0')}</td> */}
                                 <td>{formatBranchCourseFinalFee(course)}</td>
 
+                                <td>
+                                  <span className="branch-course-faculty-cell">
+                                    {Array.isArray(course.assignedFaculty) && course.assignedFaculty.length > 0 ? (
+                                      <span className="branch-course-faculty-summary">
+                                        <span className="branch-course-faculty-primary">
+                                          {course.assignedFaculty[0]?.name}
+                                        </span>
+
+                                        {course.assignedFaculty.length > 1 ? (
+                                          <span className="branch-course-faculty-more-wrap">
+                                            <button
+                                              type="button"
+                                              className="branch-course-faculty-more"
+                                              onClick={(event) => event.stopPropagation()}
+                                            >
+                                              +{course.assignedFaculty.length - 1}
+                                            </button>
+
+                                            <span className="branch-course-faculty-tooltip">
+                                              {course.assignedFaculty.slice(1).map((faculty) => (
+                                                <span key={faculty.id} className="branch-course-faculty-tooltip-item">
+                                                  {faculty.name}
+                                                </span>
+                                              ))}
+                                            </span>
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    ) : (
+                                      'Not Assigned'
+                                    )}
+                                  </span>
+                                </td>
                                 <td>
                                   <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
                                     {course.status || 'Active'}
@@ -1522,103 +1569,202 @@ export function BranchDashboardPage() {
         ) : null}
 
 
-        {isAddCourseOpen ? (
-          <div className="course-modal-backdrop" role="presentation">
-            ...
-          </div>
-        ) : null}
+
 
 
         {/* STEP 5 — ASSIGN FACULTY MODAL */}
-        {isAssignFacultyOpen ? (
+        {isAssignFacultyOpen ? (() => {
+          const FACULTY_PER_PAGE = 3
+          const totalFacultyPages = Math.max(1, Math.ceil(facultyList.length / FACULTY_PER_PAGE))
+          const safeAssignPage = Math.min(assignFacultyPage, totalFacultyPages)
+          const facultyStart = (safeAssignPage - 1) * FACULTY_PER_PAGE
+          const visibleFaculty = facultyList.slice(facultyStart, facultyStart + FACULTY_PER_PAGE)
+
+          return (
+            <div
+              className="branch-modal-backdrop"
+              role="presentation"
+
+            >
+              <div
+                className="assign-faculty-modal-v2"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="assign-faculty-title"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {/* Close button */}
+                <button
+                  type="button"
+                  className="assign-faculty-v2-close"
+                  aria-label="Close assign faculty modal"
+                  onClick={closeAssignFacultyModal}
+                >
+                  ✕
+                </button>
+
+                {/* Header */}
+                <div className="assign-faculty-v2-header">
+                  <span className="assign-faculty-v2-kicker">ASSIGN FACULTY</span>
+                  <h2 id="assign-faculty-title">
+                    {assignFacultyCourse?.name || 'Course'}
+                  </h2>
+                  <div className="assign-faculty-v2-course-meta">
+                    <span className="assign-faculty-v2-meta-pill">
+                      <Code2 size={13} strokeWidth={2.4} />
+                      {assignFacultyCourse?.courseCode || '-'}
+                    </span>
+                    <span className="assign-faculty-v2-meta-pill">
+                      <BookOpen size={13} strokeWidth={2.4} />
+                      {assignFacultyCourse?.name || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Faculty cards — vertical list */}
+                <div className="assign-faculty-v2-body">
+                  <div className="assign-faculty-v2-label">
+                    Select Faculty
+                    <span className="assign-faculty-v2-count">
+                      {selectedFacultyIds.length} selected
+                    </span>
+                  </div>
+
+                  {facultyList.length > 0 ? (
+                    <div className="assign-faculty-v2-cards">
+                      {visibleFaculty.map((faculty) => {
+                        const isChecked = selectedFacultyIds.includes(faculty.id)
+                        return (
+                          <label
+                            key={faculty.id}
+                            className={`assign-faculty-v2-card ${isChecked ? 'is-selected' : ''}`.trim()}
+                          >
+                            <input
+                              type="checkbox"
+                              className="assign-faculty-v2-checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleFacultySelection(faculty.id)}
+                            />
+                            <span className="assign-faculty-v2-check-icon">
+                              {isChecked ? <CheckCircle2 size={20} strokeWidth={2.4} /> : <CircleDot size={20} strokeWidth={1.8} />}
+                            </span>
+                            <div className="assign-faculty-v2-card-info">
+                              <strong>{faculty.name}</strong>
+                              <small>{faculty.id}</small>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="assign-faculty-v2-empty">
+                      No faculty found. Add faculty in the Faculty tab first.
+                    </div>
+                  )}
+
+                  {/* Pagination */}
+                  {totalFacultyPages > 1 ? (
+                    <div className="assign-faculty-v2-pagination">
+                      <button
+                        type="button"
+                        className="assign-faculty-v2-page-btn"
+                        disabled={safeAssignPage === 1}
+                        onClick={() => setAssignFacultyPage((p) => Math.max(1, p - 1))}
+                      >
+                        <ChevronLeft size={16} strokeWidth={2.5} />
+                        Prev
+                      </button>
+
+                      <div className="assign-faculty-v2-page-dots">
+                        {Array.from({ length: totalFacultyPages }, (_, i) => i + 1).map((page) => (
+                          <button
+                            key={page}
+                            type="button"
+                            className={`assign-faculty-v2-dot ${page === safeAssignPage ? 'is-active' : ''}`.trim()}
+                            onClick={() => setAssignFacultyPage(page)}
+                            aria-label={`Page ${page}`}
+                            aria-current={page === safeAssignPage ? 'page' : undefined}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="assign-faculty-v2-page-btn"
+                        disabled={safeAssignPage === totalFacultyPages}
+                        onClick={() => setAssignFacultyPage((p) => Math.min(totalFacultyPages, p + 1))}
+                      >
+                        Next
+                        <ChevronRight size={16} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Footer */}
+                <div className="assign-faculty-v2-footer">
+                  <button
+                    type="button"
+                    className="assign-faculty-v2-cancel"
+                    onClick={closeAssignFacultyModal}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="assign-faculty-v2-submit"
+                    onClick={handleAssignFaculty}
+                  >
+                    Assign Faculty ({selectedFacultyIds.length})
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })() : null}
+
+
+        {/* ASSIGN FACULTY SUCCESS POPUP */}
+        {assignFacultySuccess ? (
           <div
             className="branch-modal-backdrop"
             role="presentation"
-            onClick={closeAssignFacultyModal}
           >
             <div
-              className="branch-success-modal"
+              className="assign-faculty-success-popup"
               role="dialog"
               aria-modal="true"
-              aria-labelledby="assign-faculty-title"
               onClick={(event) => event.stopPropagation()}
             >
+              <div className="assign-faculty-success-icon">
+                <CheckCircle2 size={40} strokeWidth={2} />
+              </div>
+
+              <h3>Faculty Assigned!</h3>
+
+              <p className="assign-faculty-success-course">
+                {assignFacultySuccess.courseName}
+              </p>
+
+              <p className="assign-faculty-success-detail">
+                {assignFacultySuccess.facultyNames.length > 0
+                  ? <>Assigned to: <strong>{assignFacultySuccess.facultyNames.join(', ')}</strong></>
+                  : 'All faculty removed from this course.'}
+              </p>
+
               <button
                 type="button"
-                className="branch-modal-close"
-                aria-label="Close assign faculty modal"
-                onClick={closeAssignFacultyModal}
+                className="assign-faculty-success-btn"
+                onClick={() => setAssignFacultySuccess(null)}
               >
-                X
+                OK
               </button>
-
-              <div className="branch-success-copy">
-                <p className="branch-success-kicker">ASSIGN FACULTY</p>
-
-                <h2 id="assign-faculty-title">
-                  {assignFacultyCourse?.name || 'Course'}
-                </h2>
-
-                <div className="assign-faculty-course-info">
-                  <div className="assign-faculty-course-field">
-                    <span>Course Code</span>
-                    <strong>
-                      {assignFacultyCourse?.courseCode || '-'}
-                    </strong>
-                  </div>
-
-                  <div className="assign-faculty-course-field">
-                    <span>Course Name</span>
-                    <strong>
-                      {assignFacultyCourse?.name || '-'}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="assign-faculty-list">
-                {facultyList.map((faculty) => (
-                  <label
-                    key={faculty.id}
-                    className="assign-faculty-item"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedFacultyIds.includes(faculty.id)}
-                      onChange={() =>
-                        toggleFacultySelection(faculty.id)
-                      }
-                    />
-
-                    <span>
-                      <strong>{faculty.name}</strong>
-                      <small>{faculty.id}</small>
-                    </span>
-                  </label>
-                ))}
-              </div>
-
-              <div className="branch-modal-actions">
-                <button
-                  type="button"
-                  className="branch-modal-cancel"
-                  onClick={closeAssignFacultyModal}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  className="branch-modal-submit"
-                  onClick={handleAssignFaculty}
-                >
-                  Assign Faculty
-                </button>
-              </div>
             </div>
           </div>
         ) : null}
-
 
         {viewCourse ? (
           <div
