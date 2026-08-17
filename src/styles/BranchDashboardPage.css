@@ -1865,7 +1865,7 @@
 }
 
 /* =========================================
-   ASSIGN FACULTY MODAL
+   ASSIGN FACULTY MODAL - CLEAN UI
 ========================================= */
 
 .assign-faculty-backdrop {
@@ -1877,25 +1877,40 @@
   align-items: center;
   justify-content: center;
 
-  padding: 20px;
+  padding: 24px;
 
-  background: rgba(15, 23, 42, 0.35);
+  background: rgba(15, 23, 42, 0.38);
+  backdrop-filter: blur(2px);
 }
+
+
+/* =========================================
+   MODAL
+========================================= */
 
 .assign-faculty-modal {
-  width: min(620px, 94vw);
-  max-height: 90vh;
+  width: min(650px, calc(100vw - 40px));
+  max-height: calc(100vh - 48px);
 
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
 
   background: #ffffff;
-  border-radius: 12px;
 
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+  border: 1px solid #e5eaf1;
+  border-radius: 16px;
+
+  box-shadow:
+    0 24px 70px rgba(15, 23, 42, 0.18),
+    0 4px 16px rgba(15, 23, 42, 0.06);
 }
 
 
-/* HEADER */
+/* =========================================
+   HEADER
+========================================= */
 
 .assign-faculty-header {
   display: flex;
@@ -1904,7 +1919,7 @@
 
   padding: 22px 28px 16px;
 
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 0;
 }
 
 .assign-faculty-header h2 {
@@ -1913,14 +1928,22 @@
   color: #111827;
 
   font-size: 22px;
+  line-height: 1.25;
   font-weight: 800;
+
+  letter-spacing: -0.02em;
 }
 
 .assign-faculty-close {
   width: 34px;
   height: 34px;
 
+  display: grid;
+  place-items: center;
+
   border: 0;
+  border-radius: 8px;
+
   background: transparent;
 
   color: #64748b;
@@ -1929,71 +1952,129 @@
   line-height: 1;
 
   cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.assign-faculty-close:hover {
+  background: #f1f5f9;
+  color: #1e293b;
 }
 
 
-/* COURSE INFO */
+/* =========================================
+   COURSE INFORMATION
+========================================= */
 
 .assign-faculty-course-info {
-  margin: 18px 28px;
+  width: auto;
+  box-sizing: border-box;
 
-  padding: 17px 20px;
+  margin: 0 28px 18px;
+  padding: 14px 18px;
 
-  background: #f3f8ff;
-
+  border: 1px solid #edf3fb;
   border-radius: 10px;
+
+  background: linear-gradient(135deg,
+      #f1f7ff 0%,
+      #edf5ff 100%);
 }
 
+
+/* Each row */
+
 .assign-faculty-course-info div {
+  width: 100%;
+
   display: grid;
-  grid-template-columns: 140px 1fr;
+
+  grid-template-columns: 105px minmax(0, 1fr);
+
+  align-items: center;
 
   gap: 8px;
 
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 }
 
 .assign-faculty-course-info div:last-child {
   margin-bottom: 0;
 }
 
+
+/* Labels */
+
 .assign-faculty-course-info span {
+  display: block;
+
   color: #334155;
 
   font-size: 14px;
+  line-height: 1.4;
   font-weight: 700;
+
+  white-space: nowrap;
 }
 
+
+/* Values */
+
 .assign-faculty-course-info strong {
+  display: block;
+
+  min-width: 0;
+
   color: #1f2937;
 
   font-size: 15px;
+  line-height: 1.4;
+  font-weight: 700;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 
-/* SELECT FACULTY */
+/* =========================================
+   SELECT FACULTY
+========================================= */
 
 .assign-faculty-field {
+  width: auto;
+
   margin: 0 28px;
 }
 
-.assign-faculty-field > label {
+.assign-faculty-field>label {
   display: block;
 
-  margin-bottom: 8px;
+  margin: 0 0 8px;
 
   color: #334155;
 
   font-size: 14px;
+  line-height: 1.4;
   font-weight: 700;
 }
 
+
+/* =========================================
+   SELECT BOX
+========================================= */
+
 .assign-faculty-select-box {
-  height: 48px;
+  width: 100%;
+  height: 46px;
 
   display: flex;
   align-items: center;
   justify-content: space-between;
+
+  box-sizing: border-box;
 
   padding: 0 14px;
 
@@ -2005,120 +2086,257 @@
   color: #64748b;
 
   font-size: 14px;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.assign-faculty-select-box:hover {
+  border-color: #b8c7da;
+}
+
+.assign-faculty-select-box:focus,
+.assign-faculty-select-box.is-open {
+  border-color: #2563eb;
+
+  box-shadow:
+    0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
 
-/* FACULTY LIST */
+/* =========================================
+   FACULTY LIST
+========================================= */
 
 .assign-faculty-list {
+  width: 100%;
+
   max-height: 210px;
 
   overflow-y: auto;
 
+  margin-top: 0;
+
+  box-sizing: border-box;
+
   border: 1px solid #d7dee8;
   border-top: 0;
 
-  border-radius: 0 0 7px 7px;
+  border-radius: 0 0 8px 8px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.06);
+
+  scrollbar-width: thin;
 }
 
+
+/* =========================================
+   FACULTY OPTION
+========================================= */
+
 .assign-faculty-option {
+  width: 100%;
+  min-height: 42px;
+
   display: flex !important;
-  align-items: center;
 
-  gap: 12px;
+  flex-direction: row !important;
 
-  padding: 12px 14px;
+  align-items: center !important;
+
+  gap: 10px !important;
+
+  box-sizing: border-box;
 
   margin: 0 !important;
 
+  padding: 8px 14px !important;
+
+  border: 0 !important;
+
+  border-bottom: 1px solid #f1f5f9;
+
+  background: #ffffff;
+
+  color: #1f2937;
+
   cursor: pointer;
+
+  text-align: left;
+}
+
+.assign-faculty-option:last-child {
+  border-bottom: 0;
 }
 
 .assign-faculty-option:hover {
   background: #f8fafc;
 }
 
-.assign-faculty-option input {
-  width: 20px;
-  height: 20px;
 
-  margin: 0;
+/* =========================================
+   FACULTY CHECKBOX
+========================================= */
+
+.assign-faculty-option input {
+  flex: 0 0 auto;
+
+  width: 20px !important;
+  height: 20px !important;
+
+  min-width: 20px;
+
+  margin: 0 !important;
 
   accent-color: #2563eb;
 
   cursor: pointer;
 }
 
+
+/* =========================================
+   FACULTY NAME
+========================================= */
+
 .assign-faculty-option span {
+  display: block;
+
+  flex: 1;
+
+  min-width: 0;
+
   color: #1f2937;
 
   font-size: 14px;
+  line-height: 1.4;
+  font-weight: 500;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 
-/* CURRENTLY ASSIGNED */
+/* =========================================
+   CURRENTLY ASSIGNED FACULTY
+========================================= */
 
 .currently-assigned-section {
-  margin: 18px 28px 24px;
+  margin: 18px 28px 22px;
 }
 
 .currently-assigned-section h4 {
   margin: 0 0 10px;
 
-  color: #334155;
+  color: #1f2937;
 
   font-size: 14px;
+  line-height: 1.4;
   font-weight: 800;
 }
 
+
+/* Tags container */
+
 .assigned-faculty-tags {
   display: flex;
+
+  align-items: center;
+
   flex-wrap: wrap;
 
   gap: 10px;
 }
 
+
+/* Individual tag */
+
 .assigned-faculty-tag {
+  min-height: 36px;
+
   display: inline-flex;
+
   align-items: center;
 
   gap: 12px;
 
-  padding: 9px 12px;
+  box-sizing: border-box;
 
-  border-radius: 6px;
+  padding: 7px 10px 7px 12px;
 
-  background: #f1f5f9;
+  border: 1px solid #e5eaf0;
+
+  border-radius: 7px;
+
+  background: #f5f7fa;
 
   color: #334155;
 
-  font-size: 14px;
+  font-size: 13px;
+
+  font-weight: 600;
 }
 
+
+/* Remove button */
+
 .assigned-faculty-tag button {
+  width: 22px;
+  height: 22px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
   border: 0;
+
+  border-radius: 50%;
+
   background: transparent;
 
   color: #64748b;
 
-  font-size: 20px;
+  font-size: 18px;
 
   line-height: 1;
 
   cursor: pointer;
 }
 
-.no-faculty-assigned {
-  color: #94a3b8;
+.assigned-faculty-tag button:hover {
+  background: #e2e8f0;
 
-  font-size: 14px;
+  color: #1e293b;
 }
 
 
-/* FOOTER */
+/* Empty state */
+
+.no-faculty-assigned {
+  color: #94a3b8;
+
+  font-size: 13px;
+}
+
+
+/* =========================================
+   FOOTER
+========================================= */
 
 .assign-faculty-footer {
   display: flex;
+
+  align-items: center;
+
   justify-content: flex-end;
 
   gap: 12px;
@@ -2126,22 +2344,40 @@
   padding: 18px 28px;
 
   border-top: 1px solid #e5e7eb;
+
+  background: #ffffff;
 }
+
+
+/* =========================================
+   BUTTONS
+========================================= */
 
 .assign-faculty-cancel,
 .assign-faculty-submit {
   min-width: 108px;
+
   height: 42px;
 
   padding: 0 18px;
 
-  border-radius: 6px;
+  border-radius: 7px;
 
   font-size: 14px;
+
   font-weight: 700;
 
   cursor: pointer;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
+
+
+/* Cancel */
 
 .assign-faculty-cancel {
   border: 1px solid #d7dee8;
@@ -2151,14 +2387,121 @@
   color: #334155;
 }
 
+.assign-faculty-cancel:hover {
+  background: #f8fafc;
+
+  border-color: #c5cfdb;
+}
+
+
+/* Assign */
+
 .assign-faculty-submit {
+  min-width: 165px;
+
   border: 1px solid #2563eb;
 
   background: #2563eb;
 
   color: #ffffff;
+
+  box-shadow:
+    0 5px 12px rgba(37, 99, 235, 0.18);
 }
 
 .assign-faculty-submit:hover {
   background: #1d4ed8;
+
+  border-color: #1d4ed8;
+
+  box-shadow:
+    0 7px 16px rgba(37, 99, 235, 0.24);
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 640px) {
+
+  .assign-faculty-backdrop {
+    padding: 12px;
+  }
+
+  .assign-faculty-modal {
+    width: 100%;
+
+    max-height: calc(100vh - 24px);
+
+    border-radius: 14px;
+  }
+
+
+  /* Header */
+
+  .assign-faculty-header {
+    padding: 18px 20px 14px;
+  }
+
+
+  /* Course info + faculty */
+
+  .assign-faculty-course-info,
+  .assign-faculty-field {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+
+
+  /* Assigned */
+
+  .currently-assigned-section {
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+
+
+  /* Footer */
+
+  .assign-faculty-footer {
+    padding: 16px 20px;
+  }
+
+
+  /* Course info mobile */
+
+  .assign-faculty-course-info div {
+    grid-template-columns: 105px minmax(0, 1fr);
+  }
+
+
+  /* Buttons */
+
+  .assign-faculty-cancel,
+  .assign-faculty-submit {
+    min-width: 0;
+
+    flex: 1;
+  }
+}
+
+.super-admin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.branch-dashboard-topbar-title {
+  display: flex;
+  align-items: center;
+}
+
+.branch-dashboard-topbar-title h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
 }
