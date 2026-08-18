@@ -801,12 +801,14 @@ export function BranchFacultyPage() {
                 return (
                   <tr key={faculty.id} style={{ cursor: 'pointer' }} onClick={() => setViewFaculty(faculty)}>
                     <td>{rowNumber}</td>
-                    <td>
-                      <strong style={{ color: '#0f172a', fontSize: '0.82rem', fontFamily: 'monospace' }}>{faculty.facultyId || faculty.id}</strong>
-                    </td>
+                   <td>
+  <strong className="branch-course-name">
+    {faculty.facultyId || faculty.id}
+  </strong>
+</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="faculty-avatar">{String(faculty.name || '').charAt(0).toUpperCase()}</span>
+                        {/* <span className="faculty-avatar">{String(faculty.name || '').charAt(0).toUpperCase()}</span> */}
                         <strong className="branch-course-name" style={{ maxWidth: '130px' }}>{faculty.name}</strong>
                       </div>
                     </td>

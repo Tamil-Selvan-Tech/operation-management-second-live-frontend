@@ -30,6 +30,7 @@ import {
   BadgePercent,
   UserRound,
   Search,
+   UserPlus, Pencil, Trash2 ,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -1250,39 +1251,60 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <button
-                                            type="button"
-                                            className="branch-course-actions-menu-item"
-                                            onClick={() => { openViewCourseDrawer(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
-                                            role="menuitem"
-                                          >
-                                            View
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="branch-course-actions-menu-item"
-                                            onClick={() => {
-                                              openAssignFacultyModal(course)
-                                            }}
-                                            role="menuitem"
-                                          >
-                                            Assign Faculty
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="branch-course-actions-menu-item"
-                                            onClick={() => { openEditCourseModal(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
-                                            role="menuitem"
-                                          >
-                                            Edit
-                                          </button>
-                                          <button
-                                            type="button"
-                                            className="branch-course-actions-menu-item is-danger"
-                                            onClick={() => { openDeleteCourseConfirm(course); setOpenCourseActionMenuId(''); setCourseActionMenuPosition({ top: 0, left: 0 }); }}
-                                            role="menuitem"
-                                          >
-                                            Delete
-                                          </button>
+  type="button"
+  className="branch-course-actions-menu-item"
+  onClick={() => {
+    openViewCourseDrawer(course);
+    setOpenCourseActionMenuId('');
+    setCourseActionMenuPosition({ top: 0, left: 0 });
+  }}
+  role="menuitem"
+>
+  <Eye size={16} />
+  <span>View</span>
+</button>
+
+<button
+  type="button"
+  className="branch-course-actions-menu-item"
+  onClick={() => {
+    openAssignFacultyModal(course);
+    setOpenCourseActionMenuId('');
+    setCourseActionMenuPosition({ top: 0, left: 0 });
+  }}
+  role="menuitem"
+>
+  <UserPlus size={16} />
+  <span>Assign</span>
+</button>
+
+<button
+  type="button"
+  className="branch-course-actions-menu-item"
+  onClick={() => {
+    openEditCourseModal(course);
+    setOpenCourseActionMenuId('');
+    setCourseActionMenuPosition({ top: 0, left: 0 });
+  }}
+  role="menuitem"
+>
+  <Pencil size={16} />
+  <span>Edit</span>
+</button>
+
+<button
+  type="button"
+  className="branch-course-actions-menu-item is-danger"
+  onClick={() => {
+    openDeleteCourseConfirm(course);
+    setOpenCourseActionMenuId('');
+    setCourseActionMenuPosition({ top: 0, left: 0 });
+  }}
+  role="menuitem"
+>
+  <Trash2 size={16} />
+  <span>Delete</span>
+</button>
                                         </div>,
                                         document.body
                                       )

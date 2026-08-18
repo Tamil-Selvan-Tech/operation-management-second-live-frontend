@@ -748,19 +748,19 @@
 /* .faculty-table-shell override removed - consolidated above */
 
 .branch-course-actions-menu {
-  position: absolute;
-  right: 12px;
-  z-index: 99999;
+  position: fixed !important;
+  width: 125px !important;
+  min-width: 125px !important;
 
-  min-width: 165px;
+  padding: 5px !important;
 
-  background: #ffffff;
+  background: #fff;
   border: 1px solid #dbe3ec;
   border-radius: 12px;
 
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  box-shadow: none;
 
-  padding: 6px;
+  z-index: 999999 !important;
 }
 
 .branch-course-actions-menu.actions-menu-up {

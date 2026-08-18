@@ -3463,3 +3463,12 @@
   opacity: 1;
   visibility: visible;
 }
+.branch-course-actions-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.branch-course-actions-menu-item svg {
+  flex-shrink: 0;
+}
