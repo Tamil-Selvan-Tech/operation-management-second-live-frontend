@@ -407,97 +407,59 @@ export function BranchFacultyPage() {
     setErrors((prev) => ({ ...prev, name: err }))
   }
 
-  const handleEmailChange = (val) => {
-    setModalForm((prev) => ({
-      ...prev,
-      email: val,
-    }))
+ const handleEmailChange = (val) => {
+  setModalForm((prev) => ({
+    ...prev,
+    email: val,
+  }))
 
-    const trimmedEmail = val.trim()
+  // While typing, don't show any validation error
+  setErrors((prev) => ({
+    ...prev,
+    email: '',
+  }))
 
-    // Empty field
-    if (!trimmedEmail) {
-      setErrors((prev) => ({
-        ...prev,
-        email: 'This field is required.',
-      }))
-      setTouched((prev) => ({
-        ...prev,
-        email: true,
-      }))
-      return
-    }
+  // Keep the field untouched while typing
+  setTouched((prev) => ({
+    ...prev,
+    email: false,
+  }))
+}
 
-    // Check email format first
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setErrors((prev) => ({
-        ...prev,
-        email: 'Invalid email format.',
-      }))
-      setTouched((prev) => ({
-        ...prev,
-        email: true,
-      }))
-      return
-    }
+ const handlePhoneChange = (val) => {
+  const cleanPhone = val
+    .replace(/\D/g, '')
+    .substring(0, 10)
 
-    // Check duplicate email
+  setModalForm((prev) => ({
+    ...prev,
+    phone: cleanPhone,
+  }))
+
+  // 10 digits complete ஆகும் வரை error காட்ட வேண்டாம்
+  if (cleanPhone.length === 10) {
     const isDuplicate = facultyList.some(
       (f) =>
-        f.email?.trim().toLowerCase() === trimmedEmail.toLowerCase() &&
+        f.phone?.trim() === cleanPhone &&
         f.id !== editingId
     )
 
     setErrors((prev) => ({
       ...prev,
-      email: isDuplicate ? 'Email already exists.' : '',
+      phone: isDuplicate ? 'Phone number already exists.' : '',
     }))
-
-    setTouched((prev) => ({
-      ...prev,
-      email: true,
-    }))
-  }
-
-  const handlePhoneChange = (val) => {
-    const cleanPhone = val
-      .replace(/\D/g, '')
-      .substring(0, 10)
-
-    setModalForm((prev) => ({
-      ...prev,
-      phone: cleanPhone,
-    }))
-
-    let error = ''
-
-    if (!cleanPhone) {
-      error = 'This field is required.'
-    } else if (cleanPhone.length < 10) {
-      error = 'Phone number must be exactly 10 digits.'
-    } else {
-      const isDuplicate = facultyList.some(
-        (f) =>
-          f.phone?.trim() === cleanPhone &&
-          f.id !== editingId
-      )
-
-      if (isDuplicate) {
-        error = 'Phone number already exists.'
-      }
-    }
-
+  } else {
     setErrors((prev) => ({
       ...prev,
-      phone: error,
-    }))
-
-    setTouched((prev) => ({
-      ...prev,
-      phone: true,
+      phone: '',
     }))
   }
 
+  setTouched((prev) => ({
+    ...prev,
+    phone: false,
+  }))
+}
 
   const handleCountryChange = (countryName) => {
     const selected = countryOptions.find((c) => c.name === countryName)
@@ -859,12 +821,14 @@ export function BranchFacultyPage() {
                 return (
                   <tr key={faculty.id} style={{ cursor: 'pointer' }} onClick={() => setViewFaculty(faculty)}>
                     <td>{rowNumber}</td>
-                    <td>
-                      <strong style={{ color: '#0f172a', fontSize: '0.82rem', fontFamily: 'monospace' }}>{faculty.facultyId || faculty.id}</strong>
-                    </td>
+                   <td>
+  <strong className="branch-course-name">
+    {faculty.facultyId || faculty.id}
+  </strong>
+</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="faculty-avatar">{String(faculty.name || '').charAt(0).toUpperCase()}</span>
+                        {/* <span className="faculty-avatar">{String(faculty.name || '').charAt(0).toUpperCase()}</span> */}
                         <strong className="branch-course-name" style={{ maxWidth: '130px' }}>{faculty.name}</strong>
                       </div>
                     </td>
@@ -1125,48 +1089,130 @@ export function BranchFacultyPage() {
                   ) : null}
                 </div>
 
-                {/* Faculty Email */}
-                <div className="faculty-field-group">
-                  <span className="faculty-field-label">
-                    Faculty Email <b>*</b>
-                  </span>
-                  <input
-                    type="email"
-                    placeholder="Enter email address"
-                    value={modalForm.email}
-                    onChange={(e) => handleEmailChange(e.target.value)}
-                    onBlur={() => setTouched((prev) => ({ ...prev, email: true }))}
-                    className="faculty-text-input"
+              {/* Faculty Email */}
+<div className="faculty-field-group">
+  <span className="faculty-field-label">
+    Faculty Email <b>*</b>
+  </span>
 
-                  />
-                  {((touched.email || modalForm.email) && errors.email) ? (
-                    <small className="faculty-error-message">
-                      {errors.email}
-                    </small>
-                  ) : null}
-                </div>
+  <input
+    type="email"
+    placeholder="Enter email address"
+    value={modalForm.email}
+    onChange={(e) => handleEmailChange(e.target.value)}
+    onBlur={() => {
+      const trimmedEmail = modalForm.email.trim()
 
-                {/* Faculty Phone Number */}
-                <div className="faculty-field-group">
-                  <span className="faculty-field-label">
-                    Faculty Phone Number <b>*</b>
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Enter 10 digit number"
-                    value={modalForm.phone}
-                    onChange={(e) => handlePhoneChange(e.target.value)}
-                    onBlur={() => setTouched((prev) => ({ ...prev, phone: true }))}
-                    className="faculty-text-input"
+      // Mark field as touched
+      setTouched((prev) => ({
+        ...prev,
+        email: true,
+      }))
 
-                  />
-                  {((touched.phone || modalForm.phone) && errors.phone) ? (
-                    <small className="faculty-error-message">
-                      {errors.phone}
-                    </small>
-                  ) : null}
-                </div>
+      // Required validation
+      if (!trimmedEmail) {
+        setErrors((prev) => ({
+          ...prev,
+          email: 'This field is required.',
+        }))
+        return
+      }
 
+      // Email format validation
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        setErrors((prev) => ({
+          ...prev,
+          email: 'Invalid email format.',
+        }))
+        return
+      }
+
+      // Duplicate email validation
+      const isDuplicate = facultyList.some(
+        (f) =>
+          f.email?.trim().toLowerCase() ===
+            trimmedEmail.toLowerCase() &&
+          f.id !== editingId
+      )
+
+      setErrors((prev) => ({
+        ...prev,
+        email: isDuplicate
+          ? 'Email already exists.'
+          : '',
+      }))
+    }}
+    className="faculty-text-input"
+  />
+
+  {touched.email && errors.email ? (
+    <small className="faculty-error-message">
+      {errors.email}
+    </small>
+  ) : null}
+</div>
+{/* Faculty Phone Number */}
+<div className="faculty-field-group">
+  <span className="faculty-field-label">
+    Faculty Phone Number <b>*</b>
+  </span>
+
+  <input
+    type="text"
+    placeholder="Enter 10 digit number"
+    value={modalForm.phone}
+    maxLength={10}
+    onChange={(e) => handlePhoneChange(e.target.value)}
+    onBlur={() => {
+      const phone = modalForm.phone.trim()
+
+      // Mark field as touched
+      setTouched((prev) => ({
+        ...prev,
+        phone: true,
+      }))
+
+      // Required validation
+      if (!phone) {
+        setErrors((prev) => ({
+          ...prev,
+          phone: 'This field is required.',
+        }))
+        return
+      }
+
+      // 10 digit validation
+      if (!/^\d{10}$/.test(phone)) {
+        setErrors((prev) => ({
+          ...prev,
+          phone: 'Phone number must be exactly 10 digits.',
+        }))
+        return
+      }
+
+      // Duplicate phone validation
+      const isDuplicate = facultyList.some(
+        (f) =>
+          f.phone?.trim() === phone &&
+          f.id !== editingId
+      )
+
+      setErrors((prev) => ({
+        ...prev,
+        phone: isDuplicate
+          ? 'Phone number already exists.'
+          : '',
+      }))
+    }}
+    className="faculty-text-input"
+  />
+
+  {touched.phone && errors.phone ? (
+    <small className="faculty-error-message">
+      {errors.phone}
+    </small>
+  ) : null}
+</div>
                 {/* Country */}
                 <div className="faculty-field-group">
                   <span className="faculty-field-label">
@@ -1472,14 +1518,30 @@ export function BranchFacultyPage() {
                     </div>
                   </div>
 
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <span>Address</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewFaculty.address}</strong>
-                    </div>
-                  </div>
+                 <div className="branch-course-view-row" role="row">
+  <div
+    className="branch-course-view-cell branch-course-view-cell-label"
+    role="cell"
+  >
+    <span>Address</span>
+  </div>
+
+  <div
+    className="branch-course-view-cell branch-course-view-cell-value"
+    role="cell"
+  >
+  <strong>
+  {viewFaculty.address
+    ?.split(',')
+    .map((part, index, arr) => (
+      <span key={index}>
+        {part.trim()}
+        {index < arr.length - 1 ? ', ' : ''}
+      </span>
+    ))}
+</strong>
+  </div>
+</div>
 
 
                 </div>
