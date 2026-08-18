@@ -25,14 +25,12 @@ import {
   updateBranchFaculty,
   deleteBranchFaculty,
 } from '../services/branchFacultyService'
-import { listCourses } from '../services/courseService'
 
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
 
 export function BranchFacultyPage() {
   const [facultyList, setFacultyList] = useState([])
-  const [coursesList, setCoursesList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 5
@@ -1329,27 +1327,7 @@ export function BranchFacultyPage() {
                 </div>
               </div>
 
-              <div className="branch-modal-form-group" style={{ gridColumn: '1 / -1' }}>
-                <label htmlFor="modal-courseId">
-                  Assigned Course <span>(Optional)</span>
-                </label>
-                <select
-                  id="modal-courseId"
-                  value={modalForm.courseId}
-                  onChange={(e) => handleInputChange('courseId', e.target.value)}
-                  className={touched.courseId && errors.courseId ? 'has-error' : ''}
-                >
-                  <option value="">-- Select Course --</option>
-                  {coursesList.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.name}
-                    </option>
-                  ))}
-                </select>
-                {touched.courseId && errors.courseId && (
-                  <span className="branch-modal-form-error">{errors.courseId}</span>
-                )}
-              </div>
+             
 
               {/* Divider above buttons */}
               <div className="faculty-modal-divider" />

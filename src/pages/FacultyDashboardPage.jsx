@@ -112,6 +112,7 @@ export function FacultyDashboardPage() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const profileMenuRef = useRef(null)
+  const notificationRef = useRef(null)
 
   // Retrieve logged-in faculty details dynamically from registry or fallback to session
   const facultyDetails = useMemo(() => {
@@ -189,6 +190,32 @@ export function FacultyDashboardPage() {
       isMounted = false
     }
   }, [])
+
+  // Close notification dropdown when clicking outside
+useEffect(() => {
+  const handleOutsideNotificationClick = (event) => {
+    if (
+      notificationRef.current &&
+      !notificationRef.current.contains(event.target)
+    ) {
+      setNotificationOpen(false)
+    }
+  }
+
+  if (notificationOpen) {
+    document.addEventListener(
+      'mousedown',
+      handleOutsideNotificationClick,
+    )
+  }
+
+  return () => {
+    document.removeEventListener(
+      'mousedown',
+      handleOutsideNotificationClick,
+    )
+  }
+}, [notificationOpen])
 
   const unreadNotificationCount = facultyNotifications.filter((notification) => !notification.read).length
 
@@ -283,7 +310,10 @@ export function FacultyDashboardPage() {
         <h2 className="super-admin-topbar-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: 600 }}>Faculty Dashboard</h2>
       </div>
       <div className="super-admin-topbar-right">
-        <div style={{ position: 'relative' }}>
+        <div
+  ref={notificationRef}
+  style={{ position: 'relative' }}
+>
         <button
           type="button"
           className="super-admin-notification-button"
@@ -293,49 +323,128 @@ export function FacultyDashboardPage() {
           <Bell size={22} strokeWidth={2.1} />
           <span className="super-admin-notification-badge">{unreadNotificationCount}</span>
         </button>
+{notificationOpen ? (
+  <div
+    className="notification-dropdown"
+    role="dialog"
+    aria-label="Notifications"
+  >
+    {/* Header */}
+    <div className="notification-dropdown-header">
+      <h3>Notifications</h3>
 
-          {notificationOpen ? (
-            <div
-              className="branch-dashboard-profile-menu"
-              role="menu"
-              aria-label="Faculty notifications"
-              style={{ minWidth: '320px', right: 0, left: 'auto', top: 'calc(100% + 10px)' }}
-            >
-              {facultyNotifications.length > 0 ? (
-                facultyNotifications.slice(0, 5).map((notification) => (
-                  <button
-                    key={notification.id}
-                    type="button"
-                    className="branch-dashboard-profile-menu-item"
-                    style={{ alignItems: 'flex-start', textAlign: 'left', whiteSpace: 'normal' }}
-                    onClick={async () => {
-                      if (notification.read) return
-                      try {
-                        await markFacultyNotificationsAsRead([notification.id])
-                        setFacultyNotifications((current) =>
-                          current.map((item) =>
-                            item.id === notification.id ? { ...item, read: true } : item,
-                          ),
-                        )
-                      } catch (error) {
-                        console.error('Failed to mark notification as read', error)
-                      }
-                    }}
-                  >
-                    <span>
-                      <strong>{notification.title}</strong>
-                      <br />
-                      <small>{notification.message}</small>
-                    </span>
-                  </button>
-                ))
-              ) : (
-                <div className="branch-dashboard-profile-menu-item" style={{ cursor: 'default' }}>
-                  No notifications yet
-                </div>
-              )}
-            </div>
-          ) : null}
+      <div className="notification-header-actions">
+        <button
+          type="button"
+          className="mark-all-read-btn"
+          onClick={async () => {
+            const unreadIds = facultyNotifications
+              .filter((item) => !item.read)
+              .map((item) => item.id)
+
+            if (!unreadIds.length) return
+
+            try {
+              await markFacultyNotificationsAsRead(unreadIds)
+
+              setFacultyNotifications((current) =>
+                current.map((item) => ({
+                  ...item,
+                  read: true,
+                })),
+              )
+            } catch (error) {
+              console.error(
+                'Failed to mark all notifications as read',
+                error,
+              )
+            }
+          }}
+        >
+          Mark all as read
+        </button>
+
+        <button
+          type="button"
+          className="notification-close-btn"
+          aria-label="Close notifications"
+          onClick={() => setNotificationOpen(false)}
+        >
+          ×
+        </button>
+      </div>
+    </div>
+
+    {/* Notification List */}
+    <div className="notification-list">
+      {facultyNotifications.length > 0 ? (
+        facultyNotifications.slice(0, 5).map((notification) => (
+          <button
+            key={notification.id}
+            type="button"
+            className={`notification-card ${
+              notification.read ? 'is-read' : 'is-unread'
+            }`}
+            onClick={async () => {
+              if (notification.read) return
+
+              try {
+                await markFacultyNotificationsAsRead([
+                  notification.id,
+                ])
+
+                setFacultyNotifications((current) =>
+                  current.map((item) =>
+                    item.id === notification.id
+                      ? { ...item, read: true }
+                      : item,
+                  ),
+                )
+              } catch (error) {
+                console.error(
+                  'Failed to mark notification as read',
+                  error,
+                )
+              }
+            }}
+          >
+            <span className="notification-status-icon">
+              ✓
+            </span>
+
+            <span className="notification-content">
+              <strong>{notification.title}</strong>
+
+              <span className="notification-message">
+                {notification.message}
+              </span>
+
+              <span className="notification-time">
+                {notification.time || '3 days ago'}
+              </span>
+            </span>
+          </button>
+        ))
+      ) : (
+        <div className="notification-empty">
+          No notifications yet
+        </div>
+      )}
+    </div>
+
+    {/* Footer */}
+    <button
+      type="button"
+      className="notification-footer"
+      onClick={() => {
+        // Navigate to branch activity page
+      }}
+    >
+      View branch activity
+    </button>
+  </div>
+) : null}
+         
         </div>
 
         <div className="branch-dashboard-profile-menu-wrap" ref={profileMenuRef}>
@@ -413,7 +522,7 @@ export function FacultyDashboardPage() {
                     {stats.map((stat) => (
                       <article key={stat.label} className="branch-dashboard-stat-card">
                         <span>{stat.label}</span>
-                        <strong>{stat.value}</strong>
+                        <strong style={{ fontSize: '18px' }}>{stat.value}</strong>
                         <small>{stat.note}</small>
                       </article>
                     ))}
