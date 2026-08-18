@@ -67,10 +67,10 @@ function createInitialStudentForm(branchId) {
     emailAddress: '',
     mobileNumber: '',
     parentSpouseNumber: '',
-    countryCode: '',
-    country: '',
-    stateCode: '',
-    state: '',
+     countryCode: 'IN',
+    country: 'India',
+    stateCode: 'TN',
+    state: 'Tamil Nadu',
     city: '',
     address: '',
     qualification: '',
@@ -370,11 +370,33 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
+  const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
   const [stuCountryOptions, setStuCountryOptions] = useState([])
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
+
+
+  useEffect(() => {
+  const handleOutsideClick = (e) => {
+    const clickedInsideActions = e.target.closest(
+      '.branch-student-actions-cell'
+    )
+
+    if (!clickedInsideActions) {
+      setStudentActionMenuId('')
+      setStudentActionMenuPinned(false)
+    }
+  }
+
+  document.addEventListener('mousedown', handleOutsideClick)
+
+  return () => {
+    document.removeEventListener('mousedown', handleOutsideClick)
+  }
+}, [])
+
 
   const profileMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
@@ -1360,7 +1382,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '340px' }}>
                       <input
                         type="text"
-                        placeholder="Search by Student ID or Name..."
+                        placeholder="Search Student..."
                         value={studentSearchTerm}
                         onChange={(e) => { setStudentSearchTerm(e.target.value); setStudentPage(1) }}
                         className="faculty-search-input"
@@ -1409,22 +1431,38 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
                               <td style={{ textAlign: 'center' }}>
                                 <div
-                                  className="branch-student-actions-cell"
-                                  onMouseEnter={() => setStudentActionMenuId(stu.studentId)}
-                                  onMouseLeave={() => setStudentActionMenuId('')}
-                                >
-                                  <button
-                                    type="button"
-                                    className="branch-student-more-btn"
-                                    aria-label="Student actions"
-                                    onClick={() =>
-                                      setStudentActionMenuId(
-                                        studentActionMenuId === stu.studentId ? '' : stu.studentId
-                                      )
-                                    }
-                                  >
-                                    <MoreVertical size={18} />
-                                  </button>
+  className={`branch-student-actions-cell ${
+    studentActionMenuId === stu.studentId ? 'menu-open' : ''
+  }`}
+  onMouseEnter={() => {
+    if (!studentActionMenuPinned) {
+      setStudentActionMenuId(stu.studentId)
+    }
+  }}
+  onMouseLeave={() => {
+    if (!studentActionMenuPinned) {
+      setStudentActionMenuId('')
+    }
+  }}
+>
+                               <button 
+  type="button" 
+  className="branch-student-more-btn" 
+  aria-label="Student actions" 
+  onClick={(e) => {
+  e.stopPropagation()
+
+  if (studentActionMenuId === stu.studentId) {
+    setStudentActionMenuId('')
+    setStudentActionMenuPinned(false)
+  } else {
+    setStudentActionMenuId(stu.studentId)
+    setStudentActionMenuPinned(true)
+  }
+}}
+>
+  <MoreVertical size={18} /> 
+</button>
 
                                   {studentActionMenuId === stu.studentId ? (
                                     <div className="branch-student-actions-menu">
@@ -2557,7 +2595,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               {/* Header */}
               <div className="student-view-drawer-header">
                 <div>
-                  <p className="student-drawer-kicker">STUDENT DETAILS</p>
+                  <p className="student-drawer-kicker" style={{ color: '#2563eb' }}>
+                    STUDENT DETAILS
+                  </p>
 
                   <h2>
                     {viewStudentDrawer.studentName || 'Student'}
@@ -2727,13 +2767,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                         {viewStudentDrawer.source || '-'}
                       </strong>
                     </div>
-
+{/* 
                     <div className="student-detail-item student-detail-full">
                       <span>Other Source</span>
                       <strong>
                         {viewStudentDrawer.sourceOther || '-'}
                       </strong>
-                    </div>
+                    </div> */}
 
                     <div className="student-detail-item student-detail-full">
                       <span>Remarks</span>
@@ -2993,7 +3033,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     </div>
                   </div>
 
-                  {/* Other Source */}
+                  {/* Other Source
                   <div className="student-details-row">
                     <div className="student-details-label">
                       Other Source
@@ -3001,7 +3041,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     <div className="student-details-value">
                       {viewStudentDrawer.sourceOther || '-'}
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Remarks */}
                   <div className="student-details-row">
@@ -3030,7 +3070,12 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               aria-labelledby="branch-student-form-title"
               onClick={(event) => event.stopPropagation()}
               onSubmit={handleStudentFormSubmit}
-              style={{ maxWidth: 720, maxHeight: '92vh', overflowY: 'auto' }}
+              style={{
+                maxWidth: 900,
+                width: '92%',
+                maxHeight: '92vh',
+                overflowY: 'auto'
+              }}
             >
               <div className="course-modal-header">
                 <div>
@@ -3146,14 +3191,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 </Field>
 
                 <Field label="Address" required error={shouldShowStudentError('address') ? studentFormValidationErrors.address : ''}>
-                  <textarea
+                  <input
+                    type="text"
                     placeholder="Enter full address"
                     value={studentForm.address}
                     onChange={(e) => updateStudentField('address', e.target.value)}
                     onBlur={() => setStudentFormTouched((c) => ({ ...c, address: true }))}
                     disabled={studentFormMode === 'view'}
-                    rows={3}
-                    style={{ resize: 'vertical' }}
                   />
                 </Field>
 
@@ -3256,13 +3300,12 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 ) : null}
 
                 <Field label="Remarks">
-                  <textarea
+                  <input
+                    type="text"
                     placeholder="Optional remarks"
                     value={studentForm.remarks}
                     onChange={(e) => updateStudentField('remarks', e.target.value)}
                     disabled={studentFormMode === 'view'}
-                    rows={2}
-                    style={{ resize: 'vertical' }}
                   />
                 </Field>
 
@@ -3325,15 +3368,25 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               </button>
 
               <h2 id="student-delete-title">Delete Student?</h2>
+
               <p className="branch-delete-copy">
                 Are you sure you want to delete this student?
               </p>
 
               <div className="branch-modal-actions">
-                <button type="button" className="branch-modal-cancel" onClick={() => setStudentDeleteTarget(null)}>
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={() => setStudentDeleteTarget(null)}
+                >
                   Cancel
                 </button>
-                <button type="button" className="branch-modal-submit is-danger" onClick={handleStudentDeleteConfirm}>
+
+                <button
+                  type="button"
+                  className="branch-modal-submit is-danger"
+                  onClick={handleStudentDeleteConfirm}
+                >
                   Delete
                 </button>
               </div>
@@ -3341,9 +3394,59 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
           </div>
         ) : null}
 
+        {/* ── LOGOUT CONFIRM ── */}
+        {isLogoutConfirmOpen ? (
+          <div
+            className="branch-modal-backdrop"
+            role="presentation"
+          >
+            <div
+              className="branch-success-modal super-admin-logout-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="logout-confirm-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close logout confirmation"
+                onClick={closeLogoutConfirm}
+              >
+                X
+              </button>
+
+              <h2 id="logout-confirm-title">Logout?</h2>
+
+              <p className="branch-delete-copy">
+                Are you sure you want to logout?
+              </p>
+
+              <div className="branch-modal-actions">
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={closeLogoutConfirm}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="branch-modal-submit is-danger"
+                  onClick={handleConfirmLogout}
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+
         {/* ── STUDENT SUCCESS POPUP ── */}
         {studentSuccessPopup ? (
-          <div className="branch-modal-backdrop" role="presentation" onClick={() => setStudentSuccessPopup(null)}>
+          <div className="branch-modal-backdrop" role="presentation">
             <div
               className="branch-success-modal"
               role="dialog"
@@ -3369,49 +3472,21 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
               <div className="branch-success-copy">
                 <p className="branch-success-kicker">Success</p>
-                <h2 id="student-success-title">{studentSuccessPopup.title}</h2>
+
+                <h2 id="student-success-title">
+                  {studentSuccessPopup.title}
+                </h2>
+
                 <p>{studentSuccessPopup.message}</p>
               </div>
 
               <div className="branch-success-actions">
-                <button type="button" className="branch-success-primary" onClick={() => setStudentSuccessPopup(null)}>
+                <button
+                  type="button"
+                  className="branch-success-primary"
+                  onClick={() => setStudentSuccessPopup(null)}
+                >
                   OK
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {isLogoutConfirmOpen ? (
-          <div className="branch-modal-backdrop" role="presentation">
-            <div
-              className="branch-logout-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="branch-logout-title"
-              aria-describedby="branch-logout-description"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="branch-logout-close"
-                aria-label="Close logout confirmation"
-                onClick={closeLogoutConfirm}
-              >
-                ×
-              </button>
-
-              <h2 id="branch-logout-title">Are you sure you want to logout?</h2>
-              <p id="branch-logout-description" className="branch-logout-description sr-only">
-                You can always sign in again if you need access later.
-              </p>
-
-              <div className="branch-logout-actions">
-                <button type="button" className="branch-logout-cancel" onClick={closeLogoutConfirm}>
-                  Cancel
-                </button>
-                <button type="button" className="branch-logout-submit" onClick={handleConfirmLogout}>
-                  Logout
                 </button>
               </div>
             </div>

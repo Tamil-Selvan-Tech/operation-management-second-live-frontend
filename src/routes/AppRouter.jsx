@@ -71,6 +71,10 @@ const BranchDashboardPage = lazyNamed(
   () => import('../pages/BranchDashboardPage'),
   'BranchDashboardPage',
 )
+const StudentNewDashboardPage = lazyNamed(
+  () => import('../pages/StudentNewDashboardPage'),
+  'StudentNewDashboardPage',
+)
 
 const routeChunks = [
   AuthShell,
@@ -95,6 +99,7 @@ const routeChunks = [
   SuperAdminDashboardPage,
   SuperAdminNotificationsPage,
   BranchDashboardPage,
+  StudentNewDashboardPage,
 ]
 
 function preloadRouteChunks() {
@@ -337,7 +342,16 @@ export function AppRouter() {
           <Route element={<BranchProtectedRoute />}>
             <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
           </Route>
-
+      <Route
+  element={
+    <ProtectedRoute allowedRoles={['student']} />
+  }
+>
+  <Route
+    path="/student-new-dashboard"
+    element={<StudentNewDashboardPage />}
+  />
+</Route>
           <Route
             element={
               <ProtectedRoute allowedRoles={['faculty']} />
@@ -370,7 +384,8 @@ export function AppRouter() {
               />
               <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
               <Route path="/dashboard/faculty" element={<Navigate to="/dashboard/faculty/my-batches" replace />} />
-              <Route path="/dashboard/student" element={<DashboardPage role="student" />} />
+              {/* <Route path="/dashboard/student" element={<DashboardPage role="student" />} /> */}
+    
               <Route path="/notifications" element={<NotificationsPage />} />
               <Route element={<ProtectedRoute allowedRoles={courseAccessRoles} />}>
                 <Route path="/courses" element={<CoursesPage />} />

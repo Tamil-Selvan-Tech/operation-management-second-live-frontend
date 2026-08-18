@@ -2821,3 +2821,64 @@ body.super-admin-sidebar-open {
   background: #0f4fb8;
   color: #fff;
 }
+
+
+
+/* =========================================
+   Super Admin Branch Table - Equal Columns
+========================================= */
+
+.branch-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.branch-table-col-index,
+.branch-table-col-id,
+.branch-table-col-name,
+.branch-table-col-admin,
+.branch-table-col-students,
+.branch-table-col-dashboard,
+.branch-table-col-actions {
+  width: auto !important;
+}
+
+.branch-table th,
+.branch-table td {
+  width: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Keep S.No and Actions slightly compact */
+.branch-table-col-index {
+  width: 8% !important;
+}
+
+.branch-table-col-id {
+  width: 14% !important;
+}
+
+.branch-table-col-name {
+  width: 16% !important;
+}
+
+.branch-table-col-admin {
+  width: 18% !important;
+}
+
+.branch-table-col-students {
+  width: 14% !important;
+}
+
+.branch-table-col-dashboard {
+  width: 16% !important;
+  text-align: center;
+}
+
+.branch-table-col-actions {
+  width: 8% !important;
+  text-align: center;
+}
