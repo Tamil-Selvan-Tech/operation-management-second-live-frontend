@@ -1819,6 +1819,24 @@
   text-align: center;
   white-space: nowrap;
 }
+.branch-course-view-cell-value {
+  min-width: 0;
+  width: 100%;
+  white-space: normal;
+  overflow: visible;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.branch-course-view-cell-value strong {
+  display: block;
+  width: 100%;
+  white-space: normal;
+  overflow: visible;
+  word-break: normal;
+  overflow-wrap: normal;
+  line-height: 1.5;
+}
 
 .branch-course-view-row.is-highlight .branch-course-view-cell-label span {
   color: #6b7280;
