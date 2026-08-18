@@ -139,11 +139,33 @@ export function FacultyDashboardPage() {
       .toUpperCase()
   }, [facultyName])
 
+  const [dashboardSummary, setDashboardSummary] = useState(null)
+
+  useEffect(() => {
+    getFacultyMyBatchesSummary()
+      .then((res) => {
+        if (res) {
+          setDashboardSummary(res)
+
+          // Show assigned course toast once per session
+          const courseName = res.faculty?.courseName
+          if (courseName) {
+            const toastKey = `courseAssignToast_${res.faculty.id}`
+            if (!sessionStorage.getItem(toastKey)) {
+              alert(`You are assigned the course: ${courseName}`)
+              sessionStorage.setItem(toastKey, 'true')
+            }
+          }
+        }
+      })
+      .catch((err) => console.error('Failed to load dashboard summary', err))
+  }, [])
+
   // Mock statistics for the faculty member
   const stats = [
-    { label: 'Assigned Courses', value: '2', note: 'Active curriculum' },
-    { label: 'Total Batches', value: '4', note: 'Across all modes' },
-    { label: 'Enrolled Learners', value: '85', note: 'Active students' },
+    { label: 'Assigned Courses', value: dashboardSummary?.faculty?.courseName || '—', note: 'Active curriculum' },
+    { label: 'Total Batches', value: dashboardSummary?.totalBatches ?? '—', note: 'Across all modes' },
+    { label: 'Enrolled Learners', value: dashboardSummary?.totalStudents ?? '—', note: 'Active students' },
     { label: 'Attendance Rate', value: '96.4%', note: 'Past 30 days' },
   ]
 
