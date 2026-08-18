@@ -3395,53 +3395,54 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
         ) : null}
 
         {/* ── LOGOUT CONFIRM ── */}
-        {isLogoutConfirmOpen ? (
-          <div
-            className="branch-modal-backdrop"
-            role="presentation"
-          >
-            <div
-              className="branch-success-modal super-admin-logout-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="logout-confirm-title"
-              onClick={(event) => event.stopPropagation()}
-            >
-              <button
-                type="button"
-                className="branch-modal-close"
-                aria-label="Close logout confirmation"
-                onClick={closeLogoutConfirm}
-              >
-                X
-              </button>
+       {isLogoutConfirmOpen ? (
+  <div
+    className="branch-modal-backdrop"
+    role="presentation"
+  >
+    <div
+      className="branch-success-modal super-admin-logout-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="logout-confirm-title"
+      onClick={(event) => event.stopPropagation()}
+    >
+      {/* Close Button */}
+      <button
+        type="button"
+        className="branch-modal-close"
+        aria-label="Close logout confirmation"
+        onClick={closeLogoutConfirm}
+      >
+        ×
+      </button>
 
-              <h2 id="logout-confirm-title">Logout?</h2>
+      {/* Logout Message */}
+      <h2 id="logout-confirm-title">
+        Are you sure you want to logout?
+      </h2>
 
-              <p className="branch-delete-copy">
-                Are you sure you want to logout?
-              </p>
+      {/* Actions */}
+      <div className="branch-modal-actions">
+        <button
+          type="button"
+          className="branch-modal-cancel"
+          onClick={closeLogoutConfirm}
+        >
+          Cancel
+        </button>
 
-              <div className="branch-modal-actions">
-                <button
-                  type="button"
-                  className="branch-modal-cancel"
-                  onClick={closeLogoutConfirm}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="button"
-                  className="branch-modal-submit is-danger"
-                  onClick={handleConfirmLogout}
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <button
+          type="button"
+          className="branch-modal-submit is-danger"
+          onClick={handleConfirmLogout}
+        >
+          Logout
+        </button>
+      </div>
+    </div>
+  </div>
+) : null}
 
 
         {/* ── STUDENT SUCCESS POPUP ── */}

@@ -264,6 +264,7 @@ useEffect(() => {
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'my-batches', label: 'My Batches', icon: Layers3 },
           { id: 'students', label: 'Students', icon: Users },
+          { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
           const Icon = item.icon
@@ -432,16 +433,16 @@ useEffect(() => {
       )}
     </div>
 
-    {/* Footer */}
     <button
-      type="button"
-      className="notification-footer"
-      onClick={() => {
-        // Navigate to branch activity page
-      }}
-    >
-      View branch activity
-    </button>
+  type="button"
+  className="notification-footer"
+  onClick={() => {
+    setNotificationOpen(false)
+    setActiveSection('notifications')
+  }}
+>
+  View all notifications
+</button>
   </div>
 ) : null}
          
@@ -642,6 +643,165 @@ useEffect(() => {
                   </div>
                 </FacultyDashboardSection>
               ) : null}
+
+{activeSection === 'notifications' ? (
+  <section className="faculty-notifications-page">
+
+    {/* Page Header */}
+    <div className="faculty-notifications-page-header">
+
+      <div className="faculty-notifications-title-area">
+        <span className="faculty-notifications-eyebrow">
+          NOTIFICATIONS
+        </span>
+
+        <h1>Notifications</h1>
+
+        <p>
+          You have {facultyNotifications.length} notifications to go through
+          and {unreadNotificationCount} unread items for {facultyName}.
+        </p>
+      </div>
+
+      <div className="faculty-notifications-page-actions">
+
+        <button
+          type="button"
+          className="faculty-back-dashboard-btn"
+          onClick={() => setActiveSection('dashboard')}
+        >
+          <LayoutDashboard size={18} strokeWidth={2.2} />
+          Back to dashboard
+        </button>
+
+        <button
+          type="button"
+          className="faculty-mark-all-btn"
+          onClick={async () => {
+            const unreadIds = facultyNotifications
+              .filter((item) => !item.read)
+              .map((item) => item.id)
+
+            if (!unreadIds.length) return
+
+            try {
+              await markFacultyNotificationsAsRead(unreadIds)
+
+              setFacultyNotifications((current) =>
+                current.map((item) => ({
+                  ...item,
+                  read: true,
+                })),
+              )
+            } catch (error) {
+              console.error(
+                'Failed to mark all notifications as read',
+                error,
+              )
+            }
+          }}
+        >
+          <Bell size={18} strokeWidth={2.2} />
+          Mark all as read
+        </button>
+
+      </div>
+    </div>
+
+    {/* Notifications */}
+    <div className="faculty-notifications-full-list">
+
+      {facultyNotifications.length > 0 ? (
+        facultyNotifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`faculty-full-notification-card ${
+              notification.read
+                ? 'is-read'
+                : 'is-unread'
+            }`}
+          >
+
+            <div className="faculty-full-notification-icon">
+              <span>✓</span>
+            </div>
+
+            <div className="faculty-full-notification-content">
+
+              <strong>
+                {notification.title}
+              </strong>
+
+              <p>
+                {notification.message}
+              </p>
+
+            </div>
+
+            <div className="faculty-full-notification-right">
+
+              <div className="faculty-full-notification-actions">
+
+                <span className="faculty-notification-tag">
+                  Faculty
+                </span>
+
+                <button
+                  type="button"
+                  className="faculty-notification-view-btn"
+                  onClick={async () => {
+                    if (notification.read) return
+
+                    try {
+                      await markFacultyNotificationsAsRead([
+                        notification.id,
+                      ])
+
+                      setFacultyNotifications((current) =>
+                        current.map((item) =>
+                          item.id === notification.id
+                            ? {
+                                ...item,
+                                read: true,
+                              }
+                            : item,
+                        ),
+                      )
+                    } catch (error) {
+                      console.error(
+                        'Failed to mark notification as read',
+                        error,
+                      )
+                    }
+                  }}
+                >
+                  View
+                </button>
+
+              </div>
+
+              <span className="faculty-full-notification-time">
+                {notification.time || '3 days ago'}
+              </span>
+
+            </div>
+
+          </div>
+        ))
+      ) : (
+        <div className="faculty-notifications-empty">
+          <Bell size={36} strokeWidth={1.7} />
+          <h3>No notifications yet</h3>
+          <p>
+            You don't have any notifications at the moment.
+          </p>
+        </div>
+      )}
+
+    </div>
+
+  </section>
+) : null}
 
               {activeSection === 'profile' ? (
                 <FacultyDashboardSection title="Faculty Profile" description="Your dynamic workspace details loaded directly from branch registry.">
