@@ -25,12 +25,14 @@ import {
   updateBranchFaculty,
   deleteBranchFaculty,
 } from '../services/branchFacultyService'
+import { listCourses } from '../services/courseService'
 
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
 
 export function BranchFacultyPage() {
   const [facultyList, setFacultyList] = useState([])
+  const [coursesList, setCoursesList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 5
@@ -48,6 +50,7 @@ export function BranchFacultyPage() {
     stateCode: '',
     city: '',
     address: '',
+    courseId: '',
     status: 'Active',
   })
   const [editingId, setEditingId] = useState(null)
@@ -149,6 +152,8 @@ export function BranchFacultyPage() {
           stateCode: f.stateCode,
           city: f.city,
           address: f.address,
+          courseId: f.courseId,
+          courseName: f.branchCourse?.name || f.course?.name || '-',
           status: f.status,
         }))
         setFacultyList(mapped)
@@ -158,8 +163,20 @@ export function BranchFacultyPage() {
     }
   }
 
+  const fetchCourses = async () => {
+    try {
+      const res = await listCourses({ limit: 100 })
+      if (res?.data) {
+        setCoursesList(res.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch courses:', error)
+    }
+  }
+
   useEffect(() => {
     fetchFaculty()
+    fetchCourses()
   }, [])
 
   // Load states on country code change
@@ -540,6 +557,7 @@ export function BranchFacultyPage() {
       stateCode: 'TN',
       city: '',
       address: '',
+      courseId: '',
       status: 'Active',
     })
     setErrors({})
@@ -568,6 +586,7 @@ export function BranchFacultyPage() {
       stateCode: '',
       city: faculty.city || '',
       address: faculty.address || '',
+      courseId: faculty.courseId || '',
       status: faculty.status,
     })
     setErrors({})
@@ -643,6 +662,7 @@ export function BranchFacultyPage() {
       stateCode: modalForm.stateCode,
       city: modalForm.city,
       address: modalForm.address,
+      courseId: modalForm.courseId,
       status: modalForm.status,
     }
 
@@ -787,10 +807,10 @@ export function BranchFacultyPage() {
               <th>S.No</th>
               <th>Faculty ID</th>
               <th>Name</th>
-
               <th>Phone</th>
-              <th>Status</th>
-              <th style={{ textAlign: 'center' }}>Actions</th>
+              <th style={{ minWidth: '150px' }}>Assigned Course</th>
+              <th style={{ minWidth: '100px', textAlign: 'center' }}>Status</th>
+              <th style={{ width: '60px', textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -812,13 +832,16 @@ export function BranchFacultyPage() {
                         <strong className="branch-course-name" style={{ maxWidth: '130px' }}>{faculty.name}</strong>
                       </div>
                     </td>
-
                     <td>
                       <span className="faculty-info-link">
                         <Phone size={14} style={{ color: '#94a3b8', flexShrink: 0 }} />
-                        {faculty.phone}
+                        {faculty.phone || '—'}
                       </span>
                     </td>
+                    <td>
+                      <span style={{ color: '#475569', fontWeight: '500' }}>{faculty.courseName || '—'}</span>
+                    </td>
+
                     <td>
                       <span className={`branch-course-status-pill ${normStatus}`}>
                         {faculty.status}
@@ -1306,10 +1329,31 @@ export function BranchFacultyPage() {
                 </div>
               </div>
 
+              <div className="branch-modal-form-group" style={{ gridColumn: '1 / -1' }}>
+                <label htmlFor="modal-courseId">
+                  Assigned Course <span>(Optional)</span>
+                </label>
+                <select
+                  id="modal-courseId"
+                  value={modalForm.courseId}
+                  onChange={(e) => handleInputChange('courseId', e.target.value)}
+                  className={touched.courseId && errors.courseId ? 'has-error' : ''}
+                >
+                  <option value="">-- Select Course --</option>
+                  {coursesList.map((course) => (
+                    <option key={course.id} value={course.id}>
+                      {course.name}
+                    </option>
+                  ))}
+                </select>
+                {touched.courseId && errors.courseId && (
+                  <span className="branch-modal-form-error">{errors.courseId}</span>
+                )}
+              </div>
+
               {/* Divider above buttons */}
               <div className="faculty-modal-divider" />
 
-              {/* Action Buttons */}
               {/* Action Buttons */}
               <div className="faculty-modal-actions">
                 <button

@@ -29,6 +29,10 @@ import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, g
 import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
+import {
+  getFacultyNotifications,
+  markFacultyNotificationsAsRead,
+} from '../services/facultyNotificationService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
@@ -139,11 +143,60 @@ export function FacultyDashboardPage() {
       .toUpperCase()
   }, [facultyName])
 
+  const [dashboardSummary, setDashboardSummary] = useState(null)
+  const [facultyNotifications, setFacultyNotifications] =useState([])
+  const [notificationOpen, setNotificationOpen] =useState(false)
+
+
+  useEffect(() => {
+  const loadNotifications = async () => {
+    try {
+      const response =
+        await getFacultyNotifications()
+
+      setFacultyNotifications(
+        Array.isArray(response?.data)
+          ? response.data
+          : [],
+      )
+    } catch (error) {
+      console.error(
+        'Failed to load faculty notifications',
+        error,
+      )
+    }
+  }
+
+  loadNotifications()
+}, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadFacultySummary = async () => {
+      try {
+        const response = await getFacultyMyBatchesSummary()
+        if (!isMounted) return
+        setDashboardSummary(response?.data ?? response ?? null)
+      } catch (error) {
+        console.error('Failed to load faculty summary', error)
+      }
+    }
+
+    loadFacultySummary()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const unreadNotificationCount = facultyNotifications.filter((notification) => !notification.read).length
+
   // Mock statistics for the faculty member
   const stats = [
-    { label: 'Assigned Courses', value: '2', note: 'Active curriculum' },
-    { label: 'Total Batches', value: '4', note: 'Across all modes' },
-    { label: 'Enrolled Learners', value: '85', note: 'Active students' },
+    { label: 'Assigned Courses', value: dashboardSummary?.faculty?.courseName || '—', note: 'Active curriculum' },
+    { label: 'Total Batches', value: dashboardSummary?.totalBatches ?? '—', note: 'Across all modes' },
+    { label: 'Enrolled Learners', value: dashboardSummary?.totalStudents ?? '—', note: 'Active students' },
     { label: 'Attendance Rate', value: '96.4%', note: 'Past 30 days' },
   ]
 
@@ -230,10 +283,60 @@ export function FacultyDashboardPage() {
         <h2 className="super-admin-topbar-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: 600 }}>Faculty Dashboard</h2>
       </div>
       <div className="super-admin-topbar-right">
-        <button type="button" className="super-admin-notification-button" aria-label="Notifications">
+        <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          className="super-admin-notification-button"
+          aria-label="Notifications"
+          onClick={() => setNotificationOpen((current) => !current)}
+        >
           <Bell size={22} strokeWidth={2.1} />
-          <span className="super-admin-notification-badge">3</span>
+          <span className="super-admin-notification-badge">{unreadNotificationCount}</span>
         </button>
+
+          {notificationOpen ? (
+            <div
+              className="branch-dashboard-profile-menu"
+              role="menu"
+              aria-label="Faculty notifications"
+              style={{ minWidth: '320px', right: 0, left: 'auto', top: 'calc(100% + 10px)' }}
+            >
+              {facultyNotifications.length > 0 ? (
+                facultyNotifications.slice(0, 5).map((notification) => (
+                  <button
+                    key={notification.id}
+                    type="button"
+                    className="branch-dashboard-profile-menu-item"
+                    style={{ alignItems: 'flex-start', textAlign: 'left', whiteSpace: 'normal' }}
+                    onClick={async () => {
+                      if (notification.read) return
+                      try {
+                        await markFacultyNotificationsAsRead([notification.id])
+                        setFacultyNotifications((current) =>
+                          current.map((item) =>
+                            item.id === notification.id ? { ...item, read: true } : item,
+                          ),
+                        )
+                      } catch (error) {
+                        console.error('Failed to mark notification as read', error)
+                      }
+                    }}
+                  >
+                    <span>
+                      <strong>{notification.title}</strong>
+                      <br />
+                      <small>{notification.message}</small>
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <div className="branch-dashboard-profile-menu-item" style={{ cursor: 'default' }}>
+                  No notifications yet
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
 
         <div className="branch-dashboard-profile-menu-wrap" ref={profileMenuRef}>
           <button
