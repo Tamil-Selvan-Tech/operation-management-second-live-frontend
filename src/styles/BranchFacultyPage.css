@@ -851,3 +851,424 @@
 .faculty-btn-delete-confirm:disabled {
   background: #dc2626;
 }
+
+
+/* =========================================================
+   FACULTY FULL NOTIFICATIONS PAGE
+========================================================= */
+
+.faculty-notifications-page {
+  width: 100%;
+  padding: 10px 0 40px;
+}
+
+/* Header */
+
+.faculty-notifications-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 30px;
+  margin-bottom: 32px;
+}
+
+.faculty-notifications-title-area {
+  min-width: 0;
+}
+
+.faculty-notifications-eyebrow {
+  display: block;
+  margin-bottom: 10px;
+
+  color: #334155;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 5px;
+}
+
+.faculty-notifications-title-area h1 {
+  margin: 0;
+
+  color: #2563eb;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.faculty-notifications-title-area p {
+  margin: 16px 0 0;
+
+  color: #334155;
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+/* Header buttons */
+
+.faculty-notifications-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.faculty-back-dashboard-btn,
+.faculty-mark-all-btn {
+  height: 52px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  padding: 0 20px;
+
+  border-radius: 28px;
+
+  font-size: 15px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.faculty-back-dashboard-btn {
+  border: 1px solid #d5e1f0;
+  background: #ffffff;
+  color: #173b7a;
+}
+
+.faculty-back-dashboard-btn:hover {
+  background: #f8fbff;
+  border-color: #bfd1e8;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.06);
+}
+
+.faculty-mark-all-btn {
+  border: 1px solid #d5e1f0;
+  background: #ffffff;
+  color: #008a3e;
+}
+
+.faculty-mark-all-btn:hover {
+  background: #f0fdf4;
+  border-color: #b7e4c7;
+}
+
+/* Notification list */
+
+.faculty-notifications-full-list {
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Notification card */
+
+.faculty-full-notification-card {
+  width: 100%;
+  min-height: 102px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 26px;
+
+  padding: 20px 22px;
+
+  border: 1px solid #e1eaf3;
+  border-radius: 20px;
+
+  background: #ffffff;
+
+  box-sizing: border-box;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.faculty-full-notification-card:hover {
+  border-color: #cddceb;
+
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+/* Unread */
+
+.faculty-full-notification-card.is-unread {
+  background: #ffffff;
+}
+
+/* Read */
+
+.faculty-full-notification-card.is-read {
+  background: #fcfdff;
+}
+
+/* Icon */
+
+.faculty-full-notification-icon {
+  width: 50px;
+  height: 50px;
+
+  flex: 0 0 50px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 16px;
+
+  background: #ecfdf5;
+}
+
+.faculty-full-notification-icon span {
+  width: 22px;
+  height: 22px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 2px solid #16a34a;
+  border-radius: 50%;
+
+  color: #16a34a;
+
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* Content */
+
+.faculty-full-notification-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.faculty-full-notification-content strong {
+  display: block;
+
+  color: #020617;
+
+  font-size: 18px;
+  font-weight: 700;
+
+  line-height: 1.3;
+}
+
+.faculty-full-notification-content p {
+  margin: 7px 0 0;
+
+  color: #334155;
+
+  font-size: 16px;
+  font-weight: 400;
+
+  line-height: 1.45;
+
+  word-break: break-word;
+}
+
+/* Right */
+
+.faculty-full-notification-right {
+  min-width: 150px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+
+  gap: 9px;
+}
+
+.faculty-full-notification-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.faculty-notification-tag {
+  padding: 7px 13px;
+
+  border-radius: 18px;
+
+  background: #dcfce7;
+  color: #008a3e;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.faculty-notification-view-btn {
+  height: 34px;
+
+  padding: 0 15px;
+
+  border: none;
+  border-radius: 18px;
+
+  background: #eff6ff;
+  color: #1d4ed8;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.faculty-notification-view-btn:hover {
+  background: #dbeafe;
+}
+
+/* Time */
+
+.faculty-full-notification-time {
+  color: #94a3b8;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Empty */
+
+.faculty-notifications-empty {
+  min-height: 260px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+
+  background: #ffffff;
+
+  color: #64748b;
+
+  text-align: center;
+}
+
+.faculty-notifications-empty svg {
+  margin-bottom: 12px;
+}
+
+.faculty-notifications-empty h3 {
+  margin: 0;
+
+  color: #1e293b;
+
+  font-size: 20px;
+}
+
+.faculty-notifications-empty p {
+  margin: 7px 0 0;
+
+  font-size: 14px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 900px) {
+
+  .faculty-notifications-page-header {
+    flex-direction: column;
+  }
+
+  .faculty-notifications-page-actions {
+    width: 100%;
+  }
+
+  .faculty-back-dashboard-btn,
+  .faculty-mark-all-btn {
+    flex: 1;
+  }
+
+  .faculty-full-notification-card {
+    align-items: flex-start;
+  }
+
+  .faculty-full-notification-right {
+    min-width: auto;
+  }
+
+}
+
+@media (max-width: 650px) {
+
+  .faculty-notifications-page {
+    padding-top: 5px;
+  }
+
+  .faculty-notifications-eyebrow {
+    font-size: 13px;
+    letter-spacing: 4px;
+  }
+
+  .faculty-notifications-title-area h1 {
+    font-size: 34px;
+  }
+
+  .faculty-notifications-title-area p {
+    font-size: 15px;
+  }
+
+  .faculty-notifications-page-actions {
+    flex-direction: column;
+  }
+
+  .faculty-back-dashboard-btn,
+  .faculty-mark-all-btn {
+    width: 100%;
+    flex: none;
+  }
+
+  .faculty-full-notification-card {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 15px;
+
+    padding: 16px;
+  }
+
+  .faculty-full-notification-icon {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+  }
+
+  .faculty-full-notification-content strong {
+    font-size: 16px;
+  }
+
+  .faculty-full-notification-content p {
+    font-size: 14px;
+  }
+
+  .faculty-full-notification-right {
+    grid-column: 2;
+
+    width: 100%;
+
+    align-items: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+}
