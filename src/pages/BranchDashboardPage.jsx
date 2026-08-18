@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { getCountries, getStatesOfCountry, getCitiesOfState } from '@countrystatecity/countries-browser'
 import {
   Bell,
   BookOpen,
@@ -30,7 +31,7 @@ import {
   BadgePercent,
   UserRound,
   Search,
-   UserPlus, Pencil, Trash2 ,
+  UserPlus, Pencil, Trash2,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -43,16 +44,103 @@ import {
   listBranchCourses,
   updateBranchCourse,
 } from '../services/branchCourseService'
+import {
+  loadBranchStudents,
+  saveBranchStudent,
+  deleteBranchStudent as removeBranchStudent,
+  getNextStudentId,
+} from '../lib/branchStudentStore'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
-const studentRows = [
-  ['Ananya S', 'Batch A-11', 'Paid'],
-  ['Rahul P', 'Batch A-08', 'Pending'],
-  ['Meena K', 'Batch B-02', 'Paid'],
-  ['Arun V', 'Batch C-01', 'Pending'],
-]
+const BRANCH_STUDENTS_PER_PAGE = 5
+
+const CURRENT_YEAR = new Date().getFullYear()
+const PASSED_OUT_YEARS = Array.from({ length: 31 }, (_, i) => String(CURRENT_YEAR - i))
+
+function createInitialStudentForm(branchId) {
+  return {
+    studentId: getNextStudentId(branchId),
+    studentName: '',
+    emailAddress: '',
+    mobileNumber: '',
+    parentSpouseNumber: '',
+    countryCode: '',
+    country: '',
+    stateCode: '',
+    state: '',
+    city: '',
+    address: '',
+    qualification: '',
+    passedOutYear: '',
+    passedOutYearCustom: '',
+    currentStatus: '',
+    designation: '',
+    source: '',
+    sourceOther: '',
+    remarks: '',
+    admissionDate: '',
+  }
+}
+
+function buildStudentFormFromRecord(student = {}) {
+  return {
+    studentId: student.studentId || '',
+    studentName: student.studentName || '',
+    emailAddress: student.emailAddress || '',
+    mobileNumber: student.mobileNumber || '',
+    parentSpouseNumber: student.parentSpouseNumber || '',
+    countryCode: student.countryCode || '',
+    country: student.country || '',
+    stateCode: student.stateCode || '',
+    state: student.state || '',
+    city: student.city || '',
+    address: student.address || '',
+    qualification: student.qualification || '',
+    passedOutYear: student.passedOutYear || '',
+    passedOutYearCustom: student.passedOutYearCustom || '',
+    currentStatus: student.currentStatus || '',
+    designation: student.designation || '',
+    source: student.source || '',
+    sourceOther: student.sourceOther || '',
+    remarks: student.remarks || '',
+    admissionDate: student.admissionDate || '',
+  }
+}
+
+function validateStudentForm(form) {
+  const errors = {}
+  if (!form.studentName.trim()) errors.studentName = 'Student Name is required.'
+  else if (!/^[A-Za-z][A-Za-z ]*$/.test(form.studentName.trim())) errors.studentName = 'Only letters and spaces allowed.'
+  if (!form.emailAddress.trim()) errors.emailAddress = 'Email is required.'
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.emailAddress.trim())) errors.emailAddress = 'Enter a valid email.'
+  if (!form.mobileNumber.trim()) errors.mobileNumber = 'Mobile Number is required.'
+  else if (!/^\d{10}$/.test(form.mobileNumber.trim())) errors.mobileNumber = 'Must be exactly 10 digits.'
+  if (!form.parentSpouseNumber.trim()) errors.parentSpouseNumber = 'Parent/Spouse Number is required.'
+  else if (!/^\d{10}$/.test(form.parentSpouseNumber.trim())) errors.parentSpouseNumber = 'Must be exactly 10 digits.'
+  if (!form.country) errors.country = 'Country is required.'
+  if (!form.state) errors.state = 'State is required.'
+  if (!form.city) errors.city = 'City is required.'
+  if (!form.address.trim()) errors.address = 'Address is required.'
+  if (!form.qualification.trim()) errors.qualification = 'Qualification is required.'
+  if (!form.passedOutYear) errors.passedOutYear = 'Passed Out Year is required.'
+  if (form.passedOutYear === 'Custom' && !form.passedOutYearCustom.trim()) errors.passedOutYearCustom = 'Please specify the year.'
+  if (!form.currentStatus) errors.currentStatus = 'Current Status is required.'
+  if (form.currentStatus === 'Employee' && !form.designation.trim()) errors.designation = 'Designation is required for employees.'
+  if (!form.source) errors.source = 'This field is required.'
+  if (form.source === 'Others' && !form.sourceOther.trim()) errors.sourceOther = 'Please specify.'
+  if (!form.admissionDate) errors.admissionDate = 'Admission Date is required.'
+  return errors
+}
+
+function formatStudentDate(value) {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+  const date = new Date(`${text}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return text
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
 
 const batchCards = [
   { title: 'Batch A-11', timing: 'Mon - Fri | 9:00 AM', status: 'Active' },
@@ -269,6 +357,22 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [facultyList, setFacultyList] = useState([])
   const [assignFacultyPage, setAssignFacultyPage] = useState(1)
   const [assignFacultySuccess, setAssignFacultySuccess] = useState(null)
+
+  // ── Student state ──
+  const [branchStudents, setBranchStudents] = useState([])
+  const [studentSearchTerm, setStudentSearchTerm] = useState('')
+  const [studentPage, setStudentPage] = useState(1)
+  const [isStudentFormOpen, setIsStudentFormOpen] = useState(false)
+  const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
+  const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
+  const [studentFormTouched, setStudentFormTouched] = useState({})
+  const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
+  const [studentActionMenuId, setStudentActionMenuId] = useState('')
+  const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
+  const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
+  const [stuCountryOptions, setStuCountryOptions] = useState([])
+  const [stuStateOptions, setStuStateOptions] = useState([])
+  const [stuCityOptions, setStuCityOptions] = useState([])
 
   const profileMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
@@ -558,7 +662,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const filteredBranchCourseCards = useMemo(() => {
     const q = courseSearchTerm.trim().toLowerCase()
     if (!q) return branchCourseCards
-    return branchCourseCards.filter((c) => 
+    return branchCourseCards.filter((c) =>
       String(c.name || '').toLowerCase().includes(q) ||
       String(c.courseCode || '').toLowerCase().includes(q)
     )
@@ -822,6 +926,191 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     }
   }, [viewCourse])
 
+  // ── Student helpers ──
+  const branchId = branchProfile?.branchId || ''
+
+  const reloadBranchStudents = useCallback(() => {
+    if (!branchId) return
+    setBranchStudents(loadBranchStudents(branchId))
+  }, [branchId])
+
+  useEffect(() => {
+    reloadBranchStudents()
+  }, [reloadBranchStudents])
+
+  // Load country options for student form
+  useEffect(() => {
+    let cancelled = false
+    getCountries().then((items) => {
+      if (cancelled) return
+      const sorted = Array.isArray(items)
+        ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+        : []
+      setStuCountryOptions(sorted)
+    }).catch(() => { if (!cancelled) setStuCountryOptions([]) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Load state options when country changes
+  useEffect(() => {
+    if (!studentForm.countryCode) { setStuStateOptions([]); setStuCityOptions([]); return }
+    let cancelled = false
+    getStatesOfCountry(studentForm.countryCode).then((items) => {
+      if (cancelled) return
+      const sorted = Array.isArray(items)
+        ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+        : []
+      setStuStateOptions(sorted)
+    }).catch(() => { if (!cancelled) setStuStateOptions([]) })
+    return () => { cancelled = true }
+  }, [studentForm.countryCode])
+
+  // Load city options when state changes
+  useEffect(() => {
+    if (!studentForm.countryCode || !studentForm.stateCode) { setStuCityOptions([]); return }
+    let cancelled = false
+    getCitiesOfState(studentForm.countryCode, studentForm.stateCode).then((items) => {
+      if (cancelled) return
+      const sorted = Array.isArray(items)
+        ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+        : []
+      setStuCityOptions(sorted)
+    }).catch(() => { if (!cancelled) setStuCityOptions([]) })
+    return () => { cancelled = true }
+  }, [studentForm.countryCode, studentForm.stateCode])
+
+  // Body scroll lock for student form
+  useEffect(() => {
+    if (!isStudentFormOpen) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => { if (e.key === 'Escape') setIsStudentFormOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey) }
+  }, [isStudentFormOpen])
+
+  const filteredBranchStudents = useMemo(() => {
+    const q = studentSearchTerm.trim().toLowerCase()
+    if (!q) return branchStudents
+    return branchStudents.filter((s) =>
+      String(s.studentId || '').toLowerCase().includes(q) ||
+      String(s.studentName || '').toLowerCase().includes(q)
+    )
+  }, [branchStudents, studentSearchTerm])
+
+  const totalStudentPages = Math.max(1, Math.ceil(filteredBranchStudents.length / BRANCH_STUDENTS_PER_PAGE))
+  const safeStudentPage = Math.min(studentPage, totalStudentPages)
+  const visibleBranchStudents = useMemo(() => {
+    const start = (safeStudentPage - 1) * BRANCH_STUDENTS_PER_PAGE
+    return filteredBranchStudents.slice(start, start + BRANCH_STUDENTS_PER_PAGE)
+  }, [filteredBranchStudents, safeStudentPage])
+
+  const studentFormValidationErrors = useMemo(() => validateStudentForm(studentForm), [studentForm])
+  const shouldShowStudentError = (field) => Boolean(studentFormTouched[field] && studentFormValidationErrors[field])
+
+  const updateStudentField = (field, value) => {
+    setStudentForm((c) => ({ ...c, [field]: value }))
+  }
+
+  const openAddStudentForm = () => {
+    setStudentFormMode('add')
+    setStudentForm(createInitialStudentForm(branchId))
+    setStudentFormTouched({})
+    setIsStudentFormOpen(true)
+  }
+
+  const openViewStudentForm = (stu) => {
+    setStudentFormMode('view')
+    setStudentForm(buildStudentFormFromRecord(stu))
+    setStudentFormTouched({})
+    // Load the saved country/state for view
+    if (stu.countryCode) {
+      getStatesOfCountry(stu.countryCode).then((items) => {
+        setStuStateOptions(Array.isArray(items) ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))) : [])
+      }).catch(() => setStuStateOptions([]))
+      if (stu.stateCode) {
+        getCitiesOfState(stu.countryCode, stu.stateCode).then((items) => {
+          setStuCityOptions(Array.isArray(items) ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))) : [])
+        }).catch(() => setStuCityOptions([]))
+      }
+    }
+    setIsStudentFormOpen(true)
+  }
+
+  const openEditStudentForm = (stu) => {
+    setStudentFormMode('edit')
+    setStudentForm(buildStudentFormFromRecord(stu))
+    setStudentFormTouched({})
+    if (stu.countryCode) {
+      getStatesOfCountry(stu.countryCode).then((items) => {
+        setStuStateOptions(Array.isArray(items) ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))) : [])
+      }).catch(() => setStuStateOptions([]))
+      if (stu.stateCode) {
+        getCitiesOfState(stu.countryCode, stu.stateCode).then((items) => {
+          setStuCityOptions(Array.isArray(items) ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))) : [])
+        }).catch(() => setStuCityOptions([]))
+      }
+    }
+    setIsStudentFormOpen(true)
+  }
+
+  const handleStudentFormSubmit = (e) => {
+    e?.preventDefault()
+    if (studentFormMode === 'view') return
+
+    // Touch all fields
+    const allTouched = {}
+    Object.keys(studentFormValidationErrors).forEach((k) => { allTouched[k] = true })
+    allTouched.studentName = true
+    allTouched.emailAddress = true
+    allTouched.mobileNumber = true
+    allTouched.parentSpouseNumber = true
+    allTouched.country = true
+    allTouched.state = true
+    allTouched.city = true
+    allTouched.address = true
+    allTouched.qualification = true
+    allTouched.passedOutYear = true
+    allTouched.currentStatus = true
+    allTouched.source = true
+    allTouched.admissionDate = true
+    if (studentForm.currentStatus === 'Employee') allTouched.designation = true
+    if (studentForm.passedOutYear === 'Custom') allTouched.passedOutYearCustom = true
+    if (studentForm.source === 'Others') allTouched.sourceOther = true
+    setStudentFormTouched(allTouched)
+
+    if (Object.keys(studentFormValidationErrors).length > 0) return
+
+    const record = {
+      ...studentForm,
+      branchId,
+      passedOutYear: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
+      source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
+    }
+
+    saveBranchStudent(record)
+    reloadBranchStudents()
+    setIsStudentFormOpen(false)
+
+    if (studentFormMode === 'add') {
+      setStudentSuccessPopup({ title: 'Student Added', message: 'Student added successfully.' })
+    } else {
+      setStudentSuccessPopup({ title: 'Student Updated', message: 'Student updated successfully.' })
+    }
+  }
+
+  const handleStudentDeleteConfirm = () => {
+    if (!studentDeleteTarget) return
+    removeBranchStudent(studentDeleteTarget.studentId)
+    reloadBranchStudents()
+    setStudentDeleteTarget(null)
+    setStudentSuccessPopup({ title: 'Student Deleted', message: 'Student deleted successfully.' })
+    // Adjust page if needed
+    const nextCount = branchStudents.length - 1
+    const nextPages = Math.max(1, Math.ceil(nextCount / BRANCH_STUDENTS_PER_PAGE))
+    setStudentPage((c) => Math.min(c, nextPages))
+  }
+
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Branch navigation">
       <div className="super-admin-sidebar-brand">
@@ -893,61 +1182,61 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
         {!embeddedMode && (
           <div ref={profileMenuRef} className="branch-dashboard-profile-menu-wrap">
-          <button
-            type="button"
-            className="super-admin-profile branch-dashboard-profile-trigger"
-            onClick={() => setIsProfileMenuOpen((current) => !current)}
-            aria-haspopup="menu"
-            aria-expanded={isProfileMenuOpen}
-          >
-            <AvatarBadge />
-            <div className="super-admin-profile-copy">
-              <strong>{branchAdminDisplay}</strong>
-            </div>
-            <ChevronDown size={16} strokeWidth={2.2} className="branch-dashboard-profile-caret" aria-hidden="true" />
-          </button>
+            <button
+              type="button"
+              className="super-admin-profile branch-dashboard-profile-trigger"
+              onClick={() => setIsProfileMenuOpen((current) => !current)}
+              aria-haspopup="menu"
+              aria-expanded={isProfileMenuOpen}
+            >
+              <AvatarBadge />
+              <div className="super-admin-profile-copy">
+                <strong>{branchAdminDisplay}</strong>
+              </div>
+              <ChevronDown size={16} strokeWidth={2.2} className="branch-dashboard-profile-caret" aria-hidden="true" />
+            </button>
 
-          {isProfileMenuOpen ? (
-            <div className="branch-dashboard-profile-menu" role="menu" aria-label="Branch profile menu">
-              <button type="button" role="menuitem" className="branch-dashboard-profile-menu-item" onClick={openProfile}>
-                <CircleUserRound size={16} strokeWidth={2.1} />
-                <span>Profile</span>
-              </button>
+            {isProfileMenuOpen ? (
+              <div className="branch-dashboard-profile-menu" role="menu" aria-label="Branch profile menu">
+                <button type="button" role="menuitem" className="branch-dashboard-profile-menu-item" onClick={openProfile}>
+                  <CircleUserRound size={16} strokeWidth={2.1} />
+                  <span>Profile</span>
+                </button>
 
-              {mustResetPassword ? (
+                {mustResetPassword ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="branch-dashboard-profile-menu-item"
+                    onClick={openResetPassword}
+                  >
+                    <RefreshCcw size={16} strokeWidth={2.1} />
+                    <span>Reset Password</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="branch-dashboard-profile-menu-item"
+                    onClick={openForgotPassword}
+                  >
+                    <RefreshCcw size={16} strokeWidth={2.1} />
+                    <span>Forgot Password</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   role="menuitem"
-                  className="branch-dashboard-profile-menu-item"
-                  onClick={openResetPassword}
+                  className="branch-dashboard-profile-menu-item is-danger"
+                  onClick={openLogoutConfirm}
                 >
-                  <RefreshCcw size={16} strokeWidth={2.1} />
-                  <span>Reset Password</span>
+                  <LogOut size={16} strokeWidth={2.1} />
+                  <span>Logout</span>
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="branch-dashboard-profile-menu-item"
-                  onClick={openForgotPassword}
-                >
-                  <RefreshCcw size={16} strokeWidth={2.1} />
-                  <span>Forgot Password</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                role="menuitem"
-                className="branch-dashboard-profile-menu-item is-danger"
-                onClick={openLogoutConfirm}
-              >
-                <LogOut size={16} strokeWidth={2.1} />
-                <span>Logout</span>
-              </button>
-            </div>
-          ) : null}
-        </div>
+              </div>
+            ) : null}
+          </div>
         )}
       </div>
     </header>
@@ -1038,27 +1327,180 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               ) : null}
 
               {activeSection === 'students' ? (
-                <BranchDashboardSection title="Students" description="Dummy student list for the branch.">
-                  <div className="branch-dashboard-table-shell">
-                    <table className="branch-dashboard-table">
+                <BranchDashboardSection
+                  title="Students"
+                  description="Manage student registrations for this branch."
+                  actions={(
+                    <>
+                      <button
+                        type="button"
+                        className="button button-solid"
+                        onClick={openAddStudentForm}
+                      >
+                        + Add Student
+                      </button>
+                      <div className="branch-dashboard-section-summary">
+                        <span>Total students:</span>
+                        <strong>{filteredBranchStudents.length}</strong>
+                      </div>
+                    </>
+                  )}
+                >
+                  <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
+                    <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '340px' }}>
+                      <input
+                        type="text"
+                        placeholder="Search by Student ID or Name..."
+                        value={studentSearchTerm}
+                        onChange={(e) => { setStudentSearchTerm(e.target.value); setStudentPage(1) }}
+                        className="faculty-search-input"
+                        style={{ flex: 1, minWidth: 0 }}
+                      />
+                      <button
+                        type="button"
+                        className="button button-solid"
+                        style={{ padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Search size={16} />
+                        Search
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="branch-course-table-shell">
+                    <table className="branch-course-table">
                       <thead>
                         <tr>
-                          <th>Name</th>
-                          <th>Batch</th>
-                          <th>Status</th>
+                          <th>Student ID</th>
+                          <th>Student Name</th>
+                          {/* <th>Email</th> */}
+                          <th>Mobile Number</th>
+                          {/* <th>Qualification</th>
+                          <th>Current Status</th> */}
+                          <th>Admission Date</th>
+                          <th style={{ textAlign: 'center' }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {studentRows.map(([name, batch, status]) => (
-                          <tr key={name}>
-                            <td>{name}</td>
-                            <td>{batch}</td>
-                            <td>{status}</td>
+                        {visibleBranchStudents.length ? (
+                          visibleBranchStudents.map((stu) => (
+                            <tr key={stu.studentId}>
+                              <td><strong>{stu.studentId}</strong></td>
+                              <td><strong className="branch-course-name">{stu.studentName}</strong></td>
+                              {/* <td>{stu.emailAddress || '-'}</td> */}
+                              <td>{stu.mobileNumber || '-'}</td>
+                              {/* <td>{stu.qualification || '-'}</td> */}
+                              {/* <td>
+                                <span className={`branch-course-status-pill ${(stu.currentStatus || '').toLowerCase()}`}>
+                                  {stu.currentStatus || '-'}
+                                </span>
+                              </td> */}
+                              <td>{formatStudentDate(stu.admissionDate)}</td>
+
+                              <td style={{ textAlign: 'center' }}>
+                                <div
+                                  className="branch-student-actions-cell"
+                                  onMouseEnter={() => setStudentActionMenuId(stu.studentId)}
+                                  onMouseLeave={() => setStudentActionMenuId('')}
+                                >
+                                  <button
+                                    type="button"
+                                    className="branch-student-more-btn"
+                                    aria-label="Student actions"
+                                    onClick={() =>
+                                      setStudentActionMenuId(
+                                        studentActionMenuId === stu.studentId ? '' : stu.studentId
+                                      )
+                                    }
+                                  >
+                                    <MoreVertical size={18} />
+                                  </button>
+
+                                  {studentActionMenuId === stu.studentId ? (
+                                    <div className="branch-student-actions-menu">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setStudentActionMenuId('')
+                                          setViewStudentDrawer(stu)
+                                        }}
+                                      >
+                                        <Eye size={15} />
+                                        <span>View</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setStudentActionMenuId('')
+                                          openEditStudentForm(stu)
+                                        }}
+                                      >
+                                        <Pencil size={15} />
+                                        <span>Edit</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        className="is-danger"
+                                        onClick={() => {
+                                          setStudentActionMenuId('')
+                                          setStudentDeleteTarget(stu)
+                                        }}
+                                      >
+                                        <Trash2 size={15} />
+                                        <span>Delete</span>
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="8" className="branch-course-empty-state">
+                              No students yet. Use + Add Student to add the first one.
+                            </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
+
+                  {filteredBranchStudents.length > BRANCH_STUDENTS_PER_PAGE ? (
+                    <div className="branch-course-pagination">
+                      <button
+                        type="button"
+                        className="branch-course-pagination-button"
+                        onClick={() => setStudentPage((c) => Math.max(1, c - 1))}
+                        disabled={safeStudentPage === 1}
+                      >
+                        Prev
+                      </button>
+                      <div className="branch-course-pagination-pages" role="navigation" aria-label="Student pagination">
+                        {Array.from({ length: totalStudentPages }, (_, i) => i + 1).map((pg) => (
+                          <button
+                            key={pg}
+                            type="button"
+                            className={`branch-course-pagination-page ${pg === safeStudentPage ? 'is-active' : ''}`.trim()}
+                            onClick={() => setStudentPage(pg)}
+                            aria-current={pg === safeStudentPage ? 'page' : undefined}
+                          >
+                            {pg}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="branch-course-pagination-button"
+                        onClick={() => setStudentPage((c) => Math.min(totalStudentPages, c + 1))}
+                        disabled={safeStudentPage === totalStudentPages}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  ) : null}
                 </BranchDashboardSection>
               ) : null}
 
@@ -1093,9 +1535,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                         className="faculty-search-input"
                         style={{ flex: 1, minWidth: 0 }}
                       />
-                      <button 
-                        type="button" 
-                        className="button button-solid" 
+                      <button
+                        type="button"
+                        className="button button-solid"
                         style={{ padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
                       >
                         <Search size={16} />
@@ -1251,60 +1693,60 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                                           onClick={(e) => e.stopPropagation()}
                                         >
                                           <button
-  type="button"
-  className="branch-course-actions-menu-item"
-  onClick={() => {
-    openViewCourseDrawer(course);
-    setOpenCourseActionMenuId('');
-    setCourseActionMenuPosition({ top: 0, left: 0 });
-  }}
-  role="menuitem"
->
-  <Eye size={16} />
-  <span>View</span>
-</button>
+                                            type="button"
+                                            className="branch-course-actions-menu-item"
+                                            onClick={() => {
+                                              openViewCourseDrawer(course);
+                                              setOpenCourseActionMenuId('');
+                                              setCourseActionMenuPosition({ top: 0, left: 0 });
+                                            }}
+                                            role="menuitem"
+                                          >
+                                            <Eye size={16} />
+                                            <span>View</span>
+                                          </button>
 
-<button
-  type="button"
-  className="branch-course-actions-menu-item"
-  onClick={() => {
-    openAssignFacultyModal(course);
-    setOpenCourseActionMenuId('');
-    setCourseActionMenuPosition({ top: 0, left: 0 });
-  }}
-  role="menuitem"
->
-  <UserPlus size={16} />
-  <span>Assign</span>
-</button>
+                                          <button
+                                            type="button"
+                                            className="branch-course-actions-menu-item"
+                                            onClick={() => {
+                                              openAssignFacultyModal(course);
+                                              setOpenCourseActionMenuId('');
+                                              setCourseActionMenuPosition({ top: 0, left: 0 });
+                                            }}
+                                            role="menuitem"
+                                          >
+                                            <UserPlus size={16} />
+                                            <span>Assign</span>
+                                          </button>
 
-<button
-  type="button"
-  className="branch-course-actions-menu-item"
-  onClick={() => {
-    openEditCourseModal(course);
-    setOpenCourseActionMenuId('');
-    setCourseActionMenuPosition({ top: 0, left: 0 });
-  }}
-  role="menuitem"
->
-  <Pencil size={16} />
-  <span>Edit</span>
-</button>
+                                          <button
+                                            type="button"
+                                            className="branch-course-actions-menu-item"
+                                            onClick={() => {
+                                              openEditCourseModal(course);
+                                              setOpenCourseActionMenuId('');
+                                              setCourseActionMenuPosition({ top: 0, left: 0 });
+                                            }}
+                                            role="menuitem"
+                                          >
+                                            <Pencil size={16} />
+                                            <span>Edit</span>
+                                          </button>
 
-<button
-  type="button"
-  className="branch-course-actions-menu-item is-danger"
-  onClick={() => {
-    openDeleteCourseConfirm(course);
-    setOpenCourseActionMenuId('');
-    setCourseActionMenuPosition({ top: 0, left: 0 });
-  }}
-  role="menuitem"
->
-  <Trash2 size={16} />
-  <span>Delete</span>
-</button>
+                                          <button
+                                            type="button"
+                                            className="branch-course-actions-menu-item is-danger"
+                                            onClick={() => {
+                                              openDeleteCourseConfirm(course);
+                                              setOpenCourseActionMenuId('');
+                                              setCourseActionMenuPosition({ top: 0, left: 0 });
+                                            }}
+                                            role="menuitem"
+                                          >
+                                            <Trash2 size={16} />
+                                            <span>Delete</span>
+                                          </button>
                                         </div>,
                                         document.body
                                       )
@@ -2085,6 +2527,844 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 </button>
                 <button type="button" className="branch-modal-submit is-danger" onClick={handleDeleteCourseConfirm}>
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── STUDENT VIEW DRAWER ── */}
+        {viewStudentDrawer ? (
+          <div
+            className="student-drawer-backdrop"
+            onClick={() => setViewStudentDrawer(null)}
+          >
+            <aside
+              className="student-view-drawer"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="student-view-drawer-header">
+                <div>
+                  <p className="student-drawer-kicker">STUDENT DETAILS</p>
+
+                  <h2>
+                    {viewStudentDrawer.studentName || 'Student'}
+                  </h2>
+
+                  <span className="student-drawer-id">
+                    {viewStudentDrawer.studentId || '-'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  className="student-drawer-close"
+                  onClick={() => setViewStudentDrawer(null)}
+                  aria-label="Close student details"
+                >
+                  X
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="student-view-drawer-body">
+
+                {/* Basic Information */}
+                <div className="student-detail-section">
+                  <h3>Basic Information</h3>
+
+                  <div className="student-detail-grid">
+
+                    <div className="student-detail-item">
+                      <span>Student ID</span>
+                      <strong>
+                        {viewStudentDrawer.studentId || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Student Name</span>
+                      <strong>
+                        {viewStudentDrawer.studentName || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Email Address</span>
+                      <strong>
+                        {viewStudentDrawer.emailAddress || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Mobile Number</span>
+                      <strong>
+                        {viewStudentDrawer.mobileNumber || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Qualification</span>
+                      <strong>
+                        {viewStudentDrawer.qualification || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Current Status</span>
+                      <strong>
+                        {viewStudentDrawer.currentStatus || '-'}
+                      </strong>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Contact Information */}
+                <div className="student-detail-section">
+                  <h3>Contact Information</h3>
+
+                  <div className="student-detail-grid">
+
+                    <div className="student-detail-item">
+                      <span>Parent / Spouse Number</span>
+                      <strong>
+                        {viewStudentDrawer.parentSpouseNumber || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Country</span>
+                      <strong>
+                        {viewStudentDrawer.country || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>State</span>
+                      <strong>
+                        {viewStudentDrawer.state || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>City</span>
+                      <strong>
+                        {viewStudentDrawer.city || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item student-detail-full">
+                      <span>Address</span>
+                      <strong>
+                        {viewStudentDrawer.address || '-'}
+                      </strong>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Education */}
+                <div className="student-detail-section">
+                  <h3>Education Details</h3>
+
+                  <div className="student-detail-grid">
+
+                    <div className="student-detail-item">
+                      <span>Qualification</span>
+                      <strong>
+                        {viewStudentDrawer.qualification || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Passed Out Year</span>
+                      <strong>
+                        {viewStudentDrawer.passedOutYear || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Designation</span>
+                      <strong>
+                        {viewStudentDrawer.designation || '-'}
+                      </strong>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* Admission Details */}
+                <div className="student-detail-section">
+                  <h3>Admission Details</h3>
+
+                  <div className="student-detail-grid">
+
+                    <div className="student-detail-item">
+                      <span>Admission Date</span>
+                      <strong>
+                        {formatStudentDate(
+                          viewStudentDrawer.admissionDate
+                        )}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>Source</span>
+                      <strong>
+                        {viewStudentDrawer.source || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item student-detail-full">
+                      <span>Other Source</span>
+                      <strong>
+                        {viewStudentDrawer.sourceOther || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item student-detail-full">
+                      <span>Remarks</span>
+                      <strong>
+                        {viewStudentDrawer.remarks || '-'}
+                      </strong>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="student-view-drawer-footer">
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  onClick={() => setViewStudentDrawer(null)}
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  className="button button-solid"
+                  onClick={() => {
+                    const student = viewStudentDrawer
+
+                    setViewStudentDrawer(null)
+                    openEditStudentForm(student)
+                  }}
+                >
+                  Edit Student
+                </button>
+              </div>
+
+            </aside>
+          </div>
+        ) : null}
+
+        {/* ── STUDENT VIEW DRAWER ── */}
+        {viewStudentDrawer ? (
+          <div
+            className="student-drawer-overlay"
+            onClick={() => setViewStudentDrawer(null)}
+          >
+            <aside
+              className="student-view-drawer"
+              onClick={(event) => event.stopPropagation()}
+            >
+
+              {/* Drawer Header */}
+              <div className="student-drawer-header">
+
+                <div className="student-drawer-title-area">
+                  <p className="student-drawer-label">
+                    STUDENT DETAILS
+                  </p>
+
+                  <h2>
+                    {viewStudentDrawer.studentName || '-'}
+                  </h2>
+
+                  <span className="student-drawer-id">
+                    {viewStudentDrawer.studentId || '-'}
+                  </span>
+                </div>
+
+                <div className="student-drawer-header-actions">
+
+                  <span
+                    className={`student-drawer-status ${(viewStudentDrawer.currentStatus || '')
+                      .toLowerCase()
+                      .replace(/\s+/g, '-')
+                      }`}
+                  >
+                    <span className="student-status-dot"></span>
+                    {viewStudentDrawer.currentStatus || 'Student'}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="student-drawer-edit-btn"
+                    onClick={() => {
+                      const student = viewStudentDrawer
+                      setViewStudentDrawer(null)
+                      openEditStudentForm(student)
+                    }}
+                  >
+                    Edit Student
+                  </button>
+
+                  <button
+                    type="button"
+                    className="student-drawer-close"
+                    onClick={() => setViewStudentDrawer(null)}
+                    aria-label="Close student details"
+                  >
+                    X
+                  </button>
+
+                </div>
+              </div>
+
+
+
+              {/* Details Table */}
+              <div className="student-drawer-content">
+
+                <div className="student-details-table">
+
+                  <div className="student-details-table-head">
+                    <div>DETAILS</div>
+                    <div>INFORMATION</div>
+                  </div>
+
+                  {/* Student ID */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Student ID
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.studentId || '-'}
+                    </div>
+                  </div>
+
+                  {/* Student Name */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Student Name
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.studentName || '-'}
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Email Address
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.emailAddress || '-'}
+                    </div>
+                  </div>
+
+                  {/* Mobile */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Phone Number
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.mobileNumber || '-'}
+                    </div>
+                  </div>
+
+                  {/* Parent / Spouse */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Parent / Spouse Number
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.parentSpouseNumber || '-'}
+                    </div>
+                  </div>
+
+                  {/* Qualification */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Qualification
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.qualification || '-'}
+                    </div>
+                  </div>
+
+                  {/* Passed Out Year */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Passed Out Year
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.passedOutYear || '-'}
+                    </div>
+                  </div>
+
+                  {/* Designation */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Designation
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.designation || '-'}
+                    </div>
+                  </div>
+
+                  {/* Country */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Country
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.country || '-'}
+                    </div>
+                  </div>
+
+                  {/* State */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      State
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.state || '-'}
+                    </div>
+                  </div>
+
+                  {/* City */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      City
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.city || '-'}
+                    </div>
+                  </div>
+
+                  {/* Address */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Address
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.address || '-'}
+                    </div>
+                  </div>
+
+                  {/* Admission Date */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Admission Date
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.admissionDate
+                        ? formatStudentDate(viewStudentDrawer.admissionDate)
+                        : '-'}
+                    </div>
+                  </div>
+
+                  {/* Source */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Source
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.source || '-'}
+                    </div>
+                  </div>
+
+                  {/* Other Source */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Other Source
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.sourceOther || '-'}
+                    </div>
+                  </div>
+
+                  {/* Remarks */}
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      Remarks
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.remarks || '-'}
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </aside>
+          </div>
+        ) : null}
+
+        {/* ── STUDENT FORM MODAL ── */}
+        {isStudentFormOpen ? (
+          <div className="course-modal-backdrop" role="presentation">
+            <form
+              className="course-modal panel-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="branch-student-form-title"
+              onClick={(event) => event.stopPropagation()}
+              onSubmit={handleStudentFormSubmit}
+              style={{ maxWidth: 720, maxHeight: '92vh', overflowY: 'auto' }}
+            >
+              <div className="course-modal-header">
+                <div>
+                  <p className="section-kicker">Student Entry</p>
+                  <h3 id="branch-student-form-title">
+                    {studentFormMode === 'add' ? 'Add Student' : studentFormMode === 'edit' ? 'Edit Student' : 'View Student'}
+                  </h3>
+                </div>
+                <span className="detail-badge">
+                  {studentFormMode === 'view' ? 'Read-only' : 'Required fields marked *'}
+                </span>
+              </div>
+
+              <div className="course-form-grid">
+                <Field label="Student ID">
+                  <input type="text" value={studentForm.studentId} readOnly disabled />
+                </Field>
+
+                <Field label="Student Name" required error={shouldShowStudentError('studentName') ? studentFormValidationErrors.studentName : ''}>
+                  <input
+                    type="text"
+                    placeholder="Enter student name"
+                    value={studentForm.studentName}
+                    onChange={(e) => updateStudentField('studentName', e.target.value.replace(/[^A-Za-z ]/g, ''))}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, studentName: true }))}
+                    disabled={studentFormMode === 'view'}
+                  />
+                </Field>
+
+                <Field label="Email Address" required error={shouldShowStudentError('emailAddress') ? studentFormValidationErrors.emailAddress : ''}>
+                  <input
+                    type="email"
+                    placeholder="Enter email address"
+                    value={studentForm.emailAddress}
+                    onChange={(e) => updateStudentField('emailAddress', e.target.value)}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, emailAddress: true }))}
+                    disabled={studentFormMode === 'view'}
+                  />
+                </Field>
+
+                <Field label="Mobile Number" required error={shouldShowStudentError('mobileNumber') ? studentFormValidationErrors.mobileNumber : ''}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="10 digit mobile number"
+                    value={studentForm.mobileNumber}
+                    onChange={(e) => updateStudentField('mobileNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, mobileNumber: true }))}
+                    disabled={studentFormMode === 'view'}
+                  />
+                </Field>
+
+                <Field label="Parent / Spouse Number" required error={shouldShowStudentError('parentSpouseNumber') ? studentFormValidationErrors.parentSpouseNumber : ''}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="10 digit number"
+                    value={studentForm.parentSpouseNumber}
+                    onChange={(e) => updateStudentField('parentSpouseNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, parentSpouseNumber: true }))}
+                    disabled={studentFormMode === 'view'}
+                  />
+                </Field>
+
+                <Field label="Country" required error={shouldShowStudentError('country') ? studentFormValidationErrors.country : ''}>
+                  <select
+                    value={studentForm.countryCode}
+                    onChange={(e) => {
+                      const code = e.target.value
+                      const name = stuCountryOptions.find((c) => c.iso2 === code)?.name || ''
+                      setStudentForm((c) => ({ ...c, countryCode: code, country: name, stateCode: '', state: '', city: '' }))
+                    }}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, country: true }))}
+                    disabled={studentFormMode === 'view'}
+                  >
+                    <option value="" disabled>Select Country</option>
+                    {stuCountryOptions.map((c) => (
+                      <option key={c.iso2} value={c.iso2}>{c.name}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="State" required error={shouldShowStudentError('state') ? studentFormValidationErrors.state : ''}>
+                  <select
+                    value={studentForm.stateCode}
+                    onChange={(e) => {
+                      const code = e.target.value
+                      const name = stuStateOptions.find((s) => s.iso2 === code)?.name || ''
+                      setStudentForm((c) => ({ ...c, stateCode: code, state: name, city: '' }))
+                    }}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, state: true }))}
+                    disabled={studentFormMode === 'view' || !studentForm.countryCode}
+                  >
+                    <option value="" disabled>Select State</option>
+                    {stuStateOptions.map((s) => (
+                      <option key={s.iso2} value={s.iso2}>{s.name}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="City" required error={shouldShowStudentError('city') ? studentFormValidationErrors.city : ''}>
+                  <select
+                    value={studentForm.city}
+                    onChange={(e) => updateStudentField('city', e.target.value)}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, city: true }))}
+                    disabled={studentFormMode === 'view' || !studentForm.stateCode}
+                  >
+                    <option value="" disabled>Select City</option>
+                    {stuCityOptions.map((c) => (
+                      <option key={c.name} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Address" required error={shouldShowStudentError('address') ? studentFormValidationErrors.address : ''}>
+                  <textarea
+                    placeholder="Enter full address"
+                    value={studentForm.address}
+                    onChange={(e) => updateStudentField('address', e.target.value)}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, address: true }))}
+                    disabled={studentFormMode === 'view'}
+                    rows={3}
+                    style={{ resize: 'vertical' }}
+                  />
+                </Field>
+
+                <Field label="Qualification" required error={shouldShowStudentError('qualification') ? studentFormValidationErrors.qualification : ''}>
+                  <input
+                    type="text"
+                    placeholder="Enter qualification"
+                    value={studentForm.qualification}
+                    onChange={(e) => updateStudentField('qualification', e.target.value)}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, qualification: true }))}
+                    disabled={studentFormMode === 'view'}
+                  />
+                </Field>
+
+                <Field label="Passed Out Year" required error={shouldShowStudentError('passedOutYear') ? studentFormValidationErrors.passedOutYear : ''}>
+                  <select
+                    value={studentForm.passedOutYear}
+                    onChange={(e) => updateStudentField('passedOutYear', e.target.value)}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, passedOutYear: true }))}
+                    disabled={studentFormMode === 'view'}
+                  >
+                    <option value="" disabled>Select Year</option>
+                    {PASSED_OUT_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                    <option value="Custom">Custom</option>
+                  </select>
+                </Field>
+
+                {studentForm.passedOutYear === 'Custom' ? (
+                  <Field label="Specify Year" required error={shouldShowStudentError('passedOutYearCustom') ? studentFormValidationErrors.passedOutYearCustom : ''}>
+                    <input
+                      type="text"
+                      placeholder="Enter year"
+                      value={studentForm.passedOutYearCustom}
+                      onChange={(e) => updateStudentField('passedOutYearCustom', e.target.value)}
+                      onBlur={() => setStudentFormTouched((c) => ({ ...c, passedOutYearCustom: true }))}
+                      disabled={studentFormMode === 'view'}
+                    />
+                  </Field>
+                ) : null}
+
+                <Field label="Current Status" required error={shouldShowStudentError('currentStatus') ? studentFormValidationErrors.currentStatus : ''}>
+                  <select
+                    value={studentForm.currentStatus}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setStudentForm((c) => ({ ...c, currentStatus: val, designation: val !== 'Employee' ? '' : c.designation }))
+                    }}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, currentStatus: true }))}
+                    disabled={studentFormMode === 'view'}
+                  >
+                    <option value="" disabled>Select Status</option>
+                    <option value="Student">Student</option>
+                    <option value="Employee">Employee</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </Field>
+
+                <Field
+                  label="Designation"
+                  required={studentForm.currentStatus === 'Employee'}
+                  error={shouldShowStudentError('designation') ? studentFormValidationErrors.designation : ''}
+                >
+                  <input
+                    type="text"
+                    placeholder={studentForm.currentStatus === 'Employee' ? 'Enter designation' : 'Select Employee first'}
+                    value={studentForm.designation}
+                    onChange={(e) => updateStudentField('designation', e.target.value)}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, designation: true }))}
+                    disabled={studentFormMode === 'view' || studentForm.currentStatus !== 'Employee'}
+                  />
+                </Field>
+
+                <Field label="How did you know about our Institute?" required error={shouldShowStudentError('source') ? studentFormValidationErrors.source : ''}>
+                  <select
+                    value={studentForm.source}
+                    onChange={(e) => updateStudentField('source', e.target.value)}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, source: true }))}
+                    disabled={studentFormMode === 'view'}
+                  >
+                    <option value="" disabled>Select Source</option>
+                    <option value="Sulekha">Sulekha</option>
+                    <option value="Justdial">Justdial</option>
+                    <option value="Website">Website</option>
+                    <option value="Poster">Poster</option>
+                    <option value="Others">Others</option>
+                  </select>
+                </Field>
+
+                {studentForm.source === 'Others' ? (
+                  <Field label="Please Specify" required error={shouldShowStudentError('sourceOther') ? studentFormValidationErrors.sourceOther : ''}>
+                    <input
+                      type="text"
+                      placeholder="How did you hear about us?"
+                      value={studentForm.sourceOther}
+                      onChange={(e) => updateStudentField('sourceOther', e.target.value)}
+                      onBlur={() => setStudentFormTouched((c) => ({ ...c, sourceOther: true }))}
+                      disabled={studentFormMode === 'view'}
+                    />
+                  </Field>
+                ) : null}
+
+                <Field label="Remarks">
+                  <textarea
+                    placeholder="Optional remarks"
+                    value={studentForm.remarks}
+                    onChange={(e) => updateStudentField('remarks', e.target.value)}
+                    disabled={studentFormMode === 'view'}
+                    rows={2}
+                    style={{ resize: 'vertical' }}
+                  />
+                </Field>
+
+                <Field label="Admission Date" required error={shouldShowStudentError('admissionDate') ? studentFormValidationErrors.admissionDate : ''}>
+                  <input
+                    type="date"
+                    value={studentForm.admissionDate}
+                    onChange={(e) => updateStudentField('admissionDate', e.target.value)}
+                    onBlur={() => setStudentFormTouched((c) => ({ ...c, admissionDate: true }))}
+                    disabled={studentFormMode === 'view'}
+                  />
+                </Field>
+              </div>
+
+              {studentFormMode !== 'view' && Object.keys(studentFormTouched).length > 0 && Object.keys(studentFormValidationErrors).length > 0 ? (
+                <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
+                  <span style={{ color: '#dc2626' }}>
+                    {Object.values(studentFormValidationErrors)[0] || 'Please fill all required fields.'}
+                  </span>
+                </div>
+              ) : null}
+
+              <div className="course-form-actions">
+                {studentFormMode === 'view' ? (
+                  <button type="button" className="button button-ghost" onClick={() => setIsStudentFormOpen(false)}>Close</button>
+                ) : (
+                  <>
+                    <button type="button" className="button button-ghost" onClick={() => setIsStudentFormOpen(false)}>Cancel</button>
+                    <button type="submit" className="button button-solid">
+                      {studentFormMode === 'add' ? 'Submit' : 'Save Changes'}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <button type="button" className="course-modal-close" onClick={() => setIsStudentFormOpen(false)} aria-label="Close student form">
+                X
+              </button>
+            </form>
+          </div>
+        ) : null}
+
+        {/* ── STUDENT DELETE CONFIRM ── */}
+        {studentDeleteTarget ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <div
+              className="branch-success-modal super-admin-logout-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="student-delete-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close delete confirmation"
+                onClick={() => setStudentDeleteTarget(null)}
+              >
+                X
+              </button>
+
+              <h2 id="student-delete-title">Delete Student?</h2>
+              <p className="branch-delete-copy">
+                Are you sure you want to delete this student?
+              </p>
+
+              <div className="branch-modal-actions">
+                <button type="button" className="branch-modal-cancel" onClick={() => setStudentDeleteTarget(null)}>
+                  Cancel
+                </button>
+                <button type="button" className="branch-modal-submit is-danger" onClick={handleStudentDeleteConfirm}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* ── STUDENT SUCCESS POPUP ── */}
+        {studentSuccessPopup ? (
+          <div className="branch-modal-backdrop" role="presentation" onClick={() => setStudentSuccessPopup(null)}>
+            <div
+              className="branch-success-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="student-success-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close success popup"
+                onClick={() => setStudentSuccessPopup(null)}
+              >
+                X
+              </button>
+
+              <div className="branch-success-hero" aria-hidden="true">
+                <span className="branch-success-hero-ring" />
+                <span className="branch-success-hero-icon">
+                  <CheckCircle2 size={30} strokeWidth={2.1} />
+                </span>
+              </div>
+
+              <div className="branch-success-copy">
+                <p className="branch-success-kicker">Success</p>
+                <h2 id="student-success-title">{studentSuccessPopup.title}</h2>
+                <p>{studentSuccessPopup.message}</p>
+              </div>
+
+              <div className="branch-success-actions">
+                <button type="button" className="branch-success-primary" onClick={() => setStudentSuccessPopup(null)}>
+                  OK
                 </button>
               </div>
             </div>

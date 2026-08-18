@@ -31,6 +31,7 @@ import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { BranchDashboardPage } from './BranchDashboardPage'
 import { setImpersonateBranchId } from '../services/apiClient'
+import { getAllBranchStudentCounts } from '../lib/branchStudentStore'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -284,6 +285,7 @@ export function SuperAdminDashboardPage() {
   const [actionError, setActionError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [branchStudentCounts, setBranchStudentCounts] = useState(() => getAllBranchStudentCounts())
   const previousBranchSnapshotRef = useRef(null)
   const actionMenuCloseTimerRef = useRef(null)
   const [form, setForm] = useState({
@@ -395,6 +397,18 @@ export function SuperAdminDashboardPage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [loadBranches])
+
+  // Load student counts and listen for changes
+  useEffect(() => {
+    const refresh = () => setBranchStudentCounts(getAllBranchStudentCounts())
+    refresh()
+    window.addEventListener('cispro:branch-students-changed', refresh)
+    window.addEventListener('storage', refresh)
+    return () => {
+      window.removeEventListener('cispro:branch-students-changed', refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -1276,6 +1290,7 @@ export function SuperAdminDashboardPage() {
                         <th className="branch-table-col-id">Branch ID</th>
                         <th className="branch-table-col-name">Branch Name</th>
                         <th className="branch-table-col-admin">Branch Admin Name</th>
+                        <th style={{ textAlign: 'center' }}>Students</th>
                         <th className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>Dashboard</th>
                         <th className="branch-table-col-actions" style={{ textAlign: 'center' }}>Actions</th>
                       </tr>
@@ -1328,6 +1343,9 @@ export function SuperAdminDashboardPage() {
                               <div className="branch-table-detail-cell">
                                 <strong>{branch.branchAdminName || 'Branch admin not set'}</strong>
                               </div>
+                            </td>
+                            <td style={{ textAlign: 'center' }}>
+                              <strong>{branchStudentCounts[branch.branchId] || 0}</strong>
                             </td>
                             <td className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>
                               {getNormalizedBranchStatus(branch) === 'Active' ? (
