@@ -1,0 +1,1024 @@
+/* =========================================================
+   STUDENT NEW DASHBOARD
+   ========================================================= */
+
+.student-new-page {
+  min-height: 100vh;
+  width: 100%;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.student-new-shell {
+  min-height: 100vh;
+  display: flex;
+  width: 100%;
+}
+
+
+/* =========================================================
+   SIDEBAR
+   ========================================================= */
+
+.student-new-sidebar {
+  width: 250px;
+  min-width: 250px;
+  min-height: 100vh;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+
+/* =========================================================
+   SIDEBAR BRAND
+   ========================================================= */
+
+.student-new-sidebar-brand {
+  height: 72px;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+ 
+}
+
+.student-new-sidebar-brand-logo {
+  width: 135px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.student-new-sidebar-close {
+  display: none;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.student-new-sidebar-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+
+/* =========================================================
+   SIDEBAR NAVIGATION
+   ========================================================= */
+
+.student-new-sidebar-nav {
+  flex: 1;
+  padding: 22px 14px;
+  overflow-y: auto;
+}
+
+.student-new-sidebar-section {
+  margin-bottom: 26px;
+}
+
+.student-new-sidebar-section-label {
+  display: block;
+  padding: 0 12px;
+  margin-bottom: 9px;
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.student-new-sidebar-item {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 13px;
+  margin-bottom: 4px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #475569;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.student-new-sidebar-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.student-new-sidebar-item.is-active {
+  background: #eff6ff;
+  color: #0f4fb8;
+  font-weight: 700;
+}
+
+.student-new-sidebar-icon {
+  width: 20px;
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.student-new-sidebar-item.is-active .student-new-sidebar-icon {
+  color: #0f4fb8;
+}
+
+
+/* =========================================================
+   SIDEBAR FOOTER
+   ========================================================= */
+
+.student-new-sidebar-footer {
+  padding: 14px;
+  border-top: 1px solid #eef2f7;
+}
+
+.student-new-sidebar-profile-card {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.student-new-sidebar-user-avatar {
+  position: relative;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+}
+
+.student-new-sidebar-user-status {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.student-new-sidebar-profile-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.student-new-sidebar-profile-copy strong {
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.student-new-sidebar-profile-copy span {
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.student-new-sidebar-logout-button {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.student-new-sidebar-logout-button:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+
+/* =========================================================
+   MAIN
+   ========================================================= */
+
+.student-new-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.student-new-topbar {
+  height: 72px;
+  min-height: 72px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 26px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 900;
+}
+
+.student-new-topbar-left {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.student-new-header-title {
+  margin: 0;
+  color: #0f172a;
+  font-size: 19px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.student-new-sidebar-toggle {
+  display: none;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.student-new-sidebar-toggle:hover {
+  background: #f8fafc;
+}
+
+.student-new-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.student-new-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.student-new-profile-avatar {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #eff6ff;
+  color: #0f4fb8;
+}
+
+.student-new-profile-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.student-new-profile-copy strong {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.student-new-profile-copy span {
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+
+/* =========================================================
+   CONTENT
+   ========================================================= */
+
+.student-new-content {
+  flex: 1;
+  padding: 30px;
+  background: #f8fafc;
+}
+
+.student-new-dashboard {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+
+/* =========================================================
+   DASHBOARD INTRO
+   ========================================================= */
+
+.student-new-dashboard-intro {
+  margin-bottom: 26px;
+}
+
+.student-new-dashboard-kicker {
+  margin: 0 0 6px;
+  color: #0f4fb8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.student-new-dashboard-intro h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 28px;
+  line-height: 1.25;
+  font-weight: 750;
+}
+
+.student-new-dashboard-intro p:not(.student-new-dashboard-kicker) {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   STAT CARDS
+   ========================================================= */
+
+.student-new-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.student-new-stat-card {
+  min-width: 0;
+  min-height: 132px;
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 21px;
+  border: 1px solid #e5e7eb;
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.035);
+}
+
+.student-new-stat-icon {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: #eff6ff;
+  color: #0f4fb8;
+}
+
+.student-new-stat-icon.is-success {
+  background: #ecfdf5;
+  color: #15803d;
+}
+
+.student-new-stat-icon.is-payment {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+.student-new-stat-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.student-new-stat-label {
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.student-new-stat-value {
+  color: #0f172a;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 750;
+}
+
+.student-new-stat-note {
+  margin-top: 5px;
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   RECENT INFORMATION
+   ========================================================= */
+
+.student-new-recent-card {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.035);
+}
+
+.student-new-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 21px 22px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.student-new-section-kicker {
+  margin: 0 0 4px;
+  color: #94a3b8;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.student-new-section-header h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 17px;
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.student-new-recent-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.student-new-recent-item {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 22px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.student-new-recent-item:last-child {
+  border-bottom: 0;
+}
+
+.student-new-recent-icon {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.student-new-recent-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.student-new-recent-copy strong {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.student-new-recent-copy span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.student-new-recent-status {
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #0f4fb8;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   PLACEHOLDER PAGES
+   ========================================================= */
+
+.student-new-placeholder-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px;
+  border: 1px solid #e5e7eb;
+  border-radius: 13px;
+  background: #ffffff;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.035);
+}
+
+.student-new-placeholder-page h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 26px;
+}
+
+.student-new-placeholder-page p:last-child {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+
+/* =========================================================
+   MOBILE SIDEBAR BACKDROP
+   ========================================================= */
+
+.student-new-sidebar-backdrop {
+  display: none;
+}
+
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (max-width: 1100px) {
+
+  .student-new-sidebar {
+    width: 230px;
+    min-width: 230px;
+  }
+
+  .student-new-content {
+    padding: 24px;
+  }
+
+  .student-new-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  .student-new-shell {
+    display: block;
+  }
+
+  /* Sidebar becomes drawer */
+  .student-new-sidebar {
+    width: 270px;
+    min-width: 270px;
+    height: 100vh;
+    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 8px 0 25px rgba(15, 23, 42, 0.12);
+  }
+
+  .student-new-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .student-new-sidebar-close {
+    display: inline-flex;
+  }
+
+  .student-new-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    border: 0;
+    background: rgba(15, 23, 42, 0.35);
+    cursor: pointer;
+  }
+
+  /* Header */
+  .student-new-topbar {
+    height: 64px;
+    min-height: 64px;
+    padding: 0 16px;
+  }
+
+  .student-new-sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .student-new-header-title {
+    font-size: 17px;
+  }
+
+  .student-new-profile-copy {
+    display: none;
+  }
+
+  .student-new-profile-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Content */
+  .student-new-content {
+    padding: 20px 16px;
+  }
+
+  .student-new-dashboard-intro h1 {
+    font-size: 24px;
+  }
+
+  .student-new-dashboard-intro p:not(.student-new-dashboard-kicker) {
+    font-size: 13px;
+  }
+
+  .student-new-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .student-new-stat-card {
+    min-height: 112px;
+    padding: 17px;
+  }
+
+  .student-new-section-header {
+    padding: 18px;
+  }
+
+  .student-new-recent-item {
+    align-items: flex-start;
+    padding: 14px 18px;
+  }
+
+  .student-new-recent-status {
+    margin-left: auto;
+  }
+
+}
+
+
+/* =========================================================
+   SMALL MOBILE
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  .student-new-sidebar {
+    width: 250px;
+    min-width: 250px;
+  }
+
+  .student-new-content {
+    padding: 16px 12px;
+  }
+
+  .student-new-topbar {
+    padding: 0 12px;
+  }
+
+  .student-new-topbar-left {
+    gap: 9px;
+  }
+
+  .student-new-header-title {
+    font-size: 15px;
+  }
+
+  .student-new-dashboard-intro {
+    margin-bottom: 20px;
+  }
+
+  .student-new-dashboard-intro h1 {
+    font-size: 21px;
+  }
+
+  .student-new-stat-card {
+    padding: 15px;
+  }
+
+  .student-new-stat-icon {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+  }
+
+  .student-new-stat-value {
+    font-size: 19px;
+  }
+
+  .student-new-recent-item {
+    gap: 10px;
+  }
+
+  .student-new-recent-icon {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+  }
+
+  .student-new-recent-copy strong {
+    font-size: 12px;
+  }
+
+  .student-new-recent-copy span {
+    font-size: 10px;
+  }
+
+}
+/* =========================================================
+   LOGOUT CONFIRMATION MODAL
+   ========================================================= */
+
+.student-new-logout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 20px;
+
+  background: rgba(15, 23, 42, 0.34);
+
+  /* Background blur */
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+
+/* =========================================================
+   LOGOUT MODAL
+   ========================================================= */
+
+.student-new-logout-modal {
+  position: relative;
+
+  width: 100%;
+  max-width: 450px;
+
+  padding: 42px 36px 26px;
+
+  border-radius: 36px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 25px 60px rgba(15, 23, 42, 0.18),
+    0 8px 25px rgba(15, 23, 42, 0.08);
+}
+
+
+/* =========================================================
+   CLOSE BUTTON
+   ========================================================= */
+
+.student-new-logout-close {
+  position: absolute;
+
+  top: 22px;
+  right: 22px;
+
+  width: 48px;
+  height: 48px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #dbe3ef;
+  border-radius: 50%;
+
+  background: #ffffff;
+  color: #64748b;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.student-new-logout-close:hover {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+
+/* =========================================================
+   MODAL CONTENT
+   ========================================================= */
+
+.student-new-logout-content {
+  padding: 0 45px;
+  text-align: center;
+}
+
+.student-new-logout-content h2 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 23px;
+  line-height: 1.35;
+  font-weight: 750;
+}
+
+
+/* =========================================================
+   MODAL ACTIONS
+   ========================================================= */
+
+.student-new-logout-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  gap: 18px;
+
+  margin-top: 24px;
+}
+
+
+/* Cancel */
+
+.student-new-logout-cancel {
+  min-height: 54px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 15px;
+
+  background: #ffffff;
+  color: #475569;
+
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.student-new-logout-cancel:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+
+/* Logout */
+
+.student-new-logout-confirm {
+  min-height: 54px;
+
+  border: 0;
+  border-radius: 15px;
+
+  background: #2563eb;
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
+
+  transition:
+    background-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.student-new-logout-confirm:hover {
+  background: #1d4ed8;
+
+  box-shadow: 0 12px 25px rgba(37, 99, 235, 0.28);
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 480px) {
+
+  .student-new-logout-overlay {
+    padding: 16px;
+  }
+
+  .student-new-logout-modal {
+    max-width: 100%;
+
+    padding: 38px 20px 20px;
+
+    border-radius: 28px;
+  }
+
+  .student-new-logout-close {
+    top: 16px;
+    right: 16px;
+
+    width: 42px;
+    height: 42px;
+  }
+
+  .student-new-logout-content {
+    padding: 0 15px;
+  }
+
+  .student-new-logout-content h2 {
+    font-size: 20px;
+  }
+
+  .student-new-logout-actions {
+    gap: 10px;
+  }
+
+  .student-new-logout-cancel,
+  .student-new-logout-confirm {
+    min-height: 50px;
+    font-size: 15px;
+  }
+}

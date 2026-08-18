@@ -66,10 +66,10 @@ function createInitialStudentForm(branchId) {
     emailAddress: '',
     mobileNumber: '',
     parentSpouseNumber: '',
-    countryCode: '',
-    country: '',
-    stateCode: '',
-    state: '',
+     countryCode: 'IN',
+    country: 'India',
+    stateCode: 'TN',
+    state: 'Tamil Nadu',
     city: '',
     address: '',
     qualification: '',
@@ -368,11 +368,33 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
+  const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
   const [stuCountryOptions, setStuCountryOptions] = useState([])
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
+
+
+  useEffect(() => {
+  const handleOutsideClick = (e) => {
+    const clickedInsideActions = e.target.closest(
+      '.branch-student-actions-cell'
+    )
+
+    if (!clickedInsideActions) {
+      setStudentActionMenuId('')
+      setStudentActionMenuPinned(false)
+    }
+  }
+
+  document.addEventListener('mousedown', handleOutsideClick)
+
+  return () => {
+    document.removeEventListener('mousedown', handleOutsideClick)
+  }
+}, [])
+
 
   const profileMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
@@ -1399,22 +1421,38 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
                               <td style={{ textAlign: 'center' }}>
                                 <div
-                                  className="branch-student-actions-cell"
-                                  onMouseEnter={() => setStudentActionMenuId(stu.studentId)}
-                                  onMouseLeave={() => setStudentActionMenuId('')}
-                                >
-                                  <button
-                                    type="button"
-                                    className="branch-student-more-btn"
-                                    aria-label="Student actions"
-                                    onClick={() =>
-                                      setStudentActionMenuId(
-                                        studentActionMenuId === stu.studentId ? '' : stu.studentId
-                                      )
-                                    }
-                                  >
-                                    <MoreVertical size={18} />
-                                  </button>
+  className={`branch-student-actions-cell ${
+    studentActionMenuId === stu.studentId ? 'menu-open' : ''
+  }`}
+  onMouseEnter={() => {
+    if (!studentActionMenuPinned) {
+      setStudentActionMenuId(stu.studentId)
+    }
+  }}
+  onMouseLeave={() => {
+    if (!studentActionMenuPinned) {
+      setStudentActionMenuId('')
+    }
+  }}
+>
+                               <button 
+  type="button" 
+  className="branch-student-more-btn" 
+  aria-label="Student actions" 
+  onClick={(e) => {
+  e.stopPropagation()
+
+  if (studentActionMenuId === stu.studentId) {
+    setStudentActionMenuId('')
+    setStudentActionMenuPinned(false)
+  } else {
+    setStudentActionMenuId(stu.studentId)
+    setStudentActionMenuPinned(true)
+  }
+}}
+>
+  <MoreVertical size={18} /> 
+</button>
 
                                   {studentActionMenuId === stu.studentId ? (
                                     <div className="branch-student-actions-menu">
@@ -2718,13 +2756,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                         {viewStudentDrawer.source || '-'}
                       </strong>
                     </div>
-
+{/* 
                     <div className="student-detail-item student-detail-full">
                       <span>Other Source</span>
                       <strong>
                         {viewStudentDrawer.sourceOther || '-'}
                       </strong>
-                    </div>
+                    </div> */}
 
                     <div className="student-detail-item student-detail-full">
                       <span>Remarks</span>
@@ -2984,7 +3022,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     </div>
                   </div>
 
-                  {/* Other Source */}
+                  {/* Other Source
                   <div className="student-details-row">
                     <div className="student-details-label">
                       Other Source
@@ -2992,7 +3030,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     <div className="student-details-value">
                       {viewStudentDrawer.sourceOther || '-'}
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Remarks */}
                   <div className="student-details-row">
