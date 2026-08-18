@@ -47,6 +47,7 @@ import {
 } from '../services/branchCourseService'
 import {
   loadBranchStudents,
+  refreshBranchStudents,
   saveBranchStudent,
   deleteBranchStudent as removeBranchStudent,
   getNextStudentId,
@@ -939,13 +940,18 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   // ── Student helpers ──
   const branchId = branchProfile?.branchId || ''
 
-  const reloadBranchStudents = useCallback(() => {
+  const reloadBranchStudents = useCallback(async () => {
     if (!branchId) return
+    try {
+      await refreshBranchStudents(branchId)
+    } catch {
+      // keep local cache if backend refresh fails
+    }
     setBranchStudents(loadBranchStudents(branchId))
   }, [branchId])
 
   useEffect(() => {
-    reloadBranchStudents()
+    void reloadBranchStudents()
   }, [reloadBranchStudents])
 
   // Load country options for student form
@@ -1064,7 +1070,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     setIsStudentFormOpen(true)
   }
 
-  const handleStudentFormSubmit = (e) => {
+  const handleStudentFormSubmit = async (e) => {
     e?.preventDefault()
     if (studentFormMode === 'view') return
 
@@ -1098,8 +1104,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
       source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
     }
 
-    saveBranchStudent(record)
-    reloadBranchStudents()
+    await saveBranchStudent(record)
+    await reloadBranchStudents()
     setIsStudentFormOpen(false)
 
     if (studentFormMode === 'add') {
@@ -1109,10 +1115,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     }
   }
 
-  const handleStudentDeleteConfirm = () => {
+  const handleStudentDeleteConfirm = async () => {
     if (!studentDeleteTarget) return
-    removeBranchStudent(studentDeleteTarget.studentId)
-    reloadBranchStudents()
+    await removeBranchStudent(studentDeleteTarget.studentId)
+    await reloadBranchStudents()
     setStudentDeleteTarget(null)
     setStudentSuccessPopup({ title: 'Student Deleted', message: 'Student deleted successfully.' })
     // Adjust page if needed

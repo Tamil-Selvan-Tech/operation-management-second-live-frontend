@@ -1,6 +1,8 @@
+import { request } from '../services/apiClient'
+
 /**
  * Branch Student Store
- * localStorage-based store for branch student records.
+ * local cache + backend sync for branch student records.
  * Each student record carries a `branchId` so Super Admin can count per branch.
  */
 
@@ -35,6 +37,58 @@ function dispatchChange() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('cispro:branch-students-changed'))
   }
+}
+
+function extractBranchStudentListPayload(payload) {
+  if (!payload) return []
+  if (Array.isArray(payload)) return payload
+  if (Array.isArray(payload?.data)) return payload.data
+  if (Array.isArray(payload?.items)) return payload.items
+  if (Array.isArray(payload?.records)) return payload.records
+
+  if (payload?.data && typeof payload.data === 'object') {
+    return extractBranchStudentListPayload(payload.data)
+  }
+
+  return []
+}
+
+async function syncBranchStudentToBackend(student) {
+  const studentId = String(student.studentId || '').trim()
+  if (!studentId) return
+
+  const payload = { ...student }
+  delete payload.id
+  delete payload._fromBackend
+  delete payload._isExistingRecord
+
+  const method = student._isExistingRecord ? 'PATCH' : 'POST'
+  const path = method === 'PATCH' ? `/branch-students/${encodeURIComponent(studentId)}` : '/branch-students'
+
+  await request(path, {
+    method,
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function refreshBranchStudents(branchId) {
+  if (!branchId) return []
+
+  const response = await request(
+    `/branch-students?page=1&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchId)}`,
+  )
+  const payload = response?.data ?? response
+  const records = extractBranchStudentListPayload(payload).map((record) => ({
+    ...record,
+    _fromBackend: true,
+    _isExistingRecord: true,
+  }))
+
+  const all = readAll()
+  const remaining = all.filter((record) => String(record.branchId || '').trim() !== String(branchId).trim())
+  writeAll([...records, ...remaining])
+  dispatchChange()
+  return records
 }
 
 /**
@@ -86,16 +140,22 @@ export function saveBranchStudent(student) {
   const existingIndex = all.findIndex(
     (s) => String(s.studentId || '').trim() === studentId
   )
+  const nextStudent = existingIndex >= 0
+    ? { ...all[existingIndex], ...student, _isExistingRecord: true }
+    : { ...student, _isExistingRecord: false }
 
   if (existingIndex >= 0) {
-    all[existingIndex] = { ...all[existingIndex], ...student }
+    all[existingIndex] = nextStudent
   } else {
-    all.unshift(student)
+    all.unshift(nextStudent)
   }
 
   writeAll(all)
   dispatchChange()
-  return student
+
+  return syncBranchStudentToBackend(nextStudent).catch(() => {
+    // local cache remains available if backend sync fails temporarily
+  })
 }
 
 /**
@@ -108,6 +168,12 @@ export function deleteBranchStudent(studentId) {
   )
   writeAll(next)
   dispatchChange()
+
+  return request(`/branch-students/${encodeURIComponent(String(studentId).trim())}`, {
+    method: 'DELETE',
+  }).catch(() => {
+    // ignore sync failures; local cache has already been updated
+  })
 }
 
 /**
