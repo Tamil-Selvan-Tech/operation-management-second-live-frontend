@@ -3588,7 +3588,12 @@
   z-index: 50;
 }
 
-.branch-student-more-btn:focus+.branch-student-actions-menu {
+.branch-student-more-btn:focus {
+  outline: none;
+}
+
+.branch-student-more-btn:focus+.branch-student-actions-menu,
+.branch-student-more-btn:focus-visible+.branch-student-actions-menu {
   display: block;
 }
 
@@ -3918,6 +3923,7 @@
   width: 6px;
 }
 
+
 .student-drawer-content::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -3963,4 +3969,10 @@
   .student-details-value {
     padding: 13px 12px;
   }
+}
+
+/* Logout popup width */
+.super-admin-logout-modal {
+  width: 360px;
+  max-width: calc(100vw - 32px);
 }
