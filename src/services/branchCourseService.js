@@ -172,3 +172,24 @@ export async function deleteBranchCourse(courseId) {
   clearBranchCourseListCache()
   return normalizeBranchCourse(unwrapData(response))
 }
+
+export async function assignFacultyToBranchCourse(
+  courseId,
+  facultyIds = [],
+) {
+  const response = await request(
+    `/branch-courses/${courseId}/assign-faculty`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        facultyIds,
+      }),
+    },
+  )
+
+  clearBranchCourseListCache()
+
+  return normalizeBranchCourse(
+    unwrapData(response),
+  )
+}

@@ -37,6 +37,7 @@ import { Button } from '../components/Button'
 import { getCurrentBranchProfile } from '../services/branchService'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import {
+  assignFacultyToBranchCourse,
   createBranchCourse,
   deleteBranchCourse,
   listBranchCourses,
@@ -268,6 +269,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [facultyList, setFacultyList] = useState([])
   const [assignFacultyPage, setAssignFacultyPage] = useState(1)
   const [assignFacultySuccess, setAssignFacultySuccess] = useState(null)
+  const [isAssignFacultySaving, setIsAssignFacultySaving] = useState(false)
 
   const profileMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
@@ -448,30 +450,38 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     )
   }
 
-  const handleAssignFaculty = () => {
+  const handleAssignFaculty = async () => {
     if (!assignFacultyCourse) return
 
-    const assignedFaculty = facultyList.filter((faculty) =>
-      selectedFacultyIds.includes(faculty.id)
-    )
+    try {
+      setIsAssignFacultySaving(true)
+      setCourseActionError('')
 
-    setBranchCourseCards((current) =>
-      current.map((course) =>
-        String(course.id) === String(assignFacultyCourse.id)
-          ? {
-            ...course,
-            assignedFaculty,
-          }
-          : course
+      const updatedCourse = await assignFacultyToBranchCourse(
+        assignFacultyCourse.id,
+        selectedFacultyIds,
       )
-    )
 
-    setAssignFacultySuccess({
-      courseName: assignFacultyCourse?.name || 'Course',
-      facultyNames: assignedFaculty.map((f) => f.name),
-    })
+      await Promise.all([
+        loadBranchCourses(),
+        loadFacultyList(),
+      ])
 
-    closeAssignFacultyModal()
+      const assignedFaculty = Array.isArray(updatedCourse?.assignedFaculty)
+        ? updatedCourse.assignedFaculty
+        : facultyList.filter((faculty) => selectedFacultyIds.includes(faculty.id))
+
+      setAssignFacultySuccess({
+        courseName: updatedCourse?.name || assignFacultyCourse?.name || 'Course',
+        facultyNames: assignedFaculty.map((f) => f.name).filter(Boolean),
+      })
+
+      closeAssignFacultyModal()
+    } catch (error) {
+      setCourseActionError(apiErrorMessage(error, 'Unable to assign faculty right now.'))
+    } finally {
+      setIsAssignFacultySaving(false)
+    }
   }
 
 
@@ -1771,8 +1781,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     type="button"
                     className="assign-faculty-v2-submit"
                     onClick={handleAssignFaculty}
+                    disabled={isAssignFacultySaving}
                   >
-                    Assign Faculty ({selectedFacultyIds.length})
+                    {isAssignFacultySaving ? 'Assigning...' : `Assign Faculty (${selectedFacultyIds.length})`}
                   </button>
                 </div>
               </div>

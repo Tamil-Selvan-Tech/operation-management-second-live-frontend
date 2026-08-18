@@ -153,7 +153,7 @@ export function BranchFacultyPage() {
           city: f.city,
           address: f.address,
           courseId: f.courseId,
-          courseName: f.course?.name || '—',
+          courseName: f.branchCourse?.name || f.course?.name || '-',
           status: f.status,
         }))
         setFacultyList(mapped)
