@@ -35,6 +35,8 @@ import { StudentAttendanceReportModal } from '../components/StudentAttendanceRep
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
 import { Button } from '../components/Button'
+import '../styles/SuperAdminDashboardPage.css'
+import '../styles/BranchDashboardPage.css'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -111,7 +113,7 @@ export function FacultyDashboardPage() {
   const facultyDetails = useMemo(() => {
     const registry = loadFacultyRegistry()
     const email = String(user?.email || '').trim().toLowerCase()
-    const matched = registry.find((f) => f.email.toLowerCase() === email)
+    const matched = Array.isArray(registry) ? registry.find((f) => String(f.email || '').toLowerCase() === email) : null
     if (matched) return matched
 
     return {

@@ -29,6 +29,7 @@ import {
   BadgeInfo,
   BadgePercent,
   UserRound,
+  Search,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -253,6 +254,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [addCourseForm, setAddCourseForm] = useState(() => createInitialBranchCourseForm())
   const [addCourseTouched, setAddCourseTouched] = useState({})
   const [branchCourseCards, setBranchCourseCards] = useState([])
+  const [courseSearchTerm, setCourseSearchTerm] = useState('')
   const [branchCoursePage, setBranchCoursePage] = useState(1)
   const [editingCourseId, setEditingCourseId] = useState('')
   const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
@@ -552,12 +554,21 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     setActiveSection('profile')
   }
 
-  const totalBranchCoursePages = Math.max(1, Math.ceil(branchCourseCards.length / BRANCH_COURSES_PER_PAGE))
+  const filteredBranchCourseCards = useMemo(() => {
+    const q = courseSearchTerm.trim().toLowerCase()
+    if (!q) return branchCourseCards
+    return branchCourseCards.filter((c) => 
+      String(c.name || '').toLowerCase().includes(q) ||
+      String(c.courseCode || '').toLowerCase().includes(q)
+    )
+  }, [branchCourseCards, courseSearchTerm])
+
+  const totalBranchCoursePages = Math.max(1, Math.ceil(filteredBranchCourseCards.length / BRANCH_COURSES_PER_PAGE))
   const safeBranchCoursePage = Math.min(branchCoursePage, totalBranchCoursePages)
   const visibleBranchCourses = useMemo(() => {
     const start = (safeBranchCoursePage - 1) * BRANCH_COURSES_PER_PAGE
-    return branchCourseCards.slice(start, start + BRANCH_COURSES_PER_PAGE)
-  }, [branchCourseCards, safeBranchCoursePage])
+    return filteredBranchCourseCards.slice(start, start + BRANCH_COURSES_PER_PAGE)
+  }, [filteredBranchCourseCards, safeBranchCoursePage])
   const editingCourseRecord = useMemo(
     () => branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || null,
     [branchCourseCards, editingCourseId],
@@ -1066,11 +1077,32 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
                       <div className="branch-dashboard-section-summary">
                         <span>Saved courses:</span>
-                        <strong>{branchCourseCards.length}</strong>
+                        <strong>{filteredBranchCourseCards.length}</strong>
                       </div>
                     </>
                   )}
                 >
+                  <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
+                    <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '300px' }}>
+                      <input
+                        type="text"
+                        placeholder="Search courses..."
+                        value={courseSearchTerm}
+                        onChange={(e) => setCourseSearchTerm(e.target.value)}
+                        className="faculty-search-input"
+                        style={{ flex: 1, minWidth: 0 }}
+                      />
+                      <button 
+                        type="button" 
+                        className="button button-solid" 
+                        style={{ padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Search size={16} />
+                        Search
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="branch-course-table-shell">
                     <table className="branch-course-table">
                       <thead>

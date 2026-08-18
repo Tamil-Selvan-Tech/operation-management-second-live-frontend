@@ -24,7 +24,7 @@ export function loadFacultyRegistry() {
   if (Array.isArray(stored) && stored.length) {
     return stored
   }
-  return initialFaculty
+  return []
 }
 
 export function saveFacultyRegistry(facultyList = []) {

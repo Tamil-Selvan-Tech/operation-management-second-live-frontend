@@ -754,16 +754,23 @@ export function BranchFacultyPage() {
     <div className="faculty-search-filter-bar">
 
       {/* Search */}
-      <div className="faculty-search-wrapper">
-        {/* <Search size={21} className="faculty-search-icon" /> */}
-
+      <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px' }}>
         <input
           type="text"
-          placeholder="Search"
+          placeholder="Search faculty..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="faculty-search-input"
+          style={{ flex: 1, minWidth: 0 }}
         />
+        <button 
+          type="button" 
+          className="button button-solid" 
+          style={{ padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Search size={16} />
+          Search
+        </button>
       </div>
 
 

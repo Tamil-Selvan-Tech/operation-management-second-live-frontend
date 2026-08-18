@@ -1751,7 +1751,7 @@
 
 .branch-course-view-table-header {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 35% 65%;
   border-bottom: 1px solid #dbe4f0;
   background: linear-gradient(180deg, #f6f9ff 0%, #eef4ff 100%);
 }
@@ -1771,7 +1771,7 @@
 
 .branch-course-view-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 35% 65%;
   border-bottom: 1px solid #dbe4f0;
   background: #ffffff;
 }
@@ -1808,16 +1808,17 @@
 .branch-course-view-cell-value {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 8px 16px;
 }
 
 .branch-course-view-cell-value strong {
   color: #374151;
   font-size: 14px;
-  font-weight: 800;
-  text-align: center;
-  white-space: nowrap;
+  font-weight: 700;
+  text-align: left;
+  line-height: 1.4;
+  word-break: break-word;
 }
 .branch-course-view-cell-value {
   min-width: 0;
