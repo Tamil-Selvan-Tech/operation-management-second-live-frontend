@@ -100,9 +100,7 @@
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
 
-.faculty-filter-wrapper {
-  overflow: visible !important;
-}
+
 
 .branch-dashboard-section {
   overflow: visible !important;
@@ -114,12 +112,12 @@
    Faculty Search + Filter
 ========================================= */
 
-.faculty-search-wrapper {
+/* .faculty-search-wrapper {
   position: relative;
-  width: 40%;
+  width: 30%;
   flex: none;
   height: 46px;
-}
+} */
 
 .faculty-search-icon {
   position: absolute;
@@ -171,47 +169,6 @@
    Filter Button
 ========================================= */
 
-.faculty-filter-wrapper {
-  position: relative;
-
-  display: flex;
-  align-items: center;
-
-  height: 46px;
-
-  overflow: visible !important;
-}
-
-.faculty-filter-button {
-  height: 46px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-
-  padding: 0 17px;
-
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-
-  background: #ffffff;
-  color: #334155;
-
-  font-size: 14px;
-  font-weight: 600;
-
-  cursor: pointer;
-
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.faculty-filter-button:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
-}
 
 
 /* =========================================
@@ -1452,4 +1409,85 @@
 .faculty-table-shell .branch-dashboard-table th:nth-child(7),
 .faculty-table-shell .branch-dashboard-table td:nth-child(7) {
   width: 11%;
+}
+.faculty-search-filter-bar {
+  width: 100%;
+  height: 54px;
+
+  display: flex;
+  align-items: center;
+
+  margin-bottom: 18px;
+
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.faculty-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  width: 30%;
+  height: 46px;
+}
+
+.faculty-search-input {
+  flex: 1;
+  width: auto;
+  height: 46px;
+
+  padding: 0 16px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #0f172a;
+
+  font-size: 15px;
+  font-weight: 500;
+
+  outline: none;
+  box-sizing: border-box;
+
+  transition: border-color 0.2s ease;
+}
+
+.faculty-search-input::placeholder {
+  color: #64748b;
+}
+
+.faculty-search-input:focus {
+  border-color: #94a3b8;
+  box-shadow: none;
+  outline: none;
+}
+
+.faculty-search-button {
+  height: 46px;
+
+  padding: 0 22px;
+
+  border: 1px solid #2563eb;
+  border-radius: 8px;
+
+  background: #2563eb;
+  color: #ffffff;
+
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.faculty-search-button:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
