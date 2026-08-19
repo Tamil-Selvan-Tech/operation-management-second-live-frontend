@@ -1258,10 +1258,21 @@ useEffect(() => {
             </div>
 
             <div className="super-admin-topbar-right">
-              <SuperAdminNotificationBell
-                onOpenBranches={() => setActiveSection('branches')}
-                onViewActivity={() => navigate('/dashboard/super-admin/notifications')}
-              />
+             <SuperAdminNotificationBell
+  onOpenBranches={() => setActiveSection('branches')}
+  onViewActivity={() => navigate('/dashboard/super-admin/notifications')}
+  onOpenBranch={(branchId) => {
+    setActiveSection('branches')
+
+    const branch = branches.find(
+      (item) => String(item.id) === String(branchId)
+    )
+
+    if (branch) {
+      setViewTargetBranch(branch)
+    }
+  }}
+/>
 
               <div className="super-admin-profile">
                 <AvatarBadge />

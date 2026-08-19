@@ -49,8 +49,11 @@ function getNotificationIcon(kind) {
       return Shield
   }
 }
-
-export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
+export function SuperAdminNotificationBell({
+  onOpenBranches,
+  onViewActivity,
+  onOpenBranch,
+}) {
   const navigate = useNavigate()
   const menuRef = useRef(null)
   const [isOpen, setIsOpen] = useState(false)
@@ -142,29 +145,29 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
   const visibleNotifications = useMemo(() => notifications.slice(0, 3), [notifications])
 
   const handleOpenNotification = async (notification) => {
-    setNotifications((current) =>
-      current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
-    )
-    markNotificationsAsRead([notification.id])
+  setNotifications((current) => 
+    current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)), 
+  )
+  markNotificationsAsRead([notification.id])
 
-    try {
-      await request('/notifications/mark-read', {
-        method: 'PATCH',
-        body: JSON.stringify({ notificationIds: [notification.id] }),
-      })
-    } catch {
-      // Keep the optimistic state if the API is temporarily unavailable.
-    } finally {
-      void refreshNotifications()
-    }
-
-    if (notification.kind?.startsWith('branch-') && typeof onOpenBranches === 'function') {
-      onOpenBranches(notification)
-      return
-    }
-
-    navigate('/dashboard/super-admin')
+  try {
+    await request('/notifications/mark-read', { 
+      method: 'PATCH', 
+      body: JSON.stringify({ notificationIds: [notification.id] }), 
+    })
+  } catch {
+    // Keep the optimistic state if the API is temporarily unavailable.
+  } finally {
+    void refreshNotifications()
   }
+
+  if (notification.kind?.startsWith('branch-') && typeof onOpenBranches === 'function') {
+    onOpenBranches(notification)
+    return
+  }
+
+  navigate('/dashboard/super-admin')
+}
 
   const handleMarkAllAsRead = () => {
     setNotifications((current) => current.map((item) => ({ ...item, read: true })))
