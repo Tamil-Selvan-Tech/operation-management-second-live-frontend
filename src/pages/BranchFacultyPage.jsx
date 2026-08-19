@@ -32,7 +32,6 @@ const FACULTY_ID_PREFIX = 'FC-'
 export function BranchFacultyPage() {
   const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All')
   
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 5
@@ -256,11 +255,11 @@ export function BranchFacultyPage() {
   }
 
   // Filtered list
- const filteredFaculty = useMemo(() => {
+const filteredFaculty = useMemo(() => {
   const query = searchQuery.trim().toLowerCase()
 
   return facultyList.filter((faculty) => {
-    const matchesSearch =
+    return (
       !query ||
       [
         faculty.id || '',
@@ -275,15 +274,9 @@ export function BranchFacultyPage() {
         .join(' ')
         .toLowerCase()
         .includes(query)
-
-    const matchesStatus =
-      statusFilter === 'All' ||
-      String(faculty.status || '').toLowerCase() ===
-        statusFilter.toLowerCase()
-
-    return matchesSearch && matchesStatus
+    )
   })
-}, [facultyList, searchQuery, statusFilter])
+}, [facultyList, searchQuery])
 
   const totalPages = Math.max(1, Math.ceil(filteredFaculty.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -781,79 +774,25 @@ export function BranchFacultyPage() {
     {/* Search + Filter Bar */}
     <div className="faculty-search-filter-bar">
 
-     {/* Search + Filter Bar */}
-<div className="faculty-search-filter-bar">
-
-  {/* Search */}
+    <div className="faculty-search-filter-bar">
   <div className="faculty-search-wrapper">
-
-    {/* <Search
-      className="faculty-search-icon"
-      size={19}
-      strokeWidth={2}
-    /> */}
-
     <input
       type="text"
       placeholder="Search faculty"
       value={searchQuery}
-      onChange={(e) => {
-        setSearchQuery(e.target.value)
-        setCurrentPage(1)
-      }}
+      onChange={(e) => setSearchQuery(e.target.value)}
       className="faculty-search-input"
     />
 
-  </div>
-
-  {/* Filter */}
-  <div className="faculty-filter-wrapper">
-
     <button
       type="button"
-      className="faculty-filter-button"
-      onClick={() => {
-        const filterBox = document.querySelector(
-          '.faculty-status-filter'
-        )
-
-        filterBox?.classList.toggle('is-open')
-      }}
+      className="faculty-search-button"
+      onClick={() => setCurrentPage(1)}
     >
-      <SlidersHorizontal size={17} />
-      <span>Filter</span>
+      Search
     </button>
-
-    <div className="faculty-status-filter">
-
-      {/* <label className="faculty-status-filter-label">
-        Status
-      </label> */}
-
-      <select
-  value={statusFilter}
-  onChange={(e) => {
-    setStatusFilter(e.target.value)
-    setCurrentPage(1)
-
-    document
-      .querySelector('.faculty-status-filter')
-      ?.classList.remove('is-open')
-  }}
-  className="faculty-status-filter-select"
->
-  <option value="All">All</option>
-  <option value="Active">Active</option>
-  <option value="Inactive">Inactive</option>
-</select>
-
-    </div>
-
   </div>
-
 </div>
-
-
 
     </div>
 
