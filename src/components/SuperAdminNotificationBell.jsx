@@ -292,7 +292,7 @@ localStorage.setItem(
                 </span>
                 <div className="notification-copy">
                   <p>No notifications yet</p>
-                  <span>Branch login and branch invitation alerts will appear here.</span>
+                 
                   <small>Waiting for activity</small>
                 </div>
               </div>

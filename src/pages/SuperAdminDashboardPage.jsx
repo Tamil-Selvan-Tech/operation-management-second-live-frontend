@@ -1378,7 +1378,7 @@ useEffect(() => {
                         <th className="branch-table-col-name">Branch Name</th>
                         <th className="branch-table-col-admin">Branch Admin Name</th>
                         <th style={{ textAlign: 'center' }}>Students</th>
-                        <th className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>Dashboard</th>
+                        <th className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>Branch View</th>
                         <th className="branch-table-col-actions" style={{ textAlign: 'center' }}>Actions</th>
                       </tr>
                     </thead>
