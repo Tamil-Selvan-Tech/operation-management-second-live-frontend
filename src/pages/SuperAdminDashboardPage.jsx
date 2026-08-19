@@ -258,6 +258,8 @@ export function SuperAdminDashboardPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [branches, setBranches] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
   const [countryOptions, setCountryOptions] = useState([])
   const [stateOptions, setStateOptions] = useState([])
   const [cityOptions, setCityOptions] = useState([])
@@ -702,15 +704,23 @@ export function SuperAdminDashboardPage() {
   const activeBranches = branches.filter((branch) => String(branch?.status || '').trim().toLowerCase() === 'active').length
 
   const filteredBranches = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase()
-    if (!query) return branches
+  const query = searchTerm.trim().toLowerCase()
 
-    return branches.filter((branch) => {
-      return [branch.branchId, branch.branchName].some((value) =>
+  return branches.filter((branch) => {
+    const matchesSearch =
+      !query ||
+      [branch.branchId, branch.branchName].some((value) =>
         String(value || '').toLowerCase().includes(query),
       )
-    })
-  }, [branches, searchTerm])
+
+    const branchStatus = getNormalizedBranchStatus(branch)
+
+    const matchesStatus =
+      statusFilter === 'All' || branchStatus === statusFilter
+
+    return matchesSearch && matchesStatus
+  })
+}, [branches, searchTerm, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredBranches.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -1262,25 +1272,72 @@ export function SuperAdminDashboardPage() {
                     </p>
                   </div>
                 </div>
+                {/* search */}
+<div className="branch-management-toolbar">
+  <div className="branch-toolbar-left">
 
-                <div className="branch-management-toolbar">
-                  <div className="branch-search">
-                    <span className="branch-search-icon" aria-hidden="true">
-                      <Search size={16} strokeWidth={2.2} />
-                    </span>
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={handleSearchChange}
-                      placeholder="Search..."
-                      aria-label="Search branches"
-                    />
-                    <button type="button" className="branch-search-button">
-                      Search
-                    </button>
-                  </div>
+    <div className="branch-search">
+      <span className="branch-search-icon" aria-hidden="true">
+        <Search size={16} strokeWidth={2.2} />
+      </span>
 
-                </div>
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={handleSearchChange}
+        placeholder="Search..."
+        aria-label="Search branches"
+      />
+
+      <button type="button" className="branch-search-button">
+        Search
+      </button>
+    </div>
+
+    <div
+      className={`branch-status-filter ${isStatusFilterOpen ? 'is-open' : ''}`}
+    >
+      <button
+        type="button"
+        className="branch-status-filter-trigger"
+        onClick={() => setIsStatusFilterOpen((current) => !current)}
+        aria-haspopup="menu"
+        aria-expanded={isStatusFilterOpen}
+      >
+        <span>{statusFilter}</span>
+
+        <ChevronRight
+          size={16}
+          strokeWidth={2.2}
+          className="branch-status-filter-chevron"
+        />
+      </button>
+
+      {isStatusFilterOpen ? (
+        <div className="branch-status-filter-menu" role="menu">
+          {['All', 'Active', 'Inactive'].map((status) => (
+            <button
+              key={status}
+              type="button"
+              role="menuitem"
+              className={`branch-status-filter-option ${
+                statusFilter === status ? 'is-selected' : ''
+              }`}
+              onClick={() => {
+                setStatusFilter(status)
+                setCurrentPage(1)
+                setIsStatusFilterOpen(false)
+              }}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+
+  </div>
+</div>
 
                 <div className="branch-table-shell">
                   <table className="branch-table">
