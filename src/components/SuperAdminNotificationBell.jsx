@@ -67,8 +67,26 @@ export function SuperAdminNotificationBell({
       })
       const data = Array.isArray(response?.data) ? response.data : []
       const mergedNotifications = mergeNotificationsWithStoredState(data)
-      saveNotifications(mergedNotifications)
-      setNotifications(mergedNotifications)
+
+const storedViewedIds = JSON.parse(
+  localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
+)
+
+const viewedIds = new Set(
+  Array.isArray(storedViewedIds)
+    ? storedViewedIds.map(String)
+    : [],
+)
+
+const notificationsWithDropdownState = mergedNotifications.map(
+  (notification) => ({
+    ...notification,
+    dropdownViewed: viewedIds.has(String(notification.id)),
+  }),
+)
+
+saveNotifications(notificationsWithDropdownState)
+setNotifications(notificationsWithDropdownState)
     } catch {
       setNotifications([])
     } finally {
@@ -139,16 +157,45 @@ export function SuperAdminNotificationBell({
   }, [isOpen])
 
   const notificationCount = useMemo(
-    () => notifications.filter((notification) => !notification.read).length,
-    [notifications],
-  )
-  const visibleNotifications = useMemo(() => notifications.slice(0, 3), [notifications])
-
+  () =>
+    notifications.filter(
+      (notification) => !notification.dropdownViewed,
+    ).length,
+  [notifications],
+)
+const visibleNotifications = useMemo(
+  () =>
+    notifications
+      .filter((notification) => !notification.dropdownViewed)
+      .slice(0, 3),
+  [notifications],
+)
   const handleOpenNotification = async (notification) => {
-  setNotifications((current) => 
-    current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)), 
-  )
-  markNotificationsAsRead([notification.id])
+  setNotifications((current) =>
+  current.map((item) =>
+    item.id === notification.id
+      ? { ...item, dropdownViewed: true }
+      : item,
+  ),
+)
+
+const storedViewedIds = JSON.parse(
+  localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
+)
+
+const viewedIds = new Set(
+  Array.isArray(storedViewedIds)
+    ? storedViewedIds.map(String)
+    : [],
+)
+
+viewedIds.add(String(notification.id))
+
+localStorage.setItem(
+  'superAdminDropdownViewedNotifications',
+  JSON.stringify([...viewedIds]),
+)
+  
 
   try {
     await request('/notifications/mark-read', { 
