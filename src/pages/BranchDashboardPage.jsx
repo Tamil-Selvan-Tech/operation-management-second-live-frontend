@@ -1380,26 +1380,45 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                   )}
                 >
                   <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
-                    <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '340px' }}>
-                      <input
-                        type="text"
-                        placeholder="Search Student"
-                        value={studentSearchTerm}
-                        onChange={(e) => { setStudentSearchTerm(e.target.value); setStudentPage(1) }}
-                        className="faculty-search-input"
-                        style={{ flex: 1, minWidth: 0 }}
-                      />
-                      <button
-                        type="button"
-                        className="button button-solid"
-                        style={{ padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        <Search size={16} />
-                        Search
-                      </button>
-                    </div>
-                  </div>
+  <div
+    className="faculty-search-wrapper"
+    style={{
+      display: 'flex',
+      gap: '8px',
+      width: '370px',
+    }}
+  >
+    <input
+      type="text"
+      placeholder="Search Student"
+      value={studentSearchTerm}
+      onChange={(e) => {
+        setStudentSearchTerm(e.target.value);
+        setStudentPage(1);
+      }}
+      className="faculty-search-input"
+      style={{
+        flex: 1,
+        minWidth: 0,
+      }}
+    />
 
+    <button
+      type="button"
+      className="button button-solid"
+      style={{
+        height: '46px',
+        padding: '0 20px',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      Search
+    </button>
+  </div>
+</div>
                   <div className="branch-course-table-shell">
                     <table className="branch-course-table">
                       <thead>
@@ -1574,27 +1593,43 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     </>
                   )}
                 >
-                  <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
-                    <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '300px' }}>
-                      <input
-                        type="text"
-                        placeholder="Search Courses"
-                        value={courseSearchTerm}
-                        onChange={(e) => setCourseSearchTerm(e.target.value)}
-                        className="faculty-search-input"
-                        style={{ flex: 1, minWidth: 0 }}
-                      />
-                      <button
-                        type="button"
-                        className="button button-solid"
-                        style={{ padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        <Search size={16} />
-                        Search
-                      </button>
-                    </div>
-                  </div>
+                 <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
+  <div
+    className="faculty-search-wrapper"
+    style={{
+      display: 'flex',
+      gap: '8px',
+      width: '370px',
+    }}
+  >
+    <input
+      type="text"
+      placeholder="Search Courses"
+      value={courseSearchTerm}
+      onChange={(e) => setCourseSearchTerm(e.target.value)}
+      className="faculty-search-input"
+      style={{
+        flex: 1,
+        minWidth: 0,
+      }}
+    />
 
+    <button
+      type="button"
+      className="button button-solid"
+      style={{
+        height: '46px',
+        padding: '0 20px',
+        whiteSpace: 'nowrap',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      Search
+    </button>
+  </div>
+</div>
                   <div className="branch-course-table-shell">
                     <table className="branch-course-table">
                       <thead>
