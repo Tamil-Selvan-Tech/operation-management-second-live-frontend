@@ -171,13 +171,15 @@ const visibleNotifications = useMemo(
   [notifications],
 )
   const handleOpenNotification = async (notification) => {
+  setIsOpen(false)
+
   setNotifications((current) =>
-  current.map((item) =>
-    item.id === notification.id
-      ? { ...item, dropdownViewed: true }
-      : item,
-  ),
-)
+    current.map((item) =>
+      item.id === notification.id
+        ? { ...item, dropdownViewed: true }
+        : item,
+    ),
+  )
 
 const storedViewedIds = JSON.parse(
   localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
@@ -198,15 +200,13 @@ localStorage.setItem(
   
 
   try {
-    await request('/notifications/mark-read', { 
-      method: 'PATCH', 
-      body: JSON.stringify({ notificationIds: [notification.id] }), 
-    })
-  } catch {
-    // Keep the optimistic state if the API is temporarily unavailable.
-  } finally {
-    void refreshNotifications()
-  }
+  await request('/notifications/mark-read', {
+    method: 'PATCH',
+    body: JSON.stringify({ notificationIds: [notification.id] }),
+  })
+} catch {
+  // Keep the optimistic state if the API is temporarily unavailable.
+}
 
   if (notification.kind?.startsWith('branch-') && typeof onOpenBranches === 'function') {
     onOpenBranches(notification)
@@ -216,20 +216,42 @@ localStorage.setItem(
   navigate('/dashboard/super-admin')
 }
 
-  const handleMarkAllAsRead = () => {
-    setNotifications((current) => current.map((item) => ({ ...item, read: true })))
-    markNotificationsAsRead()
+ 
+const handleMarkAllAsRead = () => {
+  setNotifications((current) =>
+    current.map((item) => ({
+      ...item,
+      read: true,
+      dropdownViewed: true,
+    })),
+  )
 
-    void request('/notifications/mark-read', {
-      method: 'PATCH',
-      body: JSON.stringify({ notificationIds: [] }),
-    })
-      .catch(() => {})
-      .finally(() => {
-        void refreshNotifications()
-      })
-  }
+  const storedViewedIds = JSON.parse(
+    localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
+  )
 
+  const viewedIds = new Set(
+    Array.isArray(storedViewedIds)
+      ? storedViewedIds.map(String)
+      : [],
+  )
+
+  notifications.forEach((notification) => {
+    viewedIds.add(String(notification.id))
+  })
+
+  localStorage.setItem(
+    'superAdminDropdownViewedNotifications',
+    JSON.stringify([...viewedIds]),
+  )
+
+  markNotificationsAsRead()
+
+  void request('/notifications/mark-read', {
+    method: 'PATCH',
+    body: JSON.stringify({ notificationIds: [] }),
+  }).catch(() => {})
+}
   return (
     <div ref={menuRef} className="notification-menu super-admin-notification-menu">
       <button
