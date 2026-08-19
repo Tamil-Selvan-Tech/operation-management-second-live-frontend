@@ -260,6 +260,7 @@ export function SuperAdminDashboardPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
 const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
+const statusFilterRef = useRef(null)
   const [countryOptions, setCountryOptions] = useState([])
   const [stateOptions, setStateOptions] = useState([])
   const [cityOptions, setCityOptions] = useState([])
@@ -381,25 +382,44 @@ const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
   }, [loadBranches])
 
   useEffect(() => {
-    const handleWindowFocus = () => {
+  const handleWindowFocus = () => {
+    void loadBranches()
+  }
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
       void loadBranches()
     }
+  }
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void loadBranches()
-      }
+  window.addEventListener('focus', handleWindowFocus)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  return () => {
+    window.removeEventListener('focus', handleWindowFocus)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
+}, [loadBranches])
+
+useEffect(() => {
+  if (!isStatusFilterOpen) return undefined
+
+  const handleOutsideClick = (event) => {
+    const target = event.target
+
+    if (!(target instanceof Element)) return
+
+    if (!statusFilterRef.current?.contains(target)) {
+      setIsStatusFilterOpen(false)
     }
+  }
 
-    window.addEventListener('focus', handleWindowFocus)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+  document.addEventListener('pointerdown', handleOutsideClick)
 
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [loadBranches])
-
+  return () => {
+    document.removeEventListener('pointerdown', handleOutsideClick)
+  }
+}, [isStatusFilterOpen])
   // Load student counts and listen for changes
   useEffect(() => {
     const refresh = () => setBranchStudentCounts(getAllBranchStudentCounts())
@@ -1277,15 +1297,13 @@ const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
   <div className="branch-toolbar-left">
 
     <div className="branch-search">
-      <span className="branch-search-icon" aria-hidden="true">
-        <Search size={16} strokeWidth={2.2} />
-      </span>
+      
 
       <input
         type="text"
         value={searchTerm}
         onChange={handleSearchChange}
-        placeholder="Search..."
+        placeholder="Search Branch"
         aria-label="Search branches"
       />
 
@@ -1295,8 +1313,9 @@ const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
     </div>
 
     <div
-      className={`branch-status-filter ${isStatusFilterOpen ? 'is-open' : ''}`}
-    >
+  ref={statusFilterRef}
+  className={`branch-status-filter ${isStatusFilterOpen ? 'is-open' : ''}`}
+>
       <button
         type="button"
         className="branch-status-filter-trigger"

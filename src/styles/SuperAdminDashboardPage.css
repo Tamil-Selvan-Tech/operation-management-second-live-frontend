@@ -910,8 +910,13 @@
   }
 
   .branch-search {
-    width: 100%;
-  }
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-left: 15px;
+}
 
   .branch-search input {
     min-width: 0;
@@ -2930,6 +2935,15 @@ body.super-admin-sidebar-open {
   align-items: center;
   gap: 12px;
   width: 100%;
+}
+
+.branch-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-left: 40px;
 }
 
 /* =========================================
