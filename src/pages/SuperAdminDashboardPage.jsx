@@ -1636,7 +1636,7 @@ export function SuperAdminDashboardPage() {
   onClick={closeViewBranch}
   aria-label="Close branch details"
 >
-  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+  <X size={22} strokeWidth={2.5} aria-hidden="true" />
 </button>
               </div>
             </div>
@@ -1714,7 +1714,7 @@ export function SuperAdminDashboardPage() {
   aria-label="Close add branch form"
   onClick={closeBranchModal}
 >
-  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+  <X size={22} strokeWidth={2.5} aria-hidden="true" />
 </button>
 
             <h2>{editingBranchId !== null ? 'Edit branch information' : 'Create Branch'}</h2>
@@ -1881,14 +1881,14 @@ export function SuperAdminDashboardPage() {
       {isSuccessOpen ? (
         <div className="branch-modal-backdrop" role="presentation" onClick={(event) => event.stopPropagation()}>
           <div className="branch-success-modal" role="dialog" aria-modal="true" aria-labelledby="branch-success-title">
-            <button
-              type="button"
-              className="branch-modal-close"
-              aria-label="Close success popup"
-              onClick={() => setIsSuccessOpen(false)}
-            >
-              X
-            </button>
+           <button
+  type="button"
+  className="branch-success-close"
+  onClick={() => setIsSuccessOpen(false)}
+  aria-label="Close"
+>
+  <X size={22} strokeWidth={2.5} />
+</button>
 
             <div className="branch-success-hero" aria-hidden="true">
               <span className="branch-success-hero-icon">{String.fromCharCode(10003)}</span>
@@ -1956,7 +1956,7 @@ export function SuperAdminDashboardPage() {
   aria-label="Close delete confirmation"
   onClick={closeDeleteConfirm}
 >
-  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+  <X size={22} strokeWidth={2.5} aria-hidden="true" />
 </button>
 
             <div className="branch-delete-icon" aria-hidden="true">
@@ -1998,7 +1998,7 @@ export function SuperAdminDashboardPage() {
   aria-label="Close logout confirmation"
   onClick={closeLogoutConfirm}
 >
-  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+  <X size={22} strokeWidth={2.5} aria-hidden="true" />
 </button>
 
             <h2 id="super-admin-logout-title">Are you sure you want to logout?</h2>

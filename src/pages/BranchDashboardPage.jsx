@@ -32,6 +32,7 @@ import {
   UserRound,
   Search,
   UserPlus, Pencil, Trash2,
+   X,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -2127,9 +2128,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 </button>
               </div>
 
-              <button type="button" className="course-modal-close" onClick={closeAddCourseModal} aria-label="Close course form" disabled={isAddCourseSaving}>
-                X
-              </button>
+            <button
+  type="button"
+  className="course-modal-close"
+  onClick={closeAddCourseModal}
+  aria-label="Close course form"
+  disabled={isAddCourseSaving}
+>
+  <X size={22} strokeWidth={2} />
+</button>
             </form>
           </div>
         ) : null}
@@ -2166,7 +2173,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                   aria-label="Close assign faculty modal"
                   onClick={closeAssignFacultyModal}
                 >
-                  ✕
+                    <X size={22} strokeWidth={2} />
                 </button>
 
                 {/* Header */}
@@ -2362,13 +2369,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     </strong>
 
                     <button
-                      type="button"
-                      className="branch-course-view-close"
-                      onClick={closeViewCourseDrawer}
-                      aria-label="Close course details"
-                    >
-                      X
-                    </button>
+  type="button"
+  className="branch-course-view-close"
+  onClick={closeViewCourseDrawer}
+  aria-label="Close course details"
+>
+  <X size={22} strokeWidth={2} />
+</button>
                   </div>
 
                   <button
@@ -2510,13 +2517,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               onClick={(event) => event.stopPropagation()}
             >
               <button
-                type="button"
-                className="branch-modal-close"
-                aria-label="Close success popup"
-                onClick={closeCourseSaveSuccess}
-              >
-                X
-              </button>
+  type="button"
+  className="branch-modal-close"
+  aria-label="Close success popup"
+  onClick={closeCourseSaveSuccess}
+>
+  <X size={22} strokeWidth={2} />
+</button>
 
               <div className="branch-success-hero" aria-hidden="true">
                 <span className="branch-success-hero-ring" />
@@ -2558,7 +2565,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 aria-label="Close delete confirmation"
                 onClick={closeDeleteCourseConfirm}
               >
-                X
+                <X size={22} strokeWidth={2} />
               </button>
 
 
@@ -2614,7 +2621,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                   onClick={() => setViewStudentDrawer(null)}
                   aria-label="Close student details"
                 >
-                  X
+                  <X size={22} strokeWidth={2} />
                 </button>
               </div>
 
@@ -2873,7 +2880,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     onClick={() => setViewStudentDrawer(null)}
                     aria-label="Close student details"
                   >
-                    X
+                    <X size={22} strokeWidth={2} />
                   </button>
 
                 </div>
@@ -3341,9 +3348,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 )}
               </div>
 
-              <button type="button" className="course-modal-close" onClick={() => setIsStudentFormOpen(false)} aria-label="Close student form">
-                X
-              </button>
+              <button
+  type="button"
+  className="course-modal-close"
+  onClick={() => setIsStudentFormOpen(false)}
+  aria-label="Close student form"
+>
+  <X size={22} strokeWidth={2} />
+</button>
             </form>
           </div>
         ) : null}
@@ -3364,7 +3376,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 aria-label="Close delete confirmation"
                 onClick={() => setStudentDeleteTarget(null)}
               >
-                X
+                <X size={22} strokeWidth={2} />
               </button>
 
               <h2 id="student-delete-title">Delete Student?</h2>
@@ -3414,7 +3426,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
         aria-label="Close logout confirmation"
         onClick={closeLogoutConfirm}
       >
-        ×
+        <X size={22} strokeWidth={2} />
       </button>
 
       {/* Logout Message */}
@@ -3461,7 +3473,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 aria-label="Close success popup"
                 onClick={() => setStudentSuccessPopup(null)}
               >
-                X
+                <X size={22} strokeWidth={2} />
               </button>
 
               <div className="branch-success-hero" aria-hidden="true">

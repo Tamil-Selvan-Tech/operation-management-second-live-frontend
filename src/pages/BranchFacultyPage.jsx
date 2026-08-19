@@ -1026,14 +1026,14 @@ export function BranchFacultyPage() {
                 <h2 className="faculty-modal-title">
                   {editingId ? 'Edit Faculty' : 'Create Faculty'}
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  aria-label="Close form"
-                  className="faculty-modal-close-btn"
-                >
-                  ×
-                </button>
+               <button
+  type="button"
+  onClick={() => setIsModalOpen(false)}
+  aria-label="Close form"
+  className="faculty-modal-close-btn"
+>
+  <X size={22} strokeWidth={2} />
+</button>
               </div>
 
               {/* 2-Column Grid Layout */}
@@ -1402,13 +1402,13 @@ export function BranchFacultyPage() {
                     </strong>
 
                     <button
-                      type="button"
-                      className="branch-course-view-close"
-                      onClick={() => setViewFaculty(null)}
-                      aria-label="Close faculty details"
-                    >
-                      X
-                    </button>
+  type="button"
+  className="branch-course-view-close"
+  onClick={() => setViewFaculty(null)}
+  aria-label="Close faculty details"
+>
+  <X size={22} strokeWidth={2} />
+</button>
                   </div>
 
                   <button
@@ -1543,7 +1543,7 @@ export function BranchFacultyPage() {
                 aria-label="Close delete confirmation"
                 onClick={() => setDeleteConfirmTarget(null)}
               >
-                <X size={20} strokeWidth={2} />
+                <X size={22} strokeWidth={2} />
               </button>
 
 
@@ -1593,6 +1593,15 @@ export function BranchFacultyPage() {
               aria-modal="true"
               aria-labelledby="faculty-success-title"
             >
+              {/* Close Button */}
+  <button
+    type="button"
+    className="faculty-success-close-btn"
+    aria-label="Close success message"
+    onClick={() => setSuccessAlert(null)}
+  >
+    <X size={22} strokeWidth={2} />
+  </button>
               {/* Success Icon */}
               <div className="faculty-success-icon-wrapper">
                 <div className="faculty-success-icon">
