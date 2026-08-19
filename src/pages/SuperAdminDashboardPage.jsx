@@ -1631,13 +1631,13 @@ export function SuperAdminDashboardPage() {
                   {selectedBranch.status || 'Unknown'}
                 </span>
                 <button
-                  type="button"
-                  className="branch-view-close"
-                  onClick={closeViewBranch}
-                  aria-label="Close branch details"
-                >
-                  X
-                </button>
+  type="button"
+  className="branch-view-close"
+  onClick={closeViewBranch}
+  aria-label="Close branch details"
+>
+  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+</button>
               </div>
             </div>
 
@@ -1708,14 +1708,14 @@ export function SuperAdminDashboardPage() {
       {isAddBranchOpen ? (
         <div className="branch-modal-backdrop" role="presentation">
           <form className="branch-modal" role="dialog" aria-modal="true" noValidate onClick={(event) => event.stopPropagation()} onSubmit={handleAddBranch}>
-            <button
-              type="button"
-              className="branch-modal-close"
-              aria-label="Close add branch form"
-              onClick={closeBranchModal}
-            >
-              X
-            </button>
+           <button
+  type="button"
+  className="branch-modal-close"
+  aria-label="Close add branch form"
+  onClick={closeBranchModal}
+>
+  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+</button>
 
             <h2>{editingBranchId !== null ? 'Edit branch information' : 'Create Branch'}</h2>
 
@@ -1950,14 +1950,14 @@ export function SuperAdminDashboardPage() {
       {isDeleteConfirmOpen ? (
         <div className="branch-modal-backdrop" role="presentation">
           <div className="branch-delete-modal" role="dialog" aria-modal="true" aria-labelledby="branch-delete-title">
-            <button
-              type="button"
-              className="branch-modal-close"
-              aria-label="Close delete confirmation"
-              onClick={closeDeleteConfirm}
-            >
-              X
-            </button>
+          <button
+  type="button"
+  className="branch-modal-close"
+  aria-label="Close delete confirmation"
+  onClick={closeDeleteConfirm}
+>
+  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+</button>
 
             <div className="branch-delete-icon" aria-hidden="true">
               !
@@ -1992,14 +1992,14 @@ export function SuperAdminDashboardPage() {
             aria-describedby="super-admin-logout-description"
             onClick={(event) => event.stopPropagation()}
           >
-            <button
-              type="button"
-              className="super-admin-logout-close"
-              aria-label="Close logout confirmation"
-              onClick={closeLogoutConfirm}
-            >
-              X
-            </button>
+           <button
+  type="button"
+  className="super-admin-logout-close"
+  aria-label="Close logout confirmation"
+  onClick={closeLogoutConfirm}
+>
+  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+</button>
 
             <h2 id="super-admin-logout-title">Are you sure you want to logout?</h2>
 
