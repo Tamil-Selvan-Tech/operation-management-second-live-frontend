@@ -41,6 +41,7 @@ import { loadFacultyRegistry } from '../lib/facultyAuth'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
+import '../styles/FacultyDashboardPage.css'
 
 function getInitials(name) {
   const value = String(name || '').trim()
