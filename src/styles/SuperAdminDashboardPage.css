@@ -446,7 +446,7 @@
 }
 
 .super-admin-notification-menu .notification-dropdown {
-  right: 0;
+  right: 25px;
   left: auto;
 }
 
@@ -523,16 +523,6 @@
   white-space: nowrap;
 }
 
-.super-admin-logout-modal {
-  position: relative;
-  width: min(90vw, 460px);
-  border-radius: 30px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
-  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.18);
-  padding: 16px 22px 20px;
-  text-align: center;
-  overflow: hidden;
-}
 
 
 
@@ -920,8 +910,13 @@
   }
 
   .branch-search {
-    width: 100%;
-  }
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-left: 15px;
+}
 
   .branch-search input {
     min-width: 0;
@@ -2837,8 +2832,7 @@ body.super-admin-sidebar-open {
 }
 
 .branch-modal-close,
-.branch-view-close,
-.super-admin-logout-close {
+.branch-view-close{
   width: 34px;
   height: 34px;
   padding: 0;
@@ -2870,4 +2864,412 @@ body.super-admin-sidebar-open {
 .branch-view-close:active,
 .super-admin-logout-close:active {
   transform: scale(0.94);
+}
+.branch-success-close {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 8px;
+
+  z-index: 10;
+}
+
+.branch-success-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.super-admin-logout-close {
+  position: absolute;
+  top: 10px;
+  right: 18px;
+
+  width: 30px;
+  height: 30px;
+  padding: 0;
+
+  border: none;
+  background: transparent;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 8px;
+
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+
+/* =========================================
+   BRANCH MANAGEMENT TOOLBAR
+========================================= */
+
+.branch-management-toolbar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.branch-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.branch-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  margin-left: 40px;
+}
+
+/* =========================================
+   SEARCH
+========================================= */
+
+.branch-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+}
+
+/* Search icon */
+.branch-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+/* Search input */
+.branch-search input {
+  width: 325px;
+  height: 44px;
+
+  box-sizing: border-box;
+
+  padding: 0 14px 0 40px;
+
+  border: 1px solid #d9e2ec;
+  border-radius: 9px;
+
+  background: #ffffff;
+  color: #1e293b;
+
+  font-size: 14px;
+  font-weight: 400;
+
+  outline: none;
+}
+
+.branch-search input::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.branch-search input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.08);
+}
+
+/* =========================================
+   SEARCH BUTTON
+========================================= */
+
+.branch-search-button {
+  position: static;
+
+  width: 112px;
+  min-width: 112px;
+  height: 42px;
+
+  padding: 0 18px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: #2563eb;
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-sizing: border-box;
+}
+
+.branch-search-button:hover {
+  background: #1d4ed8;
+}
+
+.branch-search-button:active {
+  transform: translateY(1px);
+}
+
+/* =========================================
+   STATUS FILTER
+========================================= */
+
+.branch-status-filter {
+  position: relative;
+
+  width: 258px;
+  min-width: 258px;
+  height: 44px;
+}
+
+.branch-status-filter-trigger {
+  width: 100%;
+  height: 44px;
+
+  box-sizing: border-box;
+
+  padding: 0 16px 0 18px;
+
+  border: 1px solid #d9e2ec;
+  border-radius: 9px;
+
+  background: #ffffff;
+  color: #1e293b;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+}
+
+.branch-status-filter-trigger:hover,
+.branch-status-filter.is-open .branch-status-filter-trigger {
+  border-color: #2563eb;
+}
+
+/* Chevron */
+.branch-status-filter-chevron {
+  color: #64748b;
+  transform: rotate(90deg);
+  transition: transform 0.2s ease;
+}
+
+.branch-status-filter.is-open
+.branch-status-filter-chevron {
+  transform: rotate(-90deg);
+}
+
+/* =========================================
+   STATUS DROPDOWN
+========================================= */
+
+.branch-status-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.branch-status-filter-option {
+  width: 100%;
+  height: 48px;
+  margin: 0 !important;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.branch-status-filter-option:hover {
+  background: #f1f5f9;
+}
+
+.branch-status-filter-option.is-selected {
+  background: #eff6ff;
+  color: #2563eb;
+}
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 900px) {
+  .branch-toolbar-left {
+    flex-wrap: wrap;
+  }
+
+  .branch-search {
+    width: 100%;
+  }
+
+  .branch-search input {
+    width: calc(100% - 122px);
+  }
+
+  .branch-status-filter {
+    width: 100%;
+    min-width: 100%;
+  }
+}
+/* =========================================
+   STATUS FILTER DROPDOWN
+========================================= */
+
+.branch-status-filter {
+  position: relative;
+  width: 207px;
+  height: 44px;
+}
+
+.branch-status-filter-trigger {
+  width: 60%;
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 16px;
+  border: 1px solid #2563eb;
+  border-radius: 9px;
+  background: #fff;
+  color: #1e293b;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.branch-status-filter-trigger:hover,
+.branch-status-filter.is-open .branch-status-filter-trigger {
+  border-color: #2563eb;
+}
+
+.branch-status-filter-chevron {
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.branch-status-filter.is-open .branch-status-filter-chevron {
+  transform: rotate(-90deg);
+}
+
+
+/* Dropdown menu */
+.branch-status-filter-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+
+  width: 60%;
+  box-sizing: border-box;
+
+  padding: 8px;
+
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.10);
+
+  z-index: 9999;
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px; /* IMPORTANT */
+}
+
+
+/* Dropdown options */
+.branch-status-filter-option {
+  width: 100%;
+  height: 48px;
+
+  margin: 0 !important;       /* IMPORTANT */
+  padding: 0 16px;
+
+  border: 0;
+  border-radius: 8px;
+
+  background: transparent;
+  color: #1e293b;
+
+  display: flex;
+  align-items: center;
+
+  font-size: 14px;
+  font-weight: 500;
+
+  text-align: left;
+  cursor: pointer;
+
+  box-sizing: border-box;
+}
+
+.branch-status-filter-option:hover {
+  background: #f1f5f9;
+}
+
+.branch-status-filter-option.is-selected {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.branch-status-filter-option + .branch-status-filter-option {
+  margin-top: 0 !important; /* removes gap */
 }

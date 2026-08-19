@@ -1245,19 +1245,34 @@
 .branch-course-view-close {
   width: 34px;
   height: 34px;
-  border: 1px solid #e6e6e6;
+  padding: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
-  background: #ffffff;
+  background: transparent;
   color: #5f6b76;
-  font-size: 15px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
   cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.branch-course-view-close svg {
+  width: 22px;
+  height: 22px;
+  display: block;
 }
 
 .branch-course-view-close:hover {
-  background: #f8f9fb;
+  background: #ffffff;
+  border-color: #e6e6e6;
   color: #0f1b25;
 }
-
 .branch-course-view-edit {
   border: 1px solid #2563eb;
   border-radius: 10px;
@@ -2575,44 +2590,45 @@
 }
 
 
-/* Close button */
-
+ /* Close button */
 .assign-faculty-v2-close {
   position: absolute;
-
   top: 16px;
   right: 16px;
-
   z-index: 2;
 
-  width: 32px;
-  height: 32px;
-
-  display: grid;
-  place-items: center;
-
+  width: 34px;
+  height: 34px;
   padding: 0;
 
-  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
-  border-radius: 50%;
-
-  background: rgba(241, 245, 249, 0.8);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
 
   color: #64748b;
-
-  font-size: 16px;
-
-  line-height: 1;
-
   cursor: pointer;
 
-  transition: all 0.15s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
-.assign-faculty-v2-close:hover {
-  background: #e2e8f0;
+/* X icon */
+.assign-faculty-v2-close svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
 
+/* Hover - box mattum visible */
+.assign-faculty-v2-close:hover {
+  background: #ffffff;
+  border-color: #e6e6e6;
   color: #0f172a;
 }
 
@@ -3725,6 +3741,40 @@
 
 .student-drawer-close {
   margin-top: 0;
+
+  width: 34px;
+  height: 34px;
+  padding: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+
+  color: #64748b;
+  cursor: pointer;
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.student-drawer-close svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.student-drawer-close:hover {
+  background: #ffffff;
+  border-color: #e6e6e6;
+  color: #0f1b25;
 }
 
 .student-drawer-edit-btn {
@@ -3963,4 +4013,673 @@
   .student-details-value {
     padding: 13px 12px;
   }
+}
+
+
+
+.notification-dropdown {
+  position: fixed;
+  top: 96px;
+  right: 80px; /* 18px → 60px, popup left-க்கு நகரும் */
+
+  width: 420px;
+  max-width: calc(100vw - 32px);
+
+  background: #ffffff;
+  border: 1px solid #dbe4ef;
+  border-radius: 22px;
+
+  box-shadow:
+    0 20px 45px rgba(15, 23, 42, 0.12),
+    0 4px 12px rgba(15, 23, 42, 0.04);
+
+  overflow: hidden;
+  z-index: 99999;
+}
+
+
+/* Header */
+
+.notification-dropdown-header {
+  height: 67px;
+  padding: 0 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.notification-dropdown-header h3 {
+  margin: 0;
+
+  font-size: 20px;
+  font-weight: 700;
+  color: #020617;
+}
+
+.notification-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* Mark all */
+
+.mark-all-read-btn {
+  border: none;
+  background: transparent;
+
+  color: #008a3e;
+
+  font-size: 16px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.mark-all-read-btn:hover {
+  color: #006f32;
+}
+
+
+/* Close */
+
+.notification-close-btn {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 50%;
+
+  background: #eff6ff;
+
+  color: #2563eb;
+
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.notification-close-btn:hover {
+  background: #dbeafe;
+}
+
+
+/* List */
+
+.notification-list {
+  padding: 15px 14px;
+
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  max-height: 390px;
+  overflow-y: auto;
+}
+
+
+/* Notification Card */
+.notification-card {
+  width: 100%;
+  min-height: 78px;
+
+  display: flex;
+  align-items: flex-start;
+
+  gap: 18px;
+
+  padding: 12px 14px;
+
+  border: 1px solid #e5edf5;
+  border-radius: 16px;
+
+  background: #ffffff;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  box-sizing: border-box;
+}
+
+.notification-card:hover {
+  background: #f8fafc;
+  border-color: #d6e1ec;
+
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+
+/* Green check */
+
+.notification-status-icon {
+  flex: 0 0 auto;
+
+  width: 19px;
+  height: 19px;
+
+  margin-top: 1px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 2px solid #16a34a;
+  border-radius: 50%;
+
+  color: #16a34a;
+
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.notification-content {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-content strong {
+  color: #020617;
+
+  font-size: 16px;
+  font-weight: 700;
+
+  line-height: 1.25;
+}
+
+.notification-message {
+  margin-top: 1px;
+
+  color: #0f172a;
+
+  font-size: 14px;
+  font-weight: 400;
+
+  line-height: 1.3;
+
+  word-break: break-word;
+}
+
+.notification-time {
+  margin-top: 4px;
+
+  color: #94a3b8;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
+/* Empty */
+
+.notification-empty {
+  padding: 40px 20px;
+
+  text-align: center;
+
+  color: #64748b;
+  font-size: 15px;
+}
+
+
+/* Footer */
+
+.notification-footer {
+  width: 100%;
+  height: 57px;
+
+  padding: 0 20px;
+
+  display: flex;
+  align-items: center;
+
+  border: none;
+  border-top: 1px solid #e2e8f0;
+
+  background: #ffffff;
+
+  color: #020617;
+
+  font-size: 16px;
+  font-weight: 700;
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.notification-footer:hover {
+  background: #f8fafc;
+}
+@media (max-width: 600px) {
+  .notification-dropdown {
+    top: 78px;
+    right: 12px;
+    left: 12px;
+
+    width: auto;
+    max-width: none;
+
+    border-radius: 20px;
+  }
+
+  .notification-dropdown-header {
+    padding: 0 16px;
+  }
+
+  .notification-dropdown-header h3 {
+    font-size: 18px;
+  }
+
+  .mark-all-read-btn {
+    font-size: 14px;
+  }
+
+  .notification-card {
+    gap: 16px;
+    padding: 16px 14px;
+  }
+
+  .notification-content strong {
+    font-size: 15px;
+  }
+
+  .notification-message {
+    font-size: 14px;
+  }
+}
+/* Logout popup width */
+.super-admin-logout-modal {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+
+}
+
+/* =========================================
+   SUPER ADMIN LOGOUT MODAL
+========================================= */
+
+.super-admin-logout-modal {
+  position: relative;
+
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  min-height: 165px;
+
+  padding: 38px 30px 24px;
+
+  box-sizing: border-box;
+
+  background: #ffffff;
+  border-radius: 32px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.18);
+}
+
+
+/* =========================================
+   CLOSE BUTTON
+========================================= */
+
+/* .super-admin-logout-modal .branch-modal-close {
+  position: absolute;
+
+  top: 18px;
+  right: 20px;
+
+  width: 42px;
+  height: 42px;
+
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #ffffff;
+
+  border: 1px solid #d7e0ed;
+  border-radius: 50%;
+
+  color: #64748b;
+
+  font-size: 25px;
+  font-weight: 300;
+  line-height: 1;
+
+  cursor: pointer;
+
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
+
+  transition: all 0.2s ease;
+} */
+
+/* .super-admin-logout-modal .branch-modal-close:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #334155;
+} */
+
+.branch-modal-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+
+  color: #64748b;
+  cursor: pointer;
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.branch-modal-close svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.branch-modal-close:hover {
+  background: #ffffff;
+  border-color: #e6e6e6;
+  color: #0f1b25;
+}
+/* =========================================
+   LOGOUT TITLE
+========================================= */
+
+.super-admin-logout-modal #logout-confirm-title {
+  margin: 0 0 20px;
+
+  color: #17213b;
+
+  font-size: 20px;
+  font-weight: 700;
+
+  line-height: 1.3;
+
+  text-align: center;
+
+  /* IMPORTANT:
+     Keeps the complete text in ONE LINE */
+  white-space: nowrap;
+}
+
+
+/* Hide old description */
+.super-admin-logout-modal .branch-delete-copy {
+  display: none;
+}
+
+
+/* =========================================
+   BUTTON CONTAINER
+========================================= */
+
+.super-admin-logout-modal .branch-modal-actions {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 14px;
+
+  width: 100%;
+}
+
+
+/* =========================================
+   BUTTONS
+========================================= */
+
+.super-admin-logout-modal .branch-modal-actions button {
+  width: 160px;
+  height: 48px;
+
+  padding: 0 18px;
+
+  border-radius: 15px;
+
+  box-sizing: border-box;
+
+  font-size: 18px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+
+
+/* =========================================
+   CANCEL BUTTON
+========================================= */
+
+.super-admin-logout-modal .branch-modal-cancel {
+  background: #ffffff;
+
+  border: 1px solid #cbd8ea;
+
+  color: #435574;
+
+  box-shadow: none;
+}
+
+.super-admin-logout-modal .branch-modal-cancel:hover {
+  background: #f8fafc;
+  border-color: #b8c7db;
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================
+   LOGOUT BUTTON
+========================================= */
+
+.super-admin-logout-modal .branch-modal-submit.is-danger {
+  background: #2864e8;
+
+  border: 1px solid #2864e8;
+
+  color: #ffffff;
+
+  box-shadow: 0 8px 20px rgba(40, 100, 232, 0.24);
+}
+
+.super-admin-logout-modal .branch-modal-submit.is-danger:hover {
+  background: #1f5bd7;
+  border-color: #1f5bd7;
+
+  box-shadow: 0 12px 25px rgba(40, 100, 232, 0.28);
+
+  transform: translateY(-1px);
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 600px) {
+  .super-admin-logout-modal {
+    width: calc(100vw - 28px);
+
+    padding: 38px 18px 22px;
+
+    border-radius: 28px;
+  }
+
+  .super-admin-logout-modal #logout-confirm-title {
+    font-size: 17px;
+  }
+
+  .super-admin-logout-modal .branch-modal-actions {
+    gap: 10px;
+  }
+
+  .super-admin-logout-modal .branch-modal-actions button {
+    width: 140px;
+    height: 45px;
+
+    font-size: 16px;
+  }
+
+  .super-admin-logout-modal .branch-modal-close {
+    width: 38px;
+    height: 38px;
+
+    top: 15px;
+    right: 15px;
+
+    font-size: 22px;
+  }
+}
+
+.course-modal-close {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+
+  color: #64748b;
+  cursor: pointer;
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.course-modal-close svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+/* Normal state - NO BOX */
+.course-modal-close,
+.course-modal-close:focus,
+.course-modal-close:focus-visible {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Hover pannumbothu mattum box */
+.course-modal-close:hover {
+  background: #ffffff !important;
+  border-color: #e6e6e6 !important;
+  box-shadow: 0 2px 8px rgba(15, 27, 37, 0.08) !important;
+  color: #0f1b25;
+}
+
+
+.branch-modal-close,
+.branch-view-close,
+.super-admin-logout-close,
+.course-modal-close,
+.student-drawer-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 8px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* Normal state - box invisible */
+.branch-modal-close,
+.branch-view-close,
+.super-admin-logout-close,
+.course-modal-close,
+.student-drawer-close {
+  background: transparent;
+}
+
+/* Hover - box visible */
+.branch-modal-close:hover,
+.branch-view-close:hover,
+.super-admin-logout-close:hover,
+.course-modal-close:hover,
+.student-drawer-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Icon size */
+.branch-modal-close svg,
+.branch-view-close svg,
+.super-admin-logout-close svg,
+.course-modal-close svg,
+.student-drawer-close svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Click */
+.branch-modal-close:active,
+.branch-view-close:active,
+.super-admin-logout-close:active,
+.course-modal-close:active,
+.student-drawer-close:active {
+  transform: scale(0.94);
 }

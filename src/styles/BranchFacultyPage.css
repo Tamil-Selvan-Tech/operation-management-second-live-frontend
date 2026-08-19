@@ -111,18 +111,15 @@
 }
 
 /* =========================================
-   Search
+   Faculty Search + Filter
 ========================================= */
 
 .faculty-search-wrapper {
   position: relative;
-
   width: 40%;
   flex: none;
-
   height: 46px;
 }
-
 
 .faculty-search-icon {
   position: absolute;
@@ -130,8 +127,8 @@
   top: 50%;
   transform: translateY(-50%);
 
-  width: 18px;
-  height: 18px;
+  width: 19px;
+  height: 19px;
 
   color: #64748b;
   pointer-events: none;
@@ -142,8 +139,7 @@
   width: 100%;
   height: 46px;
 
-  padding: 0 14px 0 58px;
-  /* 52px → 58px */
+  padding: 0 14px 0 48px;
 
   border: 1px solid #cbd5e1;
   border-radius: 8px;
@@ -157,33 +153,124 @@
   outline: none;
   box-sizing: border-box;
 
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .faculty-search-input::placeholder {
   color: #64748b;
-  opacity: 1;
 }
 
 .faculty-search-input:focus {
-  border-color: #cbd5e1;
+  border-color: #94a3b8;
   box-shadow: none;
   outline: none;
 }
 
-/* Search Icon */
-.faculty-search-icon {
+
+/* =========================================
+   Filter Button
+========================================= */
+
+.faculty-filter-wrapper {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  height: 46px;
+
+  overflow: visible !important;
+}
+
+.faculty-filter-button {
+  height: 46px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  padding: 0 17px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.faculty-filter-button:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+
+/* =========================================
+   Status Filter Box
+========================================= */
+
+.faculty-status-filter {
   position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 54px;
+  left: 0;
 
-  width: 19px;
-  height: 19px;
+  width: 180px;
+  height: 0;
+  padding: 0;
 
-  color: #64748b;
-  pointer-events: none;
-  z-index: 2;
+  background: #ffffff;
+  border: 1px solid transparent;
+  border-radius: 10px;
+
+  box-shadow: none;
+
+  z-index: 9999;
+  box-sizing: border-box;
+
+  display: none;
+}
+
+.faculty-status-filter.is-open {
+  display: block;
+
+  height: 160px;
+  padding: 18px;
+
+  border-color: #e2e8f0;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+}
+.faculty-status-filter-select {
+  width: 100%;
+  height: 30px;
+
+  padding: 0 14px;
+
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #334155;
+
+  font-size: 15px;
+  font-weight: 500;
+
+  outline: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.faculty-status-filter-select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
 }
 
 
@@ -281,40 +368,36 @@
   margin: 0;
   letter-spacing: -0.02em;
 }
-
 .faculty-modal-close-btn {
-  position: absolute;
-  top: 24px;
-  right: 24px;
+  position: relative;
+  top: -10px;
+   right: -4px; 
 
-  width: 42px;
-  height: 42px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
 
-  border-radius: 50%;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-
-  display: grid;
-  place-items: center;
-
+  background: transparent;
+  color: #64748b;
   cursor: pointer;
-  color: #475569;
-
-  font-size: 1.5rem;
-  font-weight: 600;
-  line-height: 1;
-
-  outline: none;
-  transition: all 0.15s ease;
 }
-
 .faculty-modal-close-btn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: #ffffff;
+  border-color: #e6e6e6;
+  color: #0f1b25;
 }
 
+.faculty-modal-close-btn svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
 /* Form Fields */
 .faculty-modal-grid {
   display: grid;
@@ -1271,4 +1354,102 @@
     justify-content: space-between;
   }
 
+}
+.faculty-success-modal-card {
+  position: relative;
+}
+
+.faculty-success-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+
+  width: 32px;
+  height: 32px;
+  padding: 0;
+
+  border: none;
+  background: transparent;
+  color: #64748b;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.faculty-success-close-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.branch-course-view-close {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+
+  color: #64748b;
+  cursor: pointer;
+
+  flex-shrink: 0;
+}
+
+.branch-course-view-close:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+/* =========================================
+   Faculty Table Column Width Adjustment
+========================================= */
+
+.faculty-table-shell .branch-dashboard-table {
+  width: 100%;
+  min-width: 700px;
+  table-layout: fixed;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(1),
+.faculty-table-shell .branch-dashboard-table td:nth-child(1) {
+  width: 5%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(2),
+.faculty-table-shell .branch-dashboard-table td:nth-child(2) {
+  width: 14%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(3),
+.faculty-table-shell .branch-dashboard-table td:nth-child(3) {
+  width: 15%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(4),
+.faculty-table-shell .branch-dashboard-table td:nth-child(4) {
+  width: 17%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(5),
+.faculty-table-shell .branch-dashboard-table td:nth-child(5) {
+  width: 20%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(6),
+.faculty-table-shell .branch-dashboard-table td:nth-child(6) {
+  width: 18%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(7),
+.faculty-table-shell .branch-dashboard-table td:nth-child(7) {
+  width: 11%;
 }

@@ -801,7 +801,7 @@
   display: flex;
   align-items: stretch;
   gap: 0;
-  padding-right: 0;
+  padding-left: 19px;
 }
 
 .login-page .field-icon {
@@ -819,19 +819,7 @@
   height: 17px;
 }
 
-.login-page .login-input {
-  min-height: calc(var(--login-field-height) - 2px);
-  height: 100%;
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: #0f4fb8;
-  padding: 0 12px;
-  line-height: calc(var(--login-field-height) - 2px);
-  border-radius: 0;
-  box-shadow: none;
-}
+
 
 .login-page .field-with-icon:not(.password-field) .login-input {
   padding-left: 0;
@@ -1070,16 +1058,18 @@
 
 @media (max-width: 720px) {
   .auth-shell {
-    padding: 10px;
+    padding: 16px;
   }
 
   .auth-card.login-shell.login-page {
-    width: calc(100vw - 20px);
+    width: calc(100vw - 32px);
+    max-width: 500px;
+    margin: 0 auto;
     border-radius: 28px;
   }
 
   .login-form-panel {
-    padding: 16px 12px 12px;
+    padding: 24px 16px 20px;
     gap: 10px;
   }
 
@@ -1098,11 +1088,11 @@
   }
 
   .login-page .login-copy {
-    margin-top: 24px;
+    margin-top: 10px;
   }
 
   .login-copy h2 {
-    font-size: 1.55rem;
+    font-size: 1.8rem;
   }
 
   .login-copy p {
@@ -1110,14 +1100,21 @@
   }
 
   .login-form {
+    width: 100%;
+    max-width: 100%;
     gap: 12px;
   }
 
-  .login-page .field-with-icon,
-  .login-page .login-input,
-  .login-page .password-toggle,
-  .login-primary {
-    min-height: 44px;
+  .login-page .field-with-icon {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 50px;
+  }
+
+  
+
+  .login-page .password-toggle {
+    min-height: 48px;
   }
 
   .login-page .field-icon,
@@ -1127,12 +1124,15 @@
   }
 
   .login-page {
-    --login-field-height: 44px;
+    --login-field-height: 50px;
     --login-icon-width: 44px;
     --login-toggle-width: 44px;
   }
 
   .login-page .login-primary {
+    width: 100%;
+    max-width: 100%;
+    min-height: 50px;
     margin-top: 10px;
   }
 
@@ -1144,130 +1144,38 @@
   .login-visual-panel {
     display: none;
   }
+}
+.login-page .login-input {
+  min-height: calc(var(--login-field-height) - 2px);
+  height: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #0f4fb8;
+  padding: 0 12px;
+  line-height: calc(var(--login-field-height) - 2px);
+  border-radius: 0;
+  box-shadow: none;
 
-  .auth-card.forgot-page {
-    width: calc(100vw - 20px);
-    border-radius: 28px;
-  }
-
-  .forgot-form-panel {
-    padding: 16px 12px 12px;
-    gap: 10px;
-  }
-
-.forgot-topbar {
-  gap: 10px;
+ caret-color: #000000 !important;
 }
 
-  .forgot-brand-logo {
-    height: 30px;
-  }
+/* Email + Password autofill fix */
+.login-page .login-input:-webkit-autofill,
+.login-page .login-input:-webkit-autofill:hover,
+.login-page .login-input:-webkit-autofill:focus,
+.login-page .login-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #0f4fb8 !important;
+  -webkit-box-shadow: 0 0 0 1000px #e7f0ff inset !important;
+  box-shadow: 0 0 0 1000px #e7f0ff inset !important;
+  border-radius: 0 !important;
+  background-clip: padding-box !important;
+  transition: background-color 9999s ease-out 0s;
+}
 
-  .forgot-copy {
-    gap: 6px;
-  }
-
-  .forgot-copy h2 {
-    font-size: 1.35rem;
-  }
-
-  .forgot-copy p {
-    font-size: 0.92rem;
-  }
-
-  .forgot-form {
-    gap: 12px;
-  }
-
-  .forgot-success-layout {
-    max-width: 100%;
-    margin-top: 4px;
-    gap: 8px;
-  }
-
-  .forgot-success-illustration-wrap {
-    width: min(210px, 100%);
-    margin-bottom: 2px;
-  }
-
-  .forgot-success-copy {
-    gap: 8px;
-  }
-
-  .forgot-success-copy h2 {
-    font-size: 1.65rem;
-  }
-
-  .forgot-success-copy p {
-    font-size: 0.94rem;
-  }
-
-  .forgot-success-chip,
-  .forgot-success-info,
-  .forgot-success-button {
-    width: 100%;
-  }
-
-  .forgot-success-info {
-    padding: 12px 14px;
-  }
-
-  .forgot-success {
-    gap: 12px;
-    max-width: 100%;
-  }
-
-  .forgot-success-badge {
-    width: 56px;
-    height: 56px;
-    border-radius: 18px;
-  }
-
-  .reset-password-shell {
-    width: calc(100vw - 20px);
-    border-radius: 28px;
-    padding: 16px 12px;
-    gap: 14px;
-  }
-
-  .reset-password-header {
-    gap: 12px;
-  }
-
-  .reset-password-badge {
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
-  }
-
-  .reset-password-badge svg {
-    width: 22px;
-    height: 22px;
-  }
-
-  .reset-password-copy h2 {
-    font-size: 1.45rem;
-  }
-
-  .reset-password-intro {
-    white-space: normal;
-  }
-
-  .reset-password-actions {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .reset-password-state-success {
-    padding-top: 40px;
-  }
-
-  .reset-password-link,
-  .reset-password-back-link {
-    width: 100%;
-  }
-
-  .forgot-visual-panel {
-    display: none;
-  }
+/* Keep email text aligned like password */
+.login-page .field-with-icon:not(.password-field) .login-input {
+  padding-left: 12px;
+  text-indent: 0;
 }

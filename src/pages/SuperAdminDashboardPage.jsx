@@ -258,6 +258,9 @@ export function SuperAdminDashboardPage() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [branches, setBranches] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
+const statusFilterRef = useRef(null)
   const [countryOptions, setCountryOptions] = useState([])
   const [stateOptions, setStateOptions] = useState([])
   const [cityOptions, setCityOptions] = useState([])
@@ -379,25 +382,44 @@ export function SuperAdminDashboardPage() {
   }, [loadBranches])
 
   useEffect(() => {
-    const handleWindowFocus = () => {
+  const handleWindowFocus = () => {
+    void loadBranches()
+  }
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'visible') {
       void loadBranches()
     }
+  }
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void loadBranches()
-      }
+  window.addEventListener('focus', handleWindowFocus)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  return () => {
+    window.removeEventListener('focus', handleWindowFocus)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }
+}, [loadBranches])
+
+useEffect(() => {
+  if (!isStatusFilterOpen) return undefined
+
+  const handleOutsideClick = (event) => {
+    const target = event.target
+
+    if (!(target instanceof Element)) return
+
+    if (!statusFilterRef.current?.contains(target)) {
+      setIsStatusFilterOpen(false)
     }
+  }
 
-    window.addEventListener('focus', handleWindowFocus)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+  document.addEventListener('pointerdown', handleOutsideClick)
 
-    return () => {
-      window.removeEventListener('focus', handleWindowFocus)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [loadBranches])
-
+  return () => {
+    document.removeEventListener('pointerdown', handleOutsideClick)
+  }
+}, [isStatusFilterOpen])
   // Load student counts and listen for changes
   useEffect(() => {
     const refresh = () => setBranchStudentCounts(getAllBranchStudentCounts())
@@ -702,15 +724,23 @@ export function SuperAdminDashboardPage() {
   const activeBranches = branches.filter((branch) => String(branch?.status || '').trim().toLowerCase() === 'active').length
 
   const filteredBranches = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase()
-    if (!query) return branches
+  const query = searchTerm.trim().toLowerCase()
 
-    return branches.filter((branch) => {
-      return [branch.branchId, branch.branchName].some((value) =>
+  return branches.filter((branch) => {
+    const matchesSearch =
+      !query ||
+      [branch.branchId, branch.branchName].some((value) =>
         String(value || '').toLowerCase().includes(query),
       )
-    })
-  }, [branches, searchTerm])
+
+    const branchStatus = getNormalizedBranchStatus(branch)
+
+    const matchesStatus =
+      statusFilter === 'All' || branchStatus === statusFilter
+
+    return matchesSearch && matchesStatus
+  })
+}, [branches, searchTerm, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredBranches.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -1228,10 +1258,21 @@ export function SuperAdminDashboardPage() {
             </div>
 
             <div className="super-admin-topbar-right">
-              <SuperAdminNotificationBell
-                onOpenBranches={() => setActiveSection('branches')}
-                onViewActivity={() => navigate('/dashboard/super-admin/notifications')}
-              />
+             <SuperAdminNotificationBell
+  onOpenBranches={() => setActiveSection('branches')}
+  onViewActivity={() => navigate('/dashboard/super-admin/notifications')}
+  onOpenBranch={(branchId) => {
+    setActiveSection('branches')
+
+    const branch = branches.find(
+      (item) => String(item.id) === String(branchId)
+    )
+
+    if (branch) {
+      setViewTargetBranch(branch)
+    }
+  }}
+/>
 
               <div className="super-admin-profile">
                 <AvatarBadge />
@@ -1262,25 +1303,71 @@ export function SuperAdminDashboardPage() {
                     </p>
                   </div>
                 </div>
+                {/* search */}
+<div className="branch-management-toolbar">
+  <div className="branch-toolbar-left">
 
-                <div className="branch-management-toolbar">
-                  <div className="branch-search">
-                    <span className="branch-search-icon" aria-hidden="true">
-                      <Search size={16} strokeWidth={2.2} />
-                    </span>
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={handleSearchChange}
-                      placeholder="Search..."
-                      aria-label="Search branches"
-                    />
-                    <button type="button" className="branch-search-button">
-                      Search
-                    </button>
-                  </div>
+    <div className="branch-search">
+      
 
-                </div>
+      <input
+        type="text"
+        value={searchTerm}
+        onChange={handleSearchChange}
+        placeholder="Search Branch"
+        aria-label="Search branches"
+      />
+
+      <button type="button" className="branch-search-button">
+        Search
+      </button>
+    </div>
+
+    <div
+  ref={statusFilterRef}
+  className={`branch-status-filter ${isStatusFilterOpen ? 'is-open' : ''}`}
+>
+      <button
+        type="button"
+        className="branch-status-filter-trigger"
+        onClick={() => setIsStatusFilterOpen((current) => !current)}
+        aria-haspopup="menu"
+        aria-expanded={isStatusFilterOpen}
+      >
+        <span>{statusFilter}</span>
+
+        <ChevronRight
+          size={16}
+          strokeWidth={2.2}
+          className="branch-status-filter-chevron"
+        />
+      </button>
+
+      {isStatusFilterOpen ? (
+        <div className="branch-status-filter-menu" role="menu">
+          {['All', 'Active', 'Inactive'].map((status) => (
+            <button
+              key={status}
+              type="button"
+              role="menuitem"
+              className={`branch-status-filter-option ${
+                statusFilter === status ? 'is-selected' : ''
+              }`}
+              onClick={() => {
+                setStatusFilter(status)
+                setCurrentPage(1)
+                setIsStatusFilterOpen(false)
+              }}
+            >
+              {status}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+
+  </div>
+</div>
 
                 <div className="branch-table-shell">
                   <table className="branch-table">
@@ -1291,7 +1378,7 @@ export function SuperAdminDashboardPage() {
                         <th className="branch-table-col-name">Branch Name</th>
                         <th className="branch-table-col-admin">Branch Admin Name</th>
                         <th style={{ textAlign: 'center' }}>Students</th>
-                        <th className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>Dashboard</th>
+                        <th className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>Branch View</th>
                         <th className="branch-table-col-actions" style={{ textAlign: 'center' }}>Actions</th>
                       </tr>
                     </thead>
@@ -1636,7 +1723,7 @@ export function SuperAdminDashboardPage() {
   onClick={closeViewBranch}
   aria-label="Close branch details"
 >
-  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+  <X size={22} strokeWidth={2.5} aria-hidden="true" />
 </button>
               </div>
             </div>
@@ -1714,7 +1801,7 @@ export function SuperAdminDashboardPage() {
   aria-label="Close add branch form"
   onClick={closeBranchModal}
 >
-  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+  <X size={22} strokeWidth={2.5} aria-hidden="true" />
 </button>
 
             <h2>{editingBranchId !== null ? 'Edit branch information' : 'Create Branch'}</h2>
@@ -1881,14 +1968,14 @@ export function SuperAdminDashboardPage() {
       {isSuccessOpen ? (
         <div className="branch-modal-backdrop" role="presentation" onClick={(event) => event.stopPropagation()}>
           <div className="branch-success-modal" role="dialog" aria-modal="true" aria-labelledby="branch-success-title">
-            <button
-              type="button"
-              className="branch-modal-close"
-              aria-label="Close success popup"
-              onClick={() => setIsSuccessOpen(false)}
-            >
-              X
-            </button>
+           <button
+  type="button"
+  className="branch-success-close"
+  onClick={() => setIsSuccessOpen(false)}
+  aria-label="Close"
+>
+  <X size={22} strokeWidth={2.5} />
+</button>
 
             <div className="branch-success-hero" aria-hidden="true">
               <span className="branch-success-hero-icon">{String.fromCharCode(10003)}</span>
@@ -1956,7 +2043,7 @@ export function SuperAdminDashboardPage() {
   aria-label="Close delete confirmation"
   onClick={closeDeleteConfirm}
 >
-  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+  <X size={22} strokeWidth={2.5} aria-hidden="true" />
 </button>
 
             <div className="branch-delete-icon" aria-hidden="true">
@@ -1998,7 +2085,7 @@ export function SuperAdminDashboardPage() {
   aria-label="Close logout confirmation"
   onClick={closeLogoutConfirm}
 >
-  <X size={18} strokeWidth={2.5} aria-hidden="true" />
+  <X size={22} strokeWidth={2.5} aria-hidden="true" />
 </button>
 
             <h2 id="super-admin-logout-title">Are you sure you want to logout?</h2>

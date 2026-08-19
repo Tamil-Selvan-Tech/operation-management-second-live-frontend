@@ -49,8 +49,11 @@ function getNotificationIcon(kind) {
       return Shield
   }
 }
-
-export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
+export function SuperAdminNotificationBell({
+  onOpenBranches,
+  onViewActivity,
+  onOpenBranch,
+}) {
   const navigate = useNavigate()
   const menuRef = useRef(null)
   const [isOpen, setIsOpen] = useState(false)
@@ -64,8 +67,26 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
       })
       const data = Array.isArray(response?.data) ? response.data : []
       const mergedNotifications = mergeNotificationsWithStoredState(data)
-      saveNotifications(mergedNotifications)
-      setNotifications(mergedNotifications)
+
+const storedViewedIds = JSON.parse(
+  localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
+)
+
+const viewedIds = new Set(
+  Array.isArray(storedViewedIds)
+    ? storedViewedIds.map(String)
+    : [],
+)
+
+const notificationsWithDropdownState = mergedNotifications.map(
+  (notification) => ({
+    ...notification,
+    dropdownViewed: viewedIds.has(String(notification.id)),
+  }),
+)
+
+saveNotifications(notificationsWithDropdownState)
+setNotifications(notificationsWithDropdownState)
     } catch {
       setNotifications([])
     } finally {
@@ -136,35 +157,64 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
   }, [isOpen])
 
   const notificationCount = useMemo(
-    () => notifications.filter((notification) => !notification.read).length,
-    [notifications],
-  )
-  const visibleNotifications = useMemo(() => notifications.slice(0, 3), [notifications])
-
+  () =>
+    notifications.filter(
+      (notification) => !notification.dropdownViewed,
+    ).length,
+  [notifications],
+)
+const visibleNotifications = useMemo(
+  () =>
+    notifications
+      .filter((notification) => !notification.dropdownViewed)
+      .slice(0, 3),
+  [notifications],
+)
   const handleOpenNotification = async (notification) => {
-    setNotifications((current) =>
-      current.map((item) => (item.id === notification.id ? { ...item, read: true } : item)),
-    )
-    markNotificationsAsRead([notification.id])
+  setNotifications((current) =>
+  current.map((item) =>
+    item.id === notification.id
+      ? { ...item, dropdownViewed: true }
+      : item,
+  ),
+)
 
-    try {
-      await request('/notifications/mark-read', {
-        method: 'PATCH',
-        body: JSON.stringify({ notificationIds: [notification.id] }),
-      })
-    } catch {
-      // Keep the optimistic state if the API is temporarily unavailable.
-    } finally {
-      void refreshNotifications()
-    }
+const storedViewedIds = JSON.parse(
+  localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
+)
 
-    if (notification.kind?.startsWith('branch-') && typeof onOpenBranches === 'function') {
-      onOpenBranches(notification)
-      return
-    }
+const viewedIds = new Set(
+  Array.isArray(storedViewedIds)
+    ? storedViewedIds.map(String)
+    : [],
+)
 
-    navigate('/dashboard/super-admin')
+viewedIds.add(String(notification.id))
+
+localStorage.setItem(
+  'superAdminDropdownViewedNotifications',
+  JSON.stringify([...viewedIds]),
+)
+  
+
+  try {
+    await request('/notifications/mark-read', { 
+      method: 'PATCH', 
+      body: JSON.stringify({ notificationIds: [notification.id] }), 
+    })
+  } catch {
+    // Keep the optimistic state if the API is temporarily unavailable.
+  } finally {
+    void refreshNotifications()
   }
+
+  if (notification.kind?.startsWith('branch-') && typeof onOpenBranches === 'function') {
+    onOpenBranches(notification)
+    return
+  }
+
+  navigate('/dashboard/super-admin')
+}
 
   const handleMarkAllAsRead = () => {
     setNotifications((current) => current.map((item) => ({ ...item, read: true })))
@@ -242,7 +292,7 @@ export function SuperAdminNotificationBell({ onOpenBranches, onViewActivity }) {
                 </span>
                 <div className="notification-copy">
                   <p>No notifications yet</p>
-                  <span>Branch login and branch invitation alerts will appear here.</span>
+                 
                   <small>Waiting for activity</small>
                 </div>
               </div>

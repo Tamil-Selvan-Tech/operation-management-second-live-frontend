@@ -64,6 +64,14 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
   }, [])
 
   useEffect(() => {
+  const timer = setTimeout(() => {
+    emailInputRef.current?.focus()
+  }, 100)
+
+  return () => clearTimeout(timer)
+}, [])
+
+  useEffect(() => {
     const syncAutofill = () => {
       const nextEmail = String(emailInputRef.current?.value || '').trim()
       const nextPassword = String(passwordInputRef.current?.value || '')
@@ -107,21 +115,22 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
                 <EmailIcon />
               </span>
               <input
-                ref={emailInputRef}
-                className="login-input login-input-icon"
-                value={form.email}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, email: event.target.value }))
-                }
-                type="email"
-                autoComplete="email"
-                inputMode="email"
-                autoCapitalize="none"
-                autoCorrect="off"
-                spellCheck={false}
-                name="email"
-                placeholder="Enter your email"
-              />
+  ref={emailInputRef}
+  className="login-input login-input-icon"
+  value={form.email}
+  onChange={(event) =>
+    setForm((current) => ({ ...current, email: event.target.value }))
+  }
+  type="email"
+  autoComplete="email"
+  
+  inputMode="email"
+  autoCapitalize="none"
+  autoCorrect="off"
+  spellCheck={false}
+  name="email"
+  placeholder="Enter your email"
+/>
             </div>
             {fieldErrors.email ? (
               <small className="login-error" role="alert" aria-live="polite">

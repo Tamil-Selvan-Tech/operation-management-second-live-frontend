@@ -32,6 +32,8 @@ const FACULTY_ID_PREFIX = 'FC-'
 export function BranchFacultyPage() {
   const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+  
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 5
 
@@ -254,13 +256,13 @@ export function BranchFacultyPage() {
   }
 
   // Filtered list
-  const filteredFaculty = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
+ const filteredFaculty = useMemo(() => {
+  const query = searchQuery.trim().toLowerCase()
 
-    if (!query) return facultyList
-
-    return facultyList.filter((faculty) => {
-      const searchableText = [
+  return facultyList.filter((faculty) => {
+    const matchesSearch =
+      !query ||
+      [
         faculty.id || '',
         faculty.name || '',
         faculty.email || '',
@@ -269,11 +271,19 @@ export function BranchFacultyPage() {
         faculty.state || '',
         faculty.city || '',
         faculty.address || '',
-      ].join(' ').toLowerCase()
+      ]
+        .join(' ')
+        .toLowerCase()
+        .includes(query)
 
-      return searchableText.includes(query)
-    })
-  }, [facultyList, searchQuery])
+    const matchesStatus =
+      statusFilter === 'All' ||
+      String(faculty.status || '').toLowerCase() ===
+        statusFilter.toLowerCase()
+
+    return matchesSearch && matchesStatus
+  })
+}, [facultyList, searchQuery, statusFilter])
 
   const totalPages = Math.max(1, Math.ceil(filteredFaculty.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -771,26 +781,77 @@ export function BranchFacultyPage() {
     {/* Search + Filter Bar */}
     <div className="faculty-search-filter-bar">
 
-      {/* Search */}
-      <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px' }}>
-        <input
-          type="text"
-          placeholder="Search faculty..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="faculty-search-input"
-          style={{ flex: 1, minWidth: 0 }}
-        />
-        <button 
-          type="button" 
-          className="button button-solid" 
-          style={{ padding: '0 20px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          <Search size={16} />
-          Search
-        </button>
-      </div>
+     {/* Search + Filter Bar */}
+<div className="faculty-search-filter-bar">
 
+  {/* Search */}
+  <div className="faculty-search-wrapper">
+
+    {/* <Search
+      className="faculty-search-icon"
+      size={19}
+      strokeWidth={2}
+    /> */}
+
+    <input
+      type="text"
+      placeholder="Search faculty"
+      value={searchQuery}
+      onChange={(e) => {
+        setSearchQuery(e.target.value)
+        setCurrentPage(1)
+      }}
+      className="faculty-search-input"
+    />
+
+  </div>
+
+  {/* Filter */}
+  <div className="faculty-filter-wrapper">
+
+    <button
+      type="button"
+      className="faculty-filter-button"
+      onClick={() => {
+        const filterBox = document.querySelector(
+          '.faculty-status-filter'
+        )
+
+        filterBox?.classList.toggle('is-open')
+      }}
+    >
+      <SlidersHorizontal size={17} />
+      <span>Filter</span>
+    </button>
+
+    <div className="faculty-status-filter">
+
+      {/* <label className="faculty-status-filter-label">
+        Status
+      </label> */}
+
+      <select
+  value={statusFilter}
+  onChange={(e) => {
+    setStatusFilter(e.target.value)
+    setCurrentPage(1)
+
+    document
+      .querySelector('.faculty-status-filter')
+      ?.classList.remove('is-open')
+  }}
+  className="faculty-status-filter-select"
+>
+  <option value="All">All</option>
+  <option value="Active">Active</option>
+  <option value="Inactive">Inactive</option>
+</select>
+
+    </div>
+
+  </div>
+
+</div>
 
 
 
@@ -799,8 +860,18 @@ export function BranchFacultyPage() {
     {/* Table */}
     <div className="faculty-table-shell">
       <div className="faculty-table-scroll">
-        <table className="branch-dashboard-table" style={{ tableLayout: 'fixed' }}>
-          <thead>
+<table className="branch-dashboard-table" style={{ tableLayout: 'fixed' }}>
+  <colgroup>
+    <col style={{ width: '5%' }} />
+    <col style={{ width: '14%' }} />
+    <col style={{ width: '15%' }} />
+    <col style={{ width: '17%' }} />
+    <col style={{ width: '20%' }} />
+    <col style={{ width: '18%' }} />
+    <col style={{ width: '11%' }} />
+  </colgroup>
+
+  <thead></thead>          <thead>
             <tr>
               <th>S.No</th>
               <th>Faculty ID</th>
@@ -840,11 +911,11 @@ export function BranchFacultyPage() {
                       <span style={{ color: '#475569', fontWeight: '500' }}>{faculty.courseName || '—'}</span>
                     </td>
 
-                    <td>
-                      <span className={`branch-course-status-pill ${normStatus}`}>
-                        {faculty.status}
-                      </span>
-                    </td>
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+  <span className={`branch-course-status-pill ${normStatus}`}>
+    {faculty.status}
+  </span>
+</td>
                     <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
@@ -1026,14 +1097,14 @@ export function BranchFacultyPage() {
                 <h2 className="faculty-modal-title">
                   {editingId ? 'Edit Faculty' : 'Create Faculty'}
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  aria-label="Close form"
-                  className="faculty-modal-close-btn"
-                >
-                  ×
-                </button>
+               <button
+  type="button"
+  onClick={() => setIsModalOpen(false)}
+  aria-label="Close form"
+  className="faculty-modal-close-btn"
+>
+  <X size={22} strokeWidth={2} />
+</button>
               </div>
 
               {/* 2-Column Grid Layout */}
@@ -1402,13 +1473,13 @@ export function BranchFacultyPage() {
                     </strong>
 
                     <button
-                      type="button"
-                      className="branch-course-view-close"
-                      onClick={() => setViewFaculty(null)}
-                      aria-label="Close faculty details"
-                    >
-                      X
-                    </button>
+  type="button"
+  className="branch-course-view-close"
+  onClick={() => setViewFaculty(null)}
+  aria-label="Close faculty details"
+>
+  <X size={22} strokeWidth={2} />
+</button>
                   </div>
 
                   <button
@@ -1543,7 +1614,7 @@ export function BranchFacultyPage() {
                 aria-label="Close delete confirmation"
                 onClick={() => setDeleteConfirmTarget(null)}
               >
-                <X size={20} strokeWidth={2} />
+                <X size={22} strokeWidth={2} />
               </button>
 
 
@@ -1593,6 +1664,15 @@ export function BranchFacultyPage() {
               aria-modal="true"
               aria-labelledby="faculty-success-title"
             >
+              {/* Close Button */}
+  <button
+    type="button"
+    className="faculty-success-close-btn"
+    aria-label="Close success message"
+    onClick={() => setSuccessAlert(null)}
+  >
+    <X size={22} strokeWidth={2} />
+  </button>
               {/* Success Icon */}
               <div className="faculty-success-icon-wrapper">
                 <div className="faculty-success-icon">
