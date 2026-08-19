@@ -787,11 +787,11 @@ export function BranchFacultyPage() {
   {/* Search */}
   <div className="faculty-search-wrapper">
 
-    <Search
+    {/* <Search
       className="faculty-search-icon"
       size={19}
       strokeWidth={2}
-    />
+    /> */}
 
     <input
       type="text"
@@ -860,8 +860,18 @@ export function BranchFacultyPage() {
     {/* Table */}
     <div className="faculty-table-shell">
       <div className="faculty-table-scroll">
-        <table className="branch-dashboard-table" style={{ tableLayout: 'fixed' }}>
-          <thead>
+<table className="branch-dashboard-table" style={{ tableLayout: 'fixed' }}>
+  <colgroup>
+    <col style={{ width: '5%' }} />
+    <col style={{ width: '14%' }} />
+    <col style={{ width: '15%' }} />
+    <col style={{ width: '17%' }} />
+    <col style={{ width: '20%' }} />
+    <col style={{ width: '18%' }} />
+    <col style={{ width: '11%' }} />
+  </colgroup>
+
+  <thead></thead>          <thead>
             <tr>
               <th>S.No</th>
               <th>Faculty ID</th>
@@ -901,11 +911,11 @@ export function BranchFacultyPage() {
                       <span style={{ color: '#475569', fontWeight: '500' }}>{faculty.courseName || '—'}</span>
                     </td>
 
-                    <td>
-                      <span className={`branch-course-status-pill ${normStatus}`}>
-                        {faculty.status}
-                      </span>
-                    </td>
+                    <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+  <span className={`branch-course-status-pill ${normStatus}`}>
+    {faculty.status}
+  </span>
+</td>
                     <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"

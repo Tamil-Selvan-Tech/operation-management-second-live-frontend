@@ -1408,3 +1408,48 @@
   background: #f1f5f9;
   color: #334155;
 }
+
+/* =========================================
+   Faculty Table Column Width Adjustment
+========================================= */
+
+.faculty-table-shell .branch-dashboard-table {
+  width: 100%;
+  min-width: 700px;
+  table-layout: fixed;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(1),
+.faculty-table-shell .branch-dashboard-table td:nth-child(1) {
+  width: 5%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(2),
+.faculty-table-shell .branch-dashboard-table td:nth-child(2) {
+  width: 14%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(3),
+.faculty-table-shell .branch-dashboard-table td:nth-child(3) {
+  width: 15%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(4),
+.faculty-table-shell .branch-dashboard-table td:nth-child(4) {
+  width: 17%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(5),
+.faculty-table-shell .branch-dashboard-table td:nth-child(5) {
+  width: 20%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(6),
+.faculty-table-shell .branch-dashboard-table td:nth-child(6) {
+  width: 18%;
+}
+
+.faculty-table-shell .branch-dashboard-table th:nth-child(7),
+.faculty-table-shell .branch-dashboard-table td:nth-child(7) {
+  width: 11%;
+}
