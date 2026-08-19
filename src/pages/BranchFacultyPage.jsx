@@ -795,7 +795,7 @@ export function BranchFacultyPage() {
 
     <input
       type="text"
-      placeholder="Search faculty..."
+      placeholder="Search faculty"
       value={searchQuery}
       onChange={(e) => {
         setSearchQuery(e.target.value)

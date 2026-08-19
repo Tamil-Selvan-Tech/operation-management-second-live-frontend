@@ -1383,7 +1383,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '340px' }}>
                       <input
                         type="text"
-                        placeholder="Search Student..."
+                        placeholder="Search Student"
                         value={studentSearchTerm}
                         onChange={(e) => { setStudentSearchTerm(e.target.value); setStudentPage(1) }}
                         className="faculty-search-input"
@@ -1578,7 +1578,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '300px' }}>
                       <input
                         type="text"
-                        placeholder="Search courses..."
+                        placeholder="Search Courses"
                         value={courseSearchTerm}
                         onChange={(e) => setCourseSearchTerm(e.target.value)}
                         className="faculty-search-input"
