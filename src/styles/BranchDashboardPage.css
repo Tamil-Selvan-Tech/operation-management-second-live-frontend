@@ -4506,6 +4506,146 @@
   color: #0f1b25;
 }
 
+.student-form-stepper {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.student-form-step {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 22px;
+  width: 100%;
+  padding: 12px 0 10px;
+  border-radius: 0;
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  appearance: none;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.student-form-step-main {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-width: 0;
+}
+
+.student-form-step-index {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #64748b;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.student-form-step-copy {
+  min-width: 0;
+}
+
+.student-form-step-copy strong {
+  display: block;
+  color: inherit;
+  font-size: 1.02rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.student-form-step-copy small {
+  display: block;
+  margin-top: 2px;
+  color: inherit;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  opacity: 0.86;
+}
+
+.student-form-step.is-active {
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+}
+
+.student-form-step.is-active .student-form-step-index {
+  background: linear-gradient(180deg, #4a98ff 0%, #1d6fe8 100%);
+  color: #ffffff;
+}
+
+.student-form-step.is-complete {
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+}
+
+.student-form-step.is-complete .student-form-step-index {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.student-form-step:hover {
+  border: 0;
+  background: transparent;
+}
+
+.student-form-step.is-active:hover,
+.student-form-step.is-complete:hover {
+  background: transparent;
+}
+
+.student-form-step:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.student-form-step-bar {
+  display: block;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.student-form-step-bar-fill {
+  display: block;
+  width: var(--student-step-progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1d6fe8 0%, #2e86ff 100%);
+  transition: width 0.22s ease;
+}
+
+.student-form-step.is-active .student-form-step-bar {
+  background: #e5e7eb;
+}
+
+.student-form-step.is-complete .student-form-step-bar {
+  background: #e5e7eb;
+}
+
+.student-form-stepper + .course-form-grid {
+  margin-top: 2px;
+}
 
 .branch-modal-close,
 .branch-view-close,
@@ -4565,6 +4705,26 @@
 .course-modal-close:active,
 .student-drawer-close:active {
   transform: scale(0.94);
+}
+
+@media (max-width: 720px) {
+  .student-form-stepper {
+    grid-template-columns: 1fr;
+  }
+
+  .student-form-step {
+    gap: 16px;
+    padding: 10px 0 8px;
+  }
+
+  .student-form-step-main {
+    gap: 16px;
+  }
+
+  .student-form-step-index {
+    width: 36px;
+    height: 36px;
+  }
 }
 .branch-preloader {
   min-height: 330px;
