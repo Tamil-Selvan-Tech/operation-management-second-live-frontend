@@ -162,20 +162,8 @@ export function BranchFacultyPage() {
     }
   }
 
-  const fetchCourses = async () => {
-    try {
-      const res = await listCourses({ limit: 100 })
-      if (res?.data) {
-        setCoursesList(res.data)
-      }
-    } catch (error) {
-      console.error('Failed to fetch courses:', error)
-    }
-  }
-
   useEffect(() => {
     fetchFaculty()
-    fetchCourses()
   }, [])
 
   // Load states on country code change
