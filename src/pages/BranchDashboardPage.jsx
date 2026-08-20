@@ -631,18 +631,26 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   }, [isAuthenticated, loadBranchCourses, loadFacultyList, navigate, role, session, user])
 
   useEffect(() => {
+    const nextBranchId = branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || null
+
+    if (embeddedMode) {
+      setImpersonateBranchId(nextBranchId)
+      return () => {
+        setImpersonateBranchId(null)
+      }
+    }
+
     if (role !== 'branch-admin') {
       setImpersonateBranchId(null)
       return undefined
     }
 
-    const nextBranchId = branchProfile?.id || branchProfile?.branchId || null
     setImpersonateBranchId(nextBranchId)
 
     return () => {
       setImpersonateBranchId(null)
     }
-  }, [branchProfile, role])
+  }, [branchData, branchProfile, embeddedMode, role])
 
   useEffect(() => {
     if (!isProfileMenuOpen) return undefined
@@ -3292,12 +3300,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                   </div>
 
                   {/* Address */}
-                  <div className="student-details-row">
+                  <div className="student-details-row student-details-row-address">
                     <div className="student-details-label">
                       Address
                     </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.address || '-'}
+                    <div
+                      className="student-details-value is-address"
+                      title={viewStudentDrawer.address || '-'}
+                    >
+                      {(viewStudentDrawer.address || '-').replace(/,\s*/g, ', ')}
                     </div>
                   </div>
 

@@ -2,20 +2,13 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Plus,
-  Search,
   MoreVertical,
-  SlidersHorizontal,
-
   X,
   CheckCircle2,
-  Mail,
   Phone,
-  BookOpen,
-  UserRound,
   Trash2,
   Edit,
   Eye,
-  MapPin,
 } from 'lucide-react'
 import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystatecity/countries-browser'
 import '../styles/BranchFacultyPage.css'
@@ -32,6 +25,7 @@ const FACULTY_ID_PREFIX = 'FC-'
 export function BranchFacultyPage() {
   const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [isFacultyLoading, setIsFacultyLoading] = useState(true)
   
   const [currentPage, setCurrentPage] = useState(1)
   const rowsPerPage = 5
@@ -135,6 +129,7 @@ export function BranchFacultyPage() {
 
   // Load faculty list from backend
   const fetchFaculty = async () => {
+    setIsFacultyLoading(true)
     try {
       const res = await listBranchFaculty()
       if (res?.data) {
@@ -156,9 +151,14 @@ export function BranchFacultyPage() {
           status: f.status,
         }))
         setFacultyList(mapped)
+      } else {
+        setFacultyList([])
       }
     } catch (error) {
       console.error('Failed to fetch branch faculty:', error)
+      setFacultyList([])
+    } finally {
+      setIsFacultyLoading(false)
     }
   }
 
@@ -243,28 +243,28 @@ export function BranchFacultyPage() {
   }
 
   // Filtered list
-const filteredFaculty = useMemo(() => {
-  const query = searchQuery.trim().toLowerCase()
+  const filteredFaculty = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
 
-  return facultyList.filter((faculty) => {
-    return (
-      !query ||
-      [
-        faculty.id || '',
-        faculty.name || '',
-        faculty.email || '',
-        faculty.phone || '',
-        faculty.country || '',
-        faculty.state || '',
-        faculty.city || '',
-        faculty.address || '',
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(query)
-    )
-  })
-}, [facultyList, searchQuery])
+    return facultyList.filter((faculty) => {
+      return (
+        !query ||
+        [
+          faculty.id || '',
+          faculty.name || '',
+          faculty.email || '',
+          faculty.phone || '',
+          faculty.country || '',
+          faculty.state || '',
+          faculty.city || '',
+          faculty.address || '',
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(query)
+      )
+    })
+  }, [facultyList, searchQuery])
 
   const totalPages = Math.max(1, Math.ceil(filteredFaculty.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -798,7 +798,7 @@ const filteredFaculty = useMemo(() => {
     <col style={{ width: '11%' }} />
   </colgroup>
 
-  <thead></thead>          <thead>
+  <thead>
             <tr>
               <th>S.No</th>
               <th>Faculty ID</th>
@@ -810,7 +810,13 @@ const filteredFaculty = useMemo(() => {
             </tr>
           </thead>
           <tbody>
-            {paginatedFaculty.length > 0 ? (
+            {isFacultyLoading ? (
+              <tr>
+                <td colSpan="7" className="branch-course-empty-state">
+                  Loading faculty records...
+                </td>
+              </tr>
+            ) : paginatedFaculty.length > 0 ? (
               paginatedFaculty.map((faculty, index) => {
                 const normStatus = String(faculty.status || 'Active').toLowerCase()
                 const rowNumber = (safeCurrentPage - 1) * rowsPerPage + index + 1
