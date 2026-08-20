@@ -3239,6 +3239,47 @@
   position: relative;
 }
 
+.branch-course-table-shell .branch-course-table thead th,
+.branch-course-table-shell .branch-course-table tbody td {
+  vertical-align: middle;
+}
+
+.branch-course-table-shell .branch-course-table td:nth-child(1) strong,
+.branch-course-table-shell .branch-course-table td:nth-child(2) strong,
+.branch-course-table-shell .branch-course-table td:nth-child(3) strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.branch-course-table-shell .branch-course-table td:last-child {
+  text-align: center;
+}
+
+.course-validation-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.course-validation-note.course-validation-error {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #b91c1c !important;
+  box-shadow: 0 10px 22px rgba(239, 68, 68, 0.08);
+}
+
+.course-validation-note.course-validation-error span {
+  color: #b91c1c !important;
+}
+
 .branch-course-faculty-cell {
   display: inline-flex;
   align-items: center;

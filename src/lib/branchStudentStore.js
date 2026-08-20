@@ -12,6 +12,56 @@ function isBrowser() {
   return typeof window !== 'undefined' && Boolean(window.localStorage)
 }
 
+function normalizeBranchScope(branchScope) {
+  const values = []
+
+  if (!branchScope) {
+    return values
+  }
+
+  if (Array.isArray(branchScope)) {
+    branchScope.forEach((value) => {
+      values.push(...normalizeBranchScope(value))
+    })
+    return [...new Set(values)]
+  }
+
+  if (typeof branchScope === 'object') {
+    values.push(branchScope.id, branchScope.branchId, branchScope.branchCode)
+  } else {
+    values.push(branchScope)
+  }
+
+  return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))]
+}
+
+function getRecordBranchKeys(record = {}) {
+  return normalizeBranchScope([
+    record.branchId,
+    record.branchCode,
+    record.branchKey,
+  ])
+}
+
+function recordMatchesBranchScope(record, branchScope) {
+  const scopeKeys = normalizeBranchScope(branchScope)
+  if (scopeKeys.length === 0) return true
+
+  const recordKeys = getRecordBranchKeys(record)
+  return scopeKeys.some((scopeKey) => recordKeys.includes(scopeKey))
+}
+
+function normalizeStoredStudentRecord(record = {}) {
+  return {
+    ...record,
+    branchId: String(record.branchId || '').trim(),
+    branchCode: String(record.branchCode || record.branchKey || '').trim(),
+    studentId: String(record.studentId || '').trim(),
+    _fromBackend: Boolean(record._fromBackend),
+    _isExistingRecord: Boolean(record._isExistingRecord),
+  }
+}
+
 function readAll() {
   if (!isBrowser()) return []
   try {
@@ -65,27 +115,38 @@ async function syncBranchStudentToBackend(student) {
   const method = student._isExistingRecord ? 'PATCH' : 'POST'
   const path = method === 'PATCH' ? `/branch-students/${encodeURIComponent(studentId)}` : '/branch-students'
 
-  await request(path, {
+  const response = await request(path, {
     method,
     body: JSON.stringify(payload),
   })
+
+  return response?.data ?? response
+}
+
+function resolveStudentDeleteId(studentOrId) {
+  if (studentOrId && typeof studentOrId === 'object') {
+    return String(studentOrId.id || studentOrId.studentId || '').trim()
+  }
+
+  return String(studentOrId || '').trim()
 }
 
 export async function refreshBranchStudents(branchId) {
-  if (!branchId) return []
+  const branchScopeKeys = normalizeBranchScope(branchId)
+  if (branchScopeKeys.length === 0) return []
 
   const response = await request(
-    `/branch-students?page=1&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchId)}`,
+    `/branch-students?page=1&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchScopeKeys[0])}`,
   )
   const payload = response?.data ?? response
-  const records = extractBranchStudentListPayload(payload).map((record) => ({
+  const records = extractBranchStudentListPayload(payload).map((record) => normalizeStoredStudentRecord({
     ...record,
     _fromBackend: true,
     _isExistingRecord: true,
   }))
 
   const all = readAll()
-  const remaining = all.filter((record) => String(record.branchId || '').trim() !== String(branchId).trim())
+  const remaining = all.filter((record) => !recordMatchesBranchScope(record, branchScopeKeys))
   writeAll([...records, ...remaining])
   dispatchChange()
   return records
@@ -97,21 +158,12 @@ export async function refreshBranchStudents(branchId) {
  */
 export function getNextStudentId(branchId) {
   const all = readAll()
-  const branchStudents = branchId
-    ? all.filter((s) => String(s.branchId || '').trim() === String(branchId).trim())
+  const branchStudents = normalizeBranchScope(branchId).length > 0
+    ? all.filter((s) => recordMatchesBranchScope(s, branchId))
     : all
 
   let highest = 0
   branchStudents.forEach((s) => {
-    const match = String(s.studentId || '').match(/^STU-(\d+)$/i)
-    if (match) {
-      const num = Number(match[1])
-      if (Number.isFinite(num) && num > highest) highest = num
-    }
-  })
-
-  // Also check all records globally to avoid ID collision
-  all.forEach((s) => {
     const match = String(s.studentId || '').match(/^STU-(\d+)$/i)
     if (match) {
       const num = Number(match[1])
@@ -127,14 +179,17 @@ export function getNextStudentId(branchId) {
  */
 export function loadBranchStudents(branchId) {
   const all = readAll()
-  if (!branchId) return all
-  return all.filter((s) => String(s.branchId || '').trim() === String(branchId).trim())
+  const normalizedScope = normalizeBranchScope(branchId)
+  if (normalizedScope.length === 0) return all.map(normalizeStoredStudentRecord)
+  return all
+    .filter((s) => recordMatchesBranchScope(s, normalizedScope))
+    .map(normalizeStoredStudentRecord)
 }
 
 /**
  * Save (add or update) a student record.
  */
-export function saveBranchStudent(student) {
+export async function saveBranchStudent(student) {
   const all = readAll()
   const studentId = String(student.studentId || '').trim()
   const existingIndex = all.findIndex(
@@ -144,36 +199,46 @@ export function saveBranchStudent(student) {
     ? { ...all[existingIndex], ...student, _isExistingRecord: true }
     : { ...student, _isExistingRecord: false }
 
-  if (existingIndex >= 0) {
-    all[existingIndex] = nextStudent
-  } else {
-    all.unshift(nextStudent)
-  }
-
-  writeAll(all)
-  dispatchChange()
-
-  return syncBranchStudentToBackend(nextStudent).catch(() => {
-    // local cache remains available if backend sync fails temporarily
+  const backendRecord = await syncBranchStudentToBackend(nextStudent)
+  const resolvedStudentId = String(
+    student.studentId
+    || backendRecord?.studentId
+    || nextStudent.studentId
+    || ''
+  ).trim()
+  const savedRecord = normalizeStoredStudentRecord({
+    ...(backendRecord || nextStudent),
+    studentId: resolvedStudentId,
+    branchCode: nextStudent.branchCode || nextStudent.branchId || '',
+    _fromBackend: true,
+    _isExistingRecord: true,
   })
+  const updatedAll = readAll()
+  const cleaned = updatedAll.filter((record) => String(record.studentId || '').trim() !== studentId)
+  writeAll([savedRecord, ...cleaned])
+  dispatchChange()
+  return savedRecord
 }
 
 /**
  * Delete a student record by studentId.
  */
-export function deleteBranchStudent(studentId) {
+export async function deleteBranchStudent(studentOrId) {
+  const studentKey = resolveStudentDeleteId(studentOrId)
+  if (!studentKey) {
+    throw new Error('Student identifier is required for delete')
+  }
+
   const all = readAll()
   const next = all.filter(
-    (s) => String(s.studentId || '').trim() !== String(studentId).trim()
+    (s) => String(s.id || s.studentId || '').trim() !== studentKey
   )
+  await request(`/branch-students/${encodeURIComponent(studentKey)}`, {
+    method: 'DELETE',
+  })
+
   writeAll(next)
   dispatchChange()
-
-  return request(`/branch-students/${encodeURIComponent(String(studentId).trim())}`, {
-    method: 'DELETE',
-  }).catch(() => {
-    // ignore sync failures; local cache has already been updated
-  })
 }
 
 /**
@@ -190,7 +255,7 @@ export function getAllBranchStudentCounts() {
   const all = readAll()
   const counts = {}
   all.forEach((s) => {
-    const bid = String(s.branchId || '').trim()
+    const bid = String(s.branchId || s.branchCode || '').trim()
     if (!bid) return
     counts[bid] = (counts[bid] || 0) + 1
   })
