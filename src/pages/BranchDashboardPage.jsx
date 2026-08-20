@@ -48,6 +48,7 @@ import {
 } from '../services/branchCourseService'
 import {
   loadBranchStudents,
+  refreshBranchStudents,
   saveBranchStudent,
   deleteBranchStudent as removeBranchStudent,
   getNextStudentId,
@@ -374,6 +375,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
+  const [studentFormError, setStudentFormError] = useState('')
+  const [studentDisplayNo, setStudentDisplayNo] = useState('')
   const [stuCountryOptions, setStuCountryOptions] = useState([])
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
@@ -960,15 +963,30 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   }, [viewCourse])
 
   // ── Student helpers ──
-  const branchId = branchProfile?.branchId || ''
+  const branchId = branchProfile?.id || branchProfile?.branchId || ''
+  const branchCode = branchProfile?.branchId || branchProfile?.branchCode || ''
+  const branchStudentScope = useMemo(() => ({
+    id: branchId,
+    branchId,
+    branchCode,
+  }), [branchId, branchCode])
 
-  const reloadBranchStudents = useCallback(() => {
-    if (!branchId) return
-    setBranchStudents(loadBranchStudents(branchId))
-  }, [branchId])
+  const reloadBranchStudents = useCallback(async () => {
+    if (!branchStudentScope.id && !branchStudentScope.branchCode) return []
+
+    try {
+      const freshRecords = await refreshBranchStudents(branchStudentScope)
+      setBranchStudents(freshRecords)
+      return freshRecords
+    } catch (error) {
+      console.error('Failed to refresh branch students from backend:', error)
+      setBranchStudents([])
+      return []
+    }
+  }, [branchStudentScope])
 
   useEffect(() => {
-    reloadBranchStudents()
+    void reloadBranchStudents()
   }, [reloadBranchStudents])
 
   // Load country options for student form
@@ -1047,14 +1065,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
   const openAddStudentForm = () => {
     setStudentFormMode('add')
-    setStudentForm(createInitialStudentForm(branchId))
+    setStudentFormError('')
+    const nextStudentForm = createInitialStudentForm(branchStudentScope)
+    setStudentForm(nextStudentForm)
+    setStudentDisplayNo(nextStudentForm.studentId || '-')
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
   }
 
   const openViewStudentForm = (stu) => {
     setStudentFormMode('view')
+    setStudentFormError('')
     setStudentForm(buildStudentFormFromRecord(stu))
+    setStudentDisplayNo(String(stu.studentId || '').trim())
     setStudentFormTouched({})
     // Load the saved country/state for view
     if (stu.countryCode) {
@@ -1072,7 +1095,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
   const openEditStudentForm = (stu) => {
     setStudentFormMode('edit')
+    setStudentFormError('')
     setStudentForm(buildStudentFormFromRecord(stu))
+    setStudentDisplayNo(String(stu.studentId || '').trim())
     setStudentFormTouched({})
     if (stu.countryCode) {
       getStatesOfCountry(stu.countryCode).then((items) => {
@@ -1087,9 +1112,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     setIsStudentFormOpen(true)
   }
 
-  const handleStudentFormSubmit = (e) => {
+  const handleStudentFormSubmit = async (e) => {
     e?.preventDefault()
     if (studentFormMode === 'view') return
+    setStudentFormError('')
 
     // Touch all fields
     const allTouched = {}
@@ -1117,31 +1143,46 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     const record = {
       ...studentForm,
       branchId,
+      branchCode,
       passedOutYear: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
       source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
     }
 
-    saveBranchStudent(record)
-    reloadBranchStudents()
-    setIsStudentFormOpen(false)
+    try {
+      await saveBranchStudent(record)
+      void reloadBranchStudents()
+      setIsStudentFormOpen(false)
 
-    if (studentFormMode === 'add') {
-      setStudentSuccessPopup({ title: 'Student Added', message: 'Student added successfully.' })
-    } else {
-      setStudentSuccessPopup({ title: 'Student Updated', message: 'Student updated successfully.' })
+      if (studentFormMode === 'add') {
+        setStudentSuccessPopup({ title: 'Student Added', message: 'Student added successfully.' })
+      } else {
+        setStudentSuccessPopup({ title: 'Student Updated', message: 'Student updated successfully.' })
+      }
+    } catch (error) {
+      console.error('Failed to save branch student:', error)
+      setStudentFormError(apiErrorMessage(error, 'Unable to save student. Please try again.'))
     }
   }
 
-  const handleStudentDeleteConfirm = () => {
+  const handleStudentDeleteConfirm = async () => {
     if (!studentDeleteTarget) return
-    removeBranchStudent(studentDeleteTarget.studentId)
-    reloadBranchStudents()
-    setStudentDeleteTarget(null)
-    setStudentSuccessPopup({ title: 'Student Deleted', message: 'Student deleted successfully.' })
-    // Adjust page if needed
-    const nextCount = branchStudents.length - 1
-    const nextPages = Math.max(1, Math.ceil(nextCount / BRANCH_STUDENTS_PER_PAGE))
-    setStudentPage((c) => Math.min(c, nextPages))
+    try {
+      await removeBranchStudent(studentDeleteTarget.id || studentDeleteTarget.studentId)
+      void reloadBranchStudents()
+      setStudentDeleteTarget(null)
+      setStudentSuccessPopup({ title: 'Student Deleted', message: 'Student deleted successfully.' })
+      // Adjust page if needed
+      const nextCount = branchStudents.length - 1
+      const nextPages = Math.max(1, Math.ceil(nextCount / BRANCH_STUDENTS_PER_PAGE))
+      setStudentPage((c) => Math.min(c, nextPages))
+    } catch (error) {
+      console.error('Failed to delete branch student:', error)
+      setStudentDeleteTarget(null)
+      setStudentSuccessPopup({
+        title: 'Delete Failed',
+        message: apiErrorMessage(error, 'Unable to delete student. Please try again.'),
+      })
+    }
   }
 
   const renderSidebar = () => (
@@ -1435,9 +1476,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                       </thead>
                       <tbody>
                         {visibleBranchStudents.length ? (
-                          visibleBranchStudents.map((stu) => (
+                          visibleBranchStudents.map((stu, index) => {
+                            return (
                             <tr key={stu.studentId}>
-                              <td><strong>{stu.studentId}</strong></td>
+                              <td><strong>{stu.studentId || '-'}</strong></td>
                               <td><strong className="branch-course-name">{stu.studentName}</strong></td>
                               {/* <td>{stu.emailAddress || '-'}</td> */}
                               <td>{stu.mobileNumber || '-'}</td>
@@ -1490,7 +1532,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                                         type="button"
                                         onClick={() => {
                                           setStudentActionMenuId('')
-                                          setViewStudentDrawer(stu)
+                                          setViewStudentDrawer({ ...stu })
                                         }}
                                       >
                                         <Eye size={15} />
@@ -1501,7 +1543,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                                         type="button"
                                         onClick={() => {
                                           setStudentActionMenuId('')
-                                          openEditStudentForm(stu)
+                                          openEditStudentForm({ ...stu })
                                         }}
                                       >
                                         <Pencil size={15} />
@@ -1513,7 +1555,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                                         className="is-danger"
                                         onClick={() => {
                                           setStudentActionMenuId('')
-                                          setStudentDeleteTarget(stu)
+                                          setStudentDeleteTarget({ ...stu })
                                         }}
                                       >
                                         <Trash2 size={15} />
@@ -1524,7 +1566,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                                 </div>
                               </td>
                             </tr>
-                          ))
+                          )
+                          })
                         ) : (
                           <tr>
                             <td colSpan="8" className="branch-course-empty-state">
@@ -2871,10 +2914,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               {/* Drawer Header */}
               <div className="student-drawer-header">
 
-                <div className="student-drawer-title-area">
-                  <p className="student-drawer-label">
-                    STUDENT DETAILS
-                  </p>
+                  <div className="student-drawer-title-area">
+                    <p className="student-drawer-label">
+                      STUDENT DETAILS
+                    </p>
 
                   <h2>
                     {viewStudentDrawer.studentName || '-'}
@@ -3133,7 +3176,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
               <div className="course-form-grid">
                 <Field label="Student ID">
-                  <input type="text" value={studentForm.studentId} readOnly disabled />
+                  <input type="text" value={studentDisplayNo || '-'} readOnly disabled />
                 </Field>
 
                 <Field label="Student Name" required error={shouldShowStudentError('studentName') ? studentFormValidationErrors.studentName : ''}>
@@ -3370,6 +3413,12 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 </div>
               ) : null}
 
+              {studentFormError ? (
+                <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
+                  <span style={{ color: '#dc2626' }}>{studentFormError}</span>
+                </div>
+              ) : null}
+
               <div className="course-form-actions">
                 {studentFormMode === 'view' ? (
                   <button type="button" className="button button-ghost" onClick={() => setIsStudentFormOpen(false)}>Close</button>
@@ -3384,13 +3433,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               </div>
 
               <button
-  type="button"
-  className="course-modal-close"
-  onClick={() => setIsStudentFormOpen(false)}
-  aria-label="Close student form"
->
-  <X size={22} strokeWidth={2} />
-</button>
+                type="button"
+                className="course-modal-close"
+                onClick={() => setIsStudentFormOpen(false)}
+                aria-label="Close student form"
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
             </form>
           </div>
         ) : null}
