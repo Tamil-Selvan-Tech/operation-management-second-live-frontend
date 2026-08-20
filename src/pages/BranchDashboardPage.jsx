@@ -39,6 +39,7 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { getCurrentBranchProfile } from '../services/branchService'
+import { setImpersonateBranchId } from '../services/apiClient'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import {
   assignFacultyToBranchCourse,
@@ -59,13 +60,41 @@ import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
 const BRANCH_STUDENTS_PER_PAGE = 5
+const STUDENT_ID_PREFIX = 'STU-'
+const STUDENT_FORM_STEP_ONE_FIELDS = [
+  'studentIdSuffix',
+  'studentName',
+  'emailAddress',
+  'linkedInUrl',
+  'mobileNumber',
+  'parentSpouseNumber',
+  'country',
+  'state',
+  'city',
+  'address',
+  'qualification',
+  'passedOutYear',
+  'passedOutYearCustom',
+]
+const STUDENT_FORM_STEP_TWO_FIELDS = [
+  'currentStatus',
+  'designation',
+  'source',
+  'sourceOther',
+  'remarks',
+  'admissionDate',
+]
 
 const CURRENT_YEAR = new Date().getFullYear()
 const PASSED_OUT_YEARS = Array.from({ length: 31 }, (_, i) => String(CURRENT_YEAR - i))
 
 function createInitialStudentForm(branchId) {
+  const nextStudentId = getNextStudentId(branchId)
   return {
-    studentId: getNextStudentId(branchId),
+    studentId: nextStudentId,
+    studentIdSuffix: nextStudentId.replace(/^STU-/i, ''),
+    originalStudentId: '',
+    recordId: '',
     studentName: '',
     emailAddress: '',
     linkedInUrl: '',
@@ -92,6 +121,9 @@ function createInitialStudentForm(branchId) {
 function buildStudentFormFromRecord(student = {}) {
   return {
     studentId: student.studentId || '',
+    studentIdSuffix: String(student.studentId || '').replace(/^STU-/i, ''),
+    originalStudentId: String(student.studentId || '').trim(),
+    recordId: String(student.id || student._id || student.recordId || '').trim(),
     studentName: student.studentName || '',
     emailAddress: student.emailAddress || '',
     linkedInUrl: student.linkedInUrl || '',
@@ -115,8 +147,10 @@ function buildStudentFormFromRecord(student = {}) {
   }
 }
 
-function validateStudentForm(form) {
+function validateStudentForm(form, students = []) {
   const errors = {}
+  if (!form.studentIdSuffix.trim()) errors.studentIdSuffix = 'Student ID is required.'
+  else if (!/^\d+$/.test(form.studentIdSuffix.trim())) errors.studentIdSuffix = 'Only numbers are allowed.'
   if (!form.studentName.trim()) errors.studentName = 'Student Name is required.'
   else if (!/^[A-Za-z][A-Za-z ]*$/.test(form.studentName.trim())) errors.studentName = 'Only letters and spaces allowed.'
   if (!form.emailAddress.trim()) errors.emailAddress = 'Email is required.'
@@ -137,6 +171,35 @@ function validateStudentForm(form) {
   if (!form.source) errors.source = 'This field is required.'
   if (form.source === 'Others' && !form.sourceOther.trim()) errors.sourceOther = 'Please specify.'
   if (!form.admissionDate) errors.admissionDate = 'Admission Date is required.'
+
+  const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
+  const normalizedEmail = String(form.emailAddress || '').trim().toLowerCase()
+  const normalizedMobile = String(form.mobileNumber || '').trim()
+
+  if (normalizedEmail) {
+    const duplicateEmail = students.find((student) => {
+      const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
+      const studentEmail = String(student?.emailAddress || '').trim().toLowerCase()
+      return studentEmail && studentEmail === normalizedEmail && studentRecordId !== currentRecordId
+    })
+
+    if (duplicateEmail) {
+      errors.emailAddress = 'Email already exists'
+    }
+  }
+
+  if (normalizedMobile) {
+    const duplicateMobile = students.find((student) => {
+      const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
+      const studentMobile = String(student?.mobileNumber || '').trim()
+      return studentMobile && studentMobile === normalizedMobile && studentRecordId !== currentRecordId
+    })
+
+    if (duplicateMobile) {
+      errors.mobileNumber = 'Mobile number already exists'
+    }
+  }
+
   return errors
 }
 
@@ -153,6 +216,71 @@ function formatExternalUrl(value) {
   if (!text) return ''
   if (/^https?:\/\//i.test(text)) return text
   return `https://${text}`
+}
+
+function normalizeLookupText(value = '') {
+  return String(value || '').trim().toLowerCase()
+}
+
+function findCountryMatch(countries = [], student = {}) {
+  const countryCode = normalizeLookupText(student.countryCode)
+  const countryName = normalizeLookupText(student.country)
+
+  return countries.find((country) =>
+    normalizeLookupText(country.iso2) === countryCode ||
+    normalizeLookupText(country.name) === countryName ||
+    (countryCode === 'in' && normalizeLookupText(country.name) === 'india')
+  ) || null
+}
+
+function findStateMatch(states = [], student = {}) {
+  const stateCode = normalizeLookupText(student.stateCode)
+  const stateName = normalizeLookupText(student.state)
+
+  return states.find((state) =>
+    normalizeLookupText(state.iso2) === stateCode ||
+    normalizeLookupText(state.name) === stateName ||
+    (stateCode === 'tn' && normalizeLookupText(state.name) === 'tamil nadu')
+  ) || null
+}
+
+function findCityMatch(cities = [], student = {}) {
+  const cityName = normalizeLookupText(student.city)
+  return cities.find((city) => normalizeLookupText(city.name) === cityName) || null
+}
+
+async function resolveStudentLocationForm(student = {}) {
+  const resolved = { ...student }
+
+  try {
+    const countries = await getCountries()
+    const matchedCountry = findCountryMatch(countries, resolved) || countries.find((country) => normalizeLookupText(country.iso2) === 'in') || null
+    if (matchedCountry) {
+      resolved.countryCode = matchedCountry.iso2 || resolved.countryCode || ''
+      resolved.country = matchedCountry.name || resolved.country || ''
+    }
+
+    if (resolved.countryCode) {
+      const states = await getStatesOfCountry(resolved.countryCode)
+      const matchedState = findStateMatch(states, resolved) || states.find((state) => normalizeLookupText(state.iso2) === 'tn') || null
+      if (matchedState) {
+        resolved.stateCode = matchedState.iso2 || resolved.stateCode || ''
+        resolved.state = matchedState.name || resolved.state || ''
+      }
+
+      if (resolved.stateCode) {
+        const cities = await getCitiesOfState(resolved.countryCode, resolved.stateCode)
+        const matchedCity = findCityMatch(cities, resolved)
+        if (matchedCity) {
+          resolved.city = matchedCity.name || resolved.city || ''
+        }
+      }
+    }
+  } catch {
+    // Fall back to whatever was already in the form.
+  }
+
+  return resolved
 }
 
 const batchCards = [
@@ -340,6 +468,16 @@ function apiErrorMessage(error, fallback) {
   return error?.body?.message || error?.body?.error || error?.message || fallback
 }
 
+function normalizeStudentIdSuffix(value = '') {
+  return String(value || '').replace(/\D/g, '')
+}
+
+function buildStudentIdFromSuffix(suffix = '') {
+  const normalizedSuffix = normalizeStudentIdSuffix(suffix)
+  if (!normalizedSuffix) return ''
+  return `${STUDENT_ID_PREFIX}${normalizedSuffix.padStart(Math.max(3, normalizedSuffix.length), '0')}`
+}
+
 export function BranchDashboardPage({ embeddedMode = false, branchData = null }) {
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
@@ -378,6 +516,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [studentPage, setStudentPage] = useState(1)
   const [isStudentFormOpen, setIsStudentFormOpen] = useState(false)
   const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
+  const [studentFormStep, setStudentFormStep] = useState(1)
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
@@ -387,7 +526,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
   const [studentFormError, setStudentFormError] = useState('')
   const [isStudentSaving, setIsStudentSaving] = useState(false)
-  const [studentDisplayNo, setStudentDisplayNo] = useState('')
+  const [isStudentDeleting, setIsStudentDeleting] = useState(false)
   const [stuCountryOptions, setStuCountryOptions] = useState([])
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
@@ -495,6 +634,20 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
       isMounted = false
     }
   }, [isAuthenticated, loadBranchCourses, loadFacultyList, navigate, role, session, user])
+
+  useEffect(() => {
+    if (role !== 'branch-admin') {
+      setImpersonateBranchId(null)
+      return undefined
+    }
+
+    const nextBranchId = branchProfile?.id || branchProfile?.branchId || null
+    setImpersonateBranchId(nextBranchId)
+
+    return () => {
+      setImpersonateBranchId(null)
+    }
+  }, [branchProfile, role])
 
   useEffect(() => {
     if (!isProfileMenuOpen) return undefined
@@ -1048,7 +1201,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     document.body.style.overflow = 'hidden'
     const onKey = (e) => { if (e.key === 'Escape') setIsStudentFormOpen(false) }
     window.addEventListener('keydown', onKey)
-    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey) }
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+      setIsStudentSaving(false)
+    }
   }, [isStudentFormOpen])
 
   const filteredBranchStudents = useMemo(() => {
@@ -1067,85 +1224,99 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     return filteredBranchStudents.slice(start, start + BRANCH_STUDENTS_PER_PAGE)
   }, [filteredBranchStudents, safeStudentPage])
 
-  const studentFormValidationErrors = useMemo(() => validateStudentForm(studentForm), [studentForm])
+  const studentFormValidationErrors = useMemo(
+    () => validateStudentForm(studentForm, branchStudents),
+    [branchStudents, studentForm],
+  )
   const shouldShowStudentError = (field) => Boolean(studentFormTouched[field] && studentFormValidationErrors[field])
+  const studentActiveStepFields = studentFormStep === 1 ? STUDENT_FORM_STEP_ONE_FIELDS : STUDENT_FORM_STEP_TWO_FIELDS
+  const studentActiveStepErrorField = studentActiveStepFields.find((field) => studentFormValidationErrors[field]) || ''
+  const studentActiveStepError = studentActiveStepErrorField ? studentFormValidationErrors[studentActiveStepErrorField] : ''
 
   const updateStudentField = (field, value) => {
-    setStudentForm((c) => ({ ...c, [field]: value }))
+    setStudentForm((c) => ({
+      ...c,
+      [field]: field === 'studentIdSuffix' ? normalizeStudentIdSuffix(value) : value,
+    }))
   }
 
-  const openAddStudentForm = () => {
+  const touchStudentFields = (fields = []) => {
+    setStudentFormTouched((current) => {
+      const next = { ...current }
+      fields.forEach((field) => {
+        next[field] = true
+      })
+      return next
+    })
+  }
+
+  const handleStudentStepNext = () => {
+    if (studentFormMode === 'view') {
+      setStudentFormStep(2)
+      return
+    }
+
+    touchStudentFields(STUDENT_FORM_STEP_ONE_FIELDS)
+
+    const hasStepOneErrors = STUDENT_FORM_STEP_ONE_FIELDS.some((field) => studentFormValidationErrors[field])
+    if (hasStepOneErrors) return
+
+    setStudentFormStep(2)
+  }
+
+  const handleStudentStepBack = () => {
+    setStudentFormStep(1)
+  }
+
+  const openAddStudentForm = async () => {
     setStudentFormMode('add')
     setStudentFormError('')
-    const nextStudentForm = createInitialStudentForm(branchStudentScope)
+    setIsStudentSaving(false)
+    setStudentFormStep(1)
+    const nextStudentForm = await resolveStudentLocationForm(createInitialStudentForm(branchStudentScope))
     setStudentForm(nextStudentForm)
-    setStudentDisplayNo(nextStudentForm.studentId || '-')
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
   }
 
-  const openViewStudentForm = (stu) => {
+  const openViewStudentForm = async (stu) => {
     setStudentFormMode('view')
     setStudentFormError('')
-    setStudentForm(buildStudentFormFromRecord(stu))
-    setStudentDisplayNo(String(stu.studentId || '').trim())
+    setIsStudentSaving(false)
+    setStudentFormStep(1)
+    const nextStudentForm = await resolveStudentLocationForm(buildStudentFormFromRecord(stu))
+    setStudentForm(nextStudentForm)
     setStudentFormTouched({})
-    // Load the saved country/state for view
-    if (stu.countryCode) {
-      getStatesOfCountry(stu.countryCode).then((items) => {
-        setStuStateOptions(Array.isArray(items) ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))) : [])
-      }).catch(() => setStuStateOptions([]))
-      if (stu.stateCode) {
-        getCitiesOfState(stu.countryCode, stu.stateCode).then((items) => {
-          setStuCityOptions(Array.isArray(items) ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))) : [])
-        }).catch(() => setStuCityOptions([]))
-      }
-    }
     setIsStudentFormOpen(true)
   }
 
-  const openEditStudentForm = (stu) => {
+  const openEditStudentForm = async (stu) => {
     setStudentFormMode('edit')
     setStudentFormError('')
-    setStudentForm(buildStudentFormFromRecord(stu))
-    setStudentDisplayNo(String(stu.studentId || '').trim())
+    setIsStudentSaving(false)
+    setStudentFormStep(1)
+    const nextStudentForm = await resolveStudentLocationForm(buildStudentFormFromRecord(stu))
+    setStudentForm(nextStudentForm)
     setStudentFormTouched({})
-    if (stu.countryCode) {
-      getStatesOfCountry(stu.countryCode).then((items) => {
-        setStuStateOptions(Array.isArray(items) ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))) : [])
-      }).catch(() => setStuStateOptions([]))
-      if (stu.stateCode) {
-        getCitiesOfState(stu.countryCode, stu.stateCode).then((items) => {
-          setStuCityOptions(Array.isArray(items) ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || ''))) : [])
-        }).catch(() => setStuCityOptions([]))
-      }
-    }
     setIsStudentFormOpen(true)
   }
 
   const handleStudentFormSubmit = async (e) => {
     e?.preventDefault()
     if (studentFormMode === 'view') return
+    if (studentFormStep !== 2) return
     if (isStudentSaving) return
     setStudentFormError('')
-    setIsStudentSaving(true)
 
     // Touch all fields
     const allTouched = {}
     Object.keys(studentFormValidationErrors).forEach((k) => { allTouched[k] = true })
-    allTouched.studentName = true
-    allTouched.emailAddress = true
-    allTouched.mobileNumber = true
-    allTouched.parentSpouseNumber = true
-    allTouched.country = true
-    allTouched.state = true
-    allTouched.city = true
-    allTouched.address = true
-    allTouched.qualification = true
-    allTouched.passedOutYear = true
-    allTouched.currentStatus = true
-    allTouched.source = true
-    allTouched.admissionDate = true
+    STUDENT_FORM_STEP_ONE_FIELDS.forEach((field) => {
+      allTouched[field] = true
+    })
+    STUDENT_FORM_STEP_TWO_FIELDS.forEach((field) => {
+      allTouched[field] = true
+    })
     if (studentForm.currentStatus === 'Employee') allTouched.designation = true
     if (studentForm.passedOutYear === 'Custom') allTouched.passedOutYearCustom = true
     if (studentForm.source === 'Others') allTouched.sourceOther = true
@@ -1153,14 +1324,34 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
     if (Object.keys(studentFormValidationErrors).length > 0) return
 
+    const originalStudentId = String(studentForm.originalStudentId || studentForm.studentId || '').trim()
+    const resolvedStudentId = buildStudentIdFromSuffix(studentForm.studentIdSuffix)
+    const duplicateStudent = branchStudents.find((student) => {
+      const currentStudentId = String(student.studentId || '').trim()
+      return currentStudentId === resolvedStudentId && currentStudentId !== originalStudentId
+    })
+
+    if (duplicateStudent) {
+      setStudentFormError('Student ID already exists in this branch.')
+      return
+    }
+
     const record = {
       ...studentForm,
+      studentId: resolvedStudentId,
+      _originalStudentId: originalStudentId,
+      _recordId: String(studentForm.recordId || '').trim(),
       branchId,
       branchCode,
       passedOutYear: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
       source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
     }
 
+    delete record.studentIdSuffix
+    delete record.originalStudentId
+    delete record.recordId
+
+    setIsStudentSaving(true)
     try {
       await saveBranchStudent(record)
       void reloadBranchStudents()
@@ -1185,6 +1376,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const handleStudentDeleteConfirm = async () => {
     if (!studentDeleteTarget) return
     try {
+      setIsStudentDeleting(true)
       await removeBranchStudent(studentDeleteTarget.id || studentDeleteTarget.studentId)
       void reloadBranchStudents()
       setStudentDeleteTarget(null)
@@ -1200,6 +1392,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
         title: 'Delete Failed',
         message: 'Unable to delete student. Please try again.',
       })
+    } finally {
+      setIsStudentDeleting(false)
     }
   }
 
@@ -3217,9 +3411,63 @@ if (isLoading) {
                 </span>
               </div>
 
-              <div className="course-form-grid">
-                <Field label="Student ID">
-                  <input type="text" value={studentDisplayNo || '-'} readOnly disabled />
+              <div className={`student-stepper is-two-step ${studentFormMode === 'view' ? 'is-view-mode' : ''}`.trim()}>
+                {[
+                  { step: 1, title: 'Personal & Education' },
+                  { step: 2, title: 'Admission Details & Review' },
+                ].map((item) => {
+                  const isActive = studentFormStep === item.step
+                  const isDone = studentFormStep > item.step
+                  const content = (
+                    <>
+                      <span>{String(item.step).padStart(2, '0')}</span>
+                      <div className="student-stepper-copy">
+                        <strong>{item.title}</strong>
+                      </div>
+                    </>
+                  )
+
+                  return (
+                    <button
+                      key={item.step}
+                      type="button"
+                      className={`student-stepper-item ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`.trim()}
+                      aria-current={isActive ? 'step' : undefined}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        setStudentFormStep(item.step)
+                      }}
+                    >
+                      {content}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="student-step-panel">
+                {studentFormStep === 1 ? (
+                  <div className="student-step-section">
+                    <div className="course-form-grid student-form-grid-tight">
+                <Field
+                  label="Student ID"
+                  required
+                  error={shouldShowStudentError('studentIdSuffix') ? studentFormValidationErrors.studentIdSuffix : ''}
+                >
+                  <div className="student-id-input-group">
+                    <span className="student-id-prefix" aria-hidden="true">
+                      {STUDENT_ID_PREFIX}
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="001"
+                      value={studentForm.studentIdSuffix || ''}
+                      onChange={(e) => updateStudentField('studentIdSuffix', e.target.value)}
+                      onBlur={() => setStudentFormTouched((c) => ({ ...c, studentIdSuffix: true }))}
+                      disabled={studentFormMode === 'view'}
+                    />
+                  </div>
                 </Field>
 
                 <Field label="Student Name" required error={shouldShowStudentError('studentName') ? studentFormValidationErrors.studentName : ''}>
@@ -3240,17 +3488,6 @@ if (isLoading) {
                     value={studentForm.emailAddress}
                     onChange={(e) => updateStudentField('emailAddress', e.target.value)}
                     onBlur={() => setStudentFormTouched((c) => ({ ...c, emailAddress: true }))}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
-
-                <Field label="LinkedIn URL">
-                  <input
-                    type="text"
-                    inputMode="url"
-                    placeholder="https://www.linkedin.com/in/your-profile"
-                    value={studentForm.linkedInUrl}
-                    onChange={(e) => updateStudentField('linkedInUrl', e.target.value)}
                     disabled={studentFormMode === 'view'}
                   />
                 </Field>
@@ -3377,6 +3614,23 @@ if (isLoading) {
                   </Field>
                 ) : null}
 
+                    </div>
+                  </div>
+                ) : (
+                  <div className="student-step-section">
+                    <div className="course-form-grid student-form-grid-tight">
+
+                <Field label="LinkedIn URL">
+                  <input
+                    type="text"
+                    inputMode="url"
+                    placeholder="https://www.linkedin.com/in/your-profile"
+                    value={studentForm.linkedInUrl}
+                    onChange={(e) => updateStudentField('linkedInUrl', e.target.value)}
+                    disabled={studentFormMode === 'view'}
+                  />
+                </Field>
+
                 <Field label="Current Status" required error={shouldShowStudentError('currentStatus') ? studentFormValidationErrors.currentStatus : ''}>
                   <select
                     value={studentForm.currentStatus}
@@ -3457,15 +3711,11 @@ if (isLoading) {
                     disabled={studentFormMode === 'view'}
                   />
                 </Field>
-              </div>
+                    </div>
 
-              {studentFormMode !== 'view' && Object.keys(studentFormTouched).length > 0 && Object.keys(studentFormValidationErrors).length > 0 ? (
-                <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
-                  <span style={{ color: '#dc2626' }}>
-                    {Object.values(studentFormValidationErrors)[0] || 'Please fill all required fields.'}
-                  </span>
-                </div>
-              ) : null}
+                  </div>
+              )}
+              </div>
 
               {studentFormError ? (
                 <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
@@ -3475,10 +3725,45 @@ if (isLoading) {
 
               <div className="course-form-actions">
                 {studentFormMode === 'view' ? (
-                  <button type="button" className="button button-ghost" onClick={() => setIsStudentFormOpen(false)}>Close</button>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      setIsStudentFormOpen(false)
+                      setStudentFormStep(1)
+                    }}
+                  >
+                    Close
+                  </button>
+                ) : studentFormStep === 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      onClick={() => {
+                        setIsStudentFormOpen(false)
+                        setStudentFormStep(1)
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-solid"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleStudentStepNext()
+                      }}
+                    >
+                      Next
+                    </button>
+                  </>
                 ) : (
                   <>
-                    <button type="button" className="button button-ghost" onClick={() => setIsStudentFormOpen(false)}>Cancel</button>
+                    <button type="button" className="button button-ghost" onClick={handleStudentStepBack}>
+                      Back
+                    </button>
                     <button type="submit" className="button button-solid" disabled={isStudentSaving}>
                       {isStudentSaving ? 'Saving...' : (studentFormMode === 'add' ? 'Submit' : 'Save Changes')}
                     </button>
@@ -3489,7 +3774,10 @@ if (isLoading) {
               <button
                 type="button"
                 className="course-modal-close"
-                onClick={() => setIsStudentFormOpen(false)}
+                onClick={() => {
+                  setIsStudentFormOpen(false)
+                  setStudentFormStep(1)
+                }}
                 aria-label="Close student form"
               >
                 <X size={22} strokeWidth={2} />
@@ -3513,6 +3801,7 @@ if (isLoading) {
                 className="branch-modal-close"
                 aria-label="Close delete confirmation"
                 onClick={() => setStudentDeleteTarget(null)}
+                disabled={isStudentDeleting}
               >
                 <X size={22} strokeWidth={2} />
               </button>
@@ -3528,6 +3817,7 @@ if (isLoading) {
                   type="button"
                   className="branch-modal-cancel"
                   onClick={() => setStudentDeleteTarget(null)}
+                  disabled={isStudentDeleting}
                 >
                   Cancel
                 </button>
@@ -3536,8 +3826,9 @@ if (isLoading) {
                   type="button"
                   className="branch-modal-submit is-danger"
                   onClick={handleStudentDeleteConfirm}
+                  disabled={isStudentDeleting}
                 >
-                  Delete
+                  {isStudentDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>

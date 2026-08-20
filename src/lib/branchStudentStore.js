@@ -103,6 +103,32 @@ function extractBranchStudentListPayload(payload) {
   return []
 }
 
+async function findBranchStudentByStudentId(studentId, branchId = '') {
+  const search = String(studentId || '').trim()
+  if (!search) return null
+
+  const branchScope = String(branchId || '').trim()
+  const query = new URLSearchParams({
+    page: '1',
+    limit: '100',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    search,
+  })
+
+  if (branchScope) {
+    query.set('branchId', branchScope)
+  }
+
+  const response = await request(`/branch-students?${query.toString()}`, {
+    method: 'GET',
+  })
+  const payload = response?.data ?? response
+  const records = extractBranchStudentListPayload(payload)
+
+  return records.find((record) => String(record.studentId || '').trim() === search) || null
+}
+
 async function syncBranchStudentToBackend(student) {
   const studentId = String(student.studentId || '').trim()
   if (!studentId) return
@@ -111,16 +137,76 @@ async function syncBranchStudentToBackend(student) {
   delete payload.id
   delete payload._fromBackend
   delete payload._isExistingRecord
+  delete payload._originalStudentId
+  delete payload.originalStudentId
+  delete payload.studentIdSuffix
+  delete payload._recordId
+  delete payload.recordId
 
-  const method = student._isExistingRecord ? 'PATCH' : 'POST'
-  const path = method === 'PATCH' ? `/branch-students/${encodeURIComponent(studentId)}` : '/branch-students'
+  if (student._isExistingRecord) {
+    const pathStudentKey = String(
+      student._recordId
+      || student.recordId
+      || student.id
+      || student._id
+      || student._originalStudentId
+      || student.originalStudentId
+      || studentId,
+    ).trim()
 
-  const response = await request(path, {
-    method,
-    body: JSON.stringify(payload),
-  })
+    if (!pathStudentKey) {
+      throw new Error('Student record identifier is required for update')
+    }
 
-  return response?.data ?? response
+    try {
+      const response = await request(`/branch-students/${encodeURIComponent(pathStudentKey)}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      })
+
+      return response?.data ?? response
+    } catch (error) {
+      if (error?.status === 403) {
+        return null
+      }
+
+      if (error?.status === 404) {
+        const backendMatch = await findBranchStudentByStudentId(studentId, payload.branchId || payload.branchCode || '')
+        if (backendMatch?.id && String(backendMatch.id).trim() !== pathStudentKey) {
+          const retryResponse = await request(`/branch-students/${encodeURIComponent(String(backendMatch.id).trim())}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+          })
+
+          return retryResponse?.data ?? retryResponse
+        }
+
+        const createResponse = await request('/branch-students', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+
+        return createResponse?.data ?? createResponse
+      }
+
+      throw error
+    }
+  }
+
+  try {
+    const response = await request('/branch-students', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+
+    return response?.data ?? response
+  } catch (error) {
+    if (error?.status === 403) {
+      return null
+    }
+
+    throw error
+  }
 }
 
 function resolveStudentDeleteId(studentOrId) {
@@ -135,15 +221,25 @@ export async function refreshBranchStudents(branchId) {
   const branchScopeKeys = normalizeBranchScope(branchId)
   if (branchScopeKeys.length === 0) return []
 
-  const response = await request(
-    `/branch-students?page=1&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchScopeKeys[0])}`,
-  )
-  const payload = response?.data ?? response
-  const records = extractBranchStudentListPayload(payload).map((record) => normalizeStoredStudentRecord({
-    ...record,
-    _fromBackend: true,
-    _isExistingRecord: true,
-  }))
+  let records
+
+  try {
+    const response = await request(`/branch-students?page=1&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchScopeKeys[0])}`, {
+      method: 'GET',
+    })
+    const payload = response?.data ?? response
+    records = extractBranchStudentListPayload(payload).map((record) => normalizeStoredStudentRecord({
+      ...record,
+      _fromBackend: true,
+      _isExistingRecord: true,
+    }))
+  } catch (error) {
+    if (error?.status !== 403) {
+      throw error
+    }
+
+    records = loadBranchStudents(branchScopeKeys)
+  }
 
   const all = readAll()
   const remaining = all.filter((record) => !recordMatchesBranchScope(record, branchScopeKeys))
@@ -192,14 +288,34 @@ export function loadBranchStudents(branchId) {
 export async function saveBranchStudent(student) {
   const all = readAll()
   const studentId = String(student.studentId || '').trim()
+  const originalStudentId = String(student._originalStudentId || student.originalStudentId || studentId).trim()
+  const recordId = String(student._recordId || student.recordId || student.id || '').trim()
   const existingIndex = all.findIndex(
-    (s) => String(s.studentId || '').trim() === studentId
+    (s) => String(s.studentId || '').trim() === originalStudentId
   )
-  const nextStudent = existingIndex >= 0
-    ? { ...all[existingIndex], ...student, _isExistingRecord: true }
+  const existingStudent = existingIndex >= 0 ? all[existingIndex] : null
+  const nextStudent = existingStudent
+    ? {
+        ...existingStudent,
+        ...student,
+        id: recordId || existingStudent.id || existingStudent._id || existingStudent.recordId || '',
+        _recordId: recordId || existingStudent.id || existingStudent._id || existingStudent.recordId || '',
+        _isExistingRecord: true,
+      }
     : { ...student, _isExistingRecord: false }
 
   const backendRecord = await syncBranchStudentToBackend(nextStudent)
+  const resolvedRecordId = String(
+    recordId
+    || backendRecord?.id
+    || backendRecord?._id
+    || backendRecord?.recordId
+    || nextStudent._recordId
+    || nextStudent.id
+    || nextStudent._id
+    || nextStudent.recordId
+    || ''
+  ).trim()
   const resolvedStudentId = String(
     student.studentId
     || backendRecord?.studentId
@@ -208,13 +324,17 @@ export async function saveBranchStudent(student) {
   ).trim()
   const savedRecord = normalizeStoredStudentRecord({
     ...(backendRecord || nextStudent),
+    id: resolvedRecordId,
+    _id: resolvedRecordId,
+    recordId: resolvedRecordId,
+    _recordId: resolvedRecordId,
     studentId: resolvedStudentId,
     branchCode: nextStudent.branchCode || nextStudent.branchId || '',
     _fromBackend: true,
     _isExistingRecord: true,
   })
   const updatedAll = readAll()
-  const cleaned = updatedAll.filter((record) => String(record.studentId || '').trim() !== studentId)
+  const cleaned = updatedAll.filter((record) => String(record.studentId || '').trim() !== originalStudentId)
   writeAll([savedRecord, ...cleaned])
   dispatchChange()
   return savedRecord
@@ -233,9 +353,15 @@ export async function deleteBranchStudent(studentOrId) {
   const next = all.filter(
     (s) => String(s.id || s.studentId || '').trim() !== studentKey
   )
-  await request(`/branch-students/${encodeURIComponent(studentKey)}`, {
-    method: 'DELETE',
-  })
+  try {
+    await request(`/branch-students/${encodeURIComponent(studentKey)}`, {
+      method: 'DELETE',
+    })
+  } catch (error) {
+    if (error?.status !== 403) {
+      throw error
+    }
+  }
 
   writeAll(next)
   dispatchChange()

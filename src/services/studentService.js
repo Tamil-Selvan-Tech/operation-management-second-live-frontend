@@ -68,11 +68,18 @@ function extractStudentListPayload(payload) {
 function buildStudentMutationPayload(payload = {}) {
   const nextPayload = { ...payload }
   const courseId = String(nextPayload.courseId || nextPayload.course?.connect?.id || '').trim()
+  const branchId = String(nextPayload.branchId || '').trim()
 
   if (courseId) {
     nextPayload.courseId = courseId
   } else {
     delete nextPayload.courseId
+  }
+
+  if (branchId) {
+    nextPayload.branchId = branchId
+  } else {
+    delete nextPayload.branchId
   }
 
   delete nextPayload.course
@@ -158,6 +165,9 @@ function buildStudentSearchParams(query = {}) {
 
   const status = String(query.status ?? '').trim()
   if (status) params.set('status', status)
+
+  const branchId = String(query.branchId ?? '').trim()
+  if (branchId) params.set('branchId', branchId)
 
   const courseId = String(query.courseId ?? '').trim()
   if (courseId) params.set('courseId', courseId)

@@ -17923,20 +17923,24 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
-  margin-bottom: 12px;
-  padding: 6px 4px;
+  margin-bottom: 8px;
+  padding: 4px 4px;
   border-radius: 14px;
   border: 1px solid #e5edf7;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+
+.student-stepper.is-two-step {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .student-stepper-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 66px;
-  padding: 6px 12px;
+  gap: 8px;
+  min-height: 56px;
+  padding: 4px 10px;
   border-radius: 12px;
   border: 0;
   background: transparent;
@@ -17955,14 +17959,14 @@ tbody tr:hover {
 }
 
 .student-stepper-item span {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   background: #f2f5fb;
   color: #4b5563;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 900;
   letter-spacing: 0.02em;
   flex: 0 0 auto;
@@ -17975,7 +17979,7 @@ tbody tr:hover {
 }
 
 .student-stepper-copy strong {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #1e293b;
   line-height: 1.04;
@@ -18003,16 +18007,46 @@ tbody tr:hover {
 }
 
 .student-step-panel {
-  min-height: 390px;
-  padding: 22px;
-  border-radius: 26px;
+  min-height: 330px;
+  padding: 12px 18px 18px;
+  border-radius: 22px;
   border: 1px solid #e5edf7;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
 }
 
+.student-step-review {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid #e5edf7;
+  background: linear-gradient(180deg, #f9fbff 0%, #ffffff 100%);
+}
+
+.student-step-review-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.student-step-review-head strong {
+  display: block;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.student-step-review-head small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
 .student-step-section {
   display: grid;
-  gap: 20px;
+  gap: 14px;
 }
 
 .student-step-section-head {
