@@ -6,6 +6,9 @@ import {
   Building2,
   CheckCircle2,
   CircleUserRound,
+  ChevronDown,
+  CalendarDays,
+  Dot,
   LogOut,
   Mail,
   Menu,
@@ -14,6 +17,7 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
+import { SearchBar } from '../components/SearchBar'
 import { request } from '../services/apiClient'
 import {
   loadNotifications,
@@ -119,6 +123,9 @@ function normalizeNotificationItem(notification = {}) {
     targetBranchId: String(notification.targetBranchId || '').trim(),
     targetBranchEmail: String(notification.targetBranchEmail || '').trim(),
     targetBranchName: String(notification.targetBranchName || '').trim(),
+    facultyId: String(notification.facultyId || '').trim(),
+    facultyEmail: String(notification.facultyEmail || '').trim(),
+    facultyName: String(notification.facultyName || '').trim(),
   }
 }
 
@@ -143,6 +150,36 @@ function groupNotifications(notifications = []) {
   }))
 }
 
+function isWithinSelectedDateRange(createdAt, range) {
+  if (range === 'all') return true
+
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return false
+
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const itemStartOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diffDays = Math.floor((startOfToday.getTime() - itemStartOfDay.getTime()) / 86400000)
+
+  if (range === 'today') {
+    return diffDays === 0
+  }
+
+  if (range === 'yesterday') {
+    return diffDays === 1
+  }
+
+  if (range === '7d') {
+    return diffDays >= 0 && diffDays < 7
+  }
+
+  if (range === '30d') {
+    return diffDays >= 0 && diffDays < 30
+  }
+
+  return true
+}
+
 function NotificationItem({ item, onView }) {
   return (
     <article className={`notifications-item ${item.read ? '' : 'is-unread'}`.trim()}>
@@ -158,15 +195,10 @@ function NotificationItem({ item, onView }) {
       </div>
 
       <div className="notifications-item-meta">
-        <div className="notifications-item-meta-row">
-          <span className={`notifications-item-chip tone-${item.tone}`}>
-            {item.targetBranchName || item.actionLabel || 'View'}
-          </span>
-          <button type="button" className="notifications-item-view-button" onClick={() => onView(item)}>
-            View
-          </button>
-        </div>
         <small className="notifications-item-time">{formatNotificationTime(item.createdAt)}</small>
+        <button type="button" className="notifications-item-view-button" onClick={() => onView(item)}>
+          View
+        </button>
       </div>
     </article>
   )
@@ -179,6 +211,9 @@ export function SuperAdminNotificationsPage() {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [dateFilter, setDateFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
   const refreshTimerRef = useRef(null)
 
   const profileEmail = user?.email || 'superadmin.manager@cispro.com'
@@ -259,7 +294,37 @@ export function SuperAdminNotificationsPage() {
 
   const unreadCount = useMemo(() => notifications.filter((item) => !item.read).length, [notifications])
   const totalCount = notifications.length
-  const groupedNotifications = useMemo(() => groupNotifications(notifications), [notifications])
+  const filteredNotifications = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    return notifications.filter((item) => {
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'read' && item.read) ||
+        (statusFilter === 'unread' && !item.read)
+
+      const matchesDate = isWithinSelectedDateRange(item.createdAt, dateFilter)
+
+      const searchableText = [
+        item.title,
+        item.message,
+        item.kind,
+        item.actionLabel,
+        item.targetBranchName,
+        item.targetBranchEmail,
+        item.facultyName,
+        item.facultyEmail,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      const matchesSearch = !query || searchableText.includes(query)
+
+      return matchesStatus && matchesDate && matchesSearch
+    })
+  }, [dateFilter, notifications, searchTerm, statusFilter])
+
+  const groupedNotifications = useMemo(() => groupNotifications(filteredNotifications), [filteredNotifications])
 
   const markAllAsRead = async () => {
     setNotifications((current) => current.map((item) => ({ ...item, read: true })))
@@ -442,6 +507,11 @@ export function SuperAdminNotificationsPage() {
                 </div>
 
                 <div className="notifications-page-actions">
+                  <button type="button" className="notifications-mark-read" onClick={markAllAsRead}>
+                    <Bell size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                    Mark all as read
+                  </button>
+
                   <button
                     type="button"
                     className="notifications-back-button"
@@ -450,13 +520,50 @@ export function SuperAdminNotificationsPage() {
                     <Building2 size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                     Back to dashboard
                   </button>
-
-                  <button type="button" className="notifications-mark-read" onClick={markAllAsRead}>
-                    <Bell size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-                    Mark all as read
-                  </button>
                 </div>
               </header>
+
+              <div className="notifications-search-row">
+                <SearchBar
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  placeholder="Search notifications"
+                  ariaLabel="Search notifications"
+                  className="notifications-search-bar"
+                />
+
+                <div className="notifications-filter-set">
+                  <label className="notifications-filter-field">
+                    <span className="notifications-filter-icon" aria-hidden="true">
+                      <CalendarDays size={16} strokeWidth={2.2} />
+                    </span>
+                    <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}>
+                      <option value="all">All dates</option>
+                      <option value="today">Today</option>
+                      <option value="yesterday">Yesterday</option>
+                      <option value="7d">Last 7 days</option>
+                      <option value="30d">Last 30 days</option>
+                    </select>
+                    <span className="notifications-filter-chevron" aria-hidden="true">
+                      <ChevronDown size={16} strokeWidth={2.2} />
+                    </span>
+                  </label>
+
+                  <label className="notifications-filter-field notifications-filter-field--status">
+                    <span className="notifications-filter-icon notifications-filter-icon--status" aria-hidden="true">
+                      <Dot size={22} strokeWidth={3.2} />
+                    </span>
+                    <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                      <option value="all">All status</option>
+                      <option value="unread">Unread</option>
+                      <option value="read">Read</option>
+                    </select>
+                    <span className="notifications-filter-chevron" aria-hidden="true">
+                      <ChevronDown size={16} strokeWidth={2.2} />
+                    </span>
+                  </label>
+                </div>
+              </div>
 
               {groupedNotifications.length ? (
                 <div className="notifications-feed">
@@ -477,8 +584,12 @@ export function SuperAdminNotificationsPage() {
                     <Bell size={22} strokeWidth={2.2} />
                   </span>
                   <div>
-                    <h3>No notifications yet</h3>
-                    <p>Branch login, invitation, and activity updates will appear here automatically.</p>
+                    <h3>{searchTerm.trim() ? 'No matching notifications' : 'No notifications yet'}</h3>
+                    <p>
+                      {searchTerm.trim()
+                        ? 'Try a different keyword, date, or status.'
+                        : 'Branch login, invitation, and activity updates will appear here automatically.'}
+                    </p>
                   </div>
                 </div>
               )}
