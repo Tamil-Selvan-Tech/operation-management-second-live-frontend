@@ -386,6 +386,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
   const [studentFormError, setStudentFormError] = useState('')
+  const [isStudentSaving, setIsStudentSaving] = useState(false)
   const [studentDisplayNo, setStudentDisplayNo] = useState('')
   const [stuCountryOptions, setStuCountryOptions] = useState([])
   const [stuStateOptions, setStuStateOptions] = useState([])
@@ -1125,7 +1126,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const handleStudentFormSubmit = async (e) => {
     e?.preventDefault()
     if (studentFormMode === 'view') return
+    if (isStudentSaving) return
     setStudentFormError('')
+    setIsStudentSaving(true)
 
     // Touch all fields
     const allTouched = {}
@@ -1170,7 +1173,12 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
       }
     } catch (error) {
       console.error('Failed to save branch student:', error)
-      setStudentFormError(apiErrorMessage(error, 'Unable to save student. Please try again.'))
+      const conflictMessage = error?.status === 409
+        ? (error?.body?.message || 'Student email or mobile number already exists in this branch.')
+        : null
+      setStudentFormError(conflictMessage || 'Unable to save student. Please try again.')
+    } finally {
+      setIsStudentSaving(false)
     }
   }
 
@@ -1190,7 +1198,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
       setStudentDeleteTarget(null)
       setStudentSuccessPopup({
         title: 'Delete Failed',
-        message: apiErrorMessage(error, 'Unable to delete student. Please try again.'),
+        message: 'Unable to delete student. Please try again.',
       })
     }
   }
@@ -3471,8 +3479,8 @@ if (isLoading) {
                 ) : (
                   <>
                     <button type="button" className="button button-ghost" onClick={() => setIsStudentFormOpen(false)}>Cancel</button>
-                    <button type="submit" className="button button-solid">
-                      {studentFormMode === 'add' ? 'Submit' : 'Save Changes'}
+                    <button type="submit" className="button button-solid" disabled={isStudentSaving}>
+                      {isStudentSaving ? 'Saving...' : (studentFormMode === 'add' ? 'Submit' : 'Save Changes')}
                     </button>
                   </>
                 )}

@@ -171,15 +171,6 @@ export function getNextStudentId(branchId) {
     }
   })
 
-  // Also check all records globally to avoid ID collision
-  all.forEach((s) => {
-    const match = String(s.studentId || '').match(/^STU-(\d+)$/i)
-    if (match) {
-      const num = Number(match[1])
-      if (Number.isFinite(num) && num > highest) highest = num
-    }
-  })
-
   return `STU-${String(highest + 1).padStart(3, '0')}`
 }
 
