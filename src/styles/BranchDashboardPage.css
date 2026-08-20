@@ -4566,3 +4566,124 @@
 .student-drawer-close:active {
   transform: scale(0.94);
 }
+.branch-preloader {
+  min-height: 330px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fcff 100%);
+}
+
+.branch-loader-visual {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+
+.loader-building {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f7bda;
+  background: #ffffff;
+  border: 1px solid #dceeff;
+  box-shadow: 0 10px 30px rgba(15, 123, 218, 0.12);
+  z-index: 2;
+  animation: buildingFloat 2s ease-in-out infinite;
+}
+
+.loader-orbit {
+  position: absolute;
+  border: 1px solid #bfe3ff;
+  border-radius: 50%;
+}
+
+.orbit-one {
+  width: 76px;
+  height: 76px;
+  animation: orbitPulse 1.8s ease-in-out infinite;
+}
+
+.orbit-two {
+  width: 90px;
+  height: 90px;
+  border-color: #e2f2ff;
+  animation: orbitPulse 1.8s ease-in-out infinite 0.3s;
+}
+
+.branch-loader-text h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  color: #172b4d;
+}
+
+.branch-loader-text p {
+  margin: 7px 0 18px;
+  font-size: 13px;
+  color: #718096;
+}
+
+.loader-progress {
+  width: 190px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #eaf4fc;
+}
+
+.loader-progress span {
+  display: block;
+  width: 55%;
+  height: 100%;
+  border-radius: inherit;
+  background: #0f7bda;
+  animation: progressMove 1.5s ease-in-out infinite;
+}
+
+@keyframes buildingFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes orbitPulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.35;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes progressMove {
+  0% {
+    transform: translateX(-110%);
+  }
+
+  50% {
+    transform: translateX(80%);
+  }
+
+  100% {
+    transform: translateX(200%);
+  }
+}

@@ -32,6 +32,7 @@ import {
   UserRound,
   Search,
   UserPlus, Pencil, Trash2,
+  Building2,
    X,
 } from 'lucide-react'
 
@@ -67,6 +68,7 @@ function createInitialStudentForm(branchId) {
     studentId: getNextStudentId(branchId),
     studentName: '',
     emailAddress: '',
+    linkedInUrl: '',
     mobileNumber: '',
     parentSpouseNumber: '',
      countryCode: 'IN',
@@ -92,6 +94,7 @@ function buildStudentFormFromRecord(student = {}) {
     studentId: student.studentId || '',
     studentName: student.studentName || '',
     emailAddress: student.emailAddress || '',
+    linkedInUrl: student.linkedInUrl || '',
     mobileNumber: student.mobileNumber || '',
     parentSpouseNumber: student.parentSpouseNumber || '',
     countryCode: student.countryCode || '',
@@ -143,6 +146,13 @@ function formatStudentDate(value) {
   const date = new Date(`${text}T00:00:00`)
   if (Number.isNaN(date.getTime())) return text
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
+
+function formatExternalUrl(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  if (/^https?:\/\//i.test(text)) return text
+  return `https://${text}`
 }
 
 const batchCards = [
@@ -1315,30 +1325,33 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
       </div>
     </header>
   )
+if (isLoading) {
+  return (
+    <main className="super-admin-content">
+      <div className="branch-dashboard-content branch-preloader">
 
-  if (isLoading) {
-    return (
-      <section className="super-admin-page">
-        <div className="super-admin-shell">
-          {renderSidebar()}
+        <div className="branch-loader-visual">
+          <div className="loader-orbit orbit-one"></div>
+          <div className="loader-orbit orbit-two"></div>
 
-          <div className="super-admin-main">
-            {renderTopbar()}
-
-            <main className="super-admin-content">
-              <div className="branch-dashboard-content">
-                <div className="super-admin-hero-copy">
-                  <p className="branch-dashboard-kicker">Branch Dashboard</p>
-                  <h1>Loading branch profile...</h1>
-                  <p>Please wait while we load your branch workspace.</p>
-                </div>
-              </div>
-            </main>
+          <div className="loader-building">
+            <Building2 size={28} strokeWidth={1.8} />
           </div>
         </div>
-      </section>
-    )
-  }
+
+        <div className="branch-loader-text">
+          <h2>Preparing your workspace</h2>
+          <p>Loading branch dashboard</p>
+        </div>
+
+        <div className="loader-progress">
+          <span></span>
+        </div>
+
+      </div>
+    </main>
+  )
+}
 
   return (
     <section className="super-admin-page">
@@ -2671,7 +2684,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
         {viewStudentDrawer ? (
           <div
             className="student-drawer-backdrop"
-            onClick={() => setViewStudentDrawer(null)}
           >
             <aside
               className="student-view-drawer"
@@ -2710,7 +2722,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                 <div className="student-detail-section">
                   <h3>Basic Information</h3>
 
-                  <div className="student-detail-grid">
+                <div className="student-detail-grid">
 
                     <div className="student-detail-item">
                       <span>Student ID</span>
@@ -2730,6 +2742,21 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                       <span>Email Address</span>
                       <strong>
                         {viewStudentDrawer.emailAddress || '-'}
+                      </strong>
+                    </div>
+
+                    <div className="student-detail-item">
+                      <span>LinkedIn URL</span>
+                      <strong>
+                        {viewStudentDrawer.linkedInUrl ? (
+                          <a
+                            href={formatExternalUrl(viewStudentDrawer.linkedInUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {viewStudentDrawer.linkedInUrl}
+                          </a>
+                        ) : '-'}
                       </strong>
                     </div>
 
@@ -2876,14 +2903,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               <div className="student-view-drawer-footer">
                 <button
                   type="button"
-                  className="button button-ghost"
-                  onClick={() => setViewStudentDrawer(null)}
-                >
-                  Close
-                </button>
-
-                <button
-                  type="button"
                   className="button button-solid"
                   onClick={() => {
                     const student = viewStudentDrawer
@@ -2904,7 +2923,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
         {viewStudentDrawer ? (
           <div
             className="student-drawer-overlay"
-            onClick={() => setViewStudentDrawer(null)}
           >
             <aside
               className="student-view-drawer"
@@ -3003,6 +3021,23 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     </div>
                     <div className="student-details-value">
                       {viewStudentDrawer.emailAddress || '-'}
+                    </div>
+                  </div>
+
+                  <div className="student-details-row">
+                    <div className="student-details-label">
+                      LinkedIn URL
+                    </div>
+                    <div className="student-details-value">
+                      {viewStudentDrawer.linkedInUrl ? (
+                        <a
+                          href={formatExternalUrl(viewStudentDrawer.linkedInUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {viewStudentDrawer.linkedInUrl}
+                        </a>
+                      ) : '-'}
                     </div>
                   </div>
 
@@ -3197,6 +3232,17 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     value={studentForm.emailAddress}
                     onChange={(e) => updateStudentField('emailAddress', e.target.value)}
                     onBlur={() => setStudentFormTouched((c) => ({ ...c, emailAddress: true }))}
+                    disabled={studentFormMode === 'view'}
+                  />
+                </Field>
+
+                <Field label="LinkedIn URL">
+                  <input
+                    type="text"
+                    inputMode="url"
+                    placeholder="https://www.linkedin.com/in/your-profile"
+                    value={studentForm.linkedInUrl}
+                    onChange={(e) => updateStudentField('linkedInUrl', e.target.value)}
                     disabled={studentFormMode === 'view'}
                   />
                 </Field>
