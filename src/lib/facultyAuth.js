@@ -1,5 +1,6 @@
+import { addFacultyLoginNotification } from './notificationStore'
+
 const FACULTY_REGISTRY_KEY = 'cispro.faculty-registry'
-const FACULTY_SESSION_KEY = 'cispro.faculty-session'
 
 const isBrowser = () => typeof window !== 'undefined' && Boolean(window.localStorage)
 
@@ -50,6 +51,8 @@ export function buildFacultySessionFromCredentials(credentials) {
 
   const matchedFaculty = findFacultyByCredentials(email, password)
   if (!matchedFaculty) return null
+
+  addFacultyLoginNotification(matchedFaculty)
 
   return {
     token: `mock-token-fac-${Date.now()}`,

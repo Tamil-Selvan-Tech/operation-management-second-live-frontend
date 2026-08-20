@@ -72,6 +72,10 @@ const StudentNewDashboardPage = lazyNamed(
   () => import('../pages/StudentNewDashboardPage'),
   'StudentNewDashboardPage',
 )
+const BranchNotificationsPage = lazyNamed(
+  () => import('../pages/BranchNotificationsPage'),
+  'BranchNotificationsPage',
+)
 
 const routeChunks = [
   AuthShell,
@@ -96,6 +100,7 @@ const routeChunks = [
   SuperAdminDashboardPage,
   SuperAdminNotificationsPage,
   StudentNewDashboardPage,
+  BranchNotificationsPage,
 ]
 
 function preloadRouteChunks() {
@@ -337,6 +342,7 @@ export function AppRouter() {
 
           <Route element={<BranchProtectedRoute />}>
             <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
+            <Route path="/branch-dashboard/notifications" element={<BranchNotificationsPage />} />
           </Route>
       <Route
   element={

@@ -36,8 +36,12 @@ const normalizeNotification = (notification = {}) => {
     targetBranchId: String(notification.targetBranchId || '').trim(),
     targetBranchEmail: String(notification.targetBranchEmail || '').trim().toLowerCase(),
     targetBranchName: String(notification.targetBranchName || '').trim(),
+    facultyId: String(notification.facultyId || '').trim(),
+    facultyEmail: String(notification.facultyEmail || '').trim().toLowerCase(),
+    facultyName: String(notification.facultyName || '').trim(),
     createdAt,
     read: Boolean(notification.read),
+    dropdownViewed: Boolean(notification.dropdownViewed),
   }
 }
 
@@ -47,7 +51,10 @@ export function loadNotifications() {
 
   const nextNotifications = stored
     .map(normalizeNotification)
-    .filter((notification) => String(notification.kind || '').startsWith('branch-'))
+    .filter((notification) =>
+      String(notification.kind || '').startsWith('branch-') ||
+      String(notification.kind || '') === 'faculty-login',
+    )
 
   if (nextNotifications.length !== stored.length) {
     saveNotifications(nextNotifications)
@@ -63,12 +70,20 @@ export function saveNotifications(notifications = []) {
 export function mergeNotificationsWithStoredState(notifications = []) {
   const storedNotifications = loadNotifications()
   const readStateById = new Map(storedNotifications.map((notification) => [String(notification.id), Boolean(notification.read)]))
+  const viewedStateById = new Map(
+    storedNotifications.map((notification) => [String(notification.id), Boolean(notification.dropdownViewed)]),
+  )
 
   return (Array.isArray(notifications) ? notifications : []).map((notification) => {
     const normalizedNotification = normalizeNotification(notification)
     const storedReadState = readStateById.get(String(normalizedNotification.id))
+    const storedViewedState = viewedStateById.get(String(normalizedNotification.id))
 
-    return storedReadState ? { ...normalizedNotification, read: true } : normalizedNotification
+    return {
+      ...normalizedNotification,
+      read: Boolean(storedReadState ?? normalizedNotification.read),
+      dropdownViewed: Boolean(storedViewedState ?? normalizedNotification.dropdownViewed),
+    }
   })
 }
 
@@ -116,11 +131,32 @@ export function markNotificationsAsRead(notificationIds = null) {
 
   const nextNotifications = loadNotifications().map((notification) => {
     if (!normalizedIds) {
-      return { ...notification, read: true }
+      return { ...notification, read: true, dropdownViewed: true }
     }
 
     return normalizedIds.has(String(notification.id))
-      ? { ...notification, read: true }
+      ? { ...notification, read: true, dropdownViewed: true }
+      : notification
+  })
+
+  saveNotifications(nextNotifications)
+  emitNotificationChange()
+  return nextNotifications
+}
+
+export function markNotificationsAsDropdownViewed(notificationIds = null) {
+  const normalizedIds =
+    Array.isArray(notificationIds) && notificationIds.length
+      ? new Set(notificationIds.map((id) => String(id)))
+      : null
+
+  const nextNotifications = loadNotifications().map((notification) => {
+    if (!normalizedIds) {
+      return { ...notification, dropdownViewed: true }
+    }
+
+    return normalizedIds.has(String(notification.id))
+      ? { ...notification, dropdownViewed: true }
       : notification
   })
 
@@ -191,5 +227,18 @@ export function addBranchLoginNotification(branch = {}) {
     targetBranchId: branch.id || branch.branchId || '',
     targetBranchEmail: branch.branchEmail || '',
     targetBranchName: branch.branchName || '',
+  })
+}
+
+export function addFacultyLoginNotification(faculty = {}) {
+  return addNotification({
+    kind: 'faculty-login',
+    tone: 'green',
+    title: `${faculty.facultyName || faculty.name || faculty.email || 'Faculty'} logged in`,
+    message: `${faculty.facultyName || faculty.name || 'Faculty'} signed in with ${faculty.facultyEmail || faculty.email || 'their account'}.`,
+    actionLabel: 'Logged in',
+    facultyId: faculty.facultyId || faculty.id || '',
+    facultyEmail: faculty.facultyEmail || faculty.email || '',
+    facultyName: faculty.facultyName || faculty.name || '',
   })
 }

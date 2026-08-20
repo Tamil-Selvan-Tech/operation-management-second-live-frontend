@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { getCountries, getStatesOfCountry, getCitiesOfState } from '@countrystatecity/countries-browser'
 import {
   Bell,
   BookOpen,
+  ArrowLeft,
   CircleUserRound,
   ChevronDown,
   ChevronLeft,
@@ -56,6 +57,16 @@ import {
   getNextStudentId,
 } from '../lib/branchStudentStore'
 import { BranchFacultyPage } from './BranchFacultyPage'
+import {
+  getBranchNotificationItems,
+  getBranchNotificationSections,
+  getBranchUnreadNotificationCount,
+} from '../data/branchNotificationsData'
+import {
+  markNotificationsAsDropdownViewed,
+  markNotificationsAsRead,
+  subscribeNotifications,
+} from '../lib/notificationStore'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
@@ -296,6 +307,23 @@ const paymentRows = [
   ['Arun V', '₹6,000', 'Pending'],
 ]
 
+function getBranchDashboardSectionFromPath(pathname = '', search = '') {
+  if (pathname.endsWith('/notifications')) return 'notifications'
+
+  const params = new URLSearchParams(search)
+  const section = String(params.get('section') || '').trim().toLowerCase()
+
+  if (section === 'notifications') return 'notifications'
+  if (section === 'students') return 'students'
+  if (section === 'courses') return 'courses'
+  if (section === 'faculty') return 'faculty'
+  if (section === 'batches') return 'batches'
+  if (section === 'payments') return 'payments'
+  if (section === 'profile') return 'profile'
+
+  return ''
+}
+
 function BranchDashboardSection({ title, description, actions, children }) {
   return (
     <section className="branch-dashboard-section">
@@ -307,6 +335,51 @@ function BranchDashboardSection({ title, description, actions, children }) {
         {actions ? <div className="branch-dashboard-section-heading-actions">{actions}</div> : null}
       </div>
       {children}
+    </section>
+  )
+}
+
+function BranchNotificationGroup({ label, items, onView }) {
+  return (
+    <section className="notifications-group">
+      <p className="notifications-group-label">{label}</p>
+      <div className="notifications-group-list">
+        {items.map((item) => {
+          const Icon = item.icon
+
+          return (
+            <article
+              key={`${label}-${item.id || item.title}-${item.time}`}
+              className={`notifications-item ${item.unread ? 'is-unread' : ''}`.trim()}
+            >
+              <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
+                <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+              </span>
+
+              <div className="notifications-item-copy">
+                <div className="notifications-item-title-row">
+                  <h3>{item.title}</h3>
+                  <small>{item.time}</small>
+                </div>
+                <p>{item.message}</p>
+              </div>
+
+              <div className="notifications-item-meta">
+                <span className={`notifications-item-chip tone-${item.tone}`}>
+                  {item.categoryLabel || item.actionLabel || 'View'}
+                </span>
+                <button
+                  type="button"
+                  className="notifications-item-view-button"
+                  onClick={() => onView?.(item)}
+                >
+                  View
+                </button>
+              </div>
+            </article>
+          )
+        })}
+      </div>
     </section>
   )
 }
@@ -478,10 +551,11 @@ function buildStudentIdFromSuffix(suffix = '') {
   return `${STUDENT_ID_PREFIX}${normalizedSuffix.padStart(Math.max(3, normalizedSuffix.length), '0')}`
 }
 
-export function BranchDashboardPage({ embeddedMode = false, branchData = null }) {
+export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard' }) {
+  const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
-  const [activeSection, setActiveSection] = useState('dashboard')
+  const activeSection = getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
   const [branchProfile, setBranchProfile] = useState(null)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
@@ -529,6 +603,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const [stuCountryOptions, setStuCountryOptions] = useState([])
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
+  const [notificationRevision, setNotificationRevision] = useState(0)
 
 
   useEffect(() => {
@@ -552,6 +628,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
 
   const profileMenuRef = useRef(null)
+  const notificationMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
 
   const loadBranchCourses = useCallback(async () => {
@@ -676,6 +753,39 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [isProfileMenuOpen])
+
+  useEffect(() => {
+    if (!isNotificationMenuOpen) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (notificationMenuRef.current?.contains(target)) return
+      setIsNotificationMenuOpen(false)
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsNotificationMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isNotificationMenuOpen])
+
+  useEffect(() => {
+    const unsubscribe = subscribeNotifications(() => {
+      setNotificationRevision((current) => current + 1)
+    })
+
+    return unsubscribe
+  }, [])
 
   useEffect(() => {
     if (!openCourseActionMenuId) return undefined
@@ -832,6 +942,27 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     user?.mustResetPassword ??
     branchProfile?.mustResetPassword,
   )
+  const branchNotificationSections = useMemo(
+    () => getBranchNotificationSections({ hideViewed: false }),
+    [notificationRevision],
+  )
+  const branchNotificationItems = useMemo(
+    () => getBranchNotificationItems({ hideViewed: false }),
+    [notificationRevision],
+  )
+  const branchUnreadNotificationCount = useMemo(
+    () => getBranchUnreadNotificationCount({ hideViewed: true }),
+    [notificationRevision],
+  )
+  const branchPageUnreadNotificationCount = useMemo(
+    () => getBranchUnreadNotificationCount({ hideViewed: false }),
+    [notificationRevision],
+  )
+  const branchNotificationPreviewItems = useMemo(
+    () => getBranchNotificationItems({ hideViewed: true }).slice(0, 2),
+    [notificationRevision],
+  )
+  const branchNotificationTotalCount = branchNotificationItems.length
   const overviewStats = useMemo(
     () => [
       { label: 'Total Students', value: '246', note: 'Active learners this month' },
@@ -859,7 +990,27 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
 
   const openProfile = () => {
     setIsProfileMenuOpen(false)
-    setActiveSection('profile')
+    navigate('/branch-dashboard?section=profile')
+  }
+
+  const openBranchNotifications = () => {
+    markNotificationsAsDropdownViewed()
+    setIsNotificationMenuOpen(false)
+    navigate('/branch-dashboard/notifications')
+  }
+
+  const openBranchNotificationTarget = (notification) => {
+    if (notification?.id) {
+      markNotificationsAsDropdownViewed([notification.id])
+    }
+    setIsNotificationMenuOpen(false)
+    const targetSection = String(notification?.targetSection || 'batches').trim() || 'batches'
+    navigate(`/branch-dashboard?section=${encodeURIComponent(targetSection)}`)
+  }
+
+  const markAllBranchNotificationsAsRead = () => {
+    markNotificationsAsRead()
+    setIsNotificationMenuOpen(false)
   }
 
   const filteredBranchCourseCards = useMemo(() => {
@@ -942,7 +1093,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     setEditingCourseId('')
     setCourseSaveSuccess(null)
     setIsAddCourseOpen(true)
-    setActiveSection('courses')
+    navigate('/branch-dashboard?section=courses')
   }
 
   const openViewCourseDrawer = (course) => {
@@ -962,7 +1113,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
     setIsAddCourseOpen(true)
-    setActiveSection('courses')
+    navigate('/branch-dashboard?section=courses')
   }
 
   const closeAddCourseModal = () => {
@@ -1414,6 +1565,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
           { id: 'students', label: 'Students', icon: Users },
           { id: 'batches', label: 'Batches', icon: Layers3 },
           { id: 'payments', label: 'Payments', icon: Wallet },
+          { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
           const Icon = item.icon
@@ -1424,7 +1576,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
               key={item.id}
               type="button"
               className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => {
+                if (item.id === 'notifications') {
+                  navigate('/branch-dashboard/notifications')
+                  return
+                }
+
+                navigate(`/branch-dashboard?section=${encodeURIComponent(item.id)}`)
+              }}
             >
               <span className="super-admin-sidebar-icon" aria-hidden="true">
                 <Icon size={18} strokeWidth={2.15} />
@@ -1462,12 +1621,82 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
         <h1>Branch Dashboard</h1>
       </div>
       <div className="super-admin-topbar-right">
-        {!embeddedMode && (
-          <button type="button" className="super-admin-notification-button" aria-label="Notifications">
-            <Bell size={22} strokeWidth={2.1} />
-            <span className="super-admin-notification-badge">8</span>
-          </button>
-        )}
+        {!embeddedMode ? (
+          <div ref={notificationMenuRef} className="notification-menu branch-dashboard-notification-menu">
+            <button
+              type="button"
+              className="icon-chip notification-chip branch-dashboard-notification-button"
+              aria-label="Notifications"
+              aria-haspopup="menu"
+              aria-expanded={isNotificationMenuOpen}
+              onClick={() => setIsNotificationMenuOpen((current) => !current)}
+            >
+              <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+              <b>{branchUnreadNotificationCount}</b>
+            </button>
+
+            {isNotificationMenuOpen ? (
+              <div className="notification-dropdown" role="menu" aria-label="Notifications">
+                <div className="notification-dropdown-head">
+                  <strong>Notifications</strong>
+                  <div className="notification-dropdown-head-actions">
+                    <button type="button" className="notification-mark-read" onClick={markAllBranchNotificationsAsRead}>
+                      Mark all as read
+                    </button>
+                    <button
+                      type="button"
+                      className="notification-dropdown-close"
+                      aria-label="Close notifications"
+                      onClick={() => setIsNotificationMenuOpen(false)}
+                    >
+                      <X size={16} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="notification-dropdown-list">
+                  {branchNotificationPreviewItems.length ? (
+                    branchNotificationPreviewItems.map((item) => {
+                      const Icon = item.icon
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'}`.trim()}
+                          onClick={() => openBranchNotificationTarget(item)}
+                        >
+                          <span className={`notification-badge ${item.tone}`} aria-hidden="true">
+                            <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                          </span>
+                          <div className="notification-copy">
+                            <p>{item.title}</p>
+                            <span>{item.message}</span>
+                            <small>{item.time}</small>
+                          </div>
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <div className="notification-dropdown-item is-muted" role="presentation">
+                      <span className="notification-badge blue" aria-hidden="true">
+                        <Bell size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                      </span>
+                      <div className="notification-copy">
+                        <p>No notifications yet</p>
+                        <small>Waiting for activity</small>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button className="notification-dropdown-footer" type="button" onClick={openBranchNotifications}>
+                  View all notifications
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
 
         {!embeddedMode && (
           <div ref={profileMenuRef} className="branch-dashboard-profile-menu-wrap">
@@ -1589,6 +1818,51 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
                     </div>
                   </BranchDashboardSection>
                 </>
+              ) : null}
+
+              {activeSection === 'notifications' ? (
+                <section className="notifications-page branch-notifications-page">
+                  <header className="notifications-page-header">
+                    <div className="notifications-page-copy">
+                      <p className="eyebrow">Notifications</p>
+                      <h2>Notifications</h2>
+                      <p>
+                        You have <strong>{branchNotificationTotalCount}</strong> notifications to go through
+                        {branchPageUnreadNotificationCount ? (
+                          <span> and {branchPageUnreadNotificationCount} unread items</span>
+                        ) : null}{' '}
+                        for {branchTitle}.
+                      </p>
+                    </div>
+
+                    <div className="notifications-page-actions">
+                      <button
+                        type="button"
+                        className="notifications-back-button"
+                        onClick={() => navigate('/branch-dashboard')}
+                      >
+                        <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                        Back to dashboard
+                      </button>
+
+                      <button type="button" className="notifications-mark-read" onClick={markAllBranchNotificationsAsRead}>
+                        <CheckCircle2 size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                        Mark all as read
+                      </button>
+                    </div>
+                  </header>
+
+                  <div className="notifications-feed">
+                    {branchNotificationSections.map((section) => (
+                      <BranchNotificationGroup
+                        key={section.label}
+                        label={section.label}
+                        items={section.items}
+                        onView={openBranchNotificationTarget}
+                      />
+                    ))}
+                  </div>
+                </section>
               ) : null}
 
               {activeSection === 'students' ? (
