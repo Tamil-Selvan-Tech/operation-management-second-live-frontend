@@ -483,7 +483,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
   const { isAuthenticated, role, signOut, user, session } = useAuth()
   const [activeSection, setActiveSection] = useState('dashboard')
   const [branchProfile, setBranchProfile] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
@@ -602,12 +601,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
         } else {
           setBranchCourseCards([])
         }
-        setIsLoading(false)
       }).catch((error) => {
         if (!isMounted) return
         console.error('Failed to load courses in embedded mode:', error)
         setBranchCourseCards([])
-        setIsLoading(false)
       })
       return
     }
@@ -626,8 +623,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
       } else {
         setBranchCourseCards([])
       }
-
-      setIsLoading(false)
     })
 
     return () => {
@@ -1527,33 +1522,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null })
       </div>
     </header>
   )
-if (isLoading) {
-  return (
-    <main className="super-admin-content">
-      <div className="branch-dashboard-content branch-preloader">
-
-        <div className="branch-loader-visual">
-          <div className="loader-orbit orbit-one"></div>
-          <div className="loader-orbit orbit-two"></div>
-
-          <div className="loader-building">
-            <Building2 size={28} strokeWidth={1.8} />
-          </div>
-        </div>
-
-        <div className="branch-loader-text">
-          <h2>Preparing your workspace</h2>
-          <p>Loading branch dashboard</p>
-        </div>
-
-        <div className="loader-progress">
-          <span></span>
-        </div>
-
-      </div>
-    </main>
-  )
-}
 
   return (
     <section className="super-admin-page">

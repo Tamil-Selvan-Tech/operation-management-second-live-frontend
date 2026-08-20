@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { courseAccessRoles, roleDashboards, dashboardPathByRole } from '../data/authData'
 import { LoadingPage } from '../pages/LoadingPage'
+import { BranchDashboardPage } from '../pages/BranchDashboardPage'
 import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
 import { BranchProtectedRoute } from './BranchRoute'
 import { PublicRoute } from './PublicRoute'
@@ -67,10 +68,6 @@ const SuperAdminNotificationsPage = lazyNamed(
   () => import('../pages/SuperAdminNotificationsPage'),
   'SuperAdminNotificationsPage',
 )
-const BranchDashboardPage = lazyNamed(
-  () => import('../pages/BranchDashboardPage'),
-  'BranchDashboardPage',
-)
 const StudentNewDashboardPage = lazyNamed(
   () => import('../pages/StudentNewDashboardPage'),
   'StudentNewDashboardPage',
@@ -98,7 +95,6 @@ const routeChunks = [
   FacultyMyBatchesPage,
   SuperAdminDashboardPage,
   SuperAdminNotificationsPage,
-  BranchDashboardPage,
   StudentNewDashboardPage,
 ]
 
