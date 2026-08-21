@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  BookOpen,
   Bell,
   CalendarDays,
   CheckCircle2,
@@ -33,6 +34,7 @@ import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, g
 import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
+import { listBranchCourses } from '../services/branchCourseService'
 import {
   getFacultyNotifications,
   markFacultyNotificationsAsRead,
@@ -42,6 +44,7 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
+import { loadBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -85,6 +88,74 @@ function formatDisplayTime(value) {
 function formatMinutesLabel(value = 0) {
   const count = Math.max(0, Math.floor(Number(value) || 0))
   return `${count} minute${count === 1 ? '' : 's'}`
+}
+
+function findDataScienceCourse(courses = []) {
+  const list = Array.isArray(courses) ? courses : []
+  if (!list.length) return null
+
+  return list.find((course) => {
+    const name = String(course?.name || course?.courseName || '').trim().toLowerCase()
+    const code = String(course?.courseCode || '').trim().toLowerCase()
+    return name === 'data science' || name.includes('data science') || code.includes('data science')
+  }) || null
+}
+
+function CourseHierarchyList({ models = [] }) {
+  if (!Array.isArray(models) || !models.length) {
+    return (
+      <div className="branch-course-view-empty-state" style={{ marginTop: 0 }}>
+        No modules added for this course.
+      </div>
+    )
+  }
+
+  return (
+    <div className="branch-course-view-hierarchy" style={{ padding: '0', background: 'transparent', boxShadow: 'none' }}>
+      <div className="branch-course-view-models">
+        {models.map((model, modelIndex) => {
+          const submodels = Array.isArray(model?.submodels) ? model.submodels : []
+
+          return (
+            <article key={model.id || `${model.name || 'module'}-${modelIndex}`} className="branch-course-view-model-card">
+              <div className="branch-course-view-model-head">
+                <div>
+                  <span>Module {modelIndex + 1}</span>
+                  <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
+                </div>
+                <div className="branch-course-view-model-head-actions">
+                  <b>{String(model.percentage || '-')}</b>
+                </div>
+              </div>
+
+              {submodels.length ? (
+                <div className="branch-course-view-submodels">
+                  {submodels.map((submodel, submodelIndex) => (
+                    <div key={submodel.id || `${submodel.name || 'submodule'}-${submodelIndex}`} className="branch-course-view-submodel">
+                      <div>
+                        <span>Submodule {submodelIndex + 1}</span>
+                        <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
+                      </div>
+                      <strong>{String(submodel.percentage || '-')}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="branch-course-view-submodels">
+                  <div className="branch-course-view-submodel is-empty">
+                    <div>
+                      <span>Submodules</span>
+                      <strong>No submodules added</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </article>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 function formatNotificationTime(createdAt) {
@@ -319,6 +390,7 @@ export function FacultyDashboardPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [branchCourseCards, setBranchCourseCards] = useState([])
 
 
   useEffect(() => {
@@ -357,6 +429,35 @@ export function FacultyDashboardPage() {
     }
 
     loadFacultySummary()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadBranchCourses = async () => {
+      try {
+        const response = await listBranchCourses({
+          page: 1,
+          limit: 100,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        })
+
+        const nextCourses = Array.isArray(response?.data) && response.data.length ? response.data : loadBranchCourseSnapshot()
+        if (!isMounted) return
+        setBranchCourseCards(Array.isArray(nextCourses) ? nextCourses : [])
+      } catch (error) {
+        if (!isMounted) return
+        console.error('Failed to load branch courses for faculty page', error)
+        setBranchCourseCards(loadBranchCourseSnapshot())
+      }
+    }
+
+    loadBranchCourses()
 
     return () => {
       isMounted = false
@@ -430,6 +531,11 @@ useEffect(() => {
     () => groupFacultyNotifications(visibleNotifications),
     [visibleNotifications],
   )
+  const selectedCourse = useMemo(() => findDataScienceCourse(branchCourseCards), [branchCourseCards])
+  const selectedCourseModels = useMemo(
+    () => (Array.isArray(selectedCourse?.models) ? selectedCourse.models : []),
+    [selectedCourse],
+  )
 
   // Mock statistics for the faculty member
   const stats = [
@@ -475,6 +581,7 @@ useEffect(() => {
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'my-batches', label: 'My Batches', icon: Layers3 },
+          { id: 'courses', label: 'Course', icon: BookOpen },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
@@ -796,6 +903,83 @@ useEffect(() => {
                       </tbody>
                     </table>
                   </div>
+                </FacultyDashboardSection>
+              ) : null}
+
+              {activeSection === 'courses' ? (
+                <FacultyDashboardSection title="Course" description="Data Science course details from the branch course catalog.">
+                  {selectedCourse ? (
+                    <>
+                      <div className="branch-dashboard-activity-grid">
+                        <article className="branch-dashboard-panel">
+                          <strong className="block text-slate-800 text-[1.1rem]">{selectedCourse.name || 'Data Science'}</strong>
+                          <p className="text-slate-600 mt-1">Course code: {selectedCourse.courseCode || '-'}</p>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '14px' }}>
+                            <span className={`branch-course-status-pill ${String(selectedCourse.status || 'Active').toLowerCase()}`.trim()}>
+                              {selectedCourse.status || 'Active'}
+                            </span>
+                            <span className="branch-course-status-pill" style={{ background: '#e0f2fe', color: '#075985' }}>
+                              {selectedCourse.batches || 0} batch{Number(selectedCourse.batches || 0) === 1 ? '' : 'es'}
+                            </span>
+                            <span className="branch-course-status-pill" style={{ background: '#f1f5f9', color: '#334155' }}>
+                              {selectedCourse.students || 0} students
+                            </span>
+                          </div>
+                        </article>
+                      </div>
+
+                      <div className="branch-dashboard-table-shell" style={{ marginTop: '20px' }}>
+                        <table className="branch-dashboard-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '60px' }}>S.No</th>
+                              <th>Details</th>
+                              <th>Information</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              ['Course Name', selectedCourse.name || '-'],
+                              ['Course Code', selectedCourse.courseCode || '-'],
+                              ['Mode', selectedCourse.mode || '-'],
+                              ['Duration', selectedCourse.duration ? `${selectedCourse.duration} month${String(selectedCourse.duration) === '1' ? '' : 's'}` : '-'],
+                              ['Hours', selectedCourse.hours ? `${selectedCourse.hours} hour${String(selectedCourse.hours) === '1' ? '' : 's'}` : '-'],
+                              ['Standard Fee', selectedCourse.actualFees ? `₹${selectedCourse.actualFees}` : '-'],
+                              ['Registration Fee', selectedCourse.registrationFees ? `₹${selectedCourse.registrationFees}` : '-'],
+                              ['Discount', selectedCourse.discount ? `₹${selectedCourse.discount}` : '-'],
+                              ['Final Fee', selectedCourse.afterDiscount ? `₹${selectedCourse.afterDiscount}` : '-'],
+                              ['Status', selectedCourse.status || 'Active'],
+                              ['Created At', formatDisplayDate(selectedCourse.createdAt)],
+                              ['Assigned Faculty', Array.isArray(selectedCourse.assignedFaculty) && selectedCourse.assignedFaculty.length ? selectedCourse.assignedFaculty.map((faculty) => faculty?.name).filter(Boolean).join(', ') : 'Not Assigned'],
+                            ].map(([label, value], index) => (
+                              <tr key={label}>
+                                <td>{index + 1}</td>
+                                <td><strong className="text-slate-800">{label}</strong></td>
+                                <td>{value}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="branch-dashboard-section" style={{ marginTop: '20px' }}>
+                        <div className="branch-dashboard-section-heading">
+                          <div className="branch-dashboard-section-heading-copy">
+                            <h2>Modules &amp; Submodules</h2>
+                            <p>Complete module structure for the selected Data Science course.</p>
+                          </div>
+                        </div>
+                        <CourseHierarchyList models={selectedCourseModels} />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="branch-dashboard-panel">
+                      <strong>No Data Science course found</strong>
+                      <p style={{ marginTop: '8px', color: '#475569' }}>
+                        The faculty course tab is waiting for the branch course catalog to load.
+                      </p>
+                    </div>
+                  )}
                 </FacultyDashboardSection>
               ) : null}
 
