@@ -30,6 +30,7 @@ function getNotificationIcon(kind) {
       return Mail
     case 'branch-login':
       return CheckCircle2
+    case 'branch-faculty-login':
     case 'faculty-login':
       return UsersRound
     default:
@@ -37,12 +38,12 @@ function getNotificationIcon(kind) {
   }
 }
 
-function normalizeBranchNotification(notification = {}) {
+export function normalizeBranchNotification(notification = {}) {
   const kind = String(notification.kind || '').trim()
   const title = String(notification.title || '').trim()
   const message = String(notification.message || '').trim()
   const createdAt = String(notification.createdAt || '').trim()
-  const isFacultyLogin = kind === 'faculty-login'
+  const isFacultyLogin = kind === 'branch-faculty-login' || kind === 'faculty-login'
 
   return {
     id: String(notification.id || '').trim(),
@@ -74,7 +75,7 @@ function normalizeBranchNotification(notification = {}) {
   }
 }
 
-function groupByDate(notifications = []) {
+export function groupByDate(notifications = []) {
   const groups = new Map()
 
   notifications
@@ -119,29 +120,12 @@ export function getBranchNotificationSections({ hideViewed = false } = {}) {
   const branchNotifications = loadNotifications()
     .map(normalizeBranchNotification)
     .filter((notification) => !hideViewed || !notification.dropdownViewed)
+
   if (branchNotifications.length) {
     return groupByDate(branchNotifications)
   }
 
-  return [
-    {
-      label: 'Today',
-      items: [
-        {
-          id: 'branch-course-assigned',
-          tone: 'green',
-          icon: CheckCircle2,
-          title: 'Course Assigned',
-          message: 'Python has been assigned to your batch.',
-          time: '3 days ago',
-          categoryLabel: 'Batch',
-          unread: false,
-          dropdownViewed: false,
-          targetSection: 'batches',
-        },
-      ],
-    },
-  ]
+  return []
 }
 
 export function getBranchNotificationItems(options = {}) {
