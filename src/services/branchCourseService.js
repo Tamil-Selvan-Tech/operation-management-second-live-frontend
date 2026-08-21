@@ -39,6 +39,10 @@ function normalizeText(value) {
   return String(value ?? '').trim()
 }
 
+function getBranchCourseSubmodelSource(model = {}) {
+  return model?.submodels || model?.subModels || model?.submodules || model?.subModules || []
+}
+
 function deriveAfterDiscount(course) {
   const actualFees = Number(course?.actualFees)
   const registrationFees = Number(course?.registrationFees)
@@ -68,7 +72,7 @@ function normalizeBranchCourseModels(models) {
     id: model?.id || `model-${index + 1}`,
     name: normalizeText(model?.name || model?.title || model?.modelName),
     percentage: model?.percentage ?? '',
-    submodels: normalizeBranchCourseSubmodels(model?.submodels),
+    submodels: normalizeBranchCourseSubmodels(getBranchCourseSubmodelSource(model)),
   }))
 }
 
