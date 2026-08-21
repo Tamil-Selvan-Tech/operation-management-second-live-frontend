@@ -51,6 +51,27 @@ function deriveAfterDiscount(course) {
   return ''
 }
 
+function normalizeBranchCourseSubmodels(submodels) {
+  if (!Array.isArray(submodels) || !submodels.length) return []
+  return submodels.map((submodel, index) => ({
+    ...submodel,
+    id: submodel?.id || `submodel-${index + 1}`,
+    name: normalizeText(submodel?.name || submodel?.submodelName),
+    percentage: submodel?.percentage ?? '',
+  }))
+}
+
+function normalizeBranchCourseModels(models) {
+  if (!Array.isArray(models) || !models.length) return []
+  return models.map((model, index) => ({
+    ...model,
+    id: model?.id || `model-${index + 1}`,
+    name: normalizeText(model?.name || model?.modelName),
+    percentage: model?.percentage ?? '',
+    submodels: normalizeBranchCourseSubmodels(model?.submodels),
+  }))
+}
+
 export function normalizeBranchCourse(course) {
   if (!course) return null
 
@@ -70,6 +91,7 @@ export function normalizeBranchCourse(course) {
     status: course.status || 'Inactive',
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
+    models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
     createdAt: course.createdAt || '',
     updatedAt: course.updatedAt || '',
   }

@@ -431,6 +431,166 @@ function buildFallbackBranchProfile(user, session) {
 
 const formatBranchCourseAmount = formatBranchCourseMoney
 const COURSE_CODE_PREFIX = 'CIS-'
+const COURSE_BASIC_FIELDS = [
+  'courseCode',
+  'name',
+  'mode',
+  'duration',
+  'hours',
+  'actualFees',
+  'registrationFees',
+  'discount',
+  'status',
+]
+
+function createCourseNodeId(prefix) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function createBranchCourseSubmodel(submodelIndex = 1, name = '') {
+  return {
+    id: createCourseNodeId('submodel'),
+    name: String(name || '').trim(),
+  }
+}
+
+function createBranchCourseModel(modelIndex = 1, name = '', submodels = []) {
+  return {
+    id: createCourseNodeId('model'),
+    name: String(name || '').trim(),
+    submodels: Array.isArray(submodels) ? submodels : [],
+  }
+}
+
+function distributeBranchCoursePercentages(totalItems = 0) {
+  const count = Math.max(0, Number(totalItems) || 0)
+  if (!count) return []
+  if (count === 1) return [100]
+
+  const precision = 2
+  const scale = 10 ** precision
+  const base = Math.floor((100 / count) * scale) / scale
+  const percentages = []
+  let remaining = 100
+
+  for (let index = 0; index < count; index += 1) {
+    if (index === count - 1) {
+      percentages.push(Number(remaining.toFixed(precision)))
+    } else {
+      percentages.push(Number(base.toFixed(precision)))
+      remaining -= base
+    }
+  }
+
+  return percentages
+}
+
+function normalizeBranchCourseSubmodels(submodels = [], modelIndex = 0) {
+  const items = Array.isArray(submodels) ? submodels : []
+
+  return items.map((submodel, submodelIndex) => ({
+    id: String(submodel?.id || createCourseNodeId(`submodel-${modelIndex + 1}`)),
+    name: String(submodel?.name || '').trim(),
+  }))
+}
+
+function normalizeBranchCourseModels(models = []) {
+  const items = Array.isArray(models) ? models : []
+
+  return items.map((model, modelIndex) => ({
+    id: String(model?.id || createCourseNodeId(`model-${modelIndex + 1}`)),
+    name: String(model?.name || '').trim(),
+    submodels: normalizeBranchCourseSubmodels(model?.submodels, modelIndex),
+  }))
+}
+
+function buildBranchCourseModelPayload(models = []) {
+  const normalizedModels = normalizeBranchCourseModels(models)
+  const modelPercentages = distributeBranchCoursePercentages(normalizedModels.length)
+
+  return normalizedModels.map((model, modelIndex) => {
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    const submodelPercentages = distributeBranchCoursePercentages(submodels.length)
+
+    return {
+      id: model.id,
+      name: String(model.name || '').trim(),
+      percentage: modelPercentages[modelIndex] ?? 0,
+      submodels: submodels.map((submodel, submodelIndex) => ({
+        id: submodel.id,
+        name: String(submodel.name || '').trim(),
+        percentage: submodelPercentages[submodelIndex] ?? 0,
+      })),
+    }
+  })
+}
+
+function buildBranchCourseHierarchySummary(models = []) {
+  const normalizedModels = normalizeBranchCourseModels(models)
+  return normalizedModels.map((model, modelIndex) => {
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    const modelPercentages = distributeBranchCoursePercentages(normalizedModels.length)
+    const submodelPercentages = distributeBranchCoursePercentages(submodels.length)
+
+    return {
+      ...model,
+      percentage: modelPercentages[modelIndex] ?? 0,
+      submodels: submodels.map((submodel, submodelIndex) => ({
+        ...submodel,
+        percentage: submodelPercentages[submodelIndex] ?? 0,
+      })),
+    }
+  })
+}
+
+function createBranchCourseErrors(form) {
+  const basic = {}
+  const hierarchy = {
+    models: [],
+  }
+
+  const normalizedCourseCode = normalizeBranchCourseCode(form.courseCode)
+  if (normalizedCourseCode.length <= COURSE_CODE_PREFIX.length) basic.courseCode = 'Course Code is required.'
+  if (!String(form.name || '').trim()) basic.name = 'Course Name is required.'
+  if (!String(form.mode || '').trim()) basic.mode = 'Mode is required.'
+  if (!String(form.duration || '').trim()) basic.duration = 'Duration (Months) is required.'
+  if (String(form.duration || '').trim() && Number(form.duration) <= 0) basic.duration = 'Duration must be greater than zero.'
+  if (!String(form.hours || '').trim()) basic.hours = 'Hours is required.'
+  if (String(form.hours || '').trim() && Number(form.hours) <= 0) basic.hours = 'Hours must be greater than zero.'
+  if (!String(form.actualFees || '').trim()) basic.actualFees = 'Standard Course Fee is required.'
+  if (!String(form.registrationFees || '').trim()) basic.registrationFees = 'Registration Fee is required.'
+  if (!String(form.status || '').trim()) basic.status = 'Status is required.'
+  if (String(form.discount || '').trim() && Number(form.discount) < 0) basic.discount = 'Discount must be zero or greater.'
+
+  const normalizedModels = normalizeBranchCourseModels(form.models)
+  if (!normalizedModels.length) {
+    hierarchy.modelsError = 'At least one model is required.'
+  }
+
+  hierarchy.models = normalizedModels.map((model) => {
+    const modelErrors = {}
+    if (!String(model.name || '').trim()) {
+      modelErrors.name = 'Model name is required.'
+    }
+
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    if (!submodels.length) {
+      modelErrors.submodelsError = 'At least one submodel is required.'
+    }
+
+    modelErrors.submodels = submodels.map((submodel) => {
+      const submodelErrors = {}
+      if (!String(submodel.name || '').trim()) {
+        submodelErrors.name = 'Submodel name is required.'
+      }
+      return submodelErrors
+    })
+
+    return modelErrors
+  })
+
+  return { basic, hierarchy }
+}
 
 function formatBranchAdminDisplayName(value) {
   const text = String(value || '').trim()
@@ -443,6 +603,13 @@ function formatBranchCourseMoney(value) {
   const text = String(value || '').trim()
   if (!text) return '-'
   return `₹${text}`
+}
+
+function formatBranchCoursePercentage(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return '-'
+  const rounded = Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/\.?0+$/, '')
+  return `${rounded}%`
 }
 
 function formatBranchCourseDate(value) {
@@ -483,11 +650,13 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
     status: String(course.status || 'Active').trim(),
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
+    models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
     createdAt: String(course.createdAt || new Date().toISOString()),
   }
 }
 
 function buildBranchCoursePayload(form) {
+  const models = buildBranchCourseModelPayload(form.models)
   return {
     courseCode: normalizeBranchCourseCode(form.courseCode),
     name: String(form.name || '').trim(),
@@ -498,6 +667,9 @@ function buildBranchCoursePayload(form) {
     registrationFees: form.registrationFees,
     discount: form.discount || '0',
     status: form.status,
+    models,
+    courseModels: models,
+    modules: models,
   }
 }
 function createInitialBranchCourseForm() {
@@ -511,6 +683,7 @@ function createInitialBranchCourseForm() {
     registrationFees: '',
     discount: '',
     status: 'Active',
+    models: [],
   }
 }
 
@@ -534,6 +707,7 @@ function buildBranchCourseFormFromRecord(course = {}) {
     registrationFees: String(course.registrationFees ?? '').trim(),
     discount: String(course.discount ?? '').trim(),
     status: String(course.status || 'Active').trim() || 'Active',
+    models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
   }
 }
 
@@ -566,6 +740,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseSaveSuccess, setCourseSaveSuccess] = useState(null)
   const [addCourseForm, setAddCourseForm] = useState(() => createInitialBranchCourseForm())
   const [addCourseTouched, setAddCourseTouched] = useState({})
+  const [addCourseStep, setAddCourseStep] = useState(1)
+  const [selectedSavedModelIndex, setSelectedSavedModelIndex] = useState(0)
+  const [isModuleDraftOpen, setIsModuleDraftOpen] = useState(false)
+  const [moduleDraftStep, setModuleDraftStep] = useState(1)
+  const [moduleDraftName, setModuleDraftName] = useState('')
+  const [moduleDraftSubmodels, setModuleDraftSubmodels] = useState([''])
+  const [moduleDraftEditingIndex, setModuleDraftEditingIndex] = useState(null)
+  const [moduleDraftError, setModuleDraftError] = useState('')
   const [branchCourseCards, setBranchCourseCards] = useState([])
   const [courseSearchTerm, setCourseSearchTerm] = useState('')
   const [branchCoursePage, setBranchCoursePage] = useState(1)
@@ -1032,6 +1214,24 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     () => branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || null,
     [branchCourseCards, editingCourseId],
   )
+  const addCourseHierarchy = useMemo(
+    () => buildBranchCourseHierarchySummary(addCourseForm.models),
+    [addCourseForm.models],
+  )
+  const selectedSavedModel = addCourseHierarchy[Math.min(selectedSavedModelIndex, Math.max(addCourseHierarchy.length - 1, 0))] || null
+
+  useEffect(() => {
+    if (!addCourseHierarchy.length) {
+      if (selectedSavedModelIndex !== 0) {
+        setSelectedSavedModelIndex(0)
+      }
+      return
+    }
+
+    if (selectedSavedModelIndex >= addCourseHierarchy.length) {
+      setSelectedSavedModelIndex(addCourseHierarchy.length - 1)
+    }
+  }, [addCourseHierarchy.length, selectedSavedModelIndex])
 
   const addCourseFinalFee = useMemo(() => {
     const actualFees = Number(addCourseForm.actualFees || 0)
@@ -1042,31 +1242,34 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     return String(Math.max(actualFees + registrationFees - discount, 0))
   }, [addCourseForm.actualFees, addCourseForm.discount, addCourseForm.registrationFees])
 
-  const addCourseValidationErrors = useMemo(() => {
-    const errors = {}
+  const addCourseValidationErrors = useMemo(() => createBranchCourseErrors(addCourseForm), [addCourseForm])
 
-    const normalizedCourseCode = normalizeBranchCourseCode(addCourseForm.courseCode)
-    const hasCourseCodeSuffix = normalizedCourseCode.length > COURSE_CODE_PREFIX.length
+  const shouldShowBasicAddCourseError = (field) => Boolean(addCourseTouched[field] && addCourseValidationErrors.basic[field])
 
-    if (!hasCourseCodeSuffix) errors.courseCode = 'Course Code is required.'
-    if (!addCourseForm.name.trim()) errors.name = 'Course Name is required.'
-    if (!addCourseForm.mode) errors.mode = 'Mode is required.'
-    if (!addCourseForm.duration) errors.duration = 'Duration (Months) is required.'
-    if (addCourseForm.duration && Number(addCourseForm.duration) <= 0) errors.duration = 'Duration must be greater than zero.'
-    if (!addCourseForm.hours) errors.hours = 'Hours is required.'
-    if (addCourseForm.hours && Number(addCourseForm.hours) <= 0) errors.hours = 'Hours must be greater than zero.'
-    if (!addCourseForm.actualFees) errors.actualFees = 'Standard Course Fee is required.'
-    if (!addCourseForm.registrationFees) errors.registrationFees = 'Registration Fee is required.'
-    if (!addCourseForm.status) errors.status = 'Status is required.'
+  const shouldShowModelNameError = (modelIndex) =>
+    Boolean(
+      addCourseTouched[`model-${modelIndex}-name`] &&
+      addCourseValidationErrors.hierarchy.models?.[modelIndex]?.name,
+    )
 
-    if (addCourseForm.discount && Number(addCourseForm.discount) < 0) {
-      errors.discount = 'Discount must be zero or greater.'
-    }
+  const shouldShowSubmodelError = (modelIndex, submodelIndex) =>
+    Boolean(
+      addCourseTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] &&
+      addCourseValidationErrors.hierarchy.models?.[modelIndex]?.submodels?.[submodelIndex]?.name,
+    )
 
-    return errors
-  }, [addCourseForm])
+  const shouldShowModelSubmodelsError = (modelIndex) =>
+    Boolean(
+      addCourseTouched[`model-${modelIndex}-submodels`] &&
+      addCourseValidationErrors.hierarchy.models?.[modelIndex]?.submodelsError,
+    )
 
-  const shouldShowAddCourseError = (field) => Boolean(addCourseTouched[field] && addCourseValidationErrors[field])
+  const markAddCourseTouched = (key) => {
+    setAddCourseTouched((current) => ({
+      ...current,
+      [key]: true,
+    }))
+  }
 
   const updateAddCourseField = (field, value) => {
     setAddCourseError('')
@@ -1080,12 +1283,162 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     updateAddCourseField(field, value.replace(/[^\d]/g, ''))
   }
 
+  const updateAddCourseModelField = (modelIndex, field, value) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const models = normalizeBranchCourseModels(current.models)
+      return {
+        ...current,
+        models: models.map((model, index) =>
+          index === modelIndex
+            ? {
+                ...model,
+                [field]: value,
+              }
+            : model,
+        ),
+      }
+    })
+  }
+
+  const resetModuleDraft = useCallback(() => {
+    setModuleDraftStep(1)
+    setModuleDraftName('')
+    setModuleDraftSubmodels([''])
+    setModuleDraftEditingIndex(null)
+    setModuleDraftError('')
+  }, [])
+
+  const openAddModuleDraft = () => {
+    resetModuleDraft()
+    setIsModuleDraftOpen(true)
+  }
+
+  const closeModuleDraft = () => {
+    setIsModuleDraftOpen(false)
+    resetModuleDraft()
+  }
+
+  const handleModuleDraftNext = () => {
+    const name = String(moduleDraftName || '').trim()
+    if (!name) {
+      setModuleDraftError('Module name is required.')
+      setModuleDraftStep(1)
+      return
+    }
+
+    setModuleDraftError('')
+    setModuleDraftStep(2)
+    setModuleDraftSubmodels((current) => (current.length ? current : ['']))
+  }
+
+  const updateModuleDraftSubmodel = (index, value) => {
+    setModuleDraftError('')
+    setModuleDraftSubmodels((current) => current.map((item, itemIndex) => (itemIndex === index ? value : item)))
+  }
+
+  const addModuleDraftSubmodel = () => {
+    setModuleDraftError('')
+    setModuleDraftSubmodels((current) => [...current, ''])
+  }
+
+  const removeModuleDraftSubmodel = (index) => {
+    setModuleDraftError('')
+    setModuleDraftSubmodels((current) => {
+      const next = current.filter((_, itemIndex) => itemIndex !== index)
+      return next.length ? next : ['']
+    })
+  }
+
+  const loadSavedModelIntoDraft = (modelIndex) => {
+    const model = addCourseHierarchy[modelIndex] || null
+    if (!model) return
+
+    setModuleDraftEditingIndex(modelIndex)
+    setModuleDraftName(model.name || '')
+    setModuleDraftSubmodels((model.submodels || []).map((submodel) => submodel.name || ''))
+    setModuleDraftStep(2)
+    setModuleDraftError('')
+    setIsModuleDraftOpen(true)
+  }
+
+  const selectCourseModel = (modelIndex) => {
+    const safeIndex = Math.max(0, Number(modelIndex) || 0)
+    setSelectedSavedModelIndex(safeIndex)
+  }
+
+  const removeSavedCourseModel = (modelIndex) => {
+    setAddCourseForm((current) => {
+      const nextModels = Array.isArray(current.models) ? current.models.filter((_, index) => index !== modelIndex) : []
+      return {
+        ...current,
+        models: nextModels,
+      }
+    })
+
+    setSelectedSavedModelIndex((current) => {
+      if (current === modelIndex) return Math.max(0, modelIndex - 1)
+      if (current > modelIndex) return current - 1
+      return current
+    })
+
+    setModuleDraftEditingIndex((current) => (current === modelIndex ? null : current))
+  }
+
+  const saveModuleDraft = () => {
+    const name = String(moduleDraftName || '').trim()
+    const submodels = moduleDraftSubmodels.map((submodel) => String(submodel || '').trim())
+
+    if (!name) {
+      setModuleDraftError('Module name is required.')
+      setModuleDraftStep(1)
+      return
+    }
+
+    if (!submodels.length || submodels.some((submodel) => !submodel)) {
+      setModuleDraftError('At least one submodule is required.')
+      setModuleDraftStep(2)
+      return
+    }
+
+    const normalizedModel = {
+      id: createCourseNodeId('model'),
+      name,
+      submodels: submodels.map((submodel, index) => ({
+        id: createCourseNodeId(`submodel-${index + 1}`),
+        name: submodel,
+      })),
+    }
+
+    setAddCourseForm((current) => {
+      const nextModels = Array.isArray(current.models) ? [...current.models] : []
+
+      if (moduleDraftEditingIndex !== null && nextModels[moduleDraftEditingIndex]) {
+        nextModels[moduleDraftEditingIndex] = normalizedModel
+      } else {
+        nextModels.push(normalizedModel)
+      }
+
+      return {
+        ...current,
+        models: nextModels,
+      }
+    })
+
+    setSelectedSavedModelIndex((current) => (moduleDraftEditingIndex !== null ? moduleDraftEditingIndex : addCourseHierarchy.length))
+    setIsModuleDraftOpen(false)
+    resetModuleDraft()
+  }
+
   const resetAddCourseForm = () => {
     setAddCourseForm(
       editingCourseRecord ? buildBranchCourseFormFromRecord(editingCourseRecord) : createInitialBranchCourseForm(),
     )
     setAddCourseTouched({})
     setAddCourseError('')
+    setAddCourseStep(1)
+    setSelectedSavedModelIndex(0)
+    resetModuleDraft()
   }
 
   const openAddCourseModal = () => {
@@ -1110,6 +1463,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setAddCourseForm(buildBranchCourseFormFromRecord(course))
     setAddCourseTouched({})
     setAddCourseError('')
+    setAddCourseStep(1)
+    setSelectedSavedModelIndex(0)
+    resetModuleDraft()
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
     setIsAddCourseOpen(true)
@@ -1119,6 +1475,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const closeAddCourseModal = () => {
     setIsAddCourseOpen(false)
     setEditingCourseId('')
+    setAddCourseStep(1)
+    resetModuleDraft()
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
   }
@@ -1161,22 +1519,33 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   const handleAddCourseSubmit = async (event) => {
     event?.preventDefault()
-    const nextTouched = Object.keys(addCourseValidationErrors).reduce((acc, key) => {
-      acc[key] = true
-      return acc
-    }, {})
-    nextTouched.courseCode = true
-    nextTouched.name = true
-    nextTouched.mode = true
-    nextTouched.duration = true
-    nextTouched.hours = true
-    nextTouched.actualFees = true
-    nextTouched.registrationFees = true
-    nextTouched.status = true
+    const nextTouched = { ...addCourseTouched }
+    COURSE_BASIC_FIELDS.forEach((field) => {
+      nextTouched[field] = true
+    })
+    normalizeBranchCourseModels(addCourseForm.models).forEach((model, modelIndex) => {
+      nextTouched[`model-${modelIndex}-name`] = true
+      nextTouched[`model-${modelIndex}-submodels`] = true
+      ;(model.submodels || []).forEach((submodel, submodelIndex) => {
+        nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
+      })
+    })
     setAddCourseTouched(nextTouched)
 
-    if (Object.keys(addCourseValidationErrors).length > 0) {
-      setAddCourseError(Object.values(addCourseValidationErrors)[0] || 'Please fill all required fields before saving.')
+    if (Object.keys(addCourseValidationErrors.basic).length > 0 || addCourseValidationErrors.hierarchy.modelsError) {
+      setAddCourseStep(1)
+      setAddCourseError(Object.values(addCourseValidationErrors.basic)[0] || addCourseValidationErrors.hierarchy.modelsError || 'Please fill all required fields before saving.')
+      return
+    }
+
+    if (addCourseValidationErrors.hierarchy.models.some((modelErrors) => modelErrors.name || modelErrors.submodelsError || modelErrors.submodels.some((submodelErrors) => submodelErrors.name))) {
+      setAddCourseStep(2)
+      setAddCourseError(
+        addCourseValidationErrors.hierarchy.models.find((modelErrors) => modelErrors.name)?.name ||
+        addCourseValidationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodelsError)?.submodelsError ||
+        addCourseValidationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodels.some((submodelErrors) => submodelErrors.name))?.submodels?.find((submodelErrors) => submodelErrors.name)?.name ||
+        'Please fill all required fields before saving.',
+      )
       return
     }
 
@@ -1211,10 +1580,16 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         ? await updateBranchCourse(editingTargetId, payload)
         : await createBranchCourse(payload)
 
+      const nextModels = normalizeBranchCourseModels(
+        savedCourse?.models || savedCourse?.courseModels || savedCourse?.modules || payload.models || [],
+      )
       const normalizedCourse = {
         ...savedCourse,
         batches: Number(savedCourse?.batchCount ?? savedCourse?.batches ?? 0),
         students: Number(savedCourse?.studentCount ?? savedCourse?.students ?? 0),
+        models: nextModels,
+        courseModels: nextModels,
+        modules: nextModels,
       }
 
       const nextCards = editingTargetId
@@ -1233,11 +1608,29 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       setAddCourseForm(createInitialBranchCourseForm())
       setAddCourseTouched({})
       setEditingCourseId('')
+      setAddCourseStep(1)
     } catch (error) {
       setAddCourseError(apiErrorMessage(error, 'Unable to save course right now.'))
     } finally {
       setIsAddCourseSaving(false)
     }
+  }
+
+  const handleCourseBasicNext = () => {
+    const nextTouched = { ...addCourseTouched }
+    COURSE_BASIC_FIELDS.forEach((field) => {
+      nextTouched[field] = true
+    })
+    setAddCourseTouched(nextTouched)
+
+    if (Object.keys(addCourseValidationErrors.basic).length > 0) {
+      setAddCourseError(Object.values(addCourseValidationErrors.basic)[0] || 'Please complete the basic course details.')
+      setAddCourseStep(1)
+      return
+    }
+
+    setAddCourseError('')
+    setAddCourseStep(2)
   }
 
   useEffect(() => {
@@ -2476,189 +2869,427 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
               onClick={(event) => event.stopPropagation()}
               onSubmit={handleAddCourseSubmit}
             >
-              <div className="course-modal-header">
-                <div>
-                  <p className="section-kicker">Course Entry</p>
-                  <h3 id="branch-add-course-title">{editingCourseId ? 'Edit Course' : 'Add Course'}</h3>
+                <div className="course-modal-header">
+                  <div>
+                    <p className="section-kicker">Course Entry</p>
+                    <h3 id="branch-add-course-title">{editingCourseId ? 'Edit Course' : 'Add Course'}</h3>
+                  </div>
+                  <span className="detail-badge">Required fields marked *</span>
                 </div>
-                <span className="detail-badge">Required fields marked *</span>
+
+              <div className="course-stepper" aria-label="Course creation steps">
+                <button
+                  type="button"
+                  className={`course-stepper-item ${addCourseStep === 1 ? 'is-active' : ''}`.trim()}
+                  onClick={() => setAddCourseStep(1)}
+                >
+                  <span>1</span>
+                  <strong>Basic Details</strong>
+                </button>
+                <button
+                  type="button"
+                  className={`course-stepper-item ${addCourseStep === 2 ? 'is-active' : ''}`.trim()}
+                  onClick={() => {
+                    const basicErrors = createBranchCourseErrors(addCourseForm).basic
+                    if (Object.keys(basicErrors).length === 0) {
+                      setAddCourseStep(2)
+                      setAddCourseError('')
+                    }
+                  }}
+                  disabled={Object.keys(addCourseValidationErrors.basic).length > 0}
+                >
+                  <span>2</span>
+                  <strong>Models & Submodels</strong>
+                </button>
               </div>
 
-              <div className="course-form-grid">
-                <Field
-                  label="Enter Course Code"
-                  required
-                  hint="Recommended unique identifier for reports and integrations"
-                  error={shouldShowAddCourseError('courseCode') ? addCourseValidationErrors.courseCode : ''}
-                >
-                  <input
-                    type="text"
-                    placeholder="UIUX-06M"
-                    value={addCourseForm.courseCode || COURSE_CODE_PREFIX}
-                    onChange={(event) => updateAddCourseField('courseCode', event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, courseCode: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('courseCode'))}
-                  />
-                </Field>
+              <div className="course-step-caption">
+                {addCourseStep === 1
+                  ? 'Fill the course basics first. Then move to model setup.'
+                  : 'Add models and submodels. Percentages are calculated automatically.'}
+              </div>
 
-                <Field
-                  label="Enter Course Name"
-                  required
-                  hint="Required field"
-                  error={shouldShowAddCourseError('name') ? addCourseValidationErrors.name : ''}
-                >
-                  <input
-                    type="text"
-                    placeholder="Enter Course Name"
-                    value={addCourseForm.name}
-                    onChange={(event) => updateAddCourseField('name', event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, name: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('name'))}
-                  />
-                </Field>
-
-                <Field
-                  label="Select Mode"
-                  required
-                  hint="Online / Offline / Hybrid"
-                  error={shouldShowAddCourseError('mode') ? addCourseValidationErrors.mode : ''}
-                >
-                  <select
-                    value={addCourseForm.mode}
-                    onChange={(event) => updateAddCourseField('mode', event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, mode: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('mode'))}
+              {addCourseStep === 1 ? (
+                <div className="course-form-grid">
+                  <Field
+                    label="Course Code"
+                    required
+                    hint="Recommended unique identifier for reports and integrations"
+                    error={shouldShowBasicAddCourseError('courseCode') ? addCourseValidationErrors.basic.courseCode : ''}
                   >
-                    <option value="" disabled>
-                      Select Mode
-                    </option>
-                    <option>Online</option>
-                    <option>Offline</option>
-                    <option>Hybrid</option>
-                  </select>
-                </Field>
+                    <input
+                      type="text"
+                      placeholder="CIS-001"
+                      value={addCourseForm.courseCode || COURSE_CODE_PREFIX}
+                      onChange={(event) => updateAddCourseField('courseCode', event.target.value)}
+                      onBlur={() => markAddCourseTouched('courseCode')}
+                      aria-invalid={Boolean(shouldShowBasicAddCourseError('courseCode'))}
+                    />
+                  </Field>
 
-                <Field
-                  label="Enter Duration (Months)"
-                  required
-                  hint="Numbers only"
-                  error={shouldShowAddCourseError('duration') ? addCourseValidationErrors.duration : ''}
-                >
-                  <div className="course-input-with-suffix">
+                  <Field
+                    label="Course Name"
+                    required
+                    hint="Required field"
+                    error={shouldShowBasicAddCourseError('name') ? addCourseValidationErrors.basic.name : ''}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Enter Course Name"
+                      value={addCourseForm.name}
+                      onChange={(event) => updateAddCourseField('name', event.target.value)}
+                      onBlur={() => markAddCourseTouched('name')}
+                      aria-invalid={Boolean(shouldShowBasicAddCourseError('name'))}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Mode"
+                    required
+                    hint="Online / Offline / Hybrid"
+                    error={shouldShowBasicAddCourseError('mode') ? addCourseValidationErrors.basic.mode : ''}
+                  >
+                    <select
+                      value={addCourseForm.mode}
+                      onChange={(event) => updateAddCourseField('mode', event.target.value)}
+                      onBlur={() => markAddCourseTouched('mode')}
+                      aria-invalid={Boolean(shouldShowBasicAddCourseError('mode'))}
+                    >
+                      <option value="" disabled>
+                        Select Mode
+                      </option>
+                      <option>Online</option>
+                      <option>Offline</option>
+                      <option>Hybrid</option>
+                    </select>
+                  </Field>
+
+                  <Field
+                    label="Duration (Months)"
+                    required
+                    hint="Numbers only"
+                    error={shouldShowBasicAddCourseError('duration') ? addCourseValidationErrors.basic.duration : ''}
+                  >
+                    <div className="course-input-with-suffix">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={addCourseForm.duration}
+                        onChange={(event) => updateAddCourseNumericField('duration', event.target.value)}
+                        onBlur={() => markAddCourseTouched('duration')}
+                        aria-invalid={Boolean(shouldShowBasicAddCourseError('duration'))}
+                      />
+                      <span>{Number(addCourseForm.duration) === 1 ? 'month' : 'months'}</span>
+                    </div>
+                  </Field>
+
+                  <Field
+                    label="Hours"
+                    required
+                    hint="Numbers only"
+                    error={shouldShowBasicAddCourseError('hours') ? addCourseValidationErrors.basic.hours : ''}
+                  >
+                    <div className="course-input-with-suffix">
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={addCourseForm.hours}
+                        onChange={(event) => updateAddCourseNumericField('hours', event.target.value)}
+                        onBlur={() => markAddCourseTouched('hours')}
+                        aria-invalid={Boolean(shouldShowBasicAddCourseError('hours'))}
+                      />
+                      <span>{Number(addCourseForm.hours) === 1 ? 'hour' : 'hours'}</span>
+                    </div>
+                  </Field>
+
+                  <Field
+                    label="Standard Course Fee"
+                    required
+                    hint="Default/base fee before adjustments"
+                    error={shouldShowBasicAddCourseError('actualFees') ? addCourseValidationErrors.basic.actualFees : ''}
+                  >
                     <input
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      value={addCourseForm.duration}
-                      onChange={(event) => updateAddCourseNumericField('duration', event.target.value)}
-                      onBlur={() => setAddCourseTouched((current) => ({ ...current, duration: true }))}
-                      aria-invalid={Boolean(shouldShowAddCourseError('duration'))}
+                      value={addCourseForm.actualFees}
+                      onChange={(event) => updateAddCourseNumericField('actualFees', event.target.value)}
+                      onBlur={() => markAddCourseTouched('actualFees')}
+                      aria-invalid={Boolean(shouldShowBasicAddCourseError('actualFees'))}
                     />
-                    <span>{Number(addCourseForm.duration) === 1 ? 'month' : 'months'}</span>
-                  </div>
-                </Field>
+                  </Field>
 
-                <Field
-                  label="Enter Hours"
-                  required
-                  hint="Numbers only"
-                  error={shouldShowAddCourseError('hours') ? addCourseValidationErrors.hours : ''}
-                >
-                  <div className="course-input-with-suffix">
+                  <Field
+                    label="Registration Fee"
+                    required
+                    hint="Registration fee amount"
+                    error={shouldShowBasicAddCourseError('registrationFees') ? addCourseValidationErrors.basic.registrationFees : ''}
+                  >
                     <input
                       type="text"
                       inputMode="numeric"
                       pattern="[0-9]*"
-                      value={addCourseForm.hours}
-                      onChange={(event) => updateAddCourseNumericField('hours', event.target.value)}
-                      onBlur={() => setAddCourseTouched((current) => ({ ...current, hours: true }))}
-                      aria-invalid={Boolean(shouldShowAddCourseError('hours'))}
+                      value={addCourseForm.registrationFees}
+                      onChange={(event) => updateAddCourseNumericField('registrationFees', event.target.value)}
+                      onBlur={() => markAddCourseTouched('registrationFees')}
+                      aria-invalid={Boolean(shouldShowBasicAddCourseError('registrationFees'))}
                     />
-                    <span>{Number(addCourseForm.hours) === 1 ? 'hour' : 'hours'}</span>
-                  </div>
-                </Field>
+                  </Field>
 
-                <Field
-                  label="Enter Standard Course Fee"
-                  required
-                  hint="Default/base fee before adjustments"
-                  error={shouldShowAddCourseError('actualFees') ? addCourseValidationErrors.actualFees : ''}
-                >
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={addCourseForm.actualFees}
-                    onChange={(event) => updateAddCourseNumericField('actualFees', event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, actualFees: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('actualFees'))}
-                  />
-                </Field>
-
-                <Field
-                  label="Enter Registration Fee"
-                  required
-                  hint="Registration fee amount"
-                  error={shouldShowAddCourseError('registrationFees') ? addCourseValidationErrors.registrationFees : ''}
-                >
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={addCourseForm.registrationFees}
-                    onChange={(event) => updateAddCourseNumericField('registrationFees', event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, registrationFees: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('registrationFees'))}
-                  />
-                </Field>
-
-                <Field
-                  label="Enter Default Discount"
-                  hint="Optional "
-                  error={shouldShowAddCourseError('discount') ? addCourseValidationErrors.discount : ''}
-                >
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={addCourseForm.discount}
-                    onChange={(event) => updateAddCourseNumericField('discount', event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, discount: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('discount'))}
-                  />
-                </Field>
-
-                <Field label="Final Fee" hint="Auto calculated from fee + registration - discount">
-                  <input type="text" value={addCourseFinalFee} readOnly />
-                </Field>
-
-                <Field
-                  label="Select Status"
-                  required
-                  hint="Active or Inactive"
-                  error={shouldShowAddCourseError('status') ? addCourseValidationErrors.status : ''}
-                >
-                  <select
-                    value={addCourseForm.status}
-                    onChange={(event) => updateAddCourseField('status', event.target.value)}
-                    onBlur={() => setAddCourseTouched((current) => ({ ...current, status: true }))}
-                    aria-invalid={Boolean(shouldShowAddCourseError('status'))}
+                  <Field
+                    label="Default Discount"
+                    hint="Optional"
+                    error={shouldShowBasicAddCourseError('discount') ? addCourseValidationErrors.basic.discount : ''}
                   >
-                    <option value="Active">Active</option>
-                    <option>Inactive</option>
-                  </select>
-                </Field>
-              </div>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={addCourseForm.discount}
+                      onChange={(event) => updateAddCourseNumericField('discount', event.target.value)}
+                      onBlur={() => markAddCourseTouched('discount')}
+                      aria-invalid={Boolean(shouldShowBasicAddCourseError('discount'))}
+                    />
+                  </Field>
 
-              {Object.keys(addCourseTouched).length > 0 && Object.keys(addCourseValidationErrors).length > 0 ? (
-                <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
-                  <span style={{ color: '#dc2626' }}>
-                    {addCourseError || Object.values(addCourseValidationErrors)[0] || 'Please fill all required fields before saving.'}
-                  </span>
+                  <Field label="Final Fee" hint="Auto calculated from fee + registration - discount">
+                    <input type="text" value={addCourseFinalFee} readOnly />
+                  </Field>
+
+                  <Field
+                    label="Status"
+                    required
+                    hint="Active or Inactive"
+                    error={shouldShowBasicAddCourseError('status') ? addCourseValidationErrors.basic.status : ''}
+                  >
+                    <select
+                      value={addCourseForm.status}
+                      onChange={(event) => updateAddCourseField('status', event.target.value)}
+                      onBlur={() => markAddCourseTouched('status')}
+                      aria-invalid={Boolean(shouldShowBasicAddCourseError('status'))}
+                    >
+                      <option value="Active">Active</option>
+                      <option>Inactive</option>
+                    </select>
+                  </Field>
                 </div>
-              ) : addCourseError ? (
-                <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
-                  <span style={{ color: '#dc2626' }}>{addCourseError}</span>
+              ) : (
+                <div className="course-workspace">
+                  <section className="course-workspace-main">
+                    <div className="course-workspace-main-header">
+                      <div>
+                        <p className="section-kicker">Models & Submodels</p>
+                        <h4>Add modules and submodules for this course.</h4>
+                      </div>
+                      <button type="button" className="button button-solid course-add-model-top-button" onClick={openAddModuleDraft}>
+                        + Add Module
+                      </button>
+                    </div>
+
+                    <div className="course-hierarchy-layout">
+                      <div className="course-hierarchy-summary">
+                        <div className="course-hierarchy-summary-card">
+                          <span>Models</span>
+                          <strong>{addCourseHierarchy.length}</strong>
+                          <small>redistributed to 100%</small>
+                        </div>
+                        <div className="course-hierarchy-summary-card">
+                          <span>Submodels</span>
+                          <strong>{addCourseHierarchy.reduce((total, model) => total + (model.submodels?.length || 0), 0)}</strong>
+                          <small>each model adds its own 100%</small>
+                        </div>
+                      </div>
+
+                      <div className="course-added-modules">
+                        <div className="course-added-modules-header">
+                          <h5>Added Modules</h5>
+                          <span>{addCourseHierarchy.length} total</span>
+                        </div>
+
+                        <div className="course-added-modules-table-shell">
+                          <table className="course-added-modules-table">
+                            <thead>
+                              <tr>
+                                <th>#</th>
+                                <th>Module Name</th>
+                                <th>Submodels</th>
+                                <th>Count</th>
+                                <th>Percentage</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {addCourseHierarchy.length ? addCourseHierarchy.map((model, modelIndex) => {
+                                const submodelNames = (model.submodels || [])
+                                  .map((submodel, submodelIndex) => {
+                                    const label = submodel.name || `Submodel ${submodelIndex + 1}`
+                                    const percentage = formatBranchCoursePercentage(submodel.percentage)
+                                    return `${label} (${percentage})`
+                                  })
+                                  .filter(Boolean)
+                                  .join(' | ')
+
+                                return (
+                                  <tr key={model.id} className={modelIndex === selectedSavedModelIndex ? 'is-active' : ''}>
+                                    <td>{String(modelIndex + 1).padStart(2, '0')}</td>
+                                    <td>
+                                      <button
+                                        type="button"
+                                        className="course-table-primary-link"
+                                        onClick={() => selectCourseModel(modelIndex)}
+                                      >
+                                        {model.name || `Module ${modelIndex + 1}`}
+                                      </button>
+                                    </td>
+                                    <td>
+                                      <span className="course-table-submodel-preview">
+                                        {submodelNames || 'No submodels yet'}
+                                      </span>
+                                    </td>
+                                    <td>{(model.submodels || []).length}</td>
+                                    <td>
+                                      <span className="course-table-percentage">
+                                        {formatBranchCoursePercentage(model.percentage)}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <div className="course-table-actions">
+                                        <button type="button" className="course-table-action is-edit" onClick={() => loadSavedModelIntoDraft(modelIndex)}>
+                                          Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="course-table-action is-delete"
+                                          onClick={() => removeSavedCourseModel(modelIndex)}
+                                          disabled={addCourseHierarchy.length === 1}
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )
+                              }) : (
+                                <tr>
+                                  <td colSpan={6} className="course-added-modules-empty">
+                                    No modules added yet. Click "Add Module" to create your first module.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                </div>
+              )}
+
+              {isModuleDraftOpen ? (
+                <div className="course-module-modal-backdrop" role="presentation" onClick={closeModuleDraft}>
+                  <div className="course-module-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+                    <div className="course-module-modal-header">
+                      <div>
+                        <p className="section-kicker">ADD MODULE</p>
+                        <h3>{moduleDraftStep === 2 ? 'Add Submodule' : 'Add Module'}</h3>
+                      </div>
+                      <button type="button" className="course-modal-close" onClick={closeModuleDraft} aria-label="Close module popup">
+                        <X size={22} strokeWidth={2} />
+                      </button>
+                    </div>
+
+                    <div className="course-module-modal-body">
+                      <section className="course-module-modal-card">
+                        <div className="course-workspace-side-card-head">
+                          <p>ADD MODULE</p>
+                          <strong>{moduleDraftStep === 2 ? 'Module Saved Draft' : 'Add Module'}</strong>
+                        </div>
+                        <Field
+                          label="Module Name"
+                          required
+                          error={moduleDraftStep === 1 && moduleDraftError ? moduleDraftError : ''}
+                        >
+                          <input
+                            type="text"
+                            placeholder="Enter module name"
+                            value={moduleDraftName}
+                            onChange={(event) => {
+                              setModuleDraftName(event.target.value)
+                              setModuleDraftError('')
+                            }}
+                            onBlur={() => setModuleDraftError(moduleDraftName.trim() ? '' : moduleDraftError)}
+                          />
+                        </Field>
+                        <div className="course-workspace-side-actions">
+                          <button type="button" className="button button-ghost" onClick={closeModuleDraft}>
+                            Cancel
+                          </button>
+                          <button type="button" className="button button-solid" onClick={handleModuleDraftNext}>
+                            Next
+                          </button>
+                        </div>
+                      </section>
+
+                      <section className="course-module-modal-card">
+                        <div className="course-workspace-side-card-head">
+                          <p>ADD SUBMODULE</p>
+                          <strong>{moduleDraftName.trim() ? `Model: ${moduleDraftName.trim()}` : 'Model: -'}</strong>
+                        </div>
+                        {moduleDraftStep === 2 ? (
+                          <div className="course-submodel-list course-submodel-list-side">
+                            {moduleDraftSubmodels.map((submodel, index) => (
+                              <div key={`draft-submodel-${index}`} className="course-submodel-row">
+                                <Field
+                                  label={`Submodel ${index + 1}`}
+                                  required
+                                  error={moduleDraftError && !String(submodel || '').trim() ? moduleDraftError : ''}
+                                >
+                                  <input
+                                    type="text"
+                                    placeholder="Enter submodule name"
+                                    value={submodel}
+                                    onChange={(event) => updateModuleDraftSubmodel(index, event.target.value)}
+                                  />
+                                </Field>
+
+                                <div className="course-submodel-meta">
+                                  <span>{formatBranchCoursePercentage(moduleDraftSubmodels.length ? 100 / moduleDraftSubmodels.length : 0)}</span>
+                                  <button
+                                    type="button"
+                                    className="course-inline-action"
+                                    onClick={() => removeModuleDraftSubmodel(index)}
+                                    disabled={moduleDraftSubmodels.length === 1}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                            <div className="course-workspace-side-actions">
+                              <button type="button" className="button button-ghost" onClick={addModuleDraftSubmodel}>
+                                Next
+                              </button>
+                              <button type="button" className="button button-solid" onClick={saveModuleDraft}>
+                                {moduleDraftEditingIndex !== null ? 'Update Module' : 'Create Module'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="course-workspace-empty">Type a module name and click Next to open submodules.</div>
+                        )}
+                      </section>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {addCourseError ? (
+                <div className="course-validation-note course-validation-error">
+                  <span>{addCourseError}</span>
                 </div>
               ) : null}
 
@@ -2666,20 +3297,31 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                 <button type="button" className="button button-ghost" onClick={resetAddCourseForm} disabled={isAddCourseSaving}>
                   Reset
                 </button>
-                <button type="submit" className="button button-solid" disabled={isAddCourseSaving}>
-                  {isAddCourseSaving ? 'Saving...' : editingCourseId ? 'Update Course' : 'Save Course'}
-                </button>
+                {addCourseStep === 1 ? (
+                  <button type="button" className="button button-solid" onClick={handleCourseBasicNext} disabled={isAddCourseSaving}>
+                    Next
+                  </button>
+                ) : (
+                  <div className="course-form-actions-group">
+                    <button type="button" className="button button-ghost" onClick={() => setAddCourseStep(1)} disabled={isAddCourseSaving}>
+                      Back
+                    </button>
+                    <button type="submit" className="button button-solid" disabled={isAddCourseSaving}>
+                      {isAddCourseSaving ? 'Saving...' : editingCourseId ? 'Update Course' : 'Save Course'}
+                    </button>
+                  </div>
+                )}
               </div>
 
-            <button
-  type="button"
-  className="course-modal-close"
-  onClick={closeAddCourseModal}
-  aria-label="Close course form"
-  disabled={isAddCourseSaving}
->
-  <X size={22} strokeWidth={2} />
-</button>
+              <button
+                type="button"
+                className="course-modal-close"
+                onClick={closeAddCourseModal}
+                aria-label="Close course form"
+                disabled={isAddCourseSaving}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
             </form>
           </div>
         ) : null}
@@ -3022,6 +3664,41 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                       <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
                     </div>
                   </div>
+
+                  {Array.isArray(viewCourse.models) && viewCourse.models.length ? (
+                    <div className="branch-course-view-hierarchy" role="row">
+                      <div className="branch-course-view-hierarchy-header">
+                        <div>
+                          <p>Hierarchy</p>
+                          <strong>Model -&gt; Submodel</strong>
+                        </div>
+                        <span>Percentages auto-distribute to 100%</span>
+                      </div>
+
+                      <div className="branch-course-view-models">
+                        {buildBranchCourseHierarchySummary(viewCourse.models).map((model, modelIndex) => (
+                          <article key={model.id} className="branch-course-view-model-card">
+                            <div className="branch-course-view-model-head">
+                              <div>
+                                <span>Model {modelIndex + 1}</span>
+                                <strong>{model.name || `Model ${modelIndex + 1}`}</strong>
+                              </div>
+                              <b>{formatBranchCoursePercentage(model.percentage)}</b>
+                            </div>
+
+                            <div className="branch-course-view-submodels">
+                              {model.submodels.map((submodel, submodelIndex) => (
+                                <div key={submodel.id} className="branch-course-view-submodel">
+                                  <span>{submodel.name || `Submodel ${submodelIndex + 1}`}</span>
+                                  <strong>{formatBranchCoursePercentage(submodel.percentage)}</strong>
+                                </div>
+                              ))}
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="branch-course-view-row" role="row">
                     <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
