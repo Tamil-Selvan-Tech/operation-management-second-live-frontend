@@ -90,6 +90,32 @@ function formatMinutesLabel(value = 0) {
   return `${count} minute${count === 1 ? '' : 's'}`
 }
 
+function formatCoursePercentage(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return '-'
+  const rounded = Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/\.?0+$/, '')
+  return `${rounded}%`
+}
+
+function distributeCoursePercentages(count = 0) {
+  const total = Math.max(0, Math.floor(Number(count) || 0))
+  if (!total) return []
+
+  const base = 100 / total
+  const percentages = []
+  let used = 0
+
+  for (let index = 0; index < total; index += 1) {
+    const remaining = 100 - used
+    const value = index === total - 1 ? remaining : base
+    const rounded = Number(value.toFixed(2))
+    percentages.push(rounded)
+    used += rounded
+  }
+
+  return percentages
+}
+
 function findDataScienceCourse(courses = []) {
   const list = Array.isArray(courses) ? courses : []
   if (!list.length) return null
@@ -99,6 +125,39 @@ function findDataScienceCourse(courses = []) {
     const code = String(course?.courseCode || '').trim().toLowerCase()
     return name === 'data science' || name.includes('data science') || code.includes('data science')
   }) || null
+}
+
+function buildCourseHierarchySummary(models = []) {
+  const normalizedModels = Array.isArray(models)
+    ? models.map((model) => ({
+        ...model,
+        id: String(model?.id || '').trim(),
+        name: String(model?.name || '').trim(),
+        submodels: Array.isArray(model?.submodels)
+          ? model.submodels.map((submodel) => ({
+              ...submodel,
+              id: String(submodel?.id || '').trim(),
+              name: String(submodel?.name || '').trim(),
+            }))
+          : [],
+      }))
+    : []
+
+  const modelPercentages = distributeCoursePercentages(normalizedModels.length)
+
+  return normalizedModels.map((model, modelIndex) => {
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    const submodelPercentages = distributeCoursePercentages(submodels.length)
+
+    return {
+      ...model,
+      percentage: modelPercentages[modelIndex] ?? 0,
+      submodels: submodels.map((submodel, submodelIndex) => ({
+        ...submodel,
+        percentage: submodelPercentages[submodelIndex] ?? 0,
+      })),
+    }
+  })
 }
 
 function CourseHierarchyList({ models = [] }) {
@@ -123,7 +182,7 @@ function CourseHierarchyList({ models = [] }) {
                 <span className="faculty-course-module-index">Module {modelIndex + 1}</span>
                 <strong>{moduleName}</strong>
               </div>
-              <span className="faculty-course-module-percent">{String(model.percentage || '-')}</span>
+              <span className="faculty-course-module-percent">{formatCoursePercentage(model.percentage)}</span>
             </div>
 
             {submodels.length ? (
@@ -137,7 +196,7 @@ function CourseHierarchyList({ models = [] }) {
                       <span>Submodule {submodelIndex + 1}</span>
                       <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
                     </div>
-                    <span className="faculty-course-submodule-percent">{String(submodel.percentage || '-')}</span>
+                    <span className="faculty-course-submodule-percent">{formatCoursePercentage(submodel.percentage)}</span>
                   </div>
                 ))}
               </div>
@@ -526,7 +585,7 @@ useEffect(() => {
   )
   const selectedCourse = useMemo(() => findDataScienceCourse(branchCourseCards), [branchCourseCards])
   const selectedCourseModels = useMemo(
-    () => (Array.isArray(selectedCourse?.models) ? selectedCourse.models : []),
+    () => buildCourseHierarchySummary(selectedCourse?.models || selectedCourse?.courseModels || selectedCourse?.modules || []),
     [selectedCourse],
   )
 
