@@ -39,8 +39,8 @@ import {
 
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
+import { request, setImpersonateBranchId } from '../services/apiClient'
 import { getCurrentBranchProfile } from '../services/branchService'
-import { setImpersonateBranchId } from '../services/apiClient'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import {
   assignFacultyToBranchCourse,
@@ -58,13 +58,15 @@ import {
 } from '../lib/branchStudentStore'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import {
-  getBranchNotificationItems,
-  getBranchNotificationSections,
-  getBranchUnreadNotificationCount,
+  groupByDate,
+  normalizeBranchNotification,
 } from '../data/branchNotificationsData'
 import {
+  loadNotifications,
+  mergeNotificationsWithStoredState,
   markNotificationsAsDropdownViewed,
   markNotificationsAsRead,
+  saveNotifications,
   subscribeNotifications,
 } from '../lib/notificationStore'
 import '../styles/SuperAdminDashboardPage.css'
@@ -491,7 +493,7 @@ function normalizeBranchCourseSubmodels(submodels = [], modelIndex = 0) {
 
   return items.map((submodel, submodelIndex) => ({
     id: String(submodel?.id || createCourseNodeId(`submodel-${modelIndex + 1}`)),
-    name: String(submodel?.name || '').trim(),
+    name: String(submodel?.name || submodel?.title || '').trim(),
   }))
 }
 
@@ -500,7 +502,7 @@ function normalizeBranchCourseModels(models = []) {
 
   return items.map((model, modelIndex) => ({
     id: String(model?.id || createCourseNodeId(`model-${modelIndex + 1}`)),
-    name: String(model?.name || '').trim(),
+    name: String(model?.name || model?.title || '').trim(),
     submodels: normalizeBranchCourseSubmodels(model?.submodels, modelIndex),
   }))
 }
@@ -764,6 +766,38 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
   const activeSection = getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+  const goToBranchSection = useCallback(
+    (section = 'dashboard', options = {}) => {
+      const nextSection = String(section || '').trim().toLowerCase() || 'dashboard'
+      const replace = Boolean(options?.replace)
+      const isDashboard = nextSection === 'dashboard'
+      const isNotifications = nextSection === 'notifications'
+
+      if (embeddedMode) {
+        navigate(
+          {
+            pathname: location.pathname,
+            search: isDashboard ? '' : `?section=${encodeURIComponent(nextSection)}`,
+          },
+          { replace },
+        )
+        return
+      }
+
+      if (isNotifications) {
+        navigate('/branch-dashboard/notifications', { replace })
+        return
+      }
+
+      if (isDashboard) {
+        navigate('/branch-dashboard', { replace })
+        return
+      }
+
+      navigate(`/branch-dashboard?section=${encodeURIComponent(nextSection)}`, { replace })
+    },
+    [embeddedMode, location.pathname, navigate],
+  )
   const [branchProfile, setBranchProfile] = useState(null)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
@@ -824,7 +858,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
-  const [notificationRevision, setNotificationRevision] = useState(0)
+  const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
 
 
   useEffect(() => {
@@ -909,6 +943,28 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     }
   }, [])
 
+  const loadBranchNotifications = useCallback(async () => {
+    try {
+      const response = await request('/notifications?limit=100&page=1', {
+        method: 'GET',
+      })
+
+      const responseData = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.notifications)
+          ? response.notifications
+          : Array.isArray(response)
+            ? response
+            : []
+
+      const mergedNotifications = mergeNotificationsWithStoredState(responseData)
+      setBranchNotificationRecords(mergedNotifications)
+      saveNotifications(mergedNotifications)
+    } catch (error) {
+      console.error('Failed to load branch notifications:', error)
+    }
+  }, [])
+
   useEffect(() => {
     if (!embeddedMode && (!isAuthenticated || role !== 'branch-admin')) {
       navigate('/login', { replace: true })
@@ -919,17 +975,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
     if (embeddedMode && branchData) {
       setBranchProfile(branchData)
-      loadBranchCourses().then((coursesResult) => {
+      Promise.allSettled([loadBranchCourses(), loadFacultyList()]).then(([coursesResult]) => {
         if (!isMounted) return
-        if (coursesResult.status === 'fulfilled' || coursesResult.data) {
-          setBranchCourseCards(Array.isArray(coursesResult?.data) ? coursesResult.data : [])
+        if (coursesResult.status === 'fulfilled' || coursesResult.value?.data) {
+          setBranchCourseCards(Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : [])
         } else {
           setBranchCourseCards([])
         }
-      }).catch((error) => {
-        if (!isMounted) return
-        console.error('Failed to load courses in embedded mode:', error)
-        setBranchCourseCards([])
       })
       return
     }
@@ -1029,11 +1081,38 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   useEffect(() => {
     const unsubscribe = subscribeNotifications(() => {
-      setNotificationRevision((current) => current + 1)
+      void loadBranchNotifications()
     })
 
     return unsubscribe
-  }, [])
+  }, [loadBranchNotifications])
+
+  useEffect(() => {
+    void loadBranchNotifications()
+
+    const intervalId = window.setInterval(() => {
+      void loadBranchNotifications()
+    }, 5000)
+
+    const handleFocus = () => {
+      void loadBranchNotifications()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadBranchNotifications()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [loadBranchNotifications])
 
   useEffect(() => {
     if (!openCourseActionMenuId) return undefined
@@ -1190,25 +1269,29 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     user?.mustResetPassword ??
     branchProfile?.mustResetPassword,
   )
+  const normalizedBranchNotifications = useMemo(
+    () =>
+      branchNotificationRecords
+        .map(normalizeBranchNotification)
+        .filter((notification) => String(notification.kind || '').startsWith('branch-') || String(notification.kind || '') === 'faculty-login'),
+    [branchNotificationRecords],
+  )
   const branchNotificationSections = useMemo(
-    () => getBranchNotificationSections({ hideViewed: false }),
-    [notificationRevision],
+    () => groupByDate(normalizedBranchNotifications),
+    [normalizedBranchNotifications],
   )
-  const branchNotificationItems = useMemo(
-    () => getBranchNotificationItems({ hideViewed: false }),
-    [notificationRevision],
-  )
+  const branchNotificationItems = normalizedBranchNotifications
   const branchUnreadNotificationCount = useMemo(
-    () => getBranchUnreadNotificationCount({ hideViewed: true }),
-    [notificationRevision],
+    () => normalizedBranchNotifications.filter((item) => item.unread && !item.dropdownViewed).length,
+    [normalizedBranchNotifications],
   )
   const branchPageUnreadNotificationCount = useMemo(
-    () => getBranchUnreadNotificationCount({ hideViewed: false }),
-    [notificationRevision],
+    () => normalizedBranchNotifications.filter((item) => item.unread).length,
+    [normalizedBranchNotifications],
   )
   const branchNotificationPreviewItems = useMemo(
-    () => getBranchNotificationItems({ hideViewed: true }).slice(0, 2),
-    [notificationRevision],
+    () => normalizedBranchNotifications.filter((item) => !item.dropdownViewed).slice(0, 2),
+    [normalizedBranchNotifications],
   )
   const branchNotificationTotalCount = branchNotificationItems.length
   const overviewStats = useMemo(
@@ -1238,27 +1321,65 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   const openProfile = () => {
     setIsProfileMenuOpen(false)
-    navigate('/branch-dashboard?section=profile')
+    goToBranchSection('profile')
   }
 
-  const openBranchNotifications = () => {
+  const openBranchNotifications = async () => {
+    await loadBranchNotifications()
     markNotificationsAsDropdownViewed()
     setIsNotificationMenuOpen(false)
-    navigate('/branch-dashboard/notifications')
+    goToBranchSection('notifications')
   }
 
-  const openBranchNotificationTarget = (notification) => {
+  const openBranchNotificationTarget = async (notification) => {
     if (notification?.id) {
       markNotificationsAsDropdownViewed([notification.id])
+      markNotificationsAsRead([notification.id])
+      setBranchNotificationRecords((current) =>
+        current.map((item) =>
+          String(item.id) === String(notification.id)
+            ? { ...item, read: true, dropdownViewed: true }
+            : item,
+        ),
+      )
+
+      try {
+        await request('/notifications/mark-read', {
+          method: 'PATCH',
+          body: JSON.stringify({ notificationIds: [notification.id] }),
+        })
+      } catch (error) {
+        console.error('Failed to sync branch notification read state:', error)
+      }
     }
     setIsNotificationMenuOpen(false)
     const targetSection = String(notification?.targetSection || 'batches').trim() || 'batches'
-    navigate(`/branch-dashboard?section=${encodeURIComponent(targetSection)}`)
+    goToBranchSection(targetSection)
   }
 
-  const markAllBranchNotificationsAsRead = () => {
-    markNotificationsAsRead()
+  const markAllBranchNotificationsAsRead = async () => {
+    const unreadIds = branchNotificationItems
+      .filter((item) => item.unread)
+      .map((item) => item.id)
+
+    markNotificationsAsRead(unreadIds.length ? unreadIds : null)
+    setBranchNotificationRecords((current) =>
+      current.map((item) => ({
+        ...item,
+        read: true,
+        dropdownViewed: true,
+      })),
+    )
     setIsNotificationMenuOpen(false)
+
+    try {
+      await request('/notifications/mark-read', {
+        method: 'PATCH',
+        body: JSON.stringify({ notificationIds: unreadIds }),
+      })
+    } catch (error) {
+      console.error('Failed to sync branch notification mark-all state:', error)
+    }
   }
 
   const filteredBranchCourseCards = useMemo(() => {
@@ -1753,7 +1874,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setEditingCourseId('')
     setCourseSaveSuccess(null)
     setIsAddCourseOpen(true)
-    navigate('/branch-dashboard?section=courses')
+    goToBranchSection('courses')
   }
 
   const openViewCourseDrawer = (course) => {
@@ -1800,7 +1921,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setCourseActionMenuPosition({ top: 0, left: 0 })
     setIsAddCourseOpen(true)
     setSubmoduleDraftRestoreLength(null)
-    navigate('/branch-dashboard?section=courses')
+    goToBranchSection('courses')
   }
 
   const closeAddCourseModal = () => {
@@ -2355,11 +2476,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
               className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
               onClick={() => {
                 if (item.id === 'notifications') {
-                  navigate('/branch-dashboard/notifications')
+                  goToBranchSection('notifications')
                   return
                 }
 
-                navigate(`/branch-dashboard?section=${encodeURIComponent(item.id)}`)
+                goToBranchSection(item.id)
               }}
             >
               <span className="super-admin-sidebar-icon" aria-hidden="true">
@@ -2616,7 +2737,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                       <button
                         type="button"
                         className="notifications-back-button"
-                        onClick={() => navigate('/branch-dashboard')}
+                        onClick={() => goToBranchSection('dashboard')}
                       >
                         <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                         Back to dashboard
@@ -2630,14 +2751,26 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   </header>
 
                   <div className="notifications-feed">
-                    {branchNotificationSections.map((section) => (
-                      <BranchNotificationGroup
-                        key={section.label}
-                        label={section.label}
-                        items={section.items}
-                        onView={openBranchNotificationTarget}
-                      />
-                    ))}
+                    {branchNotificationSections.length ? (
+                      branchNotificationSections.map((section) => (
+                        <BranchNotificationGroup
+                          key={section.label}
+                          label={section.label}
+                          items={section.items}
+                          onView={openBranchNotificationTarget}
+                        />
+                      ))
+                    ) : (
+                      <div className="notifications-empty-state">
+                        <span className="notifications-empty-state-icon" aria-hidden="true">
+                          <Bell size={22} strokeWidth={2.2} />
+                        </span>
+                        <div>
+                          <h3>No notifications yet</h3>
+                          <p>Branch login and faculty activity updates will appear here automatically.</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </section>
               ) : null}

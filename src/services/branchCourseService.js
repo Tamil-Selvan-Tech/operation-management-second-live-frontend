@@ -56,7 +56,7 @@ function normalizeBranchCourseSubmodels(submodels) {
   return submodels.map((submodel, index) => ({
     ...submodel,
     id: submodel?.id || `submodel-${index + 1}`,
-    name: normalizeText(submodel?.name || submodel?.submodelName),
+    name: normalizeText(submodel?.name || submodel?.title || submodel?.submodelName),
     percentage: submodel?.percentage ?? '',
   }))
 }
@@ -66,7 +66,7 @@ function normalizeBranchCourseModels(models) {
   return models.map((model, index) => ({
     ...model,
     id: model?.id || `model-${index + 1}`,
-    name: normalizeText(model?.name || model?.modelName),
+    name: normalizeText(model?.name || model?.title || model?.modelName),
     percentage: model?.percentage ?? '',
     submodels: normalizeBranchCourseSubmodels(model?.submodels),
   }))
