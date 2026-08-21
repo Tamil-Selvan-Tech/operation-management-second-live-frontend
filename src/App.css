@@ -11879,6 +11879,10 @@ tbody tr:hover {
   resize: vertical;
 }
 
+.course-model-editor-card-body .course-field {
+  max-width: 420px;
+}
+
 .student-management-page {
   display: grid;
   gap: 16px;

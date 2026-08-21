@@ -792,6 +792,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseEditorStage, setCourseEditorStage] = useState('module')
   const [isSubmoduleDraftOpen, setIsSubmoduleDraftOpen] = useState(false)
   const [expandedSavedCourseModuleIds, setExpandedSavedCourseModuleIds] = useState([])
+  const [submoduleDraftRestoreIndex, setSubmoduleDraftRestoreIndex] = useState(0)
+  const [submoduleDraftRestoreLength, setSubmoduleDraftRestoreLength] = useState(null)
 
   const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
   const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
@@ -1531,12 +1533,24 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setIsSubmoduleDraftOpen(false)
   }
 
+  const handleCourseEditorCancel = () => {
+    setAddCourseError('')
+    setCourseEditorStage('closed')
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedSubmodelIndex(0)
+    setSubmoduleDraftRestoreLength(null)
+  }
+
   const openCourseSubmodelDraft = (modelIndex, draftIndexOverride = null) => {
     const model = addCourseHierarchy[modelIndex]
     if (!model) return
 
     const submodels = Array.isArray(model.submodels) ? model.submodels : []
     const draftIndex = Math.max(Number.isInteger(draftIndexOverride) ? draftIndexOverride : selectedSavedSubmodelIndex, 0)
+    const shouldAppendDraft = draftIndex >= submodels.length
+    setSubmoduleDraftRestoreIndex(selectedSavedSubmodelIndex)
+    setSubmoduleDraftRestoreLength(shouldAppendDraft ? submodels.length : null)
+    setAddCourseError('')
     setAddCourseForm((current) => {
       const models = normalizeBranchCourseModels(current.models)
       const nextModels = models.map((item, index) => {
@@ -1580,7 +1594,40 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setAddCourseError('')
     setSelectedSavedSubmodelIndex((current) => current + 1)
     setIsSubmoduleDraftOpen(false)
+    setSubmoduleDraftRestoreIndex((current) => current)
+    setSubmoduleDraftRestoreLength(null)
     return true
+  }
+
+  const handleCourseSubmodelCancel = (modelIndex) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      if (!Number.isInteger(submoduleDraftRestoreLength)) return current
+
+      const models = normalizeBranchCourseModels(current.models)
+      return {
+        ...current,
+        models: models.map((model, index) => {
+          if (index !== modelIndex) return model
+
+          const nextSubmodels = normalizeBranchCourseSubmodels(model.submodels, modelIndex)
+          if (nextSubmodels.length <= submoduleDraftRestoreLength) return model
+
+          return {
+            ...model,
+            submodels: nextSubmodels.slice(0, submoduleDraftRestoreLength),
+          }
+        }),
+      }
+    })
+    setAddCourseTouched((current) => {
+      const nextTouched = { ...current }
+      delete nextTouched[`model-${modelIndex}-submodel-${selectedSavedSubmodelIndex}-name`]
+      return nextTouched
+    })
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedSubmodelIndex(submoduleDraftRestoreIndex)
+    setSubmoduleDraftRestoreLength(null)
   }
 
   const handleCourseSubmodelEdit = (modelIndex, submodelIndex) => {
@@ -1625,6 +1672,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setCourseEditorStage('closed')
     setIsSubmoduleDraftOpen(false)
     setSelectedSavedSubmodelIndex(0)
+    setSubmoduleDraftRestoreLength(null)
   }
 
   const removeAddCourseSubmodel = (modelIndex, submodelIndex) => {
@@ -1652,6 +1700,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setSelectedSavedSubmodelIndex(0)
     setCourseEditorStage('module')
     setIsSubmoduleDraftOpen(false)
+    setSubmoduleDraftRestoreLength(null)
   }
 
   const removeSavedCourseModel = (modelIndex) => {
@@ -1693,6 +1742,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setSelectedSavedModelIndex(0)
     setSelectedSavedSubmodelIndex(0)
     setSavedCourseHierarchy(nextHierarchy)
+    setSubmoduleDraftRestoreLength(null)
     writeBranchCourseDraft(draftKey, null)
   }
 
@@ -1733,6 +1783,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       setIsSubmoduleDraftOpen(Boolean(savedDraft.isSubmoduleDraftOpen))
       setSelectedSavedModelIndex(savedDraft.selectedSavedModelIndex ?? 0)
       setSelectedSavedSubmodelIndex(savedDraft.selectedSavedSubmodelIndex ?? 0)
+      setSubmoduleDraftRestoreLength(Number.isInteger(savedDraft.submoduleDraftRestoreLength) ? savedDraft.submoduleDraftRestoreLength : null)
       setSavedCourseHierarchy(Array.isArray(savedDraft.savedCourseHierarchy) ? savedDraft.savedCourseHierarchy : [])
     } else {
       setAddCourseForm(buildBranchCourseFormFromRecord(course))
@@ -1748,6 +1799,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
     setIsAddCourseOpen(true)
+    setSubmoduleDraftRestoreLength(null)
     navigate('/branch-dashboard?section=courses')
   }
 
@@ -1756,6 +1808,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setAddCourseStep(1)
     setCourseEditorStage('module')
     setSelectedSavedSubmodelIndex(0)
+    setSubmoduleDraftRestoreLength(null)
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
   }
@@ -1775,6 +1828,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       isSubmoduleDraftOpen,
       selectedSavedModelIndex,
       selectedSavedSubmodelIndex,
+      submoduleDraftRestoreLength,
       savedCourseHierarchy,
     })
 
@@ -3420,6 +3474,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                       const savedSubmodels = submodels.slice(0, Math.max(selectedSavedSubmodelIndex, 0))
                       const activeSubmodelIndex = Math.min(selectedSavedSubmodelIndex, Math.max(submodels.length - 1, 0))
                       const activeSubmodel = submodels[activeSubmodelIndex] || null
+                      const showModuleCancel = modelIndex > 0
+                      const showSubmodelCancel = activeSubmodelIndex > 0 || savedSubmodels.length > 0
 
                       return (
                         <section key={model.id} className="course-model-editor-card is-active is-lead" aria-expanded="true">
@@ -3432,25 +3488,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                                 <div className="course-model-editor-card-badge">{modelIndex + 1}</div>
                                 <strong>Module {modelIndex + 1}</strong>
                               </div>
-                            </div>
-                            <div className="course-model-editor-card-actions">
-                              <button
-                                type="button"
-                                className="course-model-editor-card-edit"
-                                onClick={() => selectCourseModel(modelIndex)}
-                                aria-label={`Edit model ${modelIndex + 1}`}
-                              >
-                                <Pencil size={18} strokeWidth={2.2} />
-                              </button>
-                              <button
-                                type="button"
-                                className="course-model-editor-card-delete"
-                                onClick={() => removeSavedCourseModel(modelIndex)}
-                                aria-label={`Delete model ${modelIndex + 1}`}
-                                disabled={addCourseHierarchy.length === 1}
-                              >
-                                <Trash2 size={18} strokeWidth={2.2} />
-                              </button>
                             </div>
                           </div>
 
@@ -3547,6 +3584,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                                       >
                                         Save
                                       </button>
+                                      {showSubmodelCancel ? (
+                                        <button
+                                          type="button"
+                                          className="course-inline-action course-inline-cancel"
+                                          onClick={() => handleCourseSubmodelCancel(modelIndex)}
+                                        >
+                                          Cancel
+                                        </button>
+                                      ) : null}
                                     </div>
                                   </div>
                                 ) : null}
@@ -3570,6 +3616,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
                           <div className="course-model-editor-card-footer">
                             {courseEditorStage === 'module' ? (
+                              <>
+                                {showModuleCancel ? (
+                                  <button
+                                    type="button"
+                                    className="button button-ghost course-model-editor-card-cancel"
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      handleCourseEditorCancel()
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                ) : null}
                               <button
                                 type="button"
                                 className="button button-solid course-model-editor-card-save-next"
@@ -3580,6 +3639,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                               >
                                 Continue
                               </button>
+                              </>
                             ) : (
                               <button
                                 type="button"
@@ -3607,72 +3667,92 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         </div>
                       </div>
 
-                      <div className="course-added-modules-list">
-                        {savedCourseRows.map((model, modelIndex) => {
-                          const submodels = Array.isArray(model.submodels) ? model.submodels : []
-                          const isExpanded = expandedSavedCourseModuleIds.includes(model.id)
+                      <div className="course-added-modules-table">
+                        <div className="course-added-modules-table-header">
+                          <span>MODULE</span>
+                          <span>MODULE %</span>
+                          <span>SUBMODULES</span>
+                          <span>ACTIONS</span>
+                        </div>
 
-                          return (
-                            <article
-                              key={model.id}
-                              className={`course-added-module-card ${modelIndex === selectedSavedModelIndex ? 'is-active' : ''}`}
-                            >
-                              <div className="course-added-module-card-head">
-                                <div>
-                                  <span>Module {modelIndex + 1}</span>
-                                  <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
-                                </div>
-                                <div className="course-added-module-card-badges">
-                                  <span className="course-table-percentage">{submodels.length} Submodules</span>
-                                  <button
-                                    type="button"
-                                    className="course-added-module-card-toggle"
-                                    onClick={() => toggleSavedCourseModule(model.id)}
-                                    aria-expanded={isExpanded}
-                                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} module ${modelIndex + 1}`}
-                                  >
-                                    <ChevronDown
-                                      size={18}
-                                      strokeWidth={2.4}
-                                      className={isExpanded ? 'is-open' : ''}
-                                      aria-hidden="true"
-                                    />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="course-added-module-card-edit"
-                                    onClick={() => selectCourseModel(modelIndex)}
-                                  >
-                                    <Pencil size={16} strokeWidth={2.2} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="course-added-module-card-delete"
-                                    onClick={() => removeSavedCourseModel(modelIndex)}
-                                    disabled={savedCourseRows.length === 1}
-                                  >
-                                    <Trash2 size={16} strokeWidth={2.2} />
-                                  </button>
-                                </div>
-                              </div>
+                        <div className="course-added-modules-table-body">
+                          {savedCourseRows.map((model, modelIndex) => {
+                            const submodels = Array.isArray(model.submodels) ? model.submodels : []
+                            const isExpanded = expandedSavedCourseModuleIds.includes(model.id)
 
-                              {isExpanded ? (
-                                <div className="course-added-module-card-body">
-                                  <span className="course-added-module-card-label">Sub Modules</span>
-                                  <ul className="course-added-module-card-list">
-                                    {submodels.length ? submodels.map((submodel, submodelIndex) => (
-                                      <li key={submodel.id}>
-                                        {submodel.name || `Submodule ${submodelIndex + 1}`}
-                                      </li>
-                                    )) : (
-                                      <li>No submodules yet</li>
-                                    )}
-                                  </ul>
+                            return (
+                              <article
+                                key={model.id}
+                                className={`course-added-modules-row ${modelIndex === selectedSavedModelIndex ? 'is-active' : ''}`}
+                              >
+                                <div className="course-added-modules-row-main">
+                                  <div className="course-added-modules-row-module">
+                                    <span>Module {modelIndex + 1}</span>
+                                    <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
+                                  </div>
+
+                                  <div className="course-added-modules-row-percentage">
+                                    <span className="course-table-percentage">{formatBranchCoursePercentage(model.percentage)}</span>
+                                  </div>
+
+                                  <div className="course-added-modules-row-submodules">
+                                    <span className="course-table-percentage">{submodels.length} Submodules</span>
+                                  </div>
+
+                                  <div className="course-added-modules-row-actions">
+                                    <button
+                                      type="button"
+                                      className="course-added-module-card-toggle"
+                                      onClick={() => toggleSavedCourseModule(model.id)}
+                                      aria-expanded={isExpanded}
+                                      aria-label={`${isExpanded ? 'Collapse' : 'Expand'} module ${modelIndex + 1}`}
+                                    >
+                                      <ChevronDown
+                                        size={18}
+                                        strokeWidth={2.4}
+                                        className={isExpanded ? 'is-open' : ''}
+                                        aria-hidden="true"
+                                      />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="course-added-module-card-edit"
+                                      onClick={() => selectCourseModel(modelIndex)}
+                                      aria-label={`Edit module ${modelIndex + 1}`}
+                                    >
+                                      <Pencil size={16} strokeWidth={2.2} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="course-added-module-card-delete"
+                                      onClick={() => removeSavedCourseModel(modelIndex)}
+                                      disabled={savedCourseRows.length === 1}
+                                      aria-label={`Delete module ${modelIndex + 1}`}
+                                    >
+                                      <Trash2 size={16} strokeWidth={2.2} />
+                                    </button>
+                                  </div>
                                 </div>
-                              ) : null}
-                            </article>
-                          )
-                        })}
+
+                                {isExpanded ? (
+                                  <div className="course-added-modules-row-details">
+                                    <span>Sub Modules</span>
+                                    <ul className="course-added-module-card-list">
+                                      {submodels.length ? submodels.map((submodel, submodelIndex) => (
+                                        <li key={submodel.id}>
+                                          <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
+                                          <span>{formatBranchCoursePercentage(submodel.percentage)}</span>
+                                        </li>
+                                      )) : (
+                                        <li>No submodules yet</li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                ) : null}
+                              </article>
+                            )
+                          })}
+                        </div>
                       </div>
 
                       <button
