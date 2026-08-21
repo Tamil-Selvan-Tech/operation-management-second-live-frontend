@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
+  CalendarDays,
+  CheckCircle2,
   ChevronDown,
   CircleUserRound,
   Layers3,
@@ -10,6 +12,8 @@ import {
   Mail,
   MapPin,
   Phone,
+  Search,
+  Dot,
   ShieldCheck,
   UserRound,
   Users,
@@ -83,6 +87,170 @@ function formatMinutesLabel(value = 0) {
   return `${count} minute${count === 1 ? '' : 's'}`
 }
 
+function formatNotificationTime(createdAt) {
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const diffMs = Date.now() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins} mins ago`
+  if (diffHours < 24) return `${diffHours} hrs ago`
+  if (diffDays < 7) return `${diffDays} days ago`
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatNotificationGroupLabel(createdAt) {
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return 'Today'
+
+  const today = new Date()
+  const todayKey = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`
+  const dateKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+
+  if (todayKey === dateKey) return 'Today'
+
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+  const yesterdayKey = `${yesterday.getFullYear()}-${yesterday.getMonth()}-${yesterday.getDate()}`
+  if (dateKey === yesterdayKey) return 'Yesterday'
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function isWithinSelectedDateRange(createdAt, range) {
+  if (range === 'all') return true
+
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return false
+
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const itemStartOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  const diffDays = Math.floor((startOfToday.getTime() - itemStartOfDay.getTime()) / 86400000)
+
+  if (range === 'today') return diffDays === 0
+  if (range === 'yesterday') return diffDays === 1
+  if (range === '7d') return diffDays >= 0 && diffDays < 7
+  if (range === '30d') return diffDays >= 0 && diffDays < 30
+
+  return true
+}
+
+function getFacultyNotificationIcon(kind) {
+  const normalizedKind = String(kind || '').trim().toLowerCase()
+
+  if (normalizedKind.includes('invite') || normalizedKind.includes('mail')) {
+    return Mail
+  }
+
+  if (normalizedKind.includes('login') || normalizedKind.includes('assigned') || normalizedKind.includes('active')) {
+    return CheckCircle2
+  }
+
+  return Bell
+}
+
+function normalizeFacultyNotification(notification = {}) {
+  const kind = String(notification.kind || 'general').trim() || 'general'
+  const createdAt =
+    String(notification.createdAt || notification.createdOn || notification.updatedAt || '').trim() ||
+    new Date().toISOString()
+
+  return {
+    id: String(notification.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    kind,
+    tone:
+      String(notification.tone || (kind.includes('invite') ? 'amber' : kind.includes('login') ? 'green' : 'blue'))
+        .trim() || 'blue',
+    title: String(notification.title || 'Notification').trim(),
+    message: String(notification.message || '').trim(),
+    actionLabel: String(notification.actionLabel || '').trim() || 'View',
+    categoryLabel: String(notification.categoryLabel || 'Faculty').trim() || 'Faculty',
+    createdAt,
+    time: formatNotificationTime(createdAt),
+    read: Boolean(notification.read),
+  }
+}
+
+function groupFacultyNotifications(notifications = []) {
+  const groups = new Map()
+  const orderedNotifications = [...notifications].sort(
+    (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+  )
+
+  orderedNotifications.forEach((notification) => {
+    const label = formatNotificationGroupLabel(notification.createdAt)
+    if (!groups.has(label)) {
+      groups.set(label, [])
+    }
+
+    groups.get(label).push(notification)
+  })
+
+  return Array.from(groups.entries()).map(([label, items]) => ({
+    label,
+    items,
+  }))
+}
+
+function FacultyNotificationGroup({ label, items, onViewNotification }) {
+  return (
+    <section className="faculty-notifications-group">
+      <p className="faculty-notifications-group-label">{label}</p>
+      <div className="faculty-notifications-group-list">
+        {items.map((notification) => {
+          const Icon = getFacultyNotificationIcon(notification.kind)
+
+          return (
+            <article
+              key={notification.id}
+              className={`faculty-notification-card ${notification.read ? 'is-read' : 'is-unread'}`.trim()}
+            >
+              <span className={`faculty-notification-icon tone-${notification.tone}`} aria-hidden="true">
+                <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+              </span>
+
+              <div className="faculty-notification-copy">
+                <div className="faculty-notification-title-row">
+                  <h3>{notification.title}</h3>
+                  <small>{notification.time}</small>
+                </div>
+                <p>{notification.message}</p>
+              </div>
+
+              <div className="faculty-notification-meta">
+                <span className={`faculty-notification-chip tone-${notification.tone}`}>
+                  {notification.categoryLabel}
+                </span>
+                <button
+                  type="button"
+                  className="faculty-notification-view-btn"
+                  onClick={() => onViewNotification(notification)}
+                >
+                  View
+                </button>
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function SidebarUserAvatar() {
   return (
     <span className="super-admin-sidebar-user-avatar" aria-hidden="true">
@@ -148,6 +316,9 @@ export function FacultyDashboardPage() {
   const [dashboardSummary, setDashboardSummary] = useState(null)
   const [facultyNotifications, setFacultyNotifications] =useState([])
   const [notificationOpen, setNotificationOpen] =useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [dateFilter, setDateFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
 
 
   useEffect(() => {
@@ -218,7 +389,47 @@ useEffect(() => {
   }
 }, [notificationOpen])
 
-  const unreadNotificationCount = facultyNotifications.filter((notification) => !notification.read).length
+  const unreadNotifications = useMemo(
+    () => facultyNotifications.filter((notification) => !notification.read),
+    [facultyNotifications],
+  )
+  const unreadNotificationCount = unreadNotifications.length
+  const normalizedNotifications = useMemo(
+    () => facultyNotifications.map((notification) => normalizeFacultyNotification(notification)),
+    [facultyNotifications],
+  )
+  const totalNotificationCount = normalizedNotifications.length
+  const visibleNotifications = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+
+    return normalizedNotifications.filter((notification) => {
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'read' && notification.read) ||
+        (statusFilter === 'unread' && !notification.read)
+
+      const matchesDate = isWithinSelectedDateRange(notification.createdAt, dateFilter)
+
+      const searchableText = [
+        notification.title,
+        notification.message,
+        notification.kind,
+        notification.actionLabel,
+        notification.categoryLabel,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+
+      const matchesSearch = !query || searchableText.includes(query)
+
+      return matchesStatus && matchesDate && matchesSearch
+    })
+  }, [dateFilter, normalizedNotifications, searchTerm, statusFilter])
+  const groupedNotifications = useMemo(
+    () => groupFacultyNotifications(visibleNotifications),
+    [visibleNotifications],
+  )
 
   // Mock statistics for the faculty member
   const stats = [
@@ -379,17 +590,13 @@ useEffect(() => {
 
     {/* Notification List */}
     <div className="notification-list">
-      {facultyNotifications.length > 0 ? (
-        facultyNotifications.slice(0, 5).map((notification) => (
+      {unreadNotifications.length > 0 ? (
+        unreadNotifications.slice(0, 5).map((notification) => (
           <button
             key={notification.id}
             type="button"
-            className={`notification-card ${
-              notification.read ? 'is-read' : 'is-unread'
-            }`}
+            className="notification-card is-unread"
             onClick={async () => {
-              if (notification.read) return
-
               try {
                 await markFacultyNotificationsAsRead([
                   notification.id,
@@ -429,7 +636,7 @@ useEffect(() => {
         ))
       ) : (
         <div className="notification-empty">
-          No notifications yet
+          No unread notifications
         </div>
       )}
     </div>
@@ -645,164 +852,142 @@ useEffect(() => {
                 </FacultyDashboardSection>
               ) : null}
 
-{activeSection === 'notifications' ? (
-  <section className="faculty-notifications-page">
+              {activeSection === 'notifications' ? (
+                <section className="faculty-notifications-page">
+                  <header className="faculty-notifications-page-header">
+                    <div className="faculty-notifications-title-area">
+                      <span className="faculty-notifications-eyebrow">NOTIFICATIONS</span>
+                      <h1>Notifications</h1>
+                      <p>
+                        You have <strong>{totalNotificationCount}</strong> notifications to go through
+                        {unreadNotificationCount ? <span> and {unreadNotificationCount} unread items</span> : null} for
+                        {facultyName}.
+                      </p>
+                    </div>
 
-    {/* Page Header */}
-    <div className="faculty-notifications-page-header">
+                    <div className="faculty-notifications-page-actions">
+                      <button
+                        type="button"
+                        className="faculty-mark-all-btn"
+                        onClick={async () => {
+                          const unreadIds = facultyNotifications
+                            .filter((item) => !item.read)
+                            .map((item) => item.id)
 
-      <div className="faculty-notifications-title-area">
-        <span className="faculty-notifications-eyebrow">
-          NOTIFICATIONS
-        </span>
+                          if (!unreadIds.length) return
 
-        <h1>Notifications</h1>
+                          try {
+                            await markFacultyNotificationsAsRead(unreadIds)
 
-        <p>
-          You have {facultyNotifications.length} notifications to go through
-          and {unreadNotificationCount} unread items for {facultyName}.
-        </p>
-      </div>
-
-      <div className="faculty-notifications-page-actions">
-
-        <button
-          type="button"
-          className="faculty-back-dashboard-btn"
-          onClick={() => setActiveSection('dashboard')}
-        >
-          <LayoutDashboard size={18} strokeWidth={2.2} />
-          Back to dashboard
-        </button>
-
-        <button
-          type="button"
-          className="faculty-mark-all-btn"
-          onClick={async () => {
-            const unreadIds = facultyNotifications
-              .filter((item) => !item.read)
-              .map((item) => item.id)
-
-            if (!unreadIds.length) return
-
-            try {
-              await markFacultyNotificationsAsRead(unreadIds)
-
-              setFacultyNotifications((current) =>
-                current.map((item) => ({
-                  ...item,
-                  read: true,
-                })),
-              )
-            } catch (error) {
-              console.error(
-                'Failed to mark all notifications as read',
-                error,
-              )
-            }
-          }}
-        >
-          <Bell size={18} strokeWidth={2.2} />
-          Mark all as read
-        </button>
-
-      </div>
-    </div>
-
-    {/* Notifications */}
-    <div className="faculty-notifications-full-list">
-
-      {facultyNotifications.length > 0 ? (
-        facultyNotifications.map((notification) => (
-          <div
-            key={notification.id}
-            className={`faculty-full-notification-card ${
-              notification.read
-                ? 'is-read'
-                : 'is-unread'
-            }`}
-          >
-
-            <div className="faculty-full-notification-icon">
-              <span>✓</span>
-            </div>
-
-            <div className="faculty-full-notification-content">
-
-              <strong>
-                {notification.title}
-              </strong>
-
-              <p>
-                {notification.message}
-              </p>
-
-            </div>
-
-            <div className="faculty-full-notification-right">
-
-              <div className="faculty-full-notification-actions">
-
-                <span className="faculty-notification-tag">
-                  Faculty
-                </span>
-
-                <button
-                  type="button"
-                  className="faculty-notification-view-btn"
-                  onClick={async () => {
-                    if (notification.read) return
-
-                    try {
-                      await markFacultyNotificationsAsRead([
-                        notification.id,
-                      ])
-
-                      setFacultyNotifications((current) =>
-                        current.map((item) =>
-                          item.id === notification.id
-                            ? {
+                            setFacultyNotifications((current) =>
+                              current.map((item) => ({
                                 ...item,
                                 read: true,
+                              })),
+                            )
+                          } catch (error) {
+                            console.error('Failed to mark all notifications as read', error)
+                          }
+                        }}
+                      >
+                        <Bell size={18} strokeWidth={2.2} />
+                        Mark all as read
+                      </button>
+
+                      <button
+                        type="button"
+                        className="faculty-back-dashboard-btn"
+                        onClick={() => setActiveSection('dashboard')}
+                      >
+                        <LayoutDashboard size={18} strokeWidth={2.2} />
+                        Back to dashboard
+                      </button>
+                    </div>
+                  </header>
+
+                  <div className="faculty-notifications-toolbar">
+                    <label className="faculty-notification-search">
+                      <Search size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                      <input
+                        type="search"
+                        placeholder="Search notifications"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        aria-label="Search notifications"
+                      />
+                      <button
+                        type="button"
+                        className="faculty-notification-search-button"
+                        aria-label="Search notifications"
+                      >
+                        <Search size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                      </button>
+                    </label>
+
+                    <label className="faculty-notification-filter">
+                      <CalendarDays size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                      <select value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}>
+                        <option value="all">All dates</option>
+                        <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
+                        <option value="7d">Last 7 days</option>
+                        <option value="30d">Last 30 days</option>
+                      </select>
+                      <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                    </label>
+
+                    <label className="faculty-notification-filter">
+                      <span className="faculty-notification-filter-dot" aria-hidden="true">
+                        <Dot size={18} strokeWidth={2.4} />
+                      </span>
+                      <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+                        <option value="all">All status</option>
+                        <option value="unread">Unread only</option>
+                        <option value="read">Read only</option>
+                      </select>
+                      <ChevronDown size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                    </label>
+                  </div>
+
+                  <div className="faculty-notifications-feed">
+                    {groupedNotifications.length ? (
+                      groupedNotifications.map((group) => (
+                        <FacultyNotificationGroup
+                          key={group.label}
+                          label={group.label}
+                          items={group.items}
+                          onViewNotification={async (notification) => {
+                            if (!notification.read) {
+                              try {
+                                await markFacultyNotificationsAsRead([notification.id])
+
+                                setFacultyNotifications((current) =>
+                                  current.map((item) =>
+                                    item.id === notification.id
+                                      ? {
+                                          ...item,
+                                          read: true,
+                                        }
+                                      : item,
+                                  ),
+                                )
+                              } catch (error) {
+                                console.error('Failed to mark notification as read', error)
                               }
-                            : item,
-                        ),
-                      )
-                    } catch (error) {
-                      console.error(
-                        'Failed to mark notification as read',
-                        error,
-                      )
-                    }
-                  }}
-                >
-                  View
-                </button>
-
-              </div>
-
-              <span className="faculty-full-notification-time">
-                {notification.time || '3 days ago'}
-              </span>
-
-            </div>
-
-          </div>
-        ))
-      ) : (
-        <div className="faculty-notifications-empty">
-          <Bell size={36} strokeWidth={1.7} />
-          <h3>No notifications yet</h3>
-          <p>
-            You don't have any notifications at the moment.
-          </p>
-        </div>
-      )}
-
-    </div>
-
-  </section>
-) : null}
+                            }
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <div className="faculty-notifications-empty">
+                        <Bell size={36} strokeWidth={1.7} />
+                        <h3>No notifications yet</h3>
+                        <p>You don't have any notifications at the moment.</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ) : null}
 
               {activeSection === 'profile' ? (
                 <FacultyDashboardSection title="Faculty Profile" description="Your dynamic workspace details loaded directly from branch registry.">
@@ -905,3 +1090,4 @@ useEffect(() => {
 }
 
 export { FacultyDashboardPage as FacultyMyBatchesPage }
+
