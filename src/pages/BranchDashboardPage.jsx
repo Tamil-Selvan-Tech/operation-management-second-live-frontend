@@ -431,6 +431,7 @@ function buildFallbackBranchProfile(user, session) {
 
 const formatBranchCourseAmount = formatBranchCourseMoney
 const COURSE_CODE_PREFIX = 'CIS-'
+const COURSE_DRAFT_STORAGE_PREFIX = 'branch-course-draft:'
 const COURSE_BASIC_FIELDS = [
   'courseCode',
   'name',
@@ -725,6 +726,39 @@ function buildStudentIdFromSuffix(suffix = '') {
   return `${STUDENT_ID_PREFIX}${normalizedSuffix.padStart(Math.max(3, normalizedSuffix.length), '0')}`
 }
 
+function getBranchCourseDraftStorageKey(identifier = '') {
+  const text = String(identifier || '').trim()
+  return `${COURSE_DRAFT_STORAGE_PREFIX}${text || 'new'}`
+}
+
+function readBranchCourseDraft(identifier = '') {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem(getBranchCourseDraftStorageKey(identifier))
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch (error) {
+    return null
+  }
+}
+
+function writeBranchCourseDraft(identifier = '', draft = null) {
+  if (typeof window === 'undefined') return
+
+  const storageKey = getBranchCourseDraftStorageKey(identifier)
+  try {
+    if (!draft) {
+      window.localStorage.removeItem(storageKey)
+      return
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(draft))
+  } catch (error) {
+    // Ignore draft persistence failures and continue with in-memory state.
+  }
+}
+
 export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard' }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -752,6 +786,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseActionMenuPosition, setCourseActionMenuPosition] = useState({ top: 0, left: 0 })
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
   const [viewCourse, setViewCourse] = useState(null)
+  const [viewCourseTab, setViewCourseTab] = useState('basic')
+  const [expandedViewCourseModuleIds, setExpandedViewCourseModuleIds] = useState([])
+  const [courseDraftKey, setCourseDraftKey] = useState('')
 
   const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
   const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
@@ -809,7 +846,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const notificationMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
 
-  const loadBranchCourses = useCallback(async () => {
+  const loadBranchCourses = useCallback(async (fallbackCourses = null) => {
     const result = await listBranchCourses({
       page: 1,
       limit: 100,
@@ -817,7 +854,35 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       sortOrder: 'desc',
     })
 
-    setBranchCourseCards(Array.isArray(result?.data) ? result.data : [])
+    const nextCourses = Array.isArray(result?.data) ? result.data : []
+    const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
+    setBranchCourseCards((currentCourses) => {
+      const currentCoursesById = new Map(
+        (sourceCourses || currentCourses).map((course) => [String(course.id || '').trim(), course]),
+      )
+
+      return nextCourses.map((course, index) => {
+        const courseId = String(course.id || '').trim()
+        const currentCourse = currentCoursesById.get(courseId)
+        const mergedCourse = {
+          ...currentCourse,
+          ...course,
+        }
+
+        const incomingModels = normalizeBranchCourseModels(course.models || course.courseModels || course.modules || [])
+        const currentModels = normalizeBranchCourseModels(currentCourse?.models || currentCourse?.courseModels || currentCourse?.modules || [])
+
+        return normalizeBranchCourseRecord(
+          {
+            ...mergedCourse,
+            models: incomingModels.length ? incomingModels : currentModels,
+            courseModels: incomingModels.length ? incomingModels : currentModels,
+            modules: incomingModels.length ? incomingModels : currentModels,
+          },
+          index,
+        )
+      })
+    })
     return result
   }, [])
 
@@ -1535,20 +1600,27 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     })
   }
 
-  const resetAddCourseForm = () => {
-    setAddCourseForm(
-      editingCourseRecord ? buildBranchCourseFormFromRecord(editingCourseRecord) : createInitialBranchCourseForm(),
-    )
+  const resetAddCourseForm = (record = editingCourseRecord) => {
+    const nextForm = record
+      ? buildBranchCourseFormFromRecord(record)
+      : createInitialBranchCourseForm()
+    const nextHierarchy = record
+      ? buildBranchCourseHierarchySummary(record.models || record.courseModels || record.modules || [])
+      : []
+
+    setAddCourseForm(nextForm)
     setAddCourseTouched({})
     setAddCourseError('')
     setAddCourseStep(1)
     setSelectedSavedModelIndex(0)
     setSelectedSavedSubmodelIndex(0)
-    setSavedCourseHierarchy(editingCourseRecord ? buildBranchCourseHierarchySummary(editingCourseRecord.models || editingCourseRecord.courseModels || editingCourseRecord.modules || []) : [])
+    setSavedCourseHierarchy(nextHierarchy)
+    writeBranchCourseDraft(courseDraftKey, null)
   }
 
   const openAddCourseModal = () => {
-    resetAddCourseForm()
+    setCourseDraftKey('new')
+    resetAddCourseForm(null)
     setEditingCourseId('')
     setCourseSaveSuccess(null)
     setIsAddCourseOpen(true)
@@ -1556,23 +1628,40 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }
 
   const openViewCourseDrawer = (course) => {
-    setViewCourse(course)
+    setViewCourse(normalizeBranchCourseRecord(course))
+    setViewCourseTab('basic')
+    setExpandedViewCourseModuleIds([])
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
   }
 
   const closeViewCourseDrawer = () => {
     setViewCourse(null)
+    setViewCourseTab('basic')
+    setExpandedViewCourseModuleIds([])
   }
   const openEditCourseModal = (course) => {
-    setEditingCourseId(String(course?.id || '').trim())
-    setAddCourseForm(buildBranchCourseFormFromRecord(course))
-    setAddCourseTouched({})
-    setAddCourseError('')
-    setAddCourseStep(1)
-    setSelectedSavedModelIndex(0)
-    setSelectedSavedSubmodelIndex(0)
-    setSavedCourseHierarchy(buildBranchCourseHierarchySummary(course?.models || course?.courseModels || course?.modules || []))
+    const nextEditingCourseId = String(course?.id || '').trim()
+    const savedDraft = readBranchCourseDraft(nextEditingCourseId)
+    setCourseDraftKey(nextEditingCourseId || 'new')
+    setEditingCourseId(nextEditingCourseId)
+
+    if (savedDraft?.form) {
+      setAddCourseForm(savedDraft.form)
+      setAddCourseTouched(savedDraft.touched || {})
+      setAddCourseStep(savedDraft.step || 1)
+      setSelectedSavedModelIndex(savedDraft.selectedSavedModelIndex ?? 0)
+      setSelectedSavedSubmodelIndex(savedDraft.selectedSavedSubmodelIndex ?? 0)
+      setSavedCourseHierarchy(Array.isArray(savedDraft.savedCourseHierarchy) ? savedDraft.savedCourseHierarchy : [])
+    } else {
+      setAddCourseForm(buildBranchCourseFormFromRecord(course))
+      setAddCourseTouched({})
+      setAddCourseError('')
+      setAddCourseStep(1)
+      setSelectedSavedModelIndex(0)
+      setSelectedSavedSubmodelIndex(0)
+      setSavedCourseHierarchy(buildBranchCourseHierarchySummary(course?.models || course?.courseModels || course?.modules || []))
+    }
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
     setIsAddCourseOpen(true)
@@ -1581,16 +1670,51 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   const closeAddCourseModal = () => {
     setIsAddCourseOpen(false)
-    setEditingCourseId('')
     setAddCourseStep(1)
     setSelectedSavedSubmodelIndex(0)
-    setSavedCourseHierarchy([])
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
   }
 
   const closeCourseSaveSuccess = () => {
     setCourseSaveSuccess(null)
+  }
+
+  useEffect(() => {
+    if (!isAddCourseOpen || !courseDraftKey) return undefined
+
+    writeBranchCourseDraft(courseDraftKey, {
+      form: addCourseForm,
+      touched: addCourseTouched,
+      step: addCourseStep,
+      selectedSavedModelIndex,
+      selectedSavedSubmodelIndex,
+      savedCourseHierarchy,
+    })
+
+    return undefined
+  }, [
+    addCourseForm,
+    addCourseStep,
+    addCourseTouched,
+    courseDraftKey,
+    isAddCourseOpen,
+    savedCourseHierarchy,
+    selectedSavedModelIndex,
+    selectedSavedSubmodelIndex,
+  ])
+
+  const viewCourseModels = useMemo(
+    () => buildBranchCourseHierarchySummary(viewCourse?.models || viewCourse?.courseModels || viewCourse?.modules || []),
+    [viewCourse],
+  )
+
+  const toggleViewCourseModule = (moduleId) => {
+    setExpandedViewCourseModuleIds((current) => (
+      current.includes(moduleId)
+        ? current.filter((id) => id !== moduleId)
+        : [...current, moduleId]
+    ))
   }
 
   const openDeleteCourseConfirm = (course) => {
@@ -1705,6 +1829,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         : [normalizedCourse, ...branchCourseCards]
 
       setBranchCourseCards(nextCards)
+      await loadBranchCourses(nextCards)
       setBranchCoursePage(1)
       setCourseSaveSuccess({
         title: editingTargetId ? 'Course updated' : 'Course created',
@@ -3740,139 +3865,199 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                 </div>
               </div>
 
-              {/* Details */}
               <div className="branch-course-view-body">
+                <div className="branch-course-view-tabs" role="tablist" aria-label="Course details tabs">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewCourseTab === 'basic'}
+                    className={`branch-course-view-tab ${viewCourseTab === 'basic' ? 'is-active' : ''}`}
+                    onClick={() => setViewCourseTab('basic')}
+                  >
+                    Basic Details
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewCourseTab === 'modules'}
+                    className={`branch-course-view-tab ${viewCourseTab === 'modules' ? 'is-active' : ''}`}
+                    onClick={() => setViewCourseTab('modules')}
+                  >
+                    Modules &amp; Submodules
+                  </button>
+                </div>
 
-                <div className="branch-course-view-table" role="table" aria-label="Course details">
-                  <div className="branch-course-view-table-header" role="row">
-                    <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
-                    <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
-                  </div>
+                <div className="branch-course-view-content">
+                  {viewCourseTab === 'basic' ? (
+                    <div className="branch-course-view-table" role="table" aria-label="Course details">
+                      <div className="branch-course-view-table-header" role="row">
+                        <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
+                        <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
+                      </div>
 
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <Monitor size={20} strokeWidth={2.1} aria-hidden="true" />
-                      <span>Mode</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewCourse.mode || '-'}</strong>
-                    </div>
-                  </div>
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <Monitor size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Mode</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{viewCourse.mode || '-'}</strong>
+                        </div>
+                      </div>
 
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
-                      <span>Duration</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>
-                        {viewCourse.duration
-                          ? `${viewCourse.duration} month${viewCourse.duration === '1' ? '' : 's'}`
-                          : '-'}
-                      </strong>
-                    </div>
-                  </div>
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Duration</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>
+                            {viewCourse.duration
+                              ? `${viewCourse.duration} month${viewCourse.duration === '1' ? '' : 's'}`
+                              : '-'}
+                          </strong>
+                        </div>
+                      </div>
 
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <Clock3 size={20} strokeWidth={2.1} aria-hidden="true" />
-                      <span>Hours</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>
-                        {viewCourse.hours
-                          ? `${viewCourse.hours} hour${viewCourse.hours === '1' ? '' : 's'}`
-                          : '-'}
-                      </strong>
-                    </div>
-                  </div>
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <Clock3 size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Hours</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>
+                            {viewCourse.hours
+                              ? `${viewCourse.hours} hour${viewCourse.hours === '1' ? '' : 's'}`
+                              : '-'}
+                          </strong>
+                        </div>
+                      </div>
 
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
-                      <span>Standard Course Fee</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{formatBranchCourseAmount(viewCourse.actualFees)}</strong>
-                    </div>
-                  </div>
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Standard Course Fee</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{formatBranchCourseAmount(viewCourse.actualFees)}</strong>
+                        </div>
+                      </div>
 
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
-                      <span>Registration Fee</span>
-                    </div>
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Registration Fee</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{formatBranchCourseAmount(viewCourse.registrationFees)}</strong>
+                        </div>
+                      </div>
 
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{formatBranchCourseAmount(viewCourse.registrationFees)}</strong>
-                    </div>
-                  </div>
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <BadgePercent size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Discount</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{formatBranchCourseAmount(viewCourse.discount || '0')}</strong>
+                        </div>
+                      </div>
 
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <BadgePercent size={20} strokeWidth={2.1} aria-hidden="true" />
-                      <span>Discount</span>
-                    </div>
+                      <div className="branch-course-view-row is-highlight" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Final Fee</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
+                        </div>
+                      </div>
 
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{formatBranchCourseAmount(viewCourse.discount || '0')}</strong>
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Created At</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{formatBranchCourseDate(viewCourse.createdAt)}</strong>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="branch-course-view-row is-highlight" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <IndianRupee size={20} strokeWidth={2.1} aria-hidden="true" />
-                      <span>Final Fee</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
-                    </div>
-                  </div>
-
-                  {Array.isArray(viewCourse.models) && viewCourse.models.length ? (
-                    <div className="branch-course-view-hierarchy" role="row">
+                  ) : (
+                    <section className="branch-course-view-hierarchy" aria-label="Modules and submodules">
                       <div className="branch-course-view-hierarchy-header">
                         <div>
-                          <p>Hierarchy</p>
-                          <strong>Model -&gt; Submodel</strong>
+                          <p>Added Modules</p>
+                          <strong>{viewCourseModels.length} Total</strong>
                         </div>
-                        <span>Percentages auto-distribute to 100%</span>
+                        <span>Click the arrow to expand a module</span>
                       </div>
 
-                      <div className="branch-course-view-models">
-                        {buildBranchCourseHierarchySummary(viewCourse.models).map((model, modelIndex) => (
-                          <article key={model.id} className="branch-course-view-model-card">
-                            <div className="branch-course-view-model-head">
-                              <div>
-                                <span>Model {modelIndex + 1}</span>
-                                <strong>{model.name || `Model ${modelIndex + 1}`}</strong>
-                              </div>
-                              <b>{formatBranchCoursePercentage(model.percentage)}</b>
-                            </div>
+                      {viewCourseModels.length ? (
+                        <div className="branch-course-view-models">
+                          {viewCourseModels.map((model, modelIndex) => {
+                            const isExpanded = expandedViewCourseModuleIds.includes(model.id)
 
-                            <div className="branch-course-view-submodels">
-                              {model.submodels.map((submodel, submodelIndex) => (
-                                <div key={submodel.id} className="branch-course-view-submodel">
-                                  <span>{submodel.name || `Submodel ${submodelIndex + 1}`}</span>
-                                  <strong>{formatBranchCoursePercentage(submodel.percentage)}</strong>
+                            return (
+                              <article key={model.id} className="branch-course-view-model-card">
+                                <div className="branch-course-view-model-head">
+                                  <div>
+                                    <span>Module {modelIndex + 1}</span>
+                                    <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
+                                  </div>
+
+                                  <div className="branch-course-view-model-head-actions">
+                                    <b>{formatBranchCoursePercentage(model.percentage)}</b>
+                                    <button
+                                      type="button"
+                                      className="branch-course-view-module-toggle"
+                                      onClick={() => toggleViewCourseModule(model.id)}
+                                      aria-expanded={isExpanded}
+                                      aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${model.name || `Module ${modelIndex + 1}`}`}
+                                    >
+                                      <ChevronDown
+                                        size={18}
+                                        strokeWidth={2.4}
+                                        className={isExpanded ? 'is-open' : ''}
+                                        aria-hidden="true"
+                                      />
+                                    </button>
+                                  </div>
                                 </div>
-                              ))}
-                            </div>
-                          </article>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
 
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <CalendarDays size={20} strokeWidth={2.1} aria-hidden="true" />
-                      <span>Created At</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{formatBranchCourseDate(viewCourse.createdAt)}</strong>
-                    </div>
-                  </div>
+                                {isExpanded ? (
+                                  <div className="branch-course-view-submodels">
+                                    {model.submodels.length ? (
+                                      model.submodels.map((submodel, submodelIndex) => (
+                                        <div key={submodel.id} className="branch-course-view-submodel">
+                                          <div>
+                                            <span>Submodel {submodelIndex + 1}</span>
+                                            <strong>{submodel.name || `Submodel ${submodelIndex + 1}`}</strong>
+                                          </div>
+                                          <strong>{formatBranchCoursePercentage(submodel.percentage)}</strong>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="branch-course-view-submodel is-empty">
+                                        <div>
+                                          <span>Submodules</span>
+                                          <strong>No submodules added</strong>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </article>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="branch-course-view-empty-state">
+                          No modules added for this course.
+                        </div>
+                      )}
+                    </section>
+                  )}
                 </div>
               </div>
 
