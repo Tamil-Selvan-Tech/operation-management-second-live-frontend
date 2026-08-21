@@ -161,6 +161,8 @@ function buildCourseHierarchySummary(models = []) {
 }
 
 function CourseHierarchyList({ models = [] }) {
+  const [expandedModelIds, setExpandedModelIds] = useState(() => [])
+
   if (!Array.isArray(models) || !models.length) {
     return (
       <div className="faculty-course-empty-state">
@@ -169,43 +171,92 @@ function CourseHierarchyList({ models = [] }) {
     )
   }
 
+  const allExpanded = expandedModelIds.length === models.length && models.length > 0
+  const toggleModel = (modelId) => {
+    const normalizedId = String(modelId || '').trim()
+    if (!normalizedId) return
+
+    setExpandedModelIds((current) =>
+      current.includes(normalizedId)
+        ? current.filter((id) => id !== normalizedId)
+        : [...current, normalizedId],
+    )
+  }
+
+  const toggleAll = () => {
+    if (allExpanded) {
+      setExpandedModelIds([])
+      return
+    }
+
+    setExpandedModelIds(models.map((model, index) => String(model.id || `module-${index + 1}`)))
+  }
+
   return (
-    <div className="faculty-course-module-stack">
+    <div className="faculty-course-curriculum">
+      <div className="faculty-course-curriculum-toolbar">
+        <div>
+          <p className="faculty-course-section-kicker">Modules &amp; Submodules</p>
+          <h4>Expand a module to view its submodules</h4>
+        </div>
+        <button type="button" className="faculty-course-expand-all" onClick={toggleAll}>
+          {allExpanded ? 'Collapse All' : 'Expand All'}
+        </button>
+      </div>
+
+      <div className="faculty-course-module-grid">
       {models.map((model, modelIndex) => {
         const submodels = Array.isArray(model?.submodels) ? model.submodels : []
         const moduleName = model.name || `Module ${modelIndex + 1}`
+        const moduleId = String(model.id || `module-${modelIndex + 1}`)
+        const isExpanded = expandedModelIds.includes(moduleId)
 
         return (
-          <article key={model.id || `${moduleName}-${modelIndex}`} className="faculty-course-module-card">
-            <div className="faculty-course-module-head">
-              <div className="faculty-course-module-copy">
-                <span className="faculty-course-module-index">Module {modelIndex + 1}</span>
+          <article key={moduleId} className={`faculty-course-module-card ${isExpanded ? 'is-expanded' : ''}`.trim()}>
+            <button
+              type="button"
+              className="faculty-course-module-trigger"
+              onClick={() => toggleModel(moduleId)}
+              aria-expanded={isExpanded}
+              aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${moduleName}`}
+            >
+              <span className="faculty-course-module-index">{String(modelIndex + 1).padStart(2, '0')}</span>
+              <span className="faculty-course-module-copy">
                 <strong>{moduleName}</strong>
-              </div>
+              </span>
               <span className="faculty-course-module-percent">{formatCoursePercentage(model.percentage)}</span>
-            </div>
+              <span className="faculty-course-module-chevron" aria-hidden="true">
+                <ChevronDown size={18} strokeWidth={2.3} />
+              </span>
+            </button>
 
-            {submodels.length ? (
+            {isExpanded ? (
               <div className="faculty-course-submodule-list">
-                {submodels.map((submodel, submodelIndex) => (
-                  <div
-                    key={submodel.id || `${submodel.name || 'submodule'}-${submodelIndex}`}
-                    className="faculty-course-submodule-item"
-                  >
-                    <div className="faculty-course-submodule-copy">
-                      <span>Submodule {submodelIndex + 1}</span>
-                      <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
+                {submodels.length ? (
+                  submodels.map((submodel, submodelIndex) => (
+                    <div
+                      key={submodel.id || `${submodel.name || 'submodule'}-${submodelIndex}`}
+                      className="faculty-course-submodule-item"
+                    >
+                      <div className="faculty-course-submodule-step">
+                        <span className="faculty-course-submodule-dot" />
+                        <span className="faculty-course-submodule-copy">
+                          <span>01.{String(submodelIndex + 1).padStart(2, '0')}</span>
+                          <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
+                        </span>
+                      </div>
+                      <span className="faculty-course-submodule-percent">{formatCoursePercentage(submodel.percentage)}</span>
                     </div>
-                    <span className="faculty-course-submodule-percent">{formatCoursePercentage(submodel.percentage)}</span>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="faculty-course-submodule-empty">No submodules added</div>
+                )}
               </div>
-            ) : (
-              <div className="faculty-course-submodule-empty">No submodules added</div>
-            )}
+            ) : null}
           </article>
         )
       })}
+      </div>
     </div>
   )
 }
@@ -969,12 +1020,11 @@ useEffect(() => {
                               {selectedCourse.status || 'Active'}
                             </span>
                             <span className="faculty-course-hero-kicker">Branch course snapshot</span>
+                            <button type="button" className="faculty-course-edit-request-btn">
+                              Edit Request
+                            </button>
                           </div>
                           <h3>{selectedCourse.name || 'Data Science'}</h3>
-                          <p>
-                            Complete details, fees, and curriculum structure for the selected Data Science course from the
-                            branch catalog.
-                          </p>
                           <div className="faculty-course-hero-tags">
                             <span>Code {selectedCourse.courseCode || '-'}</span>
                             <span>{selectedCourse.mode || 'Mode not set'}</span>
@@ -982,44 +1032,9 @@ useEffect(() => {
                             <span>{selectedCourse.hours ? `${selectedCourse.hours} hour${String(selectedCourse.hours) === '1' ? '' : 's'}` : 'Hours not set'}</span>
                           </div>
                         </div>
-
-                        <div className="faculty-course-hero-aside">
-                          <div className="faculty-course-hero-price">
-                            <span>Final Fee</span>
-                            <strong>{selectedCourse.afterDiscount ? `₹${selectedCourse.afterDiscount}` : '-'}</strong>
-                          </div>
-                          <div className="faculty-course-hero-mini-grid">
-                            <div>
-                              <span>Batches</span>
-                              <strong>{selectedCourse.batches || 0}</strong>
-                            </div>
-                            <div>
-                              <span>Students</span>
-                              <strong>{selectedCourse.students || 0}</strong>
-                            </div>
-                            <div>
-                              <span>Created</span>
-                              <strong>{formatDisplayDate(selectedCourse.createdAt)}</strong>
-                            </div>
-                            <div>
-                              <span>Faculty</span>
-                              <strong>
-                                {Array.isArray(selectedCourse.assignedFaculty) && selectedCourse.assignedFaculty.length
-                                  ? selectedCourse.assignedFaculty.map((faculty) => faculty?.name).filter(Boolean).join(', ')
-                                  : 'Not Assigned'}
-                              </strong>
-                            </div>
-                          </div>
-                        </div>
                       </div>
 
                       <div className="faculty-course-curriculum-shell">
-                        <div className="branch-dashboard-section-heading">
-                          <div className="branch-dashboard-section-heading-copy">
-                            <h2>Modules &amp; Submodules</h2>
-                            <p>Complete module structure for the selected Data Science course.</p>
-                          </div>
-                        </div>
                         <CourseHierarchyList models={selectedCourseModels} />
                       </div>
                     </>
