@@ -104,56 +104,49 @@ function findDataScienceCourse(courses = []) {
 function CourseHierarchyList({ models = [] }) {
   if (!Array.isArray(models) || !models.length) {
     return (
-      <div className="branch-course-view-empty-state" style={{ marginTop: 0 }}>
+      <div className="faculty-course-empty-state">
         No modules added for this course.
       </div>
     )
   }
 
   return (
-    <div className="branch-course-view-hierarchy" style={{ padding: '0', background: 'transparent', boxShadow: 'none' }}>
-      <div className="branch-course-view-models">
-        {models.map((model, modelIndex) => {
-          const submodels = Array.isArray(model?.submodels) ? model.submodels : []
+    <div className="faculty-course-module-stack">
+      {models.map((model, modelIndex) => {
+        const submodels = Array.isArray(model?.submodels) ? model.submodels : []
+        const moduleName = model.name || `Module ${modelIndex + 1}`
 
-          return (
-            <article key={model.id || `${model.name || 'module'}-${modelIndex}`} className="branch-course-view-model-card">
-              <div className="branch-course-view-model-head">
-                <div>
-                  <span>Module {modelIndex + 1}</span>
-                  <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
-                </div>
-                <div className="branch-course-view-model-head-actions">
-                  <b>{String(model.percentage || '-')}</b>
-                </div>
+        return (
+          <article key={model.id || `${moduleName}-${modelIndex}`} className="faculty-course-module-card">
+            <div className="faculty-course-module-head">
+              <div className="faculty-course-module-copy">
+                <span className="faculty-course-module-index">Module {modelIndex + 1}</span>
+                <strong>{moduleName}</strong>
               </div>
+              <span className="faculty-course-module-percent">{String(model.percentage || '-')}</span>
+            </div>
 
-              {submodels.length ? (
-                <div className="branch-course-view-submodels">
-                  {submodels.map((submodel, submodelIndex) => (
-                    <div key={submodel.id || `${submodel.name || 'submodule'}-${submodelIndex}`} className="branch-course-view-submodel">
-                      <div>
-                        <span>Submodule {submodelIndex + 1}</span>
-                        <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
-                      </div>
-                      <strong>{String(submodel.percentage || '-')}</strong>
+            {submodels.length ? (
+              <div className="faculty-course-submodule-list">
+                {submodels.map((submodel, submodelIndex) => (
+                  <div
+                    key={submodel.id || `${submodel.name || 'submodule'}-${submodelIndex}`}
+                    className="faculty-course-submodule-item"
+                  >
+                    <div className="faculty-course-submodule-copy">
+                      <span>Submodule {submodelIndex + 1}</span>
+                      <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="branch-course-view-submodels">
-                  <div className="branch-course-view-submodel is-empty">
-                    <div>
-                      <span>Submodules</span>
-                      <strong>No submodules added</strong>
-                    </div>
+                    <span className="faculty-course-submodule-percent">{String(submodel.percentage || '-')}</span>
                   </div>
-                </div>
-              )}
-            </article>
-          )
-        })}
-      </div>
+                ))}
+              </div>
+            ) : (
+              <div className="faculty-course-submodule-empty">No submodules added</div>
+            )}
+          </article>
+        )
+      })}
     </div>
   )
 }
@@ -910,59 +903,58 @@ useEffect(() => {
                 <FacultyDashboardSection title="Course" description="Data Science course details from the branch course catalog.">
                   {selectedCourse ? (
                     <>
-                      <div className="branch-dashboard-activity-grid">
-                        <article className="branch-dashboard-panel">
-                          <strong className="block text-slate-800 text-[1.1rem]">{selectedCourse.name || 'Data Science'}</strong>
-                          <p className="text-slate-600 mt-1">Course code: {selectedCourse.courseCode || '-'}</p>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '14px' }}>
-                            <span className={`branch-course-status-pill ${String(selectedCourse.status || 'Active').toLowerCase()}`.trim()}>
+                      <div className="faculty-course-hero">
+                        <div className="faculty-course-hero-content">
+                          <div className="faculty-course-hero-topline">
+                            <span className={`faculty-course-hero-status ${String(selectedCourse.status || 'Active').toLowerCase()}`.trim()}>
                               {selectedCourse.status || 'Active'}
                             </span>
-                            <span className="branch-course-status-pill" style={{ background: '#e0f2fe', color: '#075985' }}>
-                              {selectedCourse.batches || 0} batch{Number(selectedCourse.batches || 0) === 1 ? '' : 'es'}
-                            </span>
-                            <span className="branch-course-status-pill" style={{ background: '#f1f5f9', color: '#334155' }}>
-                              {selectedCourse.students || 0} students
-                            </span>
+                            <span className="faculty-course-hero-kicker">Branch course snapshot</span>
                           </div>
-                        </article>
+                          <h3>{selectedCourse.name || 'Data Science'}</h3>
+                          <p>
+                            Complete details, fees, and curriculum structure for the selected Data Science course from the
+                            branch catalog.
+                          </p>
+                          <div className="faculty-course-hero-tags">
+                            <span>Code {selectedCourse.courseCode || '-'}</span>
+                            <span>{selectedCourse.mode || 'Mode not set'}</span>
+                            <span>{selectedCourse.duration ? `${selectedCourse.duration} month${String(selectedCourse.duration) === '1' ? '' : 's'}` : 'Duration not set'}</span>
+                            <span>{selectedCourse.hours ? `${selectedCourse.hours} hour${String(selectedCourse.hours) === '1' ? '' : 's'}` : 'Hours not set'}</span>
+                          </div>
+                        </div>
+
+                        <div className="faculty-course-hero-aside">
+                          <div className="faculty-course-hero-price">
+                            <span>Final Fee</span>
+                            <strong>{selectedCourse.afterDiscount ? `₹${selectedCourse.afterDiscount}` : '-'}</strong>
+                          </div>
+                          <div className="faculty-course-hero-mini-grid">
+                            <div>
+                              <span>Batches</span>
+                              <strong>{selectedCourse.batches || 0}</strong>
+                            </div>
+                            <div>
+                              <span>Students</span>
+                              <strong>{selectedCourse.students || 0}</strong>
+                            </div>
+                            <div>
+                              <span>Created</span>
+                              <strong>{formatDisplayDate(selectedCourse.createdAt)}</strong>
+                            </div>
+                            <div>
+                              <span>Faculty</span>
+                              <strong>
+                                {Array.isArray(selectedCourse.assignedFaculty) && selectedCourse.assignedFaculty.length
+                                  ? selectedCourse.assignedFaculty.map((faculty) => faculty?.name).filter(Boolean).join(', ')
+                                  : 'Not Assigned'}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="branch-dashboard-table-shell" style={{ marginTop: '20px' }}>
-                        <table className="branch-dashboard-table">
-                          <thead>
-                            <tr>
-                              <th style={{ width: '60px' }}>S.No</th>
-                              <th>Details</th>
-                              <th>Information</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {[
-                              ['Course Name', selectedCourse.name || '-'],
-                              ['Course Code', selectedCourse.courseCode || '-'],
-                              ['Mode', selectedCourse.mode || '-'],
-                              ['Duration', selectedCourse.duration ? `${selectedCourse.duration} month${String(selectedCourse.duration) === '1' ? '' : 's'}` : '-'],
-                              ['Hours', selectedCourse.hours ? `${selectedCourse.hours} hour${String(selectedCourse.hours) === '1' ? '' : 's'}` : '-'],
-                              ['Standard Fee', selectedCourse.actualFees ? `₹${selectedCourse.actualFees}` : '-'],
-                              ['Registration Fee', selectedCourse.registrationFees ? `₹${selectedCourse.registrationFees}` : '-'],
-                              ['Discount', selectedCourse.discount ? `₹${selectedCourse.discount}` : '-'],
-                              ['Final Fee', selectedCourse.afterDiscount ? `₹${selectedCourse.afterDiscount}` : '-'],
-                              ['Status', selectedCourse.status || 'Active'],
-                              ['Created At', formatDisplayDate(selectedCourse.createdAt)],
-                              ['Assigned Faculty', Array.isArray(selectedCourse.assignedFaculty) && selectedCourse.assignedFaculty.length ? selectedCourse.assignedFaculty.map((faculty) => faculty?.name).filter(Boolean).join(', ') : 'Not Assigned'],
-                            ].map(([label, value], index) => (
-                              <tr key={label}>
-                                <td>{index + 1}</td>
-                                <td><strong className="text-slate-800">{label}</strong></td>
-                                <td>{value}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="branch-dashboard-section" style={{ marginTop: '20px' }}>
+                      <div className="faculty-course-curriculum-shell">
                         <div className="branch-dashboard-section-heading">
                           <div className="branch-dashboard-section-heading-copy">
                             <h2>Modules &amp; Submodules</h2>
@@ -973,11 +965,9 @@ useEffect(() => {
                       </div>
                     </>
                   ) : (
-                    <div className="branch-dashboard-panel">
+                    <div className="faculty-course-empty-state faculty-course-empty-hero">
                       <strong>No Data Science course found</strong>
-                      <p style={{ marginTop: '8px', color: '#475569' }}>
-                        The faculty course tab is waiting for the branch course catalog to load.
-                      </p>
+                      <p>The faculty course tab is waiting for the branch course catalog to load.</p>
                     </div>
                   )}
                 </FacultyDashboardSection>
