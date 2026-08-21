@@ -3665,6 +3665,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                           <h5>Modules</h5>
                           <span>{savedCourseRows.length} saved</span>
                         </div>
+                        <button
+                          type="button"
+                          className="course-added-module-add-tile course-added-module-add-tile-inline"
+                          onClick={addAddCourseModel}
+                        >
+                          + Add Model
+                        </button>
                       </div>
 
                       <div className="course-added-modules-table">
@@ -3755,13 +3762,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        className="course-added-module-add-tile"
-                        onClick={addAddCourseModel}
-                      >
-                        + Add Model
-                      </button>
                     </div>
                   ) : null}
                 </div>

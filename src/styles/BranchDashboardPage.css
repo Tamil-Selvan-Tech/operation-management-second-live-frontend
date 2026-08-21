@@ -3735,7 +3735,7 @@
 
 .course-added-modules-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
 }
@@ -4039,6 +4039,17 @@
 .course-added-module-add-tile:focus-visible {
   background: #eff6ff;
   outline: none;
+}
+
+.course-added-module-add-tile-inline {
+  width: auto;
+  min-height: 44px;
+  min-width: 126px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border-style: solid;
+  font-size: 0.92rem;
+  white-space: nowrap;
 }
 
 .course-table-primary-link {
