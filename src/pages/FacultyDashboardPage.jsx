@@ -454,6 +454,9 @@ export function FacultyDashboardPage() {
   const [activeSection, setActiveSection] = useState('dashboard')
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const [isCourseEditRequestOpen, setIsCourseEditRequestOpen] = useState(false)
+  const [courseEditRequestText, setCourseEditRequestText] = useState('')
+  const [courseEditRequestStatus, setCourseEditRequestStatus] = useState('')
   const profileMenuRef = useRef(null)
   const notificationRef = useRef(null)
 
@@ -672,6 +675,23 @@ useEffect(() => {
   const openResetPassword = () => {
     navigate('/reset-password')
     setIsProfileMenuOpen(false)
+  }
+
+  const openCourseEditRequest = () => {
+    setCourseEditRequestText('')
+    setCourseEditRequestStatus('')
+    setIsCourseEditRequestOpen(true)
+  }
+
+  const closeCourseEditRequest = () => {
+    setIsCourseEditRequestOpen(false)
+    setCourseEditRequestText('')
+    setCourseEditRequestStatus('')
+  }
+
+  const handleCourseEditRequestSubmit = (event) => {
+    event.preventDefault()
+    setCourseEditRequestStatus('submitted')
   }
 
   const renderSidebar = () => (
@@ -1020,7 +1040,7 @@ useEffect(() => {
                               {selectedCourse.status || 'Active'}
                             </span>
                             <span className="faculty-course-hero-kicker">Branch course snapshot</span>
-                            <button type="button" className="faculty-course-edit-request-btn">
+                            <button type="button" className="faculty-course-edit-request-btn" onClick={openCourseEditRequest}>
                               Edit Request
                             </button>
                           </div>
@@ -1330,6 +1350,68 @@ useEffect(() => {
                 Logout
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isCourseEditRequestOpen ? (
+        <div className="branch-modal-backdrop faculty-course-request-backdrop" role="presentation">
+          <div
+            className="faculty-course-request-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-course-request-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="faculty-course-request-close"
+              aria-label="Close edit request"
+              onClick={closeCourseEditRequest}
+            >
+              ×
+            </button>
+
+            <div className="faculty-course-request-header">
+              <div>
+                <p className="faculty-course-request-kicker">Edit Request</p>
+                <h3 id="faculty-course-request-title">{selectedCourse?.name || 'Data Science'}</h3>
+              </div>
+            </div>
+
+            <form className="faculty-course-request-form" onSubmit={handleCourseEditRequestSubmit}>
+              <label className="faculty-course-request-field">
+                <span>Requested changes</span>
+                <textarea
+                  value={courseEditRequestText}
+                  onChange={(event) => setCourseEditRequestText(event.target.value)}
+                  placeholder="Example: Add submodules like data cleaning, feature engineering, and model deployment."
+                  rows={6}
+                />
+              </label>
+
+              {courseEditRequestStatus === 'submitted' ? (
+                <div className="faculty-course-request-status" role="status" aria-live="polite">
+                  Request drafted. You can keep editing or close it with X when you are done.
+                </div>
+              ) : null}
+
+              <div className="faculty-course-request-actions">
+                <button
+                  type="button"
+                  className="faculty-course-request-cancel"
+                  onClick={() => {
+                    setCourseEditRequestText('')
+                    setCourseEditRequestStatus('')
+                  }}
+                >
+                  Clear
+                </button>
+                <button type="submit" className="faculty-course-request-submit">
+                  Send Request
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}
