@@ -492,7 +492,7 @@ function normalizeBranchCourseSubmodels(submodels = [], modelIndex = 0) {
 
   return items.map((submodel, submodelIndex) => ({
     id: String(submodel?.id || createCourseNodeId(`submodel-${modelIndex + 1}`)),
-    name: String(submodel?.name || '').trim(),
+    name: String(submodel?.name || submodel?.title || '').trim(),
   }))
 }
 
@@ -501,7 +501,7 @@ function normalizeBranchCourseModels(models = []) {
 
   return items.map((model, modelIndex) => ({
     id: String(model?.id || createCourseNodeId(`model-${modelIndex + 1}`)),
-    name: String(model?.name || '').trim(),
+    name: String(model?.name || model?.title || '').trim(),
     submodels: normalizeBranchCourseSubmodels(model?.submodels, modelIndex),
   }))
 }
@@ -732,6 +732,38 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
   const activeSection = getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+  const goToBranchSection = useCallback(
+    (section = 'dashboard', options = {}) => {
+      const nextSection = String(section || '').trim().toLowerCase() || 'dashboard'
+      const replace = Boolean(options?.replace)
+      const isDashboard = nextSection === 'dashboard'
+      const isNotifications = nextSection === 'notifications'
+
+      if (embeddedMode) {
+        navigate(
+          {
+            pathname: location.pathname,
+            search: isDashboard ? '' : `?section=${encodeURIComponent(nextSection)}`,
+          },
+          { replace },
+        )
+        return
+      }
+
+      if (isNotifications) {
+        navigate('/branch-dashboard/notifications', { replace })
+        return
+      }
+
+      if (isDashboard) {
+        navigate('/branch-dashboard', { replace })
+        return
+      }
+
+      navigate(`/branch-dashboard?section=${encodeURIComponent(nextSection)}`, { replace })
+    },
+    [embeddedMode, location.pathname, navigate],
+  )
   const [branchProfile, setBranchProfile] = useState(null)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
@@ -873,17 +905,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
     if (embeddedMode && branchData) {
       setBranchProfile(branchData)
-      loadBranchCourses().then((coursesResult) => {
+      Promise.allSettled([loadBranchCourses(), loadFacultyList()]).then(([coursesResult]) => {
         if (!isMounted) return
-        if (coursesResult.status === 'fulfilled' || coursesResult.data) {
-          setBranchCourseCards(Array.isArray(coursesResult?.data) ? coursesResult.data : [])
+        if (coursesResult.status === 'fulfilled' || coursesResult.value?.data) {
+          setBranchCourseCards(Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : [])
         } else {
           setBranchCourseCards([])
         }
-      }).catch((error) => {
-        if (!isMounted) return
-        console.error('Failed to load courses in embedded mode:', error)
-        setBranchCourseCards([])
       })
       return
     }
@@ -1223,14 +1251,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   const openProfile = () => {
     setIsProfileMenuOpen(false)
-    navigate('/branch-dashboard?section=profile')
+    goToBranchSection('profile')
   }
 
   const openBranchNotifications = async () => {
     await loadBranchNotifications()
     markNotificationsAsDropdownViewed()
     setIsNotificationMenuOpen(false)
-    navigate('/branch-dashboard/notifications')
+    goToBranchSection('notifications')
   }
 
   const openBranchNotificationTarget = async (notification) => {
@@ -1256,7 +1284,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     }
     setIsNotificationMenuOpen(false)
     const targetSection = String(notification?.targetSection || 'batches').trim() || 'batches'
-    navigate(`/branch-dashboard?section=${encodeURIComponent(targetSection)}`)
+    goToBranchSection(targetSection)
   }
 
   const markAllBranchNotificationsAsRead = async () => {
@@ -1645,7 +1673,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setEditingCourseId('')
     setCourseSaveSuccess(null)
     setIsAddCourseOpen(true)
-    navigate('/branch-dashboard?section=courses')
+    goToBranchSection('courses')
   }
 
   const openViewCourseDrawer = (course) => {
@@ -1669,7 +1697,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
     setIsAddCourseOpen(true)
-    navigate('/branch-dashboard?section=courses')
+    goToBranchSection('courses')
   }
 
   const closeAddCourseModal = () => {
@@ -2173,11 +2201,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
               className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
               onClick={() => {
                 if (item.id === 'notifications') {
-                  navigate('/branch-dashboard/notifications')
+                  goToBranchSection('notifications')
                   return
                 }
 
-                navigate(`/branch-dashboard?section=${encodeURIComponent(item.id)}`)
+                goToBranchSection(item.id)
               }}
             >
               <span className="super-admin-sidebar-icon" aria-hidden="true">
@@ -2434,7 +2462,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                       <button
                         type="button"
                         className="notifications-back-button"
-                        onClick={() => navigate('/branch-dashboard')}
+                        onClick={() => goToBranchSection('dashboard')}
                       >
                         <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                         Back to dashboard
