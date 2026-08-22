@@ -388,12 +388,16 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
                 </span>
                 {item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request' ? (
                   <button
-                    type="button"
-                    className="notifications-item-view-button"
-                    onClick={() => onAcceptRequest?.(item)}
-                  >
-                    Accept
-                  </button>
+  type="button"
+  className="notifications-item-view-button"
+  onClick={(e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    alert('ACCEPT BUTTON CLICKED')
+  }}
+>
+  Accept
+</button>
                 ) : (
                   <button
                     type="button"
@@ -2818,15 +2822,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                           >
                             {isCourseEditRequest ? (
                               <button
-                                type="button"
-                                className="notification-dropdown-accept"
-                                onMouseDown={(event) => event.stopPropagation()}
-                                onPointerDown={(event) => event.stopPropagation()}
-                                onClickCapture={(event) => event.stopPropagation()}
-                                onClick={() => acceptBranchCourseEditNotification(item)}
-                              >
-                                Accept
-                              </button>
+  type="button"
+  className="notification-dropdown-accept"
+  onClick={(event) => {
+    event.preventDefault()
+    event.stopPropagation()
+
+    console.log('ACCEPT CLICKED')
+
+    void acceptBranchCourseEditNotification(item)
+  }}
+>
+  Accept
+</button>
                             ) : null}
                             <button
                               type="button"
