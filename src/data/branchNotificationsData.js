@@ -30,6 +30,10 @@ function getNotificationIcon(kind) {
       return Mail
     case 'branch-login':
       return CheckCircle2
+    case 'course-edit-request':
+    case 'course-edit-request-accepted':
+    case 'course-edit-request-rejected':
+    case 'course-edit-module-updated':
     case 'branch-course-edit-request':
     case 'branch-course-edit-accepted':
     case 'branch-course-edit-updated':
@@ -48,9 +52,13 @@ export function normalizeBranchNotification(notification = {}) {
   const message = String(notification.message || '').trim()
   const createdAt = String(notification.createdAt || '').trim()
   const isFacultyLogin = kind === 'branch-faculty-login' || kind === 'faculty-login'
-  const isCourseEditRequest = kind === 'branch-course-edit-request'
-  const isCourseEditAccepted = kind === 'branch-course-edit-accepted'
-  const isCourseEditUpdated = kind === 'branch-course-edit-updated'
+  const isCourseEditRequest = kind === 'branch-course-edit-request' || kind === 'course-edit-request'
+  const isCourseEditAccepted =
+    kind === 'branch-course-edit-accepted' || kind === 'course-edit-request-accepted'
+  const isCourseEditRejected =
+    kind === 'course-edit-request-rejected'
+  const isCourseEditUpdated =
+    kind === 'branch-course-edit-updated' || kind === 'course-edit-module-updated'
 
   return {
     id: String(notification.id || '').trim(),
@@ -76,7 +84,9 @@ export function normalizeBranchNotification(notification = {}) {
         : isCourseEditRequest
           ? `${notification.facultyName || 'Faculty'} requested changes for ${notification.courseName || 'the course'}.`
           : isCourseEditAccepted
-            ? `Open Edit is now available for ${notification.courseName || 'the course'}.`
+          ? `Open Edit is now available for ${notification.courseName || 'the course'}.`
+          : isCourseEditRejected
+            ? `${notification.requestDescription || notification.message || 'The edit request was rejected.'}`
             : isCourseEditUpdated
               ? `${notification.facultyName || 'Faculty'} saved module and submodule changes for ${notification.courseName || 'the course'}.`
         : ''),
@@ -87,6 +97,8 @@ export function normalizeBranchNotification(notification = {}) {
         ? 'Accept request'
         : isCourseEditAccepted
           ? 'Accepted'
+          : isCourseEditRejected
+            ? 'Rejected'
           : isCourseEditUpdated
             ? 'Updated'
             : isFacultyLogin
@@ -110,6 +122,9 @@ export function normalizeBranchNotification(notification = {}) {
     courseName: String(notification.courseName || '').trim(),
     requestId: String(notification.requestId || '').trim(),
     requestStatus: String(notification.requestStatus || '').trim(),
+    requestTitle: String(notification.requestTitle || '').trim(),
+    requestReason: String(notification.requestReason || '').trim(),
+    requestDescription: String(notification.requestDescription || '').trim(),
     requestedChanges: String(notification.requestedChanges || '').trim(),
   }
 }

@@ -5974,6 +5974,7 @@
 }
 
 .notification-dropdown-item {
+  position: relative;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
   align-items: center;
@@ -5984,7 +5985,23 @@
   grid-template-columns: 34px minmax(0, 1fr) auto;
 }
 
+.notification-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.notification-copy p,
+.notification-copy span,
+.notification-copy small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .notification-dropdown-item-actions {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -5993,6 +6010,8 @@
 
 .notification-dropdown-accept,
 .notification-dropdown-view {
+  position: relative;
+  z-index: 3;
   height: 32px;
   padding: 0 12px;
   border-radius: 10px;
@@ -6001,7 +6020,10 @@
   color: #334155;
   font-size: 0.82rem;
   font-weight: 800;
-  cursor: pointer;
+  cursor: pointer !important;
+  pointer-events: auto;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .notification-dropdown-accept {

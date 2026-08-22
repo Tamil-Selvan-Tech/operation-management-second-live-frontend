@@ -40,7 +40,12 @@ import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { listCourses } from '../services/courseService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
-import { listBranchCourses } from '../services/branchCourseService'
+import { clearBranchCourseListCache, listBranchCourses } from '../services/branchCourseService'
+import {
+  createCourseEditRequest,
+  listCourseEditRequests,
+  saveCourseEditRequestModules,
+} from '../services/courseEditRequestService'
 import {
   getFacultyNotifications,
   markFacultyNotificationsAsRead,
@@ -50,6 +55,9 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
+import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
+import {
+} from '../lib/courseEditRequestStore'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -188,6 +196,67 @@ function getModulePercentage(module = {}, moduleIndex = 0, totalModules = 0) {
   return `${normalized.toFixed(2).replace(/\.00$/, '')}%`
 }
 
+function cloneFacultyEditSubmodule(submodule = {}, subIndex = 0) {
+  const source = submodule && typeof submodule === 'object' ? submodule : {}
+
+  return {
+    id: String(source.id || `submodule-${subIndex + 1}`),
+    name: String(source.name || source.title || source.submoduleName || `Submodule ${subIndex + 1}`).trim(),
+    percentage: String(source.percentage ?? source.weight ?? '').trim(),
+  }
+}
+
+function cloneFacultyEditModule(module = {}, moduleIndex = 0) {
+  const source = module && typeof module === 'object' ? module : {}
+  const submoduleSource = Array.isArray(source.submodules)
+    ? source.submodules
+    : Array.isArray(source.subModules)
+      ? source.subModules
+      : Array.isArray(source.submodels)
+        ? source.submodels
+        : Array.isArray(source.subModels)
+          ? source.subModels
+          : []
+
+  return {
+    id: String(source.id || `module-${moduleIndex + 1}`),
+    name: String(source.name || source.title || source.moduleName || `Module ${moduleIndex + 1}`).trim(),
+    percentage: String(source.percentage ?? source.weight ?? '').trim(),
+    submodules: submoduleSource.map((submodule, subIndex) => cloneFacultyEditSubmodule(submodule, subIndex)),
+  }
+}
+
+function cloneFacultyEditModules(course = {}) {
+  return getCourseModels(course).map((module, moduleIndex) => cloneFacultyEditModule(module, moduleIndex))
+}
+
+function buildFacultyCourseUpdatePayload(course = {}, modules = []) {
+  return {
+    courseCode: String(course?.courseCode || '').trim(),
+    name: String(course?.name || course?.courseName || '').trim(),
+    description: String(course?.description || '').trim(),
+    mode: String(course?.mode || '').trim(),
+    duration: String(course?.duration ?? '').trim(),
+    hours: String(course?.hours ?? '').trim(),
+    actualFees: String(course?.actualFees ?? '').trim(),
+    registrationFees: String(course?.registrationFees ?? '').trim(),
+    discount: String(course?.discount ?? '').trim(),
+    status: String(course?.status || 'Active').trim() || 'Active',
+    models: modules,
+    courseModels: modules,
+    modules,
+  }
+}
+
+function summarizeFacultyEditChanges(modules = []) {
+  const moduleCount = Array.isArray(modules) ? modules.length : 0
+  const submoduleCount = Array.isArray(modules)
+    ? modules.reduce((count, module) => count + (Array.isArray(module?.submodules) ? module.submodules.length : 0), 0)
+    : 0
+
+  return `${moduleCount} module${moduleCount === 1 ? '' : 's'} and ${submoduleCount} submodule${submoduleCount === 1 ? '' : 's'} updated`
+}
+
 function formatNotificationTime(createdAt) {
   const date = new Date(createdAt)
   if (Number.isNaN(date.getTime())) return ''
@@ -257,7 +326,12 @@ function getFacultyNotificationIcon(kind) {
     return Mail
   }
 
-  if (normalizedKind.includes('login') || normalizedKind.includes('assigned') || normalizedKind.includes('active')) {
+  if (
+    normalizedKind.includes('login') ||
+    normalizedKind.includes('assigned') ||
+    normalizedKind.includes('active') ||
+    normalizedKind.includes('course-edit')
+  ) {
     return CheckCircle2
   }
 
@@ -270,17 +344,18 @@ function normalizeFacultyNotification(notification = {}) {
   const createdAt =
     String(source.createdAt || source.createdOn || source.updatedAt || '').trim() ||
     new Date().toISOString()
+  const isCourseEdit = kind.includes('course-edit')
 
   return {
     id: String(source.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     kind,
     tone:
-      String(source.tone || (kind.includes('invite') ? 'amber' : kind.includes('login') ? 'green' : 'blue'))
+      String(source.tone || (kind.includes('invite') ? 'amber' : kind.includes('login') ? 'green' : isCourseEdit ? 'amber' : 'blue'))
         .trim() || 'blue',
     title: String(source.title || 'Notification').trim(),
     message: String(source.message || '').trim(),
     actionLabel: String(source.actionLabel || '').trim() || 'View',
-    categoryLabel: String(source.categoryLabel || 'Faculty').trim() || 'Faculty',
+    categoryLabel: String(source.categoryLabel || (isCourseEdit ? 'Course Edit' : 'Faculty')).trim() || 'Faculty',
     createdAt,
     time: formatNotificationTime(createdAt),
     read: Boolean(source.read),
@@ -437,32 +512,72 @@ export function FacultyDashboardPage() {
   const [courseCatalog, setCourseCatalog] = useState([])
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
+  const [courseEditRequests, setCourseEditRequests] = useState([])
+  const [isCourseRequestModalOpen, setIsCourseRequestModalOpen] = useState(false)
+  const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false)
+  const [courseRequestForm, setCourseRequestForm] = useState({
+    title: '',
+    reason: '',
+    description: '',
+  })
+  const [courseEditDraft, setCourseEditDraft] = useState(null)
+  const [courseRequestError, setCourseRequestError] = useState('')
+  const [courseEditError, setCourseEditError] = useState('')
+  const [courseActionSuccess, setCourseActionSuccess] = useState('')
+  const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
+  const [isCourseEditSaving, setIsCourseEditSaving] = useState(false)
   const [coursesLoading, setCoursesLoading] = useState(false)
   const [coursesError, setCoursesError] = useState('')
+  const courseActionSuccessTimerRef = useRef(null)
+
+  useEffect(() => {
+    if (!courseActionSuccess) return undefined
+
+    if (courseActionSuccessTimerRef.current) {
+      window.clearTimeout(courseActionSuccessTimerRef.current)
+    }
+
+    courseActionSuccessTimerRef.current = window.setTimeout(() => {
+      setCourseActionSuccess('')
+      courseActionSuccessTimerRef.current = null
+    }, 3500)
+
+    return () => {
+      if (courseActionSuccessTimerRef.current) {
+        window.clearTimeout(courseActionSuccessTimerRef.current)
+        courseActionSuccessTimerRef.current = null
+      }
+    }
+  }, [courseActionSuccess])
 
 
 
   useEffect(() => {
-  const loadNotifications = async () => {
+    let isMounted = true
+
+    const loadNotifications = async () => {
       try {
-        const response =
-        await getFacultyNotifications()
+        const response = await getFacultyNotifications()
+        if (!isMounted) return
 
-      setFacultyNotifications(
-        Array.isArray(response?.data)
-          ? response.data.filter(Boolean)
-          : [],
-      )
-    } catch (error) {
-      console.error(
-        'Failed to load faculty notifications',
-        error,
-      )
+        setFacultyNotifications(
+          Array.isArray(response?.data)
+            ? response.data.filter(Boolean)
+            : [],
+        )
+      } catch (error) {
+        console.error('Failed to load faculty notifications', error)
+      }
     }
-  }
 
-  loadNotifications()
-}, [])
+    loadNotifications()
+    const intervalId = window.setInterval(loadNotifications, 15000)
+
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -596,6 +711,28 @@ useEffect(() => {
     )
   }
 }, [notificationOpen])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const loadRequests = async () => {
+      try {
+        const response = await listCourseEditRequests()
+        if (!isMounted) return
+        setCourseEditRequests(Array.isArray(response?.data) ? response.data : [])
+      } catch (error) {
+        console.error('Failed to load course edit requests', error)
+      }
+    }
+
+    loadRequests()
+    const intervalId = window.setInterval(loadRequests, 15000)
+
+    return () => {
+      isMounted = false
+      window.clearInterval(intervalId)
+    }
+  }, [])
 
   const unreadNotifications = useMemo(
     () => facultyNotifications.filter((notification) => !notification.read),
@@ -733,6 +870,253 @@ useEffect(() => {
       isAllModulesExpanded ? [] : selectedCourseModuleKeys,
     )
   }
+
+  const openCourseRequestModal = () => {
+    setCourseActionSuccess('')
+    setCourseRequestError('')
+    setCourseRequestForm({
+      title: `${selectedCourse?.name || selectedCourse?.courseName || 'Course'} edit request`,
+      reason: '',
+      description: '',
+    })
+    setIsCourseRequestModalOpen(true)
+  }
+
+  const openCourseEditModal = () => {
+    if (!canOpenCourseEditor) {
+      openCourseRequestModal()
+      return
+    }
+
+    setCourseActionSuccess('')
+    setCourseEditError('')
+    setCourseEditDraft({
+      courseId: String(selectedCourse?.id || '').trim(),
+      courseName: String(selectedCourse?.name || selectedCourse?.courseName || 'Course').trim(),
+      modules: cloneFacultyEditModules(selectedCourse),
+    })
+    setExpandedCourseModuleIds(
+      cloneFacultyEditModules(selectedCourse).map((module) => module.id),
+    )
+    setIsCourseEditModalOpen(true)
+  }
+
+  const handleSendCourseEditRequest = async (event) => {
+    event.preventDefault()
+
+    const reason = String(courseRequestForm.reason || '').trim()
+    const description = String(courseRequestForm.description || '').trim()
+
+    if (!selectedCourse?.id) {
+      setCourseRequestError('Please select a course first.')
+      return
+    }
+
+    if (!reason) {
+      setCourseRequestError('Please enter a request reason.')
+      return
+    }
+
+    if (!description) {
+      setCourseRequestError('Please describe the module/submodule changes.')
+      return
+    }
+
+    setIsCourseRequestSaving(true)
+    setCourseRequestError('')
+
+    try {
+      const response = await createCourseEditRequest({
+        branchCourseId: selectedCourse.id,
+        courseId: selectedCourse.id,
+        courseCode: selectedCourse.courseCode || selectedCourse.id,
+        courseName: selectedCourse.name || selectedCourse.courseName || 'Course',
+        title: String(courseRequestForm.title || '').trim(),
+        reason,
+        description,
+      })
+
+      const createdRequest = response?.request || response || null
+      if (createdRequest) {
+        setCourseEditRequests((current) => [
+          createdRequest,
+          ...current.filter((request) => String(request.id || '').trim() !== String(createdRequest.id || '').trim()),
+        ])
+      }
+
+      setCourseActionSuccess('Edit request sent successfully.')
+      setIsCourseRequestModalOpen(false)
+    } catch (error) {
+      console.error('Failed to create course edit request', error)
+      setCourseRequestError('Unable to send request right now.')
+    } finally {
+      setIsCourseRequestSaving(false)
+    }
+  }
+
+  const updateCourseEditModule = (moduleIndex, field, value) => {
+    setCourseEditDraft((current) => {
+      if (!current) return current
+      const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+      const module = { ...(nextModules[moduleIndex] || {}) }
+      module[field] = value
+      nextModules[moduleIndex] = module
+      return { ...current, modules: nextModules }
+    })
+  }
+
+  const updateCourseEditSubmodule = (moduleIndex, submoduleIndex, field, value) => {
+    setCourseEditDraft((current) => {
+      if (!current) return current
+      const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+      const module = { ...(nextModules[moduleIndex] || {}) }
+      const submodules = Array.isArray(module.submodules) ? [...module.submodules] : []
+      const submodule = { ...(submodules[submoduleIndex] || {}) }
+      submodule[field] = value
+      submodules[submoduleIndex] = submodule
+      module.submodules = submodules
+      nextModules[moduleIndex] = module
+      return { ...current, modules: nextModules }
+    })
+  }
+
+  const addCourseEditModule = () => {
+    setCourseEditDraft((current) => {
+      if (!current) return current
+      const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+      nextModules.push({
+        id: `module-${Date.now()}`,
+        name: `Module ${nextModules.length + 1}`,
+        percentage: '',
+        submodules: [],
+      })
+      return { ...current, modules: nextModules }
+    })
+  }
+
+  const addCourseEditSubmodule = (moduleIndex) => {
+    setCourseEditDraft((current) => {
+      if (!current) return current
+      const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+      const module = { ...(nextModules[moduleIndex] || {}) }
+      const submodules = Array.isArray(module.submodules) ? [...module.submodules] : []
+      submodules.push({
+        id: `submodule-${Date.now()}`,
+        name: `Submodule ${submodules.length + 1}`,
+        percentage: '',
+      })
+      module.submodules = submodules
+      nextModules[moduleIndex] = module
+      return { ...current, modules: nextModules }
+    })
+  }
+
+  const removeCourseEditModule = (moduleIndex) => {
+    setCourseEditDraft((current) => {
+      if (!current) return current
+      const nextModules = (Array.isArray(current.modules) ? current.modules : []).filter((_, index) => index !== moduleIndex)
+      return { ...current, modules: nextModules }
+    })
+  }
+
+  const removeCourseEditSubmodule = (moduleIndex, submoduleIndex) => {
+    setCourseEditDraft((current) => {
+      if (!current) return current
+      const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+      const module = { ...(nextModules[moduleIndex] || {}) }
+      module.submodules = (Array.isArray(module.submodules) ? module.submodules : []).filter((_, index) => index !== submoduleIndex)
+      nextModules[moduleIndex] = module
+      return { ...current, modules: nextModules }
+    })
+  }
+
+  const handleSaveCourseEditChanges = async () => {
+    if (!selectedCourse?.id || !courseEditDraft) return
+
+    if (!currentCourseEditRequest?.id) {
+      setCourseEditError('Please wait for the approved edit request to load.')
+      return
+    }
+
+    const normalizedModules = (Array.isArray(courseEditDraft.modules) ? courseEditDraft.modules : []).map((module, moduleIndex) => ({
+      ...cloneFacultyEditModule(module, moduleIndex),
+      submodules: (Array.isArray(module?.submodules) ? module.submodules : []).map((submodule, subIndex) =>
+        cloneFacultyEditSubmodule(submodule, subIndex),
+      ),
+    }))
+
+    setIsCourseEditSaving(true)
+    setCourseEditError('')
+
+    try {
+      const payload = {
+        branchCourseId: selectedCourse.id,
+        modules: normalizedModules,
+        courseModels: normalizedModules,
+        models: normalizedModules,
+      }
+      const response = await saveCourseEditRequestModules(currentCourseEditRequest.id, payload)
+      const updatedCourse = response?.course || selectedCourse
+      const updatedModules = cloneFacultyEditModules(updatedCourse || payload)
+      const nextCourseCatalog = courseCatalog.map((course) =>
+        String(course.id || '').trim() === String(selectedCourse.id || '').trim()
+          ? {
+              ...course,
+              ...updatedCourse,
+              models: updatedModules,
+              courseModels: updatedModules,
+              modules: updatedModules,
+            }
+          : course,
+      )
+
+      setCourseCatalog(nextCourseCatalog)
+      saveBranchCourseSnapshot(nextCourseCatalog)
+      clearBranchCourseListCache()
+
+      if (response?.request) {
+        setCourseEditRequests((current) =>
+          current.map((request) =>
+            String(request.id || '').trim() === String(response.request.id || '').trim()
+              ? response.request
+              : request,
+          ),
+        )
+      }
+
+      setCourseActionSuccess('Course modules saved successfully.')
+      setIsCourseEditModalOpen(false)
+      setCourseEditDraft(null)
+    } catch (error) {
+      console.error('Failed to save course edit changes', error)
+      setCourseEditError('Unable to save changes right now.')
+    } finally {
+      setIsCourseEditSaving(false)
+    }
+  }
+
+  const currentCourseEditRequest = (() => {
+    const courseId = String(selectedCourse?.id || '').trim()
+    const facultyId = String(facultyDetails?.id || '').trim()
+    const facultyEmail = String(facultyDetails?.email || '').trim().toLowerCase()
+
+    const matchingRequests = courseEditRequests
+      .filter((request) => {
+        const requestCourseId = String(request.branchCourseId || request.courseId || '').trim()
+        if (courseId && requestCourseId && requestCourseId !== courseId) return false
+        if (facultyId && String(request.facultyId || '').trim() === facultyId) return true
+        if (facultyEmail && String(request.facultyEmail || '').trim().toLowerCase() === facultyEmail) return true
+        return !facultyId && !facultyEmail
+      })
+      .sort((left, right) => new Date(right.updatedAt || right.createdAt).getTime() - new Date(left.updatedAt || left.createdAt).getTime())
+
+    return matchingRequests[0] || null
+  })()
+
+  const courseEditStatus = String(currentCourseEditRequest?.requestStatus || currentCourseEditRequest?.status || '').trim().toLowerCase()
+  const canOpenCourseEditor = courseEditStatus === 'accepted' || courseEditStatus === 'editing'
+  const isCourseEditPending = courseEditStatus === 'pending'
+  const isCourseEditCompleted = courseEditStatus === 'completed'
 
   const visibleNotifications = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -1140,9 +1524,28 @@ useEffect(() => {
                           <div className="faculty-course-hero-title-row">
                             <h3 className="faculty-course-hero-title">{selectedCourse?.name || selectedCourse?.courseName || 'Course'}</h3>
 
-                            <button type="button" className="faculty-course-edit-request-btn faculty-course-edit-request-btn--hero">
+                            <button
+                              type="button"
+                              className="faculty-course-edit-request-btn faculty-course-edit-request-btn--hero"
+                              onClick={
+                                canOpenCourseEditor
+                                  ? openCourseEditModal
+                                  : isCourseEditCompleted
+                                    ? openCourseRequestModal
+                                    : openCourseRequestModal
+                              }
+                              disabled={isCourseEditSaving || isCourseRequestSaving}
+                            >
                               <Pencil size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-                              <span>Edit request</span>
+                              <span>
+                                {canOpenCourseEditor
+                                  ? 'Open Edit'
+                                  : isCourseEditPending
+                                    ? 'Request Pending'
+                                    : isCourseEditCompleted
+                                      ? 'Request Completed'
+                                    : 'Edit Request'}
+                              </span>
                             </button>
                           </div>
                         </div>
@@ -1193,6 +1596,11 @@ useEffect(() => {
                       </section>
 
                       <section className="faculty-course-curriculum-shell">
+                        {courseActionSuccess ? (
+                          <div className="faculty-course-action-success" role="status" aria-live="polite">
+                            {courseActionSuccess}
+                          </div>
+                        ) : null}
                         <div className="faculty-course-curriculum">
                           <div className="faculty-course-curriculum-toolbar">
                             <div>
@@ -1579,6 +1987,206 @@ useEffect(() => {
           </main>
         </div>
       </div>
+
+      {isCourseRequestModalOpen ? (
+        <div className="faculty-course-request-backdrop branch-modal-backdrop" role="presentation">
+          <div
+            className="faculty-course-request-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-course-request-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="faculty-course-request-close"
+              aria-label="Close edit request"
+              onClick={() => setIsCourseRequestModalOpen(false)}
+            >
+              ×
+            </button>
+
+            <div className="faculty-course-request-header">
+              <p className="faculty-course-request-kicker">Edit Request</p>
+              <h3 id="faculty-course-request-title">{selectedCourse?.name || selectedCourse?.courseName || 'Course'} request</h3>
+              <p className="faculty-course-request-subtitle">
+                Request permission to edit only the modules and submodules. Course basic details remain locked.
+              </p>
+            </div>
+
+            <form className="faculty-course-request-form" onSubmit={handleSendCourseEditRequest}>
+              <label className="faculty-course-request-field">
+                <span>Request title / reason</span>
+                <textarea
+                  value={courseRequestForm.reason}
+                  onChange={(event) =>
+                    setCourseRequestForm((current) => ({
+                      ...current,
+                      reason: event.target.value,
+                    }))
+                  }
+                  placeholder="Example: Need to update Module 2 and Sub Module 3 content"
+                />
+              </label>
+
+              <label className="faculty-course-request-field">
+                <span>Description</span>
+                <textarea
+                  value={courseRequestForm.description}
+                  onChange={(event) =>
+                    setCourseRequestForm((current) => ({
+                      ...current,
+                      description: event.target.value,
+                    }))
+                  }
+                  placeholder="Describe exactly what should be changed in the module / submodule structure."
+                />
+              </label>
+
+              {courseRequestError ? <div className="faculty-course-request-status">{courseRequestError}</div> : null}
+
+              <div className="faculty-course-request-actions">
+                <button type="button" className="faculty-course-request-cancel" onClick={() => setIsCourseRequestModalOpen(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="faculty-course-request-submit" disabled={isCourseRequestSaving}>
+                  {isCourseRequestSaving ? 'Sending...' : 'Send Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isCourseEditModalOpen && courseEditDraft ? (
+        <div className="faculty-course-edit-backdrop branch-modal-backdrop" role="presentation">
+          <div
+            className="faculty-course-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-course-edit-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="faculty-course-edit-close"
+              aria-label="Close course editor"
+              onClick={() => setIsCourseEditModalOpen(false)}
+            >
+              ×
+            </button>
+
+            <div className="faculty-course-edit-header">
+              <p className="faculty-course-edit-kicker">Open Edit</p>
+              <h3 id="faculty-course-edit-title">{courseEditDraft.courseName}</h3>
+              <p className="faculty-course-edit-subtitle">
+                Course basic details are locked. You can only change modules and submodules here.
+              </p>
+            </div>
+
+            <div className="faculty-course-edit-body">
+              <div className="faculty-course-edit-status">
+                Locked fields: Course Name, Course Code, Duration, Fee, Mode, Hours
+              </div>
+
+              <div className="faculty-course-edit-list">
+                {Array.isArray(courseEditDraft.modules) && courseEditDraft.modules.length ? (
+                  courseEditDraft.modules.map((module, moduleIndex) => {
+                    const submodules = Array.isArray(module.submodules) ? module.submodules : []
+
+                    return (
+                      <article key={module.id || moduleIndex} className="faculty-course-edit-card">
+                        <div className="faculty-course-edit-card-head">
+                          <span className="faculty-course-edit-badge">{String(moduleIndex + 1).padStart(2, '0')}</span>
+                          <input
+                            type="text"
+                            className="faculty-course-edit-input faculty-course-edit-input--module"
+                            value={module.name || ''}
+                            onChange={(event) => updateCourseEditModule(moduleIndex, 'name', event.target.value)}
+                            placeholder={`Module ${moduleIndex + 1}`}
+                          />
+                          <button
+                            type="button"
+                            className="faculty-course-edit-text-button is-danger"
+                            onClick={() => removeCourseEditModule(moduleIndex)}
+                            disabled={courseEditDraft.modules.length === 1}
+                          >
+                            Remove
+                          </button>
+                        </div>
+
+                        <div className="faculty-course-edit-submodule-list">
+                          {submodules.length ? (
+                            submodules.map((submodule, submoduleIndex) => (
+                              <div key={submodule.id || submoduleIndex} className="faculty-course-edit-submodule-row">
+                                <span className="faculty-course-edit-submodule-index">
+                                  {String(submoduleIndex + 1).padStart(2, '0')}
+                                </span>
+                                <input
+                                  type="text"
+                                  className="faculty-course-edit-input faculty-course-edit-input--submodule"
+                                  value={submodule.name || ''}
+                                  onChange={(event) =>
+                                    updateCourseEditSubmodule(moduleIndex, submoduleIndex, 'name', event.target.value)
+                                  }
+                                  placeholder={`Submodule ${submoduleIndex + 1}`}
+                                />
+                                <div className="faculty-course-edit-submodule-actions">
+                                  <button
+                                    type="button"
+                                    className="faculty-course-edit-icon-btn is-danger"
+                                    onClick={() => removeCourseEditSubmodule(moduleIndex, submoduleIndex)}
+                                    disabled={submodules.length === 1}
+                                    aria-label={`Remove submodule ${submoduleIndex + 1}`}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            <div className="faculty-course-edit-empty">No submodules yet. Add one below.</div>
+                          )}
+
+                          <button
+                            type="button"
+                            className="faculty-course-edit-add-submodule"
+                            onClick={() => addCourseEditSubmodule(moduleIndex)}
+                          >
+                            + Add Submodule
+                          </button>
+                        </div>
+                      </article>
+                    )
+                  })
+                ) : (
+                  <div className="faculty-course-edit-empty">No modules found for this course yet.</div>
+                )}
+              </div>
+
+              <button type="button" className="faculty-course-edit-add-module" onClick={addCourseEditModule}>
+                + Add Module
+              </button>
+
+              {courseEditError ? <div className="faculty-course-edit-status">{courseEditError}</div> : null}
+
+              <div className="faculty-course-edit-actions">
+                <button type="button" className="faculty-course-edit-cancel" onClick={() => setIsCourseEditModalOpen(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="faculty-course-edit-save"
+                  onClick={handleSaveCourseEditChanges}
+                  disabled={isCourseEditSaving}
+                >
+                  {isCourseEditSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {isLogoutConfirmOpen ? (
         <div className="branch-modal-backdrop" role="presentation">

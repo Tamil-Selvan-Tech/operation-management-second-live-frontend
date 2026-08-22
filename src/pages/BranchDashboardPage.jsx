@@ -43,6 +43,7 @@ import { request, setImpersonateBranchId } from '../services/apiClient'
 import { getCurrentBranchProfile } from '../services/branchService'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import {
+  clearBranchCourseListCache,
   assignFacultyToBranchCourse,
   createBranchCourse,
   deleteBranchCourse,
@@ -55,7 +56,8 @@ import {
 } from '../lib/branchCourseSnapshot'
 import {
   acceptCourseEditRequest,
-} from '../lib/courseEditRequestStore'
+  listCourseEditRequests,
+} from '../services/courseEditRequestService'
 import {
   loadBranchStudents,
   refreshBranchStudents,
@@ -371,13 +373,20 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
                   <small>{item.time}</small>
                 </div>
                 <p>{item.message}</p>
+                {item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request' ? (
+                  <div className="notification-copy">
+                    {item.requestTitle ? <small><strong>Title:</strong> {item.requestTitle}</small> : null}
+                    {item.requestReason ? <small><strong>Reason:</strong> {item.requestReason}</small> : null}
+                    {item.requestDescription ? <small><strong>Description:</strong> {item.requestDescription}</small> : null}
+                  </div>
+                ) : null}
               </div>
 
               <div className="notifications-item-meta">
                 <span className={`notifications-item-chip tone-${item.tone}`}>
                   {item.categoryLabel || item.actionLabel || 'View'}
                 </span>
-                {item.kind === 'branch-course-edit-request' && item.requestStatus !== 'accepted' ? (
+                {item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request' ? (
                   <button
                     type="button"
                     className="notifications-item-view-button"
@@ -1154,6 +1163,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   useEffect(() => {
     const unsubscribe = subscribeBranchCourseSnapshot(() => {
+      clearBranchCourseListCache()
       void loadBranchCourses()
     })
 
@@ -1341,7 +1351,12 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     () =>
       branchNotificationRecords
         .map(normalizeBranchNotification)
-        .filter((notification) => String(notification.kind || '').startsWith('branch-') || String(notification.kind || '') === 'faculty-login'),
+        .filter(
+          (notification) =>
+            String(notification.kind || '').startsWith('branch-') ||
+            String(notification.kind || '').startsWith('course-edit-') ||
+            String(notification.kind || '') === 'faculty-login',
+        ),
     [branchNotificationRecords],
   )
   const branchNotificationSections = useMemo(
@@ -1425,14 +1440,68 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     goToBranchSection(targetSection)
   }
 
-  const acceptBranchCourseEditNotification = async (notification) => {
-    if (!notification?.requestId && !notification?.id) return
+  const resolveCourseEditRequestId = async (notification) => {
+    const directRequestId = String(notification?.requestId || '').trim()
+    if (directRequestId) return directRequestId
 
-    const requestId = String(notification.requestId || notification.id || '').trim()
+    const courseId = String(notification?.courseId || '').trim()
+    const courseCode = String(notification?.courseCode || '').trim().toLowerCase()
+    const courseName = String(notification?.courseName || '').trim().toLowerCase()
+    const facultyId = String(notification?.facultyId || '').trim()
+    const facultyEmail = String(notification?.facultyEmail || '').trim().toLowerCase()
+    const facultyName = String(notification?.facultyName || '').trim().toLowerCase()
+
+    const response = await listCourseEditRequests({ page: 1, limit: 100 })
+    const requests = Array.isArray(response?.data) ? response.data : []
+
+    const matches = requests.filter((requestItem) => {
+      const requestCourseId = String(requestItem?.branchCourseId || requestItem?.courseId || '').trim()
+      const requestCourseCode = String(requestItem?.courseCode || '').trim().toLowerCase()
+      const requestCourseName = String(requestItem?.courseName || '').trim().toLowerCase()
+      const requestFacultyId = String(requestItem?.facultyId || requestItem?.facultyUserId || '').trim()
+      const requestFacultyEmail = String(requestItem?.facultyEmail || '').trim().toLowerCase()
+      const requestFacultyName = String(requestItem?.facultyName || '').trim().toLowerCase()
+
+      const courseChecks = [
+        courseId && requestCourseId ? requestCourseId === courseId : null,
+        courseCode && requestCourseCode ? requestCourseCode === courseCode : null,
+        courseName && requestCourseName ? requestCourseName === courseName : null,
+      ].filter((value) => value !== null)
+
+      const facultyChecks = [
+        facultyId && requestFacultyId ? requestFacultyId === facultyId : null,
+        facultyEmail && requestFacultyEmail ? requestFacultyEmail === facultyEmail : null,
+        facultyName && requestFacultyName ? requestFacultyName === facultyName : null,
+      ].filter((value) => value !== null)
+
+      const hasCourseCriteria = courseChecks.length > 0
+      const hasFacultyCriteria = facultyChecks.length > 0
+      const courseMatches = !hasCourseCriteria || courseChecks.some(Boolean)
+      const facultyMatches = !hasFacultyCriteria || facultyChecks.some(Boolean)
+
+      return courseMatches && facultyMatches
+    })
+
+    const sortedMatches = matches.sort(
+      (left, right) => new Date(right.updatedAt || right.requestedAt || right.createdAt || 0).getTime() -
+        new Date(left.updatedAt || left.requestedAt || left.createdAt || 0).getTime(),
+    )
+
+    return String(sortedMatches[0]?.id || '').trim()
+  }
+
+  const acceptBranchCourseEditNotification = async (notification) => {
+    let requestId = ''
 
     try {
-      const acceptedRequest = acceptCourseEditRequest(requestId, {
-        sourceNotificationId: String(notification.id || '').trim(),
+      requestId = await resolveCourseEditRequestId(notification)
+      if (!requestId) {
+        setCourseActionError('Unable to find the edit request to accept.')
+        return
+      }
+
+      const acceptedRequest = await acceptCourseEditRequest(requestId, {
+        responseNote: 'Accepted by branch admin',
       })
 
       if (acceptedRequest?.id) {
@@ -1450,6 +1519,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
               : item,
           ),
         )
+        await loadBranchNotifications()
       }
 
       await openBranchNotificationTarget({
@@ -2720,7 +2790,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                     branchNotificationPreviewItems.map((item) => {
                       const Icon = item.icon
                       const isCourseEditRequest =
-                        item.kind === 'branch-course-edit-request' && item.requestStatus !== 'accepted'
+                        (item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request') &&
+                        item.requestStatus !== 'accepted'
 
                       return (
                         <div
@@ -2743,6 +2814,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                               <button
                                 type="button"
                                 className="notification-dropdown-accept"
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => event.stopPropagation()}
                                 onClick={() => acceptBranchCourseEditNotification(item)}
                               >
                                 Accept
@@ -2751,6 +2824,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                             <button
                               type="button"
                               className="notification-dropdown-view"
+                              onMouseDown={(event) => event.stopPropagation()}
+                              onPointerDown={(event) => event.stopPropagation()}
                               onClick={() => openBranchNotificationTarget(item)}
                             >
                               View

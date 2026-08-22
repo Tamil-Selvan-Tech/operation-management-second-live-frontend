@@ -45,6 +45,9 @@ const normalizeNotification = (notification = {}) => {
     courseName: String(notification.courseName || '').trim(),
     requestId: String(notification.requestId || '').trim(),
     requestStatus: String(notification.requestStatus || '').trim(),
+    requestTitle: String(notification.requestTitle || '').trim(),
+    requestReason: String(notification.requestReason || '').trim(),
+    requestDescription: String(notification.requestDescription || '').trim(),
     requestedChanges: String(notification.requestedChanges || '').trim(),
     sourceNotificationId: String(notification.sourceNotificationId || '').trim(),
     changeSummary: String(notification.changeSummary || '').trim(),
@@ -62,6 +65,7 @@ export function loadNotifications() {
     .map(normalizeNotification)
     .filter((notification) =>
       String(notification.kind || '').startsWith('branch-') ||
+      String(notification.kind || '').startsWith('course-edit-') ||
       String(notification.kind || '') === 'faculty-login',
     )
 
