@@ -206,19 +206,12 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
       } else {
         await createBranchInstallmentTemplate(payload)
       }
-
       const wasEditing = Boolean(editingTemplateId)
 
-if (editingTemplateId) {
-  await updateBranchInstallmentTemplate(editingTemplateId, payload)
-} else {
-  await createBranchInstallmentTemplate(payload)
-}
+      resetForm()
+      setIsCreateOpen(false)
 
-resetForm()
-setIsCreateOpen(false)
-
-await loadTemplates(wasEditing ? page : 1)
+      await loadTemplates(wasEditing ? page : 1)
     } catch (err) {
       setError(err?.message || 'Unable to save installment template.')
     } finally {
@@ -480,158 +473,82 @@ await loadTemplates(wasEditing ? page : 1)
 ) : null}
 
   {/* Saved Templates */}
-  <div className="installment-card installment-list-card">
-    <div className="installment-card-header">
-      <div>
-        <p className="installment-card-label">Saved Templates</p>
-        <h3>Reusable plans</h3>
-      </div>
-
-      <button
-        type="button"
-        className="installment-reset-button"
-        onClick={() => void loadTemplates(page)}
-      >
-        <RefreshCcw size={14} strokeWidth={2.2} />
-        Refresh
-      </button>
-    </div>
-
-    <div className="installment-filter-row">
-      <input
-        type="text"
-        placeholder="Search templates"
-        value={searchTerm}
-        onChange={(event) => setSearchTerm(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault()
-            void loadTemplates(1)
-          }
-        }}
-      />
-
-      <select
-        value={statusFilter}
-        onChange={(event) => setStatusFilter(event.target.value)}
-      >
-        <option value="">All Status</option>
-
-        {STATUS_OPTIONS.map((option) => (
-          <option key={option} value={option}>
-            {option === 'ACTIVE' ? 'Active' : 'Inactive'}
-          </option>
-        ))}
-      </select>
-    </div>
-
-    {/* Existing templates list */}
-    {loading ? (
-      <div className="installment-empty-state">
-        Loading templates...
-      </div>
-    ) : templates.length ? (
-      <div className="installment-list">
-        {templates.map((template) => (
-          <article
-            key={template.id}
-            className="installment-list-item"
-          >
-            <div className="installment-list-item-head">
-              <div>
-                <strong>{template.templateName}</strong>
-
-                <span>
-                  <BadgeInfo size={12} strokeWidth={2.2} />
-                  {template.planType === 'FULL_PAYMENT'
-                    ? 'Full Payment'
-                    : 'Customize'}{' '}
-                  • {template.installmentCount} installments
-                </span>
-              </div>
-
-              <span
-                className={`installment-status ${String(
-                  template.status || 'ACTIVE'
-                ).toLowerCase()}`}
-              >
-                {template.status === 'ACTIVE'
-                  ? 'Active'
-                  : 'Inactive'}
-              </span>
-            </div>
-
-            <div className="installment-list-meta">
-              <span>
-                <Shield size={12} strokeWidth={2.3} />
-                {template.dueRule || 'Admission'}
-              </span>
-
-              <span>
-                <CalendarDays size={12} strokeWidth={2.3} />
-                {template.course?.name || 'Standalone template'}
-              </span>
-            </div>
-
-            <div className="installment-list-actions">
-              <button
-                type="button"
-                className="installment-inline-action"
-                onClick={() => startEdit(template)}
-              >
-                <Pencil size={14} strokeWidth={2.3} />
-                Edit
-              </button>
-
-              <button
-                type="button"
-                className="installment-inline-action is-danger"
-                onClick={() => confirmDelete(template)}
-              >
-                <Trash2 size={14} strokeWidth={2.3} />
-                Delete
-              </button>
-            </div>
-          </article>
-        ))}
-      </div>
-    ) : (
-      <div className="installment-empty-state">
-        No installment templates yet.
-      </div>
-    )}
-
-    <PaginationBar
-      currentPage={page}
-      totalPages={totalPages}
-      onPageChange={(nextPage) => void loadTemplates(nextPage)}
-      label="Installment template pagination"
-    />
+  <div className="installment-template-table">
+  <div className="installment-template-table-head">
+    <span>Template</span>
+    <span>Installments</span>
+    <span>Due Rule</span>
+    <span>Status</span>
+    <span>Actions</span>
   </div>
-</div>
-     
 
-      {deleteTarget ? (
-        <div className="installment-modal-backdrop" role="presentation">
-          <div className="installment-delete-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
-            <div className="installment-delete-modal-icon">
-              <Trash2 size={28} strokeWidth={2.2} />
-            </div>
-            <h3>Delete template?</h3>
-            <p>
-              {deleteTarget.templateName} will be removed from the template list.
-            </p>
-            <div className="installment-delete-actions">
-              <button type="button" className="installment-inline-action" onClick={() => setDeleteTarget(null)}>
-                Cancel
-              </button>
-              <button type="button" className="installment-inline-action is-danger" onClick={handleDelete} disabled={saving}>
-                Delete
-              </button>
-            </div>
+  {templates.map((template) => (
+    <div
+      key={template.id}
+      className="installment-template-table-row"
+    >
+      {/* Template */}
+      <div className="installment-template-name">
+        <strong>{template.templateName}</strong>
+      </div>
+
+      {/* Installments */}
+      <div className="installment-template-value">
+        {template.installmentCount}
+      </div>
+
+      {/* Due Rule */}
+      <div className="installment-template-value">
+        {template.dueRule || 'Admission'}
+      </div>
+
+      {/* Status */}
+      <div>
+        <span
+          className={`installment-status ${
+            String(template.status || 'ACTIVE').toLowerCase()
+          }`}
+        >
+          <span className="installment-status-dot" />
+          {template.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+        </span>
+      </div>
+
+      {/* Actions */}
+      <div className="installment-template-actions">
+        <details className="installment-action-menu">
+          <summary
+            aria-label={`Actions for ${template.templateName}`}
+          >
+            <span />
+            <span />
+            <span />
+          </summary>
+
+          <div className="installment-action-dropdown">
+            <button
+              type="button"
+              onClick={() => startEdit(template)}
+            >
+              <Pencil size={14} strokeWidth={2.2} />
+              Edit
+            </button>
+
+            <button
+              type="button"
+              className="is-danger"
+              onClick={() => confirmDelete(template)}
+            >
+              <Trash2 size={14} strokeWidth={2.2} />
+              Delete
+            </button>
           </div>
-        </div>
-      ) : null}
+        </details>
+      </div>
+    </div>
+  ))}
+</div>
+</div>
     </section>
   )
 }
