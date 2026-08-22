@@ -529,6 +529,7 @@ export function FacultyDashboardPage() {
   const [courseEditExpandedModuleIds, setCourseEditExpandedModuleIds] = useState([])
   const [courseEditInlineSubmodule, setCourseEditInlineSubmodule] = useState(null)
   const [courseEditPendingModuleId, setCourseEditPendingModuleId] = useState('')
+  const [courseEditDeleteConfirm, setCourseEditDeleteConfirm] = useState(null)
   const [courseRequestForm, setCourseRequestForm] = useState({
     title: '',
     reason: '',
@@ -920,6 +921,7 @@ useEffect(() => {
     setCourseEditExpandedModuleIds([])
     setCourseEditInlineSubmodule(null)
     setCourseEditPendingModuleId('')
+    setCourseEditDeleteConfirm(null)
     setIsCourseEditModalOpen(true)
   }
 
@@ -1115,16 +1117,80 @@ useEffect(() => {
       setCourseEditView('module')
       setCourseEditInlineSubmodule(null)
       setCourseEditPendingModuleId(newModuleId)
+      setCourseEditDeleteConfirm(null)
       return { ...current, modules: nextModules }
     })
   }
 
-  const removeCourseEditModule = (moduleIndex) => {
-    setCourseEditDraft((current) => {
-      if (!current) return current
-      const nextModules = (Array.isArray(current.modules) ? current.modules : []).filter((_, index) => index !== moduleIndex)
-      return { ...current, modules: nextModules }
+  const openCourseEditDeleteConfirm = (type, moduleIndex, submoduleIndex = null) => {
+    const safeModuleIndex = Number(moduleIndex)
+    const safeSubmoduleIndex = submoduleIndex === null ? null : Number(submoduleIndex)
+    setCourseEditDeleteConfirm({
+      type,
+      moduleIndex: Number.isInteger(safeModuleIndex) ? safeModuleIndex : 0,
+      submoduleIndex: Number.isInteger(safeSubmoduleIndex) ? safeSubmoduleIndex : null,
     })
+  }
+
+  const closeCourseEditDeleteConfirm = () => {
+    setCourseEditDeleteConfirm(null)
+  }
+
+  const confirmCourseEditDelete = () => {
+    if (!courseEditDeleteConfirm) return
+
+    const { type, moduleIndex, submoduleIndex } = courseEditDeleteConfirm
+
+    if (type === 'module') {
+      setCourseEditDraft((current) => {
+        if (!current) return current
+        const nextModules = (Array.isArray(current.modules) ? current.modules : []).filter((_, index) => index !== moduleIndex)
+        return { ...current, modules: nextModules }
+      })
+
+      setCourseEditActiveModuleIndex((current) => {
+        if (current === moduleIndex) return Math.max(0, moduleIndex - 1)
+        if (current > moduleIndex) return Math.max(0, current - 1)
+        return current
+      })
+      setCourseEditInlineSubmodule((current) => {
+        if (!current) return current
+        const currentModuleIndex = Number(current.moduleIndex)
+        if (currentModuleIndex === moduleIndex) return null
+        if (currentModuleIndex > moduleIndex) {
+          return { ...current, moduleIndex: currentModuleIndex - 1 }
+        }
+        return current
+      })
+      setCourseEditView('overview')
+    }
+
+    if (type === 'submodule') {
+      setCourseEditDraft((current) => {
+        if (!current) return current
+        const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+        const module = { ...(nextModules[moduleIndex] || {}) }
+        module.submodules = (Array.isArray(module.submodules) ? module.submodules : []).filter((_, index) => index !== submoduleIndex)
+        nextModules[moduleIndex] = module
+        return { ...current, modules: nextModules }
+      })
+
+      setCourseEditInlineSubmodule((current) => {
+        if (!current || Number(current.moduleIndex) !== moduleIndex) return current
+        if (Number(current.submoduleIndex) === submoduleIndex) return null
+        if (current.mode === 'edit' && Number(current.submoduleIndex) > submoduleIndex) {
+          return { ...current, submoduleIndex: Number(current.submoduleIndex) - 1 }
+        }
+        return current
+      })
+    }
+
+    setCourseEditDeleteConfirm(null)
+    setCourseEditPendingModuleId('')
+  }
+
+  const removeCourseEditModule = (moduleIndex) => {
+    openCourseEditDeleteConfirm('module', moduleIndex)
   }
 
   const cancelCourseEditModule = () => {
@@ -1153,14 +1219,7 @@ useEffect(() => {
   }
 
   const removeCourseEditSubmodule = (moduleIndex, submoduleIndex) => {
-    setCourseEditDraft((current) => {
-      if (!current) return current
-      const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
-      const module = { ...(nextModules[moduleIndex] || {}) }
-      module.submodules = (Array.isArray(module.submodules) ? module.submodules : []).filter((_, index) => index !== submoduleIndex)
-      nextModules[moduleIndex] = module
-      return { ...current, modules: nextModules }
-    })
+    openCourseEditDeleteConfirm('submodule', moduleIndex, submoduleIndex)
   }
 
   const handleSaveCourseEditChanges = async () => {
@@ -1191,13 +1250,20 @@ useEffect(() => {
         models: normalizedModules,
       }
       const response = await saveCourseEditRequestModules(currentCourseEditRequest.id, payload)
-      const updatedCourse = response?.course || selectedCourse
-      const updatedModules = cloneFacultyEditModules(updatedCourse || payload)
+      const updatedCourseRecord = response?.course || payload
+      const updatedModules = cloneFacultyEditModules(updatedCourseRecord)
+      const nextUpdatedCourse = {
+        ...selectedCourse,
+        ...response?.course,
+        models: updatedModules,
+        courseModels: updatedModules,
+        modules: updatedModules,
+      }
       const nextCourseCatalog = courseCatalog.map((course) =>
         String(course.id || '').trim() === String(selectedCourse.id || '').trim()
           ? {
               ...course,
-              ...updatedCourse,
+              ...nextUpdatedCourse,
               models: updatedModules,
               courseModels: updatedModules,
               modules: updatedModules,
@@ -1206,6 +1272,21 @@ useEffect(() => {
       )
 
       setCourseCatalog(nextCourseCatalog)
+      setBranchCourses((current) =>
+        Array.isArray(current)
+          ? current.map((course) =>
+              String(course.id || '').trim() === String(selectedCourse.id || '').trim()
+                ? {
+                    ...course,
+                    ...nextUpdatedCourse,
+                    models: updatedModules,
+                    courseModels: updatedModules,
+                    modules: updatedModules,
+                  }
+                : course,
+            )
+          : current,
+      )
       saveBranchCourseSnapshot(nextCourseCatalog)
       clearBranchCourseListCache()
 
@@ -2292,7 +2373,7 @@ useEffect(() => {
                                   <button
                                     type="button"
                                     className="faculty-course-edit-action-btn is-danger"
-                                    onClick={() => removeCourseEditModule(moduleIndex)}
+                                    onClick={() => openCourseEditDeleteConfirm('module', moduleIndex)}
                                     disabled={courseEditModules.length === 1}
                                     aria-label={`Delete module ${moduleIndex + 1}`}
                                   >
@@ -2439,7 +2520,7 @@ useEffect(() => {
                                     <button
                                       type="button"
                                       className="faculty-course-edit-icon-btn is-danger"
-                                      onClick={() => removeCourseEditSubmodule(courseEditActiveModuleIndex, submoduleIndex)}
+                                      onClick={() => openCourseEditDeleteConfirm('submodule', courseEditActiveModuleIndex, submoduleIndex)}
                                       aria-label={`Delete submodule ${submoduleIndex + 1}`}
                                     >
                                       🗑
@@ -2517,6 +2598,47 @@ useEffect(() => {
                     </button>
                   </div>
                 </section>
+              ) : null}
+
+              {courseEditDeleteConfirm ? (
+                <div className="faculty-course-delete-overlay" role="presentation" onClick={closeCourseEditDeleteConfirm}>
+                  <div
+                    className="faculty-course-delete-modal"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="faculty-course-delete-title"
+                    aria-describedby="faculty-course-delete-text"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className="faculty-course-delete-close"
+                      aria-label="Close delete confirmation"
+                      onClick={closeCourseEditDeleteConfirm}
+                    >
+                      ×
+                    </button>
+
+                    <p className="faculty-course-delete-kicker">Delete Confirmation</p>
+                    <h3 id="faculty-course-delete-title">
+                      {courseEditDeleteConfirm.type === 'module' ? 'Delete this module?' : 'Delete this submodule?'}
+                    </h3>
+                    <p id="faculty-course-delete-text" className="faculty-course-delete-text">
+                      {courseEditDeleteConfirm.type === 'module'
+                        ? 'This will remove the module from the current edit draft. Click OK only if you want to delete it.'
+                        : 'This will remove the submodule from the current edit draft. Click OK only if you want to delete it.'}
+                    </p>
+
+                    <div className="faculty-course-delete-actions">
+                      <button type="button" className="faculty-course-delete-cancel" onClick={closeCourseEditDeleteConfirm}>
+                        Cancel
+                      </button>
+                      <button type="button" className="faculty-course-delete-confirm" onClick={confirmCourseEditDelete}>
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : null}
 
               {courseEditError ? <div className="faculty-course-edit-status faculty-course-edit-status--error">{courseEditError}</div> : null}

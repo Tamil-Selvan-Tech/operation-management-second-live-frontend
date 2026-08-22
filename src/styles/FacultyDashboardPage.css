@@ -2549,13 +2549,13 @@
 }
 
 .faculty-course-delete-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 12;
+  z-index: 100001;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 28px;
+  padding: 24px;
   background: rgba(15, 23, 42, 0.18);
   backdrop-filter: blur(3px);
 }

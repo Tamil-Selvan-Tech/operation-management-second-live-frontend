@@ -2794,11 +2794,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         item.requestStatus !== 'accepted'
 
                       return (
-                        <div
+                          <div
                           key={item.id}
                           className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'} ${
                             isCourseEditRequest ? 'is-course-request' : ''
                           }`.trim()}
+                          onMouseDown={(event) => event.stopPropagation()}
+                          onPointerDown={(event) => event.stopPropagation()}
                         >
                           <span className={`notification-badge ${item.tone}`} aria-hidden="true">
                             <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
@@ -2809,13 +2811,18 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                             <small>{item.time}</small>
                           </div>
 
-                          <div className="notification-dropdown-item-actions">
+                          <div
+                            className="notification-dropdown-item-actions"
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
                             {isCourseEditRequest ? (
                               <button
                                 type="button"
                                 className="notification-dropdown-accept"
                                 onMouseDown={(event) => event.stopPropagation()}
                                 onPointerDown={(event) => event.stopPropagation()}
+                                onClickCapture={(event) => event.stopPropagation()}
                                 onClick={() => acceptBranchCourseEditNotification(item)}
                               >
                                 Accept
@@ -2826,6 +2833,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                               className="notification-dropdown-view"
                               onMouseDown={(event) => event.stopPropagation()}
                               onPointerDown={(event) => event.stopPropagation()}
+                              onClickCapture={(event) => event.stopPropagation()}
                               onClick={() => openBranchNotificationTarget(item)}
                             >
                               View
