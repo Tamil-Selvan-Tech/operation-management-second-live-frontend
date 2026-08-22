@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  ChevronRight,
   LayoutDashboard,
   Layers3,
   LogOut,
