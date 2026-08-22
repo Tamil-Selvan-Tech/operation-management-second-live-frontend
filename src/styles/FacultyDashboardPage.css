@@ -1376,7 +1376,18 @@
   box-shadow: 0 8px 16px rgba(15, 23, 42, 0.04);
   margin-top: 8px;
 }
+.faculty-course-edit-inline-save:hover {
+  background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
 
+.faculty-course-edit-inline-save:disabled {
+  background: linear-gradient(135deg, #2563eb, #3b82f6) !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+  cursor: pointer !important;
+}
 .faculty-course-edit-inline-save:hover {
   background: #eff6ff;
 }
@@ -1411,6 +1422,12 @@
 
 .faculty-course-edit-cancel {
   min-width: 96px;
+}
+.faculty-course-edit-field-error {
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
 }
 
 @media (max-width: 760px) {
