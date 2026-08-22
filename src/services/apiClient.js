@@ -1,3 +1,5 @@
+import { STORAGE_KEY } from '../data/authData'
+
 function isLocalhostLike(value) {
   const text = String(value || '').trim().toLowerCase()
   return (
@@ -28,6 +30,7 @@ export const API_BASE_URL =
 let accessToken = null
 let refreshToken = null
 let sessionExpiredHandler = null
+let sessionExpiredNotified = false
 export let impersonateBranchId = null
 
 export function setImpersonateBranchId(id) {
@@ -54,15 +57,46 @@ function parseFileNameFromContentDisposition(headerValue = '') {
 export function setAuthTokens(nextAccessToken, nextRefreshToken = null) {
   accessToken = nextAccessToken || null
   refreshToken = nextRefreshToken || null
+  sessionExpiredNotified = false
 }
 
 export function clearAuthTokens() {
   accessToken = null
   refreshToken = null
+  sessionExpiredNotified = false
 }
 
 export function setSessionExpiredHandler(handler) {
   sessionExpiredHandler = handler
+}
+
+function hydrateAuthTokensFromSessionStorage() {
+  if (accessToken && refreshToken) {
+    return true
+  }
+
+  if (typeof window === 'undefined' || !window.sessionStorage) {
+    return false
+  }
+
+  try {
+    const session = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) || 'null')
+    if (!session?.token) {
+      return false
+    }
+
+    accessToken = session.token || null
+    refreshToken = session.refreshToken || null
+    return Boolean(accessToken)
+  } catch {
+    return false
+  }
+}
+
+function notifySessionExpiredOnce() {
+  if (sessionExpiredNotified) return
+  sessionExpiredNotified = true
+  sessionExpiredHandler?.()
 }
 
 async function request(path, options = {}, retryCount = 0) {
@@ -74,6 +108,10 @@ async function request(path, options = {}, retryCount = 0) {
     didTimeout = true
     controller.abort()
   }, REQUEST_TIMEOUT_MS)
+
+  if (skipAuth !== true) {
+    hydrateAuthTokensFromSessionStorage()
+  }
 
   if (skipAuth !== true && accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`)
@@ -113,7 +151,7 @@ async function request(path, options = {}, retryCount = 0) {
     }
 
     if (response.status === 401) {
-      sessionExpiredHandler?.()
+      notifySessionExpiredOnce()
     }
 
     if (response.status === 304) {
@@ -166,6 +204,7 @@ export async function getMe() {
 }
 
 export async function refreshAccessToken() {
+  hydrateAuthTokensFromSessionStorage()
   const headers = {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache',
@@ -192,7 +231,7 @@ export async function refreshAccessToken() {
     })
 
     if (!response.ok) {
-      sessionExpiredHandler?.()
+      notifySessionExpiredOnce()
       return null
     }
 
@@ -221,6 +260,7 @@ export async function refreshSession() {
 
 export async function logoutSession() {
   try {
+    hydrateAuthTokensFromSessionStorage()
     await request('/auth/logout', {
       method: 'POST',
       skipAuth: true,
@@ -279,6 +319,10 @@ export async function requestBlob(path, options = {}, retryCount = 0) {
     controller.abort()
   }, REQUEST_TIMEOUT_MS)
 
+  if (skipAuth !== true) {
+    hydrateAuthTokensFromSessionStorage()
+  }
+
   if (skipAuth !== true && accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`)
   }
@@ -313,7 +357,7 @@ export async function requestBlob(path, options = {}, retryCount = 0) {
     }
 
     if (response.status === 401) {
-      sessionExpiredHandler?.()
+      notifySessionExpiredOnce()
     }
 
     if (response.status === 304) {
