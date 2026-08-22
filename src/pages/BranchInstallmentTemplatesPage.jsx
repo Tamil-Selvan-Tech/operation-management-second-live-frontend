@@ -46,6 +46,7 @@ function createEmptyTemplateForm() {
     templateName: '',
     installmentCount: '1',
     dueRule: 'Admission',
+    customDueRule: '',
     allowCustomization: true,
     status: 'ACTIVE',
   }
@@ -206,8 +207,18 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
         await createBranchInstallmentTemplate(payload)
       }
 
-      resetForm()
-      await loadTemplates(editingTemplateId ? page : 1)
+      const wasEditing = Boolean(editingTemplateId)
+
+if (editingTemplateId) {
+  await updateBranchInstallmentTemplate(editingTemplateId, payload)
+} else {
+  await createBranchInstallmentTemplate(payload)
+}
+
+resetForm()
+setIsCreateOpen(false)
+
+await loadTemplates(wasEditing ? page : 1)
     } catch (err) {
       setError(err?.message || 'Unable to save installment template.')
     } finally {
@@ -261,11 +272,9 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
             type="button"
             className="installment-reset-button"
             onClick={() => {
-              setIsCreateOpen((current) => !current)
-              if (isCreateOpen) {
-                resetForm()
-              }
-            }}
+  resetForm()
+  setIsCreateOpen(true)
+}}
           >
             <CirclePlus size={14} strokeWidth={2.2} />
             {isCreateOpen ? 'Hide Form' : 'Create Template'}
@@ -275,30 +284,57 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
       </div>
 <div className="installment-page-layout">
   {isCreateOpen ? (
-    <div className="installment-card installment-form-card">
+  <div className="installment-modal-backdrop">
+    <div
+      className="installment-create-modal"
+      role="dialog"
+      aria-modal="true"
+      onClick={(event) => event.stopPropagation()}
+    >
       <div className="installment-card-header">
         <div>
-          <p className="installment-card-label">Installment Template</p>
+          <p className="installment-card-label">
+            Installment Template
+          </p>
+
           <h3>
             {editingTemplateId
               ? 'Edit Installment Template'
               : 'Create Installment Template'}
           </h3>
         </div>
+
+        <button
+          type="button"
+          className="installment-modal-close"
+          onClick={() => {
+            setIsCreateOpen(false)
+            resetForm()
+          }}
+        >
+          <X size={18} strokeWidth={2.2} />
+        </button>
       </div>
 
       <div className="installment-form-grid">
+
         <Field
           label="Plan Name"
           required
           hint="Example: 3 Installments Plan"
-          error={shouldShowError('templateName') ? validation.errors.templateName : ''}
+          error={
+            shouldShowError('templateName')
+              ? validation.errors.templateName
+              : ''
+          }
         >
           <input
             type="text"
             placeholder="Two Installments"
             value={form.templateName}
-            onChange={(event) => updateField('templateName', event.target.value)}
+            onChange={(event) =>
+              updateField('templateName', event.target.value)
+            }
             onBlur={() => markTouched('templateName')}
           />
         </Field>
@@ -307,49 +343,103 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
           label="Installment Count"
           required
           hint="1 = Full Payment, 2 or more = Customize"
-          error={shouldShowError('installmentCount') ? validation.errors.installmentCount : ''}
+          error={
+            shouldShowError('installmentCount')
+              ? validation.errors.installmentCount
+              : ''
+          }
         >
           <input
             type="text"
             inputMode="numeric"
             placeholder="3"
             value={form.installmentCount}
-            onChange={(event) => updateField('installmentCount', event.target.value)}
-            onFocus={(event) => event.currentTarget.select()}
-            onClick={(event) => event.currentTarget.select()}
-            onBlur={() => markTouched('installmentCount')}
+            onChange={(event) =>
+              updateField(
+                'installmentCount',
+                event.target.value
+              )
+            }
+            onFocus={(event) =>
+              event.currentTarget.select()
+            }
+            onClick={(event) =>
+              event.currentTarget.select()
+            }
+            onBlur={() =>
+              markTouched('installmentCount')
+            }
           />
         </Field>
 
-      
-
-        <Field label="Due Rule" hint="Default timing rule for the plan">
+        <Field
+          label="Due Rule"
+          hint="Default timing rule for the plan"
+        >
           <select
             value={form.dueRule}
-            onChange={(event) => updateField('dueRule', event.target.value)}
+            onChange={(event) => {
+              updateField(
+                'dueRule',
+                event.target.value
+              )
+
+              if (event.target.value !== 'Custom') {
+                updateField('customDueRule', '')
+              }
+            }}
           >
             {DUE_RULE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
+              <option
+                key={option}
+                value={option}
+              >
                 {option}
               </option>
             ))}
           </select>
+
+          {form.dueRule === 'Custom' ? (
+            <input
+              type="text"
+              placeholder="Enter custom due rule"
+              value={form.customDueRule}
+              onChange={(event) =>
+                updateField(
+                  'customDueRule',
+                  event.target.value
+                )
+              }
+            />
+          ) : null}
         </Field>
 
-        
-
-        <Field label="Status" hint="Template activation state">
+        <Field
+          label="Status"
+          hint="Template activation state"
+        >
           <select
             value={form.status}
-            onChange={(event) => updateField('status', event.target.value)}
+            onChange={(event) =>
+              updateField(
+                'status',
+                event.target.value
+              )
+            }
           >
             {STATUS_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option === 'ACTIVE' ? 'Active' : 'Inactive'}
+              <option
+                key={option}
+                value={option}
+              >
+                {option === 'ACTIVE'
+                  ? 'Active'
+                  : 'Inactive'}
               </option>
             ))}
           </select>
         </Field>
+
       </div>
 
       {error ? (
@@ -359,13 +449,17 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
       ) : null}
 
       <div className="installment-form-actions">
+
         <Button
           type="button"
           variant="ghost"
-          onClick={resetForm}
+          onClick={() => {
+            resetForm()
+            setIsCreateOpen(false)
+          }}
           disabled={saving}
         >
-          Reset
+          Cancel
         </Button>
 
         <Button
@@ -379,9 +473,11 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
               ? 'Update Template'
               : 'Create Template'}
         </Button>
+
       </div>
     </div>
-  ) : null}
+  </div>
+) : null}
 
   {/* Saved Templates */}
   <div className="installment-card installment-list-card">
