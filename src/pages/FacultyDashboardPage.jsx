@@ -44,7 +44,18 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import { loadBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
+import {
+  loadBranchCourseSnapshot,
+  mergeBranchCoursesWithSnapshot,
+  saveBranchCourseSnapshot,
+  subscribeBranchCourseSnapshot,
+} from '../lib/branchCourseSnapshot'
+import {
+  addCourseEditRequest,
+  loadCourseEditRequests,
+  recordCourseEditChange,
+  subscribeCourseEditRequests,
+} from '../lib/courseEditRequestStore'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -158,6 +169,36 @@ function buildCourseHierarchySummary(models = []) {
       })),
     }
   })
+}
+
+function cloneCourseHierarchyDraft(models = []) {
+  return Array.isArray(models)
+    ? models.map((model, modelIndex) => ({
+        id: String(model?.id || `module-${modelIndex + 1}`),
+        name: String(model?.name || '').trim(),
+        submodels: Array.isArray(model?.submodels)
+          ? model.submodels.map((submodel, submodelIndex) => ({
+              id: String(submodel?.id || `submodule-${modelIndex + 1}-${submodelIndex + 1}`),
+              name: String(submodel?.name || '').trim(),
+            }))
+          : [],
+      }))
+    : []
+}
+
+function createEmptyCourseModuleDraft(moduleIndex = 0) {
+  return {
+    id: `module-${Date.now()}-${moduleIndex + 1}`,
+    name: '',
+    submodels: [],
+  }
+}
+
+function createEmptyCourseSubmoduleDraft(moduleIndex = 0, submoduleIndex = 0) {
+  return {
+    id: `submodule-${Date.now()}-${moduleIndex + 1}-${submoduleIndex + 1}`,
+    name: '',
+  }
 }
 
 function CourseHierarchyList({ models = [] }) {
@@ -456,7 +497,10 @@ export function FacultyDashboardPage() {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isCourseEditRequestOpen, setIsCourseEditRequestOpen] = useState(false)
   const [courseEditRequestText, setCourseEditRequestText] = useState('')
-  const [courseEditRequestStatus, setCourseEditRequestStatus] = useState('')
+  const [courseEditRequests, setCourseEditRequests] = useState(() => loadCourseEditRequests())
+  const [isCourseEditEditorOpen, setIsCourseEditEditorOpen] = useState(false)
+  const [courseEditDraftModels, setCourseEditDraftModels] = useState([])
+  const [courseEditSaveMessage, setCourseEditSaveMessage] = useState('')
   const profileMenuRef = useRef(null)
   const notificationRef = useRef(null)
 
@@ -522,6 +566,14 @@ export function FacultyDashboardPage() {
 }, [])
 
   useEffect(() => {
+    const unsubscribe = subscribeCourseEditRequests(() => {
+      setCourseEditRequests(loadCourseEditRequests())
+    })
+
+    return unsubscribe
+  }, [])
+
+  useEffect(() => {
     let isMounted = true
 
     const loadFacultySummary = async () => {
@@ -553,13 +605,15 @@ export function FacultyDashboardPage() {
           sortOrder: 'desc',
         })
 
-        const nextCourses = Array.isArray(response?.data) && response.data.length ? response.data : loadBranchCourseSnapshot()
+        const nextCourses = mergeBranchCoursesWithSnapshot(
+          Array.isArray(response?.data) && response.data.length ? response.data : loadBranchCourseSnapshot(),
+        )
         if (!isMounted) return
         setBranchCourseCards(Array.isArray(nextCourses) ? nextCourses : [])
       } catch (error) {
         if (!isMounted) return
         console.error('Failed to load branch courses for faculty page', error)
-        setBranchCourseCards(loadBranchCourseSnapshot())
+        setBranchCourseCards(mergeBranchCoursesWithSnapshot(loadBranchCourseSnapshot()))
       }
     }
 
@@ -568,6 +622,30 @@ export function FacultyDashboardPage() {
     return () => {
       isMounted = false
     }
+  }, [])
+
+  useEffect(() => {
+    const unsubscribe = subscribeBranchCourseSnapshot(() => {
+      void (async () => {
+        try {
+          const response = await listBranchCourses({
+            page: 1,
+            limit: 100,
+            sortBy: 'createdAt',
+            sortOrder: 'desc',
+          })
+
+          const nextCourses = mergeBranchCoursesWithSnapshot(
+            Array.isArray(response?.data) && response.data.length ? response.data : loadBranchCourseSnapshot(),
+          )
+          setBranchCourseCards(Array.isArray(nextCourses) ? nextCourses : [])
+        } catch {
+          setBranchCourseCards(mergeBranchCoursesWithSnapshot(loadBranchCourseSnapshot()))
+        }
+      })()
+    })
+
+    return unsubscribe
   }, [])
 
   // Close notification dropdown when clicking outside
@@ -642,6 +720,31 @@ useEffect(() => {
     () => buildCourseHierarchySummary(selectedCourse?.models || selectedCourse?.courseModels || selectedCourse?.modules || []),
     [selectedCourse],
   )
+  const selectedCourseEditRequest = useMemo(() => {
+    const courseId = String(selectedCourse?.id || '').trim()
+    const facultyId = String(facultyDetails.id || user?.id || '').trim()
+    const facultyEmail = String(facultyDetails.email || user?.email || '').trim().toLowerCase()
+
+    if (!courseId) return null
+
+    return courseEditRequests
+      .filter((request) => {
+        if (String(request.courseId || '').trim() !== courseId) return false
+        const requestFacultyId = String(request.facultyId || '').trim()
+        const requestFacultyEmail = String(request.facultyEmail || '').trim().toLowerCase()
+
+        if (facultyId && requestFacultyId && requestFacultyId === facultyId) return true
+        if (facultyEmail && requestFacultyEmail && requestFacultyEmail === facultyEmail) return true
+        return !facultyId && !facultyEmail
+      })
+      .sort((left, right) => new Date(right.updatedAt || right.createdAt).getTime() - new Date(left.updatedAt || left.createdAt).getTime())[0] || null
+  }, [courseEditRequests, facultyDetails.email, facultyDetails.id, selectedCourse, user?.email, user?.id])
+  const selectedCourseEditButtonLabel =
+    selectedCourseEditRequest?.requestStatus === 'accepted'
+      ? 'Open Edit'
+      : selectedCourseEditRequest?.requestStatus === 'pending'
+        ? 'Request Pending'
+        : 'Edit Request'
 
   // Mock statistics for the faculty member
   const stats = [
@@ -678,20 +781,156 @@ useEffect(() => {
   }
 
   const openCourseEditRequest = () => {
-    setCourseEditRequestText('')
-    setCourseEditRequestStatus('')
+    setCourseEditRequestText(selectedCourseEditRequest?.message || '')
     setIsCourseEditRequestOpen(true)
   }
 
   const closeCourseEditRequest = () => {
     setIsCourseEditRequestOpen(false)
     setCourseEditRequestText('')
-    setCourseEditRequestStatus('')
+  }
+
+  const openCourseEditEditor = () => {
+    setCourseEditDraftModels(cloneCourseHierarchyDraft(selectedCourseModels))
+    setCourseEditSaveMessage('')
+    setIsCourseEditEditorOpen(true)
+  }
+
+  const closeCourseEditEditor = () => {
+    setIsCourseEditEditorOpen(false)
+    setCourseEditSaveMessage('')
   }
 
   const handleCourseEditRequestSubmit = (event) => {
     event.preventDefault()
-    setCourseEditRequestStatus('submitted')
+    const request = addCourseEditRequest({
+      courseId: selectedCourse?.id || '',
+      courseCode: selectedCourse?.courseCode || '',
+      courseName: selectedCourse?.name || 'Data Science',
+      facultyId: facultyDetails.id || user?.id || '',
+      facultyName: facultyName || 'Faculty',
+      facultyEmail: facultyDetails.email || user?.email || '',
+      message: courseEditRequestText,
+    })
+
+    setCourseEditRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
+    setIsCourseEditRequestOpen(false)
+    setCourseEditRequestText('')
+  }
+
+  const handleCourseEditHeroAction = () => {
+    if (selectedCourseEditRequest?.requestStatus === 'accepted') {
+      openCourseEditEditor()
+      return
+    }
+
+    openCourseEditRequest()
+  }
+
+  const updateCourseEditDraftModuleName = (moduleIndex, value) => {
+    setCourseEditDraftModels((current) =>
+      current.map((module, index) =>
+        index === moduleIndex
+          ? {
+              ...module,
+              name: value,
+            }
+          : module,
+      ),
+    )
+  }
+
+  const addCourseEditDraftModule = () => {
+    setCourseEditDraftModels((current) => [...current, createEmptyCourseModuleDraft(current.length)])
+  }
+
+  const removeCourseEditDraftModule = (moduleIndex) => {
+    setCourseEditDraftModels((current) => current.filter((_, index) => index !== moduleIndex))
+  }
+
+  const addCourseEditDraftSubmodule = (moduleIndex) => {
+    setCourseEditDraftModels((current) =>
+      current.map((module, index) =>
+        index === moduleIndex
+          ? {
+              ...module,
+              submodels: [...(Array.isArray(module.submodels) ? module.submodels : []), createEmptyCourseSubmoduleDraft(moduleIndex, (module.submodels || []).length)],
+            }
+          : module,
+      ),
+    )
+  }
+
+  const updateCourseEditDraftSubmoduleName = (moduleIndex, submoduleIndex, value) => {
+    setCourseEditDraftModels((current) =>
+      current.map((module, index) =>
+        index === moduleIndex
+          ? {
+              ...module,
+              submodels: (Array.isArray(module.submodels) ? module.submodels : []).map((submodel, innerIndex) =>
+                innerIndex === submoduleIndex
+                  ? {
+                      ...submodel,
+                      name: value,
+                    }
+                  : submodel,
+              ),
+            }
+          : module,
+      ),
+    )
+  }
+
+  const removeCourseEditDraftSubmodule = (moduleIndex, submoduleIndex) => {
+    setCourseEditDraftModels((current) =>
+      current.map((module, index) =>
+        index === moduleIndex
+          ? {
+              ...module,
+              submodels: (Array.isArray(module.submodels) ? module.submodels : []).filter((_, innerIndex) => innerIndex !== submoduleIndex),
+            }
+          : module,
+      ),
+    )
+  }
+
+  const handleCourseEditSave = () => {
+    if (!selectedCourse?.id) return
+    if (!selectedCourseEditRequest?.id) return
+
+    const normalizedModels = cloneCourseHierarchyDraft(courseEditDraftModels)
+      .map((model) => ({
+        ...model,
+        name: String(model.name || '').trim(),
+        submodels: Array.isArray(model.submodels)
+          ? model.submodels
+              .map((submodel) => ({
+                ...submodel,
+                name: String(submodel.name || '').trim(),
+              }))
+              .filter((submodel) => Boolean(submodel.name))
+          : [],
+      }))
+      .filter((model) => Boolean(model.name))
+
+    const nextCourse = {
+      ...selectedCourse,
+      models: normalizedModels,
+      courseModels: normalizedModels,
+      modules: normalizedModels,
+    }
+
+    const nextCourses = branchCourseCards.map((course) =>
+      String(course.id || '').trim() === String(selectedCourse.id || '').trim() ? nextCourse : course,
+    )
+
+    saveBranchCourseSnapshot(nextCourses)
+    setBranchCourseCards(nextCourses)
+    recordCourseEditChange(selectedCourseEditRequest.id, 'Updated modules and submodules.')
+    setCourseEditSaveMessage('Changes saved. Branch admin notification sent.')
+    window.setTimeout(() => {
+      setIsCourseEditEditorOpen(false)
+    }, 650)
   }
 
   const renderSidebar = () => (
@@ -1040,8 +1279,8 @@ useEffect(() => {
                               {selectedCourse.status || 'Active'}
                             </span>
                             <span className="faculty-course-hero-kicker">Branch course snapshot</span>
-                            <button type="button" className="faculty-course-edit-request-btn" onClick={openCourseEditRequest}>
-                              Edit Request
+                            <button type="button" className="faculty-course-edit-request-btn" onClick={handleCourseEditHeroAction}>
+                              {selectedCourseEditButtonLabel}
                             </button>
                           </div>
                           <h3>{selectedCourse.name || 'Data Science'}</h3>
@@ -1376,6 +1615,9 @@ useEffect(() => {
               <div>
                 <p className="faculty-course-request-kicker">Edit Request</p>
                 <h3 id="faculty-course-request-title">{selectedCourse?.name || 'Data Science'}</h3>
+                <p className="faculty-course-request-subtitle">
+                  Send a short note to the branch admin for module and submodule updates.
+                </p>
               </div>
             </div>
 
@@ -1385,16 +1627,10 @@ useEffect(() => {
                 <textarea
                   value={courseEditRequestText}
                   onChange={(event) => setCourseEditRequestText(event.target.value)}
-                  placeholder="Example: Add submodules like data cleaning, feature engineering, and model deployment."
-                  rows={6}
+                  placeholder="Add or update modules and submodules for this course."
+                  rows={4}
                 />
               </label>
-
-              {courseEditRequestStatus === 'submitted' ? (
-                <div className="faculty-course-request-status" role="status" aria-live="polite">
-                  Request drafted. You can keep editing or close it with X when you are done.
-                </div>
-              ) : null}
 
               <div className="faculty-course-request-actions">
                 <button
@@ -1402,7 +1638,6 @@ useEffect(() => {
                   className="faculty-course-request-cancel"
                   onClick={() => {
                     setCourseEditRequestText('')
-                    setCourseEditRequestStatus('')
                   }}
                 >
                   Clear
@@ -1412,6 +1647,120 @@ useEffect(() => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isCourseEditEditorOpen ? (
+        <div className="branch-modal-backdrop faculty-course-edit-backdrop" role="presentation">
+          <div
+            className="faculty-course-edit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-course-edit-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="faculty-course-edit-close"
+              aria-label="Close course editor"
+              onClick={closeCourseEditEditor}
+            >
+              Ã—
+            </button>
+
+            <div className="faculty-course-edit-header">
+              <div>
+                <p className="faculty-course-edit-kicker">Open Edit</p>
+                <h3 id="faculty-course-edit-title">{selectedCourse?.name || 'Data Science'}</h3>
+                <p className="faculty-course-edit-subtitle">
+                  Update modules and submodules only. Other course details stay locked.
+                </p>
+              </div>
+            </div>
+
+            <div className="faculty-course-edit-body">
+              <div className="faculty-course-edit-list">
+                {courseEditDraftModels.length ? (
+                  courseEditDraftModels.map((module, moduleIndex) => (
+                    <article key={module.id || moduleIndex} className="faculty-course-edit-card">
+                      <div className="faculty-course-edit-card-head">
+                        <div className="faculty-course-edit-badge">{String(moduleIndex + 1).padStart(2, '0')}</div>
+                        <input
+                          type="text"
+                          value={module.name}
+                          onChange={(event) => updateCourseEditDraftModuleName(moduleIndex, event.target.value)}
+                          placeholder="Module name"
+                          className="faculty-course-edit-input faculty-course-edit-input--module"
+                        />
+                        <button
+                          type="button"
+                          className="faculty-course-edit-text-button is-danger"
+                          onClick={() => removeCourseEditDraftModule(moduleIndex)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      <div className="faculty-course-edit-submodule-list">
+                        {(Array.isArray(module.submodels) ? module.submodels : []).map((submodel, submoduleIndex) => (
+                          <div key={submodel.id || submoduleIndex} className="faculty-course-edit-submodule-row">
+                            <span className="faculty-course-edit-submodule-index">01.{String(submoduleIndex + 1).padStart(2, '0')}</span>
+                            <input
+                              type="text"
+                              value={submodel.name}
+                              onChange={(event) =>
+                                updateCourseEditDraftSubmoduleName(moduleIndex, submoduleIndex, event.target.value)
+                              }
+                              placeholder="Submodule name"
+                              className="faculty-course-edit-input"
+                            />
+                            <button
+                              type="button"
+                              className="faculty-course-edit-text-button is-danger"
+                              onClick={() => removeCourseEditDraftSubmodule(moduleIndex, submoduleIndex)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          className="faculty-course-edit-add-submodule"
+                          onClick={() => addCourseEditDraftSubmodule(moduleIndex)}
+                        >
+                          + Add submodule
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <div className="faculty-course-edit-empty">
+                    No modules yet. Add one to start editing the curriculum.
+                  </div>
+                )}
+              </div>
+
+              <button type="button" className="faculty-course-edit-add-module" onClick={addCourseEditDraftModule}>
+                + Add module
+              </button>
+
+              {courseEditSaveMessage ? (
+                <div className="faculty-course-edit-status" role="status" aria-live="polite">
+                  {courseEditSaveMessage}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="faculty-course-edit-actions">
+              <button type="button" className="faculty-course-edit-cancel" onClick={closeCourseEditEditor}>
+                Close
+              </button>
+              <button type="button" className="faculty-course-edit-save" onClick={handleCourseEditSave}>
+                Save Changes
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
