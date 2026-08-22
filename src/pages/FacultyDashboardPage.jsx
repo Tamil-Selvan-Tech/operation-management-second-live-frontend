@@ -1,25 +1,26 @@
 ﻿import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  BookOpen,
   Bell,
+  BookOpen,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   CircleUserRound,
+  Clock3,
   Layers3,
   LayoutDashboard,
-  Clock3,
   LogOut,
   Mail,
   MapPin,
-  Phone,
+  Monitor,
   Pencil,
+  Phone,
   Search,
   Dot,
   ShieldCheck,
   Trash2,
-  Monitor,
   UserRound,
   Users,
 } from 'lucide-react'
@@ -37,6 +38,7 @@ import {
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
 import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
+import { listCourses } from '../services/courseService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
 import { listBranchCourses } from '../services/branchCourseService'
 import {
@@ -48,18 +50,6 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import {
-  loadBranchCourseSnapshot,
-  mergeBranchCoursesWithSnapshot,
-  saveBranchCourseSnapshot,
-  subscribeBranchCourseSnapshot,
-} from '../lib/branchCourseSnapshot'
-import {
-  addCourseEditRequest,
-  loadCourseEditRequests,
-  recordCourseEditChange,
-  subscribeCourseEditRequests,
-} from '../lib/courseEditRequestStore'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -105,209 +95,97 @@ function formatMinutesLabel(value = 0) {
   return `${count} minute${count === 1 ? '' : 's'}`
 }
 
+function normalizeCourseKey(value = '') {
+  return String(value || '').trim().toLowerCase()
+}
+
+function parseCourseNumber(value) {
+  const normalized = String(value ?? '').trim().replace(/[^0-9.-]/g, '')
+  if (!normalized) return Number.NaN
+  return Number(normalized)
+}
+
+function formatCourseAmount(value) {
+  const normalized = String(value ?? '').trim()
+  if (!normalized) return '-'
+
+  const numeric = parseCourseNumber(normalized)
+  if (!Number.isFinite(numeric)) return normalized
+
+  return `₹${new Intl.NumberFormat('en-IN').format(numeric)}`
+}
+
+function formatCourseDuration(value) {
+  const normalized = String(value ?? '').trim()
+  if (!normalized) return '-'
+  if (!/^\d+(\.\d+)?$/.test(normalized)) return normalized
+
+  return `${normalized} month${normalized === '1' ? '' : 's'}`
+}
+
+function formatCourseHours(value) {
+  const normalized = String(value ?? '').trim()
+  if (!normalized) return '-'
+  if (!/^\d+(\.\d+)?$/.test(normalized)) return normalized
+
+  return `${normalized} hour${normalized === '1' ? '' : 's'}`
+}
+
+function getCourseModels(course) {
+  const source = course && typeof course === 'object' ? course : {}
+
+  return Array.isArray(source.models)
+    ? source.models
+    : Array.isArray(source.courseModels)
+      ? source.courseModels
+      : Array.isArray(source.modules)
+        ? source.modules
+        : []
+}
+
+function getCourseFromSource(source = {}) {
+  if (!source) return null
+
+  const course = source.course || source
+  const courseId = String(course?.id || source?.courseId || '').trim()
+  const courseName = String(course?.name || course?.courseName || source?.courseName || '').trim()
+
+  if (!courseId && !courseName) return null
+
+  return {
+    ...course,
+    id: courseId || courseName,
+    courseId: courseId || source?.courseId || '',
+    courseName: courseName || courseId || 'Course',
+  }
+}
+
+function getCourseFinalFee(course = {}) {
+  const actualFees = parseCourseNumber(course.actualFees)
+  const registrationFees = parseCourseNumber(course.registrationFees)
+  const discount = parseCourseNumber(course.discount)
+
+  if ([actualFees, registrationFees, discount].every(Number.isFinite)) {
+    return formatCourseAmount(Math.max(actualFees + registrationFees - discount, 0))
+  }
+
+  return String(course.afterDiscount || course.finalFee || '').trim() || '-'
+}
+
 function formatCoursePercentage(value) {
-  const number = Number(value)
-  if (!Number.isFinite(number)) return '-'
-  const rounded = Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/\.?0+$/, '')
-  return `${rounded}%`
+  const normalized = String(value ?? '').trim()
+  if (!normalized) return '-'
+  return normalized.endsWith('%') ? normalized : `${normalized}%`
 }
 
-function getSavedSubmoduleCount(submodels) {
-  return (Array.isArray(submodels) ? submodels : []).filter((submodel) => String(submodel?.name || '').trim()).length
-}
+function getModulePercentage(module = {}, moduleIndex = 0, totalModules = 0) {
+  const directPercentage = formatCoursePercentage(module?.percentage ?? module?.weight ?? module?.share)
+  if (directPercentage !== '-') return directPercentage
 
-function distributeCoursePercentages(count = 0) {
-  const total = Math.max(0, Math.floor(Number(count) || 0))
-  if (!total) return []
-
-  const base = 100 / total
-  const percentages = []
-  let used = 0
-
-  for (let index = 0; index < total; index += 1) {
-    const remaining = 100 - used
-    const value = index === total - 1 ? remaining : base
-    const rounded = Number(value.toFixed(2))
-    percentages.push(rounded)
-    used += rounded
-  }
-
-  return percentages
-}
-
-function findDataScienceCourse(courses = []) {
-  const list = Array.isArray(courses) ? courses : []
-  if (!list.length) return null
-
-  return list.find((course) => {
-    const name = String(course?.name || course?.courseName || '').trim().toLowerCase()
-    const code = String(course?.courseCode || '').trim().toLowerCase()
-    return name === 'data science' || name.includes('data science') || code.includes('data science')
-  }) || null
-}
-
-function buildCourseHierarchySummary(models = []) {
-  const normalizedModels = Array.isArray(models)
-    ? models.map((model) => ({
-        ...model,
-        id: String(model?.id || '').trim(),
-        name: String(model?.name || '').trim(),
-        submodels: Array.isArray(model?.submodels)
-          ? model.submodels.map((submodel) => ({
-              ...submodel,
-              id: String(submodel?.id || '').trim(),
-              name: String(submodel?.name || '').trim(),
-            }))
-          : [],
-      }))
-    : []
-
-  const modelPercentages = distributeCoursePercentages(normalizedModels.length)
-
-  return normalizedModels.map((model, modelIndex) => {
-    const submodels = Array.isArray(model.submodels) ? model.submodels : []
-    const submodelPercentages = distributeCoursePercentages(submodels.length)
-
-    return {
-      ...model,
-      percentage: modelPercentages[modelIndex] ?? 0,
-      submodels: submodels.map((submodel, submodelIndex) => ({
-        ...submodel,
-        percentage: submodelPercentages[submodelIndex] ?? 0,
-      })),
-    }
-  })
-}
-
-function cloneCourseHierarchyDraft(models = []) {
-  return Array.isArray(models)
-    ? models.map((model, modelIndex) => ({
-        id: String(model?.id || `module-${modelIndex + 1}`),
-        name: String(model?.name || '').trim(),
-        submodels: Array.isArray(model?.submodels)
-          ? model.submodels.map((submodel, submodelIndex) => ({
-              id: String(submodel?.id || `submodule-${modelIndex + 1}-${submodelIndex + 1}`),
-              name: String(submodel?.name || '').trim(),
-            }))
-          : [],
-      }))
-    : []
-}
-
-function createEmptyCourseModuleDraft(moduleIndex = 0) {
-  return {
-    id: `module-${Date.now()}-${moduleIndex + 1}`,
-    name: '',
-    submodels: [],
-  }
-}
-
-function createEmptyCourseSubmoduleDraft(moduleIndex = 0, submoduleIndex = 0) {
-  return {
-    id: `submodule-${Date.now()}-${moduleIndex + 1}-${submoduleIndex + 1}`,
-    name: '',
-  }
-}
-
-function CourseHierarchyList({ models = [] }) {
-  const [expandedModelIds, setExpandedModelIds] = useState(() => [])
-
-  if (!Array.isArray(models) || !models.length) {
-    return (
-      <div className="faculty-course-empty-state">
-        No modules added for this course.
-      </div>
-    )
-  }
-
-  const allExpanded = expandedModelIds.length === models.length && models.length > 0
-  const toggleModel = (modelId) => {
-    const normalizedId = String(modelId || '').trim()
-    if (!normalizedId) return
-
-    setExpandedModelIds((current) =>
-      current.includes(normalizedId)
-        ? current.filter((id) => id !== normalizedId)
-        : [...current, normalizedId],
-    )
-  }
-
-  const toggleAll = () => {
-    if (allExpanded) {
-      setExpandedModelIds([])
-      return
-    }
-
-    setExpandedModelIds(models.map((model, index) => String(model.id || `module-${index + 1}`)))
-  }
-
-  return (
-    <div className="faculty-course-curriculum">
-      <div className="faculty-course-curriculum-toolbar">
-        <div>
-          <p className="faculty-course-section-kicker">Modules &amp; Submodules</p>
-          <h4>Expand a module to view its submodules</h4>
-        </div>
-        <button type="button" className="faculty-course-expand-all" onClick={toggleAll}>
-          {allExpanded ? 'Collapse All' : 'Expand All'}
-        </button>
-      </div>
-
-      <div className="faculty-course-module-grid">
-      {models.map((model, modelIndex) => {
-        const submodels = Array.isArray(model?.submodels) ? model.submodels : []
-        const moduleName = model.name || `Module ${modelIndex + 1}`
-        const moduleId = String(model.id || `module-${modelIndex + 1}`)
-        const isExpanded = expandedModelIds.includes(moduleId)
-
-        return (
-          <article key={moduleId} className={`faculty-course-module-card ${isExpanded ? 'is-expanded' : ''}`.trim()}>
-            <button
-              type="button"
-              className="faculty-course-module-trigger"
-              onClick={() => toggleModel(moduleId)}
-              aria-expanded={isExpanded}
-              aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${moduleName}`}
-            >
-              <span className="faculty-course-module-index">{String(modelIndex + 1).padStart(2, '0')}</span>
-              <span className="faculty-course-module-copy">
-                <strong>{moduleName}</strong>
-              </span>
-              <span className="faculty-course-module-percent">{formatCoursePercentage(model.percentage)}</span>
-              <span className="faculty-course-module-chevron" aria-hidden="true">
-                <ChevronDown size={18} strokeWidth={2.3} />
-              </span>
-            </button>
-
-            {isExpanded ? (
-              <div className="faculty-course-submodule-list">
-                {submodels.length ? (
-                  submodels.map((submodel, submodelIndex) => (
-                    <div
-                      key={submodel.id || `${submodel.name || 'submodule'}-${submodelIndex}`}
-                      className="faculty-course-submodule-item"
-                    >
-                      <div className="faculty-course-submodule-step">
-                        <span className="faculty-course-submodule-dot" />
-                        <span className="faculty-course-submodule-copy">
-                          <span>01.{String(submodelIndex + 1).padStart(2, '0')}</span>
-                          <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
-                        </span>
-                      </div>
-                      <span className="faculty-course-submodule-percent">{formatCoursePercentage(submodel.percentage)}</span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="faculty-course-submodule-empty">No submodules added</div>
-                )}
-              </div>
-            ) : null}
-          </article>
-        )
-      })}
-      </div>
-    </div>
-  )
+  const count = Math.max(1, Number(totalModules) || 1)
+  const value = 100 / count
+  const normalized = moduleIndex === count - 1 ? 100 - (value * (count - 1)) : value
+  return `${normalized.toFixed(2).replace(/\.00$/, '')}%`
 }
 
 function formatNotificationTime(createdAt) {
@@ -387,30 +265,32 @@ function getFacultyNotificationIcon(kind) {
 }
 
 function normalizeFacultyNotification(notification = {}) {
-  const kind = String(notification.kind || 'general').trim() || 'general'
+  const source = notification && typeof notification === 'object' ? notification : {}
+  const kind = String(source.kind || 'general').trim() || 'general'
   const createdAt =
-    String(notification.createdAt || notification.createdOn || notification.updatedAt || '').trim() ||
+    String(source.createdAt || source.createdOn || source.updatedAt || '').trim() ||
     new Date().toISOString()
 
   return {
-    id: String(notification.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+    id: String(source.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     kind,
     tone:
-      String(notification.tone || (kind.includes('invite') ? 'amber' : kind.includes('login') ? 'green' : 'blue'))
+      String(source.tone || (kind.includes('invite') ? 'amber' : kind.includes('login') ? 'green' : 'blue'))
         .trim() || 'blue',
-    title: String(notification.title || 'Notification').trim(),
-    message: String(notification.message || '').trim(),
-    actionLabel: String(notification.actionLabel || '').trim() || 'View',
-    categoryLabel: String(notification.categoryLabel || 'Faculty').trim() || 'Faculty',
+    title: String(source.title || 'Notification').trim(),
+    message: String(source.message || '').trim(),
+    actionLabel: String(source.actionLabel || '').trim() || 'View',
+    categoryLabel: String(source.categoryLabel || 'Faculty').trim() || 'Faculty',
     createdAt,
     time: formatNotificationTime(createdAt),
-    read: Boolean(notification.read),
+    read: Boolean(source.read),
   }
 }
 
 function groupFacultyNotifications(notifications = []) {
   const groups = new Map()
-  const orderedNotifications = [...notifications].sort(
+  const safeNotifications = Array.isArray(notifications) ? notifications.filter(Boolean) : []
+  const orderedNotifications = safeNotifications.sort(
     (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
   )
 
@@ -489,7 +369,7 @@ function FacultyDashboardSection({ title, description, children }) {
       <div className="branch-dashboard-section-heading">
         <div className="branch-dashboard-section-heading-copy">
           <h2>{title}</h2>
-          <p>{description}</p>
+          {description ? <p>{description}</p> : null}
         </div>
       </div>
       {children}
@@ -503,19 +383,6 @@ export function FacultyDashboardPage() {
   const [activeSection, setActiveSection] = useState('dashboard')
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
-  const [isCourseEditRequestOpen, setIsCourseEditRequestOpen] = useState(false)
-  const [courseEditRequestText, setCourseEditRequestText] = useState('')
-  const [courseEditRequests, setCourseEditRequests] = useState(() => loadCourseEditRequests())
-  const [isCourseEditEditorOpen, setIsCourseEditEditorOpen] = useState(false)
-  const [courseEditEditorStage, setCourseEditEditorStage] = useState('table')
-  const [courseEditActiveModuleIndex, setCourseEditActiveModuleIndex] = useState(0)
-  const [courseEditActiveSubmoduleIndex, setCourseEditActiveSubmoduleIndex] = useState(0)
-  const [courseEditExpandedModuleIds, setCourseEditExpandedModuleIds] = useState(() => [])
-  const [courseEditEditingSubmoduleIndex, setCourseEditEditingSubmoduleIndex] = useState(null)
-  const [courseEditDraftModels, setCourseEditDraftModels] = useState([])
-  const [courseEditSaveMessage, setCourseEditSaveMessage] = useState('')
-  const [courseEditModuleNameError, setCourseEditModuleNameError] = useState('')
-  const [courseEditDeleteConfirm, setCourseEditDeleteConfirm] = useState(null)
   const profileMenuRef = useRef(null)
   const notificationRef = useRef(null)
 
@@ -524,9 +391,7 @@ export function FacultyDashboardPage() {
     const registry = loadFacultyRegistry()
     const email = String(user?.email || '').trim().toLowerCase()
     const matched = Array.isArray(registry) ? registry.find((f) => String(f.email || '').toLowerCase() === email) : null
-    if (matched) return matched
-
-    return {
+    const fallbackDetails = {
       id: user?.userCode?.includes('-FC-') ? 'FC-' + user.userCode.split('-FC-')[1] : (user?.userCode || user?.id || 'FC-MOCK'),
       name: user?.name || 'Faculty Member',
       email: user?.email || 'faculty@cispro.local',
@@ -537,11 +402,23 @@ export function FacultyDashboardPage() {
       address: 'Assigned CISPRO Campus location',
       status: 'Active',
     }
+
+    if (matched && typeof matched === 'object') {
+      return {
+        ...fallbackDetails,
+        ...matched,
+        name: String(matched.name || matched.fullName || matched.facultyName || fallbackDetails.name).trim() || fallbackDetails.name,
+        email: String(matched.email || fallbackDetails.email).trim() || fallbackDetails.email,
+        status: String(matched.status || fallbackDetails.status).trim() || fallbackDetails.status,
+      }
+    }
+
+    return fallbackDetails
   }, [user])
 
-  const facultyName = facultyDetails.name
+  const facultyName = String(facultyDetails?.name || 'Faculty Member').trim() || 'Faculty Member'
   const initials = useMemo(() => {
-    return facultyName
+    return String(facultyName)
       .split(' ')
       .map((n) => n[0])
       .join('')
@@ -555,18 +432,25 @@ export function FacultyDashboardPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [branchCourseCards, setBranchCourseCards] = useState([])
+  const [facultyProfile, setFacultyProfile] = useState(null)
+  const [branchCourses, setBranchCourses] = useState([])
+  const [courseCatalog, setCourseCatalog] = useState([])
+  const [selectedCourseId, setSelectedCourseId] = useState('')
+  const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
+  const [coursesLoading, setCoursesLoading] = useState(false)
+  const [coursesError, setCoursesError] = useState('')
+
 
 
   useEffect(() => {
   const loadNotifications = async () => {
-    try {
-      const response =
+      try {
+        const response =
         await getFacultyNotifications()
 
       setFacultyNotifications(
         Array.isArray(response?.data)
-          ? response.data
+          ? response.data.filter(Boolean)
           : [],
       )
     } catch (error) {
@@ -579,14 +463,6 @@ export function FacultyDashboardPage() {
 
   loadNotifications()
 }, [])
-
-  useEffect(() => {
-    const unsubscribe = subscribeCourseEditRequests(() => {
-      setCourseEditRequests(loadCourseEditRequests())
-    })
-
-    return unsubscribe
-  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -611,56 +487,88 @@ export function FacultyDashboardPage() {
   useEffect(() => {
     let isMounted = true
 
-    const loadBranchCourses = async () => {
+    const loadCourseData = async () => {
+      setCoursesLoading(true)
+      setCoursesError('')
+
       try {
-        const response = await listBranchCourses({
-          page: 1,
-          limit: 100,
-          sortBy: 'createdAt',
-          sortOrder: 'desc',
+        const [profileResult, masterCoursesResult, branchCoursesResult] = await Promise.allSettled([
+          getCurrentFacultyProfile(),
+          listCourses({ page: 1, limit: 100 }),
+          listBranchCourses({ page: 1, limit: 100 }),
+        ])
+
+        if (!isMounted) return
+
+        const profileData = profileResult.status === 'fulfilled' ? profileResult.value || null : null
+
+        if (profileResult.status === 'fulfilled') {
+          setFacultyProfile(profileData)
+        }
+
+        const masterCourses =
+          masterCoursesResult.status === 'fulfilled' && Array.isArray(masterCoursesResult.value?.data)
+            ? masterCoursesResult.value.data
+            : []
+        const branchCourseList =
+          branchCoursesResult.status === 'fulfilled' && Array.isArray(branchCoursesResult.value?.data)
+            ? branchCoursesResult.value.data
+            : []
+
+        setBranchCourses(branchCourseList)
+
+        const mergedCourseMap = new Map()
+
+        const profileCourses = [
+          getCourseFromSource(profileData?.course),
+          ...(Array.isArray(profileData?.courseAssignments)
+            ? profileData.courseAssignments.map((entry) => getCourseFromSource(entry))
+            : []),
+          ...(Array.isArray(profileData?.batchEntries)
+            ? profileData.batchEntries.map((entry) => getCourseFromSource(entry))
+            : []),
+        ].filter(Boolean)
+
+        profileCourses.forEach((course) => {
+          const courseKey = String(course?.id || course?.courseCode || course?.name || '').trim()
+          if (!courseKey) return
+          mergedCourseMap.set(courseKey, course)
         })
 
-        const nextCourses = mergeBranchCoursesWithSnapshot(
-          Array.isArray(response?.data) && response.data.length ? response.data : loadBranchCourseSnapshot(),
-        )
-        if (!isMounted) return
-        setBranchCourseCards(Array.isArray(nextCourses) ? nextCourses : [])
+        ;[...masterCourses, ...branchCourseList].forEach((course) => {
+          const courseKey = String(course?.id || course?.courseCode || course?.name || '').trim()
+          if (!courseKey) return
+
+          const existing = mergedCourseMap.get(courseKey)
+          mergedCourseMap.set(courseKey, existing ? { ...existing, ...course } : course)
+        })
+
+        const nextCourseCatalog = Array.from(mergedCourseMap.values())
+        setCourseCatalog(nextCourseCatalog)
+
+        if (!nextCourseCatalog.length) {
+          setCoursesError('No course details were returned for your account.')
+        } else {
+          setCoursesError('')
+        }
       } catch (error) {
         if (!isMounted) return
-        console.error('Failed to load branch courses for faculty page', error)
-        setBranchCourseCards(mergeBranchCoursesWithSnapshot(loadBranchCourseSnapshot()))
+        setBranchCourses([])
+        setCourseCatalog([])
+        setCoursesError('Unable to load course details right now.')
+        console.error('Failed to load faculty course data', error)
+      } finally {
+        if (isMounted) {
+          setCoursesLoading(false)
+        }
       }
     }
 
-    loadBranchCourses()
+    loadCourseData()
 
     return () => {
       isMounted = false
     }
-  }, [])
-
-  useEffect(() => {
-    const unsubscribe = subscribeBranchCourseSnapshot(() => {
-      void (async () => {
-        try {
-          const response = await listBranchCourses({
-            page: 1,
-            limit: 100,
-            sortBy: 'createdAt',
-            sortOrder: 'desc',
-          })
-
-          const nextCourses = mergeBranchCoursesWithSnapshot(
-            Array.isArray(response?.data) && response.data.length ? response.data : loadBranchCourseSnapshot(),
-          )
-          setBranchCourseCards(Array.isArray(nextCourses) ? nextCourses : [])
-        } catch {
-          setBranchCourseCards(mergeBranchCoursesWithSnapshot(loadBranchCourseSnapshot()))
-        }
-      })()
-    })
-
-    return unsubscribe
   }, [])
 
   // Close notification dropdown when clicking outside
@@ -699,6 +607,133 @@ useEffect(() => {
     [facultyNotifications],
   )
   const totalNotificationCount = normalizedNotifications.length
+
+  const assignedCourseIds = useMemo(() => {
+    const summary = dashboardSummary || {}
+    const sources = [
+      facultyProfile?.course?.id,
+      facultyProfile?.courseIds,
+      facultyProfile?.courseId,
+      facultyProfile?.courseAssignments,
+      facultyProfile?.batchEntries,
+      summary?.courseIds,
+      summary?.courseId,
+      summary?.courseAssignments,
+      summary?.batchEntries,
+    ]
+
+    const ids = []
+
+    sources.forEach((source) => {
+      if (Array.isArray(source)) {
+        source.forEach((entry) => {
+          const value = String(entry?.courseId ?? entry?.id ?? entry ?? '').trim()
+          if (value) ids.push(value)
+        })
+        return
+      }
+
+      const value = String(source || '').trim()
+      if (value) ids.push(value)
+    })
+
+    return Array.from(new Set(ids))
+  }, [dashboardSummary, facultyProfile])
+
+  const assignedCourseNames = useMemo(() => {
+    const summary = dashboardSummary || {}
+    const sources = [
+      facultyProfile?.course?.name,
+      facultyProfile?.courseAssignments,
+      facultyProfile?.batchEntries,
+      summary?.courseAssignments,
+      summary?.batchEntries,
+      facultyProfile?.courseName,
+      summary?.faculty?.courseName,
+      summary?.faculty?.course?.name,
+      summary?.courseName,
+    ]
+
+    const names = []
+
+    sources.forEach((source) => {
+      if (Array.isArray(source)) {
+        source.forEach((entry) => {
+          const value = String(entry?.courseName ?? entry?.name ?? entry?.title ?? '').trim()
+          if (value) names.push(value)
+        })
+        return
+      }
+
+      const value = String(source || '').trim()
+      if (value) names.push(value)
+    })
+
+    return Array.from(new Set(names))
+  }, [dashboardSummary, facultyProfile])
+
+  const assignedCourses = useMemo(() => {
+    if (!Array.isArray(courseCatalog) || !courseCatalog.length) return []
+
+    const matchedCourses = courseCatalog.filter((course) => {
+      const courseId = String(course?.id || '').trim()
+      const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
+
+      if (courseId && assignedCourseIds.includes(courseId)) {
+        return true
+      }
+
+      return assignedCourseNames.some((name) => normalizeCourseKey(name) === courseName)
+    })
+
+    if (matchedCourses.length) {
+      return matchedCourses
+    }
+
+    const fallbackName = assignedCourseNames[0]
+    if (!fallbackName) return []
+
+    return courseCatalog.filter((course) => normalizeCourseKey(course?.name || course?.courseName || '') === normalizeCourseKey(fallbackName))
+  }, [assignedCourseIds, assignedCourseNames, courseCatalog])
+
+  const activeCourseId = selectedCourseId || String(assignedCourses[0]?.id || '').trim()
+
+  const selectedCourse = useMemo(() => {
+    if (!assignedCourses.length) return null
+    return assignedCourses.find((course) => String(course?.id || '').trim() === activeCourseId) || assignedCourses[0] || null
+  }, [activeCourseId, assignedCourses])
+
+  const selectedCourseModules = useMemo(() => getCourseModels(selectedCourse), [selectedCourse])
+  const selectedCourseModuleKeys = useMemo(
+    () =>
+      selectedCourseModules.map((module, index) =>
+        String(module?.id || `${selectedCourse?.id || 'course'}-module-${index}`).trim(),
+      ),
+    [selectedCourse?.id, selectedCourseModules],
+  )
+  const isAllModulesExpanded =
+    selectedCourseModuleKeys.length > 0 &&
+    selectedCourseModuleKeys.every((moduleId) => expandedCourseModuleIds.includes(moduleId))
+
+  const toggleCourseModule = (moduleId) => {
+    const normalizedModuleId = String(moduleId || '').trim()
+    if (!normalizedModuleId) return
+
+    setExpandedCourseModuleIds((current) =>
+      current.includes(normalizedModuleId)
+        ? current.filter((id) => id !== normalizedModuleId)
+        : [...current, normalizedModuleId],
+    )
+  }
+
+  const toggleAllCourseModules = () => {
+    if (!selectedCourseModuleKeys.length) return
+
+    setExpandedCourseModuleIds(
+      isAllModulesExpanded ? [] : selectedCourseModuleKeys,
+    )
+  }
+
   const visibleNotifications = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
 
@@ -730,45 +765,6 @@ useEffect(() => {
     () => groupFacultyNotifications(visibleNotifications),
     [visibleNotifications],
   )
-  const selectedCourse = useMemo(() => findDataScienceCourse(branchCourseCards), [branchCourseCards])
-  const selectedCourseModels = useMemo(
-    () => buildCourseHierarchySummary(selectedCourse?.models || selectedCourse?.courseModels || selectedCourse?.modules || []),
-    [selectedCourse],
-  )
-  const selectedCourseEditRequest = useMemo(() => {
-    const courseId = String(selectedCourse?.id || '').trim()
-    const facultyId = String(facultyDetails.id || user?.id || '').trim()
-    const facultyEmail = String(facultyDetails.email || user?.email || '').trim().toLowerCase()
-
-    if (!courseId) return null
-
-    return courseEditRequests
-      .filter((request) => {
-        if (String(request.courseId || '').trim() !== courseId) return false
-        const requestFacultyId = String(request.facultyId || '').trim()
-        const requestFacultyEmail = String(request.facultyEmail || '').trim().toLowerCase()
-
-        if (facultyId && requestFacultyId && requestFacultyId === facultyId) return true
-        if (facultyEmail && requestFacultyEmail && requestFacultyEmail === facultyEmail) return true
-        return !facultyId && !facultyEmail
-      })
-      .sort((left, right) => new Date(right.updatedAt || right.createdAt).getTime() - new Date(left.updatedAt || left.createdAt).getTime())[0] || null
-  }, [courseEditRequests, facultyDetails.email, facultyDetails.id, selectedCourse, user?.email, user?.id])
-  const selectedCourseEditButtonLabel =
-    selectedCourseEditRequest?.requestStatus === 'accepted'
-      ? 'Open Edit'
-      : selectedCourseEditRequest?.requestStatus === 'pending'
-        ? 'Request Pending'
-        : 'Edit Request'
-  const selectedCourseHeroButtonLabel =
-    selectedCourseEditButtonLabel === 'Open Edit' ? 'Edit' : selectedCourseEditButtonLabel
-  const courseEditPreviewModels = useMemo(
-    () => buildCourseHierarchySummary(courseEditDraftModels),
-    [courseEditDraftModels],
-  )
-  const courseEditActiveModule = courseEditPreviewModels[courseEditActiveModuleIndex] || null
-  const courseEditActiveModuleDraft = courseEditDraftModels[courseEditActiveModuleIndex] || null
-  const courseEditActiveSubmodules = Array.isArray(courseEditActiveModule?.submodels) ? courseEditActiveModule.submodels : []
 
   // Mock statistics for the faculty member
   const stats = [
@@ -804,302 +800,6 @@ useEffect(() => {
     setIsProfileMenuOpen(false)
   }
 
-  const openCourseEditRequest = () => {
-    setCourseEditRequestText(selectedCourseEditRequest?.message || '')
-    setIsCourseEditRequestOpen(true)
-  }
-
-  const closeCourseEditRequest = () => {
-    setIsCourseEditRequestOpen(false)
-    setCourseEditRequestText('')
-  }
-
-  const openCourseEditEditor = () => {
-    const nextDraftModels = cloneCourseHierarchyDraft(selectedCourseModels)
-    setCourseEditDraftModels(nextDraftModels)
-    setCourseEditEditorStage('table')
-    setCourseEditActiveModuleIndex(0)
-    setCourseEditActiveSubmoduleIndex(0)
-    setCourseEditExpandedModuleIds([])
-    setCourseEditEditingSubmoduleIndex(null)
-    setCourseEditSaveMessage('')
-    setCourseEditDeleteConfirm(null)
-    setIsCourseEditEditorOpen(true)
-  }
-
-  const closeCourseEditEditor = () => {
-    setIsCourseEditEditorOpen(false)
-    setCourseEditEditorStage('table')
-    setCourseEditActiveModuleIndex(0)
-    setCourseEditActiveSubmoduleIndex(0)
-    setCourseEditExpandedModuleIds([])
-    setCourseEditEditingSubmoduleIndex(null)
-    setCourseEditSaveMessage('')
-    setCourseEditDeleteConfirm(null)
-  }
-
-  const handleCourseEditRequestSubmit = (event) => {
-    event.preventDefault()
-    const request = addCourseEditRequest({
-      courseId: selectedCourse?.id || '',
-      courseCode: selectedCourse?.courseCode || '',
-      courseName: selectedCourse?.name || 'Data Science',
-      facultyId: facultyDetails.id || user?.id || '',
-      facultyName: facultyName || 'Faculty',
-      facultyEmail: facultyDetails.email || user?.email || '',
-      message: courseEditRequestText,
-    })
-
-    setCourseEditRequests((current) => [request, ...current.filter((item) => item.id !== request.id)])
-    setIsCourseEditRequestOpen(false)
-    setCourseEditRequestText('')
-  }
-
-  const handleCourseEditHeroAction = () => {
-    if (selectedCourseEditRequest?.requestStatus === 'accepted') {
-      openCourseEditEditor()
-      return
-    }
-
-    openCourseEditRequest()
-  }
-
-  const updateCourseEditDraftModuleName = (moduleIndex, value) => {
-    setCourseEditDraftModels((current) =>
-      current.map((module, index) =>
-        index === moduleIndex
-          ? {
-              ...module,
-              name: value,
-            }
-          : module,
-      ),
-    )
-  }
-
-  const addCourseEditDraftModule = () => {
-    const nextModule = createEmptyCourseModuleDraft(courseEditDraftModels.length)
-    setCourseEditDraftModels((current) => [...current, nextModule])
-    setCourseEditExpandedModuleIds((current) => [...current, String(nextModule.id || '').trim()].filter(Boolean))
-    setCourseEditActiveModuleIndex(courseEditDraftModels.length)
-    setCourseEditEditorStage('module')
-  }
-
-  const removeCourseEditDraftModule = (moduleIndex) => {
-    const removedModuleId = String(courseEditDraftModels[moduleIndex]?.id || '').trim()
-    setCourseEditDraftModels((current) => current.filter((_, index) => index !== moduleIndex))
-    setCourseEditExpandedModuleIds((current) => current.filter((moduleId) => moduleId && moduleId !== removedModuleId))
-    setCourseEditActiveModuleIndex((current) => Math.max(0, Math.min(current, Math.max(courseEditDraftModels.length - 2, 0))))
-    setCourseEditEditingSubmoduleIndex(null)
-  }
-
-  const openCourseEditDeleteConfirm = (payload) => {
-    setCourseEditDeleteConfirm(payload)
-  }
-
-  const closeCourseEditDeleteConfirm = () => {
-    setCourseEditDeleteConfirm(null)
-  }
-
-  const confirmCourseEditDelete = () => {
-    if (!courseEditDeleteConfirm) return
-
-    if (courseEditDeleteConfirm.type === 'module') {
-      removeCourseEditDraftModule(courseEditDeleteConfirm.moduleIndex)
-    } else if (courseEditDeleteConfirm.type === 'submodule') {
-      removeCourseEditDraftSubmodule(courseEditDeleteConfirm.moduleIndex, courseEditDeleteConfirm.submoduleIndex)
-    }
-
-    closeCourseEditDeleteConfirm()
-  }
-
-  const addCourseEditDraftSubmodule = (moduleIndex) => {
-    const targetSubmoduleIndex = Array.isArray(courseEditDraftModels[moduleIndex]?.submodels)
-      ? courseEditDraftModels[moduleIndex].submodels.length
-      : 0
-    setCourseEditDraftModels((current) =>
-      current.map((module, index) =>
-        index === moduleIndex
-          ? {
-              ...module,
-              submodels: [...(Array.isArray(module.submodels) ? module.submodels : []), createEmptyCourseSubmoduleDraft(moduleIndex, (module.submodels || []).length)],
-            }
-          : module,
-      ),
-    )
-    setCourseEditActiveSubmoduleIndex(targetSubmoduleIndex)
-    setCourseEditEditingSubmoduleIndex(targetSubmoduleIndex)
-  }
-
-  const updateCourseEditDraftSubmoduleName = (moduleIndex, submoduleIndex, value) => {
-    setCourseEditDraftModels((current) =>
-      current.map((module, index) =>
-        index === moduleIndex
-          ? {
-              ...module,
-              submodels: (Array.isArray(module.submodels) ? module.submodels : []).map((submodel, innerIndex) =>
-                innerIndex === submoduleIndex
-                  ? {
-                      ...submodel,
-                      name: value,
-                    }
-                  : submodel,
-              ),
-            }
-          : module,
-      ),
-    )
-  }
-
-  const removeCourseEditDraftSubmodule = (moduleIndex, submoduleIndex) => {
-    setCourseEditDraftModels((current) =>
-      current.map((module, index) =>
-        index === moduleIndex
-          ? {
-              ...module,
-              submodels: (Array.isArray(module.submodels) ? module.submodels : []).filter((_, innerIndex) => innerIndex !== submoduleIndex),
-            }
-          : module,
-      ),
-    )
-    setCourseEditEditingSubmoduleIndex((current) => {
-      if (current === submoduleIndex) return null
-      if (typeof current === 'number' && current > submoduleIndex) return current - 1
-      return current
-    })
-    setCourseEditActiveSubmoduleIndex((current) => {
-      if (current === submoduleIndex) return 0
-      if (typeof current === 'number' && current > submoduleIndex) return current - 1
-      return current
-    })
-  }
-
-  const openCourseEditModule = (moduleIndex) => {
-    const safeIndex = Math.max(0, Math.min(Number(moduleIndex) || 0, courseEditPreviewModels.length - 1))
-    setCourseEditActiveModuleIndex(safeIndex)
-    setCourseEditActiveSubmoduleIndex(0)
-    setCourseEditEditingSubmoduleIndex(null)
-    setCourseEditEditorStage('module')
-  }
-
-  const continueToCourseEditSubmodules = () => {
-    const moduleName = String(courseEditActiveModuleDraft?.name || '').trim()
-    if (!moduleName) {
-      setCourseEditModuleNameError('Module Name is mandatory.')
-      return
-    }
-
-    setCourseEditModuleNameError('')
-    const targetSubmodules = Array.isArray(courseEditDraftModels[courseEditActiveModuleIndex]?.submodels)
-      ? courseEditDraftModels[courseEditActiveModuleIndex].submodels
-      : []
-
-    if (!targetSubmodules.length) {
-      addCourseEditDraftSubmodule(courseEditActiveModuleIndex)
-    } else {
-      setCourseEditActiveSubmoduleIndex(0)
-      setCourseEditEditingSubmoduleIndex(null)
-    }
-
-    setCourseEditEditorStage('submodule')
-  }
-
-  const backToCourseEditTable = () => {
-    setCourseEditEditorStage('table')
-    setCourseEditEditingSubmoduleIndex(null)
-    setCourseEditModuleNameError('')
-  }
-
-  const toggleCourseEditModuleExpanded = (moduleId) => {
-    const normalizedId = String(moduleId || '').trim()
-    if (!normalizedId) return
-
-    setCourseEditExpandedModuleIds((current) =>
-      current.includes(normalizedId)
-        ? current.filter((id) => id !== normalizedId)
-        : [...current, normalizedId],
-    )
-  }
-
-  const editCourseEditSubmodule = (submoduleIndex) => {
-    setCourseEditEditingSubmoduleIndex(submoduleIndex)
-  }
-
-  const saveCourseEditSubmodule = (submoduleIndex) => {
-    setCourseEditActiveSubmoduleIndex(submoduleIndex)
-    setCourseEditEditingSubmoduleIndex(null)
-  }
-
-  const addCourseEditSubmoduleAndEdit = () => {
-    const targetModule = courseEditDraftModels[courseEditActiveModuleIndex]
-    const nextSubmoduleIndex = Array.isArray(targetModule?.submodels) ? targetModule.submodels.length : 0
-    addCourseEditDraftSubmodule(courseEditActiveModuleIndex)
-    setCourseEditActiveSubmoduleIndex(nextSubmoduleIndex)
-    setCourseEditEditingSubmoduleIndex(nextSubmoduleIndex)
-  }
-
-  const saveCourseEditModuleDraft = () => {
-    const nextModule = courseEditDraftModels[courseEditActiveModuleIndex]
-    if (!nextModule) return
-
-    const nextModels = courseEditDraftModels.map((module, index) => {
-      if (index !== courseEditActiveModuleIndex) return module
-
-      const nextSubmodels = Array.isArray(module.submodels) ? module.submodels : []
-      return {
-        ...module,
-        name: String(module.name || '').trim(),
-        submodels: nextSubmodels
-          .map((submodel) => ({
-            ...submodel,
-            name: String(submodel.name || '').trim(),
-          }))
-          .filter((submodel) => Boolean(submodel.name)),
-      }
-    })
-
-    setCourseEditDraftModels(nextModels)
-    setCourseEditEditorStage('table')
-    setCourseEditEditingSubmoduleIndex(null)
-    setCourseEditSaveMessage('Module saved. You can continue editing or save all changes.')
-  }
-
-  const handleCourseEditSave = () => {
-    if (!selectedCourse?.id) return
-    if (!selectedCourseEditRequest?.id) return
-
-    const normalizedModels = cloneCourseHierarchyDraft(courseEditDraftModels)
-      .map((model) => ({
-        ...model,
-        name: String(model.name || '').trim(),
-        submodels: Array.isArray(model.submodels)
-          ? model.submodels
-              .map((submodel) => ({
-                ...submodel,
-                name: String(submodel.name || '').trim(),
-              }))
-              .filter((submodel) => Boolean(submodel.name))
-          : [],
-      }))
-      .filter((model) => Boolean(model.name))
-
-    const nextCourse = {
-      ...selectedCourse,
-      models: normalizedModels,
-      courseModels: normalizedModels,
-      modules: normalizedModels,
-    }
-
-    const nextCourses = branchCourseCards.map((course) =>
-      String(course.id || '').trim() === String(selectedCourse.id || '').trim() ? nextCourse : course,
-    )
-
-    saveBranchCourseSnapshot(nextCourses)
-    setBranchCourseCards(nextCourses)
-    recordCourseEditChange(selectedCourseEditRequest.id, 'Updated modules and submodules.')
-    closeCourseEditEditor()
-  }
-
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Faculty navigation">
       <div className="super-admin-sidebar-brand">
@@ -1109,8 +809,8 @@ useEffect(() => {
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'my-courses', label: 'My Courses', icon: BookOpen },
           { id: 'my-batches', label: 'My Batches', icon: Layers3 },
-          { id: 'courses', label: 'Course', icon: BookOpen },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
@@ -1254,7 +954,7 @@ useEffect(() => {
             }}
           >
             <span className="notification-status-icon">
-              ✓
+              ?
             </span>
 
             <span className="notification-content">
@@ -1395,6 +1095,195 @@ useEffect(() => {
                 </>
               ) : null}
 
+              {activeSection === 'my-courses' ? (
+                <FacultyDashboardSection
+                  title="Course"
+                >
+                  {coursesLoading ? (
+                    <div className="faculty-my-batches-loading-card">
+                      <strong>Loading course details</strong>
+                      <p>We&apos;re pulling the exact course record assigned to you.</p>
+                    </div>
+                  ) : coursesError ? (
+                    <div className="faculty-my-batches-loading-card">
+                      <strong>Course details unavailable</strong>
+                      <p>{coursesError}</p>
+                    </div>
+                  ) : assignedCourses.length ? (
+                    <div className="faculty-course-course-view">
+                      {assignedCourses.length > 1 ? (
+                        <div className="faculty-course-switcher" aria-label="Assigned courses">
+                          {assignedCourses.map((course) => {
+                            const isActive = String(course.id || '').trim() === String(selectedCourse?.id || '').trim()
+
+                            return (
+                              <button
+                                key={course.id}
+                                type="button"
+                                className={`faculty-course-switcher-pill ${isActive ? 'is-active' : ''}`.trim()}
+                                onClick={() => setSelectedCourseId(String(course.id || '').trim())}
+                              >
+                                <span>{course.courseCode || 'Course'}</span>
+                                <strong>{course.name || course.courseName || 'Course'}</strong>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      ) : null}
+
+                      <section className="faculty-course-hero">
+                        <div className="faculty-course-hero-header">
+                          <span className={`faculty-course-hero-status ${String(selectedCourse?.status || 'Active').toLowerCase()}`.trim()}>
+                            {selectedCourse?.status || 'Active'}
+                          </span>
+
+                          <div className="faculty-course-hero-title-row">
+                            <h3 className="faculty-course-hero-title">{selectedCourse?.name || selectedCourse?.courseName || 'Course'}</h3>
+
+                            <button type="button" className="faculty-course-edit-request-btn faculty-course-edit-request-btn--hero">
+                              <Pencil size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                              <span>Edit request</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="faculty-course-hero-divider" aria-hidden="true" />
+
+                        <div className="faculty-course-hero-metrics">
+                          <div className="faculty-course-hero-metric">
+                            <span className="faculty-course-hero-metric-icon tone-blue" aria-hidden="true">
+                              <BookOpen size={24} strokeWidth={2.1} />
+                            </span>
+                            <div>
+                              <strong>{selectedCourse?.courseCode || selectedCourse?.id || '-'}</strong>
+                              <span>Course Code</span>
+                            </div>
+                          </div>
+
+                          <div className="faculty-course-hero-metric">
+                            <span className="faculty-course-hero-metric-icon tone-green" aria-hidden="true">
+                              <Monitor size={24} strokeWidth={2.1} />
+                            </span>
+                            <div>
+                              <strong>{selectedCourse?.mode || '-'}</strong>
+                              <span>Mode</span>
+                            </div>
+                          </div>
+
+                          <div className="faculty-course-hero-metric">
+                            <span className="faculty-course-hero-metric-icon tone-purple" aria-hidden="true">
+                              <CalendarDays size={24} strokeWidth={2.1} />
+                            </span>
+                            <div>
+                              <strong>{formatCourseDuration(selectedCourse?.duration)}</strong>
+                              <span>Duration</span>
+                            </div>
+                          </div>
+
+                          <div className="faculty-course-hero-metric">
+                            <span className="faculty-course-hero-metric-icon tone-orange" aria-hidden="true">
+                              <Clock3 size={24} strokeWidth={2.1} />
+                            </span>
+                            <div>
+                              <strong>{formatCourseHours(selectedCourse?.hours)}</strong>
+                              <span>Course Hours</span>
+                            </div>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="faculty-course-curriculum-shell">
+                        <div className="faculty-course-curriculum">
+                          <div className="faculty-course-curriculum-toolbar">
+                            <div>
+                              <p className="faculty-course-section-kicker">MODULES &amp; SUBMODULES</p>
+                              <h4>Expand a module to view its submodules</h4>
+                            </div>
+
+                            <button type="button" className="faculty-course-expand-all" onClick={toggleAllCourseModules}>
+                              {isAllModulesExpanded ? 'Collapse All' : 'Expand All'}
+                            </button>
+                          </div>
+
+                          {selectedCourseModules.length ? (
+                            <div className="faculty-course-module-grid">
+                              {selectedCourseModules.map((module, index) => {
+                                const moduleKey = String(module?.id || `${selectedCourse?.id || 'course'}-module-${index}`).trim()
+                                const isExpanded = expandedCourseModuleIds.includes(moduleKey)
+                                const submodules = Array.isArray(module?.submodules) ? module.submodules : []
+
+                                return (
+                                  <article key={moduleKey} className={`faculty-course-module-card ${isExpanded ? 'is-expanded' : ''}`.trim()}>
+                                    <button
+                                      type="button"
+                                      className="faculty-course-module-trigger"
+                                      onClick={() => toggleCourseModule(moduleKey)}
+                                    >
+                                      <span className="faculty-course-module-index">{String(index + 1).padStart(2, '0')}</span>
+
+                                      <span className="faculty-course-module-copy">
+                                        <span className="faculty-course-section-kicker" style={{ marginBottom: 6 }}>
+                                          MODULE
+                                        </span>
+                                        <strong>{module?.name || module?.title || `Module ${index + 1}`}</strong>
+                                      </span>
+
+                                      <span className="faculty-course-module-percent">
+                                        {getModulePercentage(module, index, selectedCourseModules.length)}
+                                      </span>
+
+                                      <span className="faculty-course-module-chevron" aria-hidden="true">
+                                        <ChevronDown size={18} strokeWidth={2.4} />
+                                      </span>
+                                    </button>
+
+                                    {isExpanded ? (
+                                      <div className="faculty-course-submodule-list">
+                                        {submodules.length ? (
+                                          submodules.map((submodule, subIndex) => (
+                                            <div key={String(submodule?.id || `${moduleKey}-sub-${subIndex}`)} className="faculty-course-submodule-item">
+                                              <div className="faculty-course-submodule-step">
+                                                <span className="faculty-course-submodule-dot" aria-hidden="true" />
+                                                <div className="faculty-course-submodule-copy">
+                                                  <span>SUBMODULE {subIndex + 1}</span>
+                                                  <strong>{submodule?.name || submodule?.title || `Submodule ${subIndex + 1}`}</strong>
+                                                </div>
+                                              </div>
+
+                                              <strong className="faculty-course-submodule-percent">
+                                                {getModulePercentage(submodule, subIndex, submodules.length)}
+                                              </strong>
+                                            </div>
+                                          ))
+                                        ) : (
+                                          <div className="faculty-course-submodule-empty">No submodules added</div>
+                                        )}
+                                      </div>
+                                    ) : null}
+                                  </article>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <div className="faculty-course-empty-state">
+                              No modules found for this course yet.
+                            </div>
+                          )}
+                        </div>
+                      </section>
+                    </div>
+                  ) : (
+                    <div className="faculty-my-batches-empty">
+                      <strong>No assigned courses found</strong>
+                      <p>
+                        We could not match a branch course to your faculty profile yet. Once the course is assigned,
+                        the full course details will appear here.
+                      </p>
+                    </div>
+                  )}
+                </FacultyDashboardSection>
+              ) : null}
+
               {activeSection === 'my-batches' ? (
                 <FacultyDashboardSection title="My Batches" description="Overview of active learning batches under your instruction.">
                   <div className="branch-dashboard-table-shell">
@@ -1435,91 +1324,6 @@ useEffect(() => {
                 </FacultyDashboardSection>
               ) : null}
 
-              {activeSection === 'courses' ? (
-                <FacultyDashboardSection title="Course" description="">
-                  {selectedCourse ? (
-                    <>
-                      <div className="faculty-course-hero">
-                        <div className="faculty-course-hero-header">
-                          <span className={`faculty-course-hero-status ${String(selectedCourse.status || 'Active').toLowerCase()}`.trim()}>
-                            {selectedCourse.status || 'Active'}
-                          </span>
-                          <div className="faculty-course-hero-title-row">
-                            <h3 className="faculty-course-hero-title">{String(selectedCourse.name || 'Data Science').toUpperCase()}</h3>
-
-                            <button type="button" className="faculty-course-edit-request-btn faculty-course-edit-request-btn--hero" onClick={handleCourseEditHeroAction}>
-                              <Pencil size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-                              <span>{selectedCourseHeroButtonLabel}</span>
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="faculty-course-hero-divider" />
-
-                        <div className="faculty-course-hero-metrics">
-                          <article className="faculty-course-hero-metric">
-                            <span className="faculty-course-hero-metric-icon tone-blue" aria-hidden="true">
-                              <BookOpen size={24} strokeWidth={2.2} />
-                            </span>
-                            <div>
-                              <strong>{selectedCourse.courseCode || '-'}</strong>
-                              <span>Course Code</span>
-                            </div>
-                          </article>
-
-                          <article className="faculty-course-hero-metric">
-                            <span className="faculty-course-hero-metric-icon tone-green" aria-hidden="true">
-                              <Monitor size={24} strokeWidth={2.2} />
-                            </span>
-                            <div>
-                              <strong>{selectedCourse.mode || 'Mode not set'}</strong>
-                              <span>Mode</span>
-                            </div>
-                          </article>
-
-                          <article className="faculty-course-hero-metric">
-                            <span className="faculty-course-hero-metric-icon tone-purple" aria-hidden="true">
-                              <CalendarDays size={24} strokeWidth={2.2} />
-                            </span>
-                            <div>
-                              <strong>
-                                {selectedCourse.duration
-                                  ? `${selectedCourse.duration} month${String(selectedCourse.duration) === '1' ? '' : 's'}`
-                                  : 'Duration not set'}
-                              </strong>
-                              <span>Duration</span>
-                            </div>
-                          </article>
-
-                          <article className="faculty-course-hero-metric">
-                            <span className="faculty-course-hero-metric-icon tone-orange" aria-hidden="true">
-                              <Clock3 size={24} strokeWidth={2.2} />
-                            </span>
-                            <div>
-                              <strong>
-                                {selectedCourse.hours
-                                  ? `${selectedCourse.hours} hour${String(selectedCourse.hours) === '1' ? '' : 's'}`
-                                  : 'Hours not set'}
-                              </strong>
-                              <span>Course Hours</span>
-                            </div>
-                          </article>
-                        </div>
-                      </div>
-
-                      <div className="faculty-course-curriculum-shell">
-                        <CourseHierarchyList models={selectedCourseModels} />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="faculty-course-empty-state faculty-course-empty-hero">
-                      <strong>No Data Science course found</strong>
-                      <p>The faculty course tab is waiting for the branch course catalog to load.</p>
-                    </div>
-                  )}
-                </FacultyDashboardSection>
-              ) : null}
-
               {activeSection === 'students' ? (
                 <FacultyDashboardSection title="Enrolled Students" description="Learners enrolled in your courses across all active batches.">
                   <div className="branch-dashboard-table-shell">
@@ -1547,7 +1351,12 @@ useEffect(() => {
                             <td>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <div className="faculty-avatar">
-                                  {student.name.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()}
+                                  {String(student?.name || 'ST')
+                                    .split(' ')
+                                    .map((n) => n[0])
+                                    .join('')
+                                    .substring(0, 2)
+                                    .toUpperCase()}
                                 </div>
                                 <strong className="branch-course-name">{student.name}</strong>
                               </div>
@@ -1806,428 +1615,11 @@ useEffect(() => {
           </div>
         </div>
       ) : null}
-
-      {isCourseEditRequestOpen ? (
-        <div className="branch-modal-backdrop faculty-course-request-backdrop" role="presentation">
-          <div
-            className="faculty-course-request-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="faculty-course-request-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="faculty-course-request-close"
-              aria-label="Close edit request"
-              onClick={closeCourseEditRequest}
-            >
-              ×
-            </button>
-
-            <div className="faculty-course-request-header">
-                <div>
-                  <p className="faculty-course-request-kicker">Edit Request</p>
-                  <h3 id="faculty-course-request-title">{selectedCourse?.name || 'Data Science'}</h3>
-                  <p className="faculty-course-request-subtitle">
-                  Tell the branch admin exactly what you want to change in the modules or submodules.
-                  </p>
-                </div>
-              </div>
-
-            <form className="faculty-course-request-form" onSubmit={handleCourseEditRequestSubmit}>
-              <label className="faculty-course-request-field">
-                <span>Requested changes</span>
-                <textarea
-                  value={courseEditRequestText}
-                  onChange={(event) => setCourseEditRequestText(event.target.value)}
-                  placeholder="Example: Add new submodules for data cleaning and model deployment."
-                  rows={4}
-                />
-              </label>
-
-              <div className="faculty-course-request-actions">
-                <button
-                  type="button"
-                  className="faculty-course-request-cancel"
-                  onClick={() => {
-                    setCourseEditRequestText('')
-                  }}
-                >
-                  Clear
-                </button>
-                <button type="submit" className="faculty-course-request-submit">
-                  Send Request
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
-
-      {isCourseEditEditorOpen ? (
-        <div className="branch-modal-backdrop faculty-course-edit-backdrop" role="presentation">
-          <div
-            className="faculty-course-edit-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="faculty-course-edit-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="faculty-course-edit-close"
-              aria-label="Close course editor"
-              onClick={closeCourseEditEditor}
-            >
-              Ã—
-            </button>
-
-            <div className="faculty-course-edit-header">
-              <div>
-                <p className="faculty-course-edit-kicker">Open Edit</p>
-                <h3 id="faculty-course-edit-title">{selectedCourse?.name || 'Data Science'}</h3>
-                <p className="faculty-course-edit-subtitle">
-                  Update modules and submodules only. Other course details stay locked.
-                </p>
-              </div>
-            </div>
-
-            <div className="faculty-course-edit-body">
-              {courseEditEditorStage === 'table' ? (
-                <div className="faculty-course-edit-table-shell">
-                  <div className="faculty-course-edit-table-toolbar">
-                    <div>
-                      <p className="faculty-course-edit-table-label">Modules</p>
-                      <p className="faculty-course-edit-table-subtitle">
-                        {courseEditPreviewModels.length} saved
-                      </p>
-                    </div>
-                    <button type="button" className="faculty-course-edit-add-module" onClick={addCourseEditDraftModule}>
-                      + Add Module
-                    </button>
-                  </div>
-
-                  {courseEditPreviewModels.length ? (
-                    <div className="faculty-course-edit-table" role="table" aria-label="Module overview">
-                      <div className="faculty-course-edit-table-head" role="row">
-                        <div role="columnheader">MODULE</div>
-                        <div role="columnheader">MODULE %</div>
-                        <div role="columnheader">SUBMODULES</div>
-                        <div role="columnheader">ACTIONS</div>
-                      </div>
-
-                      <div className="faculty-course-edit-table-body">
-                        {courseEditPreviewModels.map((module, moduleIndex) => {
-                          const submodules = Array.isArray(module.submodels) ? module.submodels : []
-                          const isExpanded = courseEditExpandedModuleIds.includes(module.id)
-
-                          return (
-                            <article
-                              key={module.id || moduleIndex}
-                              className={`faculty-course-edit-row ${isExpanded ? 'is-expanded' : ''}`.trim()}
-                            >
-                              <div className="faculty-course-edit-row-main">
-                                <div className="faculty-course-edit-row-module">
-                                  <div className="faculty-course-edit-badge">{String(moduleIndex + 1).padStart(2, '0')}</div>
-                                  <div>
-                                    <span>MODULE {moduleIndex + 1}</span>
-                                    <strong>{module.name || `Module ${moduleIndex + 1}`}</strong>
-                                  </div>
-                                </div>
-                                <div className="faculty-course-edit-row-percent">
-                                  <span>{formatCoursePercentage(module.percentage)}</span>
-                                </div>
-                                <div className="faculty-course-edit-row-submodules">
-                                  <span>{getSavedSubmoduleCount(submodules)} Submodules</span>
-                                </div>
-                                <div className="faculty-course-edit-row-actions">
-                                  <button
-                                    type="button"
-                                    className="faculty-course-edit-action-btn"
-                                    onClick={() => toggleCourseEditModuleExpanded(module.id)}
-                                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} module ${moduleIndex + 1}`}
-                                  >
-                                    <ChevronDown size={16} strokeWidth={2.3} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="faculty-course-edit-action-btn"
-                                    onClick={() => openCourseEditModule(moduleIndex)}
-                                    aria-label={`Edit module ${moduleIndex + 1}`}
-                                  >
-                                    <Pencil size={14} strokeWidth={2.4} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="faculty-course-edit-action-btn is-danger"
-                                    onClick={() =>
-                                      openCourseEditDeleteConfirm({
-                                        type: 'module',
-                                        moduleIndex,
-                                        moduleName: module.name || `Module ${moduleIndex + 1}`,
-                                      })
-                                    }
-                                    aria-label={`Remove module ${moduleIndex + 1}`}
-                                  >
-                                    <Trash2 size={14} strokeWidth={2.4} />
-                                  </button>
-                                </div>
-                              </div>
-
-                              {isExpanded ? (
-                                <div className="faculty-course-edit-row-details">
-                                  <div className="faculty-course-edit-mini-title-row">
-                                    <strong>Submodules</strong>
-                                  </div>
-                                  {submodules.length ? (
-                                    <div className="faculty-course-edit-mini-list">
-                                      {submodules.map((submodel, submoduleIndex) => (
-                                        <div key={submodel.id || submoduleIndex} className="faculty-course-edit-mini-item">
-                                          <span className="faculty-course-edit-mini-index">
-                                            01.{String(submoduleIndex + 1).padStart(2, '0')}
-                                          </span>
-                                          <strong>{submodel.name || `Submodule ${submoduleIndex + 1}`}</strong>
-                                          <span className="faculty-course-edit-mini-percent">
-                                            {formatCoursePercentage(submodel.percentage)}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div className="faculty-course-edit-empty">No submodules added yet.</div>
-                                  )}
-                                </div>
-                              ) : null}
-                            </article>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="faculty-course-edit-empty">
-                      No modules yet. Add one to start editing the curriculum.
-                    </div>
-                  )}
-
-                  {courseEditSaveMessage ? (
-                    <div className="faculty-course-edit-status" role="status" aria-live="polite">
-                      {courseEditSaveMessage}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {courseEditEditorStage === 'module' && courseEditActiveModuleDraft ? (
-                <div className="faculty-course-edit-step-shell">
-                  <div className="faculty-course-edit-step-card">
-                    <div className="faculty-course-edit-step-title-row">
-                      <div className="faculty-course-edit-step-badge">{String(courseEditActiveModuleIndex + 1)}</div>
-                      <strong>Module {courseEditActiveModuleIndex + 1}</strong>
-                    </div>
-                    <label className="faculty-course-edit-field">
-                      <span>
-                        Module Name <span className="faculty-course-edit-required">*</span>
-                      </span>
-                      <input
-                        type="text"
-                        value={courseEditActiveModuleDraft.name}
-                        onChange={(event) => updateCourseEditDraftModuleName(courseEditActiveModuleIndex, event.target.value)}
-                        placeholder="Module name"
-                        className="faculty-course-edit-input faculty-course-edit-input--module"
-                      />
-                    </label>
-                    {courseEditModuleNameError ? <div className="faculty-course-edit-field-error">{courseEditModuleNameError}</div> : null}
-                    <div className="faculty-course-edit-step-actions">
-                      <button type="button" className="faculty-course-edit-cancel faculty-course-edit-step-cancel" onClick={backToCourseEditTable}>
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        className="faculty-course-edit-step-primary"
-                        onClick={continueToCourseEditSubmodules}
-                        disabled={!String(courseEditActiveModuleDraft.name || '').trim()}
-                      >
-                        Continue
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-              {courseEditEditorStage === 'submodule' && courseEditActiveModule ? (
-                <div className="faculty-course-edit-step-shell">
-                  <div className="faculty-course-edit-submodule-head">
-                    <div className="faculty-course-edit-step-title-row">
-                      <div className="faculty-course-edit-step-badge">{String(courseEditActiveModuleIndex + 1)}</div>
-                      <strong>{courseEditActiveModule.name || `Module ${courseEditActiveModuleIndex + 1}`}</strong>
-                    </div>
-                    <div className="faculty-course-edit-submodule-count">
-                      {getSavedSubmoduleCount(courseEditActiveSubmodules)} saved
-                    </div>
-                  </div>
-
-                  <div className="faculty-course-edit-submodule-section">
-                    <div className="faculty-course-edit-submodule-heading-row">
-                      <h4>Sub Modules</h4>
-                    </div>
-
-                    <div className="faculty-course-edit-submodule-list">
-                      {courseEditActiveSubmodules.length ? (
-                        courseEditActiveSubmodules.map((submodel, submoduleIndex) => {
-                          const isEditing = courseEditEditingSubmoduleIndex === submoduleIndex
-                          const isActive = courseEditActiveSubmoduleIndex === submoduleIndex
-
-                          return (
-                            <div
-                              key={submodel.id || submoduleIndex}
-                              className={`faculty-course-edit-submodule-item ${isEditing ? 'is-editing' : ''} ${isActive ? 'is-active' : ''}`.trim()}
-                            >
-                              <span className="faculty-course-edit-submodule-check">✓</span>
-
-                              {isEditing ? (
-                                <div className="faculty-course-edit-submodule-editor">
-                                  <div className="faculty-course-edit-submodule-editor-label">
-                                    Submodule {submoduleIndex + 1} <span className="faculty-course-edit-required">*</span>
-                                  </div>
-                                  <input
-                                    type="text"
-                                    value={submodel.name}
-                                    onChange={(event) =>
-                                      updateCourseEditDraftSubmoduleName(courseEditActiveModuleIndex, submoduleIndex, event.target.value)
-                                    }
-                                    className="faculty-course-edit-input faculty-course-edit-input--submodule"
-                                    placeholder="Enter submodule name"
-                                  />
-                                </div>
-                              ) : (
-                                <strong>{submodel.name || `Submodule ${submoduleIndex + 1}`}</strong>
-                              )}
-
-                              <div className="faculty-course-edit-submodule-actions">
-                                {isEditing ? (
-                                  <button
-                                    type="button"
-                                    className="faculty-course-edit-inline-save"
-                                    onClick={() => saveCourseEditSubmodule(submoduleIndex)}
-                                    aria-label={`Save submodule ${submoduleIndex + 1}`}
-                                  >
-                                    <CheckCircle2 size={14} strokeWidth={2.4} />
-                                    <span>Save</span>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="faculty-course-edit-icon-btn"
-                                    onClick={() => editCourseEditSubmodule(submoduleIndex)}
-                                    aria-label={`Edit submodule ${submoduleIndex + 1}`}
-                                  >
-                                    <Pencil size={14} strokeWidth={2.4} />
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="faculty-course-edit-icon-btn is-danger"
-                                  onClick={() =>
-                                    openCourseEditDeleteConfirm({
-                                      type: 'submodule',
-                                      moduleIndex: courseEditActiveModuleIndex,
-                                      submoduleIndex,
-                                      submoduleName: submodel.name || `Submodule ${submoduleIndex + 1}`,
-                                    })
-                                  }
-                                  aria-label={`Remove submodule ${submoduleIndex + 1}`}
-                                >
-                                  <Trash2 size={14} strokeWidth={2.4} />
-                                </button>
-                              </div>
-                            </div>
-                          )
-                        })
-                      ) : null}
-                    </div>
-
-                    <button
-                      type="button"
-                      className="faculty-course-edit-add-submodule"
-                      onClick={addCourseEditSubmoduleAndEdit}
-                    >
-                      + Add Submodule
-                    </button>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            {courseEditDeleteConfirm ? (
-              <div className="faculty-course-delete-overlay" role="presentation">
-                <div
-                  className="faculty-course-delete-modal"
-                  role="dialog"
-                  aria-modal="true"
-                  aria-labelledby="faculty-course-delete-title"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    className="faculty-course-delete-close"
-                    aria-label="Close delete confirmation"
-                    onClick={closeCourseEditDeleteConfirm}
-                  >
-                    ×
-                  </button>
-
-                  <p className="faculty-course-delete-kicker">CONFIRM DELETE</p>
-                  <h3 id="faculty-course-delete-title">Are you sure?</h3>
-                  <p className="faculty-course-delete-text">
-                    {courseEditDeleteConfirm.type === 'module'
-                      ? `This will permanently delete ${courseEditDeleteConfirm.moduleName || 'this module'}.`
-                      : `This will permanently delete ${courseEditDeleteConfirm.submoduleName || 'this submodule'}.`}
-                  </p>
-
-                  <div className="faculty-course-delete-actions">
-                    <button type="button" className="faculty-course-edit-cancel" onClick={closeCourseEditDeleteConfirm}>
-                      Cancel
-                    </button>
-                    <button type="button" className="faculty-course-delete-confirm" onClick={confirmCourseEditDelete}>
-                      OK
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="faculty-course-edit-actions">
-              {courseEditEditorStage === 'module' ? (
-                <button type="button" className="faculty-course-edit-cancel" onClick={backToCourseEditTable}>
-                  Back
-                </button>
-              ) : null}
-              {courseEditEditorStage === 'submodule' ? (
-                <button type="button" className="faculty-course-edit-cancel" onClick={() => setCourseEditEditorStage('module')}>
-                  Back
-                </button>
-              ) : null}
-              <button type="button" className="faculty-course-edit-cancel" onClick={closeCourseEditEditor}>
-                Close
-              </button>
-              {courseEditEditorStage === 'submodule' ? (
-                <button type="button" className="faculty-course-edit-save" onClick={saveCourseEditModuleDraft}>
-                  Save Module
-                </button>
-              ) : null}
-              {courseEditEditorStage === 'table' ? (
-                <button type="button" className="faculty-course-edit-save" onClick={handleCourseEditSave}>
-                  Save Changes
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
     </section>
   )
 }
 
 export { FacultyDashboardPage as FacultyMyBatchesPage }
+
+
 
