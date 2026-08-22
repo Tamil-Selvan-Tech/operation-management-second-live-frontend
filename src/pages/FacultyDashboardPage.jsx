@@ -110,6 +110,10 @@ function formatCoursePercentage(value) {
   return `${rounded}%`
 }
 
+function getSavedSubmoduleCount(submodels) {
+  return (Array.isArray(submodels) ? submodels : []).filter((submodel) => String(submodel?.name || '').trim()).length
+}
+
 function distributeCoursePercentages(count = 0) {
   const total = Math.max(0, Math.floor(Number(count) || 0))
   if (!total) return []
@@ -811,7 +815,7 @@ useEffect(() => {
     setCourseEditEditorStage('table')
     setCourseEditActiveModuleIndex(0)
     setCourseEditActiveSubmoduleIndex(0)
-    setCourseEditExpandedModuleIds(nextDraftModels.map((module) => String(module.id || '').trim()).filter(Boolean))
+    setCourseEditExpandedModuleIds([])
     setCourseEditEditingSubmoduleIndex(null)
     setCourseEditSaveMessage('')
     setIsCourseEditEditorOpen(true)
@@ -959,8 +963,17 @@ useEffect(() => {
     }
 
     setCourseEditModuleNameError('')
-    setCourseEditActiveSubmoduleIndex(0)
-    setCourseEditEditingSubmoduleIndex(null)
+    const targetSubmodules = Array.isArray(courseEditDraftModels[courseEditActiveModuleIndex]?.submodels)
+      ? courseEditDraftModels[courseEditActiveModuleIndex].submodels
+      : []
+
+    if (!targetSubmodules.length) {
+      addCourseEditDraftSubmodule(courseEditActiveModuleIndex)
+    } else {
+      setCourseEditActiveSubmoduleIndex(0)
+      setCourseEditEditingSubmoduleIndex(null)
+    }
+
     setCourseEditEditorStage('submodule')
   }
 
@@ -983,6 +996,11 @@ useEffect(() => {
 
   const editCourseEditSubmodule = (submoduleIndex) => {
     setCourseEditEditingSubmoduleIndex(submoduleIndex)
+  }
+
+  const saveCourseEditSubmodule = (submoduleIndex) => {
+    setCourseEditActiveSubmoduleIndex(submoduleIndex)
+    setCourseEditEditingSubmoduleIndex(null)
   }
 
   const addCourseEditSubmoduleAndEdit = () => {
@@ -1052,8 +1070,7 @@ useEffect(() => {
     saveBranchCourseSnapshot(nextCourses)
     setBranchCourseCards(nextCourses)
     recordCourseEditChange(selectedCourseEditRequest.id, 'Updated modules and submodules.')
-    setCourseEditSaveMessage('Saved. Branch admin updated.')
-    setCourseEditEditorStage('table')
+    closeCourseEditEditor()
   }
 
   const renderSidebar = () => (
@@ -1848,7 +1865,7 @@ useEffect(() => {
                                   <span>{formatCoursePercentage(module.percentage)}</span>
                                 </div>
                                 <div className="faculty-course-edit-row-submodules">
-                                  <span>{submodules.length} Submodules</span>
+                                  <span>{getSavedSubmoduleCount(submodules)} Submodules</span>
                                 </div>
                                 <div className="faculty-course-edit-row-actions">
                                   <button
@@ -1880,6 +1897,9 @@ useEffect(() => {
 
                               {isExpanded ? (
                                 <div className="faculty-course-edit-row-details">
+                                  <div className="faculty-course-edit-mini-title-row">
+                                    <strong>Submodules</strong>
+                                  </div>
                                   {submodules.length ? (
                                     <div className="faculty-course-edit-mini-list">
                                       {submodules.map((submodel, submoduleIndex) => (
@@ -1963,7 +1983,7 @@ useEffect(() => {
                       <strong>{courseEditActiveModule.name || `Module ${courseEditActiveModuleIndex + 1}`}</strong>
                     </div>
                     <div className="faculty-course-edit-submodule-count">
-                      {courseEditActiveSubmodules.length} saved
+                      {getSavedSubmoduleCount(courseEditActiveSubmodules)} saved
                     </div>
                   </div>
 
@@ -1973,7 +1993,7 @@ useEffect(() => {
                     </div>
 
                     <div className="faculty-course-edit-submodule-list">
-                        {courseEditActiveSubmodules.length ? (
+                      {courseEditActiveSubmodules.length ? (
                         courseEditActiveSubmodules.map((submodel, submoduleIndex) => {
                           const isEditing = courseEditEditingSubmoduleIndex === submoduleIndex
                           const isActive = courseEditActiveSubmoduleIndex === submoduleIndex
@@ -1986,28 +2006,45 @@ useEffect(() => {
                               <span className="faculty-course-edit-submodule-check">✓</span>
 
                               {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={submodel.name}
-                                  onChange={(event) =>
-                                    updateCourseEditDraftSubmoduleName(courseEditActiveModuleIndex, submoduleIndex, event.target.value)
-                                  }
-                                  className="faculty-course-edit-input faculty-course-edit-input--submodule"
-                                  placeholder="Submodule name"
-                                />
+                                <div className="faculty-course-edit-submodule-editor">
+                                  <div className="faculty-course-edit-submodule-editor-label">
+                                    Submodule {submoduleIndex + 1} <span className="faculty-course-edit-required">*</span>
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={submodel.name}
+                                    onChange={(event) =>
+                                      updateCourseEditDraftSubmoduleName(courseEditActiveModuleIndex, submoduleIndex, event.target.value)
+                                    }
+                                    className="faculty-course-edit-input faculty-course-edit-input--submodule"
+                                    placeholder="Enter submodule name"
+                                  />
+                                </div>
                               ) : (
                                 <strong>{submodel.name || `Submodule ${submoduleIndex + 1}`}</strong>
                               )}
 
                               <div className="faculty-course-edit-submodule-actions">
-                                <button
-                                  type="button"
-                                  className="faculty-course-edit-icon-btn"
-                                  onClick={() => editCourseEditSubmodule(submoduleIndex)}
-                                  aria-label={`Edit submodule ${submoduleIndex + 1}`}
-                                >
-                                  <Pencil size={14} strokeWidth={2.4} />
-                                </button>
+                                {isEditing ? (
+                                  <button
+                                    type="button"
+                                    className="faculty-course-edit-inline-save"
+                                    onClick={() => saveCourseEditSubmodule(submoduleIndex)}
+                                    aria-label={`Save submodule ${submoduleIndex + 1}`}
+                                  >
+                                    <CheckCircle2 size={14} strokeWidth={2.4} />
+                                    <span>Save</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="faculty-course-edit-icon-btn"
+                                    onClick={() => editCourseEditSubmodule(submoduleIndex)}
+                                    aria-label={`Edit submodule ${submoduleIndex + 1}`}
+                                  >
+                                    <Pencil size={14} strokeWidth={2.4} />
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   className="faculty-course-edit-icon-btn is-danger"
@@ -2020,9 +2057,7 @@ useEffect(() => {
                             </div>
                           )
                         })
-                      ) : (
-                        <div className="faculty-course-edit-empty">No submodules yet. Add one below.</div>
-                      )}
+                      ) : null}
                     </div>
 
                     <button
