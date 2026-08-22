@@ -206,12 +206,10 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
       } else {
         await createBranchInstallmentTemplate(payload)
       }
-      const wasEditing = Boolean(editingTemplateId)
 
       resetForm()
       setIsCreateOpen(false)
-
-      await loadTemplates(wasEditing ? page : 1)
+      await loadTemplates(editingTemplateId ? page : 1)
     } catch (err) {
       setError(err?.message || 'Unable to save installment template.')
     } finally {
@@ -552,5 +550,3 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
     </section>
   )
 }
-
-
