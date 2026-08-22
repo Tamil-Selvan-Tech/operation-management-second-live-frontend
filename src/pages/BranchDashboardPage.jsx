@@ -614,7 +614,7 @@ function createBranchCourseErrors(form) {
   hierarchy.models = normalizedModels.map((model) => {
     const modelErrors = {}
     if (!String(model.name || '').trim()) {
-      modelErrors.name = 'Model name is required.'
+      modelErrors.name = 'Module name is required.'
     }
 
     const submodels = Array.isArray(model.submodels) ? model.submodels : []
@@ -871,6 +871,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSavedCourseModuleIds, setExpandedSavedCourseModuleIds] = useState([])
   const [submoduleDraftRestoreIndex, setSubmoduleDraftRestoreIndex] = useState(0)
   const [submoduleDraftRestoreLength, setSubmoduleDraftRestoreLength] = useState(null)
+  const activeSubmoduleInputRef = useRef(null)
 
   const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
   const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
@@ -2117,6 +2118,17 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     selectedSavedModelIndex,
     selectedSavedSubmodelIndex,
   ])
+
+  useEffect(() => {
+    if (!isAddCourseOpen || courseEditorStage !== 'submodule' || !isSubmoduleDraftOpen) return undefined
+
+    const frameId = window.requestAnimationFrame(() => {
+      activeSubmoduleInputRef.current?.focus()
+      activeSubmoduleInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [courseEditorStage, isAddCourseOpen, isSubmoduleDraftOpen, selectedSavedModelIndex, selectedSavedSubmodelIndex])
 
   const viewCourseModels = useMemo(
     () => buildBranchCourseHierarchySummary(viewCourse?.models || viewCourse?.courseModels || viewCourse?.modules || []),
@@ -3606,8 +3618,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
               <div className="course-step-caption">
                 {addCourseStep === 1
-                  ? 'Fill the course basics first. Then move to model setup.'
-                  : 'Add models and submodels. Percentages are calculated automatically.'}
+                  ? 'Fill the course basics first. Then move to module setup.'
+                  : 'Add modules and submodules. Percentages are calculated automatically.'}
               </div>
 
               {addCourseStep === 1 ? (
@@ -3883,6 +3895,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                                         type="text"
                                         placeholder="Enter submodule name"
                                         value={activeSubmodel.name || ''}
+                                        ref={activeSubmoduleInputRef}
                                         onChange={(event) => updateAddCourseSubmodelField(modelIndex, activeSubmodelIndex, event.target.value)}
                                         onBlur={() => markAddCourseTouched(`model-${modelIndex}-submodel-${activeSubmodelIndex}-name`)}
                                         aria-invalid={Boolean(shouldShowSubmodelError(modelIndex, activeSubmodelIndex))}

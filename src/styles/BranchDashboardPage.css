@@ -4800,19 +4800,15 @@
 }
 
 .branch-course-view-body {
-  display: flex;
-  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .branch-course-view-tabs {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 4;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4859,6 +4855,12 @@
 }
 
 .branch-course-view-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
   display: grid;
   gap: 16px;
   padding: 18px 24px 24px;
