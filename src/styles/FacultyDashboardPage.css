@@ -67,6 +67,94 @@
   border-radius: 8px;
 }
 
+.faculty-course-delete-modal {
+  position: relative;
+  width: min(430px, calc(100vw - 28px));
+  padding: 28px 24px 22px;
+  border-radius: 26px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.22);
+}
+
+.faculty-course-delete-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.faculty-course-delete-close:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.faculty-course-delete-header {
+  display: grid;
+  gap: 10px;
+  padding-right: 34px;
+}
+
+.faculty-course-delete-kicker {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.faculty-course-delete-header h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.3rem;
+  letter-spacing: -0.03em;
+}
+
+.faculty-course-delete-subtitle {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.faculty-course-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.faculty-course-delete-cancel,
+.faculty-course-delete-submit {
+  min-width: 108px;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.faculty-course-delete-cancel {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #ffffff;
+  color: #475569;
+}
+
+.faculty-course-delete-submit {
+  border: 1px solid rgba(220, 38, 38, 0.16);
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(220, 38, 38, 0.18);
+}
+
 /* Title */
 .branch-logout-modal h2 {
   margin: 0;

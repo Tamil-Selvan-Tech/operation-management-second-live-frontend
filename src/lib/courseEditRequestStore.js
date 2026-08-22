@@ -247,6 +247,8 @@ export function recordCourseEditChange(requestId = '', changeSummary = '') {
 
     updatedRequest = normalizeRequest({
       ...request,
+      status: 'completed',
+      requestStatus: 'completed',
       updatedAt,
       editedAt: updatedAt,
       changeSummary: normalizeText(changeSummary),
@@ -258,6 +260,13 @@ export function recordCourseEditChange(requestId = '', changeSummary = '') {
   if (!updatedRequest) return null
 
   saveCourseEditRequests(nextRequests)
+  updateNotification(updatedRequest.sourceNotificationId || updatedRequest.id, {
+    requestStatus: 'completed',
+    actionLabel: 'Edit Request',
+    tone: 'amber',
+    title: `${updatedRequest.courseName || 'Course'} updated`,
+    message: `${updatedRequest.facultyName || 'Faculty'} saved module and submodule changes for ${updatedRequest.courseName || 'the course'}.`,
+  })
   notifyBranchCourseEditUpdated(updatedRequest)
   return updatedRequest
 }
