@@ -276,7 +276,7 @@ export function BranchInstallmentTemplatesPage() {
       </div>
 
       <div className="installment-page-layout">
-        <div className="installment-card installment-form-card">
+        <form className="installment-card installment-form-card" onSubmit={submitForm}>
           <div className="installment-card-header">
             <div>
               {/* <p className="installment-card-label">Create Template</p> */}
@@ -364,13 +364,13 @@ export function BranchInstallmentTemplatesPage() {
                 <Button type="button" variant="ghost" onClick={resetForm} disabled={saving}>
                   Reset
                 </Button>
-                <Button type="button" disabled={saving} onClick={submitForm}>
+                <Button type="submit" disabled={saving}>
                   {saving ? 'Saving...' : editingTemplateId ? 'Update Template' : 'Create Template'}
                 </Button>
               </div>
             </>
           ) : null}
-        </div>
+        </form>
 
         <div className="installment-card installment-list-card">
           <div className="installment-card-header">
@@ -390,10 +390,9 @@ export function BranchInstallmentTemplatesPage() {
           </div> */}
 
           <div className="installment-filter-row">
-          
-              
+            <label className="installment-search">
+              <Search size={16} strokeWidth={2.3} />
               <input
-              
                 type="text"
                 placeholder="Search templates"
                 value={searchTerm}
@@ -404,11 +403,8 @@ export function BranchInstallmentTemplatesPage() {
                     void loadTemplates(1)
                   }
                 }}
-                
-              
               />
-              
-            
+            </label>
 
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
               <option value="">All Status</option>
