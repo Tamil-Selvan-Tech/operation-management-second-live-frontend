@@ -207,18 +207,9 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
         await createBranchInstallmentTemplate(payload)
       }
 
-      const wasEditing = Boolean(editingTemplateId)
-
-if (editingTemplateId) {
-  await updateBranchInstallmentTemplate(editingTemplateId, payload)
-} else {
-  await createBranchInstallmentTemplate(payload)
-}
-
-resetForm()
-setIsCreateOpen(false)
-
-await loadTemplates(wasEditing ? page : 1)
+      resetForm()
+      setIsCreateOpen(false)
+      await loadTemplates(editingTemplateId ? page : 1)
     } catch (err) {
       setError(err?.message || 'Unable to save installment template.')
     } finally {
