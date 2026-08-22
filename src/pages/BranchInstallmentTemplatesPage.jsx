@@ -321,10 +321,7 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
           />
         </Field>
 
-        <div className="installment-mode-banner">
-          <BadgeInfo size={14} strokeWidth={2.2} />
-          <span>Current template mode: {templateModeLabel}</span>
-        </div>
+      
 
         <Field label="Due Rule" hint="Default timing rule for the plan">
           <select
@@ -339,27 +336,7 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
           </select>
         </Field>
 
-        <Field
-          label="Allow Customization"
-          hint="Can this template be adjusted later?"
-        >
-          <button
-            type="button"
-            className={`installment-toggle ${
-              form.allowCustomization ? 'is-on' : ''
-            }`.trim()}
-            onClick={() =>
-              updateField('allowCustomization', !form.allowCustomization)
-            }
-          >
-            <span>
-              {form.allowCustomization ? 'Enabled' : 'Disabled'}
-            </span>
-            <strong>
-              {form.allowCustomization ? 'Yes' : 'No'}
-            </strong>
-          </button>
-        </Field>
+        
 
         <Field label="Status" hint="Template activation state">
           <select
