@@ -30,6 +30,10 @@ function getNotificationIcon(kind) {
       return Mail
     case 'branch-login':
       return CheckCircle2
+    case 'branch-course-edit-request':
+    case 'branch-course-edit-accepted':
+    case 'branch-course-edit-updated':
+      return Bell
     case 'branch-faculty-login':
     case 'faculty-login':
       return UsersRound
@@ -44,34 +48,69 @@ export function normalizeBranchNotification(notification = {}) {
   const message = String(notification.message || '').trim()
   const createdAt = String(notification.createdAt || '').trim()
   const isFacultyLogin = kind === 'branch-faculty-login' || kind === 'faculty-login'
+  const isCourseEditRequest = kind === 'branch-course-edit-request'
+  const isCourseEditAccepted = kind === 'branch-course-edit-accepted'
+  const isCourseEditUpdated = kind === 'branch-course-edit-updated'
 
   return {
     id: String(notification.id || '').trim(),
     kind: kind || 'general',
-    tone: String(notification.tone || (isFacultyLogin ? 'green' : 'blue')).trim() || 'blue',
+    tone:
+      String(notification.tone || (isCourseEditAccepted ? 'green' : isCourseEditUpdated ? 'amber' : isFacultyLogin ? 'green' : 'blue'))
+        .trim() || 'blue',
     title:
       title ||
       (isFacultyLogin
         ? `${notification.facultyName || notification.facultyEmail || 'Faculty'} logged in`
+        : isCourseEditRequest
+          ? `${notification.courseName || 'Course'} edit request`
+          : isCourseEditAccepted
+            ? `${notification.courseName || 'Course'} edit approved`
+            : isCourseEditUpdated
+              ? `${notification.courseName || 'Course'} updated`
         : 'Notification'),
     message:
       message ||
       (isFacultyLogin
         ? `${notification.facultyName || 'Faculty'} signed in with ${notification.facultyEmail || 'their account'}.`
+        : isCourseEditRequest
+          ? `${notification.facultyName || 'Faculty'} requested changes for ${notification.courseName || 'the course'}.`
+          : isCourseEditAccepted
+            ? `Open Edit is now available for ${notification.courseName || 'the course'}.`
+            : isCourseEditUpdated
+              ? `${notification.facultyName || 'Faculty'} saved module and submodule changes for ${notification.courseName || 'the course'}.`
         : ''),
     time: formatNotificationTime(createdAt),
     categoryLabel:
       String(notification.actionLabel || '').trim() ||
-      (isFacultyLogin ? 'Faculty' : 'View'),
+      (isCourseEditRequest
+        ? 'Accept request'
+        : isCourseEditAccepted
+          ? 'Accepted'
+          : isCourseEditUpdated
+            ? 'Updated'
+            : isFacultyLogin
+              ? 'Faculty'
+              : 'View'),
     unread: !notification.read,
     dropdownViewed: Boolean(notification.dropdownViewed),
     icon: getNotificationIcon(kind),
     targetSection:
       String(notification.targetSection || '').trim() ||
-      (isFacultyLogin ? 'faculty' : 'batches'),
+      (isCourseEditRequest || isCourseEditAccepted || isCourseEditUpdated
+        ? 'courses'
+        : isFacultyLogin
+          ? 'faculty'
+          : 'batches'),
     facultyName: String(notification.facultyName || '').trim(),
     facultyEmail: String(notification.facultyEmail || '').trim(),
     targetBranchName: String(notification.targetBranchName || '').trim(),
+    courseId: String(notification.courseId || '').trim(),
+    courseCode: String(notification.courseCode || '').trim(),
+    courseName: String(notification.courseName || '').trim(),
+    requestId: String(notification.requestId || '').trim(),
+    requestStatus: String(notification.requestStatus || '').trim(),
+    requestedChanges: String(notification.requestedChanges || '').trim(),
   }
 }
 

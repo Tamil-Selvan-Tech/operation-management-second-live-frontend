@@ -39,6 +39,15 @@ const normalizeNotification = (notification = {}) => {
     facultyId: String(notification.facultyId || '').trim(),
     facultyEmail: String(notification.facultyEmail || '').trim().toLowerCase(),
     facultyName: String(notification.facultyName || '').trim(),
+    targetSection: String(notification.targetSection || '').trim(),
+    courseId: String(notification.courseId || '').trim(),
+    courseCode: String(notification.courseCode || '').trim(),
+    courseName: String(notification.courseName || '').trim(),
+    requestId: String(notification.requestId || '').trim(),
+    requestStatus: String(notification.requestStatus || '').trim(),
+    requestedChanges: String(notification.requestedChanges || '').trim(),
+    sourceNotificationId: String(notification.sourceNotificationId || '').trim(),
+    changeSummary: String(notification.changeSummary || '').trim(),
     createdAt,
     read: Boolean(notification.read),
     dropdownViewed: Boolean(notification.dropdownViewed),
@@ -126,6 +135,32 @@ export function addNotification(notification = {}) {
   const nextNotifications = [nextNotification, ...loadNotifications()]
   saveNotifications(nextNotifications)
   return nextNotification
+}
+
+export function updateNotification(notificationId = '', updates = {}) {
+  const normalizedId = String(notificationId || '').trim()
+  if (!normalizedId) return null
+
+  let updatedNotification = null
+  const nextNotifications = loadNotifications().map((notification) => {
+    if (String(notification.id || '').trim() !== normalizedId) {
+      return notification
+    }
+
+    updatedNotification = normalizeNotification({
+      ...notification,
+      ...updates,
+      id: notification.id,
+    })
+
+    return updatedNotification
+  })
+
+  if (!updatedNotification) return null
+
+  saveNotifications(nextNotifications)
+  emitNotificationChange()
+  return updatedNotification
 }
 
 export function markNotificationsAsRead(notificationIds = null) {

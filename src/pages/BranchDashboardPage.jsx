@@ -50,6 +50,13 @@ import {
   updateBranchCourse,
 } from '../services/branchCourseService'
 import {
+  mergeBranchCoursesWithSnapshot,
+  subscribeBranchCourseSnapshot,
+} from '../lib/branchCourseSnapshot'
+import {
+  acceptCourseEditRequest,
+} from '../lib/courseEditRequestStore'
+import {
   loadBranchStudents,
   refreshBranchStudents,
   saveBranchStudent,
@@ -341,7 +348,7 @@ function BranchDashboardSection({ title, description, actions, children }) {
   )
 }
 
-function BranchNotificationGroup({ label, items, onView }) {
+function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
   return (
     <section className="notifications-group">
       <p className="notifications-group-label">{label}</p>
@@ -370,13 +377,23 @@ function BranchNotificationGroup({ label, items, onView }) {
                 <span className={`notifications-item-chip tone-${item.tone}`}>
                   {item.categoryLabel || item.actionLabel || 'View'}
                 </span>
-                <button
-                  type="button"
-                  className="notifications-item-view-button"
-                  onClick={() => onView?.(item)}
-                >
-                  View
-                </button>
+                {item.kind === 'branch-course-edit-request' && item.requestStatus !== 'accepted' ? (
+                  <button
+                    type="button"
+                    className="notifications-item-view-button"
+                    onClick={() => onAcceptRequest?.(item)}
+                  >
+                    Accept
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="notifications-item-view-button"
+                    onClick={() => onView?.(item)}
+                  >
+                    View
+                  </button>
+                )}
               </div>
             </article>
           )
@@ -917,7 +934,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       sortOrder: 'desc',
     })
 
-    const nextCourses = Array.isArray(result?.data) ? result.data : []
+    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [])
     const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
     setBranchCourseCards((currentCourses) => {
       const currentCoursesById = new Map(
@@ -986,22 +1003,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
           : []
 
       const storedNotifications = loadNotifications()
-      const mergedSourceNotifications =
-        responseData.length > 0
-          ? [...responseData, ...storedNotifications]
-          : storedNotifications
-
-      const uniqueNotifications = Array.from(
-        new Map(
-          mergedSourceNotifications
-            .filter(Boolean)
-            .map((notification) => [String(notification.id || ''), notification]),
-        ).values(),
+      const storedById = new Map(
+        storedNotifications.map((notification) => [String(notification.id || '').trim(), notification]),
       )
+      const mergedNotifications = mergeNotificationsWithStoredState(responseData).map((notification) => {
+        const storedNotification = storedById.get(String(notification.id || '').trim())
+        return storedNotification ? { ...notification, ...storedNotification } : notification
+      })
+      const mergedIds = new Set(mergedNotifications.map((notification) => String(notification.id || '').trim()))
+      const preservedNotifications = storedNotifications.filter((notification) => !mergedIds.has(String(notification.id || '').trim()))
+      const nextNotifications = [...mergedNotifications, ...preservedNotifications]
 
-      const mergedNotifications = mergeNotificationsWithStoredState(uniqueNotifications)
-      setBranchNotificationRecords(mergedNotifications)
-      saveNotifications(mergedNotifications, { emit: false })
+      setBranchNotificationRecords(nextNotifications)
+      saveNotifications(nextNotifications)
     } catch (error) {
       console.error('Failed to load branch notifications:', error)
       const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
@@ -1022,7 +1036,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       Promise.allSettled([loadBranchCourses(), loadFacultyList()]).then(([coursesResult]) => {
         if (!isMounted) return
         if (coursesResult.status === 'fulfilled' || coursesResult.value?.data) {
-          setBranchCourseCards(Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : [])
+          setBranchCourseCards(
+            mergeBranchCoursesWithSnapshot(Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : []),
+          )
         } else {
           setBranchCourseCards([])
         }
@@ -1040,7 +1056,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       }
 
       if (coursesResult.status === 'fulfilled') {
-        setBranchCourseCards(Array.isArray(coursesResult.value?.data) ? coursesResult.value.data : [])
+        setBranchCourseCards(
+          mergeBranchCoursesWithSnapshot(Array.isArray(coursesResult.value?.data) ? coursesResult.value.data : []),
+        )
       } else {
         setBranchCourseCards([])
       }
@@ -1132,7 +1150,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [loadBranchNotifications])
 
   useEffect(() => {
+    const unsubscribe = subscribeBranchCourseSnapshot(() => {
+      void loadBranchCourses()
+    })
+
+    return unsubscribe
+  }, [loadBranchCourses])
+
+  useEffect(() => {
     void loadBranchNotifications()
+
+    const intervalId = window.setInterval(() => {
+      void loadBranchNotifications()
+    }, 5000)
 
     const handleFocus = () => {
       void loadBranchNotifications()
@@ -1394,6 +1424,42 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setIsNotificationMenuOpen(false)
     const targetSection = String(notification?.targetSection || 'batches').trim() || 'batches'
     goToBranchSection(targetSection)
+  }
+
+  const acceptBranchCourseEditNotification = async (notification) => {
+    if (!notification?.requestId && !notification?.id) return
+
+    const requestId = String(notification.requestId || notification.id || '').trim()
+
+    try {
+      const acceptedRequest = acceptCourseEditRequest(requestId, {
+        sourceNotificationId: String(notification.id || '').trim(),
+      })
+
+      if (acceptedRequest?.id) {
+        setBranchNotificationRecords((current) =>
+          current.map((item) =>
+            String(item.requestId || item.id || '').trim() === requestId
+              ? {
+                  ...item,
+                  requestStatus: 'accepted',
+                  tone: 'green',
+                  actionLabel: 'Accepted',
+                  categoryLabel: 'Accepted',
+                  unread: true,
+                }
+              : item,
+          ),
+        )
+      }
+
+      await openBranchNotificationTarget({
+        ...notification,
+        requestStatus: 'accepted',
+      })
+    } catch (error) {
+      console.error('Failed to accept course edit request:', error)
+    }
   }
 
   const markAllBranchNotificationsAsRead = async () => {
@@ -2597,13 +2663,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   {branchNotificationPreviewItems.length ? (
                     branchNotificationPreviewItems.map((item) => {
                       const Icon = item.icon
+                      const isCourseEditRequest =
+                        item.kind === 'branch-course-edit-request' && item.requestStatus !== 'accepted'
 
                       return (
-                        <button
+                        <div
                           key={item.id}
-                          type="button"
-                          className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'}`.trim()}
-                          onClick={() => openBranchNotificationTarget(item)}
+                          className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'} ${
+                            isCourseEditRequest ? 'is-course-request' : ''
+                          }`.trim()}
                         >
                           <span className={`notification-badge ${item.tone}`} aria-hidden="true">
                             <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
@@ -2613,7 +2681,26 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                             <span>{item.message}</span>
                             <small>{item.time}</small>
                           </div>
-                        </button>
+
+                          <div className="notification-dropdown-item-actions">
+                            {isCourseEditRequest ? (
+                              <button
+                                type="button"
+                                className="notification-dropdown-accept"
+                                onClick={() => acceptBranchCourseEditNotification(item)}
+                              >
+                                Accept
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="notification-dropdown-view"
+                              onClick={() => openBranchNotificationTarget(item)}
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
                       )
                     })
                   ) : (
@@ -2799,6 +2886,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                           label={section.label}
                           items={section.items}
                           onView={openBranchNotificationTarget}
+                          onAcceptRequest={acceptBranchCourseEditNotification}
                         />
                       ))
                     ) : (

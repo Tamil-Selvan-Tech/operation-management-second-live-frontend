@@ -5804,6 +5804,52 @@
   background: #dbeafe;
 }
 
+.notification-dropdown-item {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.notification-dropdown-item.is-course-request {
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+}
+
+.notification-dropdown-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: end;
+}
+
+.notification-dropdown-accept,
+.notification-dropdown-view {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.notification-dropdown-accept {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #ffffff;
+}
+
+.notification-dropdown-accept:hover {
+  filter: brightness(1.02);
+}
+
+.notification-dropdown-view:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 
 /* List */
 
