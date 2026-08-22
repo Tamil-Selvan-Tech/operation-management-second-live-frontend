@@ -977,11 +977,16 @@ useEffect(() => {
     if (!courseEditInlineSubmodule) return
 
     const moduleIndex = Number(courseEditInlineSubmodule.moduleIndex)
-    const trimmedValue = String(courseEditInlineSubmodule.value || '').trim()
-    const fallbackName = courseEditInlineSubmodule.mode === 'add'
-      ? `Submodule ${((courseEditModules[moduleIndex]?.submodules?.length || 0) + 1)}`
-      : `Submodule ${Number(courseEditInlineSubmodule.submoduleIndex || 0) + 1}`
-    const nextName = trimmedValue || fallbackName
+  const trimmedValue = String(courseEditInlineSubmodule.value || '').trim()
+
+if (!trimmedValue) {
+  setCourseEditInlineSubmodule((current) =>
+    current ? { ...current, error: 'This field is required' } : current
+  )
+  return
+}
+
+const nextName = trimmedValue
 
     if (courseEditInlineSubmodule.mode === 'edit' && Number.isInteger(courseEditInlineSubmodule.submoduleIndex)) {
       updateCourseEditSubmodule(moduleIndex, courseEditInlineSubmodule.submoduleIndex, 'name', nextName)
@@ -2301,9 +2306,7 @@ useEffect(() => {
             </div>
 
             <div className="faculty-course-edit-flow">
-              <div className="faculty-course-edit-status faculty-course-edit-status--locked">
-                Locked fields: Course Name, Course Code, Duration, Fee, Mode, Hours
-              </div>
+             
 
               {courseEditView === 'overview' ? (
                 <section className="faculty-course-edit-overview">
@@ -2488,6 +2491,11 @@ useEffect(() => {
                                     }
                                     placeholder="Enter submodule name"
                                   />
+                                  {courseEditInlineSubmodule.error && (
+  <span className="faculty-course-edit-field-error">
+    {courseEditInlineSubmodule.error}
+  </span>
+)}
                                   <div className="faculty-course-edit-inline-actions">
                                     <button
                                       type="button"
@@ -2555,6 +2563,11 @@ useEffect(() => {
                               }
                               placeholder={courseEditInlineSubmodule.placeholder || 'Enter submodule name'}
                             />
+                            {courseEditInlineSubmodule.error && (
+  <div className="faculty-course-edit-field-error">
+    {courseEditInlineSubmodule.error}
+  </div>
+)}
                             <div className="faculty-course-edit-inline-actions">
                               <button
                                 type="button"
