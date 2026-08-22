@@ -91,8 +91,7 @@ export function BranchInstallmentTemplatesPage() {
   const [form, setForm] = useState(() => createEmptyTemplateForm())
   const [touched, setTouched] = useState({})
   const [deleteTarget, setDeleteTarget] = useState(null)
-  const [isCreateOpen, setIsCreateOpen] = useState(true)
-
+const [isCreateOpen, setIsCreateOpen] = useState(false)
   const validation = useMemo(() => createValidationErrors(form), [form])
 
   const loadTemplates = async (nextPage = page) => {
@@ -274,204 +273,270 @@ export function BranchInstallmentTemplatesPage() {
         </div>
 
       </div>
-
-      <div className="installment-page-layout">
-        <div className="installment-card installment-form-card">
-          <div className="installment-card-header">
-            <div>
-              {/* <p className="installment-card-label">Create Template</p> */}
-              {/* <h3>{editingTemplateId ? 'Edit Installment Template' : 'Create Installment Template'}</h3> */}
-            </div>
-
-          </div>
-
-          {isCreateOpen ? (
-            <>
-              <div className="installment-form-grid">
-                <Field
-                  label="Plan Name"
-                  required
-                  hint="Example: 3 Installments Plan"
-                  error={shouldShowError('templateName') ? validation.errors.templateName : ''}
-                >
-                  <input
-                    type="text"
-                    placeholder="Two Installments"
-                    value={form.templateName}
-                    onChange={(event) => updateField('templateName', event.target.value)}
-                    onBlur={() => markTouched('templateName')}
-                  />
-                </Field>
-
-                <Field
-                  label="Installment Count"
-                  required
-                  hint="1 = Full Payment, 2 or more = Customize"
-                  error={shouldShowError('installmentCount') ? validation.errors.installmentCount : ''}
-                >
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="3"
-                    value={form.installmentCount}
-                    onChange={(event) => updateField('installmentCount', event.target.value)}
-                    onFocus={(event) => event.currentTarget.select()}
-                    onClick={(event) => event.currentTarget.select()}
-                    onBlur={() => markTouched('installmentCount')}
-                  />
-                </Field>
-
-                <div className="installment-mode-banner">
-                  <BadgeInfo size={14} strokeWidth={2.2} />
-                  <span>Current template mode: {templateModeLabel}</span>
-                </div>
-
-                <Field label="Due Rule" hint="Default timing rule for the plan">
-                  <select value={form.dueRule} onChange={(event) => updateField('dueRule', event.target.value)}>
-                    {DUE_RULE_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="Allow Customization" hint="Can this template be adjusted later?">
-                  <button
-                    type="button"
-                    className={`installment-toggle ${form.allowCustomization ? 'is-on' : ''}`.trim()}
-                    onClick={() => updateField('allowCustomization', !form.allowCustomization)}
-                  >
-                    <span>{form.allowCustomization ? 'Enabled' : 'Disabled'}</span>
-                    <strong>{form.allowCustomization ? 'Yes' : 'No'}</strong>
-                  </button>
-                </Field>
-
-                <Field label="Status" hint="Template activation state">
-                  <select value={form.status} onChange={(event) => updateField('status', event.target.value)}>
-                    {STATUS_OPTIONS.map((option) => (
-                      <option key={option} value={option}>
-                        {option === 'ACTIVE' ? 'Active' : 'Inactive'}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-
-              {error ? <div className="installment-error-banner">{error}</div> : null}
-
-              <div className="installment-form-actions">
-                <Button type="button" variant="ghost" onClick={resetForm} disabled={saving}>
-                  Reset
-                </Button>
-                <Button type="button" disabled={saving} onClick={submitForm}>
-                  {saving ? 'Saving...' : editingTemplateId ? 'Update Template' : 'Create Template'}
-                </Button>
-              </div>
-            </>
-          ) : null}
-        </div>
-
-        <div className="installment-card installment-list-card">
-          <div className="installment-card-header">
-            <div>
-              <p className="installment-card-label">Saved Templates</p>
-              <h3>Reusable plans</h3>
-            </div>
-            <button type="button" className="installment-reset-button" onClick={() => void loadTemplates(page)}>
-              <RefreshCcw size={14} strokeWidth={2.2} />
-              Refresh
-            </button>
-          </div>
-
-          {/* <div className="installment-template-legend">
-            <span className="installment-legend-chip is-full">Full Payment</span>
-            <span className="installment-legend-chip is-custom">Customize</span>
-          </div> */}
-
-          <div className="installment-filter-row">
-          
-              
-              <input
-              
-                type="text"
-                placeholder="Search templates"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    void loadTemplates(1)
-                  }
-                }}
-                
-              
-              />
-              
-            
-
-            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-              <option value="">All Status</option>
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option === 'ACTIVE' ? 'Active' : 'Inactive'}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {loading ? (
-            <div className="installment-empty-state">Loading templates...</div>
-          ) : templates.length ? (
-            <div className="installment-list">
-              {templates.map((template) => (
-                <article key={template.id} className="installment-list-item">
-                  <div className="installment-list-item-head">
-                    <div>
-                      <strong>{template.templateName}</strong>
-                      <span>
-                        <BadgeInfo size={12} strokeWidth={2.2} /> {template.planType === 'FULL_PAYMENT' ? 'Full Payment' : 'Customize'} • {template.installmentCount} installments
-                      </span>
-                    </div>
-                    <span className={`installment-status ${String(template.status || 'ACTIVE').toLowerCase()}`}>
-                      {template.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-
-                  <div className="installment-list-meta">
-                    <span>
-                      <Shield size={12} strokeWidth={2.3} /> {template.dueRule || 'Admission'}
-                    </span>
-                    <span>
-                      <CalendarDays size={12} strokeWidth={2.3} /> {template.course?.name || 'Standalone template'}
-                    </span>
-                  </div>
-
-                  <div className="installment-list-actions">
-                    <button type="button" className="installment-inline-action" onClick={() => startEdit(template)}>
-                      <Pencil size={14} strokeWidth={2.3} />
-                      Edit
-                    </button>
-                    <button type="button" className="installment-inline-action is-danger" onClick={() => confirmDelete(template)}>
-                      <Trash2 size={14} strokeWidth={2.3} />
-                      Delete
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="installment-empty-state">No installment templates yet.</div>
-          )}
-
-          <PaginationBar
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={(nextPage) => void loadTemplates(nextPage)}
-            label="Installment template pagination"
-          />
+<div className="installment-page-layout">
+  {isCreateOpen ? (
+    <div className="installment-card installment-form-card">
+      <div className="installment-card-header">
+        <div>
+          <p className="installment-card-label">Installment Template</p>
+          <h3>
+            {editingTemplateId
+              ? 'Edit Installment Template'
+              : 'Create Installment Template'}
+          </h3>
         </div>
       </div>
+
+      <div className="installment-form-grid">
+        <Field
+          label="Plan Name"
+          required
+          hint="Example: 3 Installments Plan"
+          error={shouldShowError('templateName') ? validation.errors.templateName : ''}
+        >
+          <input
+            type="text"
+            placeholder="Two Installments"
+            value={form.templateName}
+            onChange={(event) => updateField('templateName', event.target.value)}
+            onBlur={() => markTouched('templateName')}
+          />
+        </Field>
+
+        <Field
+          label="Installment Count"
+          required
+          hint="1 = Full Payment, 2 or more = Customize"
+          error={shouldShowError('installmentCount') ? validation.errors.installmentCount : ''}
+        >
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="3"
+            value={form.installmentCount}
+            onChange={(event) => updateField('installmentCount', event.target.value)}
+            onFocus={(event) => event.currentTarget.select()}
+            onClick={(event) => event.currentTarget.select()}
+            onBlur={() => markTouched('installmentCount')}
+          />
+        </Field>
+
+        <div className="installment-mode-banner">
+          <BadgeInfo size={14} strokeWidth={2.2} />
+          <span>Current template mode: {templateModeLabel}</span>
+        </div>
+
+        <Field label="Due Rule" hint="Default timing rule for the plan">
+          <select
+            value={form.dueRule}
+            onChange={(event) => updateField('dueRule', event.target.value)}
+          >
+            {DUE_RULE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field
+          label="Allow Customization"
+          hint="Can this template be adjusted later?"
+        >
+          <button
+            type="button"
+            className={`installment-toggle ${
+              form.allowCustomization ? 'is-on' : ''
+            }`.trim()}
+            onClick={() =>
+              updateField('allowCustomization', !form.allowCustomization)
+            }
+          >
+            <span>
+              {form.allowCustomization ? 'Enabled' : 'Disabled'}
+            </span>
+            <strong>
+              {form.allowCustomization ? 'Yes' : 'No'}
+            </strong>
+          </button>
+        </Field>
+
+        <Field label="Status" hint="Template activation state">
+          <select
+            value={form.status}
+            onChange={(event) => updateField('status', event.target.value)}
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option === 'ACTIVE' ? 'Active' : 'Inactive'}
+              </option>
+            ))}
+          </select>
+        </Field>
+      </div>
+
+      {error ? (
+        <div className="installment-error-banner">
+          {error}
+        </div>
+      ) : null}
+
+      <div className="installment-form-actions">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={resetForm}
+          disabled={saving}
+        >
+          Reset
+        </Button>
+
+        <Button
+          type="button"
+          disabled={saving}
+          onClick={submitForm}
+        >
+          {saving
+            ? 'Saving...'
+            : editingTemplateId
+              ? 'Update Template'
+              : 'Create Template'}
+        </Button>
+      </div>
+    </div>
+  ) : null}
+
+  {/* Saved Templates */}
+  <div className="installment-card installment-list-card">
+    <div className="installment-card-header">
+      <div>
+        <p className="installment-card-label">Saved Templates</p>
+        <h3>Reusable plans</h3>
+      </div>
+
+      <button
+        type="button"
+        className="installment-reset-button"
+        onClick={() => void loadTemplates(page)}
+      >
+        <RefreshCcw size={14} strokeWidth={2.2} />
+        Refresh
+      </button>
+    </div>
+
+    <div className="installment-filter-row">
+      <input
+        type="text"
+        placeholder="Search templates"
+        value={searchTerm}
+        onChange={(event) => setSearchTerm(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            event.preventDefault()
+            void loadTemplates(1)
+          }
+        }}
+      />
+
+      <select
+        value={statusFilter}
+        onChange={(event) => setStatusFilter(event.target.value)}
+      >
+        <option value="">All Status</option>
+
+        {STATUS_OPTIONS.map((option) => (
+          <option key={option} value={option}>
+            {option === 'ACTIVE' ? 'Active' : 'Inactive'}
+          </option>
+        ))}
+      </select>
+    </div>
+
+    {/* Existing templates list */}
+    {loading ? (
+      <div className="installment-empty-state">
+        Loading templates...
+      </div>
+    ) : templates.length ? (
+      <div className="installment-list">
+        {templates.map((template) => (
+          <article
+            key={template.id}
+            className="installment-list-item"
+          >
+            <div className="installment-list-item-head">
+              <div>
+                <strong>{template.templateName}</strong>
+
+                <span>
+                  <BadgeInfo size={12} strokeWidth={2.2} />
+                  {template.planType === 'FULL_PAYMENT'
+                    ? 'Full Payment'
+                    : 'Customize'}{' '}
+                  • {template.installmentCount} installments
+                </span>
+              </div>
+
+              <span
+                className={`installment-status ${String(
+                  template.status || 'ACTIVE'
+                ).toLowerCase()}`}
+              >
+                {template.status === 'ACTIVE'
+                  ? 'Active'
+                  : 'Inactive'}
+              </span>
+            </div>
+
+            <div className="installment-list-meta">
+              <span>
+                <Shield size={12} strokeWidth={2.3} />
+                {template.dueRule || 'Admission'}
+              </span>
+
+              <span>
+                <CalendarDays size={12} strokeWidth={2.3} />
+                {template.course?.name || 'Standalone template'}
+              </span>
+            </div>
+
+            <div className="installment-list-actions">
+              <button
+                type="button"
+                className="installment-inline-action"
+                onClick={() => startEdit(template)}
+              >
+                <Pencil size={14} strokeWidth={2.3} />
+                Edit
+              </button>
+
+              <button
+                type="button"
+                className="installment-inline-action is-danger"
+                onClick={() => confirmDelete(template)}
+              >
+                <Trash2 size={14} strokeWidth={2.3} />
+                Delete
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    ) : (
+      <div className="installment-empty-state">
+        No installment templates yet.
+      </div>
+    )}
+
+    <PaginationBar
+      currentPage={page}
+      totalPages={totalPages}
+      onPageChange={(nextPage) => void loadTemplates(nextPage)}
+      label="Installment template pagination"
+    />
+  </div>
+</div>
+     
 
       {deleteTarget ? (
         <div className="installment-modal-backdrop" role="presentation">
