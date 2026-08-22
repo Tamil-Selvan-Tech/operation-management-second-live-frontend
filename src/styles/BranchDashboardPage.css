@@ -926,6 +926,93 @@
   line-height: 1.5;
 }
 
+.course-module-delete-modal {
+  position: relative;
+  width: 420px;
+  max-width: calc(100vw - 32px);
+  padding: 34px 28px 24px;
+  box-sizing: border-box;
+  background: #ffffff;
+  border-radius: 28px;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.course-module-delete-modal h2 {
+  margin: 8px 0 0;
+  color: #17213b;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.course-module-delete-kicker {
+  margin: 0;
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.course-module-delete-modal .branch-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.course-module-delete-modal .branch-modal-actions button {
+  width: 150px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 14px;
+  box-sizing: border-box;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.course-module-delete-modal .branch-modal-cancel {
+  background: #ffffff;
+  border: 1px solid #cbd8ea;
+  color: #435574;
+  box-shadow: none;
+}
+
+.course-module-delete-modal .branch-modal-cancel:hover,
+.course-module-delete-modal .branch-modal-cancel:focus-visible {
+  background: #f8fafc;
+  border-color: #b8c7db;
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.course-module-delete-modal .branch-modal-submit.is-danger {
+  background: #dc2626;
+  border: 1px solid #dc2626;
+  color: #ffffff;
+  box-shadow: 0 10px 24px rgba(220, 38, 38, 0.18);
+}
+
+.course-module-delete-modal .branch-modal-submit.is-danger:hover,
+.course-module-delete-modal .branch-modal-submit.is-danger:focus-visible {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  outline: none;
+}
+
 .super-admin-logout-icon.is-danger {
   background: #fff1f2;
   color: #dc2626;
