@@ -186,14 +186,23 @@ function formatCoursePercentage(value) {
   return normalized.endsWith('%') ? normalized : `${normalized}%`
 }
 
+function getEqualSplitPercentageValue(totalItems = 0) {
+  const count = Math.max(1, Number(totalItems) || 1)
+  return Number((100 / count).toFixed(2))
+}
+
+function getEqualSplitPercentageLabel(index = 0, totalItems = 0) {
+  const count = Math.max(1, Number(totalItems) || 1)
+  const safeIndex = Math.min(Math.max(0, Number(index) || 0), count - 1)
+  const value = getEqualSplitPercentageValue(count)
+  return safeIndex >= 0 ? `${value}%` : '-'
+}
+
 function getModulePercentage(module = {}, moduleIndex = 0, totalModules = 0) {
   const directPercentage = formatCoursePercentage(module?.percentage ?? module?.weight ?? module?.share)
   if (directPercentage !== '-') return directPercentage
 
-  const count = Math.max(1, Number(totalModules) || 1)
-  const value = 100 / count
-  const normalized = moduleIndex === count - 1 ? 100 - (value * (count - 1)) : value
-  return `${normalized.toFixed(2).replace(/\.00$/, '')}%`
+  return getEqualSplitPercentageLabel(moduleIndex, totalModules)
 }
 
 function cloneFacultyEditSubmodule(submodule = {}, subIndex = 0) {
@@ -515,6 +524,11 @@ export function FacultyDashboardPage() {
   const [courseEditRequests, setCourseEditRequests] = useState([])
   const [isCourseRequestModalOpen, setIsCourseRequestModalOpen] = useState(false)
   const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false)
+  const [courseEditView, setCourseEditView] = useState('overview')
+  const [courseEditActiveModuleIndex, setCourseEditActiveModuleIndex] = useState(0)
+  const [courseEditExpandedModuleIds, setCourseEditExpandedModuleIds] = useState([])
+  const [courseEditInlineSubmodule, setCourseEditInlineSubmodule] = useState(null)
+  const [courseEditPendingModuleId, setCourseEditPendingModuleId] = useState('')
   const [courseRequestForm, setCourseRequestForm] = useState({
     title: '',
     reason: '',
@@ -841,6 +855,12 @@ useEffect(() => {
   }, [activeCourseId, assignedCourses])
 
   const selectedCourseModules = useMemo(() => getCourseModels(selectedCourse), [selectedCourse])
+  const courseEditModules = Array.isArray(courseEditDraft?.modules) ? courseEditDraft.modules : []
+  const courseEditActiveModule =
+    courseEditModules[courseEditActiveModuleIndex] || courseEditModules[0] || null
+  const courseEditActiveModuleSubmodules = Array.isArray(courseEditActiveModule?.submodules)
+    ? courseEditActiveModule.submodules
+    : []
   const selectedCourseModuleKeys = useMemo(
     () =>
       selectedCourseModules.map((module, index) =>
@@ -895,10 +915,108 @@ useEffect(() => {
       courseName: String(selectedCourse?.name || selectedCourse?.courseName || 'Course').trim(),
       modules: cloneFacultyEditModules(selectedCourse),
     })
-    setExpandedCourseModuleIds(
-      cloneFacultyEditModules(selectedCourse).map((module) => module.id),
-    )
+    setCourseEditView('overview')
+    setCourseEditActiveModuleIndex(0)
+    setCourseEditExpandedModuleIds([])
+    setCourseEditInlineSubmodule(null)
+    setCourseEditPendingModuleId('')
     setIsCourseEditModalOpen(true)
+  }
+
+  const openCourseEditModule = (moduleIndex) => {
+    setCourseEditActiveModuleIndex(moduleIndex)
+    setCourseEditInlineSubmodule(null)
+    setCourseEditPendingModuleId('')
+    setCourseEditView('module')
+  }
+
+  const continueCourseEditModule = () => {
+    setCourseEditInlineSubmodule(null)
+    setCourseEditView('submodules')
+  }
+
+  const toggleCourseEditExpandedModule = (moduleId) => {
+    const normalizedModuleId = String(moduleId || '').trim()
+    if (!normalizedModuleId) return
+
+    setCourseEditExpandedModuleIds((current) =>
+      current.includes(normalizedModuleId)
+        ? current.filter((id) => id !== normalizedModuleId)
+        : [...current, normalizedModuleId],
+    )
+  }
+
+  const startCourseEditSubmoduleEdit = (moduleIndex, submoduleIndex) => {
+    const module = courseEditModules[moduleIndex]
+    const submodule = Array.isArray(module?.submodules) ? module.submodules[submoduleIndex] : null
+
+    setCourseEditInlineSubmodule({
+      moduleIndex,
+      submoduleIndex,
+      mode: 'edit',
+      value: String(submodule?.name || '').trim(),
+    })
+  }
+
+  const startCourseEditAddSubmodule = (moduleIndex) => {
+    const module = courseEditModules[moduleIndex]
+    const nextNumber = Array.isArray(module?.submodules) ? module.submodules.length + 1 : 1
+
+    setCourseEditInlineSubmodule({
+      moduleIndex,
+      submoduleIndex: null,
+      mode: 'add',
+      value: '',
+      placeholder: `Submodule ${nextNumber}`,
+    })
+  }
+
+  const saveCourseEditInlineSubmodule = () => {
+    if (!courseEditInlineSubmodule) return
+
+    const moduleIndex = Number(courseEditInlineSubmodule.moduleIndex)
+    const trimmedValue = String(courseEditInlineSubmodule.value || '').trim()
+    const fallbackName = courseEditInlineSubmodule.mode === 'add'
+      ? `Submodule ${((courseEditModules[moduleIndex]?.submodules?.length || 0) + 1)}`
+      : `Submodule ${Number(courseEditInlineSubmodule.submoduleIndex || 0) + 1}`
+    const nextName = trimmedValue || fallbackName
+
+    if (courseEditInlineSubmodule.mode === 'edit' && Number.isInteger(courseEditInlineSubmodule.submoduleIndex)) {
+      updateCourseEditSubmodule(moduleIndex, courseEditInlineSubmodule.submoduleIndex, 'name', nextName)
+      setCourseEditInlineSubmodule(null)
+      return
+    }
+
+    if (courseEditInlineSubmodule.mode === 'add') {
+      setCourseEditDraft((current) => {
+        if (!current) return current
+        const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+        const module = { ...(nextModules[moduleIndex] || {}) }
+        const submodules = Array.isArray(module.submodules) ? [...module.submodules] : []
+        submodules.push({
+          id: `submodule-${Date.now()}`,
+          name: nextName,
+          percentage: '',
+        })
+        module.submodules = submodules
+        nextModules[moduleIndex] = module
+        return { ...current, modules: nextModules }
+      })
+
+      const nextSubmoduleNumber = (courseEditModules[moduleIndex]?.submodules?.length || 0) + 2
+      setCourseEditInlineSubmodule({
+        moduleIndex,
+        submoduleIndex: null,
+        mode: 'add',
+        value: '',
+        placeholder: `Submodule ${nextSubmoduleNumber}`,
+      })
+      return
+    }
+  }
+
+  const cancelCourseEditInlineSubmodule = () => {
+    setCourseEditInlineSubmodule(null)
   }
 
   const handleSendCourseEditRequest = async (event) => {
@@ -981,32 +1099,22 @@ useEffect(() => {
   }
 
   const addCourseEditModule = () => {
+    const newModuleId = `module-${Date.now()}`
+
     setCourseEditDraft((current) => {
       if (!current) return current
       const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+      const nextIndex = nextModules.length
       nextModules.push({
-        id: `module-${Date.now()}`,
-        name: `Module ${nextModules.length + 1}`,
+        id: newModuleId,
+        name: '',
         percentage: '',
         submodules: [],
       })
-      return { ...current, modules: nextModules }
-    })
-  }
-
-  const addCourseEditSubmodule = (moduleIndex) => {
-    setCourseEditDraft((current) => {
-      if (!current) return current
-      const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
-      const module = { ...(nextModules[moduleIndex] || {}) }
-      const submodules = Array.isArray(module.submodules) ? [...module.submodules] : []
-      submodules.push({
-        id: `submodule-${Date.now()}`,
-        name: `Submodule ${submodules.length + 1}`,
-        percentage: '',
-      })
-      module.submodules = submodules
-      nextModules[moduleIndex] = module
+      setCourseEditActiveModuleIndex(nextIndex)
+      setCourseEditView('module')
+      setCourseEditInlineSubmodule(null)
+      setCourseEditPendingModuleId(newModuleId)
       return { ...current, modules: nextModules }
     })
   }
@@ -1017,6 +1125,31 @@ useEffect(() => {
       const nextModules = (Array.isArray(current.modules) ? current.modules : []).filter((_, index) => index !== moduleIndex)
       return { ...current, modules: nextModules }
     })
+  }
+
+  const cancelCourseEditModule = () => {
+    setCourseEditDraft((current) => {
+      if (!current) return current
+
+      const nextModules = Array.isArray(current.modules) ? [...current.modules] : []
+      const activeModule = nextModules[courseEditActiveModuleIndex]
+      const activeModuleId = String(activeModule?.id || '').trim()
+      const isPendingNewModule =
+        Boolean(courseEditPendingModuleId) &&
+        activeModuleId &&
+        activeModuleId === String(courseEditPendingModuleId).trim()
+
+      if (isPendingNewModule) {
+        nextModules.splice(courseEditActiveModuleIndex, 1)
+      }
+
+      return { ...current, modules: nextModules }
+    })
+
+    setCourseEditPendingModuleId('')
+    setCourseEditInlineSubmodule(null)
+    setCourseEditView('overview')
+    setCourseEditActiveModuleIndex(0)
   }
 
   const removeCourseEditSubmodule = (moduleIndex, submoduleIndex) => {
@@ -1040,9 +1173,11 @@ useEffect(() => {
 
     const normalizedModules = (Array.isArray(courseEditDraft.modules) ? courseEditDraft.modules : []).map((module, moduleIndex) => ({
       ...cloneFacultyEditModule(module, moduleIndex),
-      submodules: (Array.isArray(module?.submodules) ? module.submodules : []).map((submodule, subIndex) =>
-        cloneFacultyEditSubmodule(submodule, subIndex),
-      ),
+      percentage: getEqualSplitPercentageValue(courseEditDraft.modules.length),
+      submodules: (Array.isArray(module?.submodules) ? module.submodules : []).map((submodule, subIndex, submoduleList) => ({
+        ...cloneFacultyEditSubmodule(submodule, subIndex),
+        percentage: getEqualSplitPercentageValue(submoduleList.length),
+      })),
     }))
 
     setIsCourseEditSaving(true)
@@ -2061,7 +2196,7 @@ useEffect(() => {
       {isCourseEditModalOpen && courseEditDraft ? (
         <div className="faculty-course-edit-backdrop branch-modal-backdrop" role="presentation">
           <div
-            className="faculty-course-edit-modal"
+            className="faculty-course-edit-modal faculty-course-edit-modal--flow"
             role="dialog"
             aria-modal="true"
             aria-labelledby="faculty-course-edit-title"
@@ -2076,7 +2211,7 @@ useEffect(() => {
               ×
             </button>
 
-            <div className="faculty-course-edit-header">
+            <div className="faculty-course-edit-header faculty-course-edit-header--flow">
               <p className="faculty-course-edit-kicker">Open Edit</p>
               <h3 id="faculty-course-edit-title">{courseEditDraft.courseName}</h3>
               <p className="faculty-course-edit-subtitle">
@@ -2084,93 +2219,309 @@ useEffect(() => {
               </p>
             </div>
 
-            <div className="faculty-course-edit-body">
-              <div className="faculty-course-edit-status">
+            <div className="faculty-course-edit-flow">
+              <div className="faculty-course-edit-status faculty-course-edit-status--locked">
                 Locked fields: Course Name, Course Code, Duration, Fee, Mode, Hours
               </div>
 
-              <div className="faculty-course-edit-list">
-                {Array.isArray(courseEditDraft.modules) && courseEditDraft.modules.length ? (
-                  courseEditDraft.modules.map((module, moduleIndex) => {
-                    const submodules = Array.isArray(module.submodules) ? module.submodules : []
+              {courseEditView === 'overview' ? (
+                <section className="faculty-course-edit-overview">
+                  <div className="faculty-course-edit-overview-header">
+                    <div>
+                      <h4>Modules</h4>
+                      <p>{courseEditModules.length} saved</p>
+                    </div>
+                    <button type="button" className="faculty-course-edit-add-module faculty-course-edit-add-module--top" onClick={addCourseEditModule}>
+                      + Add Module
+                    </button>
+                  </div>
 
-                    return (
-                      <article key={module.id || moduleIndex} className="faculty-course-edit-card">
-                        <div className="faculty-course-edit-card-head">
-                          <span className="faculty-course-edit-badge">{String(moduleIndex + 1).padStart(2, '0')}</span>
-                          <input
-                            type="text"
-                            className="faculty-course-edit-input faculty-course-edit-input--module"
-                            value={module.name || ''}
-                            onChange={(event) => updateCourseEditModule(moduleIndex, 'name', event.target.value)}
-                            placeholder={`Module ${moduleIndex + 1}`}
-                          />
-                          <button
-                            type="button"
-                            className="faculty-course-edit-text-button is-danger"
-                            onClick={() => removeCourseEditModule(moduleIndex)}
-                            disabled={courseEditDraft.modules.length === 1}
-                          >
-                            Remove
-                          </button>
-                        </div>
+                  <div className="faculty-course-edit-overview-table">
+                    <div className="faculty-course-edit-overview-head">
+                      <span>Module</span>
+                      <span>Module %</span>
+                      <span>Submodules</span>
+                      <span>Actions</span>
+                    </div>
 
-                        <div className="faculty-course-edit-submodule-list">
-                          {submodules.length ? (
-                            submodules.map((submodule, submoduleIndex) => (
-                              <div key={submodule.id || submoduleIndex} className="faculty-course-edit-submodule-row">
-                                <span className="faculty-course-edit-submodule-index">
-                                  {String(submoduleIndex + 1).padStart(2, '0')}
-                                </span>
-                                <input
-                                  type="text"
-                                  className="faculty-course-edit-input faculty-course-edit-input--submodule"
-                                  value={submodule.name || ''}
-                                  onChange={(event) =>
-                                    updateCourseEditSubmodule(moduleIndex, submoduleIndex, 'name', event.target.value)
-                                  }
-                                  placeholder={`Submodule ${submoduleIndex + 1}`}
-                                />
-                                <div className="faculty-course-edit-submodule-actions">
+                    <div className="faculty-course-edit-overview-body">
+                      {courseEditModules.length ? (
+                        courseEditModules.map((module, moduleIndex) => {
+                          const submodules = Array.isArray(module.submodules) ? module.submodules : []
+                          const moduleId = String(module.id || moduleIndex).trim()
+                          const isExpanded = courseEditExpandedModuleIds.includes(moduleId)
+
+                          return (
+                            <article key={moduleId || moduleIndex} className="faculty-course-edit-overview-row">
+                              <div className="faculty-course-edit-overview-main">
+                                <div className="faculty-course-edit-overview-module">
+                                  <span className="faculty-course-edit-overview-badge">
+                                    {String(moduleIndex + 1).padStart(2, '0')}
+                                  </span>
+                                  <div>
+                                    <span>MODULE {moduleIndex + 1}</span>
+                                    <strong>{module.name || `Module ${moduleIndex + 1}`}</strong>
+                                  </div>
+                                </div>
+
+                                <div className="faculty-course-edit-overview-percent">
+                                  <span>{getModulePercentage(module, moduleIndex, courseEditModules.length)}</span>
+                                </div>
+
+                                <div className="faculty-course-edit-overview-submodules">
+                                  <span>{submodules.length} Submodules</span>
+                                </div>
+
+                                <div className="faculty-course-edit-overview-actions">
                                   <button
                                     type="button"
-                                    className="faculty-course-edit-icon-btn is-danger"
-                                    onClick={() => removeCourseEditSubmodule(moduleIndex, submoduleIndex)}
-                                    disabled={submodules.length === 1}
-                                    aria-label={`Remove submodule ${submoduleIndex + 1}`}
+                                    className="faculty-course-edit-action-btn"
+                                    onClick={() => toggleCourseEditExpandedModule(moduleId)}
+                                    aria-label={isExpanded ? 'Collapse module' : 'Expand module'}
                                   >
-                                    ×
+                                    {isExpanded ? '⌃' : '⌄'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="faculty-course-edit-action-btn"
+                                    onClick={() => openCourseEditModule(moduleIndex)}
+                                    aria-label={`Edit module ${moduleIndex + 1}`}
+                                  >
+                                    ✎
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="faculty-course-edit-action-btn is-danger"
+                                    onClick={() => removeCourseEditModule(moduleIndex)}
+                                    disabled={courseEditModules.length === 1}
+                                    aria-label={`Delete module ${moduleIndex + 1}`}
+                                  >
+                                    🗑
                                   </button>
                                 </div>
                               </div>
-                            ))
-                          ) : (
-                            <div className="faculty-course-edit-empty">No submodules yet. Add one below.</div>
-                          )}
 
-                          <button
-                            type="button"
-                            className="faculty-course-edit-add-submodule"
-                            onClick={() => addCourseEditSubmodule(moduleIndex)}
-                          >
-                            + Add Submodule
-                          </button>
+                              {isExpanded ? (
+                                <div className="faculty-course-edit-overview-details">
+                                  <p className="faculty-course-edit-overview-subtitle">Sub Modules</p>
+                                      {submodules.length ? (
+                                        <div className="faculty-course-edit-overview-submodule-list">
+                                          {submodules.map((submodule, submoduleIndex) => (
+                                            <div key={submodule.id || submoduleIndex} className="faculty-course-edit-overview-submodule">
+                                              <span className="faculty-course-edit-overview-submodule-index">
+                                                {String(submoduleIndex + 1).padStart(2, '0')}
+                                              </span>
+                                              <strong>{submodule.name || `Submodule ${submoduleIndex + 1}`}</strong>
+                                              <span className="faculty-course-edit-overview-submodule-percent">
+                                                {getEqualSplitPercentageLabel(submoduleIndex, submodules.length)}
+                                              </span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                    <div className="faculty-course-edit-empty faculty-course-edit-empty--compact">No submodules yet.</div>
+                                  )}
+                                </div>
+                              ) : null}
+                            </article>
+                          )
+                        })
+                      ) : (
+                        <div className="faculty-course-edit-empty">No modules found for this course yet.</div>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
+              {courseEditView === 'module' && courseEditActiveModule ? (
+                <section className="faculty-course-edit-step-shell">
+                  <article className="faculty-course-edit-step-card">
+                    <div className="faculty-course-edit-step-title-row">
+                      <span className="faculty-course-edit-step-badge">
+                        {String(courseEditActiveModuleIndex + 1).padStart(2, '0')}
+                      </span>
+                      <strong>Module {courseEditActiveModuleIndex + 1}</strong>
+                    </div>
+
+                    <label className="faculty-course-edit-field">
+                      <span>Module Name <b>*</b></span>
+                      <input
+                        type="text"
+                        className="faculty-course-edit-input faculty-course-edit-input--module"
+                        value={courseEditActiveModule.name || ''}
+                        onChange={(event) => updateCourseEditModule(courseEditActiveModuleIndex, 'name', event.target.value)}
+                        placeholder="Enter module name"
+                      />
+                    </label>
+
+                    <div className="faculty-course-edit-step-actions">
+                      <button type="button" className="faculty-course-edit-cancel" onClick={cancelCourseEditModule}>
+                        Cancel
+                      </button>
+                      <button type="button" className="faculty-course-edit-step-primary" onClick={continueCourseEditModule}>
+                        Continue
+                      </button>
+                    </div>
+                  </article>
+                </section>
+              ) : null}
+
+              {courseEditView === 'submodules' && courseEditActiveModule ? (
+                <section className="faculty-course-edit-submodule-shell">
+                  <div className="faculty-course-edit-submodule-shell-header">
+                    <div>
+                      <h4>Sub Modules</h4>
+                      <p>{courseEditActiveModule.name || `Module ${courseEditActiveModuleIndex + 1}`}</p>
+                    </div>
+                    <span className="faculty-course-edit-submodule-count">{courseEditActiveModuleSubmodules.length} saved</span>
+                  </div>
+
+                  <div className="faculty-course-edit-submodule-panel">
+                    <div className="faculty-course-edit-submodule-list-v2">
+                      {courseEditActiveModuleSubmodules.length ? (
+                        courseEditActiveModuleSubmodules.map((submodule, submoduleIndex) => {
+                          const isEditingCurrent =
+                            courseEditInlineSubmodule &&
+                            courseEditInlineSubmodule.mode === 'edit' &&
+                            courseEditInlineSubmodule.moduleIndex === courseEditActiveModuleIndex &&
+                            courseEditInlineSubmodule.submoduleIndex === submoduleIndex
+
+                          return (
+                            <div key={submodule.id || submoduleIndex} className="faculty-course-edit-submodule-item-v2">
+                              <span className="faculty-course-edit-submodule-check">✓</span>
+
+                              {isEditingCurrent ? (
+                                <div className="faculty-course-edit-submodule-editor">
+                                  <label className="faculty-course-edit-submodule-editor-label">
+                                    Submodule {submoduleIndex + 1} *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    className="faculty-course-edit-input"
+                                    value={courseEditInlineSubmodule.value}
+                                    onChange={(event) =>
+                                      setCourseEditInlineSubmodule((current) =>
+                                        current ? { ...current, value: event.target.value } : current,
+                                      )
+                                    }
+                                    placeholder="Enter submodule name"
+                                  />
+                                  <div className="faculty-course-edit-inline-actions">
+                                    <button
+                                      type="button"
+                                      className="faculty-course-edit-inline-save"
+                                      onClick={saveCourseEditInlineSubmodule}
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="faculty-course-edit-inline-cancel"
+                                      onClick={cancelCourseEditInlineSubmodule}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <strong>{submodule.name || `Submodule ${submoduleIndex + 1}`}</strong>
+                                  <div className="faculty-course-edit-submodule-actions">
+                                    <button
+                                      type="button"
+                                      className="faculty-course-edit-icon-btn"
+                                      onClick={() => startCourseEditSubmoduleEdit(courseEditActiveModuleIndex, submoduleIndex)}
+                                      aria-label={`Edit submodule ${submoduleIndex + 1}`}
+                                    >
+                                      ✎
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="faculty-course-edit-icon-btn is-danger"
+                                      onClick={() => removeCourseEditSubmodule(courseEditActiveModuleIndex, submoduleIndex)}
+                                      aria-label={`Delete submodule ${submoduleIndex + 1}`}
+                                    >
+                                      🗑
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <div className="faculty-course-edit-empty faculty-course-edit-empty--compact">No submodules yet. Add one below.</div>
+                      )}
+
+                      {courseEditInlineSubmodule &&
+                      courseEditInlineSubmodule.mode === 'add' &&
+                      courseEditInlineSubmodule.moduleIndex === courseEditActiveModuleIndex ? (
+                        <div className="faculty-course-edit-submodule-item-v2 faculty-course-edit-submodule-item-v2--editor">
+                          <span className="faculty-course-edit-submodule-check">+</span>
+                          <div className="faculty-course-edit-submodule-editor">
+                            <label className="faculty-course-edit-submodule-editor-label">
+                              New Submodule <b>*</b>
+                            </label>
+                            <input
+                              type="text"
+                              className="faculty-course-edit-input"
+                              value={courseEditInlineSubmodule.value}
+                              onChange={(event) =>
+                                setCourseEditInlineSubmodule((current) =>
+                                  current ? { ...current, value: event.target.value } : current,
+                                )
+                              }
+                              placeholder={courseEditInlineSubmodule.placeholder || 'Enter submodule name'}
+                            />
+                            <div className="faculty-course-edit-inline-actions">
+                              <button
+                                type="button"
+                                className="faculty-course-edit-inline-save"
+                                onClick={saveCourseEditInlineSubmodule}
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                className="faculty-course-edit-inline-cancel"
+                                onClick={cancelCourseEditInlineSubmodule}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </article>
-                    )
-                  })
-                ) : (
-                  <div className="faculty-course-edit-empty">No modules found for this course yet.</div>
-                )}
-              </div>
+                      ) : null}
+                    </div>
 
-              <button type="button" className="faculty-course-edit-add-module" onClick={addCourseEditModule}>
-                + Add Module
-              </button>
+                    <button
+                      type="button"
+                      className="faculty-course-edit-add-submodule faculty-course-edit-add-submodule--flow"
+                      onClick={() => startCourseEditAddSubmodule(courseEditActiveModuleIndex)}
+                    >
+                      + Add Submodule
+                    </button>
+                  </div>
 
-              {courseEditError ? <div className="faculty-course-edit-status">{courseEditError}</div> : null}
+                  <div className="faculty-course-edit-step-actions">
+                    <button type="button" className="faculty-course-edit-cancel" onClick={() => setCourseEditView('module')}>
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      className="faculty-course-edit-step-primary"
+                      onClick={() => setCourseEditView('overview')}
+                    >
+                      Done
+                    </button>
+                  </div>
+                </section>
+              ) : null}
 
-              <div className="faculty-course-edit-actions">
+              {courseEditError ? <div className="faculty-course-edit-status faculty-course-edit-status--error">{courseEditError}</div> : null}
+
+              <div className="faculty-course-edit-actions faculty-course-edit-actions--footer">
                 <button type="button" className="faculty-course-edit-cancel" onClick={() => setIsCourseEditModalOpen(false)}>
                   Cancel
                 </button>
