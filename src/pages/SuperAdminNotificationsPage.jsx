@@ -217,6 +217,13 @@ export function SuperAdminNotificationsPage() {
   const refreshTimerRef = useRef(null)
 
   const profileEmail = user?.email || 'superadmin.manager@cispro.com'
+  const visibleNotifications = useMemo(
+    () =>
+      notifications.filter(
+        (notification) => String(notification.kind || '').trim().toLowerCase() !== 'branch-faculty-login',
+      ),
+    [notifications],
+  )
 
   const loadAllNotifications = async () => {
     try {
@@ -233,7 +240,7 @@ export function SuperAdminNotificationsPage() {
             : []
 
       const mergedNotifications = mergeNotificationsWithStoredState(data.map(normalizeNotificationItem))
-      saveNotifications(mergedNotifications)
+      saveNotifications(mergedNotifications, { emit: false })
       setNotifications(mergedNotifications)
     } catch {
       setNotifications(mergeNotificationsWithStoredState(loadNotifications().map(normalizeNotificationItem)))
@@ -259,18 +266,6 @@ export function SuperAdminNotificationsPage() {
   }, [])
 
   useEffect(() => {
-    refreshTimerRef.current = window.setInterval(() => {
-      void loadAllNotifications()
-    }, 10000)
-
-    return () => {
-      if (refreshTimerRef.current) {
-        window.clearInterval(refreshTimerRef.current)
-      }
-    }
-  }, [])
-
-  useEffect(() => {
     if (!isLogoutConfirmOpen && !isMobileSidebarOpen) return undefined
 
     const onKeyDown = (event) => {
@@ -292,11 +287,11 @@ export function SuperAdminNotificationsPage() {
     }
   }, [isMobileSidebarOpen])
 
-  const unreadCount = useMemo(() => notifications.filter((item) => !item.read).length, [notifications])
-  const totalCount = notifications.length
+  const unreadCount = useMemo(() => visibleNotifications.filter((item) => !item.read).length, [visibleNotifications])
+  const totalCount = visibleNotifications.length
   const filteredNotifications = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
-    return notifications.filter((item) => {
+    return visibleNotifications.filter((item) => {
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'read' && item.read) ||
@@ -322,21 +317,27 @@ export function SuperAdminNotificationsPage() {
 
       return matchesStatus && matchesDate && matchesSearch
     })
-  }, [dateFilter, notifications, searchTerm, statusFilter])
+  }, [dateFilter, searchTerm, statusFilter, visibleNotifications])
 
   const groupedNotifications = useMemo(() => groupNotifications(filteredNotifications), [filteredNotifications])
 
   const markAllAsRead = async () => {
-    setNotifications((current) => current.map((item) => ({ ...item, read: true })))
-    markNotificationsAsRead()
+    const visibleIds = visibleNotifications.map((item) => item.id)
+    if (!visibleIds.length) return
+    setNotifications((current) =>
+      current.map((item) =>
+        visibleIds.includes(item.id) ? { ...item, read: true } : item,
+      ),
+    )
+    markNotificationsAsRead(visibleIds.length ? visibleIds : null)
 
     try {
       await request('/notifications/mark-read', {
         method: 'PATCH',
-        body: JSON.stringify({ notificationIds: [] }),
+        body: JSON.stringify({ notificationIds: visibleIds }),
       })
     } catch {
-      markNotificationsAsRead()
+      markNotificationsAsRead(visibleIds.length ? visibleIds : null)
     } finally {
       void loadAllNotifications()
     }

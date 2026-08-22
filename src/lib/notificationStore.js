@@ -66,14 +66,20 @@ export function loadNotifications() {
     )
 
   if (nextNotifications.length !== stored.length) {
-    saveNotifications(nextNotifications)
+    saveNotifications(nextNotifications, { emit: false })
   }
 
   return nextNotifications
 }
 
-export function saveNotifications(notifications = []) {
+export function saveNotifications(notifications = [], options = {}) {
   writeJSON(NOTIFICATION_STORAGE_KEY, notifications.map(normalizeNotification))
+  if (options?.emit === false) {
+    return notifications
+  }
+
+  emitNotificationChange()
+  return notifications
 }
 
 export function mergeNotificationsWithStoredState(notifications = []) {
@@ -128,7 +134,6 @@ export function addNotification(notification = {}) {
   const nextNotification = normalizeNotification(notification)
   const nextNotifications = [nextNotification, ...loadNotifications()]
   saveNotifications(nextNotifications)
-  emitNotificationChange()
   return nextNotification
 }
 
@@ -175,7 +180,6 @@ export function markNotificationsAsRead(notificationIds = null) {
   })
 
   saveNotifications(nextNotifications)
-  emitNotificationChange()
   return nextNotifications
 }
 
@@ -196,7 +200,6 @@ export function markNotificationsAsDropdownViewed(notificationIds = null) {
   })
 
   saveNotifications(nextNotifications)
-  emitNotificationChange()
   return nextNotifications
 }
 

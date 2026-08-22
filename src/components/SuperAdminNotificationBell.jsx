@@ -12,6 +12,7 @@ import {
 import { request } from '../services/apiClient'
 import {
   markNotificationsAsRead,
+  loadNotifications,
   mergeNotificationsWithStoredState,
   saveNotifications,
 } from '../lib/notificationStore'
@@ -59,6 +60,13 @@ export function SuperAdminNotificationBell({
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const visibleNotifications = useMemo(
+    () =>
+      notifications.filter(
+        (notification) => String(notification.kind || '').trim().toLowerCase() !== 'branch-faculty-login',
+      ),
+    [notifications],
+  )
 
   const refreshNotifications = async () => {
     try {
@@ -68,27 +76,25 @@ export function SuperAdminNotificationBell({
       const data = Array.isArray(response?.data) ? response.data : []
       const mergedNotifications = mergeNotificationsWithStoredState(data)
 
-const storedViewedIds = JSON.parse(
-  localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
-)
+      const storedViewedIds = JSON.parse(
+        localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
+      )
 
-const viewedIds = new Set(
-  Array.isArray(storedViewedIds)
-    ? storedViewedIds.map(String)
-    : [],
-)
+      const viewedIds = new Set(
+        Array.isArray(storedViewedIds)
+          ? storedViewedIds.map(String)
+          : [],
+      )
 
-const notificationsWithDropdownState = mergedNotifications.map(
-  (notification) => ({
-    ...notification,
-    dropdownViewed: viewedIds.has(String(notification.id)),
-  }),
-)
+      const notificationsWithDropdownState = mergedNotifications.map((notification) => ({
+        ...notification,
+        dropdownViewed: viewedIds.has(String(notification.id)),
+      }))
 
-saveNotifications(notificationsWithDropdownState)
-setNotifications(notificationsWithDropdownState)
+      saveNotifications(notificationsWithDropdownState, { emit: false })
+      setNotifications(notificationsWithDropdownState)
     } catch {
-      setNotifications([])
+      setNotifications(mergeNotificationsWithStoredState(loadNotifications()))
     } finally {
       setIsLoading(false)
     }
@@ -100,16 +106,6 @@ setNotifications(notificationsWithDropdownState)
     }, 0)
 
     return () => window.clearTimeout(timerId)
-  }, [])
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      void refreshNotifications()
-    }, 10000)
-
-    return () => {
-      window.clearInterval(intervalId)
-    }
   }, [])
 
   useEffect(() => {
@@ -157,19 +153,13 @@ setNotifications(notificationsWithDropdownState)
   }, [isOpen])
 
   const notificationCount = useMemo(
-  () =>
-    notifications.filter(
-      (notification) => !notification.dropdownViewed,
-    ).length,
-  [notifications],
-)
-const visibleNotifications = useMemo(
-  () =>
-    notifications
-      .filter((notification) => !notification.dropdownViewed)
-      .slice(0, 3),
-  [notifications],
-)
+    () => visibleNotifications.filter((notification) => !notification.dropdownViewed).length,
+    [visibleNotifications],
+  )
+  const visibleDropdownNotifications = useMemo(
+    () => visibleNotifications.filter((notification) => !notification.dropdownViewed).slice(0, 3),
+    [visibleNotifications],
+  )
   const handleOpenNotification = async (notification) => {
   setIsOpen(false)
 
@@ -218,12 +208,14 @@ localStorage.setItem(
 
  
 const handleMarkAllAsRead = () => {
+  const visibleIds = visibleNotifications.map((item) => item.id)
+  if (!visibleIds.length) return
   setNotifications((current) =>
-    current.map((item) => ({
-      ...item,
-      read: true,
-      dropdownViewed: true,
-    })),
+    current.map((item) =>
+      visibleIds.includes(item.id)
+        ? { ...item, read: true, dropdownViewed: true }
+        : item,
+    ),
   )
 
   const storedViewedIds = JSON.parse(
@@ -236,7 +228,7 @@ const handleMarkAllAsRead = () => {
       : [],
   )
 
-  notifications.forEach((notification) => {
+  visibleNotifications.forEach((notification) => {
     viewedIds.add(String(notification.id))
   })
 
@@ -245,11 +237,11 @@ const handleMarkAllAsRead = () => {
     JSON.stringify([...viewedIds]),
   )
 
-  markNotificationsAsRead()
+  markNotificationsAsRead(visibleIds.length ? visibleIds : null)
 
   void request('/notifications/mark-read', {
     method: 'PATCH',
-    body: JSON.stringify({ notificationIds: [] }),
+    body: JSON.stringify({ notificationIds: visibleIds }),
   }).catch(() => {})
 }
   return (
@@ -286,8 +278,8 @@ const handleMarkAllAsRead = () => {
           </div>
 
           <div className="notification-dropdown-list">
-            {visibleNotifications.length ? (
-              visibleNotifications.map((notification) => {
+            {visibleDropdownNotifications.length ? (
+              visibleDropdownNotifications.map((notification) => {
                 const Icon = getNotificationIcon(notification.kind)
                 return (
                   <button

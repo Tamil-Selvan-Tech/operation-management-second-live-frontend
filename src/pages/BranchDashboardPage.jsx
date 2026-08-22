@@ -1001,9 +1001,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         ? response.data
         : Array.isArray(response?.notifications)
           ? response.notifications
-          : Array.isArray(response)
-            ? response
-            : []
+        : Array.isArray(response)
+          ? response
+          : []
 
       const storedNotifications = loadNotifications()
       const storedById = new Map(
@@ -1018,9 +1018,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       const nextNotifications = [...mergedNotifications, ...preservedNotifications]
 
       setBranchNotificationRecords(nextNotifications)
-      saveNotifications(nextNotifications)
+      saveNotifications(nextNotifications, { emit: false })
     } catch (error) {
       console.error('Failed to load branch notifications:', error)
+      const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
+      setBranchNotificationRecords(fallbackNotifications)
     }
   }, [])
 
@@ -1161,10 +1163,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   useEffect(() => {
     void loadBranchNotifications()
 
-    const intervalId = window.setInterval(() => {
-      void loadBranchNotifications()
-    }, 5000)
-
     const handleFocus = () => {
       void loadBranchNotifications()
     }
@@ -1179,7 +1177,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      window.clearInterval(intervalId)
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
