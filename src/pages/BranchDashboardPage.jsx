@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   CircleUserRound,
   ChevronDown,
+  ChevronRight,
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
@@ -4522,19 +4523,31 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
                       {viewCourseModels.length ? (
                         <div className="branch-course-view-models">
+                          <div className="branch-course-view-model-table-header" role="row" aria-hidden="true">
+                            <span>Module</span>
+                            <span>Module Name</span>
+                            <span>Percentage</span>
+                            <span>Actions</span>
+                          </div>
                           {viewCourseModels.map((model, modelIndex) => {
                             const isExpanded = expandedViewCourseModuleIds.includes(model.id)
 
                             return (
                               <article key={model.id} className="branch-course-view-model-card">
-                                <div className="branch-course-view-model-head">
-                                  <div>
+                                <div className="branch-course-view-model-row" role="row">
+                                  <div className="branch-course-view-model-cell branch-course-view-model-cell-module" role="cell">
                                     <span>Module {modelIndex + 1}</span>
+                                  </div>
+
+                                  <div className="branch-course-view-model-cell branch-course-view-model-cell-name" role="cell">
                                     <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
                                   </div>
 
-                                  <div className="branch-course-view-model-head-actions">
+                                  <div className="branch-course-view-model-cell branch-course-view-model-cell-percentage" role="cell">
                                     <b>{formatBranchCoursePercentage(model.percentage)}</b>
+                                  </div>
+
+                                  <div className="branch-course-view-model-cell branch-course-view-model-cell-actions" role="cell">
                                     <button
                                       type="button"
                                       className="branch-course-view-module-toggle"
@@ -4542,12 +4555,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                                       aria-expanded={isExpanded}
                                       aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${model.name || `Module ${modelIndex + 1}`}`}
                                     >
-                                      <ChevronDown
-                                        size={18}
-                                        strokeWidth={2.4}
-                                        className={isExpanded ? 'is-open' : ''}
-                                        aria-hidden="true"
-                                      />
+                                      {isExpanded ? (
+                                        <ChevronDown size={18} strokeWidth={2.4} aria-hidden="true" />
+                                      ) : (
+                                        <ChevronRight size={18} strokeWidth={2.4} aria-hidden="true" />
+                                      )}
                                     </button>
                                   </div>
                                 </div>
