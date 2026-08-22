@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronLeft,
-  ChevronRight,
   LayoutDashboard,
   Layers3,
   LogOut,
@@ -1019,7 +1018,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       const nextNotifications = [...mergedNotifications, ...preservedNotifications]
 
       setBranchNotificationRecords(nextNotifications)
-      saveNotifications(nextNotifications)
+      saveNotifications(nextNotifications, { emit: false })
     } catch (error) {
       console.error('Failed to load branch notifications:', error)
       const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
@@ -1163,10 +1162,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   useEffect(() => {
     void loadBranchNotifications()
-
-    const intervalId = window.setInterval(() => {
-      void loadBranchNotifications()
-    }, 5000)
 
     const handleFocus = () => {
       void loadBranchNotifications()
