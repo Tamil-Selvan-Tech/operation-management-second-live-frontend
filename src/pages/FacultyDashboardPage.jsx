@@ -9,6 +9,7 @@ import {
   CircleUserRound,
   Layers3,
   LayoutDashboard,
+  Clock3,
   LogOut,
   Mail,
   MapPin,
@@ -18,6 +19,7 @@ import {
   Dot,
   ShieldCheck,
   Trash2,
+  Monitor,
   UserRound,
   Users,
 } from 'lucide-react'
@@ -513,6 +515,7 @@ export function FacultyDashboardPage() {
   const [courseEditDraftModels, setCourseEditDraftModels] = useState([])
   const [courseEditSaveMessage, setCourseEditSaveMessage] = useState('')
   const [courseEditModuleNameError, setCourseEditModuleNameError] = useState('')
+  const [courseEditDeleteConfirm, setCourseEditDeleteConfirm] = useState(null)
   const profileMenuRef = useRef(null)
   const notificationRef = useRef(null)
 
@@ -757,6 +760,8 @@ useEffect(() => {
       : selectedCourseEditRequest?.requestStatus === 'pending'
         ? 'Request Pending'
         : 'Edit Request'
+  const selectedCourseHeroButtonLabel =
+    selectedCourseEditButtonLabel === 'Open Edit' ? 'Edit' : selectedCourseEditButtonLabel
   const courseEditPreviewModels = useMemo(
     () => buildCourseHierarchySummary(courseEditDraftModels),
     [courseEditDraftModels],
@@ -818,6 +823,7 @@ useEffect(() => {
     setCourseEditExpandedModuleIds([])
     setCourseEditEditingSubmoduleIndex(null)
     setCourseEditSaveMessage('')
+    setCourseEditDeleteConfirm(null)
     setIsCourseEditEditorOpen(true)
   }
 
@@ -829,6 +835,7 @@ useEffect(() => {
     setCourseEditExpandedModuleIds([])
     setCourseEditEditingSubmoduleIndex(null)
     setCourseEditSaveMessage('')
+    setCourseEditDeleteConfirm(null)
   }
 
   const handleCourseEditRequestSubmit = (event) => {
@@ -884,6 +891,26 @@ useEffect(() => {
     setCourseEditExpandedModuleIds((current) => current.filter((moduleId) => moduleId && moduleId !== removedModuleId))
     setCourseEditActiveModuleIndex((current) => Math.max(0, Math.min(current, Math.max(courseEditDraftModels.length - 2, 0))))
     setCourseEditEditingSubmoduleIndex(null)
+  }
+
+  const openCourseEditDeleteConfirm = (payload) => {
+    setCourseEditDeleteConfirm(payload)
+  }
+
+  const closeCourseEditDeleteConfirm = () => {
+    setCourseEditDeleteConfirm(null)
+  }
+
+  const confirmCourseEditDelete = () => {
+    if (!courseEditDeleteConfirm) return
+
+    if (courseEditDeleteConfirm.type === 'module') {
+      removeCourseEditDraftModule(courseEditDeleteConfirm.moduleIndex)
+    } else if (courseEditDeleteConfirm.type === 'submodule') {
+      removeCourseEditDraftSubmodule(courseEditDeleteConfirm.moduleIndex, courseEditDeleteConfirm.submoduleIndex)
+    }
+
+    closeCourseEditDeleteConfirm()
   }
 
   const addCourseEditDraftSubmodule = (moduleIndex) => {
@@ -1409,27 +1436,74 @@ useEffect(() => {
               ) : null}
 
               {activeSection === 'courses' ? (
-                <FacultyDashboardSection title="Course" description="Data Science course details from the branch course catalog.">
+                <FacultyDashboardSection title="Course" description="">
                   {selectedCourse ? (
                     <>
                       <div className="faculty-course-hero">
-                        <div className="faculty-course-hero-content">
-                          <div className="faculty-course-hero-topline">
-                            <span className={`faculty-course-hero-status ${String(selectedCourse.status || 'Active').toLowerCase()}`.trim()}>
-                              {selectedCourse.status || 'Active'}
-                            </span>
-                            <span className="faculty-course-hero-kicker">Branch course snapshot</span>
-                            <button type="button" className="faculty-course-edit-request-btn" onClick={handleCourseEditHeroAction}>
-                              {selectedCourseEditButtonLabel}
+                        <div className="faculty-course-hero-header">
+                          <span className={`faculty-course-hero-status ${String(selectedCourse.status || 'Active').toLowerCase()}`.trim()}>
+                            {selectedCourse.status || 'Active'}
+                          </span>
+                          <div className="faculty-course-hero-title-row">
+                            <h3 className="faculty-course-hero-title">{String(selectedCourse.name || 'Data Science').toUpperCase()}</h3>
+
+                            <button type="button" className="faculty-course-edit-request-btn faculty-course-edit-request-btn--hero" onClick={handleCourseEditHeroAction}>
+                              <Pencil size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                              <span>{selectedCourseHeroButtonLabel}</span>
                             </button>
                           </div>
-                          <h3>{selectedCourse.name || 'Data Science'}</h3>
-                          <div className="faculty-course-hero-tags">
-                            <span>Code {selectedCourse.courseCode || '-'}</span>
-                            <span>{selectedCourse.mode || 'Mode not set'}</span>
-                            <span>{selectedCourse.duration ? `${selectedCourse.duration} month${String(selectedCourse.duration) === '1' ? '' : 's'}` : 'Duration not set'}</span>
-                            <span>{selectedCourse.hours ? `${selectedCourse.hours} hour${String(selectedCourse.hours) === '1' ? '' : 's'}` : 'Hours not set'}</span>
-                          </div>
+                        </div>
+
+                        <div className="faculty-course-hero-divider" />
+
+                        <div className="faculty-course-hero-metrics">
+                          <article className="faculty-course-hero-metric">
+                            <span className="faculty-course-hero-metric-icon tone-blue" aria-hidden="true">
+                              <BookOpen size={24} strokeWidth={2.2} />
+                            </span>
+                            <div>
+                              <strong>{selectedCourse.courseCode || '-'}</strong>
+                              <span>Course Code</span>
+                            </div>
+                          </article>
+
+                          <article className="faculty-course-hero-metric">
+                            <span className="faculty-course-hero-metric-icon tone-green" aria-hidden="true">
+                              <Monitor size={24} strokeWidth={2.2} />
+                            </span>
+                            <div>
+                              <strong>{selectedCourse.mode || 'Mode not set'}</strong>
+                              <span>Mode</span>
+                            </div>
+                          </article>
+
+                          <article className="faculty-course-hero-metric">
+                            <span className="faculty-course-hero-metric-icon tone-purple" aria-hidden="true">
+                              <CalendarDays size={24} strokeWidth={2.2} />
+                            </span>
+                            <div>
+                              <strong>
+                                {selectedCourse.duration
+                                  ? `${selectedCourse.duration} month${String(selectedCourse.duration) === '1' ? '' : 's'}`
+                                  : 'Duration not set'}
+                              </strong>
+                              <span>Duration</span>
+                            </div>
+                          </article>
+
+                          <article className="faculty-course-hero-metric">
+                            <span className="faculty-course-hero-metric-icon tone-orange" aria-hidden="true">
+                              <Clock3 size={24} strokeWidth={2.2} />
+                            </span>
+                            <div>
+                              <strong>
+                                {selectedCourse.hours
+                                  ? `${selectedCourse.hours} hour${String(selectedCourse.hours) === '1' ? '' : 's'}`
+                                  : 'Hours not set'}
+                              </strong>
+                              <span>Course Hours</span>
+                            </div>
+                          </article>
                         </div>
                       </div>
 
@@ -1752,14 +1826,14 @@ useEffect(() => {
             </button>
 
             <div className="faculty-course-request-header">
-              <div>
-                <p className="faculty-course-request-kicker">Edit Request</p>
-                <h3 id="faculty-course-request-title">{selectedCourse?.name || 'Data Science'}</h3>
-                <p className="faculty-course-request-subtitle">
-                  Send a short note to the branch admin for module and submodule updates.
-                </p>
+                <div>
+                  <p className="faculty-course-request-kicker">Edit Request</p>
+                  <h3 id="faculty-course-request-title">{selectedCourse?.name || 'Data Science'}</h3>
+                  <p className="faculty-course-request-subtitle">
+                  Tell the branch admin exactly what you want to change in the modules or submodules.
+                  </p>
+                </div>
               </div>
-            </div>
 
             <form className="faculty-course-request-form" onSubmit={handleCourseEditRequestSubmit}>
               <label className="faculty-course-request-field">
@@ -1767,7 +1841,7 @@ useEffect(() => {
                 <textarea
                   value={courseEditRequestText}
                   onChange={(event) => setCourseEditRequestText(event.target.value)}
-                  placeholder="Add or update modules and submodules for this course."
+                  placeholder="Example: Add new submodules for data cleaning and model deployment."
                   rows={4}
                 />
               </label>
@@ -1887,7 +1961,13 @@ useEffect(() => {
                                   <button
                                     type="button"
                                     className="faculty-course-edit-action-btn is-danger"
-                                    onClick={() => removeCourseEditDraftModule(moduleIndex)}
+                                    onClick={() =>
+                                      openCourseEditDeleteConfirm({
+                                        type: 'module',
+                                        moduleIndex,
+                                        moduleName: module.name || `Module ${moduleIndex + 1}`,
+                                      })
+                                    }
                                     aria-label={`Remove module ${moduleIndex + 1}`}
                                   >
                                     <Trash2 size={14} strokeWidth={2.4} />
@@ -2048,7 +2128,14 @@ useEffect(() => {
                                 <button
                                   type="button"
                                   className="faculty-course-edit-icon-btn is-danger"
-                                  onClick={() => removeCourseEditDraftSubmodule(courseEditActiveModuleIndex, submoduleIndex)}
+                                  onClick={() =>
+                                    openCourseEditDeleteConfirm({
+                                      type: 'submodule',
+                                      moduleIndex: courseEditActiveModuleIndex,
+                                      submoduleIndex,
+                                      submoduleName: submodel.name || `Submodule ${submoduleIndex + 1}`,
+                                    })
+                                  }
                                   aria-label={`Remove submodule ${submoduleIndex + 1}`}
                                 >
                                   <Trash2 size={14} strokeWidth={2.4} />
@@ -2071,6 +2158,44 @@ useEffect(() => {
                 </div>
               ) : null}
             </div>
+
+            {courseEditDeleteConfirm ? (
+              <div className="faculty-course-delete-overlay" role="presentation">
+                <div
+                  className="faculty-course-delete-modal"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="faculty-course-delete-title"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className="faculty-course-delete-close"
+                    aria-label="Close delete confirmation"
+                    onClick={closeCourseEditDeleteConfirm}
+                  >
+                    ×
+                  </button>
+
+                  <p className="faculty-course-delete-kicker">CONFIRM DELETE</p>
+                  <h3 id="faculty-course-delete-title">Are you sure?</h3>
+                  <p className="faculty-course-delete-text">
+                    {courseEditDeleteConfirm.type === 'module'
+                      ? `This will permanently delete ${courseEditDeleteConfirm.moduleName || 'this module'}.`
+                      : `This will permanently delete ${courseEditDeleteConfirm.submoduleName || 'this submodule'}.`}
+                  </p>
+
+                  <div className="faculty-course-delete-actions">
+                    <button type="button" className="faculty-course-edit-cancel" onClick={closeCourseEditDeleteConfirm}>
+                      Cancel
+                    </button>
+                    <button type="button" className="faculty-course-delete-confirm" onClick={confirmCourseEditDelete}>
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="faculty-course-edit-actions">
               {courseEditEditorStage === 'module' ? (

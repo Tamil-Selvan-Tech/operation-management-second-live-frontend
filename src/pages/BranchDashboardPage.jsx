@@ -8,8 +8,8 @@ import {
   ArrowLeft,
   CircleUserRound,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
+  ChevronLeft,
   LayoutDashboard,
   Layers3,
   LogOut,
@@ -614,7 +614,7 @@ function createBranchCourseErrors(form) {
   hierarchy.models = normalizedModels.map((model) => {
     const modelErrors = {}
     if (!String(model.name || '').trim()) {
-      modelErrors.name = 'Model name is required.'
+      modelErrors.name = 'Module name is required.'
     }
 
     const submodels = Array.isArray(model.submodels) ? model.submodels : []
@@ -860,6 +860,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
   const [courseActionMenuPosition, setCourseActionMenuPosition] = useState({ top: 0, left: 0 })
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
+  const [courseModuleDeleteTarget, setCourseModuleDeleteTarget] = useState(null)
+  const [courseSubmoduleDeleteTarget, setCourseSubmoduleDeleteTarget] = useState(null)
   const [viewCourse, setViewCourse] = useState(null)
   const [viewCourseTab, setViewCourseTab] = useState('basic')
   const [expandedViewCourseModuleIds, setExpandedViewCourseModuleIds] = useState([])
@@ -869,6 +871,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [expandedSavedCourseModuleIds, setExpandedSavedCourseModuleIds] = useState([])
   const [submoduleDraftRestoreIndex, setSubmoduleDraftRestoreIndex] = useState(0)
   const [submoduleDraftRestoreLength, setSubmoduleDraftRestoreLength] = useState(null)
+  const activeSubmoduleInputRef = useRef(null)
 
   const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
   const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
@@ -1863,6 +1866,24 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }
 
   const handleCourseSubmodelDelete = (modelIndex, submodelIndex) => {
+    const model = savedCourseRows[modelIndex]
+    const submodel = normalizeBranchCourseSubmodels(model?.submodels, modelIndex)[submodelIndex]
+
+    setCourseSubmoduleDeleteTarget({
+      modelIndex,
+      submodelIndex,
+      label: submodel?.name || `Submodule ${submodelIndex + 1}`,
+    })
+  }
+
+  const closeCourseSubmoduleDeleteConfirm = () => {
+    setCourseSubmoduleDeleteTarget(null)
+  }
+
+  const handleCourseSubmoduleDeleteConfirm = () => {
+    if (!courseSubmoduleDeleteTarget) return
+
+    const { modelIndex, submodelIndex } = courseSubmoduleDeleteTarget
     removeAddCourseSubmodel(modelIndex, submodelIndex)
     setAddCourseError('')
     setIsSubmoduleDraftOpen(false)
@@ -1871,6 +1892,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       if (submodelIndex === current) return Math.max(0, current - 1)
       return current
     })
+    setCourseSubmoduleDeleteTarget(null)
   }
 
   const handleCourseModuleFinalSave = (modelIndex) => {
@@ -1956,6 +1978,27 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     }
   }
 
+  const openCourseModuleDeleteConfirm = (modelIndex) => {
+    const model = savedCourseRows[modelIndex]
+    if (!model) return
+
+    setCourseModuleDeleteTarget({
+      modelIndex,
+      label: model.name || `Module ${modelIndex + 1}`,
+    })
+  }
+
+  const closeCourseModuleDeleteConfirm = () => {
+    setCourseModuleDeleteTarget(null)
+  }
+
+  const handleCourseModuleDeleteConfirm = () => {
+    if (!courseModuleDeleteTarget) return
+
+    removeSavedCourseModel(courseModuleDeleteTarget.modelIndex)
+    setCourseModuleDeleteTarget(null)
+  }
+
   const resetAddCourseForm = (record = editingCourseRecord, draftKey = courseDraftKey) => {
     const nextForm = record
       ? buildBranchCourseFormFromRecord(record)
@@ -1982,6 +2025,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     resetAddCourseForm(null, nextDraftKey)
     setEditingCourseId('')
     setCourseSaveSuccess(null)
+    setCourseModuleDeleteTarget(null)
+    setCourseSubmoduleDeleteTarget(null)
     setIsAddCourseOpen(true)
     goToBranchSection('courses')
   }
@@ -2020,12 +2065,16 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     )
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
+    setCourseModuleDeleteTarget(null)
+    setCourseSubmoduleDeleteTarget(null)
     setIsAddCourseOpen(true)
     goToBranchSection('courses')
   }
 
   const closeAddCourseModal = () => {
     setIsAddCourseOpen(false)
+    setCourseModuleDeleteTarget(null)
+    setCourseSubmoduleDeleteTarget(null)
     setAddCourseStep(1)
     setCourseEditorStage('module')
     setSelectedSavedSubmodelIndex(0)
@@ -2066,6 +2115,17 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     selectedSavedModelIndex,
     selectedSavedSubmodelIndex,
   ])
+
+  useEffect(() => {
+    if (!isAddCourseOpen || courseEditorStage !== 'submodule' || !isSubmoduleDraftOpen) return undefined
+
+    const frameId = window.requestAnimationFrame(() => {
+      activeSubmoduleInputRef.current?.focus()
+      activeSubmoduleInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [courseEditorStage, isAddCourseOpen, isSubmoduleDraftOpen, selectedSavedModelIndex, selectedSavedSubmodelIndex])
 
   const viewCourseModels = useMemo(
     () => buildBranchCourseHierarchySummary(viewCourse?.models || viewCourse?.courseModels || viewCourse?.modules || []),
@@ -3555,8 +3615,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
               <div className="course-step-caption">
                 {addCourseStep === 1
-                  ? 'Fill the course basics first. Then move to model setup.'
-                  : 'Add models and submodels. Percentages are calculated automatically.'}
+                  ? 'Fill the course basics first. Then move to module setup.'
+                  : 'Add modules and submodules. Percentages are calculated automatically.'}
               </div>
 
               {addCourseStep === 1 ? (
@@ -3832,6 +3892,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                                         type="text"
                                         placeholder="Enter submodule name"
                                         value={activeSubmodel.name || ''}
+                                        ref={activeSubmoduleInputRef}
                                         onChange={(event) => updateAddCourseSubmodelField(modelIndex, activeSubmodelIndex, event.target.value)}
                                         onBlur={() => markAddCourseTouched(`model-${modelIndex}-submodel-${activeSubmodelIndex}-name`)}
                                         aria-invalid={Boolean(shouldShowSubmodelError(modelIndex, activeSubmodelIndex))}
@@ -3998,7 +4059,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                                       <button
                                         type="button"
                                         className="course-added-module-card-delete"
-                                        onClick={() => removeSavedCourseModel(modelIndex)}
+                                        onClick={() => openCourseModuleDeleteConfirm(modelIndex)}
                                         disabled={savedCourseRows.length === 1}
                                         aria-label={`Delete module ${modelIndex + 1}`}
                                       >
@@ -4031,13 +4092,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                       ) : (
                         <div className="course-added-modules-empty">
                           <p>No modules added yet. Click "Add Module" to create your first module.</p>
-                          <button
-                            type="button"
-                            className="course-added-module-add-tile course-added-module-add-tile-inline"
-                            onClick={addAddCourseModel}
-                          >
-                            + Add Module
-                          </button>
                         </div>
                       )}
 
@@ -4465,19 +4519,31 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
                       {viewCourseModels.length ? (
                         <div className="branch-course-view-models">
+                          <div className="branch-course-view-model-table-header" role="row" aria-hidden="true">
+                            <span>Module</span>
+                            <span>Module Name</span>
+                            <span>Percentage</span>
+                            <span>Actions</span>
+                          </div>
                           {viewCourseModels.map((model, modelIndex) => {
                             const isExpanded = expandedViewCourseModuleIds.includes(model.id)
 
                             return (
                               <article key={model.id} className="branch-course-view-model-card">
-                                <div className="branch-course-view-model-head">
-                                  <div>
+                                <div className="branch-course-view-model-row" role="row">
+                                  <div className="branch-course-view-model-cell branch-course-view-model-cell-module" role="cell">
                                     <span>Module {modelIndex + 1}</span>
+                                  </div>
+
+                                  <div className="branch-course-view-model-cell branch-course-view-model-cell-name" role="cell">
                                     <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
                                   </div>
 
-                                  <div className="branch-course-view-model-head-actions">
+                                  <div className="branch-course-view-model-cell branch-course-view-model-cell-percentage" role="cell">
                                     <b>{formatBranchCoursePercentage(model.percentage)}</b>
+                                  </div>
+
+                                  <div className="branch-course-view-model-cell branch-course-view-model-cell-actions" role="cell">
                                     <button
                                       type="button"
                                       className="branch-course-view-module-toggle"
@@ -4485,12 +4551,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                                       aria-expanded={isExpanded}
                                       aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${model.name || `Module ${modelIndex + 1}`}`}
                                     >
-                                      <ChevronDown
-                                        size={18}
-                                        strokeWidth={2.4}
-                                        className={isExpanded ? 'is-open' : ''}
-                                        aria-hidden="true"
-                                      />
+                                      {isExpanded ? (
+                                        <ChevronDown size={18} strokeWidth={2.4} aria-hidden="true" />
+                                      ) : (
+                                        <ChevronRight size={18} strokeWidth={2.4} aria-hidden="true" />
+                                      )}
                                     </button>
                                   </div>
                                 </div>
@@ -4629,6 +4694,94 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         ) : null}
 
         {/* ── STUDENT VIEW DRAWER ── */}
+        {courseModuleDeleteTarget ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <div
+              className="course-module-delete-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="course-module-delete-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close delete confirmation"
+                onClick={closeCourseModuleDeleteConfirm}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
+
+              <p className="course-module-delete-kicker">Delete module</p>
+              <h2 id="course-module-delete-title">Are you sure you want to delete this module?</h2>
+              <p className="branch-delete-copy">
+                {courseModuleDeleteTarget.label} will be removed along with its submodules.
+              </p>
+
+              <div className="branch-modal-actions">
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={closeCourseModuleDeleteConfirm}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="branch-modal-submit is-danger"
+                  onClick={handleCourseModuleDeleteConfirm}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {courseSubmoduleDeleteTarget ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <div
+              className="course-module-delete-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="course-submodule-delete-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close delete confirmation"
+                onClick={closeCourseSubmoduleDeleteConfirm}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
+
+              <p className="course-module-delete-kicker">Delete submodule</p>
+              <h2 id="course-submodule-delete-title">Are you sure you want to delete this submodule?</h2>
+              <p className="branch-delete-copy">
+                {courseSubmoduleDeleteTarget.label} will be removed from this module.
+              </p>
+
+              <div className="branch-modal-actions">
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={closeCourseSubmoduleDeleteConfirm}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="branch-modal-submit is-danger"
+                  onClick={handleCourseSubmoduleDeleteConfirm}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {viewStudentDrawer ? (
           <div
             className="student-drawer-backdrop"
