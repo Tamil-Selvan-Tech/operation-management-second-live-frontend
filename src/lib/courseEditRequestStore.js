@@ -47,6 +47,9 @@ function normalizeRequest(request = {}) {
     facultyId: normalizeText(request.facultyId),
     facultyName: normalizeText(request.facultyName),
     facultyEmail: normalizeText(request.facultyEmail).toLowerCase(),
+    requestTitle: normalizeText(request.requestTitle || request.title),
+    requestReason: normalizeText(request.requestReason || request.reason),
+    requestDescription: normalizeText(request.requestDescription || request.description),
     message: normalizeText(request.message),
     status: normalizeText(request.status) || 'pending',
     requestStatus: normalizeText(request.requestStatus) || normalizeText(request.status) || 'pending',
@@ -122,6 +125,9 @@ function notifyBranchCourseEditRequest(request) {
     facultyEmail: request.facultyEmail,
     requestId: request.id,
     requestStatus: 'pending',
+    requestTitle: request.requestTitle,
+    requestReason: request.requestReason,
+    requestDescription: request.requestDescription,
     requestedChanges: request.message,
   })
 }
@@ -142,6 +148,9 @@ function notifyBranchCourseEditAccepted(request) {
     facultyEmail: request.facultyEmail,
     requestId: request.id,
     requestStatus: 'accepted',
+    requestTitle: request.requestTitle,
+    requestReason: request.requestReason,
+    requestDescription: request.requestDescription,
   })
 }
 
@@ -162,6 +171,9 @@ function notifyBranchCourseEditUpdated(request) {
     requestId: request.id,
     requestStatus: 'accepted',
     changeSummary: request.changeSummary,
+    requestTitle: request.requestTitle,
+    requestReason: request.requestReason,
+    requestDescription: request.requestDescription,
   })
 }
 
