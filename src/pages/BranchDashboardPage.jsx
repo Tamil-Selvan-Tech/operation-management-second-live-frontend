@@ -66,6 +66,7 @@ import {
   getNextStudentId,
 } from '../lib/branchStudentStore'
 import { BranchFacultyPage } from './BranchFacultyPage'
+import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import {
   groupByDate,
   normalizeBranchNotification,
@@ -327,6 +328,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'notifications') return 'notifications'
   if (section === 'students') return 'students'
   if (section === 'courses') return 'courses'
+  if (section === 'installments') return 'installments'
   if (section === 'faculty') return 'faculty'
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
@@ -495,6 +497,84 @@ function createBranchCourseModel(modelIndex = 1, name = '', submodels = []) {
   }
 }
 
+function createBranchInstallmentAmounts(count = 3, value = '') {
+  const safeCount = Math.max(1, Number(count) || 1)
+  return Array.from({ length: safeCount }, () => String(value || '').trim())
+}
+
+function buildBalancedBranchInstallmentAmounts(totalFee = 0, count = 3) {
+  const safeCount = Math.max(1, Number(count) || 1)
+  const safeTotal = Math.max(0, Number(totalFee) || 0)
+  const baseAmount = Math.floor(safeTotal / safeCount)
+  let remainder = safeTotal - baseAmount * safeCount
+
+  return Array.from({ length: safeCount }, () => {
+    const nextAmount = baseAmount + (remainder > 0 ? 1 : 0)
+    if (remainder > 0) {
+      remainder -= 1
+    }
+    return String(nextAmount)
+  })
+}
+
+function normalizeBranchInstallmentTemplate(template = {}, fallback = {}) {
+  const safeTemplate = template && typeof template === 'object' ? template : {}
+  const safeFallback = fallback && typeof fallback === 'object' ? fallback : {}
+  const rawInstallments = Array.isArray(safeTemplate.installments)
+    ? safeTemplate.installments
+    : Array.isArray(safeTemplate.installmentAmounts)
+      ? safeTemplate.installmentAmounts
+      : Array.isArray(safeFallback.installments)
+        ? safeFallback.installments
+        : []
+  const installmentCount = Math.max(
+    1,
+    Number(safeTemplate.installmentCount || safeFallback.installmentCount || rawInstallments.length || 3) || 3,
+  )
+
+  const installments = rawInstallments.length
+    ? rawInstallments.map((value) => String(value ?? '').trim())
+    : createBranchInstallmentAmounts(installmentCount)
+
+  while (installments.length < installmentCount) {
+    installments.push('')
+  }
+
+  return {
+    templateName: String(safeTemplate.templateName || safeTemplate.planName || safeFallback.templateName || 'Standard Installment Plan').trim(),
+    installmentCount: String(installmentCount),
+    installments: installments.slice(0, installmentCount),
+    dueRule: String(safeTemplate.dueRule || safeFallback.dueRule || 'Admission').trim(),
+    allowCustomization:
+      typeof safeTemplate.allowCustomization === 'boolean'
+        ? safeTemplate.allowCustomization
+        : typeof safeFallback.allowCustomization === 'boolean'
+          ? safeFallback.allowCustomization
+          : true,
+    status: String(safeTemplate.status || safeFallback.status || 'Active').trim(),
+  }
+}
+
+function normalizeBranchInstallmentAmountList(amounts = [], count = 3) {
+  const safeCount = Math.max(1, Number(count) || 1)
+  const nextAmounts = Array.isArray(amounts)
+    ? amounts.map((value) => String(value ?? '').trim())
+    : []
+
+  while (nextAmounts.length < safeCount) {
+    nextAmounts.push('')
+  }
+
+  return nextAmounts.slice(0, safeCount)
+}
+
+function getBranchInstallmentAmountTotal(amounts = []) {
+  return (Array.isArray(amounts) ? amounts : [])
+    .map((value) => Number(String(value || '').trim()))
+    .filter((value) => Number.isFinite(value))
+    .reduce((total, value) => total + value, 0)
+}
+
 function distributeBranchCoursePercentages(totalItems = 0) {
   const count = Math.max(0, Number(totalItems) || 0)
   if (!count) return []
@@ -560,6 +640,18 @@ function buildBranchCourseModelPayload(models = []) {
       })),
     }
   })
+}
+
+function getBranchCourseFinalFeeValue(form = {}) {
+  const actualFees = Number(form.actualFees || 0)
+  const registrationFees = Number(form.registrationFees || 0)
+  const discount = Number(form.discount || 0)
+
+  if ([actualFees, registrationFees, discount].some((value) => Number.isNaN(value))) {
+    return 0
+  }
+
+  return Math.max(actualFees + registrationFees - discount, 0)
 }
 
 function buildBranchCourseHierarchySummary(models = []) {
@@ -693,6 +785,15 @@ function formatBranchCourseFinalFee(course) {
 }
 
 function normalizeBranchCourseRecord(course = {}, index = 0) {
+  const installmentTemplate = normalizeBranchInstallmentTemplate(course.installmentTemplate, {
+    templateName: 'Standard Installment Plan',
+    installmentCount: 3,
+    installments: createBranchInstallmentAmounts(3, ''),
+    dueRule: 'Admission',
+    allowCustomization: true,
+    status: 'Active',
+  })
+
   return {
     ...course,
     id: String(course.id || course.courseCode || course.name || `branch-course-${index + 1}`),
@@ -708,12 +809,14 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    installmentTemplate,
     createdAt: String(course.createdAt || new Date().toISOString()),
   }
 }
 
 function buildBranchCoursePayload(form) {
   const models = buildBranchCourseModelPayload(form.models)
+
   return {
     courseCode: normalizeBranchCourseCode(form.courseCode),
     name: String(form.name || '').trim(),
@@ -754,6 +857,15 @@ function normalizeBranchCourseCode(value = '') {
 }
 
 function buildBranchCourseFormFromRecord(course = {}) {
+  const installmentTemplate = normalizeBranchInstallmentTemplate(course.installmentTemplate, {
+    templateName: 'Standard Installment Plan',
+    installmentCount: 3,
+    installments: createBranchInstallmentAmounts(3, ''),
+    dueRule: 'Admission',
+    allowCustomization: true,
+    status: 'Active',
+  })
+
   return {
     courseCode: String(course.courseCode || COURSE_CODE_PREFIX).trim() || COURSE_CODE_PREFIX,
     name: String(course.name || '').trim(),
@@ -764,6 +876,7 @@ function buildBranchCourseFormFromRecord(course = {}) {
     registrationFees: String(course.registrationFees ?? '').trim(),
     discount: String(course.discount ?? '').trim(),
     status: String(course.status || 'Active').trim() || 'Active',
+    installmentTemplate,
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
   }
 }
@@ -1623,6 +1736,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [addCourseForm.actualFees, addCourseForm.discount, addCourseForm.registrationFees])
 
   const addCourseValidationErrors = useMemo(() => createBranchCourseErrors(addCourseForm), [addCourseForm])
+  const addCourseInstallmentTemplate = useMemo(
+    () => normalizeBranchInstallmentTemplate(addCourseForm.installmentTemplate),
+    [addCourseForm.installmentTemplate],
+  )
+  const addCourseInstallmentCount = Math.max(1, Number(addCourseInstallmentTemplate.installmentCount) || 1)
+  const addCourseInstallmentAmounts = useMemo(
+    () => normalizeBranchInstallmentAmountList(addCourseInstallmentTemplate.installments, addCourseInstallmentCount),
+    [addCourseInstallmentTemplate.installments, addCourseInstallmentCount],
+  )
+  const addCourseInstallmentTotal = useMemo(
+    () => getBranchInstallmentAmountTotal(addCourseInstallmentAmounts),
+    [addCourseInstallmentAmounts],
+  )
   const savedCourseRows = useMemo(
     () => buildBranchCourseHierarchySummary(savedCourseHierarchy.filter(Boolean)),
     [savedCourseHierarchy],
@@ -1665,6 +1791,81 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   const updateAddCourseNumericField = (field, value) => {
     updateAddCourseField(field, value.replace(/[^\d]/g, ''))
+  }
+
+  const updateAddCourseInstallmentTemplateField = (field, value) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const template = normalizeBranchInstallmentTemplate(current.installmentTemplate)
+
+      if (field === 'installmentCount') {
+        const safeCountValue = String(value || '').replace(/[^\d]/g, '')
+        const nextCount = Math.max(1, Number(safeCountValue) || 1)
+        return {
+          ...current,
+          installmentTemplate: {
+            ...template,
+            installmentCount: String(nextCount),
+            installments: normalizeBranchInstallmentAmountList(template.installments, nextCount),
+          },
+        }
+      }
+
+      if (field === 'allowCustomization') {
+        return {
+          ...current,
+          installmentTemplate: {
+            ...template,
+            allowCustomization: Boolean(value),
+          },
+        }
+      }
+
+      return {
+        ...current,
+        installmentTemplate: {
+          ...template,
+          [field]: value,
+        },
+      }
+    })
+  }
+
+  const updateAddCourseInstallmentAmount = (index, value) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const template = normalizeBranchInstallmentTemplate(current.installmentTemplate)
+      const nextCount = Math.max(1, Number(template.installmentCount) || 1)
+      const nextInstallments = normalizeBranchInstallmentAmountList(template.installments, nextCount)
+      nextInstallments[index] = String(value || '').replace(/[^\d]/g, '')
+
+      return {
+        ...current,
+        installmentTemplate: {
+          ...template,
+          installmentCount: String(nextCount),
+          installments: nextInstallments,
+        },
+      }
+    })
+  }
+
+  const autoFillAddCourseInstallmentAmounts = () => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const template = normalizeBranchInstallmentTemplate(current.installmentTemplate)
+      const nextCount = Math.max(1, Number(template.installmentCount) || 1)
+      const nextAmounts = buildBalancedBranchInstallmentAmounts(addCourseFinalFee, nextCount)
+
+      return {
+        ...current,
+        installmentTemplate: {
+          ...template,
+          installmentCount: String(nextCount),
+          installments: nextAmounts,
+        },
+      }
+    })
   }
 
   const updateAddCourseModelField = (modelIndex, field, value) => {
@@ -2201,6 +2402,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     return () => window.cancelAnimationFrame(frameId)
   }, [courseEditorStage, isAddCourseOpen, isSubmoduleDraftOpen, selectedSavedModelIndex, selectedSavedSubmodelIndex])
 
+  const viewCourseInstallmentTemplate = useMemo(
+    () => normalizeBranchInstallmentTemplate(viewCourse?.installmentTemplate || viewCourse?.branchInstallmentTemplate || null),
+    [viewCourse],
+  )
   const viewCourseModels = useMemo(
     () => buildBranchCourseHierarchySummary(viewCourse?.models || viewCourse?.courseModels || viewCourse?.modules || []),
     [viewCourse],
@@ -2696,6 +2901,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'courses', label: 'Courses', icon: BookOpen },
+          { id: 'installments', label: 'Installments', icon: Wallet },
           { id: 'faculty', label: 'Faculty', icon: UserRound },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'batches', label: 'Batches', icon: Layers3 },
@@ -3583,6 +3789,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                 </BranchDashboardSection>
               ) : null}
 
+              {activeSection === 'installments' ? (
+                <BranchInstallmentTemplatesPage />
+              ) : null}
+
               {activeSection === 'batches' ? (
                 <BranchDashboardSection title="Batches" description="Current batch schedule overview.">
                   <div className="branch-dashboard-card-grid">
@@ -3685,8 +3895,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   type="button"
                   className={`course-stepper-item ${addCourseStep === 2 ? 'is-active' : ''}`.trim()}
                   onClick={() => {
-                    const basicErrors = createBranchCourseErrors(addCourseForm).basic
-                    if (Object.keys(basicErrors).length === 0) {
+                    const validationErrors = createBranchCourseErrors(addCourseForm)
+                    if (Object.keys(validationErrors.basic).length === 0) {
                       setAddCourseStep(2)
                       setCourseEditorStage('closed')
                       setIsSubmoduleDraftOpen(false)
@@ -4585,6 +4795,64 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         </div>
                         <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
                           <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
+                        </div>
+                      </div>
+
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <Tag size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Installment Template</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{viewCourseInstallmentTemplate.templateName || '-'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <BadgeInfo size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Installment Count</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{viewCourseInstallmentTemplate.installmentCount || '-'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <Shield size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Due Rule</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{viewCourseInstallmentTemplate.dueRule || '-'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <BadgePercent size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Customizable</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{viewCourseInstallmentTemplate.allowCustomization ? 'Yes' : 'No'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <RefreshCcw size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Installments</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong className="branch-course-view-installment-list">
+                            {(Array.isArray(viewCourseInstallmentTemplate.installments) && viewCourseInstallmentTemplate.installments.length)
+                              ? viewCourseInstallmentTemplate.installments.map((amount, index) => (
+                                <span key={`${viewCourse.id || 'course'}-installment-${index}`}>
+                                  {index + 1}. {formatBranchCourseAmount(amount)}
+                                </span>
+                              ))
+                              : '-'}
+                          </strong>
                         </div>
                       </div>
 

@@ -76,6 +76,31 @@ function normalizeBranchCourseModels(models) {
   }))
 }
 
+function normalizeBranchInstallmentTemplate(template) {
+  if (!template) return null
+
+  const installments = Array.isArray(template.installments)
+    ? template.installments
+    : Array.isArray(template.installmentAmounts)
+      ? template.installmentAmounts
+      : []
+
+  return {
+    ...template,
+    id: template.id || '',
+    branchId: template.branchId || '',
+    branchCourseId: template.branchCourseId || '',
+    templateName: normalizeText(template.templateName || template.planName),
+    installmentCount: Number(template.installmentCount || installments.length || 0),
+    installments: installments.map((value) => normalizeText(value)),
+    dueRule: normalizeText(template.dueRule),
+    allowCustomization: Boolean(template.allowCustomization ?? true),
+    status: template.status || 'Active',
+    createdAt: template.createdAt || '',
+    updatedAt: template.updatedAt || '',
+  }
+}
+
 export function normalizeBranchCourse(course) {
   if (!course) return null
 
@@ -96,6 +121,9 @@ export function normalizeBranchCourse(course) {
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    installmentTemplate: normalizeBranchInstallmentTemplate(
+      course.installmentTemplate || course.branchInstallmentTemplate || null,
+    ),
     createdAt: course.createdAt || '',
     updatedAt: course.updatedAt || '',
   }
