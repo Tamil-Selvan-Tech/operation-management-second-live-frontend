@@ -243,11 +243,11 @@ export function BranchInstallmentTemplatesPage() {
         <div>
           <p className="installment-kicker">Installment Template</p>
           <h2>Create reusable payment plans</h2>
-          <p>
+          {/* <p>
             Build standalone installment templates here. Later you can pick them for courses or student fee plans.
-          </p>
+          </p> */}
         </div>
-        <div className="installment-page-stats">
+        {/* <div className="installment-page-stats">
           <article>
             <span>Total Rows</span>
             <strong>{templates.length}</strong>
@@ -256,29 +256,33 @@ export function BranchInstallmentTemplatesPage() {
             <span>Active</span>
             <strong>{templates.filter((item) => item.status === 'ACTIVE').length}</strong>
           </article>
+        </div> */}
+        <div>
+          <button
+            type="button"
+            className="installment-reset-button"
+            onClick={() => {
+              setIsCreateOpen((current) => !current)
+              if (isCreateOpen) {
+                resetForm()
+              }
+            }}
+          >
+            <CirclePlus size={14} strokeWidth={2.2} />
+            {isCreateOpen ? 'Hide Form' : 'Create Template'}
+          </button>
         </div>
+
       </div>
 
       <div className="installment-page-layout">
         <div className="installment-card installment-form-card">
           <div className="installment-card-header">
             <div>
-              <p className="installment-card-label">Create Template</p>
-              <h3>{editingTemplateId ? 'Edit Installment Template' : 'Create Installment Template'}</h3>
+              {/* <p className="installment-card-label">Create Template</p> */}
+              {/* <h3>{editingTemplateId ? 'Edit Installment Template' : 'Create Installment Template'}</h3> */}
             </div>
-            <button
-              type="button"
-              className="installment-reset-button"
-              onClick={() => {
-                setIsCreateOpen((current) => !current)
-                if (isCreateOpen) {
-                  resetForm()
-                }
-              }}
-            >
-              <CirclePlus size={14} strokeWidth={2.2} />
-              {isCreateOpen ? 'Hide Form' : 'Create Template'}
-            </button>
+
           </div>
 
           {isCreateOpen ? (
@@ -365,11 +369,7 @@ export function BranchInstallmentTemplatesPage() {
                 </Button>
               </div>
             </>
-          ) : (
-            <div className="installment-collapsed-create">
-              <p>Click Create Template to open the form and add a new installment plan.</p>
-            </div>
-          )}
+          ) : null}
         </div>
 
         <div className="installment-card installment-list-card">
@@ -384,15 +384,16 @@ export function BranchInstallmentTemplatesPage() {
             </button>
           </div>
 
-          <div className="installment-template-legend">
+          {/* <div className="installment-template-legend">
             <span className="installment-legend-chip is-full">Full Payment</span>
             <span className="installment-legend-chip is-custom">Customize</span>
-          </div>
+          </div> */}
 
           <div className="installment-filter-row">
-            <label className="installment-search">
-              <Search size={16} strokeWidth={2.3} />
+          
+              
               <input
+              
                 type="text"
                 placeholder="Search templates"
                 value={searchTerm}
@@ -403,8 +404,11 @@ export function BranchInstallmentTemplatesPage() {
                     void loadTemplates(1)
                   }
                 }}
+                
+              
               />
-            </label>
+              
+            
 
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
               <option value="">All Status</option>
