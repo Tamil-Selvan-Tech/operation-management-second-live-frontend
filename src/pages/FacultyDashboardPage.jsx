@@ -539,33 +539,13 @@ export function FacultyDashboardPage() {
   })
   const [courseEditDraft, setCourseEditDraft] = useState(null)
   const [courseRequestError, setCourseRequestError] = useState('')
+  const [isCourseRequestSuccessOpen, setIsCourseRequestSuccessOpen] = useState(false)
+  const [isCourseEditSuccessOpen, setIsCourseEditSuccessOpen] = useState(false)
   const [courseEditError, setCourseEditError] = useState('')
-  const [courseActionSuccess, setCourseActionSuccess] = useState('')
   const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
   const [isCourseEditSaving, setIsCourseEditSaving] = useState(false)
   const [coursesLoading, setCoursesLoading] = useState(false)
   const [coursesError, setCoursesError] = useState('')
-  const courseActionSuccessTimerRef = useRef(null)
-
-  useEffect(() => {
-    if (!courseActionSuccess) return undefined
-
-    if (courseActionSuccessTimerRef.current) {
-      window.clearTimeout(courseActionSuccessTimerRef.current)
-    }
-
-    courseActionSuccessTimerRef.current = window.setTimeout(() => {
-      setCourseActionSuccess('')
-      courseActionSuccessTimerRef.current = null
-    }, 3500)
-
-    return () => {
-      if (courseActionSuccessTimerRef.current) {
-        window.clearTimeout(courseActionSuccessTimerRef.current)
-        courseActionSuccessTimerRef.current = null
-      }
-    }
-  }, [courseActionSuccess])
 
 
 
@@ -906,8 +886,8 @@ useEffect(() => {
   }
 
   const openCourseRequestModal = () => {
-    setCourseActionSuccess('')
     setCourseRequestError('')
+    setIsCourseRequestSuccessOpen(false)
     setCourseRequestForm({
       title: `${selectedCourse?.name || selectedCourse?.courseName || 'Course'} edit request`,
       reason: '',
@@ -922,7 +902,6 @@ useEffect(() => {
       return
     }
 
-    setCourseActionSuccess('')
     setCourseEditError('')
     setCourseEditDraft({
       courseId: String(selectedCourse?.id || '').trim(),
@@ -959,6 +938,17 @@ useEffect(() => {
         ? current.filter((id) => id !== normalizedModuleId)
         : [...current, normalizedModuleId],
     )
+  }
+
+  const handleCourseEditOverviewBodyClick = (event) => {
+    const row = event.target.closest?.('.faculty-course-edit-overview-row')
+    if (!row) return
+
+    const interactiveChild = event.target.closest?.('button, a, input, textarea, select')
+    if (interactiveChild && interactiveChild !== row) return
+
+    const moduleId = String(row.dataset.moduleId || '').trim()
+    toggleCourseEditExpandedModule(moduleId)
   }
 
   const startCourseEditSubmoduleEdit = (moduleIndex, submoduleIndex) => {
@@ -1082,8 +1072,8 @@ const nextName = trimmedValue
         ])
       }
 
-      setCourseActionSuccess('Edit request sent successfully.')
       setIsCourseRequestModalOpen(false)
+      setIsCourseRequestSuccessOpen(true)
     } catch (error) {
       console.error('Failed to create course edit request', error)
       setCourseRequestError('Unable to send request right now.')
@@ -1308,19 +1298,28 @@ const nextName = trimmedValue
       saveBranchCourseSnapshot(nextCourseCatalog)
       clearBranchCourseListCache()
 
-      if (response?.request) {
+      const completedRequest = {
+        ...(currentCourseEditRequest || {}),
+        ...(response?.request || {}),
+        status: 'completed',
+        requestStatus: 'completed',
+        completedAt: response?.request?.completedAt || new Date().toISOString(),
+        updatedAt: response?.request?.updatedAt || new Date().toISOString(),
+      }
+
+      if (completedRequest.id) {
         setCourseEditRequests((current) =>
           current.map((request) =>
-            String(request.id || '').trim() === String(response.request.id || '').trim()
-              ? response.request
+            String(request.id || '').trim() === String(completedRequest.id || '').trim()
+              ? completedRequest
               : request,
           ),
         )
       }
 
-      setCourseActionSuccess('Course modules saved successfully.')
       setIsCourseEditModalOpen(false)
       setCourseEditDraft(null)
+      setIsCourseEditSuccessOpen(true)
     } catch (error) {
       console.error('Failed to save course edit changes', error)
       setCourseEditError('Unable to save changes right now.')
@@ -1583,7 +1582,7 @@ const nextName = trimmedValue
               </span>
 
               <span className="notification-time">
-                {notification.time || '3 days ago'}
+                {formatNotificationTime(notification.createdAt) || 'Just now'}
               </span>
             </span>
           </button>
@@ -1833,11 +1832,6 @@ const nextName = trimmedValue
                       </section>
 
                       <section className="faculty-course-curriculum-shell">
-                        {courseActionSuccess ? (
-                          <div className="faculty-course-action-success" role="status" aria-live="polite">
-                            {courseActionSuccess}
-                          </div>
-                        ) : null}
                         <div className="faculty-course-curriculum">
                           <div className="faculty-course-curriculum-toolbar">
                             <div>
@@ -2332,6 +2326,91 @@ const nextName = trimmedValue
         </div>
       ) : null}
 
+      {isCourseRequestSuccessOpen ? (
+        <div
+          className="faculty-course-request-success-backdrop branch-modal-backdrop"
+          role="presentation"
+        >
+          <div
+            className="faculty-course-request-success-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-course-request-success-title"
+            aria-describedby="faculty-course-request-success-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="faculty-course-request-success-close"
+              aria-label="Close confirmation"
+              onClick={() => setIsCourseRequestSuccessOpen(false)}
+            >
+              ×
+            </button>
+
+            <div className="faculty-course-request-success-icon" aria-hidden="true">
+              <CheckCircle2 size={30} strokeWidth={2.4} />
+            </div>
+
+            <div className="faculty-course-request-success-copy">
+              <p className="faculty-course-request-success-kicker">Request Sent</p>
+              <h3 id="faculty-course-request-success-title">Edit request sent successfully.</h3>
+              {/* <p id="faculty-course-request-success-description">
+                Your request has been submitted for review. We&apos;ll update you once it is processed.
+              </p> */}
+            </div>
+
+            <button
+              type="button"
+              className="faculty-course-request-success-button"
+              onClick={() => setIsCourseRequestSuccessOpen(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {isCourseEditSuccessOpen ? (
+        <div className="faculty-course-edit-success-backdrop branch-modal-backdrop" role="presentation">
+          <div
+            className="faculty-course-edit-success-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-course-edit-success-title"
+            aria-describedby="faculty-course-edit-success-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="faculty-course-edit-success-close"
+              aria-label="Close confirmation"
+              onClick={() => setIsCourseEditSuccessOpen(false)}
+            >
+              ×
+            </button>
+
+            <div className="faculty-course-edit-success-icon" aria-hidden="true">
+              <CheckCircle2 size={30} strokeWidth={2.4} />
+            </div>
+
+            <div className="faculty-course-edit-success-copy">
+              <p className="faculty-course-edit-success-kicker">Request Completed</p>
+              <h3 id="faculty-course-edit-success-title">Request completed successfully.</h3>
+              
+            </div>
+
+            <button
+              type="button"
+              className="faculty-course-request-success-button"
+              onClick={() => setIsCourseEditSuccessOpen(false)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {isCourseEditModalOpen && courseEditDraft ? (
         <div className="faculty-course-edit-backdrop branch-modal-backdrop" role="presentation">
           <div
@@ -2353,9 +2432,7 @@ const nextName = trimmedValue
             <div className="faculty-course-edit-header faculty-course-edit-header--flow">
               <p className="faculty-course-edit-kicker">Open Edit</p>
               <h3 id="faculty-course-edit-title">{courseEditDraft.courseName}</h3>
-              <p className="faculty-course-edit-subtitle">
-                Course basic details are locked. You can only change modules and submodules here.
-              </p>
+             
             </div>
 
             <div className="faculty-course-edit-flow">
@@ -2381,7 +2458,8 @@ const nextName = trimmedValue
                       <span>Actions</span>
                     </div>
 
-                    <div className="faculty-course-edit-overview-body">
+                    <div className="faculty-course-edit-overview-body" onClick={handleCourseEditOverviewBodyClick}>
+                      {/* Row click is delegated so the whole row toggles submodules reliably */}
                       {courseEditModules.length ? (
                         courseEditModules.map((module, moduleIndex) => {
                           const submodules = Array.isArray(module.submodules) ? module.submodules : []
@@ -2389,14 +2467,23 @@ const nextName = trimmedValue
                           const isExpanded = courseEditExpandedModuleIds.includes(moduleId)
 
                           return (
-                            <article key={moduleId || moduleIndex} className="faculty-course-edit-overview-row">
+                            <article
+                              key={moduleId || moduleIndex}
+                              className="faculty-course-edit-overview-row"
+                              data-module-id={moduleId}
+                              role="button"
+                              tabIndex={0}
+                              aria-expanded={isExpanded}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                  event.preventDefault()
+                                  toggleCourseEditExpandedModule(moduleId)
+                                }
+                              }}
+                            >
                               <div className="faculty-course-edit-overview-main">
                                 <div className="faculty-course-edit-overview-module">
-                                  <span className="faculty-course-edit-overview-badge">
-                                    {String(moduleIndex + 1).padStart(2, '0')}
-                                  </span>
                                   <div>
-                                    <span>MODULE {moduleIndex + 1}</span>
                                     <strong>{module.name || `Module ${moduleIndex + 1}`}</strong>
                                   </div>
                                 </div>
@@ -2413,7 +2500,10 @@ const nextName = trimmedValue
                                   <button
                                     type="button"
                                     className="faculty-course-edit-action-btn"
-                                    onClick={() => toggleCourseEditExpandedModule(moduleId)}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      toggleCourseEditExpandedModule(moduleId)
+                                    }}
                                     aria-label={isExpanded ? 'Collapse module' : 'Expand module'}
                                   >
                                     {isExpanded ? '⌃' : '⌄'}
@@ -2421,7 +2511,10 @@ const nextName = trimmedValue
                                   <button
                                     type="button"
                                     className="faculty-course-edit-action-btn"
-                                    onClick={() => openCourseEditModule(moduleIndex)}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      openCourseEditModule(moduleIndex)
+                                    }}
                                     aria-label={`Edit module ${moduleIndex + 1}`}
                                   >
                                     ✎
@@ -2429,7 +2522,10 @@ const nextName = trimmedValue
                                   <button
                                     type="button"
                                     className="faculty-course-edit-action-btn is-danger"
-                                    onClick={() => openCourseEditDeleteConfirm('module', moduleIndex)}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      openCourseEditDeleteConfirm('module', moduleIndex)
+                                    }}
                                     disabled={courseEditModules.length === 1}
                                     aria-label={`Delete module ${moduleIndex + 1}`}
                                   >
@@ -2439,7 +2535,10 @@ const nextName = trimmedValue
                               </div>
 
                               {isExpanded ? (
-                                <div className="faculty-course-edit-overview-details">
+                                <div
+                                  className="faculty-course-edit-overview-details"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
                                   <p className="faculty-course-edit-overview-subtitle">Sub Modules</p>
                                       {submodules.length ? (
                                         <div className="faculty-course-edit-overview-submodule-list">
