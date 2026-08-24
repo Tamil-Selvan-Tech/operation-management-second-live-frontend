@@ -1240,6 +1240,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
+  const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
   const [studentFormError, setStudentFormError] = useState('')
   const [isStudentSaving, setIsStudentSaving] = useState(false)
@@ -1250,6 +1251,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
 
+  useEffect(() => {
+  if (viewStudentDrawer) {
+    setStudentDetailsTab('basic')
+  }
+}, [viewStudentDrawer])
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -6525,7 +6531,29 @@ const selectedStudentCoursePaymentPlan = useMemo(
                 </div>
               </div>
 
+<div className="student-details-tabs">
 
+  <button
+    type="button"
+    className={`student-details-tab ${
+      studentDetailsTab === 'basic' ? 'active' : ''
+    }`}
+    onClick={() => setStudentDetailsTab('basic')}
+  >
+    Basic Details
+  </button>
+
+  <button
+    type="button"
+    className={`student-details-tab ${
+      studentDetailsTab === 'payment' ? 'active' : ''
+    }`}
+    onClick={() => setStudentDetailsTab('payment')}
+  >
+    Payment Details
+  </button>
+
+</div>
 
               {/* Details Table */}
               <div className="student-drawer-content">
@@ -6536,229 +6564,225 @@ const selectedStudentCoursePaymentPlan = useMemo(
                     <div>DETAILS</div>
                     <div>INFORMATION</div>
                   </div>
-
-                  {/* Student ID */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Student ID
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.studentId || '-'}
-                    </div>
-                  </div>
-
-                  {/* Student Name */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Student Name
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.studentName || '-'}
-                    </div>
-                  </div>
-
-                  {/* Email */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Email Address
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.emailAddress || '-'}
-                    </div>
-                  </div>
-
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      LinkedIn URL
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.linkedInUrl ? (
-                        <a
-                          href={formatExternalUrl(viewStudentDrawer.linkedInUrl)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {viewStudentDrawer.linkedInUrl}
-                        </a>
-                      ) : '-'}
-                    </div>
-                  </div>
-
-                  {/* Mobile */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Phone Number
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.mobileNumber || '-'}
-                    </div>
-                  </div>
-
-                  {/* Parent / Spouse */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Parent / Spouse Number
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.parentSpouseNumber || '-'}
-                    </div>
-                  </div>
-
-                  {/* Qualification */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Qualification
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.qualification || '-'}
-                    </div>
-                  </div>
-
-                  {/* Passed Out Year */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Passed Out Year
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.passedOutYear || '-'}
-                    </div>
-                  </div>
-
-                  {/* Designation */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Designation
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.designation || '-'}
-                    </div>
-                  </div>
-
-                  {/* Country */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Country
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.country || '-'}
-                    </div>
-                  </div>
-
-                  {/* State */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      State
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.state || '-'}
-                    </div>
-                  </div>
-
-                  {/* City */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      City
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.city || '-'}
-                    </div>
-                  </div>
-
-                  {/* Address */}
-                  <div className="student-details-row student-details-row-address">
-                    <div className="student-details-label">
-                      Address
-                    </div>
-                    <div
-                      className="student-details-value is-address"
-                      title={viewStudentDrawer.address || '-'}
-                    >
-                      {(viewStudentDrawer.address || '-').replace(/,\s*/g, ', ')}
-                    </div>
-                  </div>
-
-                  {/* Admission Date */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Admission Date
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.admissionDate
-                        ? formatStudentDate(viewStudentDrawer.admissionDate)
-                        : '-'}
-                    </div>
-                  </div>
-
-                  {/* Source */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Source
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.source || '-'}
-                    </div>
-                  </div>
-
-                  {/* Other Source
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Other Source
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.sourceOther || '-'}
-                    </div>
-                  </div> */}
-
-                  {/* Remarks */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Remarks
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.remarks || '-'}
-                    </div>
-                  </div>
-                  {/* Course */}
-<div className="student-details-row">
-  <div className="student-details-label">
-    Course
+                  
+{studentDetailsTab === 'basic' ? (
+                  <>
+  {/* Student ID */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Student ID
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.studentId || '-'}
+    </div>
   </div>
-  <div className="student-details-value">
-    {viewStudentDrawer.courseName || '-'}
-  </div>
-</div>
 
-{/* Faculty */}
-<div className="student-details-row">
-  <div className="student-details-label">
-    Faculty
+  {/* Student Name */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Student Name
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.studentName || '-'}
+    </div>
   </div>
-  <div className="student-details-value">
-    {viewStudentDrawer.facultyName || '-'}
-  </div>
-</div>
 
-{/* Course Amount */}
-<div className="student-details-row">
-  <div className="student-details-label">
-    Course Amount
+  {/* Email */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Email Address
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.emailAddress || '-'}
+    </div>
   </div>
-  <div className="student-details-value">
-    {viewStudentDrawer.courseAmount
-      ? `₹${viewStudentDrawer.courseAmount}`
-      : '-'}
-  </div>
-</div>
 
-{/* Payment Plan */}
-<div className="student-details-row">
-  <div className="student-details-label">
-    Payment Plan
+  {/* LinkedIn */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      LinkedIn URL
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.linkedInUrl ? (
+        <a
+          href={formatExternalUrl(viewStudentDrawer.linkedInUrl)}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {viewStudentDrawer.linkedInUrl}
+        </a>
+      ) : '-'}
+    </div>
   </div>
-  <div className="student-details-value">
-    {viewStudentDrawer.paymentPlan || '-'}
+
+  {/* Phone */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Phone Number
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.mobileNumber || '-'}
+    </div>
   </div>
-</div>
+
+  {/* Parent / Spouse */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Parent / Spouse Number
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.parentSpouseNumber || '-'}
+    </div>
+  </div>
+
+  {/* Qualification */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Qualification
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.qualification || '-'}
+    </div>
+  </div>
+
+  {/* Passed Out Year */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Passed Out Year
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.passedOutYear || '-'}
+    </div>
+  </div>
+
+  {/* Designation */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Designation
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.designation || '-'}
+    </div>
+  </div>
+
+  {/* Country */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Country
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.country || '-'}
+    </div>
+  </div>
+
+  {/* State */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      State
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.state || '-'}
+    </div>
+  </div>
+
+  {/* City */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      City
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.city || '-'}
+    </div>
+  </div>
+
+  {/* Address */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Address
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.address || '-'}
+    </div>
+  </div>
+
+  {/* Admission Date */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Admission Date
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.admissionDate
+        ? formatStudentDate(viewStudentDrawer.admissionDate)
+        : '-'}
+    </div>
+  </div>
+
+  {/* Source */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Source
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.source || '-'}
+    </div>
+  </div>
+
+  {/* Remarks */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Remarks
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.remarks || '-'}
+    </div>
+  </div>
+</>
+
+) : (
+  <>
+  {/* Course */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Course
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.courseName || '-'}
+    </div>
+  </div>
+
+  {/* Faculty */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Faculty
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.facultyName || '-'}
+    </div>
+  </div>
+
+  {/* Course Amount */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Course Amount
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.courseAmount
+        ? `₹${viewStudentDrawer.courseAmount}`
+        : '-'}
+    </div>
+  </div>
+
+  {/* Payment Plan */}
+  <div className="student-details-row">
+    <div className="student-details-label">
+      Payment Plan
+    </div>
+    <div className="student-details-value">
+      {viewStudentDrawer.paymentPlan || '-'}
+    </div>
+  </div>
+</>
+)}
 
                 </div>
 
