@@ -35,7 +35,7 @@ import {
   UserPlus, Pencil, Trash2,
   Building2,
   Check,
-   X,
+  X,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -112,6 +112,12 @@ const STUDENT_FORM_STEP_TWO_FIELDS = [
   'remarks',
   'admissionDate',
 ]
+const STUDENT_FORM_STEP_THREE_FIELDS = [
+  'courseId',
+  'facultyId',
+  'facultyName',
+  'courseAmount',
+]
 
 const CURRENT_YEAR = new Date().getFullYear()
 const PASSED_OUT_YEARS = Array.from({ length: 31 }, (_, i) => String(CURRENT_YEAR - i))
@@ -128,7 +134,7 @@ function createInitialStudentForm(branchId) {
     linkedInUrl: '',
     mobileNumber: '',
     parentSpouseNumber: '',
-     countryCode: 'IN',
+    countryCode: 'IN',
     country: 'India',
     stateCode: 'TN',
     state: 'Tamil Nadu',
@@ -143,6 +149,13 @@ function createInitialStudentForm(branchId) {
     sourceOther: '',
     remarks: '',
     admissionDate: '',
+    courseId: '',
+    courseName: '',
+    facultyId: '',
+    facultyName: '',
+    courseAmount: '',
+    paymentMode: '',
+    
   }
 }
 
@@ -172,6 +185,12 @@ function buildStudentFormFromRecord(student = {}) {
     sourceOther: student.sourceOther || '',
     remarks: student.remarks || '',
     admissionDate: student.admissionDate || '',
+    courseId: student.courseId || student.course?.id || '',
+    courseName: student.courseName || student.courseInterested || student.course?.name || '',
+    facultyId: student.facultyId || student.course?.facultyId || '',
+    facultyName: student.facultyName || student.course?.facultyName || '',
+    courseAmount: String(student.courseAmount || student.totalAmount || student.afterDiscount || '').trim(),
+    paymentMode: student.paymentMode || 'Installment',
   }
 }
 
@@ -199,6 +218,9 @@ function validateStudentForm(form, students = []) {
   if (!form.source) errors.source = 'This field is required.'
   if (form.source === 'Others' && !form.sourceOther.trim()) errors.sourceOther = 'Please specify.'
   if (!form.admissionDate) errors.admissionDate = 'Admission Date is required.'
+  if (!form.courseId) errors.courseId = 'Course is required.'
+  if (!form.facultyName.trim()) errors.facultyName = 'Faculty is required.'
+  if (!form.courseAmount.trim()) errors.courseAmount = 'Course amount is required.'
 
   const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
   const normalizedEmail = String(form.emailAddress || '').trim().toLowerCase()
@@ -311,6 +333,39 @@ async function resolveStudentLocationForm(student = {}) {
   return resolved
 }
 
+function normalizeBranchStudentCourseAmount(course = {}) {
+  const afterDiscount = String(course?.afterDiscount || '').trim()
+  if (afterDiscount) return afterDiscount
+
+  const actualFees = Number(course?.actualFees || 0)
+  const registrationFees = Number(course?.registrationFees || 0)
+  const discount = Number(course?.discount || 0)
+
+  if ([actualFees, registrationFees, discount].some((value) => Number.isNaN(value))) {
+    return ''
+  }
+
+  return String(Math.max(actualFees + registrationFees - discount, 0))
+}
+
+function normalizeBranchStudentCourseFacultyOptions(course = {}) {
+  return Array.isArray(course?.assignedFaculty)
+    ? course.assignedFaculty
+      .map((faculty) => {
+        const id = String(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || '').trim()
+        const name = String(faculty?.name || faculty?.facultyName || '').trim()
+
+        if (!id && !name) return null
+
+        return {
+          id: id || name,
+          name: name || id,
+        }
+      })
+      .filter(Boolean)
+    : []
+}
+
 const batchCards = [
   { title: 'Batch A-11', timing: 'Mon - Fri | 9:00 AM', status: 'Active' },
   { title: 'Batch B-02', timing: 'Tue - Thu | 2:00 PM', status: 'Active' },
@@ -395,16 +450,16 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
                 </span>
                 {item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request' ? (
                   <button
-  type="button"
-  className="notifications-item-view-button"
-  onClick={(e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    alert('ACCEPT BUTTON CLICKED')
-  }}
->
-  Accept
-</button>
+                    type="button"
+                    className="notifications-item-view-button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      alert('ACCEPT BUTTON CLICKED')
+                    }}
+                  >
+                    Accept
+                  </button>
                 ) : (
                   <button
                     type="button"
@@ -1185,6 +1240,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
+  const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
   const [studentFormError, setStudentFormError] = useState('')
   const [isStudentSaving, setIsStudentSaving] = useState(false)
@@ -1195,25 +1251,30 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
 
+  useEffect(() => {
+  if (viewStudentDrawer) {
+    setStudentDetailsTab('basic')
+  }
+}, [viewStudentDrawer])
 
   useEffect(() => {
-  const handleOutsideClick = (e) => {
-    const clickedInsideActions = e.target.closest(
-      '.branch-student-actions-cell'
-    )
+    const handleOutsideClick = (e) => {
+      const clickedInsideActions = e.target.closest(
+        '.branch-student-actions-cell'
+      )
 
-    if (!clickedInsideActions) {
-      setStudentActionMenuId('')
-      setStudentActionMenuPinned(false)
+      if (!clickedInsideActions) {
+        setStudentActionMenuId('')
+        setStudentActionMenuPinned(false)
+      }
     }
-  }
 
-  document.addEventListener('mousedown', handleOutsideClick)
+    document.addEventListener('mousedown', handleOutsideClick)
 
-  return () => {
-    document.removeEventListener('mousedown', handleOutsideClick)
-  }
-}, [])
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [])
 
 
   const profileMenuRef = useRef(null)
@@ -1326,9 +1387,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         ? response.data
         : Array.isArray(response?.notifications)
           ? response.notifications
-        : Array.isArray(response)
-          ? response
-          : []
+          : Array.isArray(response)
+            ? response
+            : []
 
       const storedNotifications = loadNotifications()
       const storedById = new Map(
@@ -1833,13 +1894,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
           current.map((item) =>
             String(item.requestId || item.id || '').trim() === requestId
               ? {
-                  ...item,
-                  requestStatus: 'accepted',
-                  tone: 'green',
-                  actionLabel: 'Accepted',
-                  categoryLabel: 'Accepted',
-                  unread: true,
-                }
+                ...item,
+                requestStatus: 'accepted',
+                tone: 'green',
+                actionLabel: 'Accepted',
+                categoryLabel: 'Accepted',
+                unread: true,
+              }
               : item,
           ),
         )
@@ -2206,9 +2267,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         models: models.map((model, index) =>
           index === modelIndex
             ? {
-                ...model,
-                [field]: value,
-              }
+              ...model,
+              [field]: value,
+            }
             : model,
         ),
       }
@@ -2224,16 +2285,16 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         models: models.map((model, index) =>
           index === modelIndex
             ? {
-                ...model,
-                submodels: normalizeBranchCourseSubmodels(model.submodels, modelIndex).map((submodel, itemIndex) =>
-                  itemIndex === submodelIndex
-                    ? {
-                        ...submodel,
-                        name: value,
-                      }
-                    : submodel,
-                ),
-              }
+              ...model,
+              submodels: normalizeBranchCourseSubmodels(model.submodels, modelIndex).map((submodel, itemIndex) =>
+                itemIndex === submodelIndex
+                  ? {
+                    ...submodel,
+                    name: value,
+                  }
+                  : submodel,
+              ),
+            }
             : model,
         ),
       }
@@ -2291,9 +2352,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     const nextTouched = { ...addCourseTouched }
     nextTouched[`model-${modelIndex}-name`] = true
     nextTouched[`model-${modelIndex}-submodels`] = true
-    ;(safeModel.submodels || []).forEach((_, submodelIndex) => {
-      nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
-    })
+      ; (safeModel.submodels || []).forEach((_, submodelIndex) => {
+        nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
+      })
     setAddCourseTouched(nextTouched)
   }
 
@@ -2837,9 +2898,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     normalizeBranchCourseModels(addCourseForm.models).forEach((model, modelIndex) => {
       nextTouched[`model-${modelIndex}-name`] = true
       nextTouched[`model-${modelIndex}-submodels`] = true
-      ;(model.submodels || []).forEach((submodel, submodelIndex) => {
-        nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
-      })
+        ; (model.submodels || []).forEach((submodel, submodelIndex) => {
+          nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
+        })
     })
     nextTouched.paymentPlans = true
     setAddCourseTouched(nextTouched)
@@ -2972,9 +3033,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     normalizeBranchCourseModels(addCourseForm.models).forEach((model, modelIndex) => {
       nextTouched[`model-${modelIndex}-name`] = true
       nextTouched[`model-${modelIndex}-submodels`] = true
-      ;(model.submodels || []).forEach((_, submodelIndex) => {
-        nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
-      })
+        ; (model.submodels || []).forEach((_, submodelIndex) => {
+          nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
+        })
     })
     setAddCourseTouched(nextTouched)
 
@@ -3102,6 +3163,110 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       return []
     }
   }, [branchStudentScope])
+const studentCourseOptions = useMemo(() => {
+  return branchCourseCards
+    .map((course) => {
+      const id = String(course?.id || '').trim()
+      const name = String(course?.name || '').trim()
+      if (!id || !name) return null
+
+      return {
+        id,
+        name,
+        amount: normalizeBranchStudentCourseAmount(course),
+        assignedFaculty: normalizeBranchStudentCourseFacultyOptions(course),
+
+        // Course-ku already configured payment plans
+        paymentPlans: normalizeBranchCoursePaymentPlanSelections(
+          course?.paymentPlans ||
+          course?.paymentPlanSelections ||
+          course?.installmentPlans ||
+          []
+        ),
+      }
+    })
+    .filter(Boolean)
+}, [branchCourseCards])
+
+  const selectedStudentCourse = useMemo(
+    () => studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null,
+    [studentCourseOptions, studentForm.courseId],
+  )
+
+  const selectedStudentCourseFacultyOptions = useMemo(
+    () => Array.isArray(selectedStudentCourse?.assignedFaculty) ? selectedStudentCourse.assignedFaculty : [],
+    [selectedStudentCourse],
+  )
+
+  const selectedStudentCourseAmount = useMemo(
+    () => String(selectedStudentCourse?.amount || studentForm.courseAmount || '').trim(),
+    [selectedStudentCourse, studentForm.courseAmount],
+  )
+const selectedStudentCoursePaymentPlans = useMemo(
+  () =>
+    Array.isArray(selectedStudentCourse?.paymentPlans)
+      ? selectedStudentCourse.paymentPlans
+      : [],
+  [selectedStudentCourse],
+)
+
+const selectedStudentCoursePaymentPlan = useMemo(
+  () => selectedStudentCoursePaymentPlans[0] || null,
+  [selectedStudentCoursePaymentPlans],
+)
+  const handleStudentCourseChange = (courseId) => {
+    const nextCourseId = String(courseId || '').trim()
+
+    if (!nextCourseId) {
+      setStudentForm((current) => ({
+        ...current,
+        courseId: '',
+        courseName: '',
+        facultyId: '',
+        facultyName: '',
+        courseAmount: '',
+      }))
+      return
+    }
+
+    const nextCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === nextCourseId) || null
+    const nextFacultyOptions = Array.isArray(nextCourse?.assignedFaculty) ? nextCourse.assignedFaculty : []
+
+    const nextPaymentPlan =
+  Array.isArray(nextCourse?.paymentPlans)
+    ? nextCourse.paymentPlans[0]
+    : null
+
+    setStudentForm((current) => {
+      const currentFacultyId = String(current.facultyId || '').trim().toLowerCase()
+      const currentFacultyName = String(current.facultyName || '').trim().toLowerCase()
+      const matchedFaculty = nextFacultyOptions.find((faculty) =>
+        String(faculty.id || '').trim().toLowerCase() === currentFacultyId ||
+        String(faculty.name || '').trim().toLowerCase() === currentFacultyName,
+      ) || null
+
+      return {
+        ...current,
+        courseId: nextCourse?.id || nextCourseId,
+        courseName: nextCourse?.name || '',
+        courseAmount: nextCourse?.amount || '',
+        facultyId: matchedFaculty?.id || '',
+        facultyName: matchedFaculty?.name || '',
+        paymentPlan: nextPaymentPlan?.templateName || '',
+      }
+    })
+  }
+
+  const handleStudentFacultyChange = (facultyId) => {
+    const nextFacultyId = String(facultyId || '').trim()
+    const nextFaculty = selectedStudentCourseFacultyOptions.find((faculty) => String(faculty.id || '').trim() === nextFacultyId) || null
+
+    setStudentForm((current) => ({
+      ...current,
+      facultyId: nextFaculty?.id || '',
+      facultyName: nextFaculty?.name || '',
+    }))
+  }
 
   useEffect(() => {
     void reloadBranchStudents()
@@ -3148,6 +3313,49 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     return () => { cancelled = true }
   }, [studentForm.countryCode, studentForm.stateCode])
 
+  useEffect(() => {
+    if (!isStudentFormOpen || studentFormMode === 'view') return undefined
+    const courseId = String(studentForm.courseId || '').trim()
+    if (!courseId) return undefined
+
+    const currentCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === courseId) || null
+    if (!currentCourse) return undefined
+
+    const nextCourseAmount = String(currentCourse.amount || '').trim()
+    const currentCourseAmount = String(studentForm.courseAmount || '').trim()
+    const nextFacultyOptions = Array.isArray(currentCourse.assignedFaculty) ? currentCourse.assignedFaculty : []
+    const currentFacultyId = String(studentForm.facultyId || '').trim().toLowerCase()
+    const currentFacultyName = String(studentForm.facultyName || '').trim().toLowerCase()
+    const matchedFaculty = nextFacultyOptions.find((faculty) =>
+      String(faculty.id || '').trim().toLowerCase() === currentFacultyId ||
+      String(faculty.name || '').trim().toLowerCase() === currentFacultyName,
+    ) || null
+
+    const needsAmountSync = nextCourseAmount && currentCourseAmount !== nextCourseAmount
+    const needsFacultySync = (currentFacultyId || currentFacultyName) && !matchedFaculty
+
+    if (!needsAmountSync && !needsFacultySync) return undefined
+
+    setStudentForm((current) => {
+      if (String(current.courseId || '').trim() !== courseId) return current
+
+      const syncFaculty = nextFacultyOptions.find((faculty) =>
+        String(faculty.id || '').trim().toLowerCase() === String(current.facultyId || '').trim().toLowerCase() ||
+        String(faculty.name || '').trim().toLowerCase() === String(current.facultyName || '').trim().toLowerCase(),
+      ) || null
+
+      return {
+        ...current,
+        courseName: currentCourse.name || current.courseName,
+        courseAmount: nextCourseAmount || current.courseAmount,
+        facultyId: syncFaculty?.id || '',
+        facultyName: syncFaculty?.name || '',
+      }
+    })
+
+    return undefined
+  }, [isStudentFormOpen, studentCourseOptions, studentForm.courseAmount, studentForm.courseId, studentForm.facultyId, studentForm.facultyName, studentFormMode])
+
   // Body scroll lock for student form
   useEffect(() => {
     if (!isStudentFormOpen) return undefined
@@ -3183,7 +3391,12 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     [branchStudents, studentForm],
   )
   const shouldShowStudentError = (field) => Boolean(studentFormTouched[field] && studentFormValidationErrors[field])
-  const studentActiveStepFields = studentFormStep === 1 ? STUDENT_FORM_STEP_ONE_FIELDS : STUDENT_FORM_STEP_TWO_FIELDS
+  const studentActiveStepFields =
+    studentFormStep === 1
+      ? STUDENT_FORM_STEP_ONE_FIELDS
+      : studentFormStep === 2
+        ? STUDENT_FORM_STEP_TWO_FIELDS
+        : STUDENT_FORM_STEP_THREE_FIELDS
   const studentActiveStepErrorField = studentActiveStepFields.find((field) => studentFormValidationErrors[field]) || ''
   const studentActiveStepError = studentActiveStepErrorField ? studentFormValidationErrors[studentActiveStepErrorField] : ''
 
@@ -3206,20 +3419,21 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   const handleStudentStepNext = () => {
     if (studentFormMode === 'view') {
-      setStudentFormStep(2)
+      setStudentFormStep((current) => Math.min(3, current + 1))
       return
     }
 
-    touchStudentFields(STUDENT_FORM_STEP_ONE_FIELDS)
+    const currentStepFields = studentFormStep === 1 ? STUDENT_FORM_STEP_ONE_FIELDS : STUDENT_FORM_STEP_TWO_FIELDS
+    touchStudentFields(currentStepFields)
 
-    const hasStepOneErrors = STUDENT_FORM_STEP_ONE_FIELDS.some((field) => studentFormValidationErrors[field])
-    if (hasStepOneErrors) return
+    const hasStepErrors = currentStepFields.some((field) => studentFormValidationErrors[field])
+    if (hasStepErrors) return
 
-    setStudentFormStep(2)
+    setStudentFormStep((current) => Math.min(3, current + 1))
   }
 
   const handleStudentStepBack = () => {
-    setStudentFormStep(1)
+    setStudentFormStep((current) => Math.max(1, current - 1))
   }
 
   const openAddStudentForm = async () => {
@@ -3258,7 +3472,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const handleStudentFormSubmit = async (e) => {
     e?.preventDefault()
     if (studentFormMode === 'view') return
-    if (studentFormStep !== 2) return
+    if (studentFormStep !== 3) return
     if (isStudentSaving) return
     setStudentFormError('')
 
@@ -3271,6 +3485,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     STUDENT_FORM_STEP_TWO_FIELDS.forEach((field) => {
       allTouched[field] = true
     })
+    STUDENT_FORM_STEP_THREE_FIELDS.forEach((field) => {
+      allTouched[field] = true
+    })
     if (studentForm.currentStatus === 'Employee') allTouched.designation = true
     if (studentForm.passedOutYear === 'Custom') allTouched.passedOutYearCustom = true
     if (studentForm.source === 'Others') allTouched.sourceOther = true
@@ -3280,6 +3497,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
     const originalStudentId = String(studentForm.originalStudentId || studentForm.studentId || '').trim()
     const resolvedStudentId = buildStudentIdFromSuffix(studentForm.studentIdSuffix)
+    const selectedCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null
+    const selectedFaculty = Array.isArray(selectedCourse?.assignedFaculty)
+      ? selectedCourse.assignedFaculty.find((faculty) =>
+        String(faculty.id || '').trim().toLowerCase() === String(studentForm.facultyId || '').trim().toLowerCase() ||
+        String(faculty.name || '').trim().toLowerCase() === String(studentForm.facultyName || '').trim().toLowerCase(),
+      ) || null
+      : null
+    const resolvedCourseAmount = String(selectedCourse?.amount || studentForm.courseAmount || '').trim()
     const duplicateStudent = branchStudents.find((student) => {
       const currentStudentId = String(student.studentId || '').trim()
       return currentStudentId === resolvedStudentId && currentStudentId !== originalStudentId
@@ -3299,6 +3524,17 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       branchCode,
       passedOutYear: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
       source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
+      courseId: selectedCourse?.id || String(studentForm.courseId || '').trim(),
+      courseName: selectedCourse?.name || String(studentForm.courseName || '').trim(),
+      facultyId: selectedFaculty?.id || String(studentForm.facultyId || '').trim(),
+      facultyName: selectedFaculty?.name || String(studentForm.facultyName || '').trim(),
+      courseAmount: resolvedCourseAmount,
+      totalAmount: resolvedCourseAmount,
+      actualFees: String(selectedCourse?.actualFees ?? '').trim(),
+      registrationFees: String(selectedCourse?.registrationFees ?? '').trim(),
+      discount: String(selectedCourse?.discount ?? '').trim(),
+      afterDiscount: resolvedCourseAmount,
+      paymentMode: studentForm.paymentMode || 'Installment',
     }
 
     delete record.studentIdSuffix
@@ -3464,11 +3700,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         item.requestStatus !== 'accepted'
 
                       return (
-                          <div
+                        <div
                           key={item.id}
-                          className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'} ${
-                            isCourseEditRequest ? 'is-course-request' : ''
-                          }`.trim()}
+                          className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'} ${isCourseEditRequest ? 'is-course-request' : ''
+                            }`.trim()}
                           onMouseDown={(event) => event.stopPropagation()}
                           onPointerDown={(event) => event.stopPropagation()}
                         >
@@ -3488,19 +3723,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                           >
                             {isCourseEditRequest ? (
                               <button
-  type="button"
-  className="notification-dropdown-accept"
-  onClick={(event) => {
-    event.preventDefault()
-    event.stopPropagation()
+                                type="button"
+                                className="notification-dropdown-accept"
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
 
-    console.log('ACCEPT CLICKED')
+                                  console.log('ACCEPT CLICKED')
 
-    void acceptBranchCourseEditNotification(item)
-  }}
->
-  Accept
-</button>
+                                  void acceptBranchCourseEditNotification(item)
+                                }}
+                              >
+                                Accept
+                              </button>
                             ) : null}
                             <button
                               type="button"
@@ -3738,45 +3973,45 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   )}
                 >
                   <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
-  <div
-    className="faculty-search-wrapper"
-    style={{
-      display: 'flex',
-      gap: '8px',
-      width: '370px',
-    }}
-  >
-    <input
-      type="text"
-      placeholder="Search Student"
-      value={studentSearchTerm}
-      onChange={(e) => {
-        setStudentSearchTerm(e.target.value);
-        setStudentPage(1);
-      }}
-      className="faculty-search-input"
-      style={{
-        flex: 1,
-        minWidth: 0,
-      }}
-    />
+                    <div
+                      className="faculty-search-wrapper"
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        width: '370px',
+                      }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search Student"
+                        value={studentSearchTerm}
+                        onChange={(e) => {
+                          setStudentSearchTerm(e.target.value);
+                          setStudentPage(1);
+                        }}
+                        className="faculty-search-input"
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      />
 
-    <button
-      type="button"
-      className="button button-solid"
-      style={{
-        height: '46px',
-        padding: '0 20px',
-        whiteSpace: 'nowrap',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      Search
-    </button>
-  </div>
-</div>
+                      <button
+                        type="button"
+                        className="button button-solid"
+                        style={{
+                          height: '46px',
+                          padding: '0 20px',
+                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        Search
+                      </button>
+                    </div>
+                  </div>
                   <div className="branch-course-table-shell">
                     <table className="branch-course-table">
                       <thead>
@@ -3795,95 +4030,94 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         {visibleBranchStudents.length ? (
                           visibleBranchStudents.map((stu, index) => {
                             return (
-                            <tr key={stu.studentId}>
-                              <td><strong>{stu.studentId || '-'}</strong></td>
-                              <td><strong className="branch-course-name">{stu.studentName}</strong></td>
-                              {/* <td>{stu.emailAddress || '-'}</td> */}
-                              <td>{stu.mobileNumber || '-'}</td>
-                              {/* <td>{stu.qualification || '-'}</td> */}
-                              {/* <td>
+                              <tr key={stu.studentId}>
+                                <td><strong>{stu.studentId || '-'}</strong></td>
+                                <td><strong className="branch-course-name">{stu.studentName}</strong></td>
+                                {/* <td>{stu.emailAddress || '-'}</td> */}
+                                <td>{stu.mobileNumber || '-'}</td>
+                                {/* <td>{stu.qualification || '-'}</td> */}
+                                {/* <td>
                                 <span className={`branch-course-status-pill ${(stu.currentStatus || '').toLowerCase()}`}>
                                   {stu.currentStatus || '-'}
                                 </span>
                               </td> */}
-                              <td>{formatStudentDate(stu.admissionDate)}</td>
+                                <td>{formatStudentDate(stu.admissionDate)}</td>
 
-                              <td style={{ textAlign: 'center' }}>
-                                <div
-  className={`branch-student-actions-cell ${
-    studentActionMenuId === stu.studentId ? 'menu-open' : ''
-  }`}
-  onMouseEnter={() => {
-    if (!studentActionMenuPinned) {
-      setStudentActionMenuId(stu.studentId)
-    }
-  }}
-  onMouseLeave={() => {
-    if (!studentActionMenuPinned) {
-      setStudentActionMenuId('')
-    }
-  }}
->
-                               <button 
-  type="button" 
-  className="branch-student-more-btn" 
-  aria-label="Student actions" 
-  onClick={(e) => {
-  e.stopPropagation()
+                                <td style={{ textAlign: 'center' }}>
+                                  <div
+                                    className={`branch-student-actions-cell ${studentActionMenuId === stu.studentId ? 'menu-open' : ''
+                                      }`}
+                                    onMouseEnter={() => {
+                                      if (!studentActionMenuPinned) {
+                                        setStudentActionMenuId(stu.studentId)
+                                      }
+                                    }}
+                                    onMouseLeave={() => {
+                                      if (!studentActionMenuPinned) {
+                                        setStudentActionMenuId('')
+                                      }
+                                    }}
+                                  >
+                                    <button
+                                      type="button"
+                                      className="branch-student-more-btn"
+                                      aria-label="Student actions"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
 
-  if (studentActionMenuId === stu.studentId) {
-    setStudentActionMenuId('')
-    setStudentActionMenuPinned(false)
-  } else {
-    setStudentActionMenuId(stu.studentId)
-    setStudentActionMenuPinned(true)
-  }
-}}
->
-  <MoreVertical size={18} /> 
-</button>
-
-                                  {studentActionMenuId === stu.studentId ? (
-                                    <div className="branch-student-actions-menu">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
+                                        if (studentActionMenuId === stu.studentId) {
                                           setStudentActionMenuId('')
-                                          setViewStudentDrawer({ ...stu })
-                                        }}
-                                      >
-                                        <Eye size={15} />
-                                        <span>View</span>
-                                      </button>
+                                          setStudentActionMenuPinned(false)
+                                        } else {
+                                          setStudentActionMenuId(stu.studentId)
+                                          setStudentActionMenuPinned(true)
+                                        }
+                                      }}
+                                    >
+                                      <MoreVertical size={18} />
+                                    </button>
 
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setStudentActionMenuId('')
-                                          openEditStudentForm({ ...stu })
-                                        }}
-                                      >
-                                        <Pencil size={15} />
-                                        <span>Edit</span>
-                                      </button>
+                                    {studentActionMenuId === stu.studentId ? (
+                                      <div className="branch-student-actions-menu">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setStudentActionMenuId('')
+                                            setViewStudentDrawer({ ...stu })
+                                          }}
+                                        >
+                                          <Eye size={15} />
+                                          <span>View</span>
+                                        </button>
 
-                                      <button
-                                        type="button"
-                                        className="is-danger"
-                                        onClick={() => {
-                                          setStudentActionMenuId('')
-                                          setStudentDeleteTarget({ ...stu })
-                                        }}
-                                      >
-                                        <Trash2 size={15} />
-                                        <span>Delete</span>
-                                      </button>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </td>
-                            </tr>
-                          )
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setStudentActionMenuId('')
+                                            openEditStudentForm({ ...stu })
+                                          }}
+                                        >
+                                          <Pencil size={15} />
+                                          <span>Edit</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          className="is-danger"
+                                          onClick={() => {
+                                            setStudentActionMenuId('')
+                                            setStudentDeleteTarget({ ...stu })
+                                          }}
+                                        >
+                                          <Trash2 size={15} />
+                                          <span>Delete</span>
+                                        </button>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
                           })
                         ) : (
                           <tr>
@@ -3953,43 +4187,43 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                     </>
                   )}
                 >
-                 <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
-  <div
-    className="faculty-search-wrapper"
-    style={{
-      display: 'flex',
-      gap: '8px',
-      width: '370px',
-    }}
-  >
-    <input
-      type="text"
-      placeholder="Search Courses"
-      value={courseSearchTerm}
-      onChange={(e) => setCourseSearchTerm(e.target.value)}
-      className="faculty-search-input"
-      style={{
-        flex: 1,
-        minWidth: 0,
-      }}
-    />
+                  <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
+                    <div
+                      className="faculty-search-wrapper"
+                      style={{
+                        display: 'flex',
+                        gap: '8px',
+                        width: '370px',
+                      }}
+                    >
+                      <input
+                        type="text"
+                        placeholder="Search Courses"
+                        value={courseSearchTerm}
+                        onChange={(e) => setCourseSearchTerm(e.target.value)}
+                        className="faculty-search-input"
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      />
 
-    <button
-      type="button"
-      className="button button-solid"
-      style={{
-        height: '46px',
-        padding: '0 20px',
-        whiteSpace: 'nowrap',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      Search
-    </button>
-  </div>
-</div>
+                      <button
+                        type="button"
+                        className="button button-solid"
+                        style={{
+                          height: '46px',
+                          padding: '0 20px',
+                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        Search
+                      </button>
+                    </div>
+                  </div>
                   <div className="branch-course-table-shell">
                     <table className="branch-course-table">
                       <thead>
@@ -4332,13 +4566,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
               onClick={(event) => event.stopPropagation()}
               onSubmit={handleAddCourseSubmit}
             >
-                <div className="course-modal-header">
-                  <div>
-                    <p className="section-kicker">Course Entry</p>
-                    <h3 id="branch-add-course-title">{editingCourseId ? 'Edit Course' : 'Add Course'}</h3>
-                  </div>
-                  <span className="detail-badge">Required fields marked *</span>
+              <div className="course-modal-header">
+                <div>
+                  <p className="section-kicker">Course Entry</p>
+                  <h3 id="branch-add-course-title">{editingCourseId ? 'Edit Course' : 'Add Course'}</h3>
                 </div>
+                <span className="detail-badge">Required fields marked *</span>
+              </div>
 
               <div className="course-stepper" aria-label="Course creation steps">
                 <button
@@ -4733,16 +4967,16 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                                     Cancel
                                   </button>
                                 ) : null}
-                              <button
-                                type="button"
-                                className="button button-solid course-model-editor-card-save-next"
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  handleCourseModelSaveAndNext(modelIndex)
-                                }}
-                              >
-                                Continue
-                              </button>
+                                <button
+                                  type="button"
+                                  className="button button-solid course-model-editor-card-save-next"
+                                  onClick={(event) => {
+                                    event.stopPropagation()
+                                    handleCourseModelSaveAndNext(modelIndex)
+                                  }}
+                                >
+                                  Continue
+                                </button>
                               </>
                             ) : !isSubmoduleDraftOpen ? (
                               <button
@@ -5227,7 +5461,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   aria-label="Close assign faculty modal"
                   onClick={closeAssignFacultyModal}
                 >
-                    <X size={22} strokeWidth={2} />
+                  <X size={22} strokeWidth={2} />
                 </button>
 
                 {/* Header */}
@@ -5423,13 +5657,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                     </strong>
 
                     <button
-  type="button"
-  className="branch-course-view-close"
-  onClick={closeViewCourseDrawer}
-  aria-label="Close course details"
->
-  <X size={22} strokeWidth={2} />
-</button>
+                      type="button"
+                      className="branch-course-view-close"
+                      onClick={closeViewCourseDrawer}
+                      aria-label="Close course details"
+                    >
+                      <X size={22} strokeWidth={2} />
+                    </button>
                   </div>
 
                   <button
@@ -5562,7 +5796,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         </div>
                       </div>
 
-                      <div className="branch-course-view-row" role="row">
+                      {/* <div className="branch-course-view-row" role="row">
                         <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
                           <Tag size={20} strokeWidth={2.1} aria-hidden="true" />
                           <span>Installment Template</span>
@@ -5618,7 +5852,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                               : '-'}
                           </strong>
                         </div>
-                      </div>
+                      </div> */}
 
                       <div className="branch-course-view-row" role="row">
                         <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
@@ -5835,13 +6069,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
               onClick={(event) => event.stopPropagation()}
             >
               <button
-  type="button"
-  className="branch-modal-close"
-  aria-label="Close success popup"
-  onClick={closeCourseSaveSuccess}
->
-  <X size={22} strokeWidth={2} />
-</button>
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close success popup"
+                onClick={closeCourseSaveSuccess}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
 
               <div className="branch-success-hero" aria-hidden="true">
                 <span className="branch-success-hero-ring" />
@@ -6037,7 +6271,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                 <div className="student-detail-section">
                   <h3>Basic Information</h3>
 
-                <div className="student-detail-grid">
+                  <div className="student-detail-grid">
 
                     <div className="student-detail-item">
                       <span>Student ID</span>
@@ -6194,7 +6428,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         {viewStudentDrawer.source || '-'}
                       </strong>
                     </div>
-{/* 
+                    {/* 
                     <div className="student-detail-item student-detail-full">
                       <span>Other Source</span>
                       <strong>
@@ -6247,10 +6481,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
               {/* Drawer Header */}
               <div className="student-drawer-header">
 
-                  <div className="student-drawer-title-area">
-                    <p className="student-drawer-label">
-                      STUDENT DETAILS
-                    </p>
+                <div className="student-drawer-title-area">
+                  <p className="student-drawer-label">
+                    STUDENT DETAILS
+                  </p>
 
                   <h2>
                     {viewStudentDrawer.studentName || '-'}
@@ -6297,7 +6531,42 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                 </div>
               </div>
 
+<div className="student-details-tabs">
 
+  {/* Basic Details */}
+  <button
+    type="button"
+    className={`student-details-tab ${
+      studentDetailsTab === 'basic' ? 'active' : ''
+    }`}
+    onClick={() => setStudentDetailsTab('basic')}
+  >
+    Basic Details
+  </button>
+
+  {/* Education Details */}
+  <button
+    type="button"
+    className={`student-details-tab ${
+      studentDetailsTab === 'education' ? 'active' : ''
+    }`}
+    onClick={() => setStudentDetailsTab('education')}
+  >
+    Education Details
+  </button>
+
+  {/* Course & Payment Details */}
+  <button
+    type="button"
+    className={`student-details-tab ${
+      studentDetailsTab === 'payment' ? 'active' : ''
+    }`}
+    onClick={() => setStudentDetailsTab('payment')}
+  >
+    Course & Payment Details
+  </button>
+
+</div>
 
               {/* Details Table */}
               <div className="student-drawer-content">
@@ -6308,189 +6577,190 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                     <div>DETAILS</div>
                     <div>INFORMATION</div>
                   </div>
+                  
+{studentDetailsTab === 'basic' ? (
+  <>
+    {/* Student ID
+    <div className="student-details-row">
+      <div className="student-details-label">Student ID</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.studentId || '-'}
+      </div>
+    </div> */}
 
-                  {/* Student ID */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Student ID
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.studentId || '-'}
-                    </div>
-                  </div>
+    {/* Student Name */}
+    {/* <div className="student-details-row">
+      <div className="student-details-label">Student Name</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.studentName || '-'}
+      </div>
+    </div> */}
 
-                  {/* Student Name */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Student Name
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.studentName || '-'}
-                    </div>
-                  </div>
+    {/* Email */}
+    <div className="student-details-row">
+      <div className="student-details-label">Email Address</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.emailAddress || '-'}
+      </div>
+    </div>
 
-                  {/* Email */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Email Address
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.emailAddress || '-'}
-                    </div>
-                  </div>
+    {/* Phone */}
+    <div className="student-details-row">
+      <div className="student-details-label">Phone Number</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.mobileNumber || '-'}
+      </div>
+    </div>
 
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      LinkedIn URL
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.linkedInUrl ? (
-                        <a
-                          href={formatExternalUrl(viewStudentDrawer.linkedInUrl)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {viewStudentDrawer.linkedInUrl}
-                        </a>
-                      ) : '-'}
-                    </div>
-                  </div>
+    {/* Parent / Spouse */}
+    <div className="student-details-row">
+      <div className="student-details-label">
+        Parent / Spouse Number
+      </div>
+      <div className="student-details-value">
+        {viewStudentDrawer.parentSpouseNumber || '-'}
+      </div>
+    </div>
 
-                  {/* Mobile */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Phone Number
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.mobileNumber || '-'}
-                    </div>
-                  </div>
+    {/* Country */}
+    <div className="student-details-row">
+      <div className="student-details-label">Country</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.country || '-'}
+      </div>
+    </div>
 
-                  {/* Parent / Spouse */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Parent / Spouse Number
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.parentSpouseNumber || '-'}
-                    </div>
-                  </div>
+    {/* State */}
+    <div className="student-details-row">
+      <div className="student-details-label">State</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.state || '-'}
+      </div>
+    </div>
 
-                  {/* Qualification */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Qualification
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.qualification || '-'}
-                    </div>
-                  </div>
+    {/* City */}
+    <div className="student-details-row">
+      <div className="student-details-label">City</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.city || '-'}
+      </div>
+    </div>
 
-                  {/* Passed Out Year */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Passed Out Year
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.passedOutYear || '-'}
-                    </div>
-                  </div>
+    {/* Address */}
+    <div className="student-details-row">
+      <div className="student-details-label">Address</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.address || '-'}
+      </div>
+    </div>
+  </>
+) : studentDetailsTab === 'education' ? (
+  <>
+    {/* Qualification */}
+    <div className="student-details-row">
+      <div className="student-details-label">Qualification</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.qualification || '-'}
+      </div>
+    </div>
 
-                  {/* Designation */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Designation
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.designation || '-'}
-                    </div>
-                  </div>
+    {/* Passed Out Year */}
+    <div className="student-details-row">
+      <div className="student-details-label">Passed Out Year</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.passedOutYear || '-'}
+      </div>
+    </div>
 
-                  {/* Country */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Country
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.country || '-'}
-                    </div>
-                  </div>
+    {/* Designation */}
+    <div className="student-details-row">
+      <div className="student-details-label">Designation</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.designation || '-'}
+      </div>
+    </div>
 
-                  {/* State */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      State
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.state || '-'}
-                    </div>
-                  </div>
+    {/* LinkedIn */}
+    <div className="student-details-row">
+      <div className="student-details-label">LinkedIn URL</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.linkedInUrl ? (
+          <a
+            href={formatExternalUrl(viewStudentDrawer.linkedInUrl)}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {viewStudentDrawer.linkedInUrl}
+          </a>
+        ) : (
+          '-'
+        )}
+      </div>
+    </div>
 
-                  {/* City */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      City
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.city || '-'}
-                    </div>
-                  </div>
+    {/* Admission Date */}
+    <div className="student-details-row">
+      <div className="student-details-label">Admission Date</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.admissionDate
+          ? formatStudentDate(viewStudentDrawer.admissionDate)
+          : '-'}
+      </div>
+    </div>
 
-                  {/* Address */}
-                  <div className="student-details-row student-details-row-address">
-                    <div className="student-details-label">
-                      Address
-                    </div>
-                    <div
-                      className="student-details-value is-address"
-                      title={viewStudentDrawer.address || '-'}
-                    >
-                      {(viewStudentDrawer.address || '-').replace(/,\s*/g, ', ')}
-                    </div>
-                  </div>
+    {/* Source */}
+    <div className="student-details-row">
+      <div className="student-details-label">Source</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.source || '-'}
+      </div>
+    </div>
 
-                  {/* Admission Date */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Admission Date
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.admissionDate
-                        ? formatStudentDate(viewStudentDrawer.admissionDate)
-                        : '-'}
-                    </div>
-                  </div>
+    {/* Remarks */}
+    <div className="student-details-row">
+      <div className="student-details-label">Remarks</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.remarks || '-'}
+      </div>
+    </div>
+  </>
+) : (
+  <>
+    {/* Course */}
+    <div className="student-details-row">
+      <div className="student-details-label">Course</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.courseName || '-'}
+      </div>
+    </div>
 
-                  {/* Source */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Source
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.source || '-'}
-                    </div>
-                  </div>
+    {/* Faculty */}
+    <div className="student-details-row">
+      <div className="student-details-label">Faculty</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.facultyName || '-'}
+      </div>
+    </div>
 
-                  {/* Other Source
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Other Source
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.sourceOther || '-'}
-                    </div>
-                  </div> */}
+    {/* Course Amount */}
+    <div className="student-details-row">
+      <div className="student-details-label">Course Amount</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.courseAmount
+          ? `₹${viewStudentDrawer.courseAmount}`
+          : '-'}
+      </div>
+    </div>
 
-                  {/* Remarks */}
-                  <div className="student-details-row">
-                    <div className="student-details-label">
-                      Remarks
-                    </div>
-                    <div className="student-details-value">
-                      {viewStudentDrawer.remarks || '-'}
-                    </div>
-                  </div>
-
+    {/* Payment Plan */}
+    <div className="student-details-row">
+      <div className="student-details-label">Payment Plan</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.paymentPlan || '-'}
+      </div>
+    </div>
+  </>
+)}
                 </div>
 
               </div>
@@ -6527,10 +6797,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                 </span>
               </div>
 
-              <div className={`student-stepper is-two-step ${studentFormMode === 'view' ? 'is-view-mode' : ''}`.trim()}>
+              <div className={`student-stepper ${studentFormMode === 'view' ? 'is-view-mode' : ''}`.trim()}>
                 {[
                   { step: 1, title: 'Personal & Education' },
                   { step: 2, title: 'Admission Details & Review' },
+                  { step: 3, title: 'Course & Payment Plan' },
                 ].map((item) => {
                   const isActive = studentFormStep === item.step
                   const isDone = studentFormStep > item.step
@@ -6561,277 +6832,751 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                 })}
               </div>
 
-              <div className="student-step-panel">
-                {studentFormStep === 1 ? (
-                  <div className="student-step-section">
-                    <div className="course-form-grid student-form-grid-tight">
-                <Field
-                  label="Student ID"
-                  required
-                  error={shouldShowStudentError('studentIdSuffix') ? studentFormValidationErrors.studentIdSuffix : ''}
-                >
-                  <div className="student-id-input-group">
-                    <span className="student-id-prefix" aria-hidden="true">
-                      {STUDENT_ID_PREFIX}
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="001"
-                      value={studentForm.studentIdSuffix || ''}
-                      onChange={(e) => updateStudentField('studentIdSuffix', e.target.value)}
-                      onBlur={() => setStudentFormTouched((c) => ({ ...c, studentIdSuffix: true }))}
-                      disabled={studentFormMode === 'view'}
-                    />
-                  </div>
-                </Field>
+              {studentFormMode !== 'view' && studentActiveStepError ? (
+                <div className="course-validation-note course-validation-error" style={{ marginBottom: 12 }}>
+                  <span>{studentActiveStepError}</span>
+                </div>
+              ) : null}
 
-                <Field label="Student Name" required error={shouldShowStudentError('studentName') ? studentFormValidationErrors.studentName : ''}>
-                  <input
-                    type="text"
-                    placeholder="Enter student name"
-                    value={studentForm.studentName}
-                    onChange={(e) => updateStudentField('studentName', e.target.value.replace(/[^A-Za-z ]/g, ''))}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, studentName: true }))}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
+             <div className="student-step-panel">
 
-                <Field label="Email Address" required error={shouldShowStudentError('emailAddress') ? studentFormValidationErrors.emailAddress : ''}>
-                  <input
-                    type="email"
-                    placeholder="Enter email address"
-                    value={studentForm.emailAddress}
-                    onChange={(e) => updateStudentField('emailAddress', e.target.value)}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, emailAddress: true }))}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
+  {/* =====================================================
+      STEP 1 — PERSONAL & EDUCATION
+  ====================================================== */}
+  {studentFormStep === 1 && (
+    <div className="student-step-section">
+      <div className="course-form-grid student-form-grid-tight">
 
-                <Field label="Mobile Number" required error={shouldShowStudentError('mobileNumber') ? studentFormValidationErrors.mobileNumber : ''}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="10 digit mobile number"
-                    value={studentForm.mobileNumber}
-                    onChange={(e) => updateStudentField('mobileNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, mobileNumber: true }))}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
+        <Field
+          label="Student ID"
+          required
+          error={
+            shouldShowStudentError('studentIdSuffix')
+              ? studentFormValidationErrors.studentIdSuffix
+              : ''
+          }
+        >
+          <div className="student-id-input-group">
+            <span className="student-id-prefix" aria-hidden="true">
+              {STUDENT_ID_PREFIX}
+            </span>
 
-                <Field label="Parent / Spouse Number" required error={shouldShowStudentError('parentSpouseNumber') ? studentFormValidationErrors.parentSpouseNumber : ''}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="10 digit number"
-                    value={studentForm.parentSpouseNumber}
-                    onChange={(e) => updateStudentField('parentSpouseNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, parentSpouseNumber: true }))}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="001"
+              value={studentForm.studentIdSuffix || ''}
+              onChange={(e) =>
+                updateStudentField('studentIdSuffix', e.target.value)
+              }
+              onBlur={() =>
+                setStudentFormTouched((c) => ({
+                  ...c,
+                  studentIdSuffix: true,
+                }))
+              }
+              disabled={studentFormMode === 'view'}
+            />
+          </div>
+        </Field>
 
-                <Field label="Country" required error={shouldShowStudentError('country') ? studentFormValidationErrors.country : ''}>
-                  <select
-                    value={studentForm.countryCode}
-                    onChange={(e) => {
-                      const code = e.target.value
-                      const name = stuCountryOptions.find((c) => c.iso2 === code)?.name || ''
-                      setStudentForm((c) => ({ ...c, countryCode: code, country: name, stateCode: '', state: '', city: '' }))
-                    }}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, country: true }))}
-                    disabled={studentFormMode === 'view'}
-                  >
-                    <option value="" disabled>Select Country</option>
-                    {stuCountryOptions.map((c) => (
-                      <option key={c.iso2} value={c.iso2}>{c.name}</option>
-                    ))}
-                  </select>
-                </Field>
+        <Field
+          label="Student Name"
+          required
+          error={
+            shouldShowStudentError('studentName')
+              ? studentFormValidationErrors.studentName
+              : ''
+          }
+        >
+          <input
+            type="text"
+            placeholder="Enter student name"
+            value={studentForm.studentName}
+            onChange={(e) =>
+              updateStudentField(
+                'studentName',
+                e.target.value.replace(/[^A-Za-z ]/g, '')
+              )
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                studentName: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                <Field label="State" required error={shouldShowStudentError('state') ? studentFormValidationErrors.state : ''}>
-                  <select
-                    value={studentForm.stateCode}
-                    onChange={(e) => {
-                      const code = e.target.value
-                      const name = stuStateOptions.find((s) => s.iso2 === code)?.name || ''
-                      setStudentForm((c) => ({ ...c, stateCode: code, state: name, city: '' }))
-                    }}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, state: true }))}
-                    disabled={studentFormMode === 'view' || !studentForm.countryCode}
-                  >
-                    <option value="" disabled>Select State</option>
-                    {stuStateOptions.map((s) => (
-                      <option key={s.iso2} value={s.iso2}>{s.name}</option>
-                    ))}
-                  </select>
-                </Field>
+        <Field
+          label="Email Address"
+          required
+          error={
+            shouldShowStudentError('emailAddress')
+              ? studentFormValidationErrors.emailAddress
+              : ''
+          }
+        >
+          <input
+            type="email"
+            placeholder="Enter email address"
+            value={studentForm.emailAddress}
+            onChange={(e) =>
+              updateStudentField('emailAddress', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                emailAddress: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                <Field label="City" required error={shouldShowStudentError('city') ? studentFormValidationErrors.city : ''}>
-                  <select
-                    value={studentForm.city}
-                    onChange={(e) => updateStudentField('city', e.target.value)}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, city: true }))}
-                    disabled={studentFormMode === 'view' || !studentForm.stateCode}
-                  >
-                    <option value="" disabled>Select City</option>
-                    {stuCityOptions.map((c) => (
-                      <option key={c.name} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
-                </Field>
+        <Field
+          label="Mobile Number"
+          required
+          error={
+            shouldShowStudentError('mobileNumber')
+              ? studentFormValidationErrors.mobileNumber
+              : ''
+          }
+        >
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="10 digit mobile number"
+            value={studentForm.mobileNumber}
+            onChange={(e) =>
+              updateStudentField(
+                'mobileNumber',
+                e.target.value.replace(/\D/g, '').slice(0, 10)
+              )
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                mobileNumber: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                <Field label="Address" required error={shouldShowStudentError('address') ? studentFormValidationErrors.address : ''}>
-                  <input
-                    type="text"
-                    placeholder="Enter full address"
-                    value={studentForm.address}
-                    onChange={(e) => updateStudentField('address', e.target.value)}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, address: true }))}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
+        <Field
+          label="Parent / Spouse Number"
+          required
+          error={
+            shouldShowStudentError('parentSpouseNumber')
+              ? studentFormValidationErrors.parentSpouseNumber
+              : ''
+          }
+        >
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="10 digit number"
+            value={studentForm.parentSpouseNumber}
+            onChange={(e) =>
+              updateStudentField(
+                'parentSpouseNumber',
+                e.target.value.replace(/\D/g, '').slice(0, 10)
+              )
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                parentSpouseNumber: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                <Field label="Qualification" required error={shouldShowStudentError('qualification') ? studentFormValidationErrors.qualification : ''}>
-                  <input
-                    type="text"
-                    placeholder="Enter qualification"
-                    value={studentForm.qualification}
-                    onChange={(e) => updateStudentField('qualification', e.target.value)}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, qualification: true }))}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
+        <Field
+          label="Country"
+          required
+          error={
+            shouldShowStudentError('country')
+              ? studentFormValidationErrors.country
+              : ''
+          }
+        >
+          <select
+            value={studentForm.countryCode}
+            onChange={(e) => {
+              const code = e.target.value;
+              const name =
+                stuCountryOptions.find((c) => c.iso2 === code)?.name || '';
 
-                <Field label="Passed Out Year" required error={shouldShowStudentError('passedOutYear') ? studentFormValidationErrors.passedOutYear : ''}>
-                  <select
-                    value={studentForm.passedOutYear}
-                    onChange={(e) => updateStudentField('passedOutYear', e.target.value)}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, passedOutYear: true }))}
-                    disabled={studentFormMode === 'view'}
-                  >
-                    <option value="" disabled>Select Year</option>
-                    {PASSED_OUT_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                    <option value="Custom">Custom</option>
-                  </select>
-                </Field>
+              setStudentForm((c) => ({
+                ...c,
+                countryCode: code,
+                country: name,
+                stateCode: '',
+                state: '',
+                city: '',
+              }));
+            }}
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                country: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="" disabled>
+              Select Country
+            </option>
 
-                {studentForm.passedOutYear === 'Custom' ? (
-                  <Field label="Specify Year" required error={shouldShowStudentError('passedOutYearCustom') ? studentFormValidationErrors.passedOutYearCustom : ''}>
-                    <input
-                      type="text"
-                      placeholder="Enter year"
-                      value={studentForm.passedOutYearCustom}
-                      onChange={(e) => updateStudentField('passedOutYearCustom', e.target.value)}
-                      onBlur={() => setStudentFormTouched((c) => ({ ...c, passedOutYearCustom: true }))}
-                      disabled={studentFormMode === 'view'}
-                    />
-                  </Field>
-                ) : null}
+            {stuCountryOptions.map((c) => (
+              <option key={c.iso2} value={c.iso2}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-                    </div>
-                  </div>
-                ) : (
-                  <div className="student-step-section">
-                    <div className="course-form-grid student-form-grid-tight">
+        <Field
+          label="State"
+          required
+          error={
+            shouldShowStudentError('state')
+              ? studentFormValidationErrors.state
+              : ''
+          }
+        >
+          <select
+            value={studentForm.stateCode}
+            onChange={(e) => {
+              const code = e.target.value;
+              const name =
+                stuStateOptions.find((s) => s.iso2 === code)?.name || '';
 
-                <Field label="LinkedIn URL">
-                  <input
-                    type="text"
-                    inputMode="url"
-                    placeholder="https://www.linkedin.com/in/your-profile"
-                    value={studentForm.linkedInUrl}
-                    onChange={(e) => updateStudentField('linkedInUrl', e.target.value)}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
+              setStudentForm((c) => ({
+                ...c,
+                stateCode: code,
+                state: name,
+                city: '',
+              }));
+            }}
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                state: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              !studentForm.countryCode
+            }
+          >
+            <option value="" disabled>
+              Select State
+            </option>
 
-                <Field label="Current Status" required error={shouldShowStudentError('currentStatus') ? studentFormValidationErrors.currentStatus : ''}>
-                  <select
-                    value={studentForm.currentStatus}
-                    onChange={(e) => {
-                      const val = e.target.value
-                      setStudentForm((c) => ({ ...c, currentStatus: val, designation: val !== 'Employee' ? '' : c.designation }))
-                    }}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, currentStatus: true }))}
-                    disabled={studentFormMode === 'view'}
-                  >
-                    <option value="" disabled>Select Status</option>
-                    <option value="Student">Student</option>
-                    <option value="Employee">Employee</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </Field>
+            {stuStateOptions.map((s) => (
+              <option key={s.iso2} value={s.iso2}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-                <Field
-                  label="Designation"
-                  required={studentForm.currentStatus === 'Employee'}
-                  error={shouldShowStudentError('designation') ? studentFormValidationErrors.designation : ''}
-                >
-                  <input
-                    type="text"
-                    placeholder={studentForm.currentStatus === 'Employee' ? 'Enter designation' : 'Select Employee first'}
-                    value={studentForm.designation}
-                    onChange={(e) => updateStudentField('designation', e.target.value)}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, designation: true }))}
-                    disabled={studentFormMode === 'view' || studentForm.currentStatus !== 'Employee'}
-                  />
-                </Field>
+        <Field
+          label="City"
+          required
+          error={
+            shouldShowStudentError('city')
+              ? studentFormValidationErrors.city
+              : ''
+          }
+        >
+          <select
+            value={studentForm.city}
+            onChange={(e) =>
+              updateStudentField('city', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                city: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              !studentForm.stateCode
+            }
+          >
+            <option value="" disabled>
+              Select City
+            </option>
 
-                <Field label="How did you know about our Institute?" required error={shouldShowStudentError('source') ? studentFormValidationErrors.source : ''}>
-                  <select
-                    value={studentForm.source}
-                    onChange={(e) => updateStudentField('source', e.target.value)}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, source: true }))}
-                    disabled={studentFormMode === 'view'}
-                  >
-                    <option value="" disabled>Select Source</option>
-                    <option value="Sulekha">Sulekha</option>
-                    <option value="Justdial">Justdial</option>
-                    <option value="Website">Website</option>
-                    <option value="Poster">Poster</option>
-                    <option value="Others">Others</option>
-                  </select>
-                </Field>
+            {stuCityOptions.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-                {studentForm.source === 'Others' ? (
-                  <Field label="Please Specify" required error={shouldShowStudentError('sourceOther') ? studentFormValidationErrors.sourceOther : ''}>
-                    <input
-                      type="text"
-                      placeholder="How did you hear about us?"
-                      value={studentForm.sourceOther}
-                      onChange={(e) => updateStudentField('sourceOther', e.target.value)}
-                      onBlur={() => setStudentFormTouched((c) => ({ ...c, sourceOther: true }))}
-                      disabled={studentFormMode === 'view'}
-                    />
-                  </Field>
-                ) : null}
+        <Field
+          label="Address"
+          required
+          error={
+            shouldShowStudentError('address')
+              ? studentFormValidationErrors.address
+              : ''
+          }
+        >
+          <input
+            type="text"
+            placeholder="Enter full address"
+            value={studentForm.address}
+            onChange={(e) =>
+              updateStudentField('address', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                address: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                <Field label="Remarks">
-                  <input
-                    type="text"
-                    placeholder="Optional remarks"
-                    value={studentForm.remarks}
-                    onChange={(e) => updateStudentField('remarks', e.target.value)}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
+        <Field
+          label="Qualification"
+          required
+          error={
+            shouldShowStudentError('qualification')
+              ? studentFormValidationErrors.qualification
+              : ''
+          }
+        >
+          <input
+            type="text"
+            placeholder="Enter qualification"
+            value={studentForm.qualification}
+            onChange={(e) =>
+              updateStudentField('qualification', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                qualification: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                <Field label="Admission Date" required error={shouldShowStudentError('admissionDate') ? studentFormValidationErrors.admissionDate : ''}>
-                  <input
-                    type="date"
-                    value={studentForm.admissionDate}
-                    onChange={(e) => updateStudentField('admissionDate', e.target.value)}
-                    onBlur={() => setStudentFormTouched((c) => ({ ...c, admissionDate: true }))}
-                    disabled={studentFormMode === 'view'}
-                  />
-                </Field>
-                    </div>
+        <Field
+          label="Passed Out Year"
+          required
+          error={
+            shouldShowStudentError('passedOutYear')
+              ? studentFormValidationErrors.passedOutYear
+              : ''
+          }
+        >
+          <select
+            value={studentForm.passedOutYear}
+            onChange={(e) =>
+              updateStudentField('passedOutYear', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                passedOutYear: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="" disabled>
+              Select Year
+            </option>
 
-                  </div>
+            {PASSED_OUT_YEARS.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+
+            <option value="Custom">Custom</option>
+          </select>
+        </Field>
+
+        {studentForm.passedOutYear === 'Custom' && (
+          <Field
+            label="Specify Year"
+            required
+            error={
+              shouldShowStudentError('passedOutYearCustom')
+                ? studentFormValidationErrors.passedOutYearCustom
+                : ''
+            }
+          >
+            <input
+              type="text"
+              placeholder="Enter year"
+              value={studentForm.passedOutYearCustom}
+              onChange={(e) =>
+                updateStudentField(
+                  'passedOutYearCustom',
+                  e.target.value
+                )
+              }
+              onBlur={() =>
+                setStudentFormTouched((c) => ({
+                  ...c,
+                  passedOutYearCustom: true,
+                }))
+              }
+              disabled={studentFormMode === 'view'}
+            />
+          </Field>
+        )}
+
+      </div>
+    </div>
+  )}
+
+
+  {/* =====================================================
+      STEP 2 — ADMISSION DETAILS & REVIEW
+  ====================================================== */}
+  {studentFormStep === 2 && (
+    <div className="student-step-section">
+      <div className="course-form-grid student-form-grid-tight">
+
+        <Field label="LinkedIn URL">
+          <input
+            type="text"
+            inputMode="url"
+            placeholder="https://www.linkedin.com/in/your-profile"
+            value={studentForm.linkedInUrl}
+            onChange={(e) =>
+              updateStudentField('linkedInUrl', e.target.value)
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
+
+        <Field
+          label="Current Status"
+          required
+          error={
+            shouldShowStudentError('currentStatus')
+              ? studentFormValidationErrors.currentStatus
+              : ''
+          }
+        >
+          <select
+            value={studentForm.currentStatus}
+            onChange={(e) => {
+              const val = e.target.value;
+
+              setStudentForm((c) => ({
+                ...c,
+                currentStatus: val,
+                designation:
+                  val !== 'Employee' ? '' : c.designation,
+              }));
+            }}
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                currentStatus: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="" disabled>
+              Select Status
+            </option>
+            <option value="Student">Student</option>
+            <option value="Employee">Employee</option>
+            <option value="Other">Other</option>
+          </select>
+        </Field>
+
+        <Field
+          label="Designation"
+          required={studentForm.currentStatus === 'Employee'}
+          error={
+            shouldShowStudentError('designation')
+              ? studentFormValidationErrors.designation
+              : ''
+          }
+        >
+          <input
+            type="text"
+            placeholder={
+              studentForm.currentStatus === 'Employee'
+                ? 'Enter designation'
+                : 'Select Employee first'
+            }
+            value={studentForm.designation}
+            onChange={(e) =>
+              updateStudentField('designation', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                designation: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              studentForm.currentStatus !== 'Employee'
+            }
+          />
+        </Field>
+
+        <Field
+          label="How did you know about our Institute?"
+          required
+          error={
+            shouldShowStudentError('source')
+              ? studentFormValidationErrors.source
+              : ''
+          }
+        >
+          <select
+            value={studentForm.source}
+            onChange={(e) =>
+              updateStudentField('source', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                source: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="" disabled>
+              Select Source
+            </option>
+            <option value="Sulekha">Sulekha</option>
+            <option value="Justdial">Justdial</option>
+            <option value="Website">Website</option>
+            <option value="Poster">Poster</option>
+            <option value="Others">Others</option>
+          </select>
+        </Field>
+
+        {studentForm.source === 'Others' && (
+          <Field
+            label="Please Specify"
+            required
+            error={
+              shouldShowStudentError('sourceOther')
+                ? studentFormValidationErrors.sourceOther
+                : ''
+            }
+          >
+            <input
+              type="text"
+              placeholder="How did you hear about us?"
+              value={studentForm.sourceOther}
+              onChange={(e) =>
+                updateStudentField('sourceOther', e.target.value)
+              }
+              onBlur={() =>
+                setStudentFormTouched((c) => ({
+                  ...c,
+                  sourceOther: true,
+                }))
+              }
+              disabled={studentFormMode === 'view'}
+            />
+          </Field>
+        )}
+
+        <Field label="Remarks">
+          <input
+            type="text"
+            placeholder="Optional remarks"
+            value={studentForm.remarks}
+            onChange={(e) =>
+              updateStudentField('remarks', e.target.value)
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
+
+        <Field
+          label="Admission Date"
+          required
+          error={
+            shouldShowStudentError('admissionDate')
+              ? studentFormValidationErrors.admissionDate
+              : ''
+          }
+        >
+          <input
+            type="date"
+            value={studentForm.admissionDate}
+            onChange={(e) =>
+              updateStudentField('admissionDate', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                admissionDate: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
+
+      </div>
+    </div>
+  )}
+
+
+  {/* =====================================================
+      STEP 3 — COURSE & PAYMENT PLAN
+  ====================================================== */}
+  {studentFormStep === 3 && (
+    <div className="student-step-section">
+
+     
+
+      <div className="course-form-grid student-form-grid-tight">
+
+        <Field
+          label="Select Course"
+          required
+          error={
+            shouldShowStudentError('courseId')
+              ? studentFormValidationErrors.courseId
+              : ''
+          }
+        >
+          <select
+            value={studentForm.courseId}
+            onChange={(e) =>
+              handleStudentCourseChange(e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                courseId: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              !studentCourseOptions.length
+            }
+          >
+            <option value="">Select Course</option>
+
+            {studentCourseOptions.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.name}
+              </option>
+            ))}
+
+            {!studentCourseOptions.length && (
+              <option value="" disabled>
+                No courses available
+              </option>
+            )}
+          </select>
+        </Field>
+
+        <Field
+          label="Select Faculty"
+          required
+          error={
+            shouldShowStudentError('facultyName')
+              ? studentFormValidationErrors.facultyName
+              : ''
+          }
+        >
+          <select
+            value={studentForm.facultyId}
+            onChange={(e) =>
+              handleStudentFacultyChange(e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                facultyName: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              !studentForm.courseId ||
+              !selectedStudentCourseFacultyOptions.length
+            }
+          >
+            <option value="">Select Faculty</option>
+
+            {selectedStudentCourseFacultyOptions.map((faculty) => (
+              <option key={faculty.id} value={faculty.id}>
+                {faculty.name}
+              </option>
+            ))}
+
+            {studentForm.courseId &&
+              !selectedStudentCourseFacultyOptions.length && (
+                <option value="" disabled>
+                  No faculty assigned to this course
+                </option>
               )}
-              </div>
+          </select>
+        </Field>
+
+        <Field
+          label="Total Course Amount"
+          required
+          error={
+            shouldShowStudentError('courseAmount')
+              ? studentFormValidationErrors.courseAmount
+              : ''
+          }
+        >
+          <input
+            type="text"
+            value={selectedStudentCourseAmount}
+            readOnly
+            placeholder={
+              studentForm.courseId
+                ? 'Auto-filled from selected course'
+                : 'Select course first'
+            }
+          />
+        </Field>
+
+       <Field label="Payment Plan">
+  <input
+    type="text"
+    value={studentForm.paymentPlan || ''}
+    readOnly
+    placeholder={
+      studentForm.courseId
+        ? 'Payment plan configured for selected course'
+        : 'Select course first'
+    }
+  />
+</Field>
+
+      </div>
+
+      
+
+    </div>
+  )}
+
+</div>
 
               {studentFormError ? (
                 <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
@@ -6875,6 +7620,23 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                       Next
                     </button>
                   </>
+                ) : studentFormStep === 2 ? (
+                  <>
+                    <button type="button" className="button button-ghost" onClick={handleStudentStepBack}>
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-solid"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleStudentStepNext()
+                      }}
+                    >
+                      Next
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button type="button" className="button button-ghost" onClick={handleStudentStepBack}>
@@ -6901,6 +7663,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
             </form>
           </div>
         ) : null}
+
 
         {/* ── STUDENT DELETE CONFIRM ── */}
         {studentDeleteTarget ? (
@@ -6952,54 +7715,54 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         ) : null}
 
         {/* ── LOGOUT CONFIRM ── */}
-       {isLogoutConfirmOpen ? (
-  <div
-    className="branch-modal-backdrop"
-    role="presentation"
-  >
-    <div
-      className="branch-success-modal super-admin-logout-modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="logout-confirm-title"
-      onClick={(event) => event.stopPropagation()}
-    >
-      {/* Close Button */}
-      <button
-        type="button"
-        className="branch-modal-close"
-        aria-label="Close logout confirmation"
-        onClick={closeLogoutConfirm}
-      >
-        <X size={22} strokeWidth={2} />
-      </button>
+        {isLogoutConfirmOpen ? (
+          <div
+            className="branch-modal-backdrop"
+            role="presentation"
+          >
+            <div
+              className="branch-success-modal super-admin-logout-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="logout-confirm-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close logout confirmation"
+                onClick={closeLogoutConfirm}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
 
-      {/* Logout Message */}
-      <h2 id="logout-confirm-title">
-        Are you sure you want to logout?
-      </h2>
+              {/* Logout Message */}
+              <h2 id="logout-confirm-title">
+                Are you sure you want to logout?
+              </h2>
 
-      {/* Actions */}
-      <div className="branch-modal-actions">
-        <button
-          type="button"
-          className="branch-modal-cancel"
-          onClick={closeLogoutConfirm}
-        >
-          Cancel
-        </button>
+              {/* Actions */}
+              <div className="branch-modal-actions">
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={closeLogoutConfirm}
+                >
+                  Cancel
+                </button>
 
-        <button
-          type="button"
-          className="branch-modal-submit is-danger"
-          onClick={handleConfirmLogout}
-        >
-          Logout
-        </button>
-      </div>
-    </div>
-  </div>
-) : null}
+                <button
+                  type="button"
+                  className="branch-modal-submit is-danger"
+                  onClick={handleConfirmLogout}
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
 
         {/* ── STUDENT SUCCESS POPUP ── */}
