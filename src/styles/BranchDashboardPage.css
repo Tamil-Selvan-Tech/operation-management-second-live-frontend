@@ -5501,48 +5501,105 @@
 .branch-course-view-tabs {
   position: relative;
   z-index: 4;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  display: flex;
+  align-items: stretch;
+
+  width: 100%;
   gap: 0;
-  padding: 14px 24px 0;
-  background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.94) 100%);
+
+  padding: 0;
+
+  background: #ffffff;
+
+  border-top: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .branch-course-view-tab {
+  position: relative;
+
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
-  padding: 12px 18px;
-  border: 1px solid #dbe4f0;
-  border-bottom-color: #cfd9e7;
-  background: #f8fbff;
-  color: #334155;
+
+  min-height: 58px;
+  padding: 12px 28px;
+
+  border: 0;
+  border-radius: 0;
+
+  background: transparent;
+
+  color: #64748b;
   font-size: 0.96rem;
-  font-weight: 800;
+  font-weight: 700;
+
   cursor: pointer;
-  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  white-space: nowrap;
+
+  transition:
+    color 0.18s ease,
+    background-color 0.18s ease;
 }
 
-.branch-course-view-tab:first-child {
-  border-radius: 16px 0 0 16px;
-}
-
+.branch-course-view-tab:first-child,
 .branch-course-view-tab:last-child {
-  border-radius: 0 16px 16px 0;
+  border-radius: 0;
 }
 
 .branch-course-view-tab + .branch-course-view-tab {
-  margin-left: -1px;
+  margin-left: 0;
 }
 
-.branch-course-view-tab.is-active {
-  position: relative;
-  z-index: 1;
+/* Hover */
+.branch-course-view-tab:hover {
+  color: #2563eb;
   background: #ffffff;
-  color: #1d4ed8;
-  border-color: #a7c4ff;
-  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
+}
+
+/* Active */
+.branch-course-view-tab.is-active {
+  z-index: 1;
+
+  color: #2563eb;
+  background: #ffffff;
+
+  border: 0;
+  box-shadow: none;
+}
+@media (max-width: 640px) {
+  .branch-course-view-tabs {
+    padding: 0;
+    overflow-x: auto;
+  }
+
+  .branch-course-view-tab {
+    min-height: 52px;
+    padding: 10px 16px;
+    font-size: 0.88rem;
+  }
+
+  .branch-course-view-tab.is-active::after {
+    left: 8px;
+    right: 8px;
+  }
+}
+/* Blue underline */
+.branch-course-view-tab.is-active::after {
+  content: "";
+
+  position: absolute;
+
+  left: 12px;
+  right: 12px;
+  bottom: -1px;
+
+  height: 3px;
+
+  background: #2563eb;
+
+  border-radius: 3px 3px 0 0;
 }
 
 .branch-course-view-content {
