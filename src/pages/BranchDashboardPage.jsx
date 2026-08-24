@@ -3210,10 +3210,7 @@ const selectedStudentCoursePaymentPlans = useMemo(
   [selectedStudentCourse],
 )
 
-const selectedStudentCoursePaymentPlan = useMemo(
-  () => selectedStudentCoursePaymentPlans[0] || null,
-  [selectedStudentCoursePaymentPlans],
-)
+
   const handleStudentCourseChange = (courseId) => {
     const nextCourseId = String(courseId || '').trim()
 
@@ -3232,10 +3229,9 @@ const selectedStudentCoursePaymentPlan = useMemo(
     const nextCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === nextCourseId) || null
     const nextFacultyOptions = Array.isArray(nextCourse?.assignedFaculty) ? nextCourse.assignedFaculty : []
 
-    const nextPaymentPlan =
-  Array.isArray(nextCourse?.paymentPlans)
-    ? nextCourse.paymentPlans[0]
-    : null
+    const nextPaymentPlans = Array.isArray(nextCourse?.paymentPlans)
+  ? nextCourse.paymentPlans
+  : []
 
     setStudentForm((current) => {
       const currentFacultyId = String(current.facultyId || '').trim().toLowerCase()
@@ -3252,7 +3248,9 @@ const selectedStudentCoursePaymentPlan = useMemo(
         courseAmount: nextCourse?.amount || '',
         facultyId: matchedFaculty?.id || '',
         facultyName: matchedFaculty?.name || '',
-        paymentPlan: nextPaymentPlan?.templateName || '',
+        paymentPlans: nextPaymentPlans,
+paymentPlan: '',
+paymentPlanId: '',
       }
     })
   }
@@ -7556,17 +7554,44 @@ const selectedStudentCoursePaymentPlan = useMemo(
           />
         </Field>
 
-       <Field label="Payment Plan">
-  <input
-    type="text"
-    value={studentForm.paymentPlan || ''}
-    readOnly
-    placeholder={
-      studentForm.courseId
-        ? 'Payment plan configured for selected course'
-        : 'Select course first'
+   <Field label="Payment Plan" required>
+  <select
+    value={studentForm.paymentPlanId || ''}
+    onChange={(e) => {
+      const planId = e.target.value
+
+      const selectedPlan =
+        selectedStudentCoursePaymentPlans.find(
+          (plan) => String(plan.id) === String(planId)
+        ) || null
+
+      setStudentForm((current) => ({
+        ...current,
+        paymentPlanId: planId,
+        paymentPlan: selectedPlan?.templateName || '',
+      }))
+    }}
+    disabled={
+      studentFormMode === 'view' ||
+      !studentForm.courseId ||
+      !selectedStudentCoursePaymentPlans.length
     }
-  />
+  >
+    <option value="">Select Payment Plan</option>
+
+    {selectedStudentCoursePaymentPlans.map((plan) => (
+      <option key={plan.id} value={plan.id}>
+        {plan.templateName}
+      </option>
+    ))}
+
+    {studentForm.courseId &&
+      !selectedStudentCoursePaymentPlans.length && (
+        <option value="" disabled>
+          No payment plans configured for this course
+        </option>
+      )}
+  </select>
 </Field>
 
       </div>
