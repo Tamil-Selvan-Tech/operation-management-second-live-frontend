@@ -12,6 +12,23 @@ import { buildFacultySessionFromCredentials } from '../lib/facultyAuth'
 import { clearCourseListCache } from './courseService'
 import { clearBranchCourseListCache } from './branchCourseService'
 
+// Remove all installment-template keys that were written by the old
+// localStorage-based implementation so stale data never resurfaces.
+function purgeInstallmentTemplateLocalCache() {
+  if (typeof window === 'undefined') return
+  try {
+    const PREFIX = 'cispro:branch-installment-templates:local'
+    const keysToRemove = []
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i)
+      if (key && key.startsWith(PREFIX)) keysToRemove.push(key)
+    }
+    keysToRemove.forEach((key) => window.localStorage.removeItem(key))
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
 const fixedAccounts = [
   {
     email: 'business.owner@cispro.com',
@@ -225,6 +242,7 @@ export async function signInWithFallback(credentials) {
   setAuthTokens(session.token, session.refreshToken)
   clearCourseListCache()
   clearBranchCourseListCache()
+  purgeInstallmentTemplateLocalCache()
   return {
     session,
     redirectTo: dashboardPathByRole[session.user.role] || '/dashboard',
@@ -244,5 +262,6 @@ export async function refreshAuthSession() {
 export async function signOutSession() {
   clearCourseListCache()
   clearBranchCourseListCache()
+  purgeInstallmentTemplateLocalCache()
   return logoutSession()
 }
