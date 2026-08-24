@@ -786,17 +786,24 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border: 0;
-  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   background: #f8fafc;
   color: #64748b;
   cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .branch-course-actions-button:hover,
 .branch-course-actions-button:focus-visible {
   background: #eef4ff;
+  border-color: #bfdbfe;
   color: #1d4ed8;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
   outline: none;
 }
 

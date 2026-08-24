@@ -1,15 +1,11 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import {
-  BadgeInfo,
   CalendarDays,
   CirclePlus,
-  IndianRupee,
   Pencil,
-  RefreshCcw,
   Search,
-  Shield,
+  Filter,
   Trash2,
-  Wallet,
   X,
 } from 'lucide-react'
 
@@ -52,13 +48,6 @@ function createEmptyTemplateForm() {
   }
 }
 
-function sumAmounts(amounts = []) {
-  return (Array.isArray(amounts) ? amounts : [])
-    .map((value) => Number(String(value || '').trim()))
-    .filter((value) => Number.isFinite(value))
-    .reduce((total, value) => total + value, 0)
-}
-
 function createValidationErrors(form) {
   const errors = {}
   const installmentCount = Number(form.installmentCount || 0)
@@ -80,6 +69,7 @@ function createValidationErrors(form) {
 }
 
 export function BranchInstallmentTemplatesPage() {
+  const pageSize = 5
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -88,40 +78,47 @@ export function BranchInstallmentTemplatesPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
   const [editingTemplateId, setEditingTemplateId] = useState('')
   const [form, setForm] = useState(() => createEmptyTemplateForm())
   const [touched, setTouched] = useState({})
   const [deleteTarget, setDeleteTarget] = useState(null)
-const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
   const validation = useMemo(() => createValidationErrors(form), [form])
-
-  const loadTemplates = async (nextPage = page) => {
+  const [openActionMenuId, setOpenActionMenuId] = useState(null)
+  const [actionMenuPinned, setActionMenuPinned] = useState(false)
+  const loadTemplates = useMemo(() => async (nextPage = 1) => {
     setLoading(true)
     setError('')
     try {
       const result = await listBranchInstallmentTemplates({
         page: nextPage,
-        limit: 6,
+        limit: pageSize,
         search: searchTerm,
         status: statusFilter,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       })
+      const nextTotalPages = Math.max(1, Number(result.meta?.totalPages || 1))
+      const nextTotalCount = Number(result.meta?.total || result.meta?.totalCount || result.meta?.count || (result.data || []).length || 0)
       setTemplates(result.data || [])
-      setTotalPages(Math.max(1, Number(result.meta?.totalPages || 1)))
-      setPage(Math.min(nextPage, Math.max(1, Number(result.meta?.totalPages || 1))))
+      setTotalPages(nextTotalPages)
+      setTotalCount(nextTotalCount)
+      setPage(Math.min(nextPage, nextTotalPages))
     } catch (err) {
       setTemplates([])
+      setTotalPages(1)
+      setTotalCount(0)
       setError(err?.message || 'Unable to load installment templates.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchTerm, statusFilter])
 
   useEffect(() => {
-    void loadTemplates(1)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadTemplates(page)
+  }, [searchTerm, statusFilter, page, loadTemplates])
 
   const markTouched = (key) => {
     setTouched((current) => ({
@@ -234,41 +231,69 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
       setSaving(false)
     }
   }
+  
+useEffect(() => {
+  const handleOutsideClick = (event) => {
+    if (!event.target.closest('.installment-action-menu')) {
+      setOpenActionMenuId(null)
+      setActionMenuPinned(false)
+    }
+  }
+
+  document.addEventListener('mousedown', handleOutsideClick)
+
+  return () => {
+    document.removeEventListener('mousedown', handleOutsideClick)
+  }
+}, [])
 
   const shouldShowError = (field) => Boolean(touched[field] && validation.errors[field])
-  const templateModeLabel = Number(form.installmentCount || 0) <= 1 ? 'Full Payment' : 'Customize'
+  const safeCurrentPage = Math.min(Math.max(1, Number(page) || 1), totalPages)
+  const startItem = totalCount > 0 ? ((safeCurrentPage - 1) * pageSize) + 1 : 0
+  const endItem = totalCount > 0 ? Math.min(startItem + templates.length - 1, totalCount) : 0
+  const displayRows = useMemo(() => {
+    const accentPalette = [
+      { background: '#dbeafe', color: '#2563eb' },
+      { background: '#dcfce7', color: '#16a34a' },
+      { background: '#ede9fe', color: '#7c3aed' },
+      { background: '#fef3c7', color: '#f59e0b' },
+      { background: '#fee2e2', color: '#ef4444' },
+    ]
+
+    return templates.map((template, index) => {
+      const installmentCount = Math.max(1, Number(template.installmentCount) || 1)
+      const isCustom = String(template.planType || '').toUpperCase() === 'CUSTOM' || installmentCount > 1
+
+      return {
+        ...template,
+        accent: accentPalette[index % accentPalette.length],
+        dueRuleLabel: template.dueRule ? `${template.dueRule}` : 'Admission',
+        installmentLabel: isCustom ? `${installmentCount} Installments` : 'Custom',
+      }
+    })
+  }, [templates])
 
   return (
     <section className="installment-page">
       <div className="installment-page-hero">
-        <div>
-          <p className="installment-kicker">Installment Template</p>
-          <h2>Create reusable payment plans</h2>
-          {/* <p>
-            Build standalone installment templates here. Later you can pick them for courses or student fee plans.
-          </p> */}
+        <div className="installment-hero-copy">
+          <p className="installment-kicker">INSTALLMENT TEMPLATES</p>
+          <h2>Payment plans made simple</h2>
+          <p className="installment-hero-description">
+            Create and manage reusable payment schedules for your courses.
+          </p>
         </div>
-        {/* <div className="installment-page-stats">
-          <article>
-            <span>Total Rows</span>
-            <strong>{templates.length}</strong>
-          </article>
-          <article>
-            <span>Active</span>
-            <strong>{templates.filter((item) => item.status === 'ACTIVE').length}</strong>
-          </article>
-        </div> */}
-        <div>
+        <div className="installment-hero-actions">
           <button
             type="button"
-            className="installment-reset-button"
+            className="installment-create-button"
             onClick={() => {
-  resetForm()
-  setIsCreateOpen(true)
-}}
+              resetForm()
+              setIsCreateOpen(true)
+            }}
           >
-            <CirclePlus size={14} strokeWidth={2.2} />
-            {isCreateOpen ? 'Hide Form' : 'Create Template'}
+            <CirclePlus size={16} strokeWidth={2.2} />
+            Create Template
           </button>
         </div>
 
@@ -469,84 +494,213 @@ const [isCreateOpen, setIsCreateOpen] = useState(false)
     </div>
   </div>
 ) : null}
-
-  {/* Saved Templates */}
-  <div className="installment-template-table">
-  <div className="installment-template-table-head">
-    <span>Template</span>
-    <span>Installments</span>
-    <span>Due Rule</span>
-    <span>Status</span>
-    <span>Actions</span>
-  </div>
-
-  {templates.map((template) => (
+{deleteTarget ? (
+  <div className="installment-modal-backdrop">
     <div
-      key={template.id}
-      className="installment-template-table-row"
+      className="installment-delete-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-template-title"
     >
-      {/* Template */}
-      <div className="installment-template-name">
-        <strong>{template.templateName}</strong>
+      <div className="installment-delete-modal-icon">
+        <Trash2 size={28} strokeWidth={2.2} />
       </div>
 
-      {/* Installments */}
-      <div className="installment-template-value">
-        {template.installmentCount}
-      </div>
+      <h3 id="delete-template-title">
+        Delete Installment Template?
+      </h3>
 
-      {/* Due Rule */}
-      <div className="installment-template-value">
-        {template.dueRule || 'Admission'}
-      </div>
+      <p>
+        Are you sure you want to delete{' '}
+        <strong>{deleteTarget.templateName}</strong>?
+        This action cannot be undone.
+      </p>
 
-      {/* Status */}
-      <div>
-        <span
-          className={`installment-status ${
-            String(template.status || 'ACTIVE').toLowerCase()
-          }`}
+      <div className="installment-delete-actions">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={() => setDeleteTarget(null)}
+          disabled={saving}
         >
-          <span className="installment-status-dot" />
-          {template.status === 'ACTIVE' ? 'Active' : 'Inactive'}
-        </span>
-      </div>
+          Cancel
+        </Button>
 
-      {/* Actions */}
-      <div className="installment-template-actions">
-        <details className="installment-action-menu">
-          <summary
-            aria-label={`Actions for ${template.templateName}`}
-          >
-            <span />
-            <span />
-            <span />
-          </summary>
-
-          <div className="installment-action-dropdown">
-            <button
-              type="button"
-              onClick={() => startEdit(template)}
-            >
-              <Pencil size={14} strokeWidth={2.2} />
-              Edit
-            </button>
-
-            <button
-              type="button"
-              className="is-danger"
-              onClick={() => confirmDelete(template)}
-            >
-              <Trash2 size={14} strokeWidth={2.2} />
-              Delete
-            </button>
-          </div>
-        </details>
+        <Button
+          type="button"
+          onClick={handleDelete}
+          disabled={saving}
+        >
+          {saving ? 'Deleting...' : 'OK'}
+        </Button>
       </div>
     </div>
-  ))}
-</div>
-</div>
+  </div>
+) : null}
+
+  <div className="installment-table-card">
+    <div className="installment-table-toolbar">
+      <label className="installment-search">
+        <Search size={18} strokeWidth={2.2} />
+        <input
+          type="search"
+          placeholder="Search templates..."
+          value={searchTerm}
+          onChange={(event) => {
+            setSearchTerm(event.target.value)
+            setPage(1)
+          }}
+        />
+      </label>
+
+      <label className="installment-filter-select">
+        <Filter size={16} strokeWidth={2.2} />
+        <select
+          value={statusFilter}
+          onChange={(event) => {
+            setStatusFilter(event.target.value)
+            setPage(1)
+          }}
+        >
+          <option value="">All Status</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
+      </label>
+    </div>
+
+    <div className="installment-table-shell">
+      <div className="installment-template-table-head">
+        <span>Template Name</span>
+        <span>Due Rule</span>
+        <span>Installments</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+
+      {loading ? (
+        <div className="installment-table-state">Loading templates...</div>
+      ) : displayRows.length ? (
+        displayRows.map((template) => (
+          <div
+            key={template.id}
+            className="installment-template-table-row"
+          >
+            <div className="installment-template-name">
+              <span
+                className="installment-template-icon"
+                style={{
+                  background: template.accent.background,
+                  color: template.accent.color,
+                }}
+              >
+                <CalendarDays size={16} strokeWidth={2.1} />
+              </span>
+              <div className="installment-template-name-copy">
+                <strong>{template.templateName}</strong>
+              </div>
+            </div>
+
+            <div className="installment-template-value">
+              {template.dueRuleLabel}
+            </div>
+
+            <div className="installment-template-value">
+              {template.installmentLabel}
+            </div>
+
+            <div>
+              <span
+                className={`installment-status ${String(template.status || 'ACTIVE').toLowerCase()}`}
+              >
+                <span className="installment-status-dot" />
+                {template.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+
+            <div className="installment-template-actions">
+              <details
+                className="installment-action-menu"
+                open={openActionMenuId === template.id}
+                onMouseEnter={() => {
+                  if (!actionMenuPinned) {
+                    setOpenActionMenuId(template.id)
+                  }
+                }}
+                onMouseLeave={() => {
+                  if (!actionMenuPinned) {
+                    setOpenActionMenuId(null)
+                  }
+                }}
+              >
+                <summary
+                  aria-label={`Actions for ${template.templateName}`}
+                  onClick={(event) => {
+                    event.preventDefault()
+                    setOpenActionMenuId(template.id)
+                    setActionMenuPinned(true)
+                  }}
+                >
+                  <span />
+                  <span />
+                  <span />
+                </summary>
+
+                <div className="installment-action-dropdown">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpenActionMenuId(null)
+                      setActionMenuPinned(false)
+                      startEdit(template)
+                    }}
+                  >
+                    <Pencil size={14} strokeWidth={2.2} />
+                    Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    className="is-danger"
+                    onClick={() => {
+                      setOpenActionMenuId(null)
+                      setActionMenuPinned(false)
+                      confirmDelete(template)
+                    }}
+                  >
+                    <Trash2 size={14} strokeWidth={2.2} />
+                    Delete
+                  </button>
+                </div>
+              </details>
+            </div>
+          </div>
+        ))
+      ) : (
+        <div className="installment-table-state is-empty">
+          No installment templates found.
+        </div>
+      )}
+    </div>
+
+    <div className="installment-table-footer">
+      <div className="installment-table-summary">
+        {totalCount > 0
+          ? `Showing ${startItem} to ${endItem} of ${totalCount}`
+          : 'Showing 0 '}
+      </div>
+
+      <PaginationBar
+        currentPage={safeCurrentPage}
+        totalPages={totalPages}
+        onPageChange={(nextPage) => setPage(nextPage)}
+        className="installment-pagination"
+        label="Installment templates pagination"
+        showSummary={false}
+      />
+    </div>
+  </div>
+  </div>
     </section>
   )
 }
