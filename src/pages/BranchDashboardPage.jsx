@@ -3209,7 +3209,51 @@ const selectedStudentCoursePaymentPlans = useMemo(
       : [],
   [selectedStudentCourse],
 )
+const selectedStudentPaymentPlan = useMemo(
+  () =>
+    selectedStudentCoursePaymentPlans.find(
+      (plan) =>
+        String(plan.id || '').trim() ===
+        String(studentForm.paymentPlanId || '').trim()
+    ) || null,
+  [selectedStudentCoursePaymentPlans, studentForm.paymentPlanId]
+)
 
+const studentInstallmentCount = useMemo(() => {
+  if (!selectedStudentPaymentPlan) return 0
+
+  const count = Number(
+    selectedStudentPaymentPlan.installmentCount ||
+    selectedStudentPaymentPlan.installments?.length ||
+    0
+  )
+
+  return Number.isFinite(count) && count > 0 ? count : 0
+}, [selectedStudentPaymentPlan])
+
+const studentInstallmentAmounts = useMemo(() => {
+  const total = Number(
+    String(selectedStudentCourseAmount || '').replace(/,/g, '')
+  )
+
+  if (!total || !studentInstallmentCount) return []
+
+  const baseAmount = Math.floor((total / studentInstallmentCount) * 100) / 100
+  const amounts = Array(studentInstallmentCount).fill(baseAmount)
+
+  const currentTotal = amounts.reduce((sum, amount) => sum + amount, 0)
+  const difference = Number((total - currentTotal).toFixed(2))
+
+  // Any decimal/remainder goes to the last installment
+  amounts[amounts.length - 1] = Number(
+    (amounts[amounts.length - 1] + difference).toFixed(2)
+  )
+
+  return amounts
+}, [
+  selectedStudentCourseAmount,
+  studentInstallmentCount
+])
 
   const handleStudentCourseChange = (courseId) => {
     const nextCourseId = String(courseId || '').trim()
@@ -7596,7 +7640,68 @@ paymentPlanId: '',
 
       </div>
 
-      
+      {studentInstallmentAmounts.length > 0 && (
+  <div className="student-payment-installment-section">
+    <div className="student-payment-installment-header">
+      <div>
+        <h4>Payment Schedule</h4>
+        <span>
+          {selectedStudentPaymentPlan?.templateName || 'Selected Payment Plan'}
+        </span>
+      </div>
+
+      <div className="student-payment-installment-total">
+        <span>Total Course Amount</span>
+        <strong>
+          ₹{Number(
+            String(selectedStudentCourseAmount || '').replace(/,/g, '')
+          ).toLocaleString('en-IN')}
+        </strong>
+      </div>
+    </div>
+
+    <div className="student-payment-installment-table-wrapper">
+      <table className="student-payment-installment-table">
+        <thead>
+          <tr>
+            <th>Installment</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {studentInstallmentAmounts.map((amount, index) => (
+            <tr key={`student-installment-${index}`}>
+              <td>Installment {index + 1}</td>
+              <td>
+                ₹{amount.toLocaleString('en-IN', {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </td>
+            </tr>
+          ))}
+
+          <tr className="student-payment-installment-total-row">
+            <td>
+              <strong>Total</strong>
+            </td>
+            <td>
+              <strong>
+                ₹{studentInstallmentAmounts
+                  .reduce((sum, amount) => sum + amount, 0)
+                  .toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+              </strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
 
     </div>
   )}
