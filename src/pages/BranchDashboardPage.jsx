@@ -1147,6 +1147,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [viewCourse, setViewCourse] = useState(null)
   const [viewCourseTab, setViewCourseTab] = useState('basic')
   const [expandedViewCourseModuleIds, setExpandedViewCourseModuleIds] = useState([])
+  const [viewCoursePaymentPlanOpenId, setViewCoursePaymentPlanOpenId] = useState('')
   const [courseDraftKey, setCourseDraftKey] = useState('')
   const [courseEditorStage, setCourseEditorStage] = useState('module')
   const [isSubmoduleDraftOpen, setIsSubmoduleDraftOpen] = useState(false)
@@ -2642,6 +2643,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setViewCourse(normalizeBranchCourseRecord(course))
     setViewCourseTab('basic')
     setExpandedViewCourseModuleIds([])
+    setViewCoursePaymentPlanOpenId('')
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
   }
@@ -2650,6 +2652,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setViewCourse(null)
     setViewCourseTab('basic')
     setExpandedViewCourseModuleIds([])
+    setViewCoursePaymentPlanOpenId('')
   }
   const openEditCourseModal = (course) => {
     const nextEditingCourseId = String(course?.id || '').trim()
@@ -2765,6 +2768,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   )
   const viewCourseModels = useMemo(
     () => buildBranchCourseHierarchySummary(viewCourse?.models || viewCourse?.courseModels || viewCourse?.modules || []),
+    [viewCourse],
+  )
+  const viewCoursePaymentPlans = useMemo(
+    () => buildBranchCoursePaymentPlanSelectionsFromRecord(viewCourse || {}),
+    [viewCourse],
+  )
+  const viewCourseFinalFeeValue = useMemo(
+    () => getBranchCourseFinalFeeValue(viewCourse || {}),
     [viewCourse],
   )
 
@@ -5454,6 +5465,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   >
                     Modules &amp; Submodules
                   </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={viewCourseTab === 'paymentPlans'}
+                    className={`branch-course-view-tab ${viewCourseTab === 'paymentPlans' ? 'is-active' : ''}`}
+                    onClick={() => setViewCourseTab('paymentPlans')}
+                  >
+                    Payment Plan
+                  </button>
                 </div>
 
                 <div className="branch-course-view-content">
@@ -5610,6 +5630,97 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                         </div>
                       </div>
                     </div>
+                  ) : viewCourseTab === 'paymentPlans' ? (
+                    <section className="branch-course-view-payment-plan-section" aria-label="Payment plans">
+                      <div className="branch-course-view-payment-plan-summary">
+                        <span>Final Fee</span>
+                        <strong>{formatBranchCourseAmount(viewCourseFinalFeeValue)}</strong>
+                      </div>
+
+                      {viewCoursePaymentPlans.length ? (
+                        <div className="course-payment-plan-saved-list branch-course-view-payment-plan-list">
+                          {viewCoursePaymentPlans.map((plan, planIndex) => {
+                            const planId = String(plan.id || `${plan.type}-${planIndex}`).trim()
+                            const isOpen = viewCoursePaymentPlanOpenId === planId
+                            const rawInstallmentCount = String(plan.installmentCount || '').trim()
+                            const installmentCount = Number(rawInstallmentCount || plan.installments?.length || 0) || 0
+                            const installments = Array.isArray(plan.installments) && plan.installments.length
+                              ? plan.installments
+                              : installmentCount > 0
+                                ? buildBranchCoursePaymentPlanInstallments(viewCourseFinalFeeValue, installmentCount)
+                                : []
+
+                            return (
+                              <article key={planId} className={`course-payment-plan-saved-card ${isOpen ? 'is-open' : ''}`.trim()}>
+                                <button
+                                  type="button"
+                                  className="course-payment-plan-saved-card-trigger"
+                                  onClick={() => {
+                                    setViewCoursePaymentPlanOpenId((current) => (current === planId ? '' : planId))
+                                  }}
+                                >
+                                  <span className="course-payment-plan-saved-card-copy">
+                                    <strong>{plan.templateName || 'Payment Plan'}</strong>
+                                    <small>{plan.type === 'custom' ? 'Manual installment count' : 'Installment plan'}</small>
+                                  </span>
+                                  <span className="course-payment-plan-saved-card-arrow" aria-hidden="true">
+                                    <ChevronRight size={18} strokeWidth={2.2} />
+                                  </span>
+                                </button>
+
+                                {isOpen ? (
+                                  <div className="course-payment-plan-saved-card-body">
+                                    <div className="course-payment-plan-meta">
+                                      <span>{plan.dueRule || 'Admission'}</span>
+                                      <small>{plan.type === 'custom' ? 'Custom' : 'Template'}</small>
+                                    </div>
+
+                                    <div className="course-payment-plan-count-inline">
+                                      {rawInstallmentCount
+                                        ? `${rawInstallmentCount} ${Number(rawInstallmentCount) === 1 ? 'Installment' : 'Installments'}`
+                                        : 'Set count'}
+                                    </div>
+
+                                    {installments.length ? (
+                                      <div className="course-payment-plan-table-shell">
+                                        <table className="course-payment-plan-table">
+                                          <thead>
+                                            <tr>
+                                              <th>Installment</th>
+                                              <th>Amount</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {installments.map((amount, installmentIndex) => (
+                                              <tr key={`${planId}-${installmentIndex}`}>
+                                                <td>Installment {installmentIndex + 1}</td>
+                                                <td>{formatBranchCourseAmount(amount)}</td>
+                                              </tr>
+                                            ))}
+                                            <tr className="course-payment-plan-total-row">
+                                              <td><strong>Total</strong></td>
+                                              <td><strong>{formatBranchCourseAmount(String(getBranchInstallmentAmountTotal(installments)))}</strong></td>
+                                            </tr>
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    ) : (
+                                      <div className="course-payment-plan-checklist-empty">
+                                        No installment data available for this plan.
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </article>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="course-added-modules-empty">
+                          <p>No payment plans were saved for this course.</p>
+                        </div>
+                      )}
+                    </section>
                   ) : (
                     <section className="branch-course-view-hierarchy" aria-label="Modules and submodules">
                       <div className="branch-course-view-hierarchy-header">

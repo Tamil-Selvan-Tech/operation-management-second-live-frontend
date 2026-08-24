@@ -3827,6 +3827,7 @@
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
+  line-height: 1.2;
 }
 
 .course-payment-plan-saved-card-arrow {
@@ -5501,7 +5502,7 @@
   position: relative;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0;
   padding: 14px 24px 0;
   background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.94) 100%);
@@ -5554,6 +5555,42 @@
   display: grid;
   gap: 16px;
   padding: 18px 24px 24px;
+}
+
+.branch-course-view-payment-plan-section {
+  display: grid;
+  gap: 14px;
+}
+
+.branch-course-view-payment-plan-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.branch-course-view-payment-plan-summary span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.branch-course-view-payment-plan-summary strong {
+  color: #1d4ed8;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.branch-course-view-payment-plan-list {
+  gap: 12px;
 }
 
 .branch-course-view-table {

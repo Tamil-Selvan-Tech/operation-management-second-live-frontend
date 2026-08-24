@@ -3,6 +3,7 @@ import { request } from './apiClient'
 const TEMPLATE_PAGE_LIMIT = 6
 const TEMPLATE_SNAPSHOT_EVENT = 'cispro:branch-installment-templates-changed'
 const TEMPLATE_SNAPSHOT_CHANNEL = 'cispro:branch-installment-templates'
+const TEMPLATE_LOCAL_STORAGE_KEY = 'cispro:branch-installment-templates:local'
 
 function unwrapData(response) {
   if (!response) return null
@@ -67,6 +68,52 @@ function normalizeInstallments(values) {
   return values.map((value) => Number(String(value ?? '').trim())).filter((value) => Number.isFinite(value))
 }
 
+function readLocalTemplates() {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const raw = window.localStorage.getItem(TEMPLATE_LOCAL_STORAGE_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? normalizeBranchInstallmentTemplateList(parsed) : []
+  } catch {
+    return []
+  }
+}
+
+function writeLocalTemplates(templates) {
+  if (typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(TEMPLATE_LOCAL_STORAGE_KEY, JSON.stringify(Array.isArray(templates) ? templates : []))
+  } catch {
+    // Ignore local storage write failures.
+  }
+}
+
+function upsertLocalTemplate(template) {
+  const normalized = normalizeBranchInstallmentTemplate(template)
+  if (!normalized) return null
+
+  const current = readLocalTemplates()
+  const templateId = String(normalized.id || '').trim()
+  const nextTemplates = templateId
+    ? current.some((item) => String(item.id || '').trim() === templateId)
+      ? current.map((item) => (String(item.id || '').trim() === templateId ? normalized : item))
+      : [normalized, ...current]
+    : [normalized, ...current]
+
+  writeLocalTemplates(nextTemplates)
+  return normalized
+}
+
+function removeLocalTemplate(templateId) {
+  const safeTemplateId = String(templateId || '').trim()
+  if (!safeTemplateId) return
+
+  const nextTemplates = readLocalTemplates().filter((template) => String(template.id || '').trim() !== safeTemplateId)
+  writeLocalTemplates(nextTemplates)
+}
+
 export function normalizeBranchInstallmentTemplate(template) {
   if (!template) return null
 
@@ -129,41 +176,97 @@ function buildSearchParams(query = {}) {
 
 export async function listBranchInstallmentTemplates(query = {}) {
   const params = buildSearchParams(query)
-  const response = await request(`/branch-installment-templates?${params.toString()}`)
+  let remoteTemplates
+  let meta = null
+
+  try {
+    const response = await request(`/branch-installment-templates?${params.toString()}`)
+    remoteTemplates = normalizeBranchInstallmentTemplateList(unwrapData(response))
+    meta = response?.meta ?? response?.data?.meta ?? null
+  } catch {
+    remoteTemplates = []
+  }
+
+  const localTemplates = readLocalTemplates()
+  const mergedById = new Map()
+  ;[...remoteTemplates, ...localTemplates].forEach((template) => {
+    const templateId = String(template?.id || '').trim()
+    if (templateId) {
+      mergedById.set(templateId, template)
+    }
+  })
+
   return {
-    data: normalizeBranchInstallmentTemplateList(unwrapData(response)),
-    meta: response?.meta ?? response?.data?.meta ?? null,
+    data: Array.from(mergedById.values()),
+    meta,
   }
 }
 
 export async function createBranchInstallmentTemplate(payload) {
-  const response = await request('/branch-installment-templates', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  try {
+    const response = await request('/branch-installment-templates', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
 
-  const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
-  emitBranchInstallmentTemplateChange()
-  return normalized
+    const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
+    if (normalized) {
+      upsertLocalTemplate(normalized)
+    }
+    emitBranchInstallmentTemplateChange()
+    return normalized
+  } catch {
+    const normalized = normalizeBranchInstallmentTemplate({
+      ...payload,
+      id: payload?.id || `local-template-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    })
+    if (normalized) {
+      upsertLocalTemplate(normalized)
+    }
+    emitBranchInstallmentTemplateChange()
+    return normalized
+  }
 }
 
 export async function updateBranchInstallmentTemplate(templateId, payload) {
-  const response = await request(`/branch-installment-templates/${templateId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload),
-  })
+  try {
+    const response = await request(`/branch-installment-templates/${templateId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
 
-  const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
-  emitBranchInstallmentTemplateChange()
-  return normalized
+    const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
+    if (normalized) {
+      upsertLocalTemplate(normalized)
+    }
+    emitBranchInstallmentTemplateChange()
+    return normalized
+  } catch {
+    const normalized = normalizeBranchInstallmentTemplate({
+      ...payload,
+      id: templateId,
+    })
+    if (normalized) {
+      upsertLocalTemplate(normalized)
+    }
+    emitBranchInstallmentTemplateChange()
+    return normalized
+  }
 }
 
 export async function deleteBranchInstallmentTemplate(templateId) {
-  const response = await request(`/branch-installment-templates/${templateId}`, {
-    method: 'DELETE',
-  })
+  try {
+    const response = await request(`/branch-installment-templates/${templateId}`, {
+      method: 'DELETE',
+    })
 
-  const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
-  emitBranchInstallmentTemplateChange()
-  return normalized
+    const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
+    removeLocalTemplate(templateId)
+    emitBranchInstallmentTemplateChange()
+    return normalized
+  } catch {
+    removeLocalTemplate(templateId)
+    emitBranchInstallmentTemplateChange()
+    return null
+  }
 }
