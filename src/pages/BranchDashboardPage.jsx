@@ -6771,448 +6771,745 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                 </div>
               ) : null}
 
-              <div className="student-step-panel">
-                {studentFormStep === 1 ? (
-                  <div className="student-step-section">
-                    <div className="course-form-grid student-form-grid-tight">
-                      <Field
-                        label="Student ID"
-                        required
-                        error={shouldShowStudentError('studentIdSuffix') ? studentFormValidationErrors.studentIdSuffix : ''}
-                      >
-                        <div className="student-id-input-group">
-                          <span className="student-id-prefix" aria-hidden="true">
-                            {STUDENT_ID_PREFIX}
-                          </span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            placeholder="001"
-                            value={studentForm.studentIdSuffix || ''}
-                            onChange={(e) => updateStudentField('studentIdSuffix', e.target.value)}
-                            onBlur={() => setStudentFormTouched((c) => ({ ...c, studentIdSuffix: true }))}
-                            disabled={studentFormMode === 'view'}
-                          />
-                        </div>
-                      </Field>
+             <div className="student-step-panel">
 
-                      <Field label="Student Name" required error={shouldShowStudentError('studentName') ? studentFormValidationErrors.studentName : ''}>
-                        <input
-                          type="text"
-                          placeholder="Enter student name"
-                          value={studentForm.studentName}
-                          onChange={(e) => updateStudentField('studentName', e.target.value.replace(/[^A-Za-z ]/g, ''))}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, studentName: true }))}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
+  {/* =====================================================
+      STEP 1 — PERSONAL & EDUCATION
+  ====================================================== */}
+  {studentFormStep === 1 && (
+    <div className="student-step-section">
+      <div className="course-form-grid student-form-grid-tight">
 
-                      <Field label="Email Address" required error={shouldShowStudentError('emailAddress') ? studentFormValidationErrors.emailAddress : ''}>
-                        <input
-                          type="email"
-                          placeholder="Enter email address"
-                          value={studentForm.emailAddress}
-                          onChange={(e) => updateStudentField('emailAddress', e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, emailAddress: true }))}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
+        <Field
+          label="Student ID"
+          required
+          error={
+            shouldShowStudentError('studentIdSuffix')
+              ? studentFormValidationErrors.studentIdSuffix
+              : ''
+          }
+        >
+          <div className="student-id-input-group">
+            <span className="student-id-prefix" aria-hidden="true">
+              {STUDENT_ID_PREFIX}
+            </span>
 
-                      <Field label="Mobile Number" required error={shouldShowStudentError('mobileNumber') ? studentFormValidationErrors.mobileNumber : ''}>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="10 digit mobile number"
-                          value={studentForm.mobileNumber}
-                          onChange={(e) => updateStudentField('mobileNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, mobileNumber: true }))}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="001"
+              value={studentForm.studentIdSuffix || ''}
+              onChange={(e) =>
+                updateStudentField('studentIdSuffix', e.target.value)
+              }
+              onBlur={() =>
+                setStudentFormTouched((c) => ({
+                  ...c,
+                  studentIdSuffix: true,
+                }))
+              }
+              disabled={studentFormMode === 'view'}
+            />
+          </div>
+        </Field>
 
-                      <Field label="Parent / Spouse Number" required error={shouldShowStudentError('parentSpouseNumber') ? studentFormValidationErrors.parentSpouseNumber : ''}>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="10 digit number"
-                          value={studentForm.parentSpouseNumber}
-                          onChange={(e) => updateStudentField('parentSpouseNumber', e.target.value.replace(/\D/g, '').slice(0, 10))}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, parentSpouseNumber: true }))}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
+        <Field
+          label="Student Name"
+          required
+          error={
+            shouldShowStudentError('studentName')
+              ? studentFormValidationErrors.studentName
+              : ''
+          }
+        >
+          <input
+            type="text"
+            placeholder="Enter student name"
+            value={studentForm.studentName}
+            onChange={(e) =>
+              updateStudentField(
+                'studentName',
+                e.target.value.replace(/[^A-Za-z ]/g, '')
+              )
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                studentName: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                      <Field label="Country" required error={shouldShowStudentError('country') ? studentFormValidationErrors.country : ''}>
-                        <select
-                          value={studentForm.countryCode}
-                          onChange={(e) => {
-                            const code = e.target.value
-                            const name = stuCountryOptions.find((c) => c.iso2 === code)?.name || ''
-                            setStudentForm((c) => ({ ...c, countryCode: code, country: name, stateCode: '', state: '', city: '' }))
-                          }}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, country: true }))}
-                          disabled={studentFormMode === 'view'}
-                        >
-                          <option value="" disabled>Select Country</option>
-                          {stuCountryOptions.map((c) => (
-                            <option key={c.iso2} value={c.iso2}>{c.name}</option>
-                          ))}
-                        </select>
-                      </Field>
+        <Field
+          label="Email Address"
+          required
+          error={
+            shouldShowStudentError('emailAddress')
+              ? studentFormValidationErrors.emailAddress
+              : ''
+          }
+        >
+          <input
+            type="email"
+            placeholder="Enter email address"
+            value={studentForm.emailAddress}
+            onChange={(e) =>
+              updateStudentField('emailAddress', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                emailAddress: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                      <Field label="State" required error={shouldShowStudentError('state') ? studentFormValidationErrors.state : ''}>
-                        <select
-                          value={studentForm.stateCode}
-                          onChange={(e) => {
-                            const code = e.target.value
-                            const name = stuStateOptions.find((s) => s.iso2 === code)?.name || ''
-                            setStudentForm((c) => ({ ...c, stateCode: code, state: name, city: '' }))
-                          }}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, state: true }))}
-                          disabled={studentFormMode === 'view' || !studentForm.countryCode}
-                        >
-                          <option value="" disabled>Select State</option>
-                          {stuStateOptions.map((s) => (
-                            <option key={s.iso2} value={s.iso2}>{s.name}</option>
-                          ))}
-                        </select>
-                      </Field>
+        <Field
+          label="Mobile Number"
+          required
+          error={
+            shouldShowStudentError('mobileNumber')
+              ? studentFormValidationErrors.mobileNumber
+              : ''
+          }
+        >
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="10 digit mobile number"
+            value={studentForm.mobileNumber}
+            onChange={(e) =>
+              updateStudentField(
+                'mobileNumber',
+                e.target.value.replace(/\D/g, '').slice(0, 10)
+              )
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                mobileNumber: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                      <Field label="City" required error={shouldShowStudentError('city') ? studentFormValidationErrors.city : ''}>
-                        <select
-                          value={studentForm.city}
-                          onChange={(e) => updateStudentField('city', e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, city: true }))}
-                          disabled={studentFormMode === 'view' || !studentForm.stateCode}
-                        >
-                          <option value="" disabled>Select City</option>
-                          {stuCityOptions.map((c) => (
-                            <option key={c.name} value={c.name}>{c.name}</option>
-                          ))}
-                        </select>
-                      </Field>
+        <Field
+          label="Parent / Spouse Number"
+          required
+          error={
+            shouldShowStudentError('parentSpouseNumber')
+              ? studentFormValidationErrors.parentSpouseNumber
+              : ''
+          }
+        >
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="10 digit number"
+            value={studentForm.parentSpouseNumber}
+            onChange={(e) =>
+              updateStudentField(
+                'parentSpouseNumber',
+                e.target.value.replace(/\D/g, '').slice(0, 10)
+              )
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                parentSpouseNumber: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                      <Field label="Address" required error={shouldShowStudentError('address') ? studentFormValidationErrors.address : ''}>
-                        <input
-                          type="text"
-                          placeholder="Enter full address"
-                          value={studentForm.address}
-                          onChange={(e) => updateStudentField('address', e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, address: true }))}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
+        <Field
+          label="Country"
+          required
+          error={
+            shouldShowStudentError('country')
+              ? studentFormValidationErrors.country
+              : ''
+          }
+        >
+          <select
+            value={studentForm.countryCode}
+            onChange={(e) => {
+              const code = e.target.value;
+              const name =
+                stuCountryOptions.find((c) => c.iso2 === code)?.name || '';
 
-                      <Field label="Qualification" required error={shouldShowStudentError('qualification') ? studentFormValidationErrors.qualification : ''}>
-                        <input
-                          type="text"
-                          placeholder="Enter qualification"
-                          value={studentForm.qualification}
-                          onChange={(e) => updateStudentField('qualification', e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, qualification: true }))}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
+              setStudentForm((c) => ({
+                ...c,
+                countryCode: code,
+                country: name,
+                stateCode: '',
+                state: '',
+                city: '',
+              }));
+            }}
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                country: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="" disabled>
+              Select Country
+            </option>
 
-                      <Field label="Passed Out Year" required error={shouldShowStudentError('passedOutYear') ? studentFormValidationErrors.passedOutYear : ''}>
-                        <select
-                          value={studentForm.passedOutYear}
-                          onChange={(e) => updateStudentField('passedOutYear', e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, passedOutYear: true }))}
-                          disabled={studentFormMode === 'view'}
-                        >
-                          <option value="" disabled>Select Year</option>
-                          {PASSED_OUT_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-                          <option value="Custom">Custom</option>
-                        </select>
-                      </Field>
+            {stuCountryOptions.map((c) => (
+              <option key={c.iso2} value={c.iso2}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-                      {studentForm.passedOutYear === 'Custom' ? (
-                        <Field label="Specify Year" required error={shouldShowStudentError('passedOutYearCustom') ? studentFormValidationErrors.passedOutYearCustom : ''}>
-                          <input
-                            type="text"
-                            placeholder="Enter year"
-                            value={studentForm.passedOutYearCustom}
-                            onChange={(e) => updateStudentField('passedOutYearCustom', e.target.value)}
-                            onBlur={() => setStudentFormTouched((c) => ({ ...c, passedOutYearCustom: true }))}
-                            disabled={studentFormMode === 'view'}
-                          />
-                        </Field>
-                      ) : null}
+        <Field
+          label="State"
+          required
+          error={
+            shouldShowStudentError('state')
+              ? studentFormValidationErrors.state
+              : ''
+          }
+        >
+          <select
+            value={studentForm.stateCode}
+            onChange={(e) => {
+              const code = e.target.value;
+              const name =
+                stuStateOptions.find((s) => s.iso2 === code)?.name || '';
 
-                    </div>
-                  </div>
-                ) : (
-                  <div className="student-step-section">
-                    <div className="course-form-grid student-form-grid-tight">
+              setStudentForm((c) => ({
+                ...c,
+                stateCode: code,
+                state: name,
+                city: '',
+              }));
+            }}
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                state: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              !studentForm.countryCode
+            }
+          >
+            <option value="" disabled>
+              Select State
+            </option>
 
-                      <Field label="LinkedIn URL">
-                        <input
-                          type="text"
-                          inputMode="url"
-                          placeholder="https://www.linkedin.com/in/your-profile"
-                          value={studentForm.linkedInUrl}
-                          onChange={(e) => updateStudentField('linkedInUrl', e.target.value)}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
+            {stuStateOptions.map((s) => (
+              <option key={s.iso2} value={s.iso2}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-                      <Field label="Current Status" required error={shouldShowStudentError('currentStatus') ? studentFormValidationErrors.currentStatus : ''}>
-                        <select
-                          value={studentForm.currentStatus}
-                          onChange={(e) => {
-                            const val = e.target.value
-                            setStudentForm((c) => ({ ...c, currentStatus: val, designation: val !== 'Employee' ? '' : c.designation }))
-                          }}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, currentStatus: true }))}
-                          disabled={studentFormMode === 'view'}
-                        >
-                          <option value="" disabled>Select Status</option>
-                          <option value="Student">Student</option>
-                          <option value="Employee">Employee</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </Field>
+        <Field
+          label="City"
+          required
+          error={
+            shouldShowStudentError('city')
+              ? studentFormValidationErrors.city
+              : ''
+          }
+        >
+          <select
+            value={studentForm.city}
+            onChange={(e) =>
+              updateStudentField('city', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                city: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              !studentForm.stateCode
+            }
+          >
+            <option value="" disabled>
+              Select City
+            </option>
 
-                      <Field
-                        label="Designation"
-                        required={studentForm.currentStatus === 'Employee'}
-                        error={shouldShowStudentError('designation') ? studentFormValidationErrors.designation : ''}
-                      >
-                        <input
-                          type="text"
-                          placeholder={studentForm.currentStatus === 'Employee' ? 'Enter designation' : 'Select Employee first'}
-                          value={studentForm.designation}
-                          onChange={(e) => updateStudentField('designation', e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, designation: true }))}
-                          disabled={studentFormMode === 'view' || studentForm.currentStatus !== 'Employee'}
-                        />
-                      </Field>
+            {stuCityOptions.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-                      <Field label="How did you know about our Institute?" required error={shouldShowStudentError('source') ? studentFormValidationErrors.source : ''}>
-                        <select
-                          value={studentForm.source}
-                          onChange={(e) => updateStudentField('source', e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, source: true }))}
-                          disabled={studentFormMode === 'view'}
-                        >
-                          <option value="" disabled>Select Source</option>
-                          <option value="Sulekha">Sulekha</option>
-                          <option value="Justdial">Justdial</option>
-                          <option value="Website">Website</option>
-                          <option value="Poster">Poster</option>
-                          <option value="Others">Others</option>
-                        </select>
-                      </Field>
+        <Field
+          label="Address"
+          required
+          error={
+            shouldShowStudentError('address')
+              ? studentFormValidationErrors.address
+              : ''
+          }
+        >
+          <input
+            type="text"
+            placeholder="Enter full address"
+            value={studentForm.address}
+            onChange={(e) =>
+              updateStudentField('address', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                address: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                      {studentForm.source === 'Others' ? (
-                        <Field label="Please Specify" required error={shouldShowStudentError('sourceOther') ? studentFormValidationErrors.sourceOther : ''}>
-                          <input
-                            type="text"
-                            placeholder="How did you hear about us?"
-                            value={studentForm.sourceOther}
-                            onChange={(e) => updateStudentField('sourceOther', e.target.value)}
-                            onBlur={() => setStudentFormTouched((c) => ({ ...c, sourceOther: true }))}
-                            disabled={studentFormMode === 'view'}
-                          />
-                        </Field>
-                      ) : null}
+        <Field
+          label="Qualification"
+          required
+          error={
+            shouldShowStudentError('qualification')
+              ? studentFormValidationErrors.qualification
+              : ''
+          }
+        >
+          <input
+            type="text"
+            placeholder="Enter qualification"
+            value={studentForm.qualification}
+            onChange={(e) =>
+              updateStudentField('qualification', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                qualification: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                      <Field label="Remarks">
-                        <input
-                          type="text"
-                          placeholder="Optional remarks"
-                          value={studentForm.remarks}
-                          onChange={(e) => updateStudentField('remarks', e.target.value)}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
+        <Field
+          label="Passed Out Year"
+          required
+          error={
+            shouldShowStudentError('passedOutYear')
+              ? studentFormValidationErrors.passedOutYear
+              : ''
+          }
+        >
+          <select
+            value={studentForm.passedOutYear}
+            onChange={(e) =>
+              updateStudentField('passedOutYear', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                passedOutYear: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="" disabled>
+              Select Year
+            </option>
 
-                      <Field label="Admission Date" required error={shouldShowStudentError('admissionDate') ? studentFormValidationErrors.admissionDate : ''}>
-                        <input
-                          type="date"
-                          value={studentForm.admissionDate}
-                          onChange={(e) => updateStudentField('admissionDate', e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, admissionDate: true }))}
-                          disabled={studentFormMode === 'view'}
-                        />
-                      </Field>
-                    </div>
+            {PASSED_OUT_YEARS.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
 
-                  </div>
-                )}
-                {studentFormStep === 2 && (
-                  <div className="student-step-section">
-                    <div className="student-step-section-head">
-                      <div className="student-step-icon">
-                        <BookOpen size={24} strokeWidth={2.1} />
-                      </div>
-                      <div>
-                        <p>Course & Payment Plan</p>
-                        <h4>Select the course first, then choose the faculty assigned to it.</h4>
-                      </div>
-                    </div>
+            <option value="Custom">Custom</option>
+          </select>
+        </Field>
 
-                    <div className="course-form-grid student-form-grid-tight">
-                      <Field label="Select Course" required error={shouldShowStudentError('courseId') ? studentFormValidationErrors.courseId : ''}>
-                        <select
-                          value={studentForm.courseId}
-                          onChange={(e) => handleStudentCourseChange(e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, courseId: true }))}
-                          disabled={studentFormMode === 'view' || !studentCourseOptions.length}
-                        >
-                          <option value="">Select Course</option>
-                          {studentCourseOptions.map((course) => (
-                            <option key={course.id} value={course.id}>
-                              {course.name}
-                            </option>
-                          ))}
-                          {!studentCourseOptions.length ? (
-                            <option value="" disabled>
-                              No courses available
-                            </option>
-                          ) : null}
-                        </select>
-                      </Field>
+        {studentForm.passedOutYear === 'Custom' && (
+          <Field
+            label="Specify Year"
+            required
+            error={
+              shouldShowStudentError('passedOutYearCustom')
+                ? studentFormValidationErrors.passedOutYearCustom
+                : ''
+            }
+          >
+            <input
+              type="text"
+              placeholder="Enter year"
+              value={studentForm.passedOutYearCustom}
+              onChange={(e) =>
+                updateStudentField(
+                  'passedOutYearCustom',
+                  e.target.value
+                )
+              }
+              onBlur={() =>
+                setStudentFormTouched((c) => ({
+                  ...c,
+                  passedOutYearCustom: true,
+                }))
+              }
+              disabled={studentFormMode === 'view'}
+            />
+          </Field>
+        )}
 
-                      <Field label="Select Faculty" required error={shouldShowStudentError('facultyName') ? studentFormValidationErrors.facultyName : ''}>
-                        <select
-                          value={studentForm.facultyId}
-                          onChange={(e) => handleStudentFacultyChange(e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, facultyName: true }))}
-                          disabled={
-                            studentFormMode === 'view' ||
-                            !studentForm.courseId ||
-                            !selectedStudentCourseFacultyOptions.length
-                          }
-                        >
-                          <option value="">Select Faculty</option>
-                          {selectedStudentCourseFacultyOptions.map((faculty) => (
-                            <option key={faculty.id} value={faculty.id}>
-                              {faculty.name}
-                            </option>
-                          ))}
-                          {studentForm.courseId && !selectedStudentCourseFacultyOptions.length ? (
-                            <option value="" disabled>
-                              No faculty assigned to this course
-                            </option>
-                          ) : null}
-                        </select>
-                      </Field>
+      </div>
+    </div>
+  )}
 
-                      <Field label="Total Course Amount" required error={shouldShowStudentError('courseAmount') ? studentFormValidationErrors.courseAmount : ''}>
-                        <input
-                          type="text"
-                          value={selectedStudentCourseAmount}
-                          readOnly
-                          placeholder={studentForm.courseId ? 'Auto-filled from selected course' : 'Select course first'}
-                        />
-                      </Field>
 
-                      <Field label="Payment Mode">
-                        <select
-                          value={studentForm.paymentMode}
-                          onChange={(e) => updateStudentField('paymentMode', e.target.value)}
-                          disabled={studentFormMode === 'view'}
-                        >
-                          <option value="Installment">Installment</option>
-                          <option value="Full Payment">Full Payment</option>
-                        </select>
-                      </Field>
-                    </div>
+  {/* =====================================================
+      STEP 2 — ADMISSION DETAILS & REVIEW
+  ====================================================== */}
+  {studentFormStep === 2 && (
+    <div className="student-step-section">
+      <div className="course-form-grid student-form-grid-tight">
 
-                    <div className="course-validation-note" style={{ marginTop: 12 }}>
-                      <span>Course amount is auto-filled from the selected course and faculty is limited to the course assignment.</span>
-                    </div>
-                  </div>
-                )}
+        <Field label="LinkedIn URL">
+          <input
+            type="text"
+            inputMode="url"
+            placeholder="https://www.linkedin.com/in/your-profile"
+            value={studentForm.linkedInUrl}
+            onChange={(e) =>
+              updateStudentField('linkedInUrl', e.target.value)
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
 
-                {studentFormStep === 3 && (
-                  <div className="student-step-section">
-                    <div className="student-step-section-head">
-                      <div className="student-step-icon">
-                        <BookOpen size={24} strokeWidth={2.1} />
-                      </div>
-                      <div>
-                        <p>Course & Payment Plan</p>
-                        <h4>Select the course first, then choose the faculty assigned to it.</h4>
-                      </div>
-                    </div>
+        <Field
+          label="Current Status"
+          required
+          error={
+            shouldShowStudentError('currentStatus')
+              ? studentFormValidationErrors.currentStatus
+              : ''
+          }
+        >
+          <select
+            value={studentForm.currentStatus}
+            onChange={(e) => {
+              const val = e.target.value;
 
-                    <div className="course-form-grid student-form-grid-tight">
-                      <Field label="Select Course" required error={shouldShowStudentError('courseId') ? studentFormValidationErrors.courseId : ''}>
-                        <select
-                          value={studentForm.courseId}
-                          onChange={(e) => handleStudentCourseChange(e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, courseId: true }))}
-                          disabled={studentFormMode === 'view' || !studentCourseOptions.length}
-                        >
-                          <option value="">Select Course</option>
-                          {studentCourseOptions.map((course) => (
-                            <option key={course.id} value={course.id}>
-                              {course.name}
-                            </option>
-                          ))}
-                          {!studentCourseOptions.length ? (
-                            <option value="" disabled>
-                              No courses available
-                            </option>
-                          ) : null}
-                        </select>
-                      </Field>
+              setStudentForm((c) => ({
+                ...c,
+                currentStatus: val,
+                designation:
+                  val !== 'Employee' ? '' : c.designation,
+              }));
+            }}
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                currentStatus: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="" disabled>
+              Select Status
+            </option>
+            <option value="Student">Student</option>
+            <option value="Employee">Employee</option>
+            <option value="Other">Other</option>
+          </select>
+        </Field>
 
-                      <Field label="Select Faculty" required error={shouldShowStudentError('facultyName') ? studentFormValidationErrors.facultyName : ''}>
-                        <select
-                          value={studentForm.facultyId}
-                          onChange={(e) => handleStudentFacultyChange(e.target.value)}
-                          onBlur={() => setStudentFormTouched((c) => ({ ...c, facultyName: true }))}
-                          disabled={
-                            studentFormMode === 'view' ||
-                            !studentForm.courseId ||
-                            !selectedStudentCourseFacultyOptions.length
-                          }
-                        >
-                          <option value="">Select Faculty</option>
-                          {selectedStudentCourseFacultyOptions.map((faculty) => (
-                            <option key={faculty.id} value={faculty.id}>
-                              {faculty.name}
-                            </option>
-                          ))}
-                          {studentForm.courseId && !selectedStudentCourseFacultyOptions.length ? (
-                            <option value="" disabled>
-                              No faculty assigned to this course
-                            </option>
-                          ) : null}
-                        </select>
-                      </Field>
+        <Field
+          label="Designation"
+          required={studentForm.currentStatus === 'Employee'}
+          error={
+            shouldShowStudentError('designation')
+              ? studentFormValidationErrors.designation
+              : ''
+          }
+        >
+          <input
+            type="text"
+            placeholder={
+              studentForm.currentStatus === 'Employee'
+                ? 'Enter designation'
+                : 'Select Employee first'
+            }
+            value={studentForm.designation}
+            onChange={(e) =>
+              updateStudentField('designation', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                designation: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              studentForm.currentStatus !== 'Employee'
+            }
+          />
+        </Field>
 
-                      <Field label="Total Course Amount" required error={shouldShowStudentError('courseAmount') ? studentFormValidationErrors.courseAmount : ''}>
-                        <input
-                          type="text"
-                          value={selectedStudentCourseAmount}
-                          readOnly
-                          placeholder={studentForm.courseId ? 'Auto-filled from selected course' : 'Select course first'}
-                        />
-                      </Field>
+        <Field
+          label="How did you know about our Institute?"
+          required
+          error={
+            shouldShowStudentError('source')
+              ? studentFormValidationErrors.source
+              : ''
+          }
+        >
+          <select
+            value={studentForm.source}
+            onChange={(e) =>
+              updateStudentField('source', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                source: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="" disabled>
+              Select Source
+            </option>
+            <option value="Sulekha">Sulekha</option>
+            <option value="Justdial">Justdial</option>
+            <option value="Website">Website</option>
+            <option value="Poster">Poster</option>
+            <option value="Others">Others</option>
+          </select>
+        </Field>
 
-                      <Field label="Payment Mode">
-                        <select
-                          value={studentForm.paymentMode}
-                          onChange={(e) => updateStudentField('paymentMode', e.target.value)}
-                          disabled={studentFormMode === 'view'}
-                        >
-                          <option value="Installment">Installment</option>
-                          <option value="Full Payment">Full Payment</option>
-                        </select>
-                      </Field>
-                    </div>
+        {studentForm.source === 'Others' && (
+          <Field
+            label="Please Specify"
+            required
+            error={
+              shouldShowStudentError('sourceOther')
+                ? studentFormValidationErrors.sourceOther
+                : ''
+            }
+          >
+            <input
+              type="text"
+              placeholder="How did you hear about us?"
+              value={studentForm.sourceOther}
+              onChange={(e) =>
+                updateStudentField('sourceOther', e.target.value)
+              }
+              onBlur={() =>
+                setStudentFormTouched((c) => ({
+                  ...c,
+                  sourceOther: true,
+                }))
+              }
+              disabled={studentFormMode === 'view'}
+            />
+          </Field>
+        )}
 
-                    <div className="course-validation-note" style={{ marginTop: 12 }}>
-                      <span>Course amount is auto-filled from the selected course and faculty is limited to the course assignment.</span>
-                    </div>
-                  </div>
-                )}
-              </div>
+        <Field label="Remarks">
+          <input
+            type="text"
+            placeholder="Optional remarks"
+            value={studentForm.remarks}
+            onChange={(e) =>
+              updateStudentField('remarks', e.target.value)
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
+
+        <Field
+          label="Admission Date"
+          required
+          error={
+            shouldShowStudentError('admissionDate')
+              ? studentFormValidationErrors.admissionDate
+              : ''
+          }
+        >
+          <input
+            type="date"
+            value={studentForm.admissionDate}
+            onChange={(e) =>
+              updateStudentField('admissionDate', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                admissionDate: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
+
+      </div>
+    </div>
+  )}
+
+
+  {/* =====================================================
+      STEP 3 — COURSE & PAYMENT PLAN
+  ====================================================== */}
+  {studentFormStep === 3 && (
+    <div className="student-step-section">
+
+     
+
+      <div className="course-form-grid student-form-grid-tight">
+
+        <Field
+          label="Select Course"
+          required
+          error={
+            shouldShowStudentError('courseId')
+              ? studentFormValidationErrors.courseId
+              : ''
+          }
+        >
+          <select
+            value={studentForm.courseId}
+            onChange={(e) =>
+              handleStudentCourseChange(e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                courseId: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              !studentCourseOptions.length
+            }
+          >
+            <option value="">Select Course</option>
+
+            {studentCourseOptions.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.name}
+              </option>
+            ))}
+
+            {!studentCourseOptions.length && (
+              <option value="" disabled>
+                No courses available
+              </option>
+            )}
+          </select>
+        </Field>
+
+        <Field
+          label="Select Faculty"
+          required
+          error={
+            shouldShowStudentError('facultyName')
+              ? studentFormValidationErrors.facultyName
+              : ''
+          }
+        >
+          <select
+            value={studentForm.facultyId}
+            onChange={(e) =>
+              handleStudentFacultyChange(e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                facultyName: true,
+              }))
+            }
+            disabled={
+              studentFormMode === 'view' ||
+              !studentForm.courseId ||
+              !selectedStudentCourseFacultyOptions.length
+            }
+          >
+            <option value="">Select Faculty</option>
+
+            {selectedStudentCourseFacultyOptions.map((faculty) => (
+              <option key={faculty.id} value={faculty.id}>
+                {faculty.name}
+              </option>
+            ))}
+
+            {studentForm.courseId &&
+              !selectedStudentCourseFacultyOptions.length && (
+                <option value="" disabled>
+                  No faculty assigned to this course
+                </option>
+              )}
+          </select>
+        </Field>
+
+        <Field
+          label="Total Course Amount"
+          required
+          error={
+            shouldShowStudentError('courseAmount')
+              ? studentFormValidationErrors.courseAmount
+              : ''
+          }
+        >
+          <input
+            type="text"
+            value={selectedStudentCourseAmount}
+            readOnly
+            placeholder={
+              studentForm.courseId
+                ? 'Auto-filled from selected course'
+                : 'Select course first'
+            }
+          />
+        </Field>
+
+        <Field label="Payment Mode">
+          <select
+            value={studentForm.paymentMode}
+            onChange={(e) =>
+              updateStudentField('paymentMode', e.target.value)
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="Installment">Installment</option>
+            <option value="Full Payment">Full Payment</option>
+          </select>
+        </Field>
+
+      </div>
+
+      
+
+    </div>
+  )}
+
+</div>
 
               {studentFormError ? (
                 <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
