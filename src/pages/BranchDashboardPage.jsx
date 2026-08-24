@@ -5796,7 +5796,7 @@ const selectedStudentCoursePaymentPlan = useMemo(
                         </div>
                       </div>
 
-                      <div className="branch-course-view-row" role="row">
+                      {/* <div className="branch-course-view-row" role="row">
                         <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
                           <Tag size={20} strokeWidth={2.1} aria-hidden="true" />
                           <span>Installment Template</span>
@@ -5852,7 +5852,7 @@ const selectedStudentCoursePaymentPlan = useMemo(
                               : '-'}
                           </strong>
                         </div>
-                      </div>
+                      </div> */}
 
                       <div className="branch-course-view-row" role="row">
                         <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">

@@ -1761,6 +1761,7 @@
   border-radius: 14px;
   overflow: hidden;
   background: #ffffff;
+  margin-top: 18px;
 }
 
 .branch-course-view-table-header {
@@ -5427,86 +5428,116 @@
   gap: 10px;
 }
 
+
+/* =========================================================
+   MODULES & SUBMODULES - CLEAN PROFESSIONAL UI
+   ========================================================= */
+
 .branch-course-view-hierarchy {
-  display: grid;
-  gap: 14px;
-  padding: 16px;
-  border: 1px solid #dbe4f0;
-  border-radius: 18px;
-  background: linear-gradient(180deg, #f8fbff 0%, #fff 100%);
+  width: 100%;
+  padding: 4px 0 8px;
 }
+
+/* ---------- Top heading ---------- */
 
 .branch-course-view-hierarchy-header {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
+  gap: 24px;
+  padding: 22px 24px 20px;
+  margin-bottom: 14px;
+}
+.branch-course-view-hierarchy-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .branch-course-view-hierarchy-header p {
-  margin: 0 0 4px;
+  margin: 0;
   color: #64748b;
-  font-size: 0.76rem;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .branch-course-view-hierarchy-header strong {
-  color: #0f172a;
-  font-size: 1.02rem;
+  margin: 0;
+  color: #172033;
+  font-size: 22px;
+  line-height: 1.2;
+  font-weight: 750;
 }
 
-.branch-course-view-hierarchy-header span {
-  color: #64748b;
-  font-size: 0.84rem;
+.branch-course-view-hierarchy-header > span {
+  margin-bottom: 2px;
+  color: #718096;
+  font-size: 14px;
+  font-weight: 500;
 }
+/* ---------- Table wrapper ---------- */
 
 .branch-course-view-models {
-  display: grid;
-  gap: 0;
+  width: 100%;
+  overflow: hidden;
   border: 1px solid #dbe4f0;
   border-radius: 18px;
-  overflow: hidden;
-  background: #fff;
+  background: #ffffff;
 }
+
+/* ---------- Table header ---------- */
 
 .branch-course-view-model-table-header {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) 120px 104px;
+  grid-template-columns: 145px minmax(0, 1fr) 145px 105px;
   align-items: center;
-  padding: 14px 18px;
-  border-bottom: 1px solid #dbe4f0;
-  background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
-  color: #64748b;
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  min-height: 62px;
+  padding: 0 22px;
+  background: linear-gradient(
+    180deg,
+    #f5f9ff 0%,
+    #eef5ff 100%
+  );
+  border-bottom: 1px solid #d8e3f1;
+}
+
+
+.branch-course-view-model-table-header span {
+  color: #58708e;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
-.branch-course-view-model-table-header span:nth-child(2),
-.branch-course-view-model-table-header span:nth-child(3),
+.branch-course-view-model-table-header span:nth-child(3) {
+  text-align: center;
+}
+
 .branch-course-view-model-table-header span:nth-child(4) {
   text-align: center;
 }
 
+/* ---------- Individual module ---------- */
+
 .branch-course-view-model-card {
-  display: grid;
-  gap: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: #fff;
+  background: #ffffff;
 }
+
+.branch-course-view-model-card + .branch-course-view-model-card {
+  border-top: 1px solid #e5ebf3;
+}
+
+/* ---------- Main row ---------- */
 
 .branch-course-view-model-row {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr) 120px 104px;
+  grid-template-columns: 145px minmax(0, 1fr) 145px 105px;
   align-items: center;
-  min-height: 66px;
-  border-bottom: 1px solid #e8eef7;
-  background: #fff;
+  min-height: 92px;
+  padding: 0 22px;
 }
 
 .branch-course-view-model-card:last-child .branch-course-view-model-row {
@@ -5515,23 +5546,58 @@
 
 .branch-course-view-model-cell {
   min-width: 0;
-  padding: 14px 18px;
+ 
 }
+/* ---------- Action ---------- */
 
-.branch-course-view-model-cell-module,
-.branch-course-view-model-cell-percentage,
 .branch-course-view-model-cell-actions {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-left: 18px;
 }
 
+
+/* ---------- Module name ---------- */
+
 .branch-course-view-model-cell-name {
+  padding: 0 22px;
+}
+
+.branch-course-view-model-cell-name strong {
+  display: block;
+  overflow: hidden;
+  color: #182235;
+  font-size: 17px;
+  line-height: 1.4;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* ---------- Percentage ---------- */
+
+.branch-course-view-model-cell-percentage {
   display: flex;
+  justify-content: center;
   align-items: center;
-  justify-content: flex-start;
-  border-left: 1px solid #eef3fb;
-  border-right: 1px solid #eef3fb;
+  min-height: 54px;
+  padding: 0 18px;
+  border-left: 1px solid #e6edf5;
+  border-right: 1px solid #e6edf5;
+}
+
+.branch-course-view-model-cell-percentage b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 64px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #2563eb;
+  font-size: 15px;
+  font-weight: 750;
 }
 
 .branch-course-view-model-cell-module span {
@@ -5714,7 +5780,23 @@
   scrollbar-gutter: stable;
   display: grid;
   gap: 16px;
-  padding: 18px 24px 24px;
+  padding: 0px 24px 24px;
+}
+.branch-course-view-content {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: none;
+}
+
+.branch-course-view-table {
+  height: auto;
+  min-height: max-content;
+  overflow: visible;
+}
+
+.branch-course-view-row {
+  min-height: 64px;
+  height: auto;
 }
 
 /* ─────────────────────────────────────────────
@@ -5798,9 +5880,20 @@
 }
 
 .branch-course-view-hierarchy {
-  padding: 18px;
-  border-radius: 18px;
+  border: 1px solid #d8e3f0;
+  border-radius: 20px;
+  background: linear-gradient(
+    180deg,
+    #f8fbff 0%,
+    #ffffff 100%
+  );
+  overflow: hidden;
+ 
+  width: 100%;
+  margin-top: 22px;
+  padding: 4px 0 8px;
 }
+
 
 .branch-course-view-model-head {
   align-items: flex-start;
@@ -5811,131 +5904,148 @@
   align-items: center;
   gap: 10px;
 }
-
 .branch-course-view-module-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 38px;
-  height: 38px;
+  width: 46px;
+  height: 46px;
   padding: 0;
-  border: 1px solid #dbe4f0;
-  border-radius: 999px;
-  background: #f8fbff;
+  border: 1px solid #d8e3f0;
+  border-radius: 50%;
+  background: #ffffff;
   color: #2563eb;
   cursor: pointer;
-  transition: transform 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .branch-course-view-module-toggle:hover {
-  background: #eff6ff;
-  border-color: #bfd2fb;
+  background: #f2f7ff;
+  border-color: #b9cceb;
+  box-shadow: 0 5px 14px rgba(37, 99, 235, 0.10);
 }
 
+.branch-course-view-module-toggle:active {
+  transform: scale(0.95);
+}
+
+/* ---------- Expanded submodules ---------- */
+
 .branch-course-view-submodels {
-  padding-top: 2px;
+  margin: 0 22px 18px;
+  padding: 10px;
+  border: 1px solid #dfe8f3;
+  border-radius: 14px;
+  background: #f8fbff;
 }
 
 .branch-course-view-submodel {
-  align-items: flex-start;
-  padding: 12px 14px;
-  border: 1px solid #e6eef8;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px;
+  align-items: center;
+  min-height: 60px;
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+.branch-course-view-submodel + .branch-course-view-submodel {
+  border-top: 1px solid #e6edf5;
 }
 
 .branch-course-view-submodel > div {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
 }
 
 .branch-course-view-submodel span {
-  color: #64748b;
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  flex: 0 0 auto;
+  color: #718096;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
-.branch-course-view-submodel strong {
-  color: #0f172a;
-  font-size: 0.94rem;
-  line-height: 1.35;
+.branch-course-view-submodel > div strong {
+  overflow: hidden;
+  color: #253247;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.branch-course-view-submodel > strong {
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 750;
+  text-align: right;
+}
+
 
 .branch-course-view-submodel.is-empty {
   justify-content: flex-start;
 }
 
 .branch-course-view-empty-state {
-  padding: 18px;
-  border: 1px dashed #cbd5e1;
+  padding: 42px 24px;
+  border: 1px solid #dbe4f0;
   border-radius: 16px;
-  background: #f8fbff;
-  color: #475569;
-  font-size: 0.95rem;
-  font-weight: 600;
+  background: #ffffff;
+  color: #718096;
+  font-size: 14px;
+  font-weight: 500;
   text-align: center;
 }
 
-@media (max-width: 640px) {
-  .branch-course-view-drawer {
-    width: calc(100vw - 20px);
-    max-height: calc(100vh - 20px);
+@media (max-width: 720px) {
+  .branch-course-view-hierarchy-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 16px;
   }
 
-  .branch-course-view-drawer-header {
-    padding: 18px 16px 14px;
-  }
-
-  .branch-course-view-tabs {
-    padding: 12px 16px 0;
-  }
-
-  .branch-course-view-tab {
-    min-height: 46px;
-    padding: 10px 12px;
-    font-size: 0.88rem;
-  }
-
-  .branch-course-view-content {
-    padding: 14px 16px 18px;
-  }
-
-  .branch-course-view-module-toggle {
-    width: 30px;
-    height: 30px;
+  .branch-course-view-model-table-header,
+  .branch-course-view-model-row {
+    grid-template-columns: 105px minmax(150px, 1fr) 100px 70px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
 
   .branch-course-view-model-table-header {
-    grid-template-columns: 72px minmax(0, 1fr) 84px 72px;
-    padding: 12px 10px;
-    font-size: 0.68rem;
+    min-height: 54px;
   }
 
   .branch-course-view-model-row {
-    grid-template-columns: 72px minmax(0, 1fr) 84px 72px;
-    min-height: 60px;
+    min-height: 78px;
   }
 
-  .branch-course-view-model-cell {
-    padding: 12px 10px;
+  .branch-course-view-model-cell-name {
+    padding: 0 14px;
   }
 
   .branch-course-view-model-cell-name strong {
-    font-size: 0.94rem;
+    font-size: 15px;
   }
 
-  .branch-course-view-model-cell-percentage b {
-    font-size: 0.92rem;
+  .branch-course-view-model-cell-percentage {
+    padding: 0 10px;
+  }
+
+  .branch-course-view-module-toggle {
+    width: 40px;
+    height: 40px;
   }
 
   .branch-course-view-submodels {
-    padding-left: 14px;
-  }
-
-  .branch-course-view-submodel {
-    grid-template-columns: minmax(0, 1fr) 76px;
-    padding: 10px 10px;
+    margin-left: 12px;
+    margin-right: 12px;
   }
 }
 
