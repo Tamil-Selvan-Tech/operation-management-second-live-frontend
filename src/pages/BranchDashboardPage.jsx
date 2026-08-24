@@ -155,6 +155,7 @@ function createInitialStudentForm(branchId) {
     facultyName: '',
     courseAmount: '',
     paymentMode: '',
+    installmentSchedule: [],
     
   }
 }
@@ -191,6 +192,9 @@ function buildStudentFormFromRecord(student = {}) {
     facultyName: student.facultyName || student.course?.facultyName || '',
     courseAmount: String(student.courseAmount || student.totalAmount || student.afterDiscount || '').trim(),
     paymentMode: student.paymentMode || 'Installment',
+    installmentSchedule: Array.isArray(student.installmentSchedule)
+  ? student.installmentSchedule
+  : [],
   }
 }
 
@@ -1235,6 +1239,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
   const [studentFormStep, setStudentFormStep] = useState(1)
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
+  const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
@@ -3254,6 +3259,19 @@ const studentInstallmentAmounts = useMemo(() => {
   selectedStudentCourseAmount,
   studentInstallmentCount
 ])
+useEffect(() => {
+  if (!studentInstallmentCount) {
+    setStudentInstallmentDueDates([])
+    return
+  }
+
+  setStudentInstallmentDueDates((current) =>
+    Array.from(
+      { length: studentInstallmentCount },
+      (_, index) => current[index] || ''
+    )
+  )
+}, [studentInstallmentCount])
 
   const handleStudentCourseChange = (courseId) => {
     const nextCourseId = String(courseId || '').trim()
@@ -3577,6 +3595,16 @@ paymentPlanId: '',
       discount: String(selectedCourse?.discount ?? '').trim(),
       afterDiscount: resolvedCourseAmount,
       paymentMode: studentForm.paymentMode || 'Installment',
+      installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
+  installmentNumber: index + 1,
+  amount,
+  dueDate: studentInstallmentDueDates[index] || '',
+})),
+      installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
+  installmentNumber: index + 1,
+  amount,
+  dueDate: studentInstallmentDueDates[index] || '',
+})),
     }
 
     delete record.studentIdSuffix
@@ -7666,21 +7694,41 @@ paymentPlanId: '',
           <tr>
             <th>Installment</th>
             <th>Amount</th>
+            <th>Due Date</th>
           </tr>
         </thead>
 
         <tbody>
-          {studentInstallmentAmounts.map((amount, index) => (
-            <tr key={`student-installment-${index}`}>
-              <td>Installment {index + 1}</td>
-              <td>
-                ₹{amount.toLocaleString('en-IN', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </td>
-            </tr>
-          ))}
+         {studentInstallmentAmounts.map((amount, index) => (
+  <tr key={`student-installment-${index}`}>
+    <td>Installment {index + 1}</td>
+
+    <td>
+      ₹{amount.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}
+    </td>
+
+    <td>
+      <input
+        type="date"
+        value={studentInstallmentDueDates[index] || ''}
+        onChange={(e) => {
+          const value = e.target.value
+
+          setStudentInstallmentDueDates((current) => {
+            const next = [...current]
+            next[index] = value
+            return next
+          })
+        }}
+        disabled={studentFormMode === 'view'}
+        className="student-installment-due-date-input"
+      />
+    </td>
+  </tr>
+))}
 
           <tr className="student-payment-installment-total-row">
             <td>
