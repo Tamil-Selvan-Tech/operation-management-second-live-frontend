@@ -101,8 +101,45 @@ function normalizeBranchInstallmentTemplate(template) {
   }
 }
 
+function normalizeBranchCoursePaymentPlan(plan) {
+  if (!plan) return null
+
+  const installments = Array.isArray(plan.installments)
+    ? plan.installments
+    : Array.isArray(plan.installmentAmounts)
+      ? plan.installmentAmounts
+      : []
+
+  const installmentCount = Number(plan.installmentCount || installments.length || 0)
+  const planType = String(plan.planType || plan.type || (installmentCount <= 1 ? 'FULL_PAYMENT' : 'CUSTOM'))
+    .trim()
+    .toUpperCase()
+
+  return {
+    ...plan,
+    id: plan.id || '',
+    templateId: plan.templateId || '',
+    templateName: normalizeText(plan.templateName || plan.planName),
+    planType,
+    type: String(plan.type || '').trim().toLowerCase() === 'custom' ? 'custom' : 'template',
+    installmentCount,
+    installments: installments.map((value) => normalizeText(value)),
+    dueRule: normalizeText(plan.dueRule || 'Admission'),
+    allowCustomization: Boolean(plan.allowCustomization ?? true),
+    status: plan.status || 'Active',
+  }
+}
+
+function normalizeBranchCoursePaymentPlanList(plans) {
+  return Array.isArray(plans) ? plans.map(normalizeBranchCoursePaymentPlan).filter(Boolean) : []
+}
+
 export function normalizeBranchCourse(course) {
   if (!course) return null
+
+  const paymentPlans = normalizeBranchCoursePaymentPlanList(
+    course.paymentPlans || course.paymentPlanSelections || course.installmentPlans || [],
+  )
 
   return {
     ...course,
@@ -121,8 +158,10 @@ export function normalizeBranchCourse(course) {
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    paymentPlans,
+    paymentPlanSelections: paymentPlans,
     installmentTemplate: normalizeBranchInstallmentTemplate(
-      course.installmentTemplate || course.branchInstallmentTemplate || null,
+      course.installmentTemplate || course.branchInstallmentTemplate || paymentPlans[0] || null,
     ),
     createdAt: course.createdAt || '',
     updatedAt: course.updatedAt || '',
