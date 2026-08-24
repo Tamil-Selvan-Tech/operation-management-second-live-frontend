@@ -1,10 +1,61 @@
 import { request } from './apiClient'
 
 const TEMPLATE_PAGE_LIMIT = 6
+const TEMPLATE_SNAPSHOT_EVENT = 'cispro:branch-installment-templates-changed'
+const TEMPLATE_SNAPSHOT_CHANNEL = 'cispro:branch-installment-templates'
 
 function unwrapData(response) {
   if (!response) return null
   return response.data ?? response
+}
+
+function emitBranchInstallmentTemplateChange() {
+  if (typeof window === 'undefined') return
+
+  window.dispatchEvent(new Event(TEMPLATE_SNAPSHOT_EVENT))
+
+  if ('BroadcastChannel' in window) {
+    try {
+      const channel = new BroadcastChannel(TEMPLATE_SNAPSHOT_CHANNEL)
+      channel.postMessage({ type: 'changed', at: Date.now() })
+      channel.close()
+    } catch {
+      // Ignore broadcast failures and fall back to direct event delivery.
+    }
+  }
+}
+
+export function subscribeBranchInstallmentTemplateChanges(listener) {
+  if (typeof window === 'undefined') return () => {}
+
+  const handleCustomEvent = () => {
+    listener()
+  }
+
+  const handleBroadcastMessage = () => {
+    listener()
+  }
+
+  window.addEventListener(TEMPLATE_SNAPSHOT_EVENT, handleCustomEvent)
+
+  let channel = null
+  if ('BroadcastChannel' in window) {
+    try {
+      channel = new BroadcastChannel(TEMPLATE_SNAPSHOT_CHANNEL)
+      channel.addEventListener('message', handleBroadcastMessage)
+    } catch {
+      channel = null
+    }
+  }
+
+  return () => {
+    window.removeEventListener(TEMPLATE_SNAPSHOT_EVENT, handleCustomEvent)
+
+    if (channel) {
+      channel.removeEventListener('message', handleBroadcastMessage)
+      channel.close()
+    }
+  }
 }
 
 function normalizeText(value) {
@@ -91,7 +142,9 @@ export async function createBranchInstallmentTemplate(payload) {
     body: JSON.stringify(payload),
   })
 
-  return normalizeBranchInstallmentTemplate(unwrapData(response))
+  const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
+  emitBranchInstallmentTemplateChange()
+  return normalized
 }
 
 export async function updateBranchInstallmentTemplate(templateId, payload) {
@@ -100,7 +153,9 @@ export async function updateBranchInstallmentTemplate(templateId, payload) {
     body: JSON.stringify(payload),
   })
 
-  return normalizeBranchInstallmentTemplate(unwrapData(response))
+  const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
+  emitBranchInstallmentTemplateChange()
+  return normalized
 }
 
 export async function deleteBranchInstallmentTemplate(templateId) {
@@ -108,5 +163,7 @@ export async function deleteBranchInstallmentTemplate(templateId) {
     method: 'DELETE',
   })
 
-  return normalizeBranchInstallmentTemplate(unwrapData(response))
+  const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
+  emitBranchInstallmentTemplateChange()
+  return normalized
 }

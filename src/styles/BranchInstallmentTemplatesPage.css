@@ -1456,9 +1456,8 @@
 .installment-template-table-row {
   display: grid;
   grid-template-columns:
-    minmax(220px, 1.4fr)
-    minmax(200px, 1.15fr)
-    minmax(120px, 0.85fr)
+    minmax(220px, 1.55fr)
+    minmax(200px, 1.05fr)
     110px
     78px;
   align-items: center;
@@ -1600,9 +1599,8 @@
   .installment-template-table-head,
   .installment-template-table-row {
     grid-template-columns:
-      minmax(200px, 1.3fr)
-      minmax(170px, 1fr)
-      minmax(110px, 0.85fr)
+      minmax(200px, 1.45fr)
+      minmax(170px, 0.95fr)
       100px
       74px;
   }
@@ -1642,6 +1640,6 @@
 
   .installment-template-table-head,
   .installment-template-table-row {
-    min-width: 720px;
+    min-width: 620px;
   }
 }

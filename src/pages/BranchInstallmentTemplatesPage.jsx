@@ -21,7 +21,6 @@ import {
 import '../styles/BranchInstallmentTemplatesPage.css'
 
 const STATUS_OPTIONS = ['ACTIVE', 'INACTIVE']
-const DUE_RULE_OPTIONS = ['Admission', 'Monthly', 'Custom']
 
 function Field({ label, hint, error, required = false, children }) {
   return (
@@ -41,8 +40,6 @@ function createEmptyTemplateForm() {
   return {
     templateName: '',
     installmentCount: '1',
-    dueRule: 'Admission',
-    customDueRule: '',
     allowCustomization: true,
     status: 'ACTIVE',
   }
@@ -159,7 +156,6 @@ export function BranchInstallmentTemplatesPage() {
     setForm({
       templateName: normalized.templateName || '',
       installmentCount: String(normalized.installmentCount || 1),
-      dueRule: normalized.dueRule || 'Admission',
       allowCustomization: Boolean(normalized.allowCustomization ?? true),
       status: normalized.status || 'ACTIVE',
     })
@@ -172,7 +168,6 @@ export function BranchInstallmentTemplatesPage() {
     const nextTouched = {
       templateName: true,
       installmentCount: true,
-      dueRule: true,
       allowCustomization: true,
       status: true,
     }
@@ -193,7 +188,6 @@ export function BranchInstallmentTemplatesPage() {
         planType: normalizedPlanType,
         installmentCount: normalizedInstallmentCount,
         installments: [],
-        dueRule: String(form.dueRule || 'Admission').trim(),
         allowCustomization: Boolean(form.allowCustomization),
         status: String(form.status || 'ACTIVE').trim(),
       }
@@ -267,7 +261,6 @@ useEffect(() => {
       return {
         ...template,
         accent: accentPalette[index % accentPalette.length],
-        dueRuleLabel: template.dueRule ? `${template.dueRule}` : 'Admission',
         installmentLabel: isCustom ? `${installmentCount} Installments` : 'Custom',
       }
     })
@@ -386,48 +379,6 @@ useEffect(() => {
               markTouched('installmentCount')
             }
           />
-        </Field>
-
-        <Field
-          label="Due Rule"
-          hint="Default timing rule for the plan"
-        >
-          <select
-            value={form.dueRule}
-            onChange={(event) => {
-              updateField(
-                'dueRule',
-                event.target.value
-              )
-
-              if (event.target.value !== 'Custom') {
-                updateField('customDueRule', '')
-              }
-            }}
-          >
-            {DUE_RULE_OPTIONS.map((option) => (
-              <option
-                key={option}
-                value={option}
-              >
-                {option}
-              </option>
-            ))}
-          </select>
-
-          {form.dueRule === 'Custom' ? (
-            <input
-              type="text"
-              placeholder="Enter custom due rule"
-              value={form.customDueRule}
-              onChange={(event) =>
-                updateField(
-                  'customDueRule',
-                  event.target.value
-                )
-              }
-            />
-          ) : null}
         </Field>
 
         <Field
@@ -572,7 +523,6 @@ useEffect(() => {
     <div className="installment-table-shell">
       <div className="installment-template-table-head">
         <span>Template Name</span>
-        <span>Due Rule</span>
         <span>Installments</span>
         <span>Status</span>
         <span>Actions</span>
@@ -599,10 +549,6 @@ useEffect(() => {
               <div className="installment-template-name-copy">
                 <strong>{template.templateName}</strong>
               </div>
-            </div>
-
-            <div className="installment-template-value">
-              {template.dueRuleLabel}
             </div>
 
             <div className="installment-template-value">

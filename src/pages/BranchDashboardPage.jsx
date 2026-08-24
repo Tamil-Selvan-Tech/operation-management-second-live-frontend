@@ -34,6 +34,7 @@ import {
   Search,
   UserPlus, Pencil, Trash2,
   Building2,
+  Check,
    X,
 } from 'lucide-react'
 
@@ -50,6 +51,10 @@ import {
   listBranchCourses,
   updateBranchCourse,
 } from '../services/branchCourseService'
+import {
+  listBranchInstallmentTemplates,
+  subscribeBranchInstallmentTemplateChanges,
+} from '../services/branchInstallmentTemplateService'
 import {
   mergeBranchCoursesWithSnapshot,
   subscribeBranchCourseSnapshot,
@@ -575,6 +580,148 @@ function getBranchInstallmentAmountTotal(amounts = []) {
     .reduce((total, value) => total + value, 0)
 }
 
+const BRANCH_PAYMENT_PLAN_CUSTOM_VALUE = '__custom__'
+
+function normalizeBranchCoursePaymentPlanSelection(selection = {}, fallback = {}) {
+  const safeSelection = selection && typeof selection === 'object' ? selection : {}
+  const safeFallback = fallback && typeof fallback === 'object' ? fallback : {}
+  const type = String(safeSelection.type || safeSelection.planType || safeFallback.type || 'template').trim().toLowerCase()
+  const templateId = String(safeSelection.templateId || safeSelection.id || safeFallback.templateId || '').trim()
+  const rawInstallmentCount = String(safeSelection.installmentCount ?? safeSelection.count ?? safeFallback.installmentCount ?? safeFallback.count ?? '').trim()
+  const installmentCount = Math.max(
+    1,
+    Number(rawInstallmentCount || 1) || 1,
+  )
+  const installments = normalizeBranchInstallmentAmountList(
+    Array.isArray(safeSelection.installments)
+      ? safeSelection.installments
+      : Array.isArray(safeFallback.installments)
+        ? safeFallback.installments
+        : [],
+    installmentCount,
+  )
+
+  return {
+    id: String(safeSelection.id || templateId || (type === 'custom' ? BRANCH_PAYMENT_PLAN_CUSTOM_VALUE : createCourseNodeId('payment-plan'))).trim(),
+    type: type === 'custom' ? 'custom' : 'template',
+    templateId: type === 'custom' ? BRANCH_PAYMENT_PLAN_CUSTOM_VALUE : templateId,
+    templateName: String(safeSelection.templateName || safeSelection.planName || safeFallback.templateName || (type === 'custom' ? 'Custom' : 'Payment Plan')).trim(),
+    installmentCount: type === 'custom' && !rawInstallmentCount ? '' : String(installmentCount),
+    installments,
+    dueRule: String(safeSelection.dueRule || safeFallback.dueRule || 'Admission').trim(),
+    allowCustomization:
+      typeof safeSelection.allowCustomization === 'boolean'
+        ? safeSelection.allowCustomization
+        : typeof safeFallback.allowCustomization === 'boolean'
+          ? safeFallback.allowCustomization
+          : true,
+    status: String(safeSelection.status || safeFallback.status || 'Active').trim(),
+  }
+}
+
+function normalizeBranchCoursePaymentPlanSelections(plans = [], fallbackPlans = []) {
+  const primaryPlans = Array.isArray(plans) ? plans : []
+  const fallback = Array.isArray(fallbackPlans) ? fallbackPlans : []
+  const sourcePlans = primaryPlans.length ? primaryPlans : fallback
+
+  return sourcePlans.map((plan, index) =>
+    normalizeBranchCoursePaymentPlanSelection(plan, {
+      id: plan?.id || `payment-plan-${index + 1}`,
+      templateId: plan?.templateId || plan?.id || '',
+      templateName: plan?.templateName || plan?.planName || '',
+      installmentCount: plan?.installmentCount ?? plan?.count ?? '',
+      installments: Array.isArray(plan?.installments) ? plan.installments : [],
+      type: String(plan?.type || plan?.planType || '').trim().toLowerCase() === 'custom' ? 'custom' : 'template',
+      dueRule: plan?.dueRule || 'Admission',
+      allowCustomization: plan?.allowCustomization,
+      status: plan?.status || 'Active',
+    }),
+  )
+}
+
+function buildBranchCoursePaymentPlanInstallments(totalFee = 0, count = 1) {
+  return buildBalancedBranchInstallmentAmounts(totalFee, count)
+}
+
+function getBranchCoursePaymentPlanInstallmentCount(plan = {}) {
+  if (String(plan?.type || '').trim().toLowerCase() === 'custom' && !String(plan?.installmentCount || '').trim()) {
+    return 0
+  }
+  return Math.max(1, Number(plan?.installmentCount || 0) || 1)
+}
+
+function buildBranchCoursePaymentPlanPayloadSelections(plans = [], finalFee = 0) {
+  const normalizedPlans = normalizeBranchCoursePaymentPlanSelections(plans)
+
+  return normalizedPlans.map((plan, index) => {
+    const installmentCount = getBranchCoursePaymentPlanInstallmentCount(plan)
+    const installments = buildBranchCoursePaymentPlanInstallments(finalFee, installmentCount)
+
+    return {
+      id: plan.id || `payment-plan-${index + 1}`,
+      type: plan.type,
+      templateId: plan.templateId,
+      templateName: plan.templateName,
+      installmentCount: String(installmentCount),
+      installments,
+      dueRule: plan.dueRule,
+      allowCustomization: plan.allowCustomization,
+      status: plan.status,
+    }
+  })
+}
+
+function buildBranchCourseInstallmentTemplateFromPaymentPlan(plan = {}, finalFee = 0) {
+  const installmentCount = getBranchCoursePaymentPlanInstallmentCount(plan)
+  return {
+    templateName: String(plan.templateName || (plan.type === 'custom' ? 'Custom' : 'Payment Plan')).trim(),
+    installmentCount: String(installmentCount),
+    installments: buildBranchCoursePaymentPlanInstallments(finalFee, installmentCount),
+    dueRule: String(plan.dueRule || 'Admission').trim(),
+    allowCustomization: Boolean(plan.allowCustomization ?? true),
+    status: String(plan.status || 'Active').trim(),
+  }
+}
+
+function buildBranchCoursePaymentPlanSelectionsFromRecord(course = {}, fallbackTemplates = []) {
+  const paymentPlans = Array.isArray(course.paymentPlans)
+    ? course.paymentPlans
+    : Array.isArray(course.paymentPlanSelections)
+      ? course.paymentPlanSelections
+      : Array.isArray(course.installmentPlans)
+        ? course.installmentPlans
+        : []
+
+  if (paymentPlans.length) {
+    return normalizeBranchCoursePaymentPlanSelections(paymentPlans)
+  }
+
+  const installmentTemplate = course.installmentTemplate || course.branchInstallmentTemplate || null
+  if (installmentTemplate) {
+    const normalizedTemplate = normalizeBranchInstallmentTemplate(installmentTemplate)
+    const rawTemplateId = String(installmentTemplate?.id || installmentTemplate?.templateId || installmentTemplate?.branchInstallmentTemplateId || '').trim()
+    const matchedTemplate = Array.isArray(fallbackTemplates)
+      ? fallbackTemplates.find((template) => String(template.id || '').trim() === rawTemplateId)
+      : null
+
+    return [
+      normalizeBranchCoursePaymentPlanSelection({
+        id: matchedTemplate?.id || rawTemplateId || BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+        type: String(normalizedTemplate.templateName || '').trim().toLowerCase() === 'custom' ? 'custom' : 'template',
+        templateId: rawTemplateId || matchedTemplate?.id || '',
+        templateName: normalizedTemplate.templateName || matchedTemplate?.templateName || 'Payment Plan',
+        installmentCount: normalizedTemplate.installmentCount || 1,
+        installments: normalizedTemplate.installments || [],
+        dueRule: normalizedTemplate.dueRule || 'Admission',
+        allowCustomization: normalizedTemplate.allowCustomization,
+        status: normalizedTemplate.status || 'Active',
+      }),
+    ]
+  }
+
+  return []
+}
+
 function distributeBranchCoursePercentages(totalItems = 0) {
   const count = Math.max(0, Number(totalItems) || 0)
   if (!count) return []
@@ -809,6 +956,7 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    paymentPlans: buildBranchCoursePaymentPlanSelectionsFromRecord(course),
     installmentTemplate,
     createdAt: String(course.createdAt || new Date().toISOString()),
   }
@@ -816,6 +964,9 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
 
 function buildBranchCoursePayload(form) {
   const models = buildBranchCourseModelPayload(form.models)
+  const finalFee = getBranchCourseFinalFeeValue(form)
+  const paymentPlans = buildBranchCoursePaymentPlanPayloadSelections(form.paymentPlans, finalFee)
+  const primaryPaymentPlan = paymentPlans[0] || null
 
   return {
     courseCode: normalizeBranchCourseCode(form.courseCode),
@@ -830,6 +981,9 @@ function buildBranchCoursePayload(form) {
     models,
     courseModels: models,
     modules: models,
+    paymentPlans,
+    paymentPlanSelections: paymentPlans,
+    installmentTemplate: primaryPaymentPlan ? buildBranchCourseInstallmentTemplateFromPaymentPlan(primaryPaymentPlan, finalFee) : null,
   }
 }
 function createInitialBranchCourseForm() {
@@ -844,6 +998,7 @@ function createInitialBranchCourseForm() {
     discount: '',
     status: 'Active',
     models: [],
+    paymentPlans: [],
   }
 }
 
@@ -878,6 +1033,7 @@ function buildBranchCourseFormFromRecord(course = {}) {
     status: String(course.status || 'Active').trim() || 'Active',
     installmentTemplate,
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    paymentPlans: buildBranchCoursePaymentPlanSelectionsFromRecord(course),
   }
 }
 
@@ -998,6 +1154,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [submoduleDraftRestoreIndex, setSubmoduleDraftRestoreIndex] = useState(0)
   const [submoduleDraftRestoreLength, setSubmoduleDraftRestoreLength] = useState(null)
   const activeSubmoduleInputRef = useRef(null)
+  const [branchInstallmentTemplates, setBranchInstallmentTemplates] = useState([])
+  const [isBranchInstallmentTemplatesLoading, setIsBranchInstallmentTemplatesLoading] = useState(false)
+  const [branchInstallmentTemplatesError, setBranchInstallmentTemplatesError] = useState('')
+  const [isPaymentPlanDropdownOpen, setIsPaymentPlanDropdownOpen] = useState(false)
+  const [addCourseSavedPaymentPlans, setAddCourseSavedPaymentPlans] = useState([])
+  const [addCourseSavedPaymentPlanId, setAddCourseSavedPaymentPlanId] = useState('')
+  const [addCoursePaymentPlanSaveAttempted, setAddCoursePaymentPlanSaveAttempted] = useState(false)
+  const paymentPlanDropdownRef = useRef(null)
 
   const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
   const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
@@ -1114,6 +1278,40 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       }
     } catch (error) {
       console.error('Failed to fetch faculty list:', error)
+    }
+  }, [])
+
+  const loadBranchInstallmentPlanOptions = useCallback(async () => {
+    setIsBranchInstallmentTemplatesLoading(true)
+    setBranchInstallmentTemplatesError('')
+
+    try {
+      const collectedTemplates = []
+      let page = 1
+      let totalPages = 1
+
+      do {
+        const result = await listBranchInstallmentTemplates({
+          page,
+          limit: 100,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        })
+
+        collectedTemplates.push(...(Array.isArray(result?.data) ? result.data : []))
+        totalPages = Math.max(1, Number(result?.meta?.totalPages || 1))
+        page += 1
+      } while (page <= totalPages)
+
+      setBranchInstallmentTemplates(collectedTemplates)
+      return collectedTemplates
+    } catch (error) {
+      console.error('Failed to fetch installment templates:', error)
+      setBranchInstallmentTemplates([])
+      setBranchInstallmentTemplatesError(apiErrorMessage(error, 'Unable to load payment plans right now.'))
+      return []
+    } finally {
+      setIsBranchInstallmentTemplatesLoading(false)
     }
   }, [])
 
@@ -1286,6 +1484,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
     return unsubscribe
   }, [loadBranchCourses])
+
+  useEffect(() => {
+    const unsubscribe = subscribeBranchInstallmentTemplateChanges(() => {
+      void loadBranchInstallmentPlanOptions()
+    })
+
+    return unsubscribe
+  }, [loadBranchInstallmentPlanOptions])
 
   useEffect(() => {
     void loadBranchNotifications()
@@ -1736,19 +1942,88 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [addCourseForm.actualFees, addCourseForm.discount, addCourseForm.registrationFees])
 
   const addCourseValidationErrors = useMemo(() => createBranchCourseErrors(addCourseForm), [addCourseForm])
-  const addCourseInstallmentTemplate = useMemo(
-    () => normalizeBranchInstallmentTemplate(addCourseForm.installmentTemplate),
-    [addCourseForm.installmentTemplate],
+  const addCoursePaymentPlanSelections = useMemo(
+    () => normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans),
+    [addCourseForm.paymentPlans],
   )
-  const addCourseInstallmentCount = Math.max(1, Number(addCourseInstallmentTemplate.installmentCount) || 1)
-  const addCourseInstallmentAmounts = useMemo(
-    () => normalizeBranchInstallmentAmountList(addCourseInstallmentTemplate.installments, addCourseInstallmentCount),
-    [addCourseInstallmentTemplate.installments, addCourseInstallmentCount],
+  const addCoursePaymentPlanLookup = useMemo(
+    () => new Map(branchInstallmentTemplates.map((template) => [String(template.id || '').trim(), template])),
+    [branchInstallmentTemplates],
   )
-  const addCourseInstallmentTotal = useMemo(
-    () => getBranchInstallmentAmountTotal(addCourseInstallmentAmounts),
-    [addCourseInstallmentAmounts],
+  const addCoursePaymentPlanOptions = useMemo(
+    () =>
+      branchInstallmentTemplates.filter((template) => String(template?.status || '').trim().toUpperCase() === 'ACTIVE'),
+    [branchInstallmentTemplates],
   )
+  const addCoursePaymentPlanSelectedIds = useMemo(
+    () =>
+      addCoursePaymentPlanSelections.map((plan) => (
+        plan.type === 'custom'
+          ? BRANCH_PAYMENT_PLAN_CUSTOM_VALUE
+          : String(plan.templateId || plan.id || '').trim()
+      )).filter(Boolean),
+    [addCoursePaymentPlanSelections],
+  )
+  const addCoursePaymentPlanDisplayPlans = useMemo(
+    () =>
+      addCoursePaymentPlanSelections.map((plan) => {
+        const matchedTemplate = plan.type === 'template'
+          ? addCoursePaymentPlanLookup.get(String(plan.templateId || '').trim())
+          : null
+        const rawInstallmentCount = String(plan.installmentCount || '').trim()
+        const installmentCount = plan.type === 'custom' && !rawInstallmentCount
+          ? 0
+          : getBranchCoursePaymentPlanInstallmentCount(plan)
+        const installments = buildBranchCoursePaymentPlanInstallments(addCourseFinalFee, installmentCount)
+
+        return {
+          ...plan,
+          templateName: matchedTemplate?.templateName || plan.templateName,
+          dueRule: matchedTemplate?.dueRule || plan.dueRule,
+          status: matchedTemplate?.status || plan.status,
+          installmentCount: plan.type === 'custom' && !rawInstallmentCount ? '' : installmentCount,
+          installments: installmentCount > 0 ? installments : [],
+          installmentCountLabel: rawInstallmentCount,
+        }
+      }),
+    [addCourseFinalFee, addCoursePaymentPlanLookup, addCoursePaymentPlanSelections],
+  )
+  const addCourseSavedPaymentPlanDisplayPlans = useMemo(
+    () =>
+      addCourseSavedPaymentPlans.map((plan) => {
+        const matchedTemplate = plan.type === 'template'
+          ? addCoursePaymentPlanLookup.get(String(plan.templateId || '').trim())
+          : null
+        const rawInstallmentCount = String(plan.installmentCount || '').trim()
+        const installmentCount = plan.type === 'custom' && !rawInstallmentCount
+          ? 0
+          : getBranchCoursePaymentPlanInstallmentCount(plan)
+        const installments = buildBranchCoursePaymentPlanInstallments(addCourseFinalFee, installmentCount)
+
+        return {
+          ...plan,
+          templateName: matchedTemplate?.templateName || plan.templateName,
+          dueRule: matchedTemplate?.dueRule || plan.dueRule,
+          status: matchedTemplate?.status || plan.status,
+          installmentCount: plan.type === 'custom' && !rawInstallmentCount ? '' : installmentCount,
+          installments: installmentCount > 0 ? installments : [],
+          installmentCountLabel: rawInstallmentCount,
+        }
+      }),
+    [addCourseFinalFee, addCoursePaymentPlanLookup, addCourseSavedPaymentPlans],
+  )
+  const addCourseDraftCustomPaymentPlan = useMemo(
+    () => normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans).find((plan) => plan.type === 'custom') || null,
+    [addCourseForm.paymentPlans],
+  )
+  const addCoursePaymentPlanValidationError = useMemo(() => {
+    if (!addCoursePaymentPlanDisplayPlans.length) {
+      return 'Please select at least one payment plan.'
+    }
+
+    return ''
+  }, [addCoursePaymentPlanDisplayPlans])
+  const addCoursePaymentPlanVisibleError = addCoursePaymentPlanSaveAttempted ? addCoursePaymentPlanValidationError : ''
   const savedCourseRows = useMemo(
     () => buildBranchCourseHierarchySummary(savedCourseHierarchy.filter(Boolean)),
     [savedCourseHierarchy],
@@ -1793,79 +2068,132 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     updateAddCourseField(field, value.replace(/[^\d]/g, ''))
   }
 
-  const updateAddCourseInstallmentTemplateField = (field, value) => {
+  const updateAddCoursePaymentPlanSelections = (selectedValues = []) => {
     setAddCourseError('')
     setAddCourseForm((current) => {
-      const template = normalizeBranchInstallmentTemplate(current.installmentTemplate)
+      const normalizedSelectedIds = Array.isArray(selectedValues)
+        ? selectedValues.map((value) => String(value || '').trim()).filter(Boolean)
+        : []
+      const currentPlans = normalizeBranchCoursePaymentPlanSelections(current.paymentPlans)
+      const currentTemplatePlans = new Map(
+        currentPlans
+          .filter((plan) => plan.type === 'template')
+          .map((plan) => [String(plan.templateId || plan.id || '').trim(), plan]),
+      )
+      const currentCustomPlan = currentPlans.find((plan) => plan.type === 'custom') || null
+      const nextPlans = []
 
-      if (field === 'installmentCount') {
-        const safeCountValue = String(value || '').replace(/[^\d]/g, '')
-        const nextCount = Math.max(1, Number(safeCountValue) || 1)
-        return {
-          ...current,
-          installmentTemplate: {
-            ...template,
-            installmentCount: String(nextCount),
-            installments: normalizeBranchInstallmentAmountList(template.installments, nextCount),
-          },
+      normalizedSelectedIds.forEach((selectedId) => {
+        if (selectedId === BRANCH_PAYMENT_PLAN_CUSTOM_VALUE) {
+          nextPlans.push(
+            currentCustomPlan || normalizeBranchCoursePaymentPlanSelection({
+              id: BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+              type: 'custom',
+              templateId: BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+              templateName: 'Custom',
+              installmentCount: '',
+              installments: [],
+              dueRule: 'Custom',
+              allowCustomization: true,
+              status: 'Active',
+            }),
+          )
+          return
         }
-      }
 
-      if (field === 'allowCustomization') {
-        return {
-          ...current,
-          installmentTemplate: {
-            ...template,
-            allowCustomization: Boolean(value),
-          },
-        }
-      }
+        const template = addCoursePaymentPlanLookup.get(selectedId)
+        if (!template) return
+
+        const templateId = String(template.id || '').trim()
+        const existingPlan = currentTemplatePlans.get(templateId)
+        const defaultCount = Math.max(1, Number(template.installmentCount) || 1)
+
+        nextPlans.push(
+          existingPlan || normalizeBranchCoursePaymentPlanSelection({
+            id: templateId,
+            type: 'template',
+            templateId,
+            templateName: template.templateName,
+            installmentCount: String(defaultCount),
+            installments: createBranchInstallmentAmounts(defaultCount, ''),
+            dueRule: template.dueRule,
+            allowCustomization: template.allowCustomization,
+            status: template.status,
+          }),
+        )
+      })
 
       return {
         ...current,
-        installmentTemplate: {
-          ...template,
-          [field]: value,
-        },
+        paymentPlans: nextPlans,
       }
     })
   }
 
-  const updateAddCourseInstallmentAmount = (index, value) => {
+  const updateAddCourseCustomPaymentPlanInstallmentCount = (value) => {
     setAddCourseError('')
     setAddCourseForm((current) => {
-      const template = normalizeBranchInstallmentTemplate(current.installmentTemplate)
-      const nextCount = Math.max(1, Number(template.installmentCount) || 1)
-      const nextInstallments = normalizeBranchInstallmentAmountList(template.installments, nextCount)
-      nextInstallments[index] = String(value || '').replace(/[^\d]/g, '')
+      const safeCountValue = String(value || '').replace(/[^\d]/g, '')
+      const currentPlans = normalizeBranchCoursePaymentPlanSelections(current.paymentPlans)
+      let customPlanFound = false
+
+      const nextPlans = currentPlans.map((plan) => {
+        if (plan.type !== 'custom') return plan
+        customPlanFound = true
+        return {
+          ...plan,
+          installmentCount: safeCountValue ? String(Math.max(1, Number(safeCountValue) || 1)) : '',
+        }
+      })
+
+      if (!customPlanFound) {
+        nextPlans.push(
+          normalizeBranchCoursePaymentPlanSelection({
+            id: BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+            type: 'custom',
+            templateId: BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+            templateName: 'Custom',
+            installmentCount: safeCountValue ? String(Math.max(1, Number(safeCountValue) || 1)) : '',
+            installments: [],
+            dueRule: 'Custom',
+            allowCustomization: true,
+            status: 'Active',
+          }),
+        )
+      }
 
       return {
         ...current,
-        installmentTemplate: {
-          ...template,
-          installmentCount: String(nextCount),
-          installments: nextInstallments,
-        },
+        paymentPlans: nextPlans,
       }
     })
   }
 
-  const autoFillAddCourseInstallmentAmounts = () => {
-    setAddCourseError('')
-    setAddCourseForm((current) => {
-      const template = normalizeBranchInstallmentTemplate(current.installmentTemplate)
-      const nextCount = Math.max(1, Number(template.installmentCount) || 1)
-      const nextAmounts = buildBalancedBranchInstallmentAmounts(addCourseFinalFee, nextCount)
+  const saveAddCoursePaymentPlans = () => {
+    const nextSavedPlans = normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans)
+    setAddCourseSavedPaymentPlans(nextSavedPlans)
+    setAddCourseSavedPaymentPlanId('')
+    setIsPaymentPlanDropdownOpen(false)
+    setAddCoursePaymentPlanSaveAttempted(false)
+    setAddCourseTouched((current) => ({
+      ...current,
+      paymentPlans: true,
+    }))
+  }
 
-      return {
-        ...current,
-        installmentTemplate: {
-          ...template,
-          installmentCount: String(nextCount),
-          installments: nextAmounts,
-        },
-      }
-    })
+  const clearAddCoursePaymentPlans = () => {
+    setAddCourseError('')
+    setAddCourseTouched((current) => ({
+      ...current,
+      paymentPlans: true,
+    }))
+    setAddCourseForm((current) => ({
+      ...current,
+      paymentPlans: [],
+    }))
+    setAddCourseSavedPaymentPlans([])
+    setAddCourseSavedPaymentPlanId('')
+    setAddCoursePaymentPlanSaveAttempted(false)
   }
 
   const updateAddCourseModelField = (modelIndex, field, value) => {
@@ -2175,13 +2503,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
     if (isSubmoduleDraftOpen) {
       const savedCurrentSubmodel = handleCourseSubmodelSave(modelIndex)
-      if (!savedCurrentSubmodel) return
+      if (!savedCurrentSubmodel) return false
     }
 
     const moduleError = getCurrentCourseModelError(modelIndex)
     if (moduleError) {
       setAddCourseError(moduleError)
-      return
+      return false
     }
 
     const snapshot = snapshotCourseModelForSave(modelIndex)
@@ -2198,6 +2526,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setIsSubmoduleDraftOpen(false)
     setSelectedSavedSubmodelIndex(0)
     setSubmoduleDraftRestoreLength(null)
+    return true
   }
 
   const removeAddCourseSubmodel = (modelIndex, submodelIndex) => {
@@ -2283,6 +2612,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       : []
 
     setAddCourseForm(nextForm)
+    setAddCourseSavedPaymentPlans(normalizeBranchCoursePaymentPlanSelections(nextForm.paymentPlans))
+    setAddCourseSavedPaymentPlanId('')
+    setAddCoursePaymentPlanSaveAttempted(false)
     setAddCourseTouched({})
     setAddCourseError('')
     setAddCourseStep(1)
@@ -2322,9 +2654,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const openEditCourseModal = (course) => {
     const nextEditingCourseId = String(course?.id || '').trim()
     const savedDraft = readBranchCourseDraft(nextEditingCourseId)
+    const nextForm = savedDraft?.form || buildBranchCourseFormFromRecord(course)
+    const nextSavedPaymentPlans = normalizeBranchCoursePaymentPlanSelections(nextForm.paymentPlans)
     setCourseDraftKey(nextEditingCourseId || 'new')
     setEditingCourseId(nextEditingCourseId)
-    setAddCourseForm(savedDraft?.form || buildBranchCourseFormFromRecord(course))
+    setAddCourseForm(nextForm)
+    setAddCourseSavedPaymentPlans(nextSavedPaymentPlans)
+    setAddCourseSavedPaymentPlanId('')
+    setAddCoursePaymentPlanSaveAttempted(false)
     setAddCourseTouched(savedDraft?.touched || {})
     setAddCourseError('')
     setAddCourseStep(1)
@@ -2351,6 +2688,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setCourseModuleDeleteTarget(null)
     setCourseSubmoduleDeleteTarget(null)
     setAddCourseStep(1)
+    setAddCourseSavedPaymentPlans([])
+    setAddCourseSavedPaymentPlanId('')
+    setAddCoursePaymentPlanSaveAttempted(false)
     setCourseEditorStage('module')
     setSelectedSavedSubmodelIndex(0)
     setSubmoduleDraftRestoreLength(null)
@@ -2401,6 +2741,23 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
     return () => window.cancelAnimationFrame(frameId)
   }, [courseEditorStage, isAddCourseOpen, isSubmoduleDraftOpen, selectedSavedModelIndex, selectedSavedSubmodelIndex])
+
+  useEffect(() => {
+    if (!isAddCourseOpen) return undefined
+
+    void loadBranchInstallmentPlanOptions()
+    return undefined
+  }, [isAddCourseOpen, loadBranchInstallmentPlanOptions])
+
+  useEffect(() => {
+    if (!isAddCourseOpen || addCourseStep !== 3) return undefined
+
+    if (!branchInstallmentTemplates.length && !isBranchInstallmentTemplatesLoading) {
+      void loadBranchInstallmentPlanOptions()
+    }
+
+    return undefined
+  }, [addCourseStep, branchInstallmentTemplates.length, isAddCourseOpen, isBranchInstallmentTemplatesLoading, loadBranchInstallmentPlanOptions])
 
   const viewCourseInstallmentTemplate = useMemo(
     () => normalizeBranchInstallmentTemplate(viewCourse?.installmentTemplate || viewCourse?.branchInstallmentTemplate || null),
@@ -2461,6 +2818,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   const handleAddCourseSubmit = async (event) => {
     event?.preventDefault()
+    const committedPaymentPlans = normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans)
     const nextTouched = { ...addCourseTouched }
     COURSE_BASIC_FIELDS.forEach((field) => {
       nextTouched[field] = true
@@ -2472,6 +2830,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
       })
     })
+    nextTouched.paymentPlans = true
     setAddCourseTouched(nextTouched)
 
     if (Object.keys(addCourseValidationErrors.basic).length > 0 || addCourseValidationErrors.hierarchy.modelsError) {
@@ -2491,6 +2850,23 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       return
     }
 
+    if (!committedPaymentPlans.length || addCoursePaymentPlanValidationError) {
+      setAddCourseStep(3)
+      setAddCourseError(addCoursePaymentPlanValidationError || 'Please select at least one payment plan.')
+      return
+    }
+
+    const hasInvalidCustomPaymentPlan = committedPaymentPlans.some(
+      (plan) => plan.type === 'custom' && !String(plan.installmentCount || '').trim(),
+    )
+
+    if (hasInvalidCustomPaymentPlan) {
+      setAddCourseStep(3)
+      setAddCourseError('Custom payment plan requires a valid installment count.')
+      return
+    }
+
+    saveAddCoursePaymentPlans()
     setIsAddCourseSaving(true)
     try {
       const normalizedCourseCode = normalizeBranchCourseCode(addCourseForm.courseCode)
@@ -2580,6 +2956,54 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setSelectedSavedSubmodelIndex(0)
   }
 
+  const handleCourseModulesNext = () => {
+    const nextTouched = { ...addCourseTouched }
+    normalizeBranchCourseModels(addCourseForm.models).forEach((model, modelIndex) => {
+      nextTouched[`model-${modelIndex}-name`] = true
+      nextTouched[`model-${modelIndex}-submodels`] = true
+      ;(model.submodels || []).forEach((_, submodelIndex) => {
+        nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
+      })
+    })
+    setAddCourseTouched(nextTouched)
+
+    if (courseEditorStage !== 'closed' && Number.isInteger(selectedSavedModelIndex)) {
+      const savedCurrentModel = handleCourseModuleFinalSave(selectedSavedModelIndex)
+      if (!savedCurrentModel) return
+    }
+
+    const validationErrors = createBranchCourseErrors(addCourseForm)
+    const hasHierarchyErrors = Boolean(
+      validationErrors.hierarchy.modelsError ||
+      validationErrors.hierarchy.models.some(
+        (modelErrors) =>
+          modelErrors.name ||
+          modelErrors.submodelsError ||
+          modelErrors.submodels.some((submodelErrors) => submodelErrors.name),
+      ),
+    )
+
+    if (hasHierarchyErrors) {
+      setAddCourseError(
+        validationErrors.hierarchy.models.find((modelErrors) => modelErrors.name)?.name ||
+        validationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodelsError)?.submodelsError ||
+        validationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodels.some((submodelErrors) => submodelErrors.name))?.submodels?.find((submodelErrors) => submodelErrors.name)?.name ||
+        validationErrors.hierarchy.modelsError ||
+        'Please complete the module tree before continuing.',
+      )
+      setAddCourseStep(2)
+      return
+    }
+
+    setAddCourseError('')
+    setAddCoursePaymentPlanSaveAttempted(false)
+    setAddCourseStep(3)
+    setCourseEditorStage('closed')
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedModelIndex(0)
+    setSelectedSavedSubmodelIndex(0)
+  }
+
   useEffect(() => {
     if (!isAddCourseOpen) return undefined
 
@@ -2599,6 +3023,31 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [isAddCourseOpen])
+
+  useEffect(() => {
+    if (!isPaymentPlanDropdownOpen) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (paymentPlanDropdownRef.current?.contains(target)) return
+      setIsPaymentPlanDropdownOpen(false)
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsPaymentPlanDropdownOpen(false)
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isPaymentPlanDropdownOpen])
 
   useEffect(() => {
     if (!viewCourse) return undefined
@@ -3895,15 +4344,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   type="button"
                   className={`course-stepper-item ${addCourseStep === 2 ? 'is-active' : ''}`.trim()}
                   onClick={() => {
-                    const validationErrors = createBranchCourseErrors(addCourseForm)
-                    if (Object.keys(validationErrors.basic).length === 0) {
-                      setAddCourseStep(2)
-                      setCourseEditorStage('closed')
-                      setIsSubmoduleDraftOpen(false)
-                      setSelectedSavedModelIndex(0)
-                      setSelectedSavedSubmodelIndex(0)
-                      setAddCourseError('')
-                    }
+                    handleCourseBasicNext()
                   }}
                   disabled={Object.keys(addCourseValidationErrors.basic).length > 0}
                 >
@@ -3912,12 +4353,37 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   </span>
                   <strong>Modules & Submodules</strong>
                 </button>
+                <button
+                  type="button"
+                  className={`course-stepper-item ${addCourseStep === 3 ? 'is-active' : ''}`.trim()}
+                  onClick={() => {
+                    if (addCourseStep === 1) {
+                      handleCourseBasicNext()
+                      return
+                    }
+
+                    if (addCourseStep === 2) {
+                      handleCourseModulesNext()
+                      return
+                    }
+
+                    setAddCourseStep(3)
+                  }}
+                  disabled={Boolean(Object.keys(addCourseValidationErrors.basic).length > 0 || addCourseValidationErrors.hierarchy.modelsError)}
+                >
+                  <span className="course-stepper-icon" aria-hidden="true">
+                    <Wallet size={20} strokeWidth={2.3} />
+                  </span>
+                  <strong>Payment Plan</strong>
+                </button>
               </div>
 
               <div className="course-step-caption">
                 {addCourseStep === 1
                   ? 'Fill the course basics first. Then move to module setup.'
-                  : 'Add modules and submodules. Percentages are calculated automatically.'}
+                  : addCourseStep === 2
+                    ? 'Add modules and submodules. Continue when the hierarchy is complete.'
+                    : 'Choose one or more payment plans. The installment amounts are split automatically from the final fee.'}
               </div>
 
               {addCourseStep === 1 ? (
@@ -4086,7 +4552,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                     </select>
                   </Field>
                 </div>
-              ) : (
+              ) : addCourseStep === 2 ? (
                 <div className="course-model-editor">
                   <div className="course-model-editor-header">
                     <p className="section-kicker">Modules & Submodules</p>
@@ -4399,7 +4865,276 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                     </div>
                   ) : null}
                 </div>
-              )}
+              ) : addCourseStep === 3 ? (
+                <div className="course-payment-plan-editor">
+                  <div className="course-payment-plan-summary-grid">
+                    <Field label="Final Fee" hint="Read only">
+                      <input
+                        type="text"
+                        value={addCourseFinalFee ? formatBranchCourseAmount(addCourseFinalFee) : '-'}
+                        readOnly
+                      />
+                    </Field>
+
+                    <Field
+                      label="Select Installment Plan"
+                      hint="Choose one or more plans"
+                      error={addCoursePaymentPlanVisibleError}
+                    >
+                      <div
+                        ref={paymentPlanDropdownRef}
+                        className={`course-payment-plan-dropdown ${isPaymentPlanDropdownOpen ? 'is-open' : ''}`.trim()}
+                        aria-invalid={Boolean(addCoursePaymentPlanVisibleError)}
+                      >
+                        <button
+                          type="button"
+                          className={`course-payment-plan-dropdown-trigger ${addCoursePaymentPlanSelectedIds.length ? 'has-value' : ''}`.trim()}
+                          onClick={() => setIsPaymentPlanDropdownOpen((current) => !current)}
+                          aria-expanded={isPaymentPlanDropdownOpen}
+                          aria-label="Select Installment Plan"
+                        >
+                          <span className="course-payment-plan-dropdown-trigger-copy">
+                            <strong>
+                              {addCoursePaymentPlanSelectedIds.length
+                                ? `${addCoursePaymentPlanSelectedIds.length} selected`
+                                : 'Select Payment Plan'}
+                            </strong>
+                            <small>
+                              {addCoursePaymentPlanSelectedIds.length
+                                ? 'Plans selected'
+                                : 'Choose one or more plans'}
+                            </small>
+                          </span>
+                          <ChevronDown size={18} strokeWidth={2.2} className={isPaymentPlanDropdownOpen ? 'is-open' : ''} aria-hidden="true" />
+                        </button>
+
+                        {isPaymentPlanDropdownOpen ? (
+                          <div className="course-payment-plan-dropdown-panel" role="group" aria-label="Payment plan options">
+                            <div
+                              className="course-payment-plan-checklist"
+                              role="group"
+                              aria-label="Select payment plan"
+                              aria-invalid={Boolean(addCoursePaymentPlanVisibleError)}
+                            >
+                              {isBranchInstallmentTemplatesLoading ? (
+                                <div className="course-payment-plan-checklist-empty">Loading payment plans...</div>
+                              ) : null}
+
+                              {!isBranchInstallmentTemplatesLoading && !addCoursePaymentPlanOptions.length ? (
+                                <div className="course-payment-plan-checklist-empty">No payment plans found</div>
+                              ) : null}
+
+                              {addCoursePaymentPlanOptions.map((template) => {
+                                const templateId = String(template.id || '').trim()
+                                const checked = addCoursePaymentPlanSelectedIds.includes(templateId)
+
+                                return (
+                                  <label
+                                    key={templateId}
+                                    className={`course-payment-plan-checklist-item ${checked ? 'is-checked' : ''}`.trim()}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={(event) => {
+                                        markAddCourseTouched('paymentPlans')
+                                        const nextSelected = new Set(addCoursePaymentPlanSelectedIds)
+                                        if (event.target.checked) {
+                                          nextSelected.add(templateId)
+                                        } else {
+                                          nextSelected.delete(templateId)
+                                        }
+                                        updateAddCoursePaymentPlanSelections(Array.from(nextSelected))
+                                      }}
+                                    />
+                                    <span className="course-payment-plan-checkmark" aria-hidden="true">
+                                      {checked ? <Check size={12} strokeWidth={3} /> : null}
+                                    </span>
+                                    <span className="course-payment-plan-checklist-copy">
+                                      <strong>{template.templateName || `${template.installmentCount || 1} Installments`}</strong>
+                                    </span>
+                                  </label>
+                                )
+                              })}
+
+                              <label
+                                className={`course-payment-plan-checklist-item ${addCoursePaymentPlanSelectedIds.includes(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE) ? 'is-checked' : ''}`.trim()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={addCoursePaymentPlanSelectedIds.includes(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE)}
+                                  onChange={(event) => {
+                                    markAddCourseTouched('paymentPlans')
+                                    const nextSelected = new Set(addCoursePaymentPlanSelectedIds)
+                                    if (event.target.checked) {
+                                      nextSelected.add(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE)
+                                    } else {
+                                      nextSelected.delete(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE)
+                                    }
+                                    updateAddCoursePaymentPlanSelections(Array.from(nextSelected))
+                                  }}
+                                />
+                                <span className="course-payment-plan-checkmark" aria-hidden="true">
+                                  {addCoursePaymentPlanSelectedIds.includes(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE) ? <Check size={12} strokeWidth={3} /> : null}
+                                </span>
+                                <span className="course-payment-plan-checklist-copy">
+                                  <strong>Custom</strong>
+                                  <small>Manual installment count</small>
+                                </span>
+                              </label>
+                            </div>
+
+                            <div className="course-payment-plan-dropdown-footer">
+                              <span>{addCoursePaymentPlanSelectedIds.length} selected</span>
+                              <div className="course-payment-plan-footer-actions">
+                                <button
+                                  type="button"
+                                  className="course-payment-plan-save-button"
+                                  onClick={saveAddCoursePaymentPlans}
+                                  disabled={!addCoursePaymentPlanSelectedIds.length}
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  className="course-payment-plan-clear-button"
+                                  onClick={() => {
+                                    clearAddCoursePaymentPlans()
+                                    setIsPaymentPlanDropdownOpen(true)
+                                  }}
+                                  disabled={!addCoursePaymentPlanSelectedIds.length}
+                                >
+                                  Clear All
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : null}
+
+                      </div>
+                    </Field>
+
+                    {branchInstallmentTemplatesError ? (
+                      <div className="course-validation-note">
+                        <span>{branchInstallmentTemplatesError}</span>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {addCourseSavedPaymentPlanDisplayPlans.length ? (
+                    <div className="course-payment-plan-saved-section">
+                      <div className="course-payment-plan-saved-header">
+                        <span>Selected Plans ({addCourseSavedPaymentPlanDisplayPlans.length})</span>
+                      </div>
+
+                      <div className="course-payment-plan-saved-list">
+                        {addCourseSavedPaymentPlanDisplayPlans.map((plan, planIndex) => {
+                          const planId = String(plan.id || `${plan.type}-${planIndex}`).trim()
+                          const isOpen = addCourseSavedPaymentPlanId === planId
+                          const customInstallmentCountValue = plan.type === 'custom'
+                            ? String(addCourseDraftCustomPaymentPlan?.installmentCount || '')
+                            : ''
+                          const effectiveInstallmentCount = plan.type === 'custom'
+                            ? Math.max(0, Number(customInstallmentCountValue || 0) || 0)
+                            : Number(plan.installmentCount || 0) || 0
+                          const effectiveInstallments = plan.type === 'custom'
+                            ? (effectiveInstallmentCount > 0
+                              ? buildBranchCoursePaymentPlanInstallments(addCourseFinalFee, effectiveInstallmentCount)
+                              : [])
+                            : plan.installments
+                          const installmentLabel = plan.installmentCountLabel
+                            ? `${plan.installmentCountLabel} ${Number(plan.installmentCountLabel) === 1 ? 'Installment' : 'Installments'}`
+                            : 'Set count'
+
+                          return (
+                            <article key={planId} className={`course-payment-plan-saved-card ${isOpen ? 'is-open' : ''}`.trim()}>
+                              <button
+                                type="button"
+                                className="course-payment-plan-saved-card-trigger"
+                                onClick={() => {
+                                  setAddCourseSavedPaymentPlanId((current) => (current === planId ? '' : planId))
+                                }}
+                              >
+                                <span className="course-payment-plan-saved-card-copy">
+                                  <strong>{plan.templateName || 'Payment Plan'}</strong>
+                                  <small>{plan.type === 'custom' ? 'Manual installment count' : 'Installment plan'}</small>
+                                </span>
+                                <span className="course-payment-plan-saved-card-arrow" aria-hidden="true">
+                                  <ChevronRight size={18} strokeWidth={2.2} />
+                                </span>
+                              </button>
+
+                              {isOpen ? (
+                                <div className="course-payment-plan-saved-card-body">
+                                  {plan.type === 'custom' ? (
+                                    <Field
+                                      label="Number of Installments"
+                                      required
+                                      hint="Enter the number of parts for the final fee split"
+                                    >
+                                      <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={customInstallmentCountValue}
+                                        onChange={(event) => {
+                                          markAddCourseTouched('paymentPlans')
+                                          updateAddCourseCustomPaymentPlanInstallmentCount(event.target.value)
+                                        }}
+                                      />
+                                    </Field>
+                                  ) : (
+                                    <div className="course-payment-plan-meta">
+                                      <span>{plan.dueRule || 'Admission'}</span>
+                                    </div>
+                                  )}
+
+                                  <div className="course-payment-plan-count-inline">
+                                    {installmentLabel}
+                                  </div>
+
+                                  {effectiveInstallments.length ? (
+                                    <div className="course-payment-plan-table-shell">
+                                      <table className="course-payment-plan-table">
+                                        <thead>
+                                          <tr>
+                                            <th>Installment</th>
+                                            <th>Amount</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {effectiveInstallments.map((amount, installmentIndex) => (
+                                            <tr key={`${plan.id}-${installmentIndex}`}>
+                                              <td>Installment {installmentIndex + 1}</td>
+                                              <td>{formatBranchCourseAmount(amount)}</td>
+                                            </tr>
+                                          ))}
+                                          <tr className="course-payment-plan-total-row">
+                                            <td><strong>Total</strong></td>
+                                            <td><strong>{formatBranchCourseAmount(String(getBranchInstallmentAmountTotal(effectiveInstallments)))}</strong></td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  ) : (
+                                    <div className="course-payment-plan-checklist-empty">
+                                      Enter a custom installment count to split the final fee.
+                                    </div>
+                                  )}
+                                </div>
+                              ) : null}
+                            </article>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="course-added-modules-empty">
+                      <p>Click Save to show selected payment plans. After that, click a plan to view its installment table.</p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
 
               {addCourseError ? (
                 <div className="course-validation-note course-validation-error">
@@ -4415,9 +5150,18 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                   <button type="button" className="button button-solid" onClick={handleCourseBasicNext} disabled={isAddCourseSaving}>
                     Next
                   </button>
-                ) : (
+                ) : addCourseStep === 2 ? (
                   <div className="course-form-actions-group">
                     <button type="button" className="button button-ghost" onClick={() => setAddCourseStep(1)} disabled={isAddCourseSaving}>
+                      Back
+                    </button>
+                    <button type="button" className="button button-solid" onClick={handleCourseModulesNext} disabled={isAddCourseSaving}>
+                      Next
+                    </button>
+                  </div>
+                ) : (
+                  <div className="course-form-actions-group">
+                    <button type="button" className="button button-ghost" onClick={() => setAddCourseStep(2)} disabled={isAddCourseSaving}>
                       Back
                     </button>
                     <button type="submit" className="button button-solid" disabled={isAddCourseSaving}>
@@ -6199,3 +6943,4 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     </section>
   )
 }
+
