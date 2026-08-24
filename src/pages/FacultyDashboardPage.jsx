@@ -38,6 +38,7 @@ import {
 import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
 import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
+import { PaginationBar } from '../components/PaginationBar'
 import { listCourses } from '../services/courseService'
 import { getCurrentFacultyProfile } from '../services/facultyService'
 import { clearBranchCourseListCache, listBranchCourses } from '../services/branchCourseService'
@@ -521,6 +522,7 @@ export function FacultyDashboardPage() {
   const [courseCatalog, setCourseCatalog] = useState([])
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
+  const [courseModulePage, setCourseModulePage] = useState(1)
   const [courseEditRequests, setCourseEditRequests] = useState([])
   const [isCourseRequestModalOpen, setIsCourseRequestModalOpen] = useState(false)
   const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false)
@@ -856,6 +858,17 @@ useEffect(() => {
   }, [activeCourseId, assignedCourses])
 
   const selectedCourseModules = useMemo(() => getCourseModels(selectedCourse), [selectedCourse])
+  const courseModulesPerPage = 5
+  const totalCourseModulePages = Math.max(1, Math.ceil(selectedCourseModules.length / courseModulesPerPage))
+  const safeCourseModulePage = Math.min(Math.max(1, Number(courseModulePage) || 1), totalCourseModulePages)
+  const paginatedCourseModules = useMemo(
+    () =>
+      selectedCourseModules.slice(
+        (safeCourseModulePage - 1) * courseModulesPerPage,
+        safeCourseModulePage * courseModulesPerPage,
+      ),
+    [courseModulesPerPage, safeCourseModulePage, selectedCourseModules],
+  )
   const courseEditModules = Array.isArray(courseEditDraft?.modules) ? courseEditDraft.modules : []
   const courseEditActiveModule =
     courseEditModules[courseEditActiveModuleIndex] || courseEditModules[0] || null
@@ -864,10 +877,10 @@ useEffect(() => {
     : []
   const selectedCourseModuleKeys = useMemo(
     () =>
-      selectedCourseModules.map((module, index) =>
+      paginatedCourseModules.map((module, index) =>
         String(module?.id || `${selectedCourse?.id || 'course'}-module-${index}`).trim(),
       ),
-    [selectedCourse?.id, selectedCourseModules],
+    [paginatedCourseModules, selectedCourse?.id],
   )
   const isAllModulesExpanded =
     selectedCourseModuleKeys.length > 0 &&
@@ -1726,7 +1739,10 @@ const nextName = trimmedValue
                                 key={course.id}
                                 type="button"
                                 className={`faculty-course-switcher-pill ${isActive ? 'is-active' : ''}`.trim()}
-                                onClick={() => setSelectedCourseId(String(course.id || '').trim())}
+                                onClick={() => {
+                                  setSelectedCourseId(String(course.id || '').trim())
+                                  setCourseModulePage(1)
+                                }}
                               >
                                 <span>{course.courseCode || 'Course'}</span>
                                 <strong>{course.name || course.courseName || 'Course'}</strong>
@@ -1834,64 +1850,101 @@ const nextName = trimmedValue
                             </button>
                           </div>
 
-                          {selectedCourseModules.length ? (
-                            <div className="faculty-course-module-grid">
-                              {selectedCourseModules.map((module, index) => {
-                                const moduleKey = String(module?.id || `${selectedCourse?.id || 'course'}-module-${index}`).trim()
-                                const isExpanded = expandedCourseModuleIds.includes(moduleKey)
-                                const submodules = Array.isArray(module?.submodules) ? module.submodules : []
+                          {paginatedCourseModules.length ? (
+                            <div className="faculty-course-table-view">
+                              <>
+                              <div className="faculty-course-table-shell">
+                                <div className="faculty-course-table-head">
+                                  <span>S.NO</span>
+                                  <span>Module Name</span>
+                                  <span>Submodules Count</span>
+                                  <span>Progress</span>
+                                  <span>Action</span>
+                                </div>
 
-                                return (
-                                  <article key={moduleKey} className={`faculty-course-module-card ${isExpanded ? 'is-expanded' : ''}`.trim()}>
-                                    <button
-                                      type="button"
-                                      className="faculty-course-module-trigger"
-                                      onClick={() => toggleCourseModule(moduleKey)}
-                                    >
-                                      <span className="faculty-course-module-index">{String(index + 1).padStart(2, '0')}</span>
+                                <div className="faculty-course-table-body">
+                                  {paginatedCourseModules.map((module, index) => {
+                                    const absoluteIndex = ((safeCourseModulePage - 1) * courseModulesPerPage) + index
+                                    const moduleKey = String(module?.id || `${selectedCourse?.id || 'course'}-module-${absoluteIndex}`).trim()
+                                    const isExpanded = expandedCourseModuleIds.includes(moduleKey)
+                                    const submodules = Array.isArray(module?.submodules) ? module.submodules : []
+                                    const moduleName = module?.name || module?.title || `Module ${index + 1}`
+                                    const modulePercent = getModulePercentage(module, absoluteIndex, selectedCourseModules.length)
 
-                                      <span className="faculty-course-module-copy">
-                                        <span className="faculty-course-section-kicker" style={{ marginBottom: 6 }}>
-                                          MODULE
-                                        </span>
-                                        <strong>{module?.name || module?.title || `Module ${index + 1}`}</strong>
-                                      </span>
+                                    return (
+                                      <div key={moduleKey} className={`faculty-course-table-row ${isExpanded ? 'is-expanded' : ''}`.trim()}>
+                                        <div className="faculty-course-table-cell faculty-course-table-cell-index">
+                                          {String(absoluteIndex + 1).padStart(2, '0')}
+                                        </div>
 
-                                      <span className="faculty-course-module-percent">
-                                        {getModulePercentage(module, index, selectedCourseModules.length)}
-                                      </span>
+                                        <div className="faculty-course-table-cell faculty-course-table-cell-name">
+                                          <strong>{moduleName}</strong>
+                                        </div>
 
-                                      <span className="faculty-course-module-chevron" aria-hidden="true">
-                                        <ChevronDown size={18} strokeWidth={2.4} />
-                                      </span>
-                                    </button>
+                                        <div className="faculty-course-table-cell faculty-course-table-cell-count">
+                                          {submodules.length}
+                                        </div>
 
-                                    {isExpanded ? (
-                                      <div className="faculty-course-submodule-list">
-                                        {submodules.length ? (
-                                          submodules.map((submodule, subIndex) => (
-                                            <div key={String(submodule?.id || `${moduleKey}-sub-${subIndex}`)} className="faculty-course-submodule-item">
-                                              <div className="faculty-course-submodule-step">
-                                                <span className="faculty-course-submodule-dot" aria-hidden="true" />
-                                                <div className="faculty-course-submodule-copy">
-                                                  <span>SUBMODULE {subIndex + 1}</span>
+                                        <div className="faculty-course-table-cell faculty-course-table-cell-progress">
+                                          <span>{modulePercent}</span>
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          className="faculty-course-table-action"
+                                          onClick={() => toggleCourseModule(moduleKey)}
+                                          aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${moduleName}`}
+                                          aria-expanded={isExpanded}
+                                        >
+                                          <ChevronDown size={18} strokeWidth={2.4} />
+                                        </button>
+
+                                        {isExpanded ? (
+                                          <div className="faculty-course-table-subtable">
+                                            <div className="faculty-course-table-subhead">
+                                              <span>Submodule </span>
+                                              <span>Submodule Name</span>
+                                              <span>Progress</span>
+                                            </div>
+
+                                          {submodules.length ? submodules.map((submodule, subIndex) => (
+                                              <div key={String(submodule?.id || `${moduleKey}-sub-${subIndex}`)} className="faculty-course-table-subrow">
+                                                <div className="faculty-course-table-cell faculty-course-table-subcell-index">
+                                                  {`${absoluteIndex + 1}.${subIndex + 1}`}
+                                                </div>
+                                                <div className="faculty-course-table-cell faculty-course-table-subcell-name">
+                                                  <i aria-hidden="true" />
                                                   <strong>{submodule?.name || submodule?.title || `Submodule ${subIndex + 1}`}</strong>
                                                 </div>
+                                                <div className="faculty-course-table-cell faculty-course-table-subcell-progress">
+                                                  {getModulePercentage(submodule, subIndex, submodules.length)}
+                                                </div>
                                               </div>
-
-                                              <strong className="faculty-course-submodule-percent">
-                                                {getModulePercentage(submodule, subIndex, submodules.length)}
-                                              </strong>
-                                            </div>
-                                          ))
-                                        ) : (
-                                          <div className="faculty-course-submodule-empty">No submodules added</div>
-                                        )}
+                                            )) : (
+                                              <div className="faculty-course-table-subempty">No submodules added</div>
+                                            )}
+                                          </div>
+                                        ) : null}
                                       </div>
-                                    ) : null}
-                                  </article>
-                                )
-                              })}
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                              <div className="faculty-course-table-footer">
+                              <div className="faculty-course-table-summary">
+                                Showing {((safeCourseModulePage - 1) * courseModulesPerPage) + 1} to {Math.min(safeCourseModulePage * courseModulesPerPage, selectedCourseModules.length)} of {selectedCourseModules.length} modules
+                              </div>
+
+                              <PaginationBar
+                                currentPage={safeCourseModulePage}
+                                totalPages={totalCourseModulePages}
+                                onPageChange={setCourseModulePage}
+                                className="faculty-course-table-pagination"
+                                label="Course modules pagination"
+                                showSummary={false}
+                              />
+                            </div>
+                              </>
                             </div>
                           ) : (
                             <div className="faculty-course-empty-state">
