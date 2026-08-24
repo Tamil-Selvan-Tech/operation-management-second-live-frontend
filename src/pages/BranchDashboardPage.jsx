@@ -154,7 +154,8 @@ function createInitialStudentForm(branchId) {
     facultyId: '',
     facultyName: '',
     courseAmount: '',
-    paymentMode: 'Installment',
+    paymentMode: '',
+    
   }
 }
 
@@ -3156,23 +3157,30 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       return []
     }
   }, [branchStudentScope])
+const studentCourseOptions = useMemo(() => {
+  return branchCourseCards
+    .map((course) => {
+      const id = String(course?.id || '').trim()
+      const name = String(course?.name || '').trim()
+      if (!id || !name) return null
 
-  const studentCourseOptions = useMemo(() => {
-    return branchCourseCards
-      .map((course) => {
-        const id = String(course?.id || '').trim()
-        const name = String(course?.name || '').trim()
-        if (!id || !name) return null
+      return {
+        id,
+        name,
+        amount: normalizeBranchStudentCourseAmount(course),
+        assignedFaculty: normalizeBranchStudentCourseFacultyOptions(course),
 
-        return {
-          id,
-          name,
-          amount: normalizeBranchStudentCourseAmount(course),
-          assignedFaculty: normalizeBranchStudentCourseFacultyOptions(course),
-        }
-      })
-      .filter(Boolean)
-  }, [branchCourseCards])
+        // Course-ku already configured payment plans
+        paymentPlans: normalizeBranchCoursePaymentPlanSelections(
+          course?.paymentPlans ||
+          course?.paymentPlanSelections ||
+          course?.installmentPlans ||
+          []
+        ),
+      }
+    })
+    .filter(Boolean)
+}, [branchCourseCards])
 
   const selectedStudentCourse = useMemo(
     () => studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null,
@@ -3188,7 +3196,18 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     () => String(selectedStudentCourse?.amount || studentForm.courseAmount || '').trim(),
     [selectedStudentCourse, studentForm.courseAmount],
   )
+const selectedStudentCoursePaymentPlans = useMemo(
+  () =>
+    Array.isArray(selectedStudentCourse?.paymentPlans)
+      ? selectedStudentCourse.paymentPlans
+      : [],
+  [selectedStudentCourse],
+)
 
+const selectedStudentCoursePaymentPlan = useMemo(
+  () => selectedStudentCoursePaymentPlans[0] || null,
+  [selectedStudentCoursePaymentPlans],
+)
   const handleStudentCourseChange = (courseId) => {
     const nextCourseId = String(courseId || '').trim()
 
@@ -3207,6 +3226,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     const nextCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === nextCourseId) || null
     const nextFacultyOptions = Array.isArray(nextCourse?.assignedFaculty) ? nextCourse.assignedFaculty : []
 
+    const nextPaymentPlan =
+  Array.isArray(nextCourse?.paymentPlans)
+    ? nextCourse.paymentPlans[0]
+    : null
+
     setStudentForm((current) => {
       const currentFacultyId = String(current.facultyId || '').trim().toLowerCase()
       const currentFacultyName = String(current.facultyName || '').trim().toLowerCase()
@@ -3222,6 +3246,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
         courseAmount: nextCourse?.amount || '',
         facultyId: matchedFaculty?.id || '',
         facultyName: matchedFaculty?.name || '',
+        paymentPlan: nextPaymentPlan?.templateName || '',
       }
     })
   }
@@ -6693,6 +6718,47 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
                       {viewStudentDrawer.remarks || '-'}
                     </div>
                   </div>
+                  {/* Course */}
+<div className="student-details-row">
+  <div className="student-details-label">
+    Course
+  </div>
+  <div className="student-details-value">
+    {viewStudentDrawer.courseName || '-'}
+  </div>
+</div>
+
+{/* Faculty */}
+<div className="student-details-row">
+  <div className="student-details-label">
+    Faculty
+  </div>
+  <div className="student-details-value">
+    {viewStudentDrawer.facultyName || '-'}
+  </div>
+</div>
+
+{/* Course Amount */}
+<div className="student-details-row">
+  <div className="student-details-label">
+    Course Amount
+  </div>
+  <div className="student-details-value">
+    {viewStudentDrawer.courseAmount
+      ? `₹${viewStudentDrawer.courseAmount}`
+      : '-'}
+  </div>
+</div>
+
+{/* Payment Plan */}
+<div className="student-details-row">
+  <div className="student-details-label">
+    Payment Plan
+  </div>
+  <div className="student-details-value">
+    {viewStudentDrawer.paymentPlan || '-'}
+  </div>
+</div>
 
                 </div>
 
@@ -7489,18 +7555,18 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
           />
         </Field>
 
-        <Field label="Payment Mode">
-          <select
-            value={studentForm.paymentMode}
-            onChange={(e) =>
-              updateStudentField('paymentMode', e.target.value)
-            }
-            disabled={studentFormMode === 'view'}
-          >
-            <option value="Installment">Installment</option>
-            <option value="Full Payment">Full Payment</option>
-          </select>
-        </Field>
+       <Field label="Payment Plan">
+  <input
+    type="text"
+    value={studentForm.paymentPlan || ''}
+    readOnly
+    placeholder={
+      studentForm.courseId
+        ? 'Payment plan configured for selected course'
+        : 'Select course first'
+    }
+  />
+</Field>
 
       </div>
 
