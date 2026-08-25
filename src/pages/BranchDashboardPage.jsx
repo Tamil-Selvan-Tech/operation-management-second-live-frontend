@@ -3596,15 +3596,10 @@ paymentPlanId: '',
       afterDiscount: resolvedCourseAmount,
       paymentMode: studentForm.paymentMode || 'Installment',
       installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
-  installmentNumber: index + 1,
-  amount,
-  dueDate: studentInstallmentDueDates[index] || '',
-})),
-      installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
-  installmentNumber: index + 1,
-  amount,
-  dueDate: studentInstallmentDueDates[index] || '',
-})),
+        installmentNumber: index + 1,
+        amount,
+        dueDate: studentInstallmentDueDates[index] || '',
+      })),
     }
 
     delete record.studentIdSuffix
@@ -3612,6 +3607,7 @@ paymentPlanId: '',
     delete record.recordId
 
     setIsStudentSaving(true)
+    console.log("PAYLOAD BEING SENT TO BACKEND:", record)
     try {
       await saveBranchStudent(record)
       void reloadBranchStudents()
@@ -6829,6 +6825,43 @@ paymentPlanId: '',
         {viewStudentDrawer.paymentPlan || '-'}
       </div>
     </div>
+
+    {/* Installment Schedule */}
+    {Array.isArray(viewStudentDrawer.installmentSchedule) && viewStudentDrawer.installmentSchedule.length > 0 && (
+      <div className="student-details-row" style={{ gridColumn: '1 / -1' }}>
+        <div className="student-details-label" style={{ marginBottom: 12 }}>Installment Schedule</div>
+        <div className="student-details-value" style={{ width: '100%', overflowX: 'auto' }}>
+          <table className="student-payment-installment-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
+                <th style={{ padding: '8px 12px' }}>Installment</th>
+                <th style={{ padding: '8px 12px' }}>Amount</th>
+                <th style={{ padding: '8px 12px' }}>Due Date</th>
+                <th style={{ padding: '8px 12px' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {viewStudentDrawer.installmentSchedule.map((inst, index) => (
+                <tr key={`view-inst-${index}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <td style={{ padding: '8px 12px' }}>Installment {inst.installmentNumber}</td>
+                  <td style={{ padding: '8px 12px' }}>
+                    ₹{(inst.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>
+                    {inst.dueDate ? new Date(inst.dueDate).toLocaleDateString('en-GB') : '-'}
+                  </td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <span className={`status-badge status-${String(inst.status || 'pending').toLowerCase()}`}>
+                      {inst.status || 'Pending'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )}
   </>
 )}
                 </div>
