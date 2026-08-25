@@ -5599,6 +5599,21 @@
   font-size: 15px;
   font-weight: 750;
 }
+.branch-course-view-model-cell-percentage {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  min-height: auto !important;
+}
+
+.branch-course-view-model-cell-percentage b {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  min-width: auto !important;
+  height: auto !important;
+}
 
 .branch-course-view-model-cell-module span {
   color: #64748b;
@@ -5772,10 +5787,11 @@
 }
 
 .branch-course-view-content {
-  flex: 1 1 auto;
+   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow-x: hidden;
+  padding-bottom: 30px;;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
   display: grid;
@@ -5893,7 +5909,41 @@
   margin-top: 22px;
   padding: 4px 0 8px;
 }
+/* Course Details Drawer */
+.branch-course-view-drawer {
+  height: 100vh;
+  max-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 
+/* Header fixed */
+.branch-course-view-drawer-header {
+  flex-shrink: 0;
+}
+
+/* Tabs fixed */
+.branch-course-view-tabs {
+  flex-shrink: 0;
+}
+
+/* Main content should scroll */
+.branch-course-view-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+
+
+/* Modules & Submodules area */
+.branch-course-view-hierarchy {
+  min-height: 0;
+  padding-bottom: 30px;
+}
 
 .branch-course-view-model-head {
   align-items: flex-start;
@@ -7868,4 +7918,60 @@
   outline: none;
   border-color: #2563eb;
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+/* =========================================
+   FIX: COURSE DETAILS DRAWER SCROLL
+   ========================================= */
+
+.branch-course-view-drawer {
+  height: 100vh !important;
+  max-height: 100vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.branch-course-view-drawer-header {
+  flex: 0 0 auto !important;
+}
+
+.branch-course-view-body {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.branch-course-view-tabs {
+  flex: 0 0 auto !important;
+}
+
+.branch-course-view-content {
+  flex: 1 1 0 !important;
+  min-height: 0 !important;
+  height: 0 !important;
+
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
+
+  display: block !important;
+
+  padding: 0 24px 40px !important;
+
+  -webkit-overflow-scrolling: touch !important;
+}
+
+/* Modules content should be allowed to grow */
+.branch-course-view-hierarchy {
+  height: auto !important;
+  min-height: max-content !important;
+  overflow: visible !important;
+}
+
+.branch-course-view-models {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
 }
