@@ -1,3 +1,7 @@
+/* =========================================================
+   RECORD PAYMENT OVERLAY
+========================================================= */
+
 .record-payment-overlay {
   position: fixed;
   inset: 0;
@@ -7,6 +11,10 @@
   z-index: 9999;
 }
 
+/* =========================================================
+   RECORD PAYMENT MODAL
+========================================================= */
+
 .record-payment-modal {
   width: 520px;
   height: 100vh;
@@ -14,6 +22,10 @@
   overflow-y: auto;
   box-shadow: -8px 0 30px rgba(15, 23, 42, 0.12);
 }
+
+/* =========================================================
+   HEADER
+========================================================= */
 
 .record-payment-header {
   display: flex;
@@ -52,6 +64,10 @@
   background: #e5e7eb;
 }
 
+/* =========================================================
+   FORM
+========================================================= */
+
 .record-payment-modal form {
   padding: 24px 28px 30px;
 }
@@ -68,11 +84,19 @@
   color: #374151;
 }
 
+.required-star {
+  color: #dc2626;
+}
+
 .payment-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
+
+/* =========================================================
+   INPUTS
+========================================================= */
 
 .payment-form-group input,
 .payment-form-group select,
@@ -85,7 +109,9 @@
   color: #111827;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .payment-form-group input,
@@ -106,6 +132,10 @@
   border-color: #0f766e;
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.08);
 }
+
+/* =========================================================
+   READONLY STUDENT FIELD
+========================================================= */
 
 .payment-readonly-field {
   min-height: 44px;
@@ -130,47 +160,41 @@
   border-radius: 6px;
 }
 
+/* =========================================================
+   CURRENCY INPUT
+========================================================= */
+
 .payment-input-wrapper {
+  position: relative;
   display: flex;
   align-items: center;
   width: 100%;
   height: 44px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #ffffff;
-  overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-
-.payment-input-wrapper:focus-within {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
-}
-
-.payment-input-wrapper span {
-  padding-left: 13px;
-  font-size: 14px;
-  color: #6b7280;
 }
 
 .payment-input-wrapper .currency-symbol {
-  padding-left: 14px;
-  color: #6b7280;
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
   font-size: 15px;
   font-weight: 600;
-  flex-shrink: 0;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .payment-input-wrapper input {
-  flex: 1;
   width: 100%;
-  height: 100%;
-  border: none;
+  height: 44px;
+  padding: 0 14px 0 34px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
   outline: none;
-  padding: 0 12px 0 8px;
   font-size: 14px;
-  background: transparent;
-  color: #111827;
+  box-sizing: border-box;
+  background: #ffffff;
 }
 
 .payment-input-wrapper input::placeholder {
@@ -178,9 +202,13 @@
 }
 
 .payment-input-wrapper input:focus {
-  border: none;
-  box-shadow: none;
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.08);
 }
+
+/* =========================================================
+   FILE UPLOAD
+========================================================= */
 
 .payment-file-upload {
   position: relative;
@@ -209,6 +237,22 @@
   color: #64748b;
   pointer-events: none;
 }
+
+/* =========================================================
+   FORM ERROR
+========================================================= */
+
+.payment-error {
+  display: block;
+  margin-top: 5px;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* =========================================================
+   FOOTER
+========================================================= */
 
 .record-payment-footer {
   display: flex;
@@ -240,13 +284,346 @@
 
 .payment-save-btn {
   border: none;
-  background: #0f766e;
+  background: #2563eb;
   color: #ffffff;
 }
 
 .payment-save-btn:hover {
-  background: #0b625c;
+  background: #1d4ed8;
 }
+
+/* =========================================================
+   POPUP OVERLAY
+========================================================= */
+
+.payment-popup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+/* =========================================================
+   CONFIRMATION POPUP
+========================================================= */
+
+.payment-confirmation-popup {
+  width: 100%;
+  max-width: 470px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  animation: paymentPopupIn 0.2s ease-out;
+}
+
+.payment-popup-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.confirmation-icon {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.payment-confirmation-popup h3,
+.payment-receipt-popup h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.payment-popup-description {
+  margin: 8px 0 20px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+/* =========================================================
+   CONFIRMATION DETAILS
+========================================================= */
+
+.confirmation-details {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.confirmation-detail-row {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.confirmation-detail-row:last-child {
+  border-bottom: none;
+}
+
+.confirmation-detail-row span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.confirmation-detail-row strong {
+  color: #111827;
+  font-size: 13px;
+  text-align: right;
+}
+
+.confirmation-detail-row .confirmation-amount {
+  color: #0f766e;
+  font-size: 15px;
+}
+
+/* =========================================================
+   POPUP ACTIONS
+========================================================= */
+
+.payment-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.popup-cancel-btn,
+.popup-confirm-btn {
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.popup-cancel-btn {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+}
+
+.popup-cancel-btn:hover {
+  background: #f9fafb;
+}
+
+.popup-confirm-btn {
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.popup-confirm-btn:hover {
+  background: #1d4ed8;
+}
+
+/* =========================================================
+   RECEIPT POPUP
+========================================================= */
+
+.payment-receipt-popup {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  animation: paymentPopupIn 0.2s ease-out;
+}
+
+.receipt-popup-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.receipt-popup-close:hover {
+  background: #e5e7eb;
+}
+
+/* =========================================================
+   SUCCESS ICON
+========================================================= */
+
+.payment-success-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #059669;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+/* =========================================================
+   RECEIPT NUMBER
+========================================================= */
+
+.receipt-number-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border: 1px solid #d1fae5;
+  border-radius: 10px;
+  background: #f0fdf4;
+}
+
+.receipt-number-box span {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.receipt-number-box strong {
+  font-size: 14px;
+  color: #047857;
+}
+
+/* =========================================================
+   RECEIPT SUMMARY
+========================================================= */
+
+.receipt-summary {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.receipt-summary-row {
+  min-height: 44px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.receipt-summary-row span {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.receipt-summary-row strong {
+  font-size: 13px;
+  color: #111827;
+  text-align: right;
+}
+
+.receipt-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 14px;
+  background: #f0fdfa;
+}
+
+.receipt-total-row span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.receipt-total-row strong {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f766e;
+}
+
+/* =========================================================
+   RECEIPT ACTIONS
+========================================================= */
+
+.receipt-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.receipt-close-btn,
+.generate-receipt-btn {
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.receipt-close-btn {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+}
+
+.receipt-close-btn:hover {
+  background: #f9fafb;
+}
+
+.generate-receipt-btn {
+  border: none;
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.generate-receipt-btn:hover {
+  background: #115e59;
+}
+
+/* =========================================================
+   POPUP ANIMATION
+========================================================= */
+
+@keyframes paymentPopupIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* =========================================================
+   MOBILE
+========================================================= */
 
 @media (max-width: 640px) {
   .record-payment-modal {
@@ -274,11 +651,26 @@
   .payment-save-btn {
     width: 100%;
   }
-}
-.payment-error {
-  display: block;
-  margin-top: 5px;
-  color: #dc2626;
-  font-size: 12px;
-  font-weight: 500;
+
+  .payment-confirmation-popup,
+  .payment-receipt-popup {
+    padding: 22px;
+  }
+
+  .payment-popup-actions,
+  .receipt-popup-actions {
+    flex-direction: column-reverse;
+  }
+
+  .popup-cancel-btn,
+  .popup-confirm-btn,
+  .receipt-close-btn,
+  .generate-receipt-btn {
+    width: 100%;
+  }
+
+  .confirmation-detail-row,
+  .receipt-summary-row {
+    align-items: flex-start;
+  }
 }
