@@ -4210,7 +4210,9 @@ const visibleBranchPaymentRows = useMemo(() => {
                       </button>
                     </div>
                   </div>
-                  <div className="branch-course-table-shell">
+  
+     
+<div className="branch-course-table-shell">
   <table className="branch-course-table">
     <thead>
       <tr>
@@ -4231,102 +4233,71 @@ const visibleBranchPaymentRows = useMemo(() => {
         visibleBranchStudents.map((stu) => {
 
           // -----------------------------
-          // Payment values
+          // Installments (correct field: installmentSchedule)
           // -----------------------------
-          const totalFee = Number(
-            stu.finalFee ??
-            stu.courseAmount ??
-            stu.totalAmount ??
-            stu.afterDiscount ??
-            0
-          )
-
-          const paidAmount = Number(
-            stu.paidAmount ??
-            stu.totalPaid ??
-            stu.amountPaid ??
-            0
-          )
-
-          // -----------------------------
-          // Installments
-          // -----------------------------
-          const installments = Array.isArray(stu.installments)
-            ? stu.installments
+          const installments = Array.isArray(stu.installmentSchedule)
+            ? stu.installmentSchedule
             : []
 
+          const totalFee = Number(
+            stu.finalFee ?? stu.courseAmount ?? stu.totalAmount ?? stu.afterDiscount ?? 0
+          )
+
+          const paidAmount = installments.length
+            ? installments.reduce(
+                (sum, inst) => sum + Number(inst.paidAmount ?? inst.amountPaid ?? 0),
+                0,
+              )
+            : Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
+
           const nextInstallment = installments.find((installment) => {
-            const installmentAmount = Number(
-              installment.amount ??
-              installment.installmentAmount ??
-              0
-            )
-
-            const installmentPaid = Number(
-              installment.paidAmount ??
-              installment.amountPaid ??
-              0
-            )
-
+            const installmentAmount = Number(installment.amount ?? installment.installmentAmount ?? 0)
+            const installmentPaid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
             return installmentPaid < installmentAmount
           })
 
           const nextInstallmentAmount = nextInstallment
             ? Math.max(
-                Number(
-                  nextInstallment.amount ??
-                  nextInstallment.installmentAmount ??
-                  0
-                ) -
-                  Number(
-                    nextInstallment.paidAmount ??
-                    nextInstallment.amountPaid ??
-                    0
-                  ),
-                0
+                Number(nextInstallment.amount ?? nextInstallment.installmentAmount ?? 0) -
+                  Number(nextInstallment.paidAmount ?? nextInstallment.amountPaid ?? 0),
+                0,
               )
             : 0
 
-          const nextDueDate =
-            nextInstallment?.dueDate ??
-            nextInstallment?.date ??
-            null
+          const nextDueDate = nextInstallment?.dueDate ?? nextInstallment?.date ?? null
 
           // -----------------------------
-          // Status
+          // Status: Overdue / Upcoming / Completed
           // -----------------------------
-          let paymentStatus = 'Pending'
+          let paymentStatus = 'Upcoming'
 
-          if (totalFee > 0 && paidAmount >= totalFee) {
-            paymentStatus = 'Paid'
+          const allInstallmentsPaid =
+            installments.length > 0 &&
+            installments.every((inst) => {
+              const amt = Number(inst.amount ?? inst.installmentAmount ?? 0)
+              const paid = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
+              return paid >= amt
+            })
+
+          if (allInstallmentsPaid || (totalFee > 0 && paidAmount >= totalFee)) {
+            paymentStatus = 'Completed'
           } else if (nextDueDate) {
             const today = new Date()
+            today.setHours(0, 0, 0, 0)
             const dueDate = new Date(nextDueDate)
-
             if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
               paymentStatus = 'Overdue'
-            } else if (paidAmount > 0) {
-              paymentStatus = 'Partially Paid'
+            } else {
+              paymentStatus = 'Upcoming'
             }
-          } else if (paidAmount > 0) {
-            paymentStatus = 'Partially Paid'
           }
 
-          // -----------------------------
-          // Format helpers
-          // -----------------------------
-          const formatFee = (amount) =>
-            `₹${Number(amount || 0).toLocaleString('en-IN')}`
+          const formatFee = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`
 
           const formatDueDate = (date) => {
             if (!date) return '-'
-
             const parsedDate = new Date(date)
-
-            if (Number.isNaN(parsedDate.getTime())) {
-              return '-'
-            }
-
+            if (Number.isNaN(parsedDate.getTime())) return '-'
             return parsedDate.toLocaleDateString('en-IN', {
               day: '2-digit',
               month: 'short',
@@ -4336,73 +4307,32 @@ const visibleBranchPaymentRows = useMemo(() => {
 
           return (
             <tr key={stu.studentId}>
-
-              {/* Student ID */}
-              <td>
-                <strong>{stu.studentId || '-'}</strong>
-              </td>
-
-              {/* Student Name */}
-              <td>
-                <strong className="branch-course-name">
-                  {stu.studentName || '-'}
-                </strong>
-              </td>
-
-              {/* Course */}
+              <td><strong>{stu.studentId || '-'}</strong></td>
+              <td><strong className="branch-course-name">{stu.studentName || '-'}</strong></td>
               <td>
                 <span className="branch-student-course">
-                  {stu.courseName ||
-                    stu.courseInterested ||
-                    stu.course?.name ||
-                    '-'}
+                  {stu.courseName || stu.courseInterested || stu.course?.name || '-'}
                 </span>
               </td>
-
-              {/* Total Fee */}
-              <td>
-                <strong>
-                  {formatFee(totalFee)}
-                </strong>
-              </td>
-
-              {/* Paid */}
-              <td>
-                <span className="branch-student-paid">
-                  {formatFee(paidAmount)}
-                </span>
-              </td>
-
-              {/* Next Installment */}
+              <td><strong>{formatFee(totalFee)}</strong></td>
+              <td><span className="branch-student-paid">{formatFee(paidAmount)}</span></td>
               <td>
                 {nextInstallment ? (
                   <div className="branch-next-installment">
-                    <strong>
-                      {formatFee(nextInstallmentAmount)}
-                    </strong>
-
+                    <strong>{formatFee(nextInstallmentAmount)}</strong>
                     <span>
-                      Installment{' '}
-                      {nextInstallment.installmentNumber ||
-                        nextInstallment.number ||
-                        ''}
+                      Installment {nextInstallment.installmentNumber || nextInstallment.number || ''}
                     </span>
                   </div>
                 ) : (
-                  <span className="branch-no-installment">
-                    -
-                  </span>
+                  <span className="branch-no-installment">-</span>
                 )}
               </td>
-
-              {/* Due Date */}
               <td>
                 <span className="branch-student-due-date">
                   {formatDueDate(nextDueDate)}
                 </span>
               </td>
-
-              {/* Status */}
               <td>
                 <span
                   className={`branch-student-payment-status ${paymentStatus
@@ -4417,9 +4347,7 @@ const visibleBranchPaymentRows = useMemo(() => {
               <td style={{ textAlign: 'center' }}>
                 <div
                   className={`branch-student-actions-cell ${
-                    studentActionMenuId === stu.studentId
-                      ? 'menu-open'
-                      : ''
+                    studentActionMenuId === stu.studentId ? 'menu-open' : ''
                   }`}
                   onMouseEnter={() => {
                     if (!studentActionMenuPinned) {
@@ -4438,10 +4366,7 @@ const visibleBranchPaymentRows = useMemo(() => {
                     aria-label="Student actions"
                     onClick={(e) => {
                       e.stopPropagation()
-
-                      if (
-                        studentActionMenuId === stu.studentId
-                      ) {
+                      if (studentActionMenuId === stu.studentId) {
                         setStudentActionMenuId('')
                         setStudentActionMenuPinned(false)
                       } else {
@@ -4455,8 +4380,6 @@ const visibleBranchPaymentRows = useMemo(() => {
 
                   {studentActionMenuId === stu.studentId ? (
                     <div className="branch-student-actions-menu">
-
-                      {/* View */}
                       <button
                         type="button"
                         onClick={() => {
@@ -4469,7 +4392,6 @@ const visibleBranchPaymentRows = useMemo(() => {
                         <span>View</span>
                       </button>
 
-                      {/* Edit */}
                       <button
                         type="button"
                         onClick={() => {
@@ -4482,21 +4404,19 @@ const visibleBranchPaymentRows = useMemo(() => {
                         <span>Edit</span>
                       </button>
 
-                     {/* Record Payment */}
-<button
-  type="button"
-  onClick={() => {
-    setStudentActionMenuId('')
-    setStudentActionMenuPinned(false)
-    setRecordPaymentStudent({ ...stu })
-    goToBranchSection('payments')
-  }}
->
-  <Wallet size={15} />
-  <span>Record Payment</span>
-</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudentActionMenuId('')
+                          setStudentActionMenuPinned(false)
+                          setRecordPaymentStudent({ ...stu })
+                          goToBranchSection('payments')
+                        }}
+                      >
+                        <Wallet size={15} />
+                        <span>Record Payment</span>
+                      </button>
 
-                      {/* Delete */}
                       <button
                         type="button"
                         className="is-danger"
@@ -4509,7 +4429,6 @@ const visibleBranchPaymentRows = useMemo(() => {
                         <Trash2 size={15} />
                         <span>Delete</span>
                       </button>
-
                     </div>
                   ) : null}
                 </div>
@@ -4519,10 +4438,7 @@ const visibleBranchPaymentRows = useMemo(() => {
         })
       ) : (
         <tr>
-          <td
-            colSpan="9"
-            className="branch-course-empty-state"
-          >
+          <td colSpan="9" className="branch-course-empty-state">
             No students yet. Use + Add Student to add the first one.
           </td>
         </tr>
@@ -4530,7 +4446,6 @@ const visibleBranchPaymentRows = useMemo(() => {
     </tbody>
   </table>
 </div>
-
                   {filteredBranchStudents.length > BRANCH_STUDENTS_PER_PAGE ? (
                     <div className="branch-course-pagination">
                       <button
