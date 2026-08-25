@@ -260,7 +260,65 @@ function validateStudentForm(form, students = []) {
 
   return errors
 }
+function computeBranchStudentPaymentSummary(stu = {}) {
+  const totalFee = Number(
+    stu.finalFee ?? stu.courseAmount ?? stu.totalAmount ?? stu.afterDiscount ?? 0
+  )
+  const paidAmount = Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
+  const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
 
+  const nextInstallment = installments.find((installment) => {
+    const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
+    const paid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
+    return paid < amount
+  })
+
+  const nextInstallmentAmount = nextInstallment
+    ? Math.max(
+        Number(nextInstallment.amount ?? nextInstallment.installmentAmount ?? 0) -
+          Number(nextInstallment.paidAmount ?? nextInstallment.amountPaid ?? 0),
+        0,
+      )
+    : 0
+
+  const nextDueDate = nextInstallment?.dueDate ?? nextInstallment?.date ?? null
+
+  let paymentStatus = 'Pending'
+  if (totalFee > 0 && paidAmount >= totalFee) {
+    paymentStatus = 'Paid'
+  } else if (nextDueDate) {
+    const today = new Date()
+    const dueDate = new Date(nextDueDate)
+    if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
+      paymentStatus = 'Overdue'
+    } else if (paidAmount > 0) {
+      paymentStatus = 'Partially Paid'
+    }
+  } else if (paidAmount > 0) {
+    paymentStatus = 'Partially Paid'
+  }
+
+  return {
+    totalFee,
+    paidAmount,
+    pendingAmount: Math.max(totalFee - paidAmount, 0),
+    nextInstallment,
+    nextInstallmentAmount,
+    nextDueDate,
+    paymentStatus,
+  }
+}
+
+function formatBranchRupees(amount) {
+  return `₹${Number(amount || 0).toLocaleString('en-IN')}`
+}
+
+function formatBranchPaymentDate(date) {
+  if (!date) return '-'
+  const parsedDate = new Date(date)
+  if (Number.isNaN(parsedDate.getTime())) return '-'
+  return parsedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 function formatStudentDate(value) {
   const text = String(value || '').trim()
   if (!text) return '-'
@@ -380,12 +438,7 @@ const batchCards = [
   { title: 'Batch C-01', timing: 'Weekend | 11:30 AM', status: 'Review' },
 ]
 
-const paymentRows = [
-  ['Ananya S', '₹12,000', 'Due in 2 days'],
-  ['Rahul P', '₹8,500', 'Pending'],
-  ['Meena K', '₹15,000', 'Collected'],
-  ['Arun V', '₹6,000', 'Pending'],
-]
+
 
 function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (pathname.endsWith('/notifications')) return 'notifications'
@@ -1246,10 +1299,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
+  const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
-  const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
-
+const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
+const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
+const [paymentPage, setPaymentPage] = useState(1)
+const BRANCH_PAYMENTS_PER_PAGE = 10
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
@@ -3464,6 +3520,47 @@ paymentPlanId: '',
     }
   }, [isStudentFormOpen])
 
+  const branchPaymentRows = useMemo(
+  () => branchStudents.map((stu) => ({
+    student: stu,
+    summary: computeBranchStudentPaymentSummary(stu),
+  })),
+  [branchStudents],
+)
+
+const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
+  (acc, row) => {
+    acc.totalCollected += row.summary.paidAmount
+    acc.totalPending += row.summary.pendingAmount
+    if (row.summary.paymentStatus === 'Overdue') acc.overdueCount += 1
+    if (row.summary.paymentStatus === 'Paid') acc.paidCount += 1
+    return acc
+  },
+  { totalCollected: 0, totalPending: 0, overdueCount: 0, paidCount: 0 },
+), [branchPaymentRows])
+
+const filteredBranchPaymentRows = useMemo(() => {
+  const q = paymentSearchTerm.trim().toLowerCase()
+  return branchPaymentRows.filter(({ student, summary }) => {
+    const matchesSearch =
+      !q ||
+      String(student.studentId || '').toLowerCase().includes(q) ||
+      String(student.studentName || '').toLowerCase().includes(q) ||
+      String(student.courseName || '').toLowerCase().includes(q)
+    const matchesStatus =
+      paymentStatusFilter === 'all' ||
+      summary.paymentStatus.toLowerCase().replace(/\s+/g, '-') === paymentStatusFilter
+    return matchesSearch && matchesStatus
+  })
+}, [branchPaymentRows, paymentSearchTerm, paymentStatusFilter])
+
+const totalPaymentPages = Math.max(1, Math.ceil(filteredBranchPaymentRows.length / BRANCH_PAYMENTS_PER_PAGE))
+const safePaymentPage = Math.min(paymentPage, totalPaymentPages)
+const visibleBranchPaymentRows = useMemo(() => {
+  const start = (safePaymentPage - 1) * BRANCH_PAYMENTS_PER_PAGE
+  return filteredBranchPaymentRows.slice(start, start + BRANCH_PAYMENTS_PER_PAGE)
+}, [filteredBranchPaymentRows, safePaymentPage])
+
   const filteredBranchStudents = useMemo(() => {
     const q = studentSearchTerm.trim().toLowerCase()
     if (!q) return branchStudents
@@ -3964,6 +4061,7 @@ paymentPlanId: '',
                       </Button>
                     </section>
                   ) : null}
+                
 
                   <div className="branch-dashboard-stats">
                     {overviewStats.map((stat) => (
@@ -4384,18 +4482,19 @@ paymentPlanId: '',
                         <span>Edit</span>
                       </button>
 
-                      {/* Record Payment */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStudentActionMenuId('')
-                          setStudentActionMenuPinned(false)
-                          setRecordPaymentStudent({ ...stu })
-                        }}
-                      >
-                        <Wallet size={15} />
-                        <span>Record Payment</span>
-                      </button>
+                     {/* Record Payment */}
+<button
+  type="button"
+  onClick={() => {
+    setStudentActionMenuId('')
+    setStudentActionMenuPinned(false)
+    setRecordPaymentStudent({ ...stu })
+    goToBranchSection('payments')
+  }}
+>
+  <Wallet size={15} />
+  <span>Record Payment</span>
+</button>
 
                       {/* Delete */}
                       <button
@@ -4802,31 +4901,211 @@ paymentPlanId: '',
                   </div>
                 </BranchDashboardSection>
               ) : null}
-
               {activeSection === 'payments' ? (
-                <BranchDashboardSection title="Payments" description="Pending and collected payment snapshot.">
-                  <div className="branch-dashboard-table-shell">
-                    <table className="branch-dashboard-table">
-                      <thead>
-                        <tr>
-                          <th>Student</th>
-                          <th>Amount</th>
-                          <th>Note</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paymentRows.map(([name, amount, note]) => (
-                          <tr key={name}>
-                            <td>{name}</td>
-                            <td>{amount}</td>
-                            <td>{note}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </BranchDashboardSection>
-              ) : null}
+  recordPaymentStudent ? (
+    <BranchDashboardSection
+      title="Record Payment"
+      description={`Recording payment for ${recordPaymentStudent.studentName || recordPaymentStudent.studentId || 'student'}.`}
+      actions={(
+        <button
+          type="button"
+          className="button button-ghost"
+          onClick={() => setRecordPaymentStudent(null)}
+        >
+          <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
+          Back to Payments
+        </button>
+      )}
+    >
+      <RecordPayment
+        student={recordPaymentStudent}
+        onClose={() => {
+          setRecordPaymentStudent(null)
+          void reloadBranchStudents()
+        }}
+      />
+    </BranchDashboardSection>
+  ) : (
+    <BranchDashboardSection
+      title="Payments"
+      description="Track collections and pending dues across all students."
+      actions={(
+        <div className="branch-dashboard-section-summary">
+          <span>Total students:</span>
+          <strong>{filteredBranchPaymentRows.length}</strong>
+        </div>
+      )}
+    >
+      <div className="branch-dashboard-stats" style={{ marginBottom: '20px' }}>
+        <article className="branch-dashboard-stat-card">
+          <span>Total Collected</span>
+          <strong>{formatBranchRupees(branchPaymentStats.totalCollected)}</strong>
+          <small>Across all students</small>
+        </article>
+        <article className="branch-dashboard-stat-card">
+          <span>Total Pending</span>
+          <strong>{formatBranchRupees(branchPaymentStats.totalPending)}</strong>
+          <small>Yet to be collected</small>
+        </article>
+        <article className="branch-dashboard-stat-card">
+          <span>Overdue</span>
+          <strong>{branchPaymentStats.overdueCount}</strong>
+          <small>Students past due date</small>
+        </article>
+        <article className="branch-dashboard-stat-card">
+          <span>Fully Paid</span>
+          <strong>{branchPaymentStats.paidCount}</strong>
+          <small>Students cleared in full</small>
+        </article>
+      </div>
+
+      <div className="faculty-search-filter-bar" style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '370px' }}>
+          <input
+            type="text"
+            placeholder="Search by student, ID or course"
+            value={paymentSearchTerm}
+            onChange={(e) => {
+              setPaymentSearchTerm(e.target.value)
+              setPaymentPage(1)
+            }}
+            className="faculty-search-input"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </div>
+
+        <select
+          value={paymentStatusFilter}
+          onChange={(e) => {
+            setPaymentStatusFilter(e.target.value)
+            setPaymentPage(1)
+          }}
+          style={{ height: '46px', padding: '0 12px', borderRadius: '8px' }}
+        >
+          <option value="all">All Statuses</option>
+          <option value="paid">Paid</option>
+          <option value="partially-paid">Partially Paid</option>
+          <option value="pending">Pending</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+
+      <div className="branch-course-table-shell">
+        <table className="branch-course-table">
+          <thead>
+            <tr>
+              <th>Student ID</th>
+              <th>Student Name</th>
+              <th>Course</th>
+              <th>Total Fee</th>
+              <th>Paid</th>
+              <th>Pending</th>
+              <th>Next Installment</th>
+              <th>Due Date</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleBranchPaymentRows.length ? (
+              visibleBranchPaymentRows.map(({ student, summary }) => (
+                <tr key={student.studentId}>
+                  <td><strong>{student.studentId || '-'}</strong></td>
+                  <td><strong className="branch-course-name">{student.studentName || '-'}</strong></td>
+                  <td>
+                    <span className="branch-student-course">
+                      {student.courseName || student.courseInterested || student.course?.name || '-'}
+                    </span>
+                  </td>
+                  <td><strong>{formatBranchRupees(summary.totalFee)}</strong></td>
+                  <td><span className="branch-student-paid">{formatBranchRupees(summary.paidAmount)}</span></td>
+                  <td>{formatBranchRupees(summary.pendingAmount)}</td>
+                  <td>
+                    {summary.nextInstallment ? (
+                      <div className="branch-next-installment">
+                        <strong>{formatBranchRupees(summary.nextInstallmentAmount)}</strong>
+                        <span>
+                          Installment {summary.nextInstallment.installmentNumber || summary.nextInstallment.number || ''}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="branch-no-installment">-</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className="branch-student-due-date">
+                      {formatBranchPaymentDate(summary.nextDueDate)}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`branch-student-payment-status ${summary.paymentStatus
+                        .toLowerCase()
+                        .replace(/\s+/g, '-')}`}
+                    >
+                      {summary.paymentStatus}
+                    </span>
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="button button-solid"
+                      onClick={() => setRecordPaymentStudent({ ...student })}
+                      disabled={summary.paymentStatus === 'Paid'}
+                    >
+                      Record Payment
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="10" className="branch-course-empty-state">
+                  No payment records found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {filteredBranchPaymentRows.length > BRANCH_PAYMENTS_PER_PAGE ? (
+        <div className="branch-course-pagination">
+          <button
+            type="button"
+            className="branch-course-pagination-button"
+            onClick={() => setPaymentPage((c) => Math.max(1, c - 1))}
+            disabled={safePaymentPage === 1}
+          >
+            Prev
+          </button>
+          <div className="branch-course-pagination-pages" role="navigation" aria-label="Payment pagination">
+            {Array.from({ length: totalPaymentPages }, (_, i) => i + 1).map((pg) => (
+              <button
+                key={pg}
+                type="button"
+                className={`branch-course-pagination-page ${pg === safePaymentPage ? 'is-active' : ''}`.trim()}
+                onClick={() => setPaymentPage(pg)}
+                aria-current={pg === safePaymentPage ? 'page' : undefined}
+              >
+                {pg}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="branch-course-pagination-button"
+            onClick={() => setPaymentPage((c) => Math.min(totalPaymentPages, c + 1))}
+            disabled={safePaymentPage === totalPaymentPages}
+          >
+            Next
+          </button>
+        </div>
+      ) : null}
+    </BranchDashboardSection>
+  )
+) : null}
+
 
               {activeSection === 'profile' ? (
                 <BranchDashboardSection title="Profile" description="Branch profile and login details.">
@@ -7130,13 +7409,7 @@ paymentPlanId: '',
             </aside>
           </div>
         ) : null}
-         {/* Record Payment */}
-    {recordPaymentStudent ? (
-      <RecordPayment
-        student={recordPaymentStudent}
-        onClose={() => setRecordPaymentStudent(null)}
-      />
-    ) : null}
+      
 
 
         {/* ── STUDENT FORM MODAL ── */}
