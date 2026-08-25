@@ -1,968 +1,4037 @@
-
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
-
-import { memo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { getCountries, getStatesOfCountry, getCitiesOfState } from '@countrystatecity/countries-browser'
 import {
-  AlertTriangle,
-  BadgeCheck,
-  Building2,
   Bell,
-  CalendarDays,
+  BookOpen,
+  ArrowLeft,
+  CircleUserRound,
   ChevronDown,
   ChevronRight,
-  CreditCard,
-  Clock3,
-  Globe,
-  Info,
-  LockKeyhole,
-  ReceiptText,
+  ChevronLeft,
+  LayoutDashboard,
+  Layers3,
+  LogOut,
+  MoreVertical,
   RefreshCcw,
-  ShieldCheck,
-  Target,
-  TrendingUp,
-  Wallet,
+  Shield,
+  Users,
+  
+  CheckCircle2,
+  Eye,
+  Code2,
+  CircleDot,
+  CalendarDays,
+  Monitor,
+  Clock3,
+  IndianRupee,
+  FileText,
+  Tag,
+  BadgeInfo,
+  BadgePercent,
+  UserRound,
+  Search,
+  UserPlus, Pencil, Trash2,
+  Building2,
+  Check,
   X,
+  Wallet,
 } from 'lucide-react'
 
-import { HeaderIdentityChip } from '../components/HeaderIdentityChip'
-import { ProfileDrawer } from '../components/ProfileDrawer'
-import { roleDashboards } from '../data/authData'
-import { useMobileMenu } from '../layouts/mobileMenuContext'
-import { listStudents } from '../services/studentService'
-import { StudentDashboard } from './StudentDashboard'
-import { Navigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
+import { Button } from '../components/Button'
+import { request, setImpersonateBranchId } from '../services/apiClient'
+import { getCurrentBranchProfile } from '../services/branchService'
+import { listBranchFaculty } from '../services/branchFacultyService'
+import {
+  clearBranchCourseListCache,
+  assignFacultyToBranchCourse,
+  createBranchCourse,
+  deleteBranchCourse,
+  listBranchCourses,
+  updateBranchCourse,
+} from '../services/branchCourseService'
+import {
+  listBranchInstallmentTemplates,
+  subscribeBranchInstallmentTemplateChanges,
+} from '../services/branchInstallmentTemplateService'
+import {
+  mergeBranchCoursesWithSnapshot,
+  subscribeBranchCourseSnapshot,
+} from '../lib/branchCourseSnapshot'
+import {
+  acceptCourseEditRequest,
+  listCourseEditRequests,
+} from '../services/courseEditRequestService'
+import {
+  loadBranchStudents,
+  refreshBranchStudents,
+  saveBranchStudent,
+  deleteBranchStudent as removeBranchStudent,
+  getNextStudentId,
+} from '../lib/branchStudentStore'
+import { BranchFacultyPage } from './BranchFacultyPage'
+import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
+import RecordPayment from '../components/payments/RecordPayment'
+import {
+  groupByDate,
+  normalizeBranchNotification,
+} from '../data/branchNotificationsData'
+import {
+  loadNotifications,
+  mergeNotificationsWithStoredState,
+  markNotificationsAsDropdownViewed,
+  markNotificationsAsRead,
+  saveNotifications,
+  subscribeNotifications,
+} from '../lib/notificationStore'
+import '../styles/SuperAdminDashboardPage.css'
+import '../styles/BranchDashboardPage.css'
 
-const attendanceComparisonData = [
-  { month: 'Jan', attendance: 82, students: 240 },
-  { month: 'Feb', attendance: 85, students: 250 },
-  { month: 'Mar', attendance: 88, students: 265 },
-  { month: 'Apr', attendance: 90, students: 270 },
-  { month: 'May', attendance: 92, students: 280 },
-  { month: 'Jun', attendance: 87, students: 260 },
-  { month: 'Jul', attendance: 85, students: 255 },
-  { month: 'Aug', attendance: 83, students: 245 },
-  { month: 'Sep', attendance: 86, students: 258 },
-  { month: 'Oct', attendance: 89, students: 268 },
-  { month: 'Nov', attendance: 84, students: 252 },
-  { month: 'Dec', attendance: 91, students: 275 },
+const BRANCH_STUDENTS_PER_PAGE = 5
+const STUDENT_ID_PREFIX = 'STU-'
+const STUDENT_FORM_STEP_ONE_FIELDS = [
+  'studentIdSuffix',
+  'studentName',
+  'emailAddress',
+  'linkedInUrl',
+  'mobileNumber',
+  'parentSpouseNumber',
+  'country',
+  'state',
+  'city',
+  'address',
+  'qualification',
+  'passedOutYear',
+  'passedOutYearCustom',
 ]
-const attendanceMonthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const revenueFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-  maximumFractionDigits: 0,
-})
-
-const revenueSummaryCards = [
-  {
-    label: 'Total Revenue',
-    value: 'â‚¹8,45,000',
-    change: '+12.5%',
-    accent: 'blue',
-    icon: 'wallet',
-    tooltip: 'Total Revenue shows the total income collected from all student fee payments across all courses and admissions.',
-    details: [
-      { label: 'Collected revenue', value: 'â‚¹8,45,000' },
-      { label: 'Students added', value: '11 students added' },
-      { label: 'Scope', value: 'All paid installments in the dashboard' },
-    ],
-  },
-  {
-    label: 'This Month Revenue',
-    value: 'â‚¹95,000',
-    change: '+8.4%',
-    accent: 'green',
-    icon: 'calendar',
-    tooltip: 'This Month Revenue shows the total income collected during the current month period.',
-    details: [
-      { label: 'Collected this month', value: 'â‚¹95,000' },
-      { label: 'Admissions', value: '10 admissions this month' },
-      { label: 'Scope', value: 'Payments captured from the current month' },
-    ],
-  },
-  {
-    label: 'This Week Revenue',
-    value: 'â‚¹32,000',
-    change: '+4.2%',
-    accent: 'purple',
-    icon: 'trend',
-    tooltip: 'This Week Revenue shows the total income collected during the current week.',
-    details: [
-      { label: 'Collected this week', value: 'â‚¹32,000' },
-      { label: 'Admissions', value: '3 admissions this week' },
-      { label: 'Scope', value: 'Payments captured from the current week' },
-    ],
-  },
-  {
-    label: 'Pending Payments',
-    value: 'â‚¹1,20,000',
-    change: null,
-    accent: 'orange',
-    icon: 'target',
-    tooltip: 'Pending Payments shows the outstanding amount that is still waiting to be collected.',
-    details: [
-      { label: 'Pending amount', value: 'â‚¹1,20,000' },
-      { label: 'Collection target', value: 'Target for next week' },
-      { label: 'Scope', value: 'Outstanding student balances' },
-    ],
-  },
+const STUDENT_FORM_STEP_TWO_FIELDS = [
+  'currentStatus',
+  'designation',
+  'source',
+  'sourceOther',
+  'remarks',
+  'admissionDate',
+]
+const STUDENT_FORM_STEP_THREE_FIELDS = [
+  'courseId',
+  'facultyId',
+  'facultyName',
+  'courseAmount',
 ]
 
-const notificationItems = [
-  {
-    tone: 'red',
-    icon: ReceiptText,
-    title: 'Student fee payment updated',
-    message: 'Varsha’s full payment has been saved and marked as completed.',
-    time: '5 mins ago',
-    featured: false,
-  },
-  {
-    tone: 'yellow',
-    icon: CreditCard,
-    title: 'Installment payment received',
-    message: 'A pending installment for the Next.js course has been collected successfully.',
-    time: '15 mins ago',
-    featured: true,
-  },
-  {
-    tone: 'amber',
-    icon: AlertTriangle,
-    title: 'Overdue fee reminder',
-    message: 'Three student fee payments are still overdue and need review today.',
-    time: '1 hour ago',
-    featured: false,
-  },
-  {
-    tone: 'blue',
-    icon: CalendarDays,
-    title: 'Admission update',
-    message: 'A new student admission has been added to the dashboard successfully.',
-    time: 'Today',
-    featured: false,
-  },
-]
+const CURRENT_YEAR = new Date().getFullYear()
+const PASSED_OUT_YEARS = Array.from({ length: 31 }, (_, i) => String(CURRENT_YEAR - i))
 
-function useMediaQuery(query) {
-  const getMatches = () => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-    return window.matchMedia(query).matches
+function createInitialStudentForm(branchId) {
+  const nextStudentId = getNextStudentId(branchId)
+  return {
+    studentId: nextStudentId,
+    studentIdSuffix: nextStudentId.replace(/^STU-/i, ''),
+    originalStudentId: '',
+    recordId: '',
+    studentName: '',
+    emailAddress: '',
+    linkedInUrl: '',
+    mobileNumber: '',
+    parentSpouseNumber: '',
+    countryCode: 'IN',
+    country: 'India',
+    stateCode: 'TN',
+    state: 'Tamil Nadu',
+    city: '',
+    address: '',
+    qualification: '',
+    passedOutYear: '',
+    passedOutYearCustom: '',
+    currentStatus: '',
+    designation: '',
+    source: '',
+    sourceOther: '',
+    remarks: '',
+    admissionDate: '',
+    courseId: '',
+    courseName: '',
+    facultyId: '',
+    facultyName: '',
+    courseAmount: '',
+    paymentMode: '',
+    installmentSchedule: [],
+    
   }
+}
 
-  const [matches, setMatches] = useState(getMatches)
+function buildStudentFormFromRecord(student = {}) {
+  return {
+    studentId: student.studentId || '',
+    studentIdSuffix: String(student.studentId || '').replace(/^STU-/i, ''),
+    originalStudentId: String(student.studentId || '').trim(),
+    recordId: String(student.id || student._id || student.recordId || '').trim(),
+    studentName: student.studentName || '',
+    emailAddress: student.emailAddress || '',
+    linkedInUrl: student.linkedInUrl || '',
+    mobileNumber: student.mobileNumber || '',
+    parentSpouseNumber: student.parentSpouseNumber || '',
+    countryCode: student.countryCode || '',
+    country: student.country || '',
+    stateCode: student.stateCode || '',
+    state: student.state || '',
+    city: student.city || '',
+    address: student.address || '',
+    qualification: student.qualification || '',
+    passedOutYear: student.passedOutYear || '',
+    passedOutYearCustom: student.passedOutYearCustom || '',
+    currentStatus: student.currentStatus || '',
+    designation: student.designation || '',
+    source: student.source || '',
+    sourceOther: student.sourceOther || '',
+    remarks: student.remarks || '',
+    admissionDate: student.admissionDate || '',
+    courseId: student.courseId || student.course?.id || '',
+    courseName: student.courseName || student.courseInterested || student.course?.name || '',
+    facultyId: student.facultyId || student.course?.facultyId || '',
+    facultyName: student.facultyName || student.course?.facultyName || '',
+    courseAmount: String(student.courseAmount || student.totalAmount || student.afterDiscount || '').trim(),
+    paymentMode: student.paymentMode || 'Installment',
+    paymentPlanId: student.paymentPlanId || student.paymentPlan || '',
+    paymentPlan: student.paymentPlan || '',
+    installmentSchedule: Array.isArray(student.installmentSchedule)
+      ? student.installmentSchedule
+      : [],
+  }
+}
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+function validateStudentForm(form, students = []) {
+  const errors = {}
+  if (!form.studentIdSuffix.trim()) errors.studentIdSuffix = 'Student ID is required.'
+  else if (!/^\d+$/.test(form.studentIdSuffix.trim())) errors.studentIdSuffix = 'Only numbers are allowed.'
+  if (!form.studentName.trim()) errors.studentName = 'Student Name is required.'
+  else if (!/^[A-Za-z][A-Za-z ]*$/.test(form.studentName.trim())) errors.studentName = 'Only letters and spaces allowed.'
+  if (!form.emailAddress.trim()) errors.emailAddress = 'Email is required.'
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.emailAddress.trim())) errors.emailAddress = 'Enter a valid email.'
+  if (!form.mobileNumber.trim()) errors.mobileNumber = 'Mobile Number is required.'
+  else if (!/^\d{10}$/.test(form.mobileNumber.trim())) errors.mobileNumber = 'Must be exactly 10 digits.'
+  if (!form.parentSpouseNumber.trim()) errors.parentSpouseNumber = 'Parent/Spouse Number is required.'
+  else if (!/^\d{10}$/.test(form.parentSpouseNumber.trim())) errors.parentSpouseNumber = 'Must be exactly 10 digits.'
+  if (!form.country) errors.country = 'Country is required.'
+  if (!form.state) errors.state = 'State is required.'
+  if (!form.city) errors.city = 'City is required.'
+  if (!form.address.trim()) errors.address = 'Address is required.'
+  if (!form.qualification.trim()) errors.qualification = 'Qualification is required.'
+  if (!form.passedOutYear) errors.passedOutYear = 'Passed Out Year is required.'
+  if (form.passedOutYear === 'Custom' && !form.passedOutYearCustom.trim()) errors.passedOutYearCustom = 'Please specify the year.'
+  if (!form.currentStatus) errors.currentStatus = 'Current Status is required.'
+  if (form.currentStatus === 'Employee' && !form.designation.trim()) errors.designation = 'Designation is required for employees.'
+  if (!form.source) errors.source = 'This field is required.'
+  if (form.source === 'Others' && !form.sourceOther.trim()) errors.sourceOther = 'Please specify.'
+  if (!form.admissionDate) errors.admissionDate = 'Admission Date is required.'
+  if (!form.courseId) errors.courseId = 'Course is required.'
+  if (!form.facultyName.trim()) errors.facultyName = 'Faculty is required.'
+  if (!form.courseAmount.trim()) errors.courseAmount = 'Course amount is required.'
 
-    const mediaQuery = window.matchMedia(query)
-    const handleChange = (event) => setMatches(event.matches)
-    const frameId = window.requestAnimationFrame(() => {
-      setMatches(mediaQuery.matches)
+  const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
+  const normalizedEmail = String(form.emailAddress || '').trim().toLowerCase()
+  const normalizedMobile = String(form.mobileNumber || '').trim()
+
+  if (normalizedEmail) {
+    const duplicateEmail = students.find((student) => {
+      const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
+      const studentEmail = String(student?.emailAddress || '').trim().toLowerCase()
+      return studentEmail && studentEmail === normalizedEmail && studentRecordId !== currentRecordId
     })
 
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', handleChange)
-      return () => {
-        window.cancelAnimationFrame(frameId)
-        mediaQuery.removeEventListener('change', handleChange)
-      }
+    if (duplicateEmail) {
+      errors.emailAddress = 'Email already exists'
     }
+  }
 
-    mediaQuery.addListener(handleChange)
-    return () => {
-      window.cancelAnimationFrame(frameId)
-      mediaQuery.removeListener(handleChange)
-    }
-  }, [query])
-
-  return matches
-}
-
-function getRollingWindowData(data, monthsBefore = 1, monthsAfter = 4, referenceDate = new Date()) {
-  const totalMonths = monthsBefore + monthsAfter + 1
-  const startMonthIndex = referenceDate.getMonth() - monthsBefore
-
-  return Array.from({ length: totalMonths }, (_, offset) => {
-    const monthIndex = (startMonthIndex + offset + 12) % 12
-    const monthName = attendanceMonthOrder[monthIndex]
-    return data.find((item) => item.month === monthName) ?? null
-  }).filter(Boolean)
-}
-
-const STUDENT_RECORD_SYNC_EVENT = 'cispro:students-changed'
-
-function formatCurrency(value) {
-  const amount = Number(value)
-  if (!Number.isFinite(amount)) return '-'
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount)
-}
-
-function addOneMonth(value, months = 1) {
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return ''
-
-  const dueDate = new Date(date)
-  dueDate.setMonth(dueDate.getMonth() + months)
-
-  return dueDate.toISOString().slice(0, 10)
-}
-
-function diffInDays(a, b) {
-  const start = new Date(`${a}T00:00:00`)
-  const end = new Date(`${b}T00:00:00`)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0
-  const ms = 24 * 60 * 60 * 1000
-  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / ms))
-}
-
-function getTodayValue() {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function hasThirdInstallment(student) {
-  return Boolean(
-    String(student?.course?.installmentCount ?? '') === '3' ||
-    student?.installment3 ||
-    student?.thirdInstallmentAmount ||
-    student?.thirdDueDate,
-  )
-}
-
-function getSecondDueDate(student) {
-  return student?.secondDueDate || addOneMonth(student?.admissionDate)
-}
-
-function getThirdDueDate(student) {
-  if (!hasThirdInstallment(student)) return ''
-  return student?.thirdDueDate || addOneMonth(getSecondDueDate(student))
-}
-
-function getStudentStatus(student) {
-  const dueDate = hasThirdInstallment(student) ? getThirdDueDate(student) || getSecondDueDate(student) : getSecondDueDate(student)
-  const secondPaid = String(student?.secondInstallmentStatus || 'Pending') === 'Paid'
-  const thirdPaid = hasThirdInstallment(student) ? String(student?.thirdInstallmentStatus || 'Pending') === 'Paid' : true
-  const firstPaid = String(student?.firstInstallmentStatus || 'Pending') === 'Paid'
-  const overdueDays = (hasThirdInstallment(student) ? thirdPaid : secondPaid) ? 0 : diffInDays(dueDate, getTodayValue())
-
-  if (firstPaid && secondPaid && thirdPaid) return { label: 'Complete', tone: 'success' }
-  if (overdueDays > 0) return { label: `Overdue Â· ${overdueDays} Days`, tone: 'danger' }
-  if (firstPaid) return { label: 'Pending', tone: 'warning' }
-
-  return { label: 'Pending', tone: 'warning' }
-}
-
-function getPaidAmount(student) {
-  const first = String(student?.firstInstallmentStatus || 'Pending') === 'Paid' ? Number(student?.installment1 || student?.firstInstallmentAmount || 0) : 0
-  const second = String(student?.secondInstallmentStatus || 'Pending') === 'Paid' ? Number(student?.installment2 || student?.secondInstallmentAmount || 0) : 0
-  const third =
-    hasThirdInstallment(student) && String(student?.thirdInstallmentStatus || 'Pending') === 'Paid'
-      ? Number(student?.thirdInstallmentAmount || student?.installment3 || 0)
-      : 0
-  return first + second + third
-}
-
-function toNumber(value) {
-  const amount = Number(value)
-  return Number.isFinite(amount) ? amount : 0
-}
-
-function getLocalDateValue(date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function getDateValue(value) {
-  if (!value) return ''
-  const date = new Date(`${value}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return ''
-  return getLocalDateValue(date)
-}
-
-function getMonthStartValue(reference = new Date()) {
-  const date = new Date(reference)
-  date.setDate(1)
-  return getLocalDateValue(date)
-}
-
-function getWeekStartValue(reference = new Date()) {
-  const date = new Date(reference)
-  const offset = (date.getDay() + 6) % 7
-  date.setDate(date.getDate() - offset)
-  return getLocalDateValue(date)
-}
-
-function isWithinRange(value, start, end) {
-  const date = getDateValue(value)
-  if (!date) return false
-  return date >= start && date <= end
-}
-
-function getInstallmentEntries(student) {
-  const firstDueDate = student?.firstInstallmentDate || student?.admissionDate || ''
-  const secondDueDate = getSecondDueDate(student)
-  const thirdDueDate = getThirdDueDate(student)
-
-  const entries = [
-    {
-      amount: toNumber(student?.firstInstallmentAmount || student?.installment1 || 0),
-      status: String(student?.firstInstallmentStatus || 'Pending'),
-      paidAt: student?.firstInstallmentPaidAt || '',
-      dueDate: firstDueDate,
-    },
-    {
-      amount: toNumber(student?.secondInstallmentAmount || student?.installment2 || 0),
-      status: String(student?.secondInstallmentStatus || 'Pending'),
-      paidAt: student?.secondInstallmentPaidAt || '',
-      dueDate: secondDueDate,
-    },
-  ]
-
-  if (hasThirdInstallment(student)) {
-    entries.push({
-      amount: toNumber(student?.thirdInstallmentAmount || student?.installment3 || 0),
-      status: String(student?.thirdInstallmentStatus || 'Pending'),
-      paidAt: student?.thirdInstallmentPaidAt || '',
-      dueDate: thirdDueDate,
+  if (normalizedMobile) {
+    const duplicateMobile = students.find((student) => {
+      const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
+      const studentMobile = String(student?.mobileNumber || '').trim()
+      return studentMobile && studentMobile === normalizedMobile && studentRecordId !== currentRecordId
     })
+
+    if (duplicateMobile) {
+      errors.mobileNumber = 'Mobile number already exists'
+    }
   }
 
-  return entries.filter((entry) => entry.amount > 0)
+  return errors
 }
-
-function calculateRevenueSummary(students) {
-  const now = new Date()
-  const today = getTodayValue()
-  const monthStart = getMonthStartValue(now)
-  const weekStart = getWeekStartValue(now)
-
-  // Last week range
-  const weekStartRef = new Date(weekStart + 'T00:00:00')
-  const lastWeekStartObj = new Date(weekStartRef)
-  lastWeekStartObj.setDate(lastWeekStartObj.getDate() - 7)
-  const lastWeekStart = getLocalDateValue(lastWeekStartObj)
-  const lastWeekEndObj = new Date(weekStartRef)
-  lastWeekEndObj.setDate(lastWeekEndObj.getDate() - 1)
-  const lastWeekEnd = getLocalDateValue(lastWeekEndObj)
-
-  // Last month range
-  const monthStartRef = new Date(monthStart + 'T00:00:00')
-  const lastMonthStartObj = new Date(monthStartRef)
-  lastMonthStartObj.setMonth(lastMonthStartObj.getMonth() - 1)
-  const lastMonthStart = getLocalDateValue(lastMonthStartObj)
-  const lastMonthEndObj = new Date(monthStartRef)
-  lastMonthEndObj.setDate(lastMonthEndObj.getDate() - 1)
-  const lastMonthEnd = getLocalDateValue(lastMonthEndObj)
-
-  return students.reduce(
-    (summary, student) => {
-      const admissionDate = student?.admissionDate || student?.firstInstallmentDate || student?.createdAt || ''
-      const entries = getInstallmentEntries(student)
-      const plannedTotal = toNumber(student?.totalAmount || student?.afterDiscount) || entries.reduce((total, entry) => total + entry.amount, 0)
-
-      summary.totalStudents += 1
-
-      if (isWithinRange(admissionDate, monthStart, today)) {
-        summary.thisMonthStudents += 1
-      }
-
-      if (isWithinRange(admissionDate, weekStart, today)) {
-        summary.thisWeekStudents += 1
-      }
-
-      let paidTotalForStudent = 0
-      let paidTotalBeforeWeekStart = 0
-
-      for (const entry of entries) {
-        if (String(entry.status || '').trim() !== 'Paid') continue
-
-        paidTotalForStudent += entry.amount
-        summary.totalRevenue += entry.amount
-
-        const paymentDate = entry.paidAt || admissionDate || entry.dueDate
-
-        if (paymentDate < weekStart) {
-          paidTotalBeforeWeekStart += entry.amount
-          summary.lastWeekCumulativeRevenue += entry.amount
-        }
-
-        if (isWithinRange(paymentDate, lastMonthStart, lastMonthEnd)) {
-          summary.lastMonthRevenue += entry.amount
-        }
-
-        if (isWithinRange(paymentDate, lastWeekStart, lastWeekEnd)) {
-          summary.lastWeekRevenue += entry.amount
-        }
-
-        if (isWithinRange(paymentDate, monthStart, today)) {
-          summary.thisMonthRevenue += entry.amount
-        }
-
-        if (isWithinRange(paymentDate, weekStart, today)) {
-          summary.thisWeekRevenue += entry.amount
-        }
-      }
-
-      summary.pendingPayments += Math.max(plannedTotal - paidTotalForStudent, 0)
-      summary.lastWeekPendingPayments += Math.max(plannedTotal - paidTotalBeforeWeekStart, 0)
-
-      return summary
-    },
-    {
-      totalRevenue: 0,
-      thisMonthRevenue: 0,
-      thisWeekRevenue: 0,
-      pendingPayments: 0,
-      totalStudents: 0,
-      thisMonthStudents: 0,
-      thisWeekStudents: 0,
-      lastWeekCumulativeRevenue: 0,
-      lastMonthRevenue: 0,
-      lastWeekRevenue: 0,
-      lastWeekPendingPayments: 0,
-    },
+function computeBranchStudentPaymentSummary(stu = {}) {
+  const totalFee = Number(
+    stu.finalFee ?? stu.courseAmount ?? stu.totalAmount ?? stu.afterDiscount ?? 0
   )
-}
+  const paidAmount = Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
+  const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
 
-const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const nextInstallment = installments.find((installment) => {
+    const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
+    const paid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
+    return paid < amount
+  })
 
-function getDateObject(value) {
-  if (!value) return null
-  const date = new Date(`${value}T00:00:00`)
-  return Number.isNaN(date.getTime()) ? null : date
-}
+  const nextInstallmentAmount = nextInstallment
+    ? Math.max(
+        Number(nextInstallment.amount ?? nextInstallment.installmentAmount ?? 0) -
+          Number(nextInstallment.paidAmount ?? nextInstallment.amountPaid ?? 0),
+        0,
+      )
+    : 0
 
-function getChartMax(data, fallback = 10000) {
-  const maxValue = data.reduce((highest, item) => Math.max(highest, item.actual, item.expected), 0)
-  const base = Math.max(maxValue, fallback)
-  return Math.ceil(base / 10000) * 10000
-}
+  const nextDueDate = nextInstallment?.dueDate ?? nextInstallment?.date ?? null
 
-function buildRevenueTicks(chartMax) {
-  return [0, 0.25, 0.5, 0.75, 1].map((fraction) => Math.round((chartMax * fraction) / 1000) * 1000)
-}
-
-function getWeekBuckets(referenceDate = new Date()) {
-  const year = referenceDate.getFullYear()
-  const month = referenceDate.getMonth()
-  const daysInMonth = new Date(year, month + 1, 0).getDate()
-
-  return [
-    { label: 'Week 1', start: 1, end: Math.min(7, daysInMonth) },
-    { label: 'Week 2', start: 8, end: Math.min(14, daysInMonth) },
-    { label: 'Week 3', start: 15, end: Math.min(21, daysInMonth) },
-    { label: 'Week 4', start: 22, end: daysInMonth },
-  ]
-}
-
-function getCurrentWeekIndex(referenceDate = new Date()) {
-  const day = referenceDate.getDate()
-  return getWeekBuckets(referenceDate).findIndex((bucket) => day >= bucket.start && day <= bucket.end)
-}
-
-function buildMonthlyRevenueComparison(students, referenceDate = new Date()) {
-  const year = referenceDate.getFullYear()
-  const buckets = MONTH_LABELS.map((month, monthIndex) => ({
-    month,
-    monthIndex,
-    actual: 0,
-    expected: 0,
-  }))
-
-  for (const student of students) {
-    for (const entry of getInstallmentEntries(student)) {
-      const amount = toNumber(entry.amount)
-      if (!amount) continue
-
-      const paidAt = getDateObject(entry.paidAt)
-      if (entry.status === 'Paid' && paidAt && paidAt.getFullYear() === year) {
-        buckets[paidAt.getMonth()].actual += amount
-        continue
-      }
-
-      const dueDate = getDateObject(entry.dueDate)
-      if (!dueDate || dueDate.getFullYear() !== year) {
-        continue
-      }
-
-      buckets[dueDate.getMonth()].expected += amount
+  let paymentStatus = 'Pending'
+  if (totalFee > 0 && paidAmount >= totalFee) {
+    paymentStatus = 'Paid'
+  } else if (nextDueDate) {
+    const today = new Date()
+    const dueDate = new Date(nextDueDate)
+    if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
+      paymentStatus = 'Overdue'
+    } else if (paidAmount > 0) {
+      paymentStatus = 'Partially Paid'
     }
+  } else if (paidAmount > 0) {
+    paymentStatus = 'Partially Paid'
   }
 
-  return buckets.map(({ month, actual, expected }) => ({ month, actual, expected }))
-}
-
-function buildWeeklyRevenueComparison(students, referenceDate = new Date()) {
-  const year = referenceDate.getFullYear()
-  const month = referenceDate.getMonth()
-  const currentWeekIndex = getCurrentWeekIndex(referenceDate)
-  const buckets = getWeekBuckets(referenceDate).map((bucket, index) => ({
-    week: index === currentWeekIndex ? `${bucket.label} (Current)` : bucket.label,
-    actual: 0,
-    expected: 0,
-    start: bucket.start,
-    end: bucket.end,
-    isCurrent: index === currentWeekIndex,
-  }))
-
-  for (const student of students) {
-    for (const entry of getInstallmentEntries(student)) {
-      const amount = toNumber(entry.amount)
-      if (!amount) continue
-
-      const paidAt = getDateObject(entry.paidAt)
-      if (entry.status === 'Paid' && paidAt && paidAt.getFullYear() === year && paidAt.getMonth() === month) {
-        const paidDay = paidAt.getDate()
-        const paidIndex = buckets.findIndex((bucket) => paidDay >= bucket.start && paidDay <= bucket.end)
-        if (paidIndex >= 0) {
-          buckets[paidIndex].actual += amount
-        }
-        continue
-      }
-
-      const dueDate = getDateObject(entry.dueDate)
-      if (!dueDate || dueDate.getFullYear() !== year || dueDate.getMonth() !== month) {
-        continue
-      }
-
-      const dueDay = dueDate.getDate()
-      const dueIndex = buckets.findIndex((bucket) => dueDay >= bucket.start && dueDay <= bucket.end)
-      if (dueIndex >= 0 && dueIndex >= currentWeekIndex) {
-        buckets[dueIndex].expected += amount
-      }
-    }
+  return {
+    totalFee,
+    paidAmount,
+    pendingAmount: Math.max(totalFee - paidAmount, 0),
+    nextInstallment,
+    nextInstallmentAmount,
+    nextDueDate,
+    paymentStatus,
   }
-
-  return buckets.map(({ week, actual, expected, isCurrent }) => ({ week, actual, expected, isCurrent }))
 }
 
-function useRevenueInsightsData() {
-  const [summary, setSummary] = useState(null)
-  const [monthlyRevenue, setMonthlyRevenue] = useState([])
-  const [weeklyRevenue, setWeeklyRevenue] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
+function formatBranchRupees(amount) {
+  return `₹${Number(amount || 0).toLocaleString('en-IN')}`
+}
 
-  useEffect(() => {
-    let active = true
+function formatBranchPaymentDate(date) {
+  if (!date) return '-'
+  const parsedDate = new Date(date)
+  if (Number.isNaN(parsedDate.getTime())) return '-'
+  return parsedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+function formatStudentDate(value) {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+  const date = new Date(`${text}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return text
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
 
-    const run = async () => {
-      try {
-        const result = await listStudents({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
-        const students = Array.isArray(result?.data) ? result.data : []
-        if (!active) return
-        setSummary(calculateRevenueSummary(students))
-        setMonthlyRevenue(buildMonthlyRevenueComparison(students))
-        setWeeklyRevenue(buildWeeklyRevenueComparison(students))
-      } catch {
-        if (!active) return
-        setSummary(calculateRevenueSummary([]))
-        setMonthlyRevenue(buildMonthlyRevenueComparison([]))
-        setWeeklyRevenue(buildWeeklyRevenueComparison([]))
-      } finally {
-        if (active) {
-          setIsLoading(false)
+function formatExternalUrl(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  if (/^https?:\/\//i.test(text)) return text
+  return `https://${text}`
+}
+
+function normalizeLookupText(value = '') {
+  return String(value || '').trim().toLowerCase()
+}
+
+function findCountryMatch(countries = [], student = {}) {
+  const countryCode = normalizeLookupText(student.countryCode)
+  const countryName = normalizeLookupText(student.country)
+
+  return countries.find((country) =>
+    normalizeLookupText(country.iso2) === countryCode ||
+    normalizeLookupText(country.name) === countryName ||
+    (countryCode === 'in' && normalizeLookupText(country.name) === 'india')
+  ) || null
+}
+
+function findStateMatch(states = [], student = {}) {
+  const stateCode = normalizeLookupText(student.stateCode)
+  const stateName = normalizeLookupText(student.state)
+
+  return states.find((state) =>
+    normalizeLookupText(state.iso2) === stateCode ||
+    normalizeLookupText(state.name) === stateName ||
+    (stateCode === 'tn' && normalizeLookupText(state.name) === 'tamil nadu')
+  ) || null
+}
+
+function findCityMatch(cities = [], student = {}) {
+  const cityName = normalizeLookupText(student.city)
+  return cities.find((city) => normalizeLookupText(city.name) === cityName) || null
+}
+
+async function resolveStudentLocationForm(student = {}) {
+  const resolved = { ...student }
+
+  try {
+    const countries = await getCountries()
+    const matchedCountry = findCountryMatch(countries, resolved) || countries.find((country) => normalizeLookupText(country.iso2) === 'in') || null
+    if (matchedCountry) {
+      resolved.countryCode = matchedCountry.iso2 || resolved.countryCode || ''
+      resolved.country = matchedCountry.name || resolved.country || ''
+    }
+
+    if (resolved.countryCode) {
+      const states = await getStatesOfCountry(resolved.countryCode)
+      const matchedState = findStateMatch(states, resolved) || states.find((state) => normalizeLookupText(state.iso2) === 'tn') || null
+      if (matchedState) {
+        resolved.stateCode = matchedState.iso2 || resolved.stateCode || ''
+        resolved.state = matchedState.name || resolved.state || ''
+      }
+
+      if (resolved.stateCode) {
+        const cities = await getCitiesOfState(resolved.countryCode, resolved.stateCode)
+        const matchedCity = findCityMatch(cities, resolved)
+        if (matchedCity) {
+          resolved.city = matchedCity.name || resolved.city || ''
         }
       }
     }
+  } catch {
+    // Fall back to whatever was already in the form.
+  }
 
-    const syncRecords = () => {
-      void run()
-    }
-
-    void run()
-    window.addEventListener(STUDENT_RECORD_SYNC_EVENT, syncRecords)
-    window.addEventListener('storage', syncRecords)
-
-    return () => {
-      active = false
-      window.removeEventListener(STUDENT_RECORD_SYNC_EVENT, syncRecords)
-      window.removeEventListener('storage', syncRecords)
-    }
-  }, [])
-
-  return { summary, monthlyRevenue, weeklyRevenue, isLoading }
+  return resolved
 }
 
-function BusinessOwnerDashboard({ dashboard, revenueSummary, isRevenueLoading, monthlyRevenue, weeklyRevenue }) {
-  const openMenu = useMobileMenu()
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const profileDetails = {
-    role: 'Business Head',
-    status: 'Active',
-    workspace: 'Cispro Ops',
-    accessLevel: 'Business Owner',
-    primaryEmail: 'business.owner@cispro.com',
-    passwordMasked: 'ChangeMe123!',
-    resetPasswordText: 'Send Reset Link',
-    lastLogin: 'Today, 10:25 AM',
-    initials: 'BW',
-  }
-  const profileStatTiles = [
-    { icon: BadgeCheck, tone: 'blue', label: 'Status', value: profileDetails.status },
-    { icon: Building2, tone: 'green', label: 'Workspace', value: profileDetails.workspace },
-    { icon: ShieldCheck, tone: 'violet', label: 'Access Level', value: profileDetails.accessLevel },
-    { icon: Clock3, tone: 'amber', label: 'Last Login', value: profileDetails.lastLogin },
-  ]
-  const profileDetailRows = [
-    { icon: LockKeyhole, label: 'Password', value: profileDetails.passwordMasked },
-    { icon: RefreshCcw, label: 'Reset Password', value: profileDetails.resetPasswordText },
-    { icon: Clock3, label: 'Last Login', value: profileDetails.lastLogin },
-  ]
+function normalizeBranchStudentCourseAmount(course = {}) {
+  const afterDiscount = String(course?.afterDiscount || '').trim()
+  if (afterDiscount) return afterDiscount
 
+  const actualFees = Number(course?.actualFees || 0)
+  const registrationFees = Number(course?.registrationFees || 0)
+  const discount = Number(course?.discount || 0)
+
+  if ([actualFees, registrationFees, discount].some((value) => Number.isNaN(value))) {
+    return ''
+  }
+
+  return String(Math.max(actualFees + registrationFees - discount, 0))
+}
+
+function normalizeBranchStudentCourseFacultyOptions(course = {}) {
+  return Array.isArray(course?.assignedFaculty)
+    ? course.assignedFaculty
+      .map((faculty) => {
+        const id = String(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || '').trim()
+        const name = String(faculty?.name || faculty?.facultyName || '').trim()
+
+        if (!id && !name) return null
+
+        return {
+          id: id || name,
+          name: name || id,
+        }
+      })
+      .filter(Boolean)
+    : []
+}
+
+const batchCards = [
+  { title: 'Batch A-11', timing: 'Mon - Fri | 9:00 AM', status: 'Active' },
+  { title: 'Batch B-02', timing: 'Tue - Thu | 2:00 PM', status: 'Active' },
+  { title: 'Batch C-01', timing: 'Weekend | 11:30 AM', status: 'Review' },
+]
+
+
+
+function getBranchDashboardSectionFromPath(pathname = '', search = '') {
+  if (pathname.endsWith('/notifications')) return 'notifications'
+
+  const params = new URLSearchParams(search)
+  const section = String(params.get('section') || '').trim().toLowerCase()
+
+  if (section === 'notifications') return 'notifications'
+  if (section === 'students') return 'students'
+  if (section === 'courses') return 'courses'
+  if (section === 'installments') return 'installments'
+  if (section === 'faculty') return 'faculty'
+  if (section === 'batches') return 'batches'
+  if (section === 'payments') return 'payments'
+  if (section === 'profile') return 'profile'
+
+  return ''
+}
+
+function BranchDashboardSection({ title, description, actions, children }) {
   return (
-    <section className="business-owner-dashboard">
-      <PremiumDashboardTopbar
-        eyebrow="Business Owner"
-        title={dashboard.title}
-        summary={dashboard.summary || "Welcome back! Here's what's happening with your business today."}
-        initials={profileDetails.initials}
-        profileTitle={profileDetails.role}
-        email={profileDetails.primaryEmail}
-        onOpenMenu={openMenu}
-        onProfileClick={() => setIsProfileOpen(true)}
-        profileAriaLabel="Open Business Owner profile"
-      />
-
-      <MemoRevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <MemoRevenueDashboards monthlyRevenueData={monthlyRevenue} weeklyRevenueData={weeklyRevenue} reverse={true} />
-      <MemoAttendanceComparisonChart />
-      <ProfileDrawer
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        title={profileDetails.role}
-        email={profileDetails.primaryEmail}
-        initials={profileDetails.initials}
-        statTiles={profileStatTiles}
-        detailRows={profileDetailRows}
-        ariaLabelledBy="business-owner-profile-title"
-      />
+    <section className="branch-dashboard-section">
+      <div className="branch-dashboard-section-heading">
+        <div className="branch-dashboard-section-heading-copy">
+          <h2>{title}</h2>
+          <p>{description}</p>
+        </div>
+        {actions ? <div className="branch-dashboard-section-heading-actions">{actions}</div> : null}
+      </div>
+      {children}
     </section>
   )
 }
 
-function formatRevenue(value) {
-  return revenueFormatter.format(value)
+function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
+  return (
+    <section className="notifications-group">
+      <p className="notifications-group-label">{label}</p>
+      <div className="notifications-group-list">
+        {items.map((item) => {
+          const Icon = item.icon
+
+          return (
+            <article
+              key={`${label}-${item.id || item.title}-${item.time}`}
+              className={`notifications-item ${item.unread ? 'is-unread' : ''}`.trim()}
+            >
+              <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
+                <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+              </span>
+
+              <div className="notifications-item-copy">
+                <div className="notifications-item-title-row">
+                  <h3>{item.title}</h3>
+                  <small>{item.time}</small>
+                </div>
+                <p>{item.message}</p>
+                {item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request' ? (
+                  <div className="notification-copy">
+                    {item.requestTitle ? <small><strong>Title:</strong> {item.requestTitle}</small> : null}
+                    {item.requestReason ? <small><strong>Reason:</strong> {item.requestReason}</small> : null}
+                    {item.requestDescription ? <small><strong>Description:</strong> {item.requestDescription}</small> : null}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="notifications-item-meta">
+                <span className={`notifications-item-chip tone-${item.tone}`}>
+                  {item.categoryLabel || item.actionLabel || 'View'}
+                </span>
+                {item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request' ? (
+                  <button
+                    type="button"
+                    className="notifications-item-view-button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      alert('ACCEPT BUTTON CLICKED')
+                    }}
+                  >
+                    Accept
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="notifications-item-view-button"
+                    onClick={() => onView?.(item)}
+                  >
+                    View
+                  </button>
+                )}
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
 }
 
-function formatRevenueCompact(value) {
-  const amount = Number(value)
-  if (!Number.isFinite(amount) || amount === 0) return ''
-
-  return `₹${(amount / 100000).toFixed(2)}L`
+function Field({ label, hint, error, children, required = false }) {
+  return (
+    <label className="course-field">
+      <span>
+        {label}
+        {required ? <b>*</b> : null}
+      </span>
+      {children}
+      {hint ? <small>{hint}</small> : null}
+      {error ? <small className="course-field-error">{error}</small> : null}
+    </label>
+  )
 }
 
-function formatRevenueAxisLabel(value) {
-  const amount = Number(value)
-  if (!Number.isFinite(amount)) return ''
-  if (amount === 0) return '₹0'
+const BRANCH_COURSES_PER_PAGE = 5
 
-  const lakhs = amount / 100000
-  const label = Number.isInteger(lakhs) ? `${lakhs}L` : `${lakhs.toFixed(1)}L`
-  return `₹${label}`
+function AvatarBadge() {
+  return (
+    <span className="super-admin-avatar" aria-hidden="true">
+      <span className="super-admin-avatar-mark">
+        <Shield size={18} strokeWidth={2.2} />
+      </span>
+    </span>
+  )
 }
 
-function buildRevenueSummaryCards(summary, isLoading) {
-  const formatValue = (value) => {
-    if (isLoading) return 'Loading...'
-    return formatRevenue(value ?? 0)
+function SidebarUserAvatar() {
+  return (
+    <span className="super-admin-sidebar-user-avatar" aria-hidden="true">
+      <CircleUserRound size={34} strokeWidth={1.9} />
+      <span className="super-admin-sidebar-user-status" />
+    </span>
+  )
+}
+
+function buildFallbackBranchProfile(user, session) {
+  return {
+    branchName: 'Branch Dashboard',
+    branchAdminName: user?.name || 'Branch Admin',
+    branchEmail: String(user?.email || session?.user?.email || '').trim().toLowerCase() || 'branch@example.com',
+    branchAddress: 'Assigned location',
+    mustResetPassword: Boolean(user?.mustResetPassword || session?.user?.mustResetPassword),
+  }
+}
+
+const formatBranchCourseAmount = formatBranchCourseMoney
+const COURSE_CODE_PREFIX = 'CIS-'
+const COURSE_DRAFT_STORAGE_PREFIX = 'branch-course-draft:'
+const COURSE_BASIC_FIELDS = [
+  'courseCode',
+  'name',
+  'mode',
+  'duration',
+  'hours',
+  'actualFees',
+  'registrationFees',
+  'discount',
+  'status',
+]
+
+function createCourseNodeId(prefix) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+function createBranchCourseSubmodel(submodelIndex = 1, name = '') {
+  return {
+    id: createCourseNodeId('submodel'),
+    name: String(name || '').trim(),
+  }
+}
+
+function createBranchCourseModel(modelIndex = 1, name = '', submodels = []) {
+  return {
+    id: createCourseNodeId('model'),
+    name: String(name || '').trim(),
+    submodels: Array.isArray(submodels) ? submodels : [],
+  }
+}
+
+function createBranchInstallmentAmounts(count = 3, value = '') {
+  const safeCount = Math.max(1, Number(count) || 1)
+  return Array.from({ length: safeCount }, () => String(value || '').trim())
+}
+
+function buildBalancedBranchInstallmentAmounts(totalFee = 0, count = 3) {
+  const safeCount = Math.max(1, Number(count) || 1)
+  const safeTotal = Math.max(0, Number(totalFee) || 0)
+  const baseAmount = Math.floor(safeTotal / safeCount)
+  let remainder = safeTotal - baseAmount * safeCount
+
+  return Array.from({ length: safeCount }, () => {
+    const nextAmount = baseAmount + (remainder > 0 ? 1 : 0)
+    if (remainder > 0) {
+      remainder -= 1
+    }
+    return String(nextAmount)
+  })
+}
+
+function normalizeBranchInstallmentTemplate(template = {}, fallback = {}) {
+  const safeTemplate = template && typeof template === 'object' ? template : {}
+  const safeFallback = fallback && typeof fallback === 'object' ? fallback : {}
+  const rawInstallments = Array.isArray(safeTemplate.installments)
+    ? safeTemplate.installments
+    : Array.isArray(safeTemplate.installmentAmounts)
+      ? safeTemplate.installmentAmounts
+      : Array.isArray(safeFallback.installments)
+        ? safeFallback.installments
+        : []
+  const installmentCount = Math.max(
+    1,
+    Number(safeTemplate.installmentCount || safeFallback.installmentCount || rawInstallments.length || 3) || 3,
+  )
+
+  const installments = rawInstallments.length
+    ? rawInstallments.map((value) => String(value ?? '').trim())
+    : createBranchInstallmentAmounts(installmentCount)
+
+  while (installments.length < installmentCount) {
+    installments.push('')
   }
 
-  // 1. Total Revenue comparison
-  const lastWeekCum = summary?.lastWeekCumulativeRevenue || 0
-  const currentTotal = summary?.totalRevenue || 0
-  const totalRevenueDiff = currentTotal - lastWeekCum
-  const totalRevenuePct = lastWeekCum > 0 ? (totalRevenueDiff / lastWeekCum) * 100 : 0
-  const totalChangeVal = lastWeekCum > 0 || totalRevenueDiff > 0
-    ? (totalRevenuePct >= 0 ? '+' : '') + totalRevenuePct.toFixed(1) + '%'
-    : '0.0%'
-  const totalTone = totalRevenuePct >= 0 ? 'positive' : 'negative'
-
-  // 2. This Month Revenue comparison
-  const lastMonthVal = summary?.lastMonthRevenue || 0
-  const currentMonthVal = summary?.thisMonthRevenue || 0
-  const monthRevenueDiff = currentMonthVal - lastMonthVal
-  const monthRevenuePct = lastMonthVal > 0 ? (monthRevenueDiff / lastMonthVal) * 100 : 0
-  const monthChangeVal = lastMonthVal > 0 || monthRevenueDiff > 0
-    ? (monthRevenuePct >= 0 ? '+' : '') + monthRevenuePct.toFixed(1) + '%'
-    : '0.0%'
-  const monthTone = monthRevenuePct >= 0 ? 'positive' : 'negative'
-
-  // 3. This Week Revenue comparison
-  const lastWeekVal = summary?.lastWeekRevenue || 0
-  const currentWeekVal = summary?.thisWeekRevenue || 0
-  const weekRevenueDiff = currentWeekVal - lastWeekVal
-  const weekRevenuePct = lastWeekVal > 0 ? (weekRevenueDiff / lastWeekVal) * 100 : 0
-  const weekChangeVal = lastWeekVal > 0 || weekRevenueDiff > 0
-    ? (weekRevenuePct >= 0 ? '+' : '') + weekRevenuePct.toFixed(1) + '%'
-    : '0.0%'
-  const weekTone = weekRevenuePct >= 0 ? 'positive' : 'negative'
-
-  // 4. Pending Payments comparison
-  const lastWeekPendingVal = summary?.lastWeekPendingPayments || 0
-  const currentPendingVal = summary?.pendingPayments || 0
-  const pendingDiff = currentPendingVal - lastWeekPendingVal
-  const pendingPct = lastWeekPendingVal > 0 ? (pendingDiff / lastWeekPendingVal) * 100 : 0
-  const pendingChangeVal = lastWeekPendingVal > 0 || pendingDiff !== 0
-    ? (pendingPct >= 0 ? '+' : '') + pendingPct.toFixed(1) + '%'
-    : '0.0%'
-  const pendingTone = pendingPct <= 0 ? 'positive' : 'negative'
-
-  return [
-    {
-      label: 'Total Revenue',
-      value: formatValue(summary?.totalRevenue),
-      change: totalChangeVal,
-      changeText: 'Than last week',
-      changeTone: totalTone,
-      accent: 'blue',
-      icon: 'wallet',
-      tooltip: 'Total Revenue shows the total income collected from all student fee payments across all courses and admissions.',
-      details: [
-        { label: 'Collected revenue', value: formatValue(summary?.totalRevenue) },
-        { label: 'Students added', value: isLoading ? 'Loading...' : `${summary?.totalStudents || 0} students added` },
-        { label: 'Scope', value: isLoading ? 'Loading...' : 'All paid installments across active records' },
-      ],
-    },
-    {
-      label: 'This Month Revenue',
-      value: formatValue(summary?.thisMonthRevenue),
-      change: monthChangeVal,
-      changeText: 'Than last month',
-      changeTone: monthTone,
-      accent: 'purple',
-      icon: 'calendar',
-      tooltip: 'This Month Revenue shows the total income collected during the current month period.',
-      details: [
-        { label: 'Collected this month', value: formatValue(summary?.thisMonthRevenue) },
-        { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisMonthStudents || 0} admissions this month` },
-        { label: 'Scope', value: isLoading ? 'Loading...' : 'Payments received from the current month window' },
-      ],
-    },
-    {
-      label: 'This Week Revenue',
-      value: formatValue(summary?.thisWeekRevenue),
-      change: weekChangeVal,
-      changeText: 'Than last week',
-      changeTone: weekTone,
-      accent: 'amber',
-      icon: 'trend',
-      tooltip: 'This Week Revenue shows the total income collected during the current week.',
-      details: [
-        { label: 'Collected this week', value: formatValue(summary?.thisWeekRevenue) },
-        { label: 'Admissions', value: isLoading ? 'Loading...' : `${summary?.thisWeekStudents || 0} admissions this week` },
-        { label: 'Scope', value: isLoading ? 'Loading...' : 'Payments received from the current week window' },
-      ],
-    },
-    {
-      label: 'Pending Payments',
-      value: formatValue(summary?.pendingPayments ?? summary?.expectedNextWeekRevenue),
-      change: pendingChangeVal,
-      changeText: 'Than last week',
-      changeTone: pendingTone,
-      accent: 'green',
-      icon: 'target',
-      tooltip: 'Pending Payments shows the outstanding amount that is still waiting to be collected.',
-      details: [
-        {
-          label: 'Pending amount',
-          value: formatValue(summary?.pendingPayments ?? summary?.expectedNextWeekRevenue),
-        },
-        { label: 'Collection target', value: isLoading ? 'Loading...' : 'Target for next week' },
-        { label: 'Scope', value: isLoading ? 'Loading...' : 'Outstanding student balances' },
-      ],
-    },
-  ]
+  return {
+    templateName: String(safeTemplate.templateName || safeTemplate.planName || safeFallback.templateName || 'Standard Installment Plan').trim(),
+    installmentCount: String(installmentCount),
+    installments: installments.slice(0, installmentCount),
+    dueRule: String(safeTemplate.dueRule || safeFallback.dueRule || 'Admission').trim(),
+    allowCustomization:
+      typeof safeTemplate.allowCustomization === 'boolean'
+        ? safeTemplate.allowCustomization
+        : typeof safeFallback.allowCustomization === 'boolean'
+          ? safeFallback.allowCustomization
+          : true,
+    status: String(safeTemplate.status || safeFallback.status || 'Active').trim(),
+  }
 }
 
-function DashboardNotificationBell() {
-  const [isOpen, setIsOpen] = useState(false)
-  const [showAll, setShowAll] = useState(false)
-  const visibleItems = showAll ? notificationItems : notificationItems.slice(0, 2)
+function normalizeBranchInstallmentAmountList(amounts = [], count = 3) {
+  const safeCount = Math.max(1, Number(count) || 1)
+  const nextAmounts = Array.isArray(amounts)
+    ? amounts.map((value) => String(value ?? '').trim())
+    : []
 
-  return (
-    <div
-      className="notification-menu"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => {
-        setIsOpen(false)
-        setShowAll(false)
-      }}
-    >
-      <button
-        className="icon-chip notification-chip"
-        type="button"
-        aria-label="Notifications"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => setIsOpen((current) => !current)}
-      >
-        <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        <b>{notificationItems.length}</b>
-      </button>
+  while (nextAmounts.length < safeCount) {
+    nextAmounts.push('')
+  }
 
-      {isOpen ? (
-        <div className="notification-dropdown" role="menu" aria-label="Notifications">
-          <div className="notification-dropdown-head">
-            <strong>Notifications</strong>
-            <button type="button" className="notification-mark-read">
-              Mark all as read
+  return nextAmounts.slice(0, safeCount)
+}
+
+function getBranchInstallmentAmountTotal(amounts = []) {
+  return (Array.isArray(amounts) ? amounts : [])
+    .map((value) => Number(String(value || '').trim()))
+    .filter((value) => Number.isFinite(value))
+    .reduce((total, value) => total + value, 0)
+}
+
+const BRANCH_PAYMENT_PLAN_CUSTOM_VALUE = '__custom__'
+
+function normalizeBranchCoursePaymentPlanSelection(selection = {}, fallback = {}) {
+  const safeSelection = selection && typeof selection === 'object' ? selection : {}
+  const safeFallback = fallback && typeof fallback === 'object' ? fallback : {}
+  const type = String(safeSelection.type || safeSelection.planType || safeFallback.type || 'template').trim().toLowerCase()
+  const templateId = String(safeSelection.templateId || safeSelection.id || safeFallback.templateId || '').trim()
+  const rawInstallmentCount = String(safeSelection.installmentCount ?? safeSelection.count ?? safeFallback.installmentCount ?? safeFallback.count ?? '').trim()
+  const installmentCount = Math.max(
+    1,
+    Number(rawInstallmentCount || 1) || 1,
+  )
+  const installments = normalizeBranchInstallmentAmountList(
+    Array.isArray(safeSelection.installments)
+      ? safeSelection.installments
+      : Array.isArray(safeFallback.installments)
+        ? safeFallback.installments
+        : [],
+    installmentCount,
+  )
+
+  return {
+    id: String(safeSelection.id || templateId || (type === 'custom' ? BRANCH_PAYMENT_PLAN_CUSTOM_VALUE : createCourseNodeId('payment-plan'))).trim(),
+    type: type === 'custom' ? 'custom' : 'template',
+    templateId: type === 'custom' ? BRANCH_PAYMENT_PLAN_CUSTOM_VALUE : templateId,
+    templateName: String(safeSelection.templateName || safeSelection.planName || safeFallback.templateName || (type === 'custom' ? 'Custom' : 'Payment Plan')).trim(),
+    installmentCount: type === 'custom' && !rawInstallmentCount ? '' : String(installmentCount),
+    installments,
+    dueRule: String(safeSelection.dueRule || safeFallback.dueRule || 'Admission').trim(),
+    allowCustomization:
+      typeof safeSelection.allowCustomization === 'boolean'
+        ? safeSelection.allowCustomization
+        : typeof safeFallback.allowCustomization === 'boolean'
+          ? safeFallback.allowCustomization
+          : true,
+    status: String(safeSelection.status || safeFallback.status || 'Active').trim(),
+  }
+}
+
+function normalizeBranchCoursePaymentPlanSelections(plans = [], fallbackPlans = []) {
+  const primaryPlans = Array.isArray(plans) ? plans : []
+  const fallback = Array.isArray(fallbackPlans) ? fallbackPlans : []
+  const sourcePlans = primaryPlans.length ? primaryPlans : fallback
+
+  return sourcePlans.map((plan, index) =>
+    normalizeBranchCoursePaymentPlanSelection(plan, {
+      id: plan?.id || `payment-plan-${index + 1}`,
+      templateId: plan?.templateId || plan?.id || '',
+      templateName: plan?.templateName || plan?.planName || '',
+      installmentCount: plan?.installmentCount ?? plan?.count ?? '',
+      installments: Array.isArray(plan?.installments) ? plan.installments : [],
+      type: String(plan?.type || plan?.planType || '').trim().toLowerCase() === 'custom' ? 'custom' : 'template',
+      dueRule: plan?.dueRule || 'Admission',
+      allowCustomization: plan?.allowCustomization,
+      status: plan?.status || 'Active',
+    }),
+  )
+}
+
+function buildBranchCoursePaymentPlanInstallments(totalFee = 0, count = 1) {
+  return buildBalancedBranchInstallmentAmounts(totalFee, count)
+}
+
+function getBranchCoursePaymentPlanInstallmentCount(plan = {}) {
+  if (String(plan?.type || '').trim().toLowerCase() === 'custom' && !String(plan?.installmentCount || '').trim()) {
+    return 0
+  }
+  return Math.max(1, Number(plan?.installmentCount || 0) || 1)
+}
+
+function buildBranchCoursePaymentPlanPayloadSelections(plans = [], finalFee = 0) {
+  const normalizedPlans = normalizeBranchCoursePaymentPlanSelections(plans)
+
+  return normalizedPlans.map((plan, index) => {
+    const installmentCount = getBranchCoursePaymentPlanInstallmentCount(plan)
+    const installments = buildBranchCoursePaymentPlanInstallments(finalFee, installmentCount)
+
+    return {
+      id: plan.id || `payment-plan-${index + 1}`,
+      type: plan.type,
+      templateId: plan.templateId,
+      templateName: plan.templateName,
+      installmentCount: String(installmentCount),
+      installments,
+      dueRule: plan.dueRule,
+      allowCustomization: plan.allowCustomization,
+      status: plan.status,
+    }
+  })
+}
+
+function buildBranchCourseInstallmentTemplateFromPaymentPlan(plan = {}, finalFee = 0) {
+  const installmentCount = getBranchCoursePaymentPlanInstallmentCount(plan)
+  return {
+    templateName: String(plan.templateName || (plan.type === 'custom' ? 'Custom' : 'Payment Plan')).trim(),
+    installmentCount: String(installmentCount),
+    installments: buildBranchCoursePaymentPlanInstallments(finalFee, installmentCount),
+    dueRule: String(plan.dueRule || 'Admission').trim(),
+    allowCustomization: Boolean(plan.allowCustomization ?? true),
+    status: String(plan.status || 'Active').trim(),
+  }
+}
+
+function buildBranchCoursePaymentPlanSelectionsFromRecord(course = {}, fallbackTemplates = []) {
+  const paymentPlans = Array.isArray(course.paymentPlans)
+    ? course.paymentPlans
+    : Array.isArray(course.paymentPlanSelections)
+      ? course.paymentPlanSelections
+      : Array.isArray(course.installmentPlans)
+        ? course.installmentPlans
+        : []
+
+  if (paymentPlans.length) {
+    return normalizeBranchCoursePaymentPlanSelections(paymentPlans)
+  }
+
+  const installmentTemplate = course.installmentTemplate || course.branchInstallmentTemplate || null
+  if (installmentTemplate) {
+    const normalizedTemplate = normalizeBranchInstallmentTemplate(installmentTemplate)
+    const rawTemplateId = String(installmentTemplate?.id || installmentTemplate?.templateId || installmentTemplate?.branchInstallmentTemplateId || '').trim()
+    const matchedTemplate = Array.isArray(fallbackTemplates)
+      ? fallbackTemplates.find((template) => String(template.id || '').trim() === rawTemplateId)
+      : null
+
+    return [
+      normalizeBranchCoursePaymentPlanSelection({
+        id: matchedTemplate?.id || rawTemplateId || BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+        type: String(normalizedTemplate.templateName || '').trim().toLowerCase() === 'custom' ? 'custom' : 'template',
+        templateId: rawTemplateId || matchedTemplate?.id || '',
+        templateName: normalizedTemplate.templateName || matchedTemplate?.templateName || 'Payment Plan',
+        installmentCount: normalizedTemplate.installmentCount || 1,
+        installments: normalizedTemplate.installments || [],
+        dueRule: normalizedTemplate.dueRule || 'Admission',
+        allowCustomization: normalizedTemplate.allowCustomization,
+        status: normalizedTemplate.status || 'Active',
+      }),
+    ]
+  }
+
+  return []
+}
+
+function distributeBranchCoursePercentages(totalItems = 0) {
+  const count = Math.max(0, Number(totalItems) || 0)
+  if (!count) return []
+  if (count === 1) return [100]
+
+  const precision = 2
+  const scale = 10 ** precision
+  const base = Math.floor((100 / count) * scale) / scale
+  const percentages = []
+  let remaining = 100
+
+  for (let index = 0; index < count; index += 1) {
+    if (index === count - 1) {
+      percentages.push(Number(remaining.toFixed(precision)))
+    } else {
+      percentages.push(Number(base.toFixed(precision)))
+      remaining -= base
+    }
+  }
+
+  return percentages
+}
+
+function normalizeBranchCourseSubmodels(submodels = [], modelIndex = 0) {
+  const items = Array.isArray(submodels) ? submodels : []
+
+  return items.map((submodel, submodelIndex) => ({
+    id: String(submodel?.id || createCourseNodeId(`submodel-${modelIndex + 1}`)),
+    name: String(submodel?.name || submodel?.title || '').trim(),
+  }))
+}
+
+function getBranchCourseSubmodelSource(model = {}) {
+  return model?.submodels || model?.subModels || model?.submodules || model?.subModules || []
+}
+
+function normalizeBranchCourseModels(models = []) {
+  const items = Array.isArray(models) ? models : []
+
+  return items.map((model, modelIndex) => ({
+    id: String(model?.id || createCourseNodeId(`model-${modelIndex + 1}`)),
+    name: String(model?.name || model?.title || '').trim(),
+    submodels: normalizeBranchCourseSubmodels(getBranchCourseSubmodelSource(model), modelIndex),
+  }))
+}
+
+function buildBranchCourseModelPayload(models = []) {
+  const normalizedModels = normalizeBranchCourseModels(models)
+  const modelPercentages = distributeBranchCoursePercentages(normalizedModels.length)
+
+  return normalizedModels.map((model, modelIndex) => {
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    const submodelPercentages = distributeBranchCoursePercentages(submodels.length)
+
+    return {
+      id: model.id,
+      name: String(model.name || '').trim(),
+      percentage: modelPercentages[modelIndex] ?? 0,
+      submodels: submodels.map((submodel, submodelIndex) => ({
+        id: submodel.id,
+        name: String(submodel.name || '').trim(),
+        percentage: submodelPercentages[submodelIndex] ?? 0,
+      })),
+    }
+  })
+}
+
+function getBranchCourseFinalFeeValue(form = {}) {
+  const actualFees = Number(form.actualFees || 0)
+  const registrationFees = Number(form.registrationFees || 0)
+  const discount = Number(form.discount || 0)
+
+  if ([actualFees, registrationFees, discount].some((value) => Number.isNaN(value))) {
+    return 0
+  }
+
+  return Math.max(actualFees + registrationFees - discount, 0)
+}
+
+function buildBranchCourseHierarchySummary(models = []) {
+  const normalizedModels = normalizeBranchCourseModels(models)
+  return normalizedModels.map((model, modelIndex) => {
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    const modelPercentages = distributeBranchCoursePercentages(normalizedModels.length)
+    const submodelPercentages = distributeBranchCoursePercentages(submodels.length)
+
+    return {
+      ...model,
+      percentage: modelPercentages[modelIndex] ?? 0,
+      submodels: submodels.map((submodel, submodelIndex) => ({
+        ...submodel,
+        percentage: submodelPercentages[submodelIndex] ?? 0,
+      })),
+    }
+  })
+}
+
+function mergeBranchCourseModelHierarchies(primaryModels = [], fallbackModels = []) {
+  const normalizedPrimaryModels = normalizeBranchCourseModels(primaryModels)
+  const normalizedFallbackModels = normalizeBranchCourseModels(fallbackModels)
+
+  if (!normalizedPrimaryModels.length) return normalizedFallbackModels
+  if (!normalizedFallbackModels.length) return normalizedPrimaryModels
+
+  return normalizedPrimaryModels.map((model, index) => {
+    const fallbackModel = normalizedFallbackModels[index] || {}
+    const primarySubmodels = Array.isArray(model.submodels) ? model.submodels : []
+    const fallbackSubmodels = Array.isArray(fallbackModel.submodels) ? fallbackModel.submodels : []
+
+    return {
+      ...fallbackModel,
+      ...model,
+      submodels: primarySubmodels.length ? primarySubmodels : fallbackSubmodels,
+    }
+  })
+}
+
+function createBranchCourseErrors(form) {
+  const basic = {}
+  const hierarchy = {
+    models: [],
+  }
+
+  const normalizedCourseCode = normalizeBranchCourseCode(form.courseCode)
+  if (normalizedCourseCode.length <= COURSE_CODE_PREFIX.length) basic.courseCode = 'Course Code is required.'
+  if (!String(form.name || '').trim()) basic.name = 'Course Name is required.'
+  if (!String(form.mode || '').trim()) basic.mode = 'Mode is required.'
+  if (!String(form.duration || '').trim()) basic.duration = 'Duration (Months) is required.'
+  if (String(form.duration || '').trim() && Number(form.duration) <= 0) basic.duration = 'Duration must be greater than zero.'
+  if (!String(form.hours || '').trim()) basic.hours = 'Hours is required.'
+  if (String(form.hours || '').trim() && Number(form.hours) <= 0) basic.hours = 'Hours must be greater than zero.'
+  if (!String(form.actualFees || '').trim()) basic.actualFees = 'Standard Course Fee is required.'
+  if (!String(form.registrationFees || '').trim()) basic.registrationFees = 'Registration Fee is required.'
+  if (!String(form.status || '').trim()) basic.status = 'Status is required.'
+  if (String(form.discount || '').trim() && Number(form.discount) < 0) basic.discount = 'Discount must be zero or greater.'
+
+  const normalizedModels = normalizeBranchCourseModels(form.models)
+  if (!normalizedModels.length) {
+    hierarchy.modelsError = 'At least one model is required.'
+  }
+
+  hierarchy.models = normalizedModels.map((model) => {
+    const modelErrors = {}
+    if (!String(model.name || '').trim()) {
+      modelErrors.name = 'Module name is required.'
+    }
+
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    if (!submodels.length) {
+      modelErrors.submodelsError = 'At least one submodel is required.'
+    }
+
+    modelErrors.submodels = submodels.map((submodel) => {
+      const submodelErrors = {}
+      if (!String(submodel.name || '').trim()) {
+        submodelErrors.name = 'Submodel name is required.'
+      }
+      return submodelErrors
+    })
+
+    return modelErrors
+  })
+
+  return { basic, hierarchy }
+}
+
+function formatBranchAdminDisplayName(value) {
+  const text = String(value || '').trim()
+  if (!text) return 'Branch Admin'
+
+  return text.replace(/^KKJ\s*[-–—:]?\s*/i, '').trim() || 'Branch Admin'
+}
+
+function formatBranchCourseMoney(value) {
+  const text = String(value || '').trim()
+  if (!text) return '-'
+  return `₹${text}`
+}
+
+function formatBranchCoursePercentage(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return '-'
+  const rounded = Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/\.?0+$/, '')
+  return `${rounded}%`
+}
+
+function formatBranchCourseDate(value) {
+  const date = new Date(String(value || '').trim())
+  if (Number.isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+function formatBranchCourseFinalFee(course) {
+  const actualFees = Number(course?.actualFees || 0)
+  const registrationFees = Number(course?.registrationFees || 0)
+  const discount = Number(course?.discount || 0)
+
+  if ([actualFees, registrationFees, discount].some((value) => Number.isNaN(value))) {
+    return '-'
+  }
+
+  return formatBranchCourseAmount(Math.max(actualFees + registrationFees - discount, 0))
+}
+
+function normalizeBranchCourseRecord(course = {}, index = 0) {
+  const installmentTemplate = normalizeBranchInstallmentTemplate(course.installmentTemplate, {
+    templateName: 'Standard Installment Plan',
+    installmentCount: 3,
+    installments: createBranchInstallmentAmounts(3, ''),
+    dueRule: 'Admission',
+    allowCustomization: true,
+    status: 'Active',
+  })
+
+  return {
+    ...course,
+    id: String(course.id || course.courseCode || course.name || `branch-course-${index + 1}`),
+    courseCode: String(course.courseCode || '').trim(),
+    name: String(course.name || '').trim(),
+    mode: String(course.mode || '').trim(),
+    duration: String(course.duration ?? '').trim(),
+    hours: String(course.hours ?? '').trim(),
+    actualFees: String(course.actualFees ?? '').trim(),
+    registrationFees: String(course.registrationFees ?? '').trim(),
+    discount: String(course.discount ?? '').trim(),
+    status: String(course.status || 'Active').trim(),
+    batches: Number(course.batches || 0),
+    students: Number(course.students || 0),
+    models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    paymentPlans: buildBranchCoursePaymentPlanSelectionsFromRecord(course),
+    installmentTemplate,
+    createdAt: String(course.createdAt || new Date().toISOString()),
+  }
+}
+
+function buildBranchCoursePayload(form) {
+  const models = buildBranchCourseModelPayload(form.models)
+  const finalFee = getBranchCourseFinalFeeValue(form)
+  const paymentPlans = buildBranchCoursePaymentPlanPayloadSelections(form.paymentPlans, finalFee)
+  const primaryPaymentPlan = paymentPlans[0] || null
+
+  return {
+    courseCode: normalizeBranchCourseCode(form.courseCode),
+    name: String(form.name || '').trim(),
+    mode: form.mode,
+    duration: form.duration,
+    hours: form.hours,
+    actualFees: form.actualFees,
+    registrationFees: form.registrationFees,
+    discount: form.discount || '0',
+    status: form.status,
+    models,
+    courseModels: models,
+    modules: models,
+    paymentPlans,
+    paymentPlanSelections: paymentPlans,
+    installmentTemplate: primaryPaymentPlan ? buildBranchCourseInstallmentTemplateFromPaymentPlan(primaryPaymentPlan, finalFee) : null,
+  }
+}
+function createInitialBranchCourseForm() {
+  return {
+    courseCode: COURSE_CODE_PREFIX,
+    name: '',
+    mode: '',
+    duration: '',
+    hours: '',
+    actualFees: '',
+    registrationFees: '',
+    discount: '',
+    status: 'Active',
+    models: [],
+    paymentPlans: [],
+  }
+}
+
+function normalizeBranchCourseCode(value = '') {
+  const normalized = String(value || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+
+  const suffix = normalized.startsWith('CIS') ? normalized.slice(3) : normalized
+  return `${COURSE_CODE_PREFIX}${suffix}`
+}
+
+function buildBranchCourseFormFromRecord(course = {}) {
+  const installmentTemplate = normalizeBranchInstallmentTemplate(course.installmentTemplate, {
+    templateName: 'Standard Installment Plan',
+    installmentCount: 3,
+    installments: createBranchInstallmentAmounts(3, ''),
+    dueRule: 'Admission',
+    allowCustomization: true,
+    status: 'Active',
+  })
+
+  return {
+    courseCode: String(course.courseCode || COURSE_CODE_PREFIX).trim() || COURSE_CODE_PREFIX,
+    name: String(course.name || '').trim(),
+    mode: String(course.mode || '').trim(),
+    duration: String(course.duration ?? '').trim(),
+    hours: String(course.hours ?? '').trim(),
+    actualFees: String(course.actualFees ?? '').trim(),
+    registrationFees: String(course.registrationFees ?? '').trim(),
+    discount: String(course.discount ?? '').trim(),
+    status: String(course.status || 'Active').trim() || 'Active',
+    installmentTemplate,
+    models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    paymentPlans: buildBranchCoursePaymentPlanSelectionsFromRecord(course),
+  }
+}
+
+function apiErrorMessage(error, fallback) {
+  return error?.body?.message || error?.body?.error || error?.message || fallback
+}
+
+function normalizeStudentIdSuffix(value = '') {
+  return String(value || '').replace(/\D/g, '')
+}
+
+function buildStudentIdFromSuffix(suffix = '') {
+  const normalizedSuffix = normalizeStudentIdSuffix(suffix)
+  if (!normalizedSuffix) return ''
+  return `${STUDENT_ID_PREFIX}${normalizedSuffix.padStart(Math.max(3, normalizedSuffix.length), '0')}`
+}
+
+function getBranchCourseDraftStorageKey(identifier = '') {
+  const text = String(identifier || '').trim()
+  return `${COURSE_DRAFT_STORAGE_PREFIX}${text || 'new'}`
+}
+
+function readBranchCourseDraft(identifier = '') {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem(getBranchCourseDraftStorageKey(identifier))
+    if (!raw) return null
+    return JSON.parse(raw)
+  } catch (error) {
+    return null
+  }
+}
+
+function writeBranchCourseDraft(identifier = '', draft = null) {
+  if (typeof window === 'undefined') return
+
+  const storageKey = getBranchCourseDraftStorageKey(identifier)
+  try {
+    if (!draft) {
+      window.localStorage.removeItem(storageKey)
+      return
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(draft))
+  } catch (error) {
+    // Ignore draft persistence failures and continue with in-memory state.
+  }
+}
+
+export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard' }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const { isAuthenticated, role, signOut, user, session } = useAuth()
+  const activeSection = getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+  const goToBranchSection = useCallback(
+    (section = 'dashboard', options = {}) => {
+      const nextSection = String(section || '').trim().toLowerCase() || 'dashboard'
+      const replace = Boolean(options?.replace)
+      const isDashboard = nextSection === 'dashboard'
+      const isNotifications = nextSection === 'notifications'
+
+      if (embeddedMode) {
+        navigate(
+          {
+            pathname: location.pathname,
+            search: isDashboard ? '' : `?section=${encodeURIComponent(nextSection)}`,
+          },
+          { replace },
+        )
+        return
+      }
+
+      if (isNotifications) {
+        navigate('/branch-dashboard/notifications', { replace })
+        return
+      }
+
+      if (isDashboard) {
+        navigate('/branch-dashboard', { replace })
+        return
+      }
+
+      navigate(`/branch-dashboard?section=${encodeURIComponent(nextSection)}`, { replace })
+    },
+    [embeddedMode, location.pathname, navigate],
+  )
+  const [branchProfile, setBranchProfile] = useState(null)
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
+  const [isAddCourseSaving, setIsAddCourseSaving] = useState(false)
+  const [addCourseError, setAddCourseError] = useState('')
+  const [courseActionError, setCourseActionError] = useState('')
+  const [courseSaveSuccess, setCourseSaveSuccess] = useState(null)
+  const [addCourseForm, setAddCourseForm] = useState(() => createInitialBranchCourseForm())
+  const [addCourseTouched, setAddCourseTouched] = useState({})
+  const [addCourseStep, setAddCourseStep] = useState(1)
+  const [selectedSavedModelIndex, setSelectedSavedModelIndex] = useState(0)
+  const [selectedSavedSubmodelIndex, setSelectedSavedSubmodelIndex] = useState(0)
+  const [savedCourseHierarchy, setSavedCourseHierarchy] = useState([])
+  const [branchCourseCards, setBranchCourseCards] = useState([])
+  const [courseSearchTerm, setCourseSearchTerm] = useState('')
+  const [branchCoursePage, setBranchCoursePage] = useState(1)
+  const [editingCourseId, setEditingCourseId] = useState('')
+  const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
+  const [courseActionMenuPosition, setCourseActionMenuPosition] = useState({ top: 0, left: 0 })
+  const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
+  const [courseModuleDeleteTarget, setCourseModuleDeleteTarget] = useState(null)
+  const [courseSubmoduleDeleteTarget, setCourseSubmoduleDeleteTarget] = useState(null)
+  const [viewCourse, setViewCourse] = useState(null)
+  const [viewCourseTab, setViewCourseTab] = useState('basic')
+  const [expandedViewCourseModuleIds, setExpandedViewCourseModuleIds] = useState([])
+  const [viewCoursePaymentPlanOpenId, setViewCoursePaymentPlanOpenId] = useState('')
+  const [courseDraftKey, setCourseDraftKey] = useState('')
+  const [courseEditorStage, setCourseEditorStage] = useState('module')
+  const [isSubmoduleDraftOpen, setIsSubmoduleDraftOpen] = useState(false)
+  const [expandedSavedCourseModuleIds, setExpandedSavedCourseModuleIds] = useState([])
+  const [submoduleDraftRestoreIndex, setSubmoduleDraftRestoreIndex] = useState(0)
+  const [submoduleDraftRestoreLength, setSubmoduleDraftRestoreLength] = useState(null)
+  const activeSubmoduleInputRef = useRef(null)
+  const [branchInstallmentTemplates, setBranchInstallmentTemplates] = useState([])
+  const [isBranchInstallmentTemplatesLoading, setIsBranchInstallmentTemplatesLoading] = useState(false)
+  const [branchInstallmentTemplatesError, setBranchInstallmentTemplatesError] = useState('')
+  const [isPaymentPlanDropdownOpen, setIsPaymentPlanDropdownOpen] = useState(false)
+  const [addCourseSavedPaymentPlans, setAddCourseSavedPaymentPlans] = useState([])
+  const [addCourseSavedPaymentPlanId, setAddCourseSavedPaymentPlanId] = useState('')
+  const [addCoursePaymentPlanSaveAttempted, setAddCoursePaymentPlanSaveAttempted] = useState(false)
+  const paymentPlanDropdownRef = useRef(null)
+
+  const [isAssignFacultyOpen, setIsAssignFacultyOpen] = useState(false)
+  const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
+  const [selectedFacultyIds, setSelectedFacultyIds] = useState([])
+  const [facultyList, setFacultyList] = useState([])
+  const [assignFacultyPage, setAssignFacultyPage] = useState(1)
+  const [assignFacultySuccess, setAssignFacultySuccess] = useState(null)
+  const [isAssignFacultySaving, setIsAssignFacultySaving] = useState(false)
+
+  // ── Student state ──
+  const [branchStudents, setBranchStudents] = useState([])
+  const [studentSearchTerm, setStudentSearchTerm] = useState('')
+  const [studentPage, setStudentPage] = useState(1)
+  const [isStudentFormOpen, setIsStudentFormOpen] = useState(false)
+  const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
+  const [studentFormStep, setStudentFormStep] = useState(1)
+  const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
+  const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
+  const [studentFormTouched, setStudentFormTouched] = useState({})
+  const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
+  const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
+  const [studentActionMenuId, setStudentActionMenuId] = useState('')
+  const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
+const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
+const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
+const [paymentPage, setPaymentPage] = useState(1)
+const BRANCH_PAYMENTS_PER_PAGE = 10
+  const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
+  const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
+  const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
+  const [studentFormError, setStudentFormError] = useState('')
+  const [isStudentSaving, setIsStudentSaving] = useState(false)
+  const [isStudentDeleting, setIsStudentDeleting] = useState(false)
+  const [stuCountryOptions, setStuCountryOptions] = useState([])
+  const [stuStateOptions, setStuStateOptions] = useState([])
+  const [stuCityOptions, setStuCityOptions] = useState([])
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
+  const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
+
+  useEffect(() => {
+  if (viewStudentDrawer) {
+    setStudentDetailsTab('basic')
+  }
+}, [viewStudentDrawer])
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      const clickedInsideActions = e.target.closest(
+        '.branch-student-actions-cell'
+      )
+
+      if (!clickedInsideActions) {
+        setStudentActionMenuId('')
+        setStudentActionMenuPinned(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [])
+
+
+  const profileMenuRef = useRef(null)
+  const notificationMenuRef = useRef(null)
+  const courseActionCloseTimer = useRef(null)
+
+  const loadBranchCourses = useCallback(async (fallbackCourses = null) => {
+    const result = await listBranchCourses({
+      page: 1,
+      limit: 100,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    })
+
+    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [])
+    const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
+    setBranchCourseCards((currentCourses) => {
+      const currentCoursesById = new Map(
+        (sourceCourses || currentCourses).map((course) => [String(course.id || '').trim(), course]),
+      )
+
+      return nextCourses.map((course, index) => {
+        const courseId = String(course.id || '').trim()
+        const currentCourse = currentCoursesById.get(courseId)
+        const mergedCourse = {
+          ...currentCourse,
+          ...course,
+        }
+
+        const incomingModels = normalizeBranchCourseModels(course.models || course.courseModels || course.modules || [])
+        const currentModels = normalizeBranchCourseModels(currentCourse?.models || currentCourse?.courseModels || currentCourse?.modules || [])
+        const mergedModels = mergeBranchCourseModelHierarchies(
+          incomingModels.length ? incomingModels : currentModels,
+          currentModels,
+        )
+
+        return normalizeBranchCourseRecord(
+          {
+            ...mergedCourse,
+            models: mergedModels,
+            courseModels: mergedModels,
+            modules: mergedModels,
+          },
+          index,
+        )
+      })
+    })
+    return result
+  }, [])
+
+  const loadFacultyList = useCallback(async () => {
+    try {
+      const res = await listBranchFaculty()
+      if (res?.data) {
+        const mapped = res.data.map((f) => ({
+          id: f.facultyId || f.id,
+          name: f.name,
+          email: f.email,
+          phone: f.phone,
+          status: f.status,
+        }))
+        setFacultyList(mapped)
+      }
+    } catch (error) {
+      console.error('Failed to fetch faculty list:', error)
+    }
+  }, [])
+
+const branchInstallmentTemplatesRequestRef = useRef(null)
+ const loadBranchInstallmentPlanOptions = useCallback(async () => {
+  // Prevent duplicate requests
+  if (branchInstallmentTemplatesRequestRef.current) {
+    return branchInstallmentTemplatesRequestRef.current
+  }
+
+  const requestPromise = (async () => {
+    setIsBranchInstallmentTemplatesLoading(true)
+    setBranchInstallmentTemplatesError('')
+
+    try {
+      const collectedTemplates = []
+      let page = 1
+      let totalPages = 1
+
+      do {
+        const result = await listBranchInstallmentTemplates({
+          page,
+          limit: 100,
+          sortBy: 'createdAt',
+          sortOrder: 'desc',
+        })
+
+        collectedTemplates.push(
+          ...(Array.isArray(result?.data) ? result.data : [])
+        )
+
+        totalPages = Math.max(
+          1,
+          Number(result?.meta?.totalPages || 1)
+        )
+
+        page += 1
+      } while (page <= totalPages)
+
+      setBranchInstallmentTemplates(collectedTemplates)
+
+      return collectedTemplates
+    } catch (error) {
+      console.error('Failed to fetch installment templates:', error)
+
+      setBranchInstallmentTemplates([])
+      setBranchInstallmentTemplatesError(
+        apiErrorMessage(
+          error,
+          'Unable to load payment plans right now.'
+        )
+      )
+
+      return []
+    } finally {
+      setIsBranchInstallmentTemplatesLoading(false)
+      branchInstallmentTemplatesRequestRef.current = null
+    }
+  })()
+
+  branchInstallmentTemplatesRequestRef.current = requestPromise
+
+  return requestPromise
+}, [])
+
+  const loadBranchNotifications = useCallback(async () => {
+    try {
+      const response = await request('/notifications?limit=100&page=1', {
+        method: 'GET',
+      })
+
+      const responseData = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response?.notifications)
+          ? response.notifications
+          : Array.isArray(response)
+            ? response
+            : []
+
+      const storedNotifications = loadNotifications()
+      const storedById = new Map(
+        storedNotifications.map((notification) => [String(notification.id || '').trim(), notification]),
+      )
+      const mergedNotifications = mergeNotificationsWithStoredState(responseData).map((notification) => {
+        const storedNotification = storedById.get(String(notification.id || '').trim())
+        return storedNotification ? { ...notification, ...storedNotification } : notification
+      })
+      const mergedIds = new Set(mergedNotifications.map((notification) => String(notification.id || '').trim()))
+      const preservedNotifications = storedNotifications.filter((notification) => !mergedIds.has(String(notification.id || '').trim()))
+      const nextNotifications = [...mergedNotifications, ...preservedNotifications]
+
+      setBranchNotificationRecords(nextNotifications)
+      saveNotifications(nextNotifications, { emit: false })
+    } catch (error) {
+      console.error('Failed to load branch notifications:', error)
+      const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
+      setBranchNotificationRecords(fallbackNotifications)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!embeddedMode && (!isAuthenticated || role !== 'branch-admin')) {
+      navigate('/login', { replace: true })
+      return
+    }
+
+    let isMounted = true
+
+    if (embeddedMode && branchData) {
+      setBranchProfile(branchData)
+      Promise.allSettled([loadBranchCourses(), loadFacultyList()]).then(([coursesResult]) => {
+        if (!isMounted) return
+        if (coursesResult.status === 'fulfilled' || coursesResult.value?.data) {
+          setBranchCourseCards(
+            mergeBranchCoursesWithSnapshot(Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : []),
+          )
+        } else {
+          setBranchCourseCards([])
+        }
+      })
+      return
+    }
+
+    Promise.allSettled([getCurrentBranchProfile(), loadBranchCourses(), loadFacultyList()]).then(([branchResult, coursesResult]) => {
+      if (!isMounted) return
+
+      if (branchResult.status === 'fulfilled') {
+        setBranchProfile(branchResult.value)
+      } else {
+        setBranchProfile(buildFallbackBranchProfile(user, session))
+      }
+
+      if (coursesResult.status === 'fulfilled') {
+        setBranchCourseCards(
+          mergeBranchCoursesWithSnapshot(Array.isArray(coursesResult.value?.data) ? coursesResult.value.data : []),
+        )
+      } else {
+        setBranchCourseCards([])
+      }
+    })
+
+    return () => {
+      isMounted = false
+    }
+  }, [isAuthenticated, loadBranchCourses, loadFacultyList, navigate, role, session, user])
+
+  useEffect(() => {
+    const nextBranchId = branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || null
+
+    if (embeddedMode) {
+      setImpersonateBranchId(nextBranchId)
+      return () => {
+        setImpersonateBranchId(null)
+      }
+    }
+
+    if (role !== 'branch-admin') {
+      setImpersonateBranchId(null)
+      return undefined
+    }
+
+    setImpersonateBranchId(nextBranchId)
+
+    return () => {
+      setImpersonateBranchId(null)
+    }
+  }, [branchData, branchProfile, embeddedMode, role])
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (profileMenuRef.current?.contains(target)) return
+      setIsProfileMenuOpen(false)
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsProfileMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isProfileMenuOpen])
+
+  useEffect(() => {
+    if (!isNotificationMenuOpen) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (notificationMenuRef.current?.contains(target)) return
+      setIsNotificationMenuOpen(false)
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsNotificationMenuOpen(false)
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isNotificationMenuOpen])
+
+  useEffect(() => {
+    const unsubscribe = subscribeNotifications(() => {
+      void loadBranchNotifications()
+    })
+
+    return unsubscribe
+  }, [loadBranchNotifications])
+
+  useEffect(() => {
+    const unsubscribe = subscribeBranchCourseSnapshot(() => {
+      clearBranchCourseListCache()
+      void loadBranchCourses()
+    })
+
+    return unsubscribe
+  }, [loadBranchCourses])
+
+  useEffect(() => {
+    const unsubscribe = subscribeBranchInstallmentTemplateChanges(() => {
+      void loadBranchInstallmentPlanOptions()
+    })
+
+    return unsubscribe
+  }, [loadBranchInstallmentPlanOptions])
+
+  useEffect(() => {
+    void loadBranchNotifications()
+
+    const handleFocus = () => {
+      void loadBranchNotifications()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadBranchNotifications()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [loadBranchNotifications])
+
+  useEffect(() => {
+    if (!openCourseActionMenuId) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+
+      // Check if click is on the action menu or action button
+      if (target.closest('.branch-course-actions-menu')) return
+      if (target.closest('.branch-course-actions-button')) return
+
+      setOpenCourseActionMenuId('')
+      setCourseActionMenuPosition({ top: 0, left: 0 })
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setOpenCourseActionMenuId('')
+        setCourseActionMenuPosition({ top: 0, left: 0 })
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [openCourseActionMenuId])
+
+  const openLogoutConfirm = () => {
+    setIsProfileMenuOpen(false)
+    setIsLogoutConfirmOpen(true)
+  }
+
+  const closeLogoutConfirm = () => {
+    setIsLogoutConfirmOpen(false)
+  }
+
+
+  const openAssignFacultyModal = (course) => {
+    setAssignFacultyCourse(course)
+    setSelectedFacultyIds(
+      Array.isArray(course?.assignedFaculty)
+        ? course.assignedFaculty.map((faculty) => String(faculty.id))
+        : []
+    )
+
+    setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
+    setAssignFacultyPage(1)
+    setIsAssignFacultyOpen(true)
+    loadFacultyList()
+  }
+
+  const closeAssignFacultyModal = () => {
+    setIsAssignFacultyOpen(false)
+    setAssignFacultyCourse(null)
+    setSelectedFacultyIds([])
+    setAssignFacultyPage(1)
+  }
+
+  const toggleFacultySelection = (facultyId) => {
+    setSelectedFacultyIds((current) =>
+      current.includes(facultyId)
+        ? current.filter((id) => id !== facultyId)
+        : [...current, facultyId]
+    )
+  }
+
+  const handleAssignFaculty = async () => {
+    if (!assignFacultyCourse) return
+
+    try {
+      setIsAssignFacultySaving(true)
+      setCourseActionError('')
+
+      const updatedCourse = await assignFacultyToBranchCourse(
+        assignFacultyCourse.id,
+        selectedFacultyIds,
+      )
+
+      await Promise.all([
+        loadBranchCourses(),
+        loadFacultyList(),
+      ])
+
+      const assignedFaculty = Array.isArray(updatedCourse?.assignedFaculty)
+        ? updatedCourse.assignedFaculty
+        : facultyList.filter((faculty) => selectedFacultyIds.includes(faculty.id))
+
+      setAssignFacultySuccess({
+        courseName: updatedCourse?.name || assignFacultyCourse?.name || 'Course',
+        facultyNames: assignedFaculty.map((f) => f.name).filter(Boolean),
+      })
+
+      closeAssignFacultyModal()
+    } catch (error) {
+      setCourseActionError(apiErrorMessage(error, 'Unable to assign faculty right now.'))
+    } finally {
+      setIsAssignFacultySaving(false)
+    }
+  }
+
+
+  const openCourseActionMenu = (button) => {
+    if (courseActionCloseTimer.current) {
+      clearTimeout(courseActionCloseTimer.current)
+    }
+
+    const rect = button.getBoundingClientRect()
+    const menuWidth = 140
+    const menuHeight = 110
+    const gap = 8
+
+    let left = rect.right - menuWidth
+    let top = rect.bottom + gap
+
+    if (left < 8) {
+      left = 8
+    }
+
+    if (left + menuWidth > window.innerWidth - 8) {
+      left = window.innerWidth - menuWidth - 8
+    }
+
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = rect.top - menuHeight - gap
+    }
+
+    if (top < 8) {
+      top = 8
+    }
+
+    setCourseActionMenuPosition({ top, left })
+  }
+
+  const handleConfirmLogout = async () => {
+    closeLogoutConfirm()
+    setIsProfileMenuOpen(false)
+    await signOut()
+    navigate('/login', { replace: true })
+  }
+
+  const branchTitle = branchProfile?.branchName || 'Branch Dashboard'
+  const branchAdmin = branchProfile?.branchAdminName || user?.name || 'Branch Admin'
+  const branchAdminDisplay = formatBranchAdminDisplayName(branchAdmin)
+  const branchEmail = branchProfile?.branchEmail || user?.email || 'branch@example.com'
+  const branchLocation = branchProfile?.branchAddress || 'Assigned location'
+  const mustResetPassword = Boolean(
+    session?.user?.mustResetPassword ??
+    user?.mustResetPassword ??
+    branchProfile?.mustResetPassword,
+  )
+  const normalizedBranchNotifications = useMemo(
+    () =>
+      branchNotificationRecords
+        .map(normalizeBranchNotification)
+        .filter(
+          (notification) =>
+            String(notification.kind || '').startsWith('branch-') ||
+            String(notification.kind || '').startsWith('course-edit-') ||
+            String(notification.kind || '') === 'faculty-login',
+        ),
+    [branchNotificationRecords],
+  )
+  const branchNotificationSections = useMemo(
+    () => groupByDate(normalizedBranchNotifications),
+    [normalizedBranchNotifications],
+  )
+  const branchNotificationItems = normalizedBranchNotifications
+  const branchUnreadNotificationCount = useMemo(
+    () => normalizedBranchNotifications.filter((item) => item.unread && !item.dropdownViewed).length,
+    [normalizedBranchNotifications],
+  )
+  const branchPageUnreadNotificationCount = useMemo(
+    () => normalizedBranchNotifications.filter((item) => item.unread).length,
+    [normalizedBranchNotifications],
+  )
+  const branchNotificationPreviewItems = useMemo(
+    () => normalizedBranchNotifications.filter((item) => !item.dropdownViewed).slice(0, 2),
+    [normalizedBranchNotifications],
+  )
+  const branchNotificationTotalCount = branchNotificationItems.length
+  const overviewStats = useMemo(
+    () => [
+      { label: 'Total Students', value: '246', note: 'Active learners this month' },
+      {
+        label: 'Total Courses',
+        value: String(branchCourseCards.length),
+        note: 'Published course catalog',
+      },
+      { label: 'Active Batches', value: '11', note: 'Running live batches' },
+      { label: 'Pending Payments', value: '14', note: 'Needs follow-up today' },
+    ],
+    [branchCourseCards.length],
+  )
+
+  const openResetPassword = () => {
+    setIsProfileMenuOpen(false)
+    navigate('/reset-password?branchReset=1')
+  }
+
+  const openForgotPassword = () => {
+    setIsProfileMenuOpen(false)
+    const suffix = branchEmail ? `?email=${encodeURIComponent(branchEmail)}` : ''
+    navigate(`/forgot-password${suffix}`)
+  }
+
+  const openProfile = () => {
+    setIsProfileMenuOpen(false)
+    goToBranchSection('profile')
+  }
+
+  const openBranchNotifications = async () => {
+    await loadBranchNotifications()
+    markNotificationsAsDropdownViewed()
+    setIsNotificationMenuOpen(false)
+    goToBranchSection('notifications')
+  }
+
+  const openBranchNotificationTarget = async (notification) => {
+    if (notification?.id) {
+      markNotificationsAsDropdownViewed([notification.id])
+      markNotificationsAsRead([notification.id])
+      setBranchNotificationRecords((current) =>
+        current.map((item) =>
+          String(item.id) === String(notification.id)
+            ? { ...item, read: true, dropdownViewed: true }
+            : item,
+        ),
+      )
+
+      try {
+        await request('/notifications/mark-read', {
+          method: 'PATCH',
+          body: JSON.stringify({ notificationIds: [notification.id] }),
+        })
+      } catch (error) {
+        console.error('Failed to sync branch notification read state:', error)
+      }
+    }
+    setIsNotificationMenuOpen(false)
+    const targetSection = String(notification?.targetSection || 'batches').trim() || 'batches'
+    goToBranchSection(targetSection)
+  }
+
+  const resolveCourseEditRequestId = async (notification) => {
+    const directRequestId = String(notification?.requestId || '').trim()
+    if (directRequestId) return directRequestId
+
+    const courseId = String(notification?.courseId || '').trim()
+    const courseCode = String(notification?.courseCode || '').trim().toLowerCase()
+    const courseName = String(notification?.courseName || '').trim().toLowerCase()
+    const facultyId = String(notification?.facultyId || '').trim()
+    const facultyEmail = String(notification?.facultyEmail || '').trim().toLowerCase()
+    const facultyName = String(notification?.facultyName || '').trim().toLowerCase()
+
+    const response = await listCourseEditRequests({ page: 1, limit: 100 })
+    const requests = Array.isArray(response?.data) ? response.data : []
+
+    const matches = requests.filter((requestItem) => {
+      const requestCourseId = String(requestItem?.branchCourseId || requestItem?.courseId || '').trim()
+      const requestCourseCode = String(requestItem?.courseCode || '').trim().toLowerCase()
+      const requestCourseName = String(requestItem?.courseName || '').trim().toLowerCase()
+      const requestFacultyId = String(requestItem?.facultyId || requestItem?.facultyUserId || '').trim()
+      const requestFacultyEmail = String(requestItem?.facultyEmail || '').trim().toLowerCase()
+      const requestFacultyName = String(requestItem?.facultyName || '').trim().toLowerCase()
+
+      const courseChecks = [
+        courseId && requestCourseId ? requestCourseId === courseId : null,
+        courseCode && requestCourseCode ? requestCourseCode === courseCode : null,
+        courseName && requestCourseName ? requestCourseName === courseName : null,
+      ].filter((value) => value !== null)
+
+      const facultyChecks = [
+        facultyId && requestFacultyId ? requestFacultyId === facultyId : null,
+        facultyEmail && requestFacultyEmail ? requestFacultyEmail === facultyEmail : null,
+        facultyName && requestFacultyName ? requestFacultyName === facultyName : null,
+      ].filter((value) => value !== null)
+
+      const hasCourseCriteria = courseChecks.length > 0
+      const hasFacultyCriteria = facultyChecks.length > 0
+      const courseMatches = !hasCourseCriteria || courseChecks.some(Boolean)
+      const facultyMatches = !hasFacultyCriteria || facultyChecks.some(Boolean)
+
+      return courseMatches && facultyMatches
+    })
+
+    const sortedMatches = matches.sort(
+      (left, right) => new Date(right.updatedAt || right.requestedAt || right.createdAt || 0).getTime() -
+        new Date(left.updatedAt || left.requestedAt || left.createdAt || 0).getTime(),
+    )
+
+    return String(sortedMatches[0]?.id || '').trim()
+  }
+
+  const acceptBranchCourseEditNotification = async (notification) => {
+    let requestId = ''
+
+    try {
+      requestId = await resolveCourseEditRequestId(notification)
+      if (!requestId) {
+        setCourseActionError('Unable to find the edit request to accept.')
+        return
+      }
+
+      const acceptedRequest = await acceptCourseEditRequest(requestId, {
+        responseNote: 'Accepted by branch admin',
+      })
+
+      if (acceptedRequest?.id) {
+        setBranchNotificationRecords((current) =>
+          current.map((item) =>
+            String(item.requestId || item.id || '').trim() === requestId
+              ? {
+                ...item,
+                requestStatus: 'accepted',
+                tone: 'green',
+                actionLabel: 'Accepted',
+                categoryLabel: 'Accepted',
+                unread: true,
+              }
+              : item,
+          ),
+        )
+        await loadBranchNotifications()
+      }
+
+      await openBranchNotificationTarget({
+        ...notification,
+        requestStatus: 'accepted',
+      })
+    } catch (error) {
+      console.error('Failed to accept course edit request:', error)
+    }
+  }
+
+  const markAllBranchNotificationsAsRead = async () => {
+    const unreadIds = branchNotificationItems
+      .filter((item) => item.unread)
+      .map((item) => item.id)
+
+    markNotificationsAsRead(unreadIds.length ? unreadIds : null)
+    setBranchNotificationRecords((current) =>
+      current.map((item) => ({
+        ...item,
+        read: true,
+        dropdownViewed: true,
+      })),
+    )
+    setIsNotificationMenuOpen(false)
+
+    try {
+      await request('/notifications/mark-read', {
+        method: 'PATCH',
+        body: JSON.stringify({ notificationIds: unreadIds }),
+      })
+    } catch (error) {
+      console.error('Failed to sync branch notification mark-all state:', error)
+    }
+  }
+
+  const filteredBranchCourseCards = useMemo(() => {
+    const q = courseSearchTerm.trim().toLowerCase()
+    if (!q) return branchCourseCards
+    return branchCourseCards.filter((c) =>
+      String(c.name || '').toLowerCase().includes(q) ||
+      String(c.courseCode || '').toLowerCase().includes(q)
+    )
+  }, [branchCourseCards, courseSearchTerm])
+
+  const totalBranchCoursePages = Math.max(1, Math.ceil(filteredBranchCourseCards.length / BRANCH_COURSES_PER_PAGE))
+  const safeBranchCoursePage = Math.min(branchCoursePage, totalBranchCoursePages)
+  const visibleBranchCourses = useMemo(() => {
+    const start = (safeBranchCoursePage - 1) * BRANCH_COURSES_PER_PAGE
+    return filteredBranchCourseCards.slice(start, start + BRANCH_COURSES_PER_PAGE)
+  }, [filteredBranchCourseCards, safeBranchCoursePage])
+  const editingCourseRecord = useMemo(
+    () => branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || null,
+    [branchCourseCards, editingCourseId],
+  )
+  const addCourseHierarchy = useMemo(
+    () => buildBranchCourseHierarchySummary(addCourseForm.models),
+    [addCourseForm.models],
+  )
+  const activeCourseModelIndex = Math.min(selectedSavedModelIndex, Math.max(addCourseHierarchy.length - 1, 0))
+  const activeCourseModel = addCourseHierarchy[activeCourseModelIndex] || null
+  const activeCourseModelSubmodelCount = activeCourseModel?.submodels?.length || 0
+
+  useEffect(() => {
+    if (!addCourseHierarchy.length) {
+      if (selectedSavedModelIndex !== 0) {
+        setSelectedSavedModelIndex(0)
+      }
+      return
+    }
+
+    if (selectedSavedModelIndex >= addCourseHierarchy.length) {
+      setSelectedSavedModelIndex(addCourseHierarchy.length - 1)
+    }
+  }, [addCourseHierarchy.length, selectedSavedModelIndex])
+
+  useEffect(() => {
+    if (!activeCourseModelSubmodelCount) {
+      if (selectedSavedSubmodelIndex !== 0) {
+        setSelectedSavedSubmodelIndex(0)
+      }
+      return undefined
+    }
+
+    if (selectedSavedSubmodelIndex > activeCourseModelSubmodelCount) {
+      setSelectedSavedSubmodelIndex(activeCourseModelSubmodelCount)
+    }
+  }, [activeCourseModelSubmodelCount, selectedSavedSubmodelIndex])
+
+  const addCourseFinalFee = useMemo(() => {
+    const actualFees = Number(addCourseForm.actualFees || 0)
+    const registrationFees = Number(addCourseForm.registrationFees || 0)
+    const discount = Number(addCourseForm.discount || 0)
+
+    if (Number.isNaN(actualFees) || Number.isNaN(registrationFees) || Number.isNaN(discount)) return ''
+    return String(Math.max(actualFees + registrationFees - discount, 0))
+  }, [addCourseForm.actualFees, addCourseForm.discount, addCourseForm.registrationFees])
+
+  const addCourseValidationErrors = useMemo(() => createBranchCourseErrors(addCourseForm), [addCourseForm])
+  const addCoursePaymentPlanSelections = useMemo(
+    () => normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans),
+    [addCourseForm.paymentPlans],
+  )
+  const addCoursePaymentPlanLookup = useMemo(
+    () => new Map(branchInstallmentTemplates.map((template) => [String(template.id || '').trim(), template])),
+    [branchInstallmentTemplates],
+  )
+  const addCoursePaymentPlanOptions = useMemo(
+    () =>
+      branchInstallmentTemplates.filter((template) => String(template?.status || '').trim().toUpperCase() === 'ACTIVE'),
+    [branchInstallmentTemplates],
+  )
+  const addCoursePaymentPlanSelectedIds = useMemo(
+    () =>
+      addCoursePaymentPlanSelections.map((plan) => (
+        plan.type === 'custom'
+          ? BRANCH_PAYMENT_PLAN_CUSTOM_VALUE
+          : String(plan.templateId || plan.id || '').trim()
+      )).filter(Boolean),
+    [addCoursePaymentPlanSelections],
+  )
+  const addCoursePaymentPlanDisplayPlans = useMemo(
+    () =>
+      addCoursePaymentPlanSelections.map((plan) => {
+        const matchedTemplate = plan.type === 'template'
+          ? addCoursePaymentPlanLookup.get(String(plan.templateId || '').trim())
+          : null
+        const rawInstallmentCount = String(plan.installmentCount || '').trim()
+        const installmentCount = plan.type === 'custom' && !rawInstallmentCount
+          ? 0
+          : getBranchCoursePaymentPlanInstallmentCount(plan)
+        const installments = buildBranchCoursePaymentPlanInstallments(addCourseFinalFee, installmentCount)
+
+        return {
+          ...plan,
+          templateName: matchedTemplate?.templateName || plan.templateName,
+          dueRule: matchedTemplate?.dueRule || plan.dueRule,
+          status: matchedTemplate?.status || plan.status,
+          installmentCount: plan.type === 'custom' && !rawInstallmentCount ? '' : installmentCount,
+          installments: installmentCount > 0 ? installments : [],
+          installmentCountLabel: rawInstallmentCount,
+        }
+      }),
+    [addCourseFinalFee, addCoursePaymentPlanLookup, addCoursePaymentPlanSelections],
+  )
+  const addCourseSavedPaymentPlanDisplayPlans = useMemo(
+    () =>
+      addCourseSavedPaymentPlans.map((plan) => {
+        const matchedTemplate = plan.type === 'template'
+          ? addCoursePaymentPlanLookup.get(String(plan.templateId || '').trim())
+          : null
+        const rawInstallmentCount = String(plan.installmentCount || '').trim()
+        const installmentCount = plan.type === 'custom' && !rawInstallmentCount
+          ? 0
+          : getBranchCoursePaymentPlanInstallmentCount(plan)
+        const installments = buildBranchCoursePaymentPlanInstallments(addCourseFinalFee, installmentCount)
+
+        return {
+          ...plan,
+          templateName: matchedTemplate?.templateName || plan.templateName,
+          dueRule: matchedTemplate?.dueRule || plan.dueRule,
+          status: matchedTemplate?.status || plan.status,
+          installmentCount: plan.type === 'custom' && !rawInstallmentCount ? '' : installmentCount,
+          installments: installmentCount > 0 ? installments : [],
+          installmentCountLabel: rawInstallmentCount,
+        }
+      }),
+    [addCourseFinalFee, addCoursePaymentPlanLookup, addCourseSavedPaymentPlans],
+  )
+  const addCourseDraftCustomPaymentPlan = useMemo(
+    () => normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans).find((plan) => plan.type === 'custom') || null,
+    [addCourseForm.paymentPlans],
+  )
+  const addCoursePaymentPlanValidationError = useMemo(() => {
+    if (!addCoursePaymentPlanDisplayPlans.length) {
+      return 'Please select at least one payment plan.'
+    }
+
+    return ''
+  }, [addCoursePaymentPlanDisplayPlans])
+  const addCoursePaymentPlanVisibleError = addCoursePaymentPlanSaveAttempted ? addCoursePaymentPlanValidationError : ''
+  const savedCourseRows = useMemo(
+    () => buildBranchCourseHierarchySummary(savedCourseHierarchy.filter(Boolean)),
+    [savedCourseHierarchy],
+  )
+
+  const shouldShowBasicAddCourseError = (field) => Boolean(addCourseTouched[field] && addCourseValidationErrors.basic[field])
+
+  const shouldShowModelNameError = (modelIndex) =>
+    Boolean(
+      addCourseTouched[`model-${modelIndex}-name`] &&
+      addCourseValidationErrors.hierarchy.models?.[modelIndex]?.name,
+    )
+
+  const shouldShowSubmodelError = (modelIndex, submodelIndex) =>
+    Boolean(
+      addCourseTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] &&
+      addCourseValidationErrors.hierarchy.models?.[modelIndex]?.submodels?.[submodelIndex]?.name,
+    )
+
+  const shouldShowModelSubmodelsError = (modelIndex) =>
+    Boolean(
+      addCourseTouched[`model-${modelIndex}-submodels`] &&
+      addCourseValidationErrors.hierarchy.models?.[modelIndex]?.submodelsError,
+    )
+
+  const markAddCourseTouched = (key) => {
+    setAddCourseTouched((current) => ({
+      ...current,
+      [key]: true,
+    }))
+  }
+
+  const updateAddCourseField = (field, value) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => ({
+      ...current,
+      [field]: field === 'courseCode' ? normalizeBranchCourseCode(value) : value,
+    }))
+  }
+
+  const updateAddCourseNumericField = (field, value) => {
+    updateAddCourseField(field, value.replace(/[^\d]/g, ''))
+  }
+
+  const updateAddCoursePaymentPlanSelections = (selectedValues = []) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const normalizedSelectedIds = Array.isArray(selectedValues)
+        ? selectedValues.map((value) => String(value || '').trim()).filter(Boolean)
+        : []
+      const currentPlans = normalizeBranchCoursePaymentPlanSelections(current.paymentPlans)
+      const currentTemplatePlans = new Map(
+        currentPlans
+          .filter((plan) => plan.type === 'template')
+          .map((plan) => [String(plan.templateId || plan.id || '').trim(), plan]),
+      )
+      const currentCustomPlan = currentPlans.find((plan) => plan.type === 'custom') || null
+      const nextPlans = []
+
+      normalizedSelectedIds.forEach((selectedId) => {
+        if (selectedId === BRANCH_PAYMENT_PLAN_CUSTOM_VALUE) {
+          nextPlans.push(
+            currentCustomPlan || normalizeBranchCoursePaymentPlanSelection({
+              id: BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+              type: 'custom',
+              templateId: BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+              templateName: 'Custom',
+              installmentCount: '',
+              installments: [],
+              dueRule: 'Custom',
+              allowCustomization: true,
+              status: 'Active',
+            }),
+          )
+          return
+        }
+
+        const template = addCoursePaymentPlanLookup.get(selectedId)
+        if (!template) return
+
+        const templateId = String(template.id || '').trim()
+        const existingPlan = currentTemplatePlans.get(templateId)
+        const defaultCount = Math.max(1, Number(template.installmentCount) || 1)
+
+        nextPlans.push(
+          existingPlan || normalizeBranchCoursePaymentPlanSelection({
+            id: templateId,
+            type: 'template',
+            templateId,
+            templateName: template.templateName,
+            installmentCount: String(defaultCount),
+            installments: createBranchInstallmentAmounts(defaultCount, ''),
+            dueRule: template.dueRule,
+            allowCustomization: template.allowCustomization,
+            status: template.status,
+          }),
+        )
+      })
+
+      return {
+        ...current,
+        paymentPlans: nextPlans,
+      }
+    })
+  }
+
+  const updateAddCourseCustomPaymentPlanInstallmentCount = (value) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const safeCountValue = String(value || '').replace(/[^\d]/g, '')
+      const currentPlans = normalizeBranchCoursePaymentPlanSelections(current.paymentPlans)
+      let customPlanFound = false
+
+      const nextPlans = currentPlans.map((plan) => {
+        if (plan.type !== 'custom') return plan
+        customPlanFound = true
+        return {
+          ...plan,
+          installmentCount: safeCountValue ? String(Math.max(1, Number(safeCountValue) || 1)) : '',
+        }
+      })
+
+      if (!customPlanFound) {
+        nextPlans.push(
+          normalizeBranchCoursePaymentPlanSelection({
+            id: BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+            type: 'custom',
+            templateId: BRANCH_PAYMENT_PLAN_CUSTOM_VALUE,
+            templateName: 'Custom',
+            installmentCount: safeCountValue ? String(Math.max(1, Number(safeCountValue) || 1)) : '',
+            installments: [],
+            dueRule: 'Custom',
+            allowCustomization: true,
+            status: 'Active',
+          }),
+        )
+      }
+
+      return {
+        ...current,
+        paymentPlans: nextPlans,
+      }
+    })
+  }
+
+  const saveAddCoursePaymentPlans = () => {
+    const nextSavedPlans = normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans)
+    setAddCourseSavedPaymentPlans(nextSavedPlans)
+    setAddCourseSavedPaymentPlanId('')
+    setIsPaymentPlanDropdownOpen(false)
+    setAddCoursePaymentPlanSaveAttempted(false)
+    setAddCourseTouched((current) => ({
+      ...current,
+      paymentPlans: true,
+    }))
+  }
+
+  const clearAddCoursePaymentPlans = () => {
+    setAddCourseError('')
+    setAddCourseTouched((current) => ({
+      ...current,
+      paymentPlans: true,
+    }))
+    setAddCourseForm((current) => ({
+      ...current,
+      paymentPlans: [],
+    }))
+    setAddCourseSavedPaymentPlans([])
+    setAddCourseSavedPaymentPlanId('')
+    setAddCoursePaymentPlanSaveAttempted(false)
+  }
+
+  const updateAddCourseModelField = (modelIndex, field, value) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const models = normalizeBranchCourseModels(current.models)
+      return {
+        ...current,
+        models: models.map((model, index) =>
+          index === modelIndex
+            ? {
+              ...model,
+              [field]: value,
+            }
+            : model,
+        ),
+      }
+    })
+  }
+
+  const updateAddCourseSubmodelField = (modelIndex, submodelIndex, value) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const models = normalizeBranchCourseModels(current.models)
+      return {
+        ...current,
+        models: models.map((model, index) =>
+          index === modelIndex
+            ? {
+              ...model,
+              submodels: normalizeBranchCourseSubmodels(model.submodels, modelIndex).map((submodel, itemIndex) =>
+                itemIndex === submodelIndex
+                  ? {
+                    ...submodel,
+                    name: value,
+                  }
+                  : submodel,
+              ),
+            }
+            : model,
+        ),
+      }
+    })
+  }
+
+  const ensureAddCourseModelDraft = () => {
+    setAddCourseForm((current) => {
+      const models = normalizeBranchCourseModels(current.models)
+      if (models.length) return current
+
+      return {
+        ...current,
+        models: [createBranchCourseModel(1, '', [])],
+      }
+    })
+    setSelectedSavedModelIndex(0)
+  }
+
+  const snapshotCourseModelForSave = (modelIndex) => {
+    const model = addCourseHierarchy[modelIndex]
+    if (!model) return null
+
+    return {
+      ...model,
+      submodels: (model.submodels || []).map((submodel) => ({
+        ...submodel,
+      })),
+    }
+  }
+
+  const addAddCourseModel = () => {
+    setAddCourseError('')
+    const savedModels = normalizeBranchCourseModels(savedCourseHierarchy)
+    const nextModelIndex = savedModels.length
+    setAddCourseForm((current) => ({
+      ...current,
+      models: [
+        ...savedModels,
+        createBranchCourseModel(nextModelIndex + 1, '', []),
+      ],
+    }))
+    setSelectedSavedModelIndex(nextModelIndex)
+    setSelectedSavedSubmodelIndex(0)
+    setCourseEditorStage('module')
+    setIsSubmoduleDraftOpen(false)
+    setSubmoduleDraftRestoreLength(null)
+    setAddCourseTouched({})
+  }
+
+  const markCurrentCourseModelTouched = (modelIndex) => {
+    const safeModel = addCourseHierarchy[Math.max(0, Math.min(modelIndex, addCourseHierarchy.length - 1))] || null
+    if (!safeModel) return
+
+    const nextTouched = { ...addCourseTouched }
+    nextTouched[`model-${modelIndex}-name`] = true
+    nextTouched[`model-${modelIndex}-submodels`] = true
+      ; (safeModel.submodels || []).forEach((_, submodelIndex) => {
+        nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
+      })
+    setAddCourseTouched(nextTouched)
+  }
+
+  const markCurrentCourseSubmodelTouched = (modelIndex, submodelIndex) => {
+    setAddCourseTouched((current) => ({
+      ...current,
+      [`model-${modelIndex}-submodel-${submodelIndex}-name`]: true,
+      [`model-${modelIndex}-submodels`]: true,
+    }))
+  }
+
+  const getCurrentCourseModelError = (modelIndex) => {
+    const modelErrors = addCourseValidationErrors.hierarchy.models?.[modelIndex] || {}
+    const submodelError = (modelErrors.submodels || []).find((submodelErrors) => submodelErrors?.name)?.name
+    return modelErrors.name || modelErrors.submodelsError || submodelError || ''
+  }
+
+  const getCurrentCourseModuleNameError = (modelIndex) =>
+    addCourseValidationErrors.hierarchy.models?.[modelIndex]?.name || ''
+
+  const getCurrentCourseSubmodelError = (modelIndex, submodelIndex) =>
+    addCourseValidationErrors.hierarchy.models?.[modelIndex]?.submodels?.[submodelIndex]?.name || ''
+
+  const handleCourseModelSave = (modelIndex) => {
+    markCurrentCourseModelTouched(modelIndex)
+
+    const error = getCurrentCourseModelError(modelIndex)
+    if (error) {
+      setAddCourseError(error)
+      return false
+    }
+
+    const snapshot = snapshotCourseModelForSave(modelIndex)
+    if (snapshot) {
+      setSavedCourseHierarchy((current) => {
+        const next = [...current]
+        next[modelIndex] = snapshot
+        return next
+      })
+    }
+
+    setAddCourseError('')
+    return true
+  }
+
+  const handleCourseModelSaveAndNext = (modelIndex) => {
+    markCurrentCourseModelTouched(modelIndex)
+
+    const moduleError = getCurrentCourseModuleNameError(modelIndex)
+    if (moduleError) {
+      setAddCourseError(moduleError)
+      return
+    }
+
+    const existingSubmodelCount = Array.isArray(addCourseHierarchy[modelIndex]?.submodels)
+      ? addCourseHierarchy[modelIndex].submodels.length
+      : 0
+
+    setSelectedSavedSubmodelIndex(existingSubmodelCount)
+    setCourseEditorStage('submodule')
+    if (existingSubmodelCount === 0) {
+      openCourseSubmodelDraft(modelIndex, 0)
+      return
+    }
+    setIsSubmoduleDraftOpen(false)
+  }
+
+  const handleCourseEditorCancel = () => {
+    const savedModuleCount = Array.isArray(savedCourseHierarchy) ? savedCourseHierarchy.length : 0
+    setAddCourseError('')
+    setAddCourseForm((current) => ({
+      ...current,
+      models: normalizeBranchCourseModels(savedCourseHierarchy),
+    }))
+    setCourseEditorStage('closed')
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedModelIndex(Math.max(0, savedModuleCount - 1))
+    setSelectedSavedSubmodelIndex(0)
+    setSubmoduleDraftRestoreLength(null)
+    setAddCourseTouched({})
+  }
+
+  const openCourseSubmodelDraft = (modelIndex, draftIndexOverride = null) => {
+    const model = addCourseHierarchy[modelIndex]
+    if (!model) return
+
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    const draftIndex = Math.max(Number.isInteger(draftIndexOverride) ? draftIndexOverride : selectedSavedSubmodelIndex, 0)
+    const shouldAppendDraft = draftIndex >= submodels.length
+    setSubmoduleDraftRestoreIndex(selectedSavedSubmodelIndex)
+    setSubmoduleDraftRestoreLength(shouldAppendDraft ? submodels.length : null)
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const models = normalizeBranchCourseModels(current.models)
+      const nextModels = models.map((item, index) => {
+        if (index !== modelIndex) return item
+
+        const nextSubmodels = normalizeBranchCourseSubmodels(item.submodels, modelIndex)
+        const needsAppend = draftIndex >= nextSubmodels.length
+
+        return {
+          ...item,
+          submodels: needsAppend
+            ? [...nextSubmodels, createBranchCourseSubmodel(nextSubmodels.length + 1, '')]
+            : nextSubmodels,
+        }
+      })
+
+      return {
+        ...current,
+        models: nextModels,
+      }
+    })
+    setCourseEditorStage('submodule')
+    setIsSubmoduleDraftOpen(true)
+    setSelectedSavedSubmodelIndex(draftIndex)
+  }
+
+  const handleCourseSubmodelSave = (modelIndex) => {
+    const model = addCourseHierarchy[modelIndex]
+    if (!model) return false
+
+    const submodels = Array.isArray(model.submodels) ? model.submodels : []
+    const currentSubmodelIndex = Math.min(selectedSavedSubmodelIndex, Math.max(submodels.length - 1, 0))
+    markCurrentCourseSubmodelTouched(modelIndex, currentSubmodelIndex)
+
+    const currentError = getCurrentCourseSubmodelError(modelIndex, currentSubmodelIndex)
+    if (currentError) {
+      setAddCourseError(currentError)
+      return false
+    }
+
+    setAddCourseError('')
+    setSelectedSavedSubmodelIndex((current) => current + 1)
+    setIsSubmoduleDraftOpen(false)
+    setSubmoduleDraftRestoreIndex((current) => current)
+    setSubmoduleDraftRestoreLength(null)
+    return true
+  }
+
+  const handleCourseSubmodelCancel = (modelIndex) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      if (!Number.isInteger(submoduleDraftRestoreLength)) return current
+
+      const models = normalizeBranchCourseModels(current.models)
+      return {
+        ...current,
+        models: models.map((model, index) => {
+          if (index !== modelIndex) return model
+
+          const nextSubmodels = normalizeBranchCourseSubmodels(model.submodels, modelIndex)
+          if (nextSubmodels.length <= submoduleDraftRestoreLength) return model
+
+          return {
+            ...model,
+            submodels: nextSubmodels.slice(0, submoduleDraftRestoreLength),
+          }
+        }),
+      }
+    })
+    setAddCourseTouched((current) => {
+      const nextTouched = { ...current }
+      delete nextTouched[`model-${modelIndex}-submodel-${selectedSavedSubmodelIndex}-name`]
+      return nextTouched
+    })
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedSubmodelIndex(submoduleDraftRestoreIndex)
+    setSubmoduleDraftRestoreLength(null)
+  }
+
+  const handleCourseSubmodelEdit = (modelIndex, submodelIndex) => {
+    openCourseSubmodelDraft(modelIndex, submodelIndex)
+  }
+
+  const handleCourseSubmodelDelete = (modelIndex, submodelIndex) => {
+    const model = savedCourseRows[modelIndex]
+    const submodel = normalizeBranchCourseSubmodels(model?.submodels, modelIndex)[submodelIndex]
+
+    setCourseSubmoduleDeleteTarget({
+      modelIndex,
+      submodelIndex,
+      label: submodel?.name || `Submodule ${submodelIndex + 1}`,
+    })
+  }
+
+  const closeCourseSubmoduleDeleteConfirm = () => {
+    setCourseSubmoduleDeleteTarget(null)
+  }
+
+  const handleCourseSubmoduleDeleteConfirm = () => {
+    if (!courseSubmoduleDeleteTarget) return
+
+    const { modelIndex, submodelIndex } = courseSubmoduleDeleteTarget
+    removeAddCourseSubmodel(modelIndex, submodelIndex)
+    setAddCourseError('')
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedSubmodelIndex((current) => {
+      if (submodelIndex < current) return current - 1
+      if (submodelIndex === current) return Math.max(0, current - 1)
+      return current
+    })
+    setCourseSubmoduleDeleteTarget(null)
+  }
+
+  const handleCourseModuleFinalSave = (modelIndex) => {
+    markCurrentCourseModelTouched(modelIndex)
+
+    if (isSubmoduleDraftOpen) {
+      const savedCurrentSubmodel = handleCourseSubmodelSave(modelIndex)
+      if (!savedCurrentSubmodel) return false
+    }
+
+    const moduleError = getCurrentCourseModelError(modelIndex)
+    if (moduleError) {
+      setAddCourseError(moduleError)
+      return false
+    }
+
+    const snapshot = snapshotCourseModelForSave(modelIndex)
+    if (snapshot) {
+      setSavedCourseHierarchy((current) => {
+        const next = [...current]
+        next[modelIndex] = snapshot
+        return next
+      })
+    }
+
+    setAddCourseError('')
+    setCourseEditorStage('closed')
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedSubmodelIndex(0)
+    setSubmoduleDraftRestoreLength(null)
+    return true
+  }
+
+  const removeAddCourseSubmodel = (modelIndex, submodelIndex) => {
+    setAddCourseError('')
+    setAddCourseForm((current) => {
+      const models = normalizeBranchCourseModels(current.models)
+      return {
+        ...current,
+        models: models.map((model, index) => {
+          if (index !== modelIndex) return model
+
+          const nextSubmodels = normalizeBranchCourseSubmodels(model.submodels, modelIndex).filter((_, itemIndex) => itemIndex !== submodelIndex)
+          return {
+            ...model,
+            submodels: nextSubmodels,
+          }
+        }),
+      }
+    })
+  }
+
+  const selectCourseModel = (modelIndex) => {
+    const safeIndex = Math.max(0, Number(modelIndex) || 0)
+    setSelectedSavedModelIndex(safeIndex)
+    setSelectedSavedSubmodelIndex(0)
+    setAddCourseStep(2)
+    setCourseEditorStage('module')
+    setIsSubmoduleDraftOpen(false)
+    setSubmoduleDraftRestoreLength(null)
+    setAddCourseError('')
+  }
+
+  const removeSavedCourseModel = (modelIndex) => {
+    const removedModelId = savedCourseRows[modelIndex]?.id
+    setAddCourseForm((current) => {
+      const nextModels = Array.isArray(current.models) ? current.models.filter((_, index) => index !== modelIndex) : []
+      return {
+        ...current,
+        models: nextModels,
+      }
+    })
+
+    setSavedCourseHierarchy((current) => current.filter((_, index) => index !== modelIndex))
+
+    setSelectedSavedModelIndex((current) => {
+      if (current === modelIndex) return Math.max(0, modelIndex - 1)
+      if (current > modelIndex) return current - 1
+      return current
+    })
+
+    if (removedModelId) {
+      setExpandedSavedCourseModuleIds((current) => current.filter((id) => id !== removedModelId))
+    }
+  }
+
+  const openCourseModuleDeleteConfirm = (modelIndex) => {
+    const model = savedCourseRows[modelIndex]
+    if (!model) return
+
+    setCourseModuleDeleteTarget({
+      modelIndex,
+      label: model.name || `Module ${modelIndex + 1}`,
+    })
+  }
+
+  const closeCourseModuleDeleteConfirm = () => {
+    setCourseModuleDeleteTarget(null)
+  }
+
+  const handleCourseModuleDeleteConfirm = () => {
+    if (!courseModuleDeleteTarget) return
+
+    removeSavedCourseModel(courseModuleDeleteTarget.modelIndex)
+    setCourseModuleDeleteTarget(null)
+  }
+
+  const resetAddCourseForm = (record = editingCourseRecord, draftKey = courseDraftKey) => {
+    const nextForm = record
+      ? buildBranchCourseFormFromRecord(record)
+      : createInitialBranchCourseForm()
+    const nextHierarchy = record
+      ? buildBranchCourseHierarchySummary(record.models || record.courseModels || record.modules || [])
+      : []
+
+    setAddCourseForm(nextForm)
+    setAddCourseSavedPaymentPlans(normalizeBranchCoursePaymentPlanSelections(nextForm.paymentPlans))
+    setAddCourseSavedPaymentPlanId('')
+    setAddCoursePaymentPlanSaveAttempted(false)
+    setAddCourseTouched({})
+    setAddCourseError('')
+    setAddCourseStep(1)
+    setCourseEditorStage('module')
+    setSelectedSavedModelIndex(0)
+    setSelectedSavedSubmodelIndex(0)
+    setSavedCourseHierarchy(nextHierarchy)
+    setSubmoduleDraftRestoreLength(null)
+    writeBranchCourseDraft(draftKey, null)
+  }
+
+  const openAddCourseModal = () => {
+    const nextDraftKey = 'new'
+    setCourseDraftKey(nextDraftKey)
+    resetAddCourseForm(null, nextDraftKey)
+    setEditingCourseId('')
+    setCourseSaveSuccess(null)
+    setCourseModuleDeleteTarget(null)
+    setCourseSubmoduleDeleteTarget(null)
+    setIsAddCourseOpen(true)
+    goToBranchSection('courses')
+  }
+
+  const openViewCourseDrawer = (course) => {
+    setViewCourse(normalizeBranchCourseRecord(course))
+    setViewCourseTab('basic')
+    setExpandedViewCourseModuleIds([])
+    setViewCoursePaymentPlanOpenId('')
+    setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
+  }
+
+  const closeViewCourseDrawer = () => {
+    setViewCourse(null)
+    setViewCourseTab('basic')
+    setExpandedViewCourseModuleIds([])
+    setViewCoursePaymentPlanOpenId('')
+  }
+  const openEditCourseModal = (course) => {
+    const nextEditingCourseId = String(course?.id || '').trim()
+    const savedDraft = readBranchCourseDraft(nextEditingCourseId)
+    const nextForm = savedDraft?.form || buildBranchCourseFormFromRecord(course)
+    const nextSavedPaymentPlans = normalizeBranchCoursePaymentPlanSelections(nextForm.paymentPlans)
+    setCourseDraftKey(nextEditingCourseId || 'new')
+    setEditingCourseId(nextEditingCourseId)
+    setAddCourseForm(nextForm)
+    setAddCourseSavedPaymentPlans(nextSavedPaymentPlans)
+    setAddCourseSavedPaymentPlanId('')
+    setAddCoursePaymentPlanSaveAttempted(false)
+    setAddCourseTouched(savedDraft?.touched || {})
+    setAddCourseError('')
+    setAddCourseStep(1)
+    setCourseEditorStage('module')
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedModelIndex(savedDraft?.selectedSavedModelIndex ?? 0)
+    setSelectedSavedSubmodelIndex(savedDraft?.selectedSavedSubmodelIndex ?? 0)
+    setSubmoduleDraftRestoreLength(Number.isInteger(savedDraft?.submoduleDraftRestoreLength) ? savedDraft.submoduleDraftRestoreLength : null)
+    setSavedCourseHierarchy(
+      Array.isArray(savedDraft?.savedCourseHierarchy) && savedDraft.savedCourseHierarchy.length
+        ? savedDraft.savedCourseHierarchy
+        : buildBranchCourseHierarchySummary(course?.models || course?.courseModels || course?.modules || []),
+    )
+    setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
+    setCourseModuleDeleteTarget(null)
+    setCourseSubmoduleDeleteTarget(null)
+    setIsAddCourseOpen(true)
+    goToBranchSection('courses')
+  }
+
+  const closeAddCourseModal = () => {
+    setIsAddCourseOpen(false)
+    setCourseModuleDeleteTarget(null)
+    setCourseSubmoduleDeleteTarget(null)
+    setAddCourseStep(1)
+    setAddCourseSavedPaymentPlans([])
+    setAddCourseSavedPaymentPlanId('')
+    setAddCoursePaymentPlanSaveAttempted(false)
+    setCourseEditorStage('module')
+    setSelectedSavedSubmodelIndex(0)
+    setSubmoduleDraftRestoreLength(null)
+    setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
+  }
+
+  const closeCourseSaveSuccess = () => {
+    setCourseSaveSuccess(null)
+  }
+
+  useEffect(() => {
+    if (!isAddCourseOpen || !courseDraftKey) return undefined
+
+    writeBranchCourseDraft(courseDraftKey, {
+      form: addCourseForm,
+      touched: addCourseTouched,
+      step: addCourseStep,
+      courseEditorStage,
+      isSubmoduleDraftOpen,
+      selectedSavedModelIndex,
+      selectedSavedSubmodelIndex,
+      submoduleDraftRestoreLength,
+      savedCourseHierarchy,
+    })
+
+    return undefined
+  }, [
+    addCourseForm,
+    addCourseStep,
+    addCourseTouched,
+    courseDraftKey,
+    isAddCourseOpen,
+    courseEditorStage,
+    isSubmoduleDraftOpen,
+    savedCourseHierarchy,
+    selectedSavedModelIndex,
+    selectedSavedSubmodelIndex,
+  ])
+
+  useEffect(() => {
+    if (!isAddCourseOpen || courseEditorStage !== 'submodule' || !isSubmoduleDraftOpen) return undefined
+
+    const frameId = window.requestAnimationFrame(() => {
+      activeSubmoduleInputRef.current?.focus()
+      activeSubmoduleInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [courseEditorStage, isAddCourseOpen, isSubmoduleDraftOpen, selectedSavedModelIndex, selectedSavedSubmodelIndex])
+
+  useEffect(() => {
+    if (!isAddCourseOpen) return undefined
+
+    void loadBranchInstallmentPlanOptions()
+    return undefined
+  }, [isAddCourseOpen, loadBranchInstallmentPlanOptions])
+
+  useEffect(() => {
+    if (!isAddCourseOpen || addCourseStep !== 3) return undefined
+
+    if (!branchInstallmentTemplates.length && !isBranchInstallmentTemplatesLoading) {
+      void loadBranchInstallmentPlanOptions()
+    }
+
+    return undefined
+  }, [addCourseStep, branchInstallmentTemplates.length, isAddCourseOpen, isBranchInstallmentTemplatesLoading, loadBranchInstallmentPlanOptions])
+
+  const viewCourseInstallmentTemplate = useMemo(
+    () => normalizeBranchInstallmentTemplate(viewCourse?.installmentTemplate || viewCourse?.branchInstallmentTemplate || null),
+    [viewCourse],
+  )
+  const viewCourseModels = useMemo(
+    () => buildBranchCourseHierarchySummary(viewCourse?.models || viewCourse?.courseModels || viewCourse?.modules || []),
+    [viewCourse],
+  )
+  const viewCoursePaymentPlans = useMemo(
+    () => buildBranchCoursePaymentPlanSelectionsFromRecord(viewCourse || {}),
+    [viewCourse],
+  )
+  const viewCourseFinalFeeValue = useMemo(
+    () => getBranchCourseFinalFeeValue(viewCourse || {}),
+    [viewCourse],
+  )
+
+  const toggleViewCourseModule = (moduleId) => {
+    setExpandedViewCourseModuleIds((current) => (
+      current.includes(moduleId)
+        ? current.filter((id) => id !== moduleId)
+        : [...current, moduleId]
+    ))
+  }
+
+  const toggleSavedCourseModule = (moduleId) => {
+    setExpandedSavedCourseModuleIds((current) => (
+      current.includes(moduleId)
+        ? current.filter((id) => id !== moduleId)
+        : [...current, moduleId]
+    ))
+  }
+
+  const openDeleteCourseConfirm = (course) => {
+    setCourseDeleteTarget(course)
+    setCourseActionError('')
+    setOpenCourseActionMenuId('')
+    setCourseActionMenuPosition({ top: 0, left: 0 })
+  }
+
+  const closeDeleteCourseConfirm = () => {
+    setCourseDeleteTarget(null)
+    setCourseActionError('')
+  }
+
+  const handleDeleteCourseConfirm = () => {
+    if (!courseDeleteTarget) return
+
+    setIsAddCourseSaving(true)
+    deleteBranchCourse(courseDeleteTarget.id)
+      .then(() => {
+        const nextCards = branchCourseCards.filter((course) => String(course.id || '').trim() !== String(courseDeleteTarget.id || '').trim())
+        setBranchCourseCards(nextCards)
+        const nextTotalPages = Math.max(1, Math.ceil(nextCards.length / BRANCH_COURSES_PER_PAGE))
+        setBranchCoursePage((current) => Math.min(current, nextTotalPages))
+        setCourseDeleteTarget(null)
+      })
+      .catch((error) => {
+        setCourseActionError(apiErrorMessage(error, 'Unable to delete course right now.'))
+      })
+      .finally(() => {
+        setIsAddCourseSaving(false)
+      })
+  }
+
+  const handleAddCourseSubmit = async (event) => {
+    event?.preventDefault()
+    const committedPaymentPlans = normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans)
+    const nextTouched = { ...addCourseTouched }
+    COURSE_BASIC_FIELDS.forEach((field) => {
+      nextTouched[field] = true
+    })
+    normalizeBranchCourseModels(addCourseForm.models).forEach((model, modelIndex) => {
+      nextTouched[`model-${modelIndex}-name`] = true
+      nextTouched[`model-${modelIndex}-submodels`] = true
+        ; (model.submodels || []).forEach((submodel, submodelIndex) => {
+          nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
+        })
+    })
+    nextTouched.paymentPlans = true
+    setAddCourseTouched(nextTouched)
+
+    if (Object.keys(addCourseValidationErrors.basic).length > 0 || addCourseValidationErrors.hierarchy.modelsError) {
+      setAddCourseStep(1)
+      setAddCourseError(Object.values(addCourseValidationErrors.basic)[0] || addCourseValidationErrors.hierarchy.modelsError || 'Please fill all required fields before saving.')
+      return
+    }
+
+    if (addCourseValidationErrors.hierarchy.models.some((modelErrors) => modelErrors.name || modelErrors.submodelsError || modelErrors.submodels.some((submodelErrors) => submodelErrors.name))) {
+      setAddCourseStep(2)
+      setAddCourseError(
+        addCourseValidationErrors.hierarchy.models.find((modelErrors) => modelErrors.name)?.name ||
+        addCourseValidationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodelsError)?.submodelsError ||
+        addCourseValidationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodels.some((submodelErrors) => submodelErrors.name))?.submodels?.find((submodelErrors) => submodelErrors.name)?.name ||
+        'Please fill all required fields before saving.',
+      )
+      return
+    }
+
+    if (!committedPaymentPlans.length || addCoursePaymentPlanValidationError) {
+      setAddCourseStep(3)
+      setAddCourseError(addCoursePaymentPlanValidationError || 'Please select at least one payment plan.')
+      return
+    }
+
+    const hasInvalidCustomPaymentPlan = committedPaymentPlans.some(
+      (plan) => plan.type === 'custom' && !String(plan.installmentCount || '').trim(),
+    )
+
+    if (hasInvalidCustomPaymentPlan) {
+      setAddCourseStep(3)
+      setAddCourseError('Custom payment plan requires a valid installment count.')
+      return
+    }
+
+    saveAddCoursePaymentPlans()
+    setIsAddCourseSaving(true)
+    try {
+      const normalizedCourseCode = normalizeBranchCourseCode(addCourseForm.courseCode)
+      const editingTargetId = String(editingCourseId || '').trim()
+      const duplicateCourse = branchCourseCards.find(
+        (course) =>
+          String(course.id || '').trim() !== editingTargetId &&
+          String(course.name || '').trim().toLowerCase() === String(addCourseForm.name || '').trim().toLowerCase(),
+      )
+      const duplicateCourseCode = branchCourseCards.find(
+        (course) =>
+          String(course.id || '').trim() !== editingTargetId &&
+          String(course.courseCode || '').trim().toLowerCase() ===
+          String(normalizedCourseCode).trim().toLowerCase(),
+      )
+
+      if (duplicateCourseCode) {
+        setAddCourseError('Course code already exists.')
+        return
+      }
+
+      if (duplicateCourse) {
+        setAddCourseError('Course already exists.')
+        return
+      }
+
+      const payload = buildBranchCoursePayload(addCourseForm)
+      const savedCourse = editingTargetId
+        ? await updateBranchCourse(editingTargetId, payload)
+        : await createBranchCourse(payload)
+
+      const nextModels = normalizeBranchCourseModels(
+        savedCourse?.models || savedCourse?.courseModels || savedCourse?.modules || payload.models || [],
+      )
+      const normalizedCourse = {
+        ...savedCourse,
+        batches: Number(savedCourse?.batchCount ?? savedCourse?.batches ?? 0),
+        students: Number(savedCourse?.studentCount ?? savedCourse?.students ?? 0),
+        models: nextModels,
+        courseModels: nextModels,
+        modules: nextModels,
+      }
+
+      const nextCards = editingTargetId
+        ? branchCourseCards.map((course) => (String(course.id || '').trim() === editingTargetId ? normalizedCourse : course))
+        : [normalizedCourse, ...branchCourseCards]
+
+      setBranchCourseCards(nextCards)
+      await loadBranchCourses(nextCards)
+      setBranchCoursePage(1)
+      setCourseSaveSuccess({
+        title: editingTargetId ? 'Course updated' : 'Course created',
+        message: editingTargetId
+          ? 'The course details have been updated successfully.'
+          : 'The course has been saved successfully.',
+      })
+      setIsAddCourseOpen(false)
+      setAddCourseForm(createInitialBranchCourseForm())
+      setAddCourseTouched({})
+      setEditingCourseId('')
+      setAddCourseStep(1)
+    } catch (error) {
+      setAddCourseError(apiErrorMessage(error, 'Unable to save course right now.'))
+    } finally {
+      setIsAddCourseSaving(false)
+    }
+  }
+
+  const handleCourseBasicNext = () => {
+    const nextTouched = { ...addCourseTouched }
+    COURSE_BASIC_FIELDS.forEach((field) => {
+      nextTouched[field] = true
+    })
+    setAddCourseTouched(nextTouched)
+
+    if (Object.keys(addCourseValidationErrors.basic).length > 0) {
+      setAddCourseError(Object.values(addCourseValidationErrors.basic)[0] || 'Please complete the basic course details.')
+      setAddCourseStep(1)
+      return
+    }
+
+    setAddCourseError('')
+    setAddCourseStep(2)
+    setCourseEditorStage('closed')
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedModelIndex(0)
+    setSelectedSavedSubmodelIndex(0)
+  }
+
+  const handleCourseModulesNext = () => {
+    const nextTouched = { ...addCourseTouched }
+    normalizeBranchCourseModels(addCourseForm.models).forEach((model, modelIndex) => {
+      nextTouched[`model-${modelIndex}-name`] = true
+      nextTouched[`model-${modelIndex}-submodels`] = true
+        ; (model.submodels || []).forEach((_, submodelIndex) => {
+          nextTouched[`model-${modelIndex}-submodel-${submodelIndex}-name`] = true
+        })
+    })
+    setAddCourseTouched(nextTouched)
+
+    if (courseEditorStage !== 'closed' && Number.isInteger(selectedSavedModelIndex)) {
+      const savedCurrentModel = handleCourseModuleFinalSave(selectedSavedModelIndex)
+      if (!savedCurrentModel) return
+    }
+
+    const validationErrors = createBranchCourseErrors(addCourseForm)
+    const hasHierarchyErrors = Boolean(
+      validationErrors.hierarchy.modelsError ||
+      validationErrors.hierarchy.models.some(
+        (modelErrors) =>
+          modelErrors.name ||
+          modelErrors.submodelsError ||
+          modelErrors.submodels.some((submodelErrors) => submodelErrors.name),
+      ),
+    )
+
+    if (hasHierarchyErrors) {
+      setAddCourseError(
+        validationErrors.hierarchy.models.find((modelErrors) => modelErrors.name)?.name ||
+        validationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodelsError)?.submodelsError ||
+        validationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodels.some((submodelErrors) => submodelErrors.name))?.submodels?.find((submodelErrors) => submodelErrors.name)?.name ||
+        validationErrors.hierarchy.modelsError ||
+        'Please complete the module tree before continuing.',
+      )
+      setAddCourseStep(2)
+      return
+    }
+
+    setAddCourseError('')
+    setAddCoursePaymentPlanSaveAttempted(false)
+    setAddCourseStep(3)
+    setCourseEditorStage('closed')
+    setIsSubmoduleDraftOpen(false)
+    setSelectedSavedModelIndex(0)
+    setSelectedSavedSubmodelIndex(0)
+  }
+
+  useEffect(() => {
+    if (!isAddCourseOpen) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsAddCourseOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isAddCourseOpen])
+
+  useEffect(() => {
+    if (!isPaymentPlanDropdownOpen) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (paymentPlanDropdownRef.current?.contains(target)) return
+      setIsPaymentPlanDropdownOpen(false)
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsPaymentPlanDropdownOpen(false)
+      }
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isPaymentPlanDropdownOpen])
+
+  useEffect(() => {
+    if (!viewCourse) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closeViewCourseDrawer()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [viewCourse])
+
+  // ── Student helpers ──
+  const branchId = branchProfile?.id || branchProfile?.branchId || ''
+  const branchCode = branchProfile?.branchId || branchProfile?.branchCode || ''
+  const branchStudentScope = useMemo(() => ({
+    id: branchId,
+    branchId,
+    branchCode,
+  }), [branchId, branchCode])
+
+  const reloadBranchStudents = useCallback(async () => {
+    if (!branchStudentScope.id && !branchStudentScope.branchCode) return []
+
+    try {
+      const freshRecords = await refreshBranchStudents(branchStudentScope)
+      setBranchStudents(freshRecords)
+      return freshRecords
+    } catch (error) {
+      console.error('Failed to refresh branch students from backend:', error)
+      setBranchStudents([])
+      return []
+    }
+  }, [branchStudentScope])
+const studentCourseOptions = useMemo(() => {
+  return branchCourseCards
+    .map((course) => {
+      const id = String(course?.id || '').trim()
+      const name = String(course?.name || '').trim()
+      if (!id || !name) return null
+
+      return {
+        id,
+        name,
+        amount: normalizeBranchStudentCourseAmount(course),
+        assignedFaculty: normalizeBranchStudentCourseFacultyOptions(course),
+
+        // Course-ku already configured payment plans
+        paymentPlans: normalizeBranchCoursePaymentPlanSelections(
+          course?.paymentPlans ||
+          course?.paymentPlanSelections ||
+          course?.installmentPlans ||
+          []
+        ),
+      }
+    })
+    .filter(Boolean)
+}, [branchCourseCards])
+
+  const selectedStudentCourse = useMemo(
+    () => studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null,
+    [studentCourseOptions, studentForm.courseId],
+  )
+
+  const selectedStudentCourseFacultyOptions = useMemo(
+    () => Array.isArray(selectedStudentCourse?.assignedFaculty) ? selectedStudentCourse.assignedFaculty : [],
+    [selectedStudentCourse],
+  )
+
+  const selectedStudentCourseAmount = useMemo(
+    () => String(selectedStudentCourse?.amount || studentForm.courseAmount || '').trim(),
+    [selectedStudentCourse, studentForm.courseAmount],
+  )
+const selectedStudentCoursePaymentPlans = useMemo(
+  () =>
+    Array.isArray(selectedStudentCourse?.paymentPlans)
+      ? selectedStudentCourse.paymentPlans
+      : [],
+  [selectedStudentCourse],
+)
+const selectedStudentPaymentPlan = useMemo(
+  () =>
+    selectedStudentCoursePaymentPlans.find(
+      (plan) =>
+        String(plan.id || '').trim() ===
+        String(studentForm.paymentPlanId || '').trim()
+    ) || null,
+  [selectedStudentCoursePaymentPlans, studentForm.paymentPlanId]
+)
+
+const studentInstallmentCount = useMemo(() => {
+  if (!selectedStudentPaymentPlan) return 0
+
+  const count = Number(
+    selectedStudentPaymentPlan.installmentCount ||
+    selectedStudentPaymentPlan.installments?.length ||
+    0
+  )
+
+  return Number.isFinite(count) && count > 0 ? count : 0
+}, [selectedStudentPaymentPlan])
+
+const studentInstallmentAmounts = useMemo(() => {
+  const total = Number(
+    String(selectedStudentCourseAmount || '').replace(/,/g, '')
+  )
+
+  if (!total || !studentInstallmentCount) return []
+
+  const baseAmount = Math.floor((total / studentInstallmentCount) * 100) / 100
+  const amounts = Array(studentInstallmentCount).fill(baseAmount)
+
+  const currentTotal = amounts.reduce((sum, amount) => sum + amount, 0)
+  const difference = Number((total - currentTotal).toFixed(2))
+
+  // Any decimal/remainder goes to the last installment
+  amounts[amounts.length - 1] = Number(
+    (amounts[amounts.length - 1] + difference).toFixed(2)
+  )
+
+  return amounts
+}, [
+  selectedStudentCourseAmount,
+  studentInstallmentCount
+])
+useEffect(() => {
+  if (!studentInstallmentCount) {
+    setStudentInstallmentDueDates([])
+    return
+  }
+
+  setStudentInstallmentDueDates((current) =>
+    Array.from(
+      { length: studentInstallmentCount },
+      (_, index) => current[index] || ''
+    )
+  )
+}, [studentInstallmentCount])
+
+  const handleStudentCourseChange = (courseId) => {
+    const nextCourseId = String(courseId || '').trim()
+
+    if (!nextCourseId) {
+      setStudentForm((current) => ({
+        ...current,
+        courseId: '',
+        courseName: '',
+        facultyId: '',
+        facultyName: '',
+        courseAmount: '',
+      }))
+      return
+    }
+
+    const nextCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === nextCourseId) || null
+    const nextFacultyOptions = Array.isArray(nextCourse?.assignedFaculty) ? nextCourse.assignedFaculty : []
+
+    const nextPaymentPlans = Array.isArray(nextCourse?.paymentPlans)
+  ? nextCourse.paymentPlans
+  : []
+
+    setStudentForm((current) => {
+      const currentFacultyId = String(current.facultyId || '').trim().toLowerCase()
+      const currentFacultyName = String(current.facultyName || '').trim().toLowerCase()
+      const matchedFaculty = nextFacultyOptions.find((faculty) =>
+        String(faculty.id || '').trim().toLowerCase() === currentFacultyId ||
+        String(faculty.name || '').trim().toLowerCase() === currentFacultyName,
+      ) || null
+
+      return {
+        ...current,
+        courseId: nextCourse?.id || nextCourseId,
+        courseName: nextCourse?.name || '',
+        courseAmount: nextCourse?.amount || '',
+        facultyId: matchedFaculty?.id || '',
+        facultyName: matchedFaculty?.name || '',
+        paymentPlans: nextPaymentPlans,
+paymentPlan: '',
+paymentPlanId: '',
+      }
+    })
+  }
+
+  const handleStudentFacultyChange = (facultyId) => {
+    const nextFacultyId = String(facultyId || '').trim()
+    const nextFaculty = selectedStudentCourseFacultyOptions.find((faculty) => String(faculty.id || '').trim() === nextFacultyId) || null
+
+    setStudentForm((current) => ({
+      ...current,
+      facultyId: nextFaculty?.id || '',
+      facultyName: nextFaculty?.name || '',
+    }))
+  }
+
+  useEffect(() => {
+    void reloadBranchStudents()
+  }, [reloadBranchStudents])
+
+  // Load country options for student form
+  useEffect(() => {
+    let cancelled = false
+    getCountries().then((items) => {
+      if (cancelled) return
+      const sorted = Array.isArray(items)
+        ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+        : []
+      setStuCountryOptions(sorted)
+    }).catch(() => { if (!cancelled) setStuCountryOptions([]) })
+    return () => { cancelled = true }
+  }, [])
+
+  // Load state options when country changes
+  useEffect(() => {
+    if (!studentForm.countryCode) { setStuStateOptions([]); setStuCityOptions([]); return }
+    let cancelled = false
+    getStatesOfCountry(studentForm.countryCode).then((items) => {
+      if (cancelled) return
+      const sorted = Array.isArray(items)
+        ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+        : []
+      setStuStateOptions(sorted)
+    }).catch(() => { if (!cancelled) setStuStateOptions([]) })
+    return () => { cancelled = true }
+  }, [studentForm.countryCode])
+
+  // Load city options when state changes
+  useEffect(() => {
+    if (!studentForm.countryCode || !studentForm.stateCode) { setStuCityOptions([]); return }
+    let cancelled = false
+    getCitiesOfState(studentForm.countryCode, studentForm.stateCode).then((items) => {
+      if (cancelled) return
+      const sorted = Array.isArray(items)
+        ? [...items].sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')))
+        : []
+      setStuCityOptions(sorted)
+    }).catch(() => { if (!cancelled) setStuCityOptions([]) })
+    return () => { cancelled = true }
+  }, [studentForm.countryCode, studentForm.stateCode])
+
+  useEffect(() => {
+    if (!isStudentFormOpen || studentFormMode === 'view') return undefined
+    const courseId = String(studentForm.courseId || '').trim()
+    if (!courseId) return undefined
+
+    const currentCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === courseId) || null
+    if (!currentCourse) return undefined
+
+    const nextCourseAmount = String(currentCourse.amount || '').trim()
+    const currentCourseAmount = String(studentForm.courseAmount || '').trim()
+    const nextFacultyOptions = Array.isArray(currentCourse.assignedFaculty) ? currentCourse.assignedFaculty : []
+    const currentFacultyId = String(studentForm.facultyId || '').trim().toLowerCase()
+    const currentFacultyName = String(studentForm.facultyName || '').trim().toLowerCase()
+    const matchedFaculty = nextFacultyOptions.find((faculty) =>
+      String(faculty.id || '').trim().toLowerCase() === currentFacultyId ||
+      String(faculty.name || '').trim().toLowerCase() === currentFacultyName,
+    ) || null
+
+    const needsAmountSync = nextCourseAmount && currentCourseAmount !== nextCourseAmount
+    const needsFacultySync = (currentFacultyId || currentFacultyName) && !matchedFaculty
+
+    if (!needsAmountSync && !needsFacultySync) return undefined
+
+    setStudentForm((current) => {
+      if (String(current.courseId || '').trim() !== courseId) return current
+
+      const syncFaculty = nextFacultyOptions.find((faculty) =>
+        String(faculty.id || '').trim().toLowerCase() === String(current.facultyId || '').trim().toLowerCase() ||
+        String(faculty.name || '').trim().toLowerCase() === String(current.facultyName || '').trim().toLowerCase(),
+      ) || null
+
+      return {
+        ...current,
+        courseName: currentCourse.name || current.courseName,
+        courseAmount: nextCourseAmount || current.courseAmount,
+        facultyId: syncFaculty?.id || '',
+        facultyName: syncFaculty?.name || '',
+      }
+    })
+
+    return undefined
+  }, [isStudentFormOpen, studentCourseOptions, studentForm.courseAmount, studentForm.courseId, studentForm.facultyId, studentForm.facultyName, studentFormMode])
+
+  // Body scroll lock for student form
+  useEffect(() => {
+    if (!isStudentFormOpen) return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => { if (e.key === 'Escape') setIsStudentFormOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+      setIsStudentSaving(false)
+    }
+  }, [isStudentFormOpen])
+
+  const branchPaymentRows = useMemo(
+  () => branchStudents.map((stu) => ({
+    student: stu,
+    summary: computeBranchStudentPaymentSummary(stu),
+  })),
+  [branchStudents],
+)
+
+const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
+  (acc, row) => {
+    acc.totalCollected += row.summary.paidAmount
+    acc.totalPending += row.summary.pendingAmount
+    if (row.summary.paymentStatus === 'Overdue') acc.overdueCount += 1
+    if (row.summary.paymentStatus === 'Paid') acc.paidCount += 1
+    return acc
+  },
+  { totalCollected: 0, totalPending: 0, overdueCount: 0, paidCount: 0 },
+), [branchPaymentRows])
+
+const filteredBranchPaymentRows = useMemo(() => {
+  const q = paymentSearchTerm.trim().toLowerCase()
+  return branchPaymentRows.filter(({ student, summary }) => {
+    const matchesSearch =
+      !q ||
+      String(student.studentId || '').toLowerCase().includes(q) ||
+      String(student.studentName || '').toLowerCase().includes(q) ||
+      String(student.courseName || '').toLowerCase().includes(q)
+    const matchesStatus =
+      paymentStatusFilter === 'all' ||
+      summary.paymentStatus.toLowerCase().replace(/\s+/g, '-') === paymentStatusFilter
+    return matchesSearch && matchesStatus
+  })
+}, [branchPaymentRows, paymentSearchTerm, paymentStatusFilter])
+
+const totalPaymentPages = Math.max(1, Math.ceil(filteredBranchPaymentRows.length / BRANCH_PAYMENTS_PER_PAGE))
+const safePaymentPage = Math.min(paymentPage, totalPaymentPages)
+const visibleBranchPaymentRows = useMemo(() => {
+  const start = (safePaymentPage - 1) * BRANCH_PAYMENTS_PER_PAGE
+  return filteredBranchPaymentRows.slice(start, start + BRANCH_PAYMENTS_PER_PAGE)
+}, [filteredBranchPaymentRows, safePaymentPage])
+
+  const filteredBranchStudents = useMemo(() => {
+    const q = studentSearchTerm.trim().toLowerCase()
+    if (!q) return branchStudents
+    return branchStudents.filter((s) =>
+      String(s.studentId || '').toLowerCase().includes(q) ||
+      String(s.studentName || '').toLowerCase().includes(q)
+    )
+  }, [branchStudents, studentSearchTerm])
+
+  const totalStudentPages = Math.max(1, Math.ceil(filteredBranchStudents.length / BRANCH_STUDENTS_PER_PAGE))
+  const safeStudentPage = Math.min(studentPage, totalStudentPages)
+  const visibleBranchStudents = useMemo(() => {
+    const start = (safeStudentPage - 1) * BRANCH_STUDENTS_PER_PAGE
+    return filteredBranchStudents.slice(start, start + BRANCH_STUDENTS_PER_PAGE)
+  }, [filteredBranchStudents, safeStudentPage])
+
+  const studentFormValidationErrors = useMemo(
+    () => validateStudentForm(studentForm, branchStudents),
+    [branchStudents, studentForm],
+  )
+  const shouldShowStudentError = (field) => Boolean(studentFormTouched[field] && studentFormValidationErrors[field])
+  const studentActiveStepFields =
+    studentFormStep === 1
+      ? STUDENT_FORM_STEP_ONE_FIELDS
+      : studentFormStep === 2
+        ? STUDENT_FORM_STEP_TWO_FIELDS
+        : STUDENT_FORM_STEP_THREE_FIELDS
+  const studentActiveStepErrorField = studentActiveStepFields.find((field) => studentFormValidationErrors[field]) || ''
+  const studentActiveStepError = studentActiveStepErrorField ? studentFormValidationErrors[studentActiveStepErrorField] : ''
+
+  const updateStudentField = (field, value) => {
+    setStudentForm((c) => ({
+      ...c,
+      [field]: field === 'studentIdSuffix' ? normalizeStudentIdSuffix(value) : value,
+    }))
+  }
+
+  const touchStudentFields = (fields = []) => {
+    setStudentFormTouched((current) => {
+      const next = { ...current }
+      fields.forEach((field) => {
+        next[field] = true
+      })
+      return next
+    })
+  }
+
+  const handleStudentStepNext = () => {
+    if (studentFormMode === 'view') {
+      setStudentFormStep((current) => Math.min(3, current + 1))
+      return
+    }
+
+    const currentStepFields = studentFormStep === 1 ? STUDENT_FORM_STEP_ONE_FIELDS : STUDENT_FORM_STEP_TWO_FIELDS
+    touchStudentFields(currentStepFields)
+
+    const hasStepErrors = currentStepFields.some((field) => studentFormValidationErrors[field])
+    if (hasStepErrors) return
+
+    setStudentFormStep((current) => Math.min(3, current + 1))
+  }
+
+  const handleStudentStepBack = () => {
+    setStudentFormStep((current) => Math.max(1, current - 1))
+  }
+
+  const openAddStudentForm = async () => {
+    setStudentFormMode('add')
+    setStudentFormError('')
+    setIsStudentSaving(false)
+    setStudentFormStep(1)
+    const nextStudentForm = await resolveStudentLocationForm(createInitialStudentForm(branchStudentScope))
+    setStudentForm(nextStudentForm)
+    setStudentFormTouched({})
+    setIsStudentFormOpen(true)
+  }
+
+  const openViewStudentForm = async (stu) => {
+    setStudentFormMode('view')
+    setStudentFormError('')
+    setIsStudentSaving(false)
+    setStudentFormStep(1)
+    const nextStudentForm = await resolveStudentLocationForm(buildStudentFormFromRecord(stu))
+    setStudentForm(nextStudentForm)
+    setStudentFormTouched({})
+    setIsStudentFormOpen(true)
+  }
+
+  const openEditStudentForm = async (stu) => {
+    setStudentFormMode('edit')
+    setStudentFormError('')
+    setIsStudentSaving(false)
+    setStudentFormStep(1)
+    const nextStudentForm = await resolveStudentLocationForm(buildStudentFormFromRecord(stu))
+    setStudentForm(nextStudentForm)
+    setStudentFormTouched({})
+    setIsStudentFormOpen(true)
+  }
+
+  const handleStudentFormSubmit = async (e) => {
+    e?.preventDefault()
+    if (studentFormMode === 'view') return
+    if (studentFormStep !== 3) return
+    if (isStudentSaving) return
+    setStudentFormError('')
+
+    // Touch all fields
+    const allTouched = {}
+    Object.keys(studentFormValidationErrors).forEach((k) => { allTouched[k] = true })
+    STUDENT_FORM_STEP_ONE_FIELDS.forEach((field) => {
+      allTouched[field] = true
+    })
+    STUDENT_FORM_STEP_TWO_FIELDS.forEach((field) => {
+      allTouched[field] = true
+    })
+    STUDENT_FORM_STEP_THREE_FIELDS.forEach((field) => {
+      allTouched[field] = true
+    })
+    if (studentForm.currentStatus === 'Employee') allTouched.designation = true
+    if (studentForm.passedOutYear === 'Custom') allTouched.passedOutYearCustom = true
+    if (studentForm.source === 'Others') allTouched.sourceOther = true
+    setStudentFormTouched(allTouched)
+
+    if (Object.keys(studentFormValidationErrors).length > 0) return
+
+    const originalStudentId = String(studentForm.originalStudentId || studentForm.studentId || '').trim()
+    const resolvedStudentId = buildStudentIdFromSuffix(studentForm.studentIdSuffix)
+    const selectedCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null
+    const selectedFaculty = Array.isArray(selectedCourse?.assignedFaculty)
+      ? selectedCourse.assignedFaculty.find((faculty) =>
+        String(faculty.id || '').trim().toLowerCase() === String(studentForm.facultyId || '').trim().toLowerCase() ||
+        String(faculty.name || '').trim().toLowerCase() === String(studentForm.facultyName || '').trim().toLowerCase(),
+      ) || null
+      : null
+    const resolvedCourseAmount = String(selectedCourse?.amount || studentForm.courseAmount || '').trim()
+    const duplicateStudent = branchStudents.find((student) => {
+      const currentStudentId = String(student.studentId || '').trim()
+      return currentStudentId === resolvedStudentId && currentStudentId !== originalStudentId
+    })
+
+    if (duplicateStudent) {
+      setStudentFormError('Student ID already exists in this branch.')
+      return
+    }
+
+    const record = {
+      ...studentForm,
+      studentId: resolvedStudentId,
+      _originalStudentId: originalStudentId,
+      _recordId: String(studentForm.recordId || '').trim(),
+      branchId,
+      branchCode,
+      passedOutYear: studentForm.passedOutYear === 'Custom' ? studentForm.passedOutYearCustom : studentForm.passedOutYear,
+      source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
+      courseId: selectedCourse?.id || String(studentForm.courseId || '').trim(),
+      courseName: selectedCourse?.name || String(studentForm.courseName || '').trim(),
+      facultyId: selectedFaculty?.id || String(studentForm.facultyId || '').trim(),
+      facultyName: selectedFaculty?.name || String(studentForm.facultyName || '').trim(),
+      courseAmount: resolvedCourseAmount,
+      totalAmount: resolvedCourseAmount,
+      actualFees: String(selectedCourse?.actualFees ?? '').trim(),
+      registrationFees: String(selectedCourse?.registrationFees ?? '').trim(),
+      discount: String(selectedCourse?.discount ?? '').trim(),
+      afterDiscount: resolvedCourseAmount,
+      paymentMode: studentForm.paymentMode || 'Installment',
+      installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
+        installmentNumber: index + 1,
+        amount,
+        dueDate: studentInstallmentDueDates[index] || '',
+      })),
+    }
+
+    delete record.studentIdSuffix
+    delete record.originalStudentId
+    delete record.recordId
+
+    setIsStudentSaving(true)
+    console.log("PAYLOAD BEING SENT TO BACKEND:", record)
+    try {
+      await saveBranchStudent(record)
+      void reloadBranchStudents()
+      setIsStudentFormOpen(false)
+
+      if (studentFormMode === 'add') {
+        setStudentSuccessPopup({ title: 'Student Added', message: 'Student added successfully.' })
+      } else {
+        setStudentSuccessPopup({ title: 'Student Updated', message: 'Student updated successfully.' })
+      }
+    } catch (error) {
+      console.error('Failed to save branch student:', error)
+      const conflictMessage = error?.status === 409
+        ? (error?.body?.message || 'Student email or mobile number already exists in this branch.')
+        : null
+      setStudentFormError(conflictMessage || 'Unable to save student. Please try again.')
+    } finally {
+      setIsStudentSaving(false)
+    }
+  }
+
+  const handleStudentDeleteConfirm = async () => {
+    if (!studentDeleteTarget) return
+    try {
+      setIsStudentDeleting(true)
+      await removeBranchStudent(studentDeleteTarget.id || studentDeleteTarget.studentId)
+      void reloadBranchStudents()
+      setStudentDeleteTarget(null)
+      setStudentSuccessPopup({ title: 'Student Deleted', message: 'Student deleted successfully.' })
+      // Adjust page if needed
+      const nextCount = branchStudents.length - 1
+      const nextPages = Math.max(1, Math.ceil(nextCount / BRANCH_STUDENTS_PER_PAGE))
+      setStudentPage((c) => Math.min(c, nextPages))
+    } catch (error) {
+      console.error('Failed to delete branch student:', error)
+      setStudentDeleteTarget(null)
+      setStudentSuccessPopup({
+        title: 'Delete Failed',
+        message: 'Unable to delete student. Please try again.',
+      })
+    } finally {
+      setIsStudentDeleting(false)
+    }
+  }
+
+  const renderSidebar = () => (
+    <aside className="super-admin-sidebar" aria-label="Branch navigation">
+      <div className="super-admin-sidebar-brand">
+        <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="CISPRO logo" />
+      </div>
+
+      <nav className="super-admin-sidebar-nav">
+        {[
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'courses', label: 'Courses', icon: BookOpen },
+          { id: 'installments', label: 'Installments', icon: Wallet },
+          { id: 'faculty', label: 'Faculty', icon: UserRound },
+          { id: 'students', label: 'Students', icon: Users },
+          { id: 'batches', label: 'Batches', icon: Layers3 },
+          { id: 'payments', label: 'Payments', icon: Wallet },
+          { id: 'notifications', label: 'Notifications', icon: Bell },
+          { id: 'profile', label: 'Profile', icon: CircleUserRound },
+        ].map((item) => {
+          const Icon = item.icon
+          const isActive = activeSection === item.id
+
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
+              onClick={() => {
+                if (item.id === 'notifications') {
+                  goToBranchSection('notifications')
+                  return
+                }
+
+                goToBranchSection(item.id)
+              }}
+            >
+              <span className="super-admin-sidebar-icon" aria-hidden="true">
+                <Icon size={18} strokeWidth={2.15} />
+              </span>
+              <span>{item.label}</span>
             </button>
-          </div>
+          )
+        })}
+      </nav>
 
-          <div className="notification-dropdown-list">
-            {visibleItems.map((item) => {
-              const Icon = item.icon
-              return (
-                <article
-                  key={`${item.title}-${item.time}`}
-                  className={`notification-dropdown-item ${item.featured ? 'is-highlighted' : ''}`.trim()}
-                >
-                  <span className={`notification-badge ${item.tone}`} aria-hidden="true">
-                    <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-                  </span>
-                  <div className="notification-copy">
-                    <p>{item.title}</p>
-                    <span>{item.message}</span>
-                    <small>{item.time}</small>
-                  </div>
-                </article>
-              )
-            })}
+      <div className="super-admin-sidebar-footer">
+        <div className="super-admin-sidebar-profile-card">
+          <SidebarUserAvatar />
+
+          <div className="super-admin-sidebar-profile-copy">
+            <strong>{branchTitle}</strong>
           </div>
 
           <button
-            className="notification-dropdown-footer"
             type="button"
-            onClick={() => setShowAll((current) => !current)}
+            className="super-admin-sidebar-logout-button"
+            onClick={openLogoutConfirm}
+            aria-label="Logout"
           >
-            {showAll ? 'Show less' : 'View all notifications'}
+            <LogOut size={22} strokeWidth={2.15} />
           </button>
         </div>
-      ) : null}
-    </div>
+      </div>
+    </aside>
   )
-}
 
-function PremiumDashboardTopbar({
-  eyebrow,
-  title,
-  summary,
-  initials,
-  profileTitle,
-  email,
-  onOpenMenu,
-  onProfileClick,
-  profileAriaLabel,
-}) {
+  const renderTopbar = () => (
+    <header className="super-admin-topbar">
+      <div className="branch-dashboard-topbar-title">
+        <h1>Branch Dashboard</h1>
+      </div>
+      <div className="super-admin-topbar-right">
+        {!embeddedMode ? (
+          <div ref={notificationMenuRef} className="notification-menu branch-dashboard-notification-menu">
+            <button
+              type="button"
+              className="icon-chip notification-chip branch-dashboard-notification-button"
+              aria-label="Notifications"
+              aria-haspopup="menu"
+              aria-expanded={isNotificationMenuOpen}
+              onClick={() => setIsNotificationMenuOpen((current) => !current)}
+            >
+              <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+              <b>{branchUnreadNotificationCount}</b>
+            </button>
+
+            {isNotificationMenuOpen ? (
+              <div className="notification-dropdown" role="menu" aria-label="Notifications">
+                <div className="notification-dropdown-head">
+                  <strong>Notifications</strong>
+                  <div className="notification-dropdown-head-actions">
+                    <button type="button" className="notification-mark-read" onClick={markAllBranchNotificationsAsRead}>
+                      Mark all as read
+                    </button>
+                    <button
+                      type="button"
+                      className="notification-dropdown-close"
+                      aria-label="Close notifications"
+                      onClick={() => setIsNotificationMenuOpen(false)}
+                    >
+                      <X size={16} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="notification-dropdown-list">
+                  {branchNotificationPreviewItems.length ? (
+                    branchNotificationPreviewItems.map((item) => {
+                      const Icon = item.icon
+                      const isCourseEditRequest =
+                        (item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request') &&
+                        item.requestStatus !== 'accepted'
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'} ${isCourseEditRequest ? 'is-course-request' : ''
+                            }`.trim()}
+                          onMouseDown={(event) => event.stopPropagation()}
+                          onPointerDown={(event) => event.stopPropagation()}
+                        >
+                          <span className={`notification-badge ${item.tone}`} aria-hidden="true">
+                            <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                          </span>
+                          <div className="notification-copy">
+                            <p>{item.title}</p>
+                            <span>{item.message}</span>
+                            <small>{item.time}</small>
+                          </div>
+
+                          <div
+                            className="notification-dropdown-item-actions"
+                            onMouseDown={(event) => event.stopPropagation()}
+                            onPointerDown={(event) => event.stopPropagation()}
+                          >
+                            {isCourseEditRequest ? (
+                              <button
+                                type="button"
+                                className="notification-dropdown-accept"
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  event.stopPropagation()
+
+                                  console.log('ACCEPT CLICKED')
+
+                                  void acceptBranchCourseEditNotification(item)
+                                }}
+                              >
+                                Accept
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="notification-dropdown-view"
+                              onMouseDown={(event) => event.stopPropagation()}
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClickCapture={(event) => event.stopPropagation()}
+                              onClick={() => openBranchNotificationTarget(item)}
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="notification-dropdown-item is-muted" role="presentation">
+                      <span className="notification-badge blue" aria-hidden="true">
+                        <Bell size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                      </span>
+                      <div className="notification-copy">
+                        <p>No notifications yet</p>
+                        <small>Waiting for activity</small>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button className="notification-dropdown-footer" type="button" onClick={openBranchNotifications}>
+                  View all notifications
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {!embeddedMode && (
+          <div ref={profileMenuRef} className="branch-dashboard-profile-menu-wrap">
+            <button
+              type="button"
+              className="super-admin-profile branch-dashboard-profile-trigger"
+              onClick={() => setIsProfileMenuOpen((current) => !current)}
+              aria-haspopup="menu"
+              aria-expanded={isProfileMenuOpen}
+            >
+              <AvatarBadge />
+              <div className="super-admin-profile-copy">
+                <strong>{branchAdminDisplay}</strong>
+              </div>
+              <ChevronDown size={16} strokeWidth={2.2} className="branch-dashboard-profile-caret" aria-hidden="true" />
+            </button>
+
+            {isProfileMenuOpen ? (
+              <div className="branch-dashboard-profile-menu" role="menu" aria-label="Branch profile menu">
+                <button type="button" role="menuitem" className="branch-dashboard-profile-menu-item" onClick={openProfile}>
+                  <CircleUserRound size={16} strokeWidth={2.1} />
+                  <span>Profile</span>
+                </button>
+
+                {mustResetPassword ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="branch-dashboard-profile-menu-item"
+                    onClick={openResetPassword}
+                  >
+                    <RefreshCcw size={16} strokeWidth={2.1} />
+                    <span>Reset Password</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="branch-dashboard-profile-menu-item"
+                    onClick={openForgotPassword}
+                  >
+                    <RefreshCcw size={16} strokeWidth={2.1} />
+                    <span>Forgot Password</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="branch-dashboard-profile-menu-item is-danger"
+                  onClick={openLogoutConfirm}
+                >
+                  <LogOut size={16} strokeWidth={2.1} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+      </div>
+    </header>
+  )
+
   return (
-    <div className="business-topbar is-business-owner-header !relative !flex min-w-0 flex-col gap-4 rounded-[20px] border border-slate-200 bg-white/95 px-4 py-4 shadow-[0_16px_34px_rgba(15,23,42,0.06)] backdrop-blur sm:px-5 sm:py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-5">
-      <button
-        type="button"
-        className="mobile-menu-button dashboard-mobile-menu-button !inline-flex !h-10 !w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm lg:!hidden"
-        onClick={onOpenMenu}
-        aria-label="Open navigation menu"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-          <path d="M4 7h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-          <path d="M4 12h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-          <path d="M4 17h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-        </svg>
-      </button>
-
-      <div className="operation-manager-mobile-brand !flex items-center gap-3 lg:!hidden" aria-hidden="true">
-        <img
-          className="operation-manager-mobile-brand-logo !h-11 !w-11 rounded-xl bg-white p-1 shadow-sm"
-          src="/logo1.png"
-          alt=""
-        />
-        <div className="operation-manager-mobile-brand-copy min-w-0">
-          <strong className="block text-[1rem] font-extrabold tracking-[-0.02em] text-sky-700">Cispro Ops</strong>
-        </div>
-      </div>
-
-      <div className="business-topbar-copy !min-w-0 !flex-1 lg:max-w-4xl">
-        <p className="eyebrow text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-sky-600">{eyebrow}</p>
-        <h2 className="mt-1 text-[1.75rem] font-semibold leading-[1.08] tracking-[-0.03em] text-slate-900 sm:text-[2rem] lg:text-[2.15rem]">
-          {title}
-        </h2>
-        <p className="business-header-subtitle mt-1 max-w-3xl text-sm leading-6 text-slate-500 sm:text-[0.95rem]">
-          {summary}
-        </p>
-      </div>
-
-      <div className="business-topbar-actions !flex min-w-0 flex-wrap items-center gap-3 lg:ml-auto lg:justify-end">
-        <DashboardNotificationBell />
-        <HeaderIdentityChip
-          initials={initials}
-          title={profileTitle}
-          email={email}
-          className="operation-manager-profile-chip"
-          onClick={onProfileClick}
-          ariaLabel={profileAriaLabel}
-        />
-      </div>
-    </div>
-  )
-}
-
-function getEdgeAwareTooltipStyle(activeIndex, totalItems) {
-  if (activeIndex === null) return null
-
-  if (activeIndex < 2) {
-    return { left: '12px', transform: 'none' }
-  }
-
-  if (activeIndex > totalItems - 3) {
-    return { left: 'auto', right: '12px', transform: 'none' }
-  }
-
-  return { left: '50%', transform: 'translateX(-50%)' }
-}
-
-function SummaryIcon({ kind }) {
-  if (kind === 'wallet') {
-    return <Wallet size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-  }
-
-  if (kind === 'calendar') {
-    return <CalendarDays size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-  }
-
-  if (kind === 'trend') {
-    return <TrendingUp size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-  }
-
-  if (kind === 'target') {
-    return <Target size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-  }
-
-  return (
-<<<<<<< HEAD
-    <Info size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-  )
-}
-
-function RevenueSummaryRow({ summary = null, isLoading = false }) {
-  const cards = useMemo(
-    () => (summary || isLoading ? buildRevenueSummaryCards(summary, isLoading) : revenueSummaryCards),
-    [isLoading, summary],
-  )
-  const [activeTooltipIndex, setActiveTooltipIndex] = useState(null)
-  const rowRef = useRef(null)
-
-  useEffect(() => {
-    if (activeTooltipIndex === null) return
-
-    const handlePointerDown = (event) => {
-      if (rowRef.current?.contains(event.target)) return
-      setActiveTooltipIndex(null)
-=======
     <section className="super-admin-page">
       <div className="super-admin-shell">
         {renderSidebar()}
@@ -5067,708 +8136,351 @@ function RevenueSummaryRow({ summary = null, isLoading = false }) {
       studentFormMode === 'view' ||
       !studentForm.courseId ||
       !selectedStudentCoursePaymentPlans.length
->>>>>>> hema_dev
     }
+  >
+    <option value="">Select Payment Plan</option>
 
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setActiveTooltipIndex(null)
-      }
-    }
+    {selectedStudentCoursePaymentPlans.map((plan) => (
+      <option key={plan.id} value={plan.id}>
+        {plan.templateName}
+      </option>
+    ))}
 
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
+    {studentForm.courseId &&
+      !selectedStudentCoursePaymentPlans.length && (
+        <option value="" disabled>
+          No payment plans configured for this course
+        </option>
+      )}
+  </select>
+</Field>
 
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [activeTooltipIndex])
+      </div>
 
-  return (
-    <section ref={rowRef} className="revenue-summary-row" aria-label="Revenue summary">
-      {cards.map((card, index) => {
-        const tooltipId = `revenue-summary-tooltip-${index}`
-        const isTooltipOpen = activeTooltipIndex === index
+      {studentInstallmentAmounts.length > 0 && (
+  <div className="student-payment-installment-section">
+    <div className="student-payment-installment-header">
+      <div>
+        <h4>Payment Schedule</h4>
+        <span>
+          {selectedStudentPaymentPlan?.templateName || 'Selected Payment Plan'}
+        </span>
+      </div>
 
-        return (
-          <article key={card.label} className={`revenue-summary-card ${isTooltipOpen ? 'is-tooltip-open' : ''}`}>
-            <div className="revenue-summary-card-header">
-              <div className="revenue-summary-header-left">
-                <div className={`revenue-summary-icon ${card.accent}`} aria-hidden="true">
-                  <SummaryIcon kind={card.icon} />
+      <div className="student-payment-installment-total">
+        <span>Total Course Amount</span>
+        <strong>
+          ₹{Number(
+            String(selectedStudentCourseAmount || '').replace(/,/g, '')
+          ).toLocaleString('en-IN')}
+        </strong>
+      </div>
+    </div>
+
+    <div className="student-payment-installment-table-wrapper">
+      <table className="student-payment-installment-table">
+        <thead>
+          <tr>
+            <th>Installment</th>
+            <th>Amount</th>
+            <th>Due Date</th>
+          </tr>
+        </thead>
+
+        <tbody>
+         {studentInstallmentAmounts.map((amount, index) => (
+  <tr key={`student-installment-${index}`}>
+    <td>Installment {index + 1}</td>
+
+    <td>
+      ₹{amount.toLocaleString('en-IN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}
+    </td>
+
+    <td>
+      <input
+        type="date"
+        value={studentInstallmentDueDates[index] || ''}
+        onChange={(e) => {
+          const value = e.target.value
+
+          setStudentInstallmentDueDates((current) => {
+            const next = [...current]
+            next[index] = value
+            return next
+          })
+        }}
+        disabled={studentFormMode === 'view'}
+        className="student-installment-due-date-input"
+      />
+    </td>
+  </tr>
+))}
+
+          <tr className="student-payment-installment-total-row">
+            <td>
+              <strong>Total</strong>
+            </td>
+            <td>
+              <strong>
+                ₹{studentInstallmentAmounts
+                  .reduce((sum, amount) => sum + amount, 0)
+                  .toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+              </strong>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
+    </div>
+  )}
+
+</div>
+
+              {studentFormError ? (
+                <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
+                  <span style={{ color: '#dc2626' }}>{studentFormError}</span>
                 </div>
-                <strong className="revenue-summary-label">{card.label}</strong>
+              ) : null}
+
+              <div className="course-form-actions">
+                {studentFormMode === 'view' ? (
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() => {
+                      setIsStudentFormOpen(false)
+                      setStudentFormStep(1)
+                    }}
+                  >
+                    Close
+                  </button>
+                ) : studentFormStep === 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      onClick={() => {
+                        setIsStudentFormOpen(false)
+                        setStudentFormStep(1)
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-solid"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleStudentStepNext()
+                      }}
+                    >
+                      Next
+                    </button>
+                  </>
+                ) : studentFormStep === 2 ? (
+                  <>
+                    <button type="button" className="button button-ghost" onClick={handleStudentStepBack}>
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-solid"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        handleStudentStepNext()
+                      }}
+                    >
+                      Next
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" className="button button-ghost" onClick={handleStudentStepBack}>
+                      Back
+                    </button>
+                    <button type="submit" className="button button-solid" disabled={isStudentSaving}>
+                      {isStudentSaving ? 'Saving...' : (studentFormMode === 'add' ? 'Submit' : 'Save Changes')}
+                    </button>
+                  </>
+                )}
               </div>
+
               <button
                 type="button"
-                className={`revenue-summary-info-button ${isTooltipOpen ? 'is-open' : ''}`}
-                aria-describedby={tooltipId}
-                aria-label={`${card.label} details`}
-                aria-expanded={isTooltipOpen}
-                onClick={() => setActiveTooltipIndex((current) => (current === index ? null : index))}
-                onMouseEnter={() => setActiveTooltipIndex(index)}
-                onMouseLeave={() => setActiveTooltipIndex(null)}
-                onFocus={() => setActiveTooltipIndex(index)}
-                onBlur={() => setActiveTooltipIndex(null)}
+                className="course-modal-close"
+                onClick={() => {
+                  setIsStudentFormOpen(false)
+                  setStudentFormStep(1)
+                }}
+                aria-label="Close student form"
               >
-                <Info size={13} strokeWidth={2.5} aria-hidden="true" focusable="false" />
-                <div className="revenue-summary-tooltip" id={tooltipId} role="tooltip" aria-label={`${card.label} details`}>
-                  <strong>{card.label}</strong>
-                  <p>{card.tooltip}</p>
-                </div>
+                <X size={22} strokeWidth={2} />
               </button>
-            </div>
-            <div className="revenue-summary-value-row">
-              {isLoading ? (
-                <div className="revenue-summary-loading" aria-label={`Loading ${card.label}`}>
-                  <span className={`revenue-summary-loading-ring ${card.accent}`} aria-hidden="true" />
-                  <strong>Loading...</strong>
-                </div>
-              ) : (
-                <div
-                  className={`revenue-summary-value ${card.label === 'Total Revenue' ? 'is-total-revenue' : ''}`}
-                >
-                  {card.value}
-                </div>
-              )}
-            </div>
-            {card.change ? (
-              <>
-                <div className="revenue-summary-card-divider" />
-                <div className="revenue-summary-trend-row">
-                  <span className={`revenue-summary-trend-badge ${card.changeTone || 'positive'}`}>
-                    {card.change}
-                  </span>
-                  <span className="revenue-summary-trend-label">{card.changeText}</span>
-                </div>
-              </>
-            ) : null}
-          </article>
-        )
-      })}
-    </section>
-  )
-}
-
-const MemoBusinessOwnerDashboard = memo(BusinessOwnerDashboard)
-
-const MemoRevenueSummaryRow = memo(RevenueSummaryRow)
-
-function MonthlyRevenueChart({ data = [] }) {
-  const [activeIndex, setActiveIndex] = useState(null)
-  const isCompactMobile = useMediaQuery('(max-width: 640px)')
-  const visibleMonthlyData = useMemo(
-    () => (isCompactMobile ? getRollingWindowData(data, 1, 4) : data),
-    [data, isCompactMobile],
-  )
-  const chartMax = getChartMax(visibleMonthlyData, 10000)
-  const ticks = buildRevenueTicks(chartMax)
-  const activePoint = activeIndex === null ? null : visibleMonthlyData[activeIndex]
-  const tooltipStyle = getEdgeAwareTooltipStyle(activeIndex, visibleMonthlyData.length)
-
-  useEffect(() => {
-    setActiveIndex(null)
-  }, [visibleMonthlyData])
-
-  return (
-    <article className="panel-card revenue-comparison-card revenue-monthly-card">
-      <div className="revenue-comparison-header">
-        <div className="revenue-comparison-header-copy">
-          <div className="revenue-card-title-row">
-            <div className="revenue-title-group">
-              <TrendingUp size={18} strokeWidth={2.4} className="revenue-title-icon" aria-hidden="true" />
-              <h3>Monthly Revenue vs Expected Revenue</h3>
-            </div>
-            {/* existing info icon button already renders separately via ChartInfoTrigger, leave as is */}
+            </form>
           </div>
-          <div className="revenue-legend customer-satisfaction-legend" aria-hidden="true">
-            <span className="revenue-legend-item tone-blue">
-              <span className="revenue-legend-dot blue" />
-              Actual Revenue
-            </span>
-            <span className="revenue-legend-item tone-yellow">
-              <span className="revenue-legend-dot yellow" />
-              Expected Revenue
-            </span>
-          </div>
-        </div>
-        <ChartInfoTrigger
-          label="Monthly Revenue details"
-          description="Current-year actual revenue and expected revenue by month, based on paid dates and due dates."
-        />
-      </div>
+        ) : null}
 
-      <div className="revenue-comparison-body">
-        <div className="revenue-axis-y" aria-hidden="true">
-          {ticks
-            .slice()
-            .reverse()
-            .map((tick) => (
-              <span key={tick}>{formatRevenueAxisLabel(tick)}</span>
-            ))}
-        </div>
 
-        <div className="revenue-monthly-stack">
-          <div className="revenue-plot" onMouseLeave={() => setActiveIndex(null)}>
-            <div className="revenue-grid-lines" aria-hidden="true">
-              {ticks.slice(1).map((tick) => (
-                <span key={tick} />
-              ))}
-            </div>
-
-            {activePoint ? (
-              <div className="revenue-tooltip" style={tooltipStyle || undefined}>
-                <strong>{activePoint.month}</strong>
-                <div className="revenue-tooltip-row">
-                  <span className="revenue-tooltip-label">
-                    <span className="revenue-tooltip-dot monthly" />
-                    Actual Revenue
-                  </span>
-                  <span className="revenue-tooltip-value">{formatRevenue(activePoint.actual)}</span>
-                </div>
-                <div className="revenue-tooltip-row">
-                  <span className="revenue-tooltip-label">
-                    <span className="revenue-tooltip-dot expected" />
-                    Expected Revenue
-                  </span>
-                  <span className="revenue-tooltip-value">{formatRevenue(activePoint.expected)}</span>
-                </div>
-              </div>
-            ) : null}
-
+        {/* ── STUDENT DELETE CONFIRM ── */}
+        {studentDeleteTarget ? (
+          <div className="branch-modal-backdrop" role="presentation">
             <div
-              className="revenue-groups"
-              style={{ gridTemplateColumns: `repeat(${Math.max(visibleMonthlyData.length, 1)}, minmax(0, 1fr))` }}
+              className="branch-success-modal super-admin-logout-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="student-delete-title"
+              onClick={(event) => event.stopPropagation()}
             >
-              {visibleMonthlyData.map((item, index) => {
-                const monthlyHeight = `${chartMax ? (item.actual / chartMax) * 100 : 0}%`
-                const expectedHeight = `${chartMax ? (item.expected / chartMax) * 100 : 0}%`
-                const isActive = index === activeIndex
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close delete confirmation"
+                onClick={() => setStudentDeleteTarget(null)}
+                disabled={isStudentDeleting}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
 
-                return (
-                  <button
-                    key={item.month}
-                    type="button"
-                    className={`revenue-month-group ${isActive ? 'is-active' : ''}`}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onFocus={() => setActiveIndex(index)}
-                    onBlur={() => setActiveIndex(null)}
-                    aria-label={`${item.month}. Actual Revenue ${formatRevenue(item.actual)}. Expected Revenue ${formatRevenue(item.expected)}.`}
-                  >
-                    <span className="revenue-bars" aria-hidden="true">
-                      <span className="revenue-bar monthly" style={{ height: monthlyHeight }} />
-                      <span className="revenue-bar expected" style={{ height: expectedHeight }} />
-                    </span>
-                    <span className="revenue-month-label">{item.month}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
+              <h2 id="student-delete-title">Delete Student?</h2>
 
-      <div className="chart-card-footer" aria-hidden="true">
-        <span>View Details</span>
-        <ChevronRight size={16} strokeWidth={2.4} />
-      </div>
-    </article>
-  )
-}
+              <p className="branch-delete-copy">
+                Are you sure you want to delete this student?
+              </p>
 
-function getWeeklyTicks(chartMax) {
-  let step = 50000
-  if (chartMax > 300000) {
-    step = 100000
-  } else if (chartMax > 150000) {
-    step = 100000
-  } else if (chartMax > 80000) {
-    step = 50000
-  } else if (chartMax > 40000) {
-    step = 25000
-  } else {
-    step = 10000
-  }
-  const ticksList = []
-  for (let val = 0; val <= chartMax; val += step) {
-    ticksList.push(val)
-  }
-  return ticksList
-}
-
-function formatWeeklyAxisLabel(value) {
-  if (value === 0) return '0'
-  if (value % 1000 === 0) {
-    return `${value / 1000}K`
-  }
-  return new Intl.NumberFormat('en-IN').format(value)
-}
-
-function WeeklyRevenueChart({ data = [] }) {
-  const [activeIndex, setActiveIndex] = useState(null)
-  const chartMax = getChartMax(data, 10000)
-  const activePoint = activeIndex === null ? null : data[activeIndex]
-  const tooltipTop =
-    activeIndex === null
-      ? '50%'
-      : `${Math.min(82, Math.max(18, ((activeIndex + 0.5) / Math.max(data.length, 1)) * 100))}%`
-
-  const widthScale = 1
-  const ticks = getWeeklyTicks(chartMax)
-
-  return (
-    <article className="panel-card revenue-comparison-card revenue-weekly-card">
-      <div className="revenue-comparison-header">
-        <div className="revenue-comparison-header-copy">
-          <div className="revenue-card-title-row">
-            <div className="revenue-title-group">
-              <Wallet size={18} strokeWidth={2.4} className="revenue-title-icon" aria-hidden="true" />
-              <h3>Weekly Revenue vs Expected Revenue</h3>
-            </div>
-          </div>
-          <div className="revenue-legend customer-satisfaction-legend" aria-hidden="true">
-            <span className="revenue-legend-item tone-blue">
-              <span className="revenue-legend-dot blue" />
-              Actual Revenue
-            </span>
-            <span className="revenue-legend-item tone-yellow">
-              <span className="revenue-legend-dot yellow" />
-              Expected Revenue
-            </span>
-          </div>
-        </div>
-        <ChartInfoTrigger
-          label="Weekly Revenue details"
-          description="Actual revenue and expected revenue by week, based on paid dates and due dates in the current month."
-        />
-      </div>
-
-      <div className="revenue-weekly-body">
-        <div className="revenue-weekly-axis-y" aria-hidden="true">
-          {data.map((item) => (
-            <span key={item.week}>{item.week}</span>
-          ))}
-        </div>
-
-        <div className="revenue-weekly-plot" onMouseLeave={() => setActiveIndex(null)}>
-          <div className="revenue-weekly-grid-lines" aria-hidden="true">
-            {ticks.map((tick) => {
-              if (tick === 0) return null
-              return (
-                <span
-                  key={tick}
-                  style={{
-                    position: 'absolute',
-                    left: `${(tick / chartMax) * 100 * widthScale}%`,
-                    top: 0,
-                    bottom: 0,
-                    borderLeft: '1px dashed #dde5ef',
-                  }}
-                />
-              )
-            })}
-          </div>
-
-          {activePoint ? (
-            <div className="revenue-tooltip revenue-weekly-tooltip" style={{ top: tooltipTop }}>
-              <strong>{activePoint.week}</strong>
-              <div className="revenue-tooltip-row">
-                <span className="revenue-tooltip-label">
-                  <span className="revenue-tooltip-dot monthly" />
-                  Actual Revenue
-                </span>
-                <span className="revenue-tooltip-value">{formatRevenue(activePoint.actual)}</span>
-              </div>
-              <div className="revenue-tooltip-row">
-                <span className="revenue-tooltip-label">
-                  <span className="revenue-tooltip-dot expected" />
-                  Expected Revenue
-                </span>
-                <span className="revenue-tooltip-value">{formatRevenue(activePoint.expected)}</span>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="revenue-weekly-groups">
-            {data.map((item, index) => {
-              const weeklyWidth = `${chartMax ? (item.actual / chartMax) * 100 * widthScale : 0}%`
-              const expectedWidth = `${chartMax ? (item.expected / chartMax) * 100 * widthScale : 0}%`
-              const isActive = index === activeIndex
-
-              return (
+              <div className="branch-modal-actions">
                 <button
-                  key={item.week}
                   type="button"
-                  className={`revenue-week-row ${isActive ? 'is-active' : ''}`}
-                  onMouseEnter={() => setActiveIndex(index)}
-                  onFocus={() => setActiveIndex(index)}
-                  onBlur={() => setActiveIndex(null)}
-                  aria-label={`${item.week}. Actual Revenue ${formatRevenue(item.actual)}. Expected Revenue ${formatRevenue(item.expected)}.`}
+                  className="branch-modal-cancel"
+                  onClick={() => setStudentDeleteTarget(null)}
+                  disabled={isStudentDeleting}
                 >
-                  <span className="revenue-week-bars" aria-hidden="true">
-                    <span className="revenue-week-bar-group">
-                      <span className="revenue-week-bar-label">Actual Revenue</span>
-                      <span className="revenue-week-bar monthly" style={{ width: weeklyWidth }} />
-                    </span>
-                    <span className="revenue-week-bar-group">
-                      <span className="revenue-week-bar-label">Expected Revenue</span>
-                      <span className="revenue-week-bar expected" style={{ width: expectedWidth }} />
-                    </span>
-                  </span>
+                  Cancel
                 </button>
-              )
-            })}
-          </div>
-        </div>
 
-        <div />
-        <div className="revenue-weekly-axis-x" aria-hidden="true">
-          {ticks.map((tick) => (
-            <span
-              key={tick}
-              style={{
-                position: 'absolute',
-                left: `${(tick / chartMax) * 100 * widthScale}%`,
-                transform: 'translateX(-50%)',
-              }}
-            >
-              {formatWeeklyAxisLabel(tick)}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="chart-card-footer" aria-hidden="true">
-        <span>View Details</span>
-        <ChevronRight size={16} strokeWidth={2.4} />
-      </div>
-    </article>
-  )
-}
-
-function ChartInfoTrigger({ label, description }) {
-  const [isOpen, setIsOpen] = useState(false)
-  const triggerRef = useRef(null)
-
-  useEffect(() => {
-    if (!isOpen) return
-
-    const handlePointerDown = (event) => {
-      if (triggerRef.current?.contains(event.target)) return
-      setIsOpen(false)
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isOpen])
-
-  return (
-    <button
-      ref={triggerRef}
-      type="button"
-      className={`chart-info-trigger ${isOpen ? 'is-open' : ''}`}
-      aria-label={label}
-      aria-expanded={isOpen}
-      onClick={() => setIsOpen((current) => !current)}
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-      onFocus={() => setIsOpen(true)}
-      onBlur={() => setIsOpen(false)}
-    >
-      <Info size={17} strokeWidth={2.4} aria-hidden="true" focusable="false" />
-      <div className="chart-info-tooltip" role="tooltip">
-        <strong>{label}</strong>
-        <p>{description}</p>
-      </div>
-    </button>
-  )
-}
-
-function RevenueDashboards({ monthlyRevenueData = [], weeklyRevenueData = [], reverse = false }) {
-  return (
-    <div className="revenue-comparison-grid">
-      {reverse ? (
-        <>
-          <MonthlyRevenueChart data={monthlyRevenueData} />
-          <WeeklyRevenueChart data={weeklyRevenueData} />
-        </>
-      ) : (
-        <>
-          <WeeklyRevenueChart data={weeklyRevenueData} />
-          <MonthlyRevenueChart data={monthlyRevenueData} />
-        </>
-      )}
-    </div>
-  )
-}
-
-const MemoRevenueDashboards = memo(RevenueDashboards)
-
-function AttendanceComparisonChart() {
-  const isCompactMobile = useMediaQuery('(max-width: 640px)')
-  const visibleAttendanceData = useMemo(
-    () => (isCompactMobile ? getRollingWindowData(attendanceComparisonData, 1, 4) : attendanceComparisonData),
-    [isCompactMobile],
-  )
-
-  return (
-    <article className="panel-card attendance-card">
-      <div className="attendance-header">
-        <div className="attendance-header-row">
-          <div className="attendance-header-title">Attendance (%)</div>
-          <button type="button" className="attendance-period-chip" aria-label="Attendance period">
-            <span>This Month</span>
-            <ChevronDown size={15} strokeWidth={2.4} aria-hidden="true" focusable="false" />
-          </button>
-        </div>
-        <div className="attendance-legend" aria-hidden="true">
-          <span className="revenue-legend-item">
-            <span className="attendance-legend-swatch attendance" />
-            Attendance (%)
-          </span>
-          <span className="revenue-legend-item">
-            <span className="attendance-legend-swatch students" />
-            Present Students
-          </span>
-        </div>
-      </div>
-
-      <div className="attendance-chart" aria-label="Attendance comparison chart">
-        <div className="attendance-left-axis">
-          <span>100%</span>
-          <span>75%</span>
-          <span>50%</span>
-          <span>25%</span>
-          <span>0%</span>
-        </div>
-
-        <div className="attendance-plot">
-          <div className="attendance-grid-lines" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-
-          <div className="attendance-bars-row" style={{ gridTemplateColumns: `repeat(${visibleAttendanceData.length}, minmax(0, 1fr))` }}>
-            {visibleAttendanceData.map((item) => (
-              <div key={item.month} className="attendance-group">
-                <div className="attendance-series">
-                  <strong className="attendance-series-value">{item.attendance}%</strong>
-                  <div className="attendance-bar attendance" style={{ height: `${item.attendance}%` }} />
-                </div>
-                <div className="attendance-series">
-                  <strong className="attendance-series-value">{item.students}</strong>
-                  <div className="attendance-bar students" style={{ height: `${(item.students / 500) * 100}%` }} />
-                </div>
+                <button
+                  type="button"
+                  className="branch-modal-submit is-danger"
+                  onClick={handleStudentDeleteConfirm}
+                  disabled={isStudentDeleting}
+                >
+                  {isStudentDeleting ? 'Deleting...' : 'Delete'}
+                </button>
               </div>
-            ))}
+            </div>
           </div>
+        ) : null}
 
-          <div className="attendance-months-row" style={{ gridTemplateColumns: `repeat(${visibleAttendanceData.length}, minmax(0, 1fr))` }}>
-            {visibleAttendanceData.map((item) => (
-              <span key={item.month}>{item.month}</span>
-            ))}
+        {/* ── LOGOUT CONFIRM ── */}
+        {isLogoutConfirmOpen ? (
+          <div
+            className="branch-modal-backdrop"
+            role="presentation"
+          >
+            <div
+              className="branch-success-modal super-admin-logout-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="logout-confirm-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close logout confirmation"
+                onClick={closeLogoutConfirm}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
+
+              {/* Logout Message */}
+              <h2 id="logout-confirm-title">
+                Are you sure you want to logout?
+              </h2>
+
+              {/* Actions */}
+              <div className="branch-modal-actions">
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={closeLogoutConfirm}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="branch-modal-submit is-danger"
+                  onClick={handleConfirmLogout}
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        <div className="attendance-right-axis">
-          <span>500</span>
-          <span>375</span>
-          <span>250</span>
-          <span>125</span>
-          <span>0</span>
-        </div>
-      </div>
 
-      <div className="chart-card-footer" aria-hidden="true">
-        <span>View Details</span>
-        <ChevronRight size={16} strokeWidth={2.4} />
-      </div>
-    </article>
-  )
-}
+        {/* ── STUDENT SUCCESS POPUP ── */}
+        {studentSuccessPopup ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <div
+              className="branch-success-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="student-success-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close success popup"
+                onClick={() => setStudentSuccessPopup(null)}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
 
-const MemoAttendanceComparisonChart = memo(AttendanceComparisonChart)
-function OperationManagerDashboard({ dashboard, revenueSummary, isRevenueLoading, monthlyRevenue, weeklyRevenue }) {
-  const openMenu = useMobileMenu()
-  const [isProfileOpen, setIsProfileOpen] = useState(false)
-  const profileDetails = {
-    role: 'Operation Manager',
-    status: 'Active',
-    workspace: 'Cispro Ops',
-    accessLevel: 'Operation Manager',
-    primaryEmail: 'operation.manager@cispro.com',
-    passwordMasked: 'ChangeMe123!',
-    resetPasswordText: 'Send Reset Link',
-    lastLogin: 'Today, 10:25 AM',
-    initials: 'OM',
-  }
-  const profileStatTiles = [
-    { icon: BadgeCheck, tone: 'blue', label: 'Role', value: profileDetails.role },
-    { icon: ShieldCheck, tone: 'green', label: 'Status', value: profileDetails.status },
-    { icon: Building2, tone: 'violet', label: 'Workspace', value: profileDetails.workspace },
-    { icon: Globe, tone: 'amber', label: 'Access Level', value: profileDetails.accessLevel },
-  ]
-  const profileDetailRows = [
-    { icon: LockKeyhole, label: 'Password', value: profileDetails.passwordMasked },
-    { icon: RefreshCcw, label: 'Reset Password', value: profileDetails.resetPasswordText },
-    { icon: Clock3, label: 'Last Login', value: profileDetails.lastLogin },
-  ]
+              <div className="branch-success-hero" aria-hidden="true">
+                <span className="branch-success-hero-ring" />
+                <span className="branch-success-hero-icon">
+                  <CheckCircle2 size={30} strokeWidth={2.1} />
+                </span>
+              </div>
 
-  return (
-    <section className="business-owner-dashboard operation-manager-dashboard">
-      <div className="business-topbar !relative !flex min-w-0 flex-col gap-4 rounded-[20px] border border-slate-200 bg-white/95 px-4 py-4 shadow-[0_16px_34px_rgba(15,23,42,0.06)] backdrop-blur sm:px-5 sm:py-5 lg:flex-row lg:items-center lg:justify-between lg:px-6 lg:py-5">
-        <button
-          type="button"
-          className="mobile-menu-button dashboard-mobile-menu-button !inline-flex !h-10 !w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm lg:!hidden"
-          onClick={openMenu}
-          aria-label="Open navigation menu"
-        >
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M4 7h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M4 12h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-            <path d="M4 17h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-          </svg>
-        </button>
+              <div className="branch-success-copy">
+                <p className="branch-success-kicker">Success</p>
 
-        <div className="operation-manager-mobile-brand !flex items-center gap-3 lg:!hidden" aria-hidden="true">
-          <img
-            className="operation-manager-mobile-brand-logo !h-11 !w-11 rounded-xl bg-white p-1 shadow-sm"
-            src="/logo1.png"
-            alt=""
-          />
-          <div className="operation-manager-mobile-brand-copy min-w-0">
-            <strong className="block text-[1rem] font-extrabold tracking-[-0.02em] text-sky-700">Cispro Ops</strong>
+                <h2 id="student-success-title">
+                  {studentSuccessPopup.title}
+                </h2>
+
+                <p>{studentSuccessPopup.message}</p>
+              </div>
+
+              <div className="branch-success-actions">
+                <button
+                  type="button"
+                  className="branch-success-primary"
+                  onClick={() => setStudentSuccessPopup(null)}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-
-        <div className="business-topbar-copy !min-w-0 !flex-1 lg:max-w-4xl">
-          <p className="eyebrow text-[0.72rem] font-semibold uppercase tracking-[0.08em] text-sky-600">
-            Operation Manager
-          </p>
-          <h2 className="mt-1 text-[1.75rem] font-semibold leading-[1.08] tracking-[-0.03em] text-slate-900 sm:text-[2rem] lg:text-[2.15rem]">
-            {dashboard.title}
-          </h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500 sm:text-[0.95rem]">{dashboard.summary}</p>
-        </div>
-
-        <div className="business-topbar-actions !flex min-w-0 flex-wrap items-center gap-3 lg:ml-auto lg:justify-end">
-          <DashboardNotificationBell />
-          <HeaderIdentityChip
-            initials={profileDetails.initials}
-            title={profileDetails.role}
-            email={profileDetails.primaryEmail}
-            className="operation-manager-profile-chip"
-            onClick={() => setIsProfileOpen(true)}
-            ariaLabel="Open Operation Manager profile"
-          />
-        </div>
+        ) : null}
       </div>
-
-      <MemoRevenueSummaryRow summary={revenueSummary} isLoading={isRevenueLoading} />
-      <MemoRevenueDashboards monthlyRevenueData={monthlyRevenue} weeklyRevenueData={weeklyRevenue} reverse={true} />
-      <MemoAttendanceComparisonChart />
-      <ProfileDrawer
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-        title={profileDetails.role}
-        email={profileDetails.primaryEmail}
-        initials={profileDetails.initials}
-        statTiles={profileStatTiles}
-        detailRows={profileDetailRows}
-        ariaLabelledBy="profile-modal-title"
-      />
     </section>
   )
 }
-
-const MemoOperationManagerDashboard = memo(OperationManagerDashboard)
-
-function GenericDashboard({ role }) {
-  const dashboard = roleDashboards[role]
-
-  return (
-    <section className="dashboard-grid">
-      <div className="dashboard-hero-plain">
-        <div>
-          <p className="eyebrow">{dashboard.accent} lane</p>
-          <h2>{dashboard.title}</h2>
-          <p>{dashboard.summary}</p>
-        </div>
-      </div>
-
-      {dashboard.cards.map((card) => (
-        <article key={card} className="info-card">
-          <span className="dot" style={{ backgroundColor: dashboard.color }} />
-          <h3>{card}</h3>
-          <p>Placeholder card for role-specific work and permissions validation.</p>
-        </article>
-      ))}
-    </section>
-  )
-}
-
-function ManagementDashboard({ role, dashboard }) {
-  const { summary: revenueSummary, monthlyRevenue, weeklyRevenue, isLoading: isRevenueLoading } = useRevenueInsightsData()
-
-  if (role === 'business-owner') {
-    return (
-      <MemoBusinessOwnerDashboard
-        dashboard={dashboard}
-        revenueSummary={revenueSummary}
-        isRevenueLoading={isRevenueLoading}
-        monthlyRevenue={monthlyRevenue}
-        weeklyRevenue={weeklyRevenue}
-      />
-    )
-  }
-
-  return (
-    <MemoOperationManagerDashboard
-      dashboard={dashboard}
-      revenueSummary={revenueSummary}
-      isRevenueLoading={isRevenueLoading}
-      monthlyRevenue={monthlyRevenue}
-      weeklyRevenue={weeklyRevenue}
-    />
-  )
-}
-
-export function DashboardPage({ role }) {
-  const dashboard = roleDashboards[role]
-
-  if (role === 'business-owner') {
-    return <ManagementDashboard role={role} dashboard={dashboard} />
-  }
-
-  if (role === 'operation-manager') {
-    return <ManagementDashboard role={role} dashboard={dashboard} />
-  }
-
-  if (role === 'student') {
-    return <StudentDashboard dashboard={dashboard} />
-  }
-
-  if (role === 'faculty') {
-    return <Navigate to="/dashboard/faculty/my-batches" replace />
-  }
-
-  return <GenericDashboard role={role} />
-}
-
-
-
