@@ -4113,133 +4113,324 @@ paymentPlanId: '',
                     </div>
                   </div>
                   <div className="branch-course-table-shell">
-                    <table className="branch-course-table">
-                      <thead>
-                        <tr>
-                          <th>Student ID</th>
-                          <th>Student Name</th>
-                          {/* <th>Email</th> */}
-                          <th>Mobile Number</th>
-                          {/* <th>Qualification</th>
-                          <th>Current Status</th> */}
-                          <th>Admission Date</th>
-                          <th style={{ textAlign: 'center' }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {visibleBranchStudents.length ? (
-                          visibleBranchStudents.map((stu, index) => {
-                            return (
-                              <tr key={stu.studentId}>
-                                <td><strong>{stu.studentId || '-'}</strong></td>
-                                <td><strong className="branch-course-name">{stu.studentName}</strong></td>
-                                {/* <td>{stu.emailAddress || '-'}</td> */}
-                                <td>{stu.mobileNumber || '-'}</td>
-                                {/* <td>{stu.qualification || '-'}</td> */}
-                                {/* <td>
-                                <span className={`branch-course-status-pill ${(stu.currentStatus || '').toLowerCase()}`}>
-                                  {stu.currentStatus || '-'}
-                                </span>
-                              </td> */}
-                                <td>{formatStudentDate(stu.admissionDate)}</td>
+  <table className="branch-course-table">
+    <thead>
+      <tr>
+        <th>Student ID</th>
+        <th>Student Name</th>
+        <th>Course</th>
+        <th>Total Fee</th>
+        <th>Paid</th>
+        <th>Next Installment</th>
+        <th>Due Date</th>
+        <th>Status</th>
+        <th>Action</th>
+      </tr>
+    </thead>
 
-                                <td style={{ textAlign: 'center' }}>
-                                  <div
-                                    className={`branch-student-actions-cell ${studentActionMenuId === stu.studentId ? 'menu-open' : ''
-                                      }`}
-                                    onMouseEnter={() => {
-                                      if (!studentActionMenuPinned) {
-                                        setStudentActionMenuId(stu.studentId)
-                                      }
-                                    }}
-                                    onMouseLeave={() => {
-                                      if (!studentActionMenuPinned) {
-                                        setStudentActionMenuId('')
-                                      }
-                                    }}
-                                  >
-                                    <button
-                                      type="button"
-                                      className="branch-student-more-btn"
-                                      aria-label="Student actions"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
+    <tbody>
+      {visibleBranchStudents.length ? (
+        visibleBranchStudents.map((stu) => {
 
-                                        if (studentActionMenuId === stu.studentId) {
-                                          setStudentActionMenuId('')
-                                          setStudentActionMenuPinned(false)
-                                        } else {
-                                          setStudentActionMenuId(stu.studentId)
-                                          setStudentActionMenuPinned(true)
-                                        }
-                                      }}
-                                    >
-                                      <MoreVertical size={18} />
-                                    </button>
+          // -----------------------------
+          // Payment values
+          // -----------------------------
+          const totalFee = Number(
+            stu.finalFee ??
+            stu.courseAmount ??
+            stu.totalAmount ??
+            stu.afterDiscount ??
+            0
+          )
 
-                                    {studentActionMenuId === stu.studentId ? (
-                                      <div className="branch-student-actions-menu">
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setStudentActionMenuId('')
-                                            setViewStudentDrawer({ ...stu })
-                                          }}
-                                        >
-                                          <Eye size={15} />
-                                          <span>View</span>
-                                        </button>
+          const paidAmount = Number(
+            stu.paidAmount ??
+            stu.totalPaid ??
+            stu.amountPaid ??
+            0
+          )
 
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setStudentActionMenuId('')
-                                            openEditStudentForm({ ...stu })
-                                          }}
-                                        >
-                                          <Pencil size={15} />
-                                          <span>Edit</span>
-                                        </button>
+          // -----------------------------
+          // Installments
+          // -----------------------------
+          const installments = Array.isArray(stu.installments)
+            ? stu.installments
+            : []
 
-                                        <button
-                                          type="button"
-                                          className="is-danger"
-                                          onClick={() => {
-                                            setStudentActionMenuId('')
-                                            setStudentDeleteTarget({ ...stu })
-                                          }}
-                                        >
-                                          <Trash2 size={15} />
-                                          <span>Delete</span>
-                                        </button>
-                                        <button
-  type="button"
-  onClick={() => {
-    setStudentActionMenuId('')
-    setStudentActionMenuPinned(false)
-    setRecordPaymentStudent({ ...stu })
-  }}
->
-  <Wallet size={15} />
-  <span>Record Payment</span>
-</button>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                </td>
-                              </tr>
-                            )
-                          })
-                        ) : (
-                          <tr>
-                            <td colSpan="8" className="branch-course-empty-state">
-                              No students yet. Use + Add Student to add the first one.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
+          const nextInstallment = installments.find((installment) => {
+            const installmentAmount = Number(
+              installment.amount ??
+              installment.installmentAmount ??
+              0
+            )
+
+            const installmentPaid = Number(
+              installment.paidAmount ??
+              installment.amountPaid ??
+              0
+            )
+
+            return installmentPaid < installmentAmount
+          })
+
+          const nextInstallmentAmount = nextInstallment
+            ? Math.max(
+                Number(
+                  nextInstallment.amount ??
+                  nextInstallment.installmentAmount ??
+                  0
+                ) -
+                  Number(
+                    nextInstallment.paidAmount ??
+                    nextInstallment.amountPaid ??
+                    0
+                  ),
+                0
+              )
+            : 0
+
+          const nextDueDate =
+            nextInstallment?.dueDate ??
+            nextInstallment?.date ??
+            null
+
+          // -----------------------------
+          // Status
+          // -----------------------------
+          let paymentStatus = 'Pending'
+
+          if (totalFee > 0 && paidAmount >= totalFee) {
+            paymentStatus = 'Paid'
+          } else if (nextDueDate) {
+            const today = new Date()
+            const dueDate = new Date(nextDueDate)
+
+            if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
+              paymentStatus = 'Overdue'
+            } else if (paidAmount > 0) {
+              paymentStatus = 'Partially Paid'
+            }
+          } else if (paidAmount > 0) {
+            paymentStatus = 'Partially Paid'
+          }
+
+          // -----------------------------
+          // Format helpers
+          // -----------------------------
+          const formatFee = (amount) =>
+            `₹${Number(amount || 0).toLocaleString('en-IN')}`
+
+          const formatDueDate = (date) => {
+            if (!date) return '-'
+
+            const parsedDate = new Date(date)
+
+            if (Number.isNaN(parsedDate.getTime())) {
+              return '-'
+            }
+
+            return parsedDate.toLocaleDateString('en-IN', {
+              day: '2-digit',
+              month: 'short',
+              year: 'numeric',
+            })
+          }
+
+          return (
+            <tr key={stu.studentId}>
+
+              {/* Student ID */}
+              <td>
+                <strong>{stu.studentId || '-'}</strong>
+              </td>
+
+              {/* Student Name */}
+              <td>
+                <strong className="branch-course-name">
+                  {stu.studentName || '-'}
+                </strong>
+              </td>
+
+              {/* Course */}
+              <td>
+                <span className="branch-student-course">
+                  {stu.courseName ||
+                    stu.courseInterested ||
+                    stu.course?.name ||
+                    '-'}
+                </span>
+              </td>
+
+              {/* Total Fee */}
+              <td>
+                <strong>
+                  {formatFee(totalFee)}
+                </strong>
+              </td>
+
+              {/* Paid */}
+              <td>
+                <span className="branch-student-paid">
+                  {formatFee(paidAmount)}
+                </span>
+              </td>
+
+              {/* Next Installment */}
+              <td>
+                {nextInstallment ? (
+                  <div className="branch-next-installment">
+                    <strong>
+                      {formatFee(nextInstallmentAmount)}
+                    </strong>
+
+                    <span>
+                      Installment{' '}
+                      {nextInstallment.installmentNumber ||
+                        nextInstallment.number ||
+                        ''}
+                    </span>
                   </div>
+                ) : (
+                  <span className="branch-no-installment">
+                    -
+                  </span>
+                )}
+              </td>
+
+              {/* Due Date */}
+              <td>
+                <span className="branch-student-due-date">
+                  {formatDueDate(nextDueDate)}
+                </span>
+              </td>
+
+              {/* Status */}
+              <td>
+                <span
+                  className={`branch-student-payment-status ${paymentStatus
+                    .toLowerCase()
+                    .replace(/\s+/g, '-')}`}
+                >
+                  {paymentStatus}
+                </span>
+              </td>
+
+              {/* Action */}
+              <td style={{ textAlign: 'center' }}>
+                <div
+                  className={`branch-student-actions-cell ${
+                    studentActionMenuId === stu.studentId
+                      ? 'menu-open'
+                      : ''
+                  }`}
+                  onMouseEnter={() => {
+                    if (!studentActionMenuPinned) {
+                      setStudentActionMenuId(stu.studentId)
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (!studentActionMenuPinned) {
+                      setStudentActionMenuId('')
+                    }
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="branch-student-more-btn"
+                    aria-label="Student actions"
+                    onClick={(e) => {
+                      e.stopPropagation()
+
+                      if (
+                        studentActionMenuId === stu.studentId
+                      ) {
+                        setStudentActionMenuId('')
+                        setStudentActionMenuPinned(false)
+                      } else {
+                        setStudentActionMenuId(stu.studentId)
+                        setStudentActionMenuPinned(true)
+                      }
+                    }}
+                  >
+                    <MoreVertical size={18} />
+                  </button>
+
+                  {studentActionMenuId === stu.studentId ? (
+                    <div className="branch-student-actions-menu">
+
+                      {/* View */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudentActionMenuId('')
+                          setStudentActionMenuPinned(false)
+                          setViewStudentDrawer({ ...stu })
+                        }}
+                      >
+                        <Eye size={15} />
+                        <span>View</span>
+                      </button>
+
+                      {/* Edit */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudentActionMenuId('')
+                          setStudentActionMenuPinned(false)
+                          openEditStudentForm({ ...stu })
+                        }}
+                      >
+                        <Pencil size={15} />
+                        <span>Edit</span>
+                      </button>
+
+                      {/* Record Payment */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStudentActionMenuId('')
+                          setStudentActionMenuPinned(false)
+                          setRecordPaymentStudent({ ...stu })
+                        }}
+                      >
+                        <Wallet size={15} />
+                        <span>Record Payment</span>
+                      </button>
+
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        className="is-danger"
+                        onClick={() => {
+                          setStudentActionMenuId('')
+                          setStudentActionMenuPinned(false)
+                          setStudentDeleteTarget({ ...stu })
+                        }}
+                      >
+                        <Trash2 size={15} />
+                        <span>Delete</span>
+                      </button>
+
+                    </div>
+                  ) : null}
+                </div>
+              </td>
+            </tr>
+          )
+        })
+      ) : (
+        <tr>
+          <td
+            colSpan="9"
+            className="branch-course-empty-state"
+          >
+            No students yet. Use + Add Student to add the first one.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
 
                   {filteredBranchStudents.length > BRANCH_STUDENTS_PER_PAGE ? (
                     <div className="branch-course-pagination">
