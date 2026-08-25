@@ -194,9 +194,11 @@ function buildStudentFormFromRecord(student = {}) {
     facultyName: student.facultyName || student.course?.facultyName || '',
     courseAmount: String(student.courseAmount || student.totalAmount || student.afterDiscount || '').trim(),
     paymentMode: student.paymentMode || 'Installment',
+    paymentPlanId: student.paymentPlanId || student.paymentPlan || '',
+    paymentPlan: student.paymentPlan || '',
     installmentSchedule: Array.isArray(student.installmentSchedule)
-  ? student.installmentSchedule
-  : [],
+      ? student.installmentSchedule
+      : [],
   }
 }
 
