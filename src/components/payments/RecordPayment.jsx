@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./RecordPayment.css";
+import html2pdf from "html2pdf.js";
 
 const RecordPayment = ({ student, onClose }) => {
   const [formData, setFormData] = useState({
@@ -344,26 +345,11 @@ const RecordPayment = ({ student, onClose }) => {
   // GENERATE RECEIPT
   // =========================================================
 
- const handleGenerateReceipt = () => {
-  const receiptWindow = window.open(
-    "",
-    "_blank",
-    "width=900,height=900"
-  );
+ 
+const handleGenerateReceipt = () => {
+  const receiptDate = formatDate(formData.paymentDate);
 
-  if (!receiptWindow) {
-    alert(
-      "Please allow popups to generate the receipt."
-    );
-    return;
-  }
-
-  const receiptDate = formatDate(
-    formData.paymentDate
-  );
-
-  const amountInWords =
-    numberToWords(currentPayment);
+  const amountInWords = numberToWords(currentPayment);
 
   const instituteName =
     student?.instituteName ||
@@ -378,691 +364,504 @@ const RecordPayment = ({ student, onClose }) => {
     student?.institutePhone ||
     "+91 XXXXX XXXXX";
 
-  receiptWindow.document.write(`
-
-    
-      <!DOCTYPE html>
-
-      <html>
-
-      <head>
-
-        <title>
-          Payment Receipt - ${receiptNumber}
-        </title>
-
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1.0"
-        />
-
-        <style>
-
-          * {
-            box-sizing: border-box;
-          }
-
-          body {
-            margin: 0;
-            padding: 35px;
-            background: #f8fafc;
-            color: #111827;
-            font-family:
-              Arial,
-              Helvetica,
-              sans-serif;
-          }
-
-          .receipt-container {
-            width: 100%;
-            max-width: 800px;
-            margin: 0 auto;
-            background: #ffffff;
-            border: 1px solid #dfe3e8;
-            border-radius: 8px;
-            padding: 38px;
-          }
-
-          /* =========================
-             INSTITUTE HEADER
-          ========================= */
-
-          .institute-header {
-            text-align: center;
-            margin-bottom: 28px;
-          }
-
-          .institute-header h1 {
-            margin: 0;
-            font-size: 25px;
-            font-weight: 700;
-            color: #111827;
-          }
-
-          .institute-contact {
-            margin-top: 7px;
-            font-size: 13px;
-            color: #64748b;
-          }
-
-          .receipt-title {
-            margin-top: 24px;
-            font-size: 21px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            color: #0f766e;
-          }
-
-          /* =========================
-             RECEIPT META
-          ========================= */
-
-          .receipt-meta {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-            padding: 16px 0;
-            border-top: 1px solid #e5e7eb;
-            border-bottom: 1px solid #e5e7eb;
-            margin-bottom: 26px;
-            font-size: 13px;
-          }
-
-          .receipt-meta strong {
-            color: #111827;
-          }
-
-          /* =========================
-             SECTION
-          ========================= */
-
-          .receipt-section {
-            margin-bottom: 25px;
-          }
-
-          .section-title {
-            margin: 0 0 13px;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.4px;
-            color: #334155;
-          }
-
-          .detail-row {
-            display: grid;
-            grid-template-columns: 180px 1fr;
-            gap: 20px;
-            padding: 8px 0;
-            font-size: 13px;
-          }
-
-          .detail-label {
-            color: #64748b;
-          }
-
-          .detail-value {
-            color: #111827;
-            font-weight: 600;
-          }
-
-          /* =========================
-             DIVIDER
-          ========================= */
-
-          .divider {
-            border-top: 1px solid #e5e7eb;
-            margin: 25px 0;
-          }
-
-          /* =========================
-             AMOUNT
-          ========================= */
-
-          .amount-section {
-            padding: 18px 0;
-          }
-
-          .amount-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 20px;
-          }
-
-          .amount-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #475569;
-          }
-
-          .amount-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: #0f766e;
-          }
-
-          .amount-words {
-            margin-top: 12px;
-          }
-
-          .amount-words-label {
-            font-size: 12px;
-            color: #64748b;
-            margin-bottom: 5px;
-          }
-
-          .amount-words-value {
-            font-size: 13px;
-            font-weight: 600;
-            color: #334155;
-          }
-
-          /* =========================
-             FEE SUMMARY
-          ========================= */
-
-          .fee-summary {
-            width: 100%;
-          }
-
-          .fee-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 9px 0;
-            font-size: 13px;
-          }
-
-          .fee-row span:first-child {
-            color: #64748b;
-          }
-
-          .fee-row span:last-child {
-            font-weight: 600;
-            color: #111827;
-          }
-
-          .fee-row.total {
-            border-top: 1px solid #cbd5e1;
-            margin-top: 5px;
-            padding-top: 13px;
-          }
-
-          .fee-row.total span {
-            font-weight: 700;
-            color: #111827;
-          }
-
-          .fee-row.balance {
-            padding-bottom: 0;
-          }
-
-          .fee-row.balance span:last-child {
-            color: #dc2626;
-            font-size: 15px;
-          }
-
-          /* =========================
-             STATUS
-          ========================= */
-
-          .payment-status {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 25px;
-            padding: 14px 0;
-            border-top: 1px solid #e5e7eb;
-            border-bottom: 1px solid #e5e7eb;
-          }
-
-          .status-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #475569;
-          }
-
-          .status-paid {
-            color: #059669;
-            font-size: 13px;
-            font-weight: 700;
-          }
-
-          /* =========================
-             SIGNATURE
-          ========================= */
-
-          .signature-section {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 55px;
-          }
-
-          .signature-box {
-            width: 190px;
-            text-align: center;
-          }
-
-          .signature-line {
-            border-top: 1px solid #111827;
-            margin-bottom: 8px;
-          }
-
-          .signature-text {
-            font-size: 12px;
-            color: #475569;
-          }
-
-          /* =========================
-             FOOTER
-          ========================= */
-
-          .receipt-footer {
-            margin-top: 38px;
-            padding-top: 18px;
-            border-top: 1px solid #e5e7eb;
-            text-align: center;
-            font-size: 12px;
-            color: #64748b;
-          }
-
-          /* =========================
-             PRINT
-          ========================= */
-
-          @media print {
-
-            body {
-              padding: 0;
-              background: #ffffff;
-            }
-
-            .receipt-container {
-              max-width: none;
-              border: none;
-              border-radius: 0;
-              padding: 20px;
-            }
-
-          }
-
-          @media (max-width: 600px) {
-
-            body {
-              padding: 10px;
-            }
-
-            .receipt-container {
-              padding: 22px;
-            }
-
-            .receipt-meta {
-              flex-direction: column;
-              align-items: flex-start;
-              gap: 8px;
-            }
-
-            .detail-row {
-              grid-template-columns: 1fr;
-              gap: 3px;
-            }
-
-          }
-
-        </style>
-
-      </head>
-
-      <body>
-
-        <div class="receipt-container">
-
-          <!-- =========================
-               INSTITUTE HEADER
-          ========================== -->
-
-          <div class="institute-header">
-
-            <h1>
-              ${instituteName}
-            </h1>
-
-            <div class="institute-contact">
-              ${instituteLocation}
-              •
-              ${institutePhone}
-            </div>
-
-            <div class="receipt-title">
-              PAYMENT RECEIPT
-            </div>
-
+  // Temporary receipt HTML
+  const receiptElement = document.createElement("div");
+
+  receiptElement.innerHTML = `
+    <div style="
+      width: 800px;
+      background: #ffffff;
+      padding: 38px;
+      color: #111827;
+      font-family: Arial, Helvetica, sans-serif;
+      box-sizing: border-box;
+    ">
+
+      <!-- HEADER -->
+      <div style="
+        text-align: center;
+        margin-bottom: 28px;
+      ">
+
+        <h1 style="
+          margin: 0;
+          font-size: 25px;
+          font-weight: 700;
+          color: #111827;
+        ">
+          ${instituteName}
+        </h1>
+
+        <div style="
+          margin-top: 7px;
+          font-size: 13px;
+          color: #64748b;
+        ">
+          ${instituteLocation} • ${institutePhone}
+        </div>
+
+        <div style="
+          margin-top: 24px;
+          font-size: 21px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          color: #0f766e;
+        ">
+          PAYMENT RECEIPT
+        </div>
+
+      </div>
+
+      <!-- META -->
+      <div style="
+        display: flex;
+        justify-content: space-between;
+        padding: 16px 0;
+        border-top: 1px solid #e5e7eb;
+        border-bottom: 1px solid #e5e7eb;
+        margin-bottom: 26px;
+        font-size: 13px;
+      ">
+
+        <div>
+          Receipt No:
+          <strong>${receiptNumber}</strong>
+        </div>
+
+        <div>
+          Date:
+          <strong>${receiptDate}</strong>
+        </div>
+
+      </div>
+
+      <!-- STUDENT DETAILS -->
+      <div style="margin-bottom: 25px;">
+
+        <h3 style="
+          margin: 0 0 13px;
+          font-size: 13px;
+          font-weight: 700;
+          color: #334155;
+        ">
+          STUDENT DETAILS
+        </h3>
+
+        <div style="
+          display: grid;
+          grid-template-columns: 180px 1fr;
+          gap: 20px;
+          padding: 8px 0;
+          font-size: 13px;
+        ">
+          <span style="color:#64748b;">
+            Student Name
+          </span>
+
+          <strong>
+            ${studentName}
+          </strong>
+        </div>
+
+        <div style="
+          display: grid;
+          grid-template-columns: 180px 1fr;
+          gap: 20px;
+          padding: 8px 0;
+          font-size: 13px;
+        ">
+          <span style="color:#64748b;">
+            Admission ID
+          </span>
+
+          <strong>
+            ${admissionId}
+          </strong>
+        </div>
+
+        <div style="
+          display: grid;
+          grid-template-columns: 180px 1fr;
+          gap: 20px;
+          padding: 8px 0;
+          font-size: 13px;
+        ">
+          <span style="color:#64748b;">
+            Course
+          </span>
+
+          <strong>
+            ${courseName}
+          </strong>
+        </div>
+
+        <div style="
+          display: grid;
+          grid-template-columns: 180px 1fr;
+          gap: 20px;
+          padding: 8px 0;
+          font-size: 13px;
+        ">
+          <span style="color:#64748b;">
+            Branch
+          </span>
+
+          <strong>
+            ${formData.branch}
+          </strong>
+        </div>
+
+      </div>
+
+      <div style="
+        border-top: 1px solid #e5e7eb;
+        margin: 25px 0;
+      "></div>
+
+      <!-- PAYMENT DETAILS -->
+      <div style="margin-bottom: 25px;">
+
+        <h3 style="
+          margin: 0 0 13px;
+          font-size: 13px;
+          font-weight: 700;
+          color: #334155;
+        ">
+          PAYMENT DETAILS
+        </h3>
+
+        <div style="
+          display:grid;
+          grid-template-columns:180px 1fr;
+          gap:20px;
+          padding:8px 0;
+          font-size:13px;
+        ">
+          <span style="color:#64748b;">
+            Payment For
+          </span>
+
+          <strong>
+            ${formData.payAgainst}
+          </strong>
+        </div>
+
+        <div style="
+          display:grid;
+          grid-template-columns:180px 1fr;
+          gap:20px;
+          padding:8px 0;
+          font-size:13px;
+        ">
+          <span style="color:#64748b;">
+            Payment Mode
+          </span>
+
+          <strong>
+            ${formData.paymentMode}
+          </strong>
+        </div>
+
+        <div style="
+          display:grid;
+          grid-template-columns:180px 1fr;
+          gap:20px;
+          padding:8px 0;
+          font-size:13px;
+        ">
+          <span style="color:#64748b;">
+            Transaction Ref
+          </span>
+
+          <strong>
+            ${formData.transactionReference || "-"}
+          </strong>
+        </div>
+
+        <div style="
+          display:grid;
+          grid-template-columns:180px 1fr;
+          gap:20px;
+          padding:8px 0;
+          font-size:13px;
+        ">
+          <span style="color:#64748b;">
+            Collected By
+          </span>
+
+          <strong>
+            ${formData.collectedBy}
+          </strong>
+        </div>
+
+      </div>
+
+      <div style="
+        border-top:1px solid #e5e7eb;
+        margin:25px 0;
+      "></div>
+
+      <!-- AMOUNT -->
+      <div style="
+        padding:18px 0;
+      ">
+
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+        ">
+
+          <div style="
+            font-size:14px;
+            font-weight:600;
+            color:#475569;
+          ">
+            Amount Received
           </div>
 
-          <!-- =========================
-               RECEIPT META
-          ========================== -->
-
-          <div class="receipt-meta">
-
-            <div>
-              Receipt No:
-              <strong>
-                ${receiptNumber}
-              </strong>
-            </div>
-
-            <div>
-              Date:
-              <strong>
-                ${receiptDate}
-              </strong>
-            </div>
-
-          </div>
-
-          <!-- =========================
-               STUDENT DETAILS
-          ========================== -->
-
-          <div class="receipt-section">
-
-            <h3 class="section-title">
-              STUDENT DETAILS
-            </h3>
-
-            <div class="detail-row">
-              <div class="detail-label">
-                Student Name
-              </div>
-
-              <div class="detail-value">
-                ${studentName}
-              </div>
-            </div>
-
-            <div class="detail-row">
-              <div class="detail-label">
-                Admission ID
-              </div>
-
-              <div class="detail-value">
-                ${admissionId}
-              </div>
-            </div>
-
-            <div class="detail-row">
-              <div class="detail-label">
-                Course
-              </div>
-
-              <div class="detail-value">
-                ${courseName}
-              </div>
-            </div>
-
-            <div class="detail-row">
-              <div class="detail-label">
-                Branch
-              </div>
-
-              <div class="detail-value">
-                ${formData.branch}
-              </div>
-            </div>
-
-          </div>
-
-          <div class="divider"></div>
-
-          <!-- =========================
-               PAYMENT DETAILS
-          ========================== -->
-
-          <div class="receipt-section">
-
-            <h3 class="section-title">
-              PAYMENT DETAILS
-            </h3>
-
-            <div class="detail-row">
-
-              <div class="detail-label">
-                Payment For
-              </div>
-
-              <div class="detail-value">
-                ${formData.payAgainst}
-              </div>
-
-            </div>
-
-            <div class="detail-row">
-
-              <div class="detail-label">
-                Payment Mode
-              </div>
-
-              <div class="detail-value">
-                ${formData.paymentMode}
-              </div>
-
-            </div>
-
-            <div class="detail-row">
-
-              <div class="detail-label">
-                Transaction Ref
-              </div>
-
-              <div class="detail-value">
-                ${
-                  formData.transactionReference ||
-                  "-"
-                }
-              </div>
-
-            </div>
-
-            <div class="detail-row">
-
-              <div class="detail-label">
-                Collected By
-              </div>
-
-              <div class="detail-value">
-                ${formData.collectedBy}
-              </div>
-
-            </div>
-
-          </div>
-
-          <div class="divider"></div>
-
-          <!-- =========================
-               AMOUNT RECEIVED
-          ========================== -->
-
-          <div class="amount-section">
-
-            <div class="amount-row">
-
-              <div class="amount-label">
-                Amount Received
-              </div>
-
-              <div class="amount-value">
-                ₹${formatCurrency(
-                  currentPayment
-                )}
-              </div>
-
-            </div>
-
-            <div class="amount-words">
-
-              <div class="amount-words-label">
-                Amount in Words
-              </div>
-
-              <div class="amount-words-value">
-                ${amountInWords}
-              </div>
-
-            </div>
-
-          </div>
-
-          <div class="divider"></div>
-
-          <!-- =========================
-               FEE SUMMARY
-          ========================== -->
-
-          <div class="receipt-section">
-
-            <h3 class="section-title">
-              FEE SUMMARY
-            </h3>
-
-            <div class="fee-summary">
-
-              <div class="fee-row">
-
-                <span>
-                  Total Course Fee
-                </span>
-
-                <span>
-                  ₹${formatCurrency(
-                    totalCourseFee
-                  )}
-                </span>
-
-              </div>
-
-              <div class="fee-row">
-
-                <span>
-                  Previously Paid
-                </span>
-
-                <span>
-                  ₹${formatCurrency(
-                    previouslyPaid
-                  )}
-                </span>
-
-              </div>
-
-              <div class="fee-row">
-
-                <span>
-                  This Payment
-                </span>
-
-                <span>
-                  ₹${formatCurrency(
-                    currentPayment
-                  )}
-                </span>
-
-              </div>
-
-              <div class="fee-row total">
-
-                <span>
-                  Total Paid
-                </span>
-
-                <span>
-                  ₹${formatCurrency(
-                    totalPaid
-                  )}
-                </span>
-
-              </div>
-
-              <div class="fee-row balance">
-
-                <span>
-                  Balance
-                </span>
-
-                <span>
-                  ₹${formatCurrency(
-                    balance
-                  )}
-                </span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          <!-- =========================
-               PAYMENT STATUS
-          ========================== -->
-
-          <div class="payment-status">
-
-            <div class="status-label">
-              Payment Status
-            </div>
-
-            <div class="status-paid">
-              ✓ PAID
-            </div>
-
-          </div>
-
-          <!-- =========================
-               SIGNATURE
-          ========================== -->
-
-          <div class="signature-section">
-
-            <div class="signature-box">
-
-              <div class="signature-line"></div>
-
-              <div class="signature-text">
-                Authorized Signature
-              </div>
-
-            </div>
-
-          </div>
-
-          <!-- =========================
-               FOOTER
-          ========================== -->
-
-          <div class="receipt-footer">
-            Thank you for your payment
+          <div style="
+            font-size:24px;
+            font-weight:700;
+            color:#0f766e;
+          ">
+            ₹${formatCurrency(currentPayment)}
           </div>
 
         </div>
 
-        <script>
+        <div style="margin-top:12px;">
 
-          window.onload = function () {
-  console.log("Receipt loaded");
-};
+          <div style="
+            font-size:12px;
+            color:#64748b;
+            margin-bottom:5px;
+          ">
+            Amount in Words
+          </div>
 
-        </script>
+          <div style="
+            font-size:13px;
+            font-weight:600;
+            color:#334155;
+          ">
+            ${amountInWords}
+          </div>
 
-      </body>
+        </div>
 
-      </html>
-    `);
+      </div>
 
-    receiptWindow.document.close();
+      <div style="
+        border-top:1px solid #e5e7eb;
+        margin:25px 0;
+      "></div>
+
+      <!-- FEE SUMMARY -->
+      <div>
+
+        <h3 style="
+          margin:0 0 13px;
+          font-size:13px;
+          font-weight:700;
+          color:#334155;
+        ">
+          FEE SUMMARY
+        </h3>
+
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          padding:9px 0;
+          font-size:13px;
+        ">
+          <span style="color:#64748b;">
+            Total Course Fee
+          </span>
+
+          <strong>
+            ₹${formatCurrency(totalCourseFee)}
+          </strong>
+        </div>
+
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          padding:9px 0;
+          font-size:13px;
+        ">
+          <span style="color:#64748b;">
+            Previously Paid
+          </span>
+
+          <strong>
+            ₹${formatCurrency(previouslyPaid)}
+          </strong>
+        </div>
+
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          padding:9px 0;
+          font-size:13px;
+        ">
+          <span style="color:#64748b;">
+            This Payment
+          </span>
+
+          <strong>
+            ₹${formatCurrency(currentPayment)}
+          </strong>
+        </div>
+
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          border-top:1px solid #cbd5e1;
+          margin-top:5px;
+          padding-top:13px;
+          font-size:13px;
+        ">
+          <strong>
+            Total Paid
+          </strong>
+
+          <strong>
+            ₹${formatCurrency(totalPaid)}
+          </strong>
+        </div>
+
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          padding-top:12px;
+          font-size:13px;
+        ">
+          <strong>
+            Balance
+          </strong>
+
+          <strong style="
+            color:#dc2626;
+            font-size:15px;
+          ">
+            ₹${formatCurrency(balance)}
+          </strong>
+        </div>
+
+      </div>
+
+      <!-- STATUS -->
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        margin-top:25px;
+        padding:14px 0;
+        border-top:1px solid #e5e7eb;
+        border-bottom:1px solid #e5e7eb;
+      ">
+
+        <span style="
+          font-size:13px;
+          font-weight:600;
+          color:#475569;
+        ">
+          Payment Status
+        </span>
+
+        <strong style="
+          color:#059669;
+          font-size:13px;
+        ">
+          ✓ PAID
+        </strong>
+
+      </div>
+
+      <!-- SIGNATURE -->
+      <div style="
+        display:flex;
+        justify-content:flex-end;
+        margin-top:55px;
+      ">
+
+        <div style="
+          width:190px;
+          text-align:center;
+        ">
+
+          <div style="
+            border-top:1px solid #111827;
+            margin-bottom:8px;
+          "></div>
+
+          <div style="
+            font-size:12px;
+            color:#475569;
+          ">
+            Authorized Signature
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div style="
+        margin-top:38px;
+        padding-top:18px;
+        border-top:1px solid #e5e7eb;
+        text-align:center;
+        font-size:12px;
+        color:#64748b;
+      ">
+        Thank you for your payment
+      </div>
+
+    </div>
+  `;
+
+  document.body.appendChild(receiptElement);
+
+  const pdfOptions = {
+    margin: 0,
+    filename: `Payment_Receipt_${receiptNumber}.pdf`,
+    image: {
+      type: "jpeg",
+      quality: 0.98,
+    },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    },
+    jsPDF: {
+      unit: "px",
+      format: [800, 1150],
+      orientation: "portrait",
+    },
   };
 
+  html2pdf()
+    .set(pdfOptions)
+    .from(receiptElement)
+    .save()
+    .then(() => {
+      document.body.removeChild(receiptElement);
+    })
+    .catch((error) => {
+      console.error(
+        "Receipt PDF generation failed:",
+        error
+      );
+
+      document.body.removeChild(receiptElement);
+
+      alert(
+        "Unable to generate receipt PDF."
+      );
+    });
+};
   // =========================================================
   // CLOSE RECEIPT
   // =========================================================
