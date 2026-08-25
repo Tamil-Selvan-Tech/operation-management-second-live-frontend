@@ -224,7 +224,7 @@ setSaving(true)
         status: String(form.status || 'ACTIVE').trim(),
       }
 
-      if (editingTemplateId) {
+            if (editingTemplateId) {
         await updateBranchInstallmentTemplate(editingTemplateId, payload)
       } else {
         await createBranchInstallmentTemplate(payload)
@@ -233,25 +233,28 @@ setSaving(true)
       resetForm()
       setIsCreateOpen(false)
       await loadTemplates(editingTemplateId ? page : 1)
-} catch (err) {
-  if (err?.status === 409) {
-    setError(
-      err?.body?.message ||
-      `An installment plan with ${Number(
-        form.installmentCount
-      )} installments already exists.`
-    )
-  } else {
-    setError(
-      err?.body?.message ||
-      err?.body?.error ||
-      err?.message ||
-      'Unable to save installment template.'
-    )
+
+    } catch (err) {
+      if (err?.status === 409) {
+        setError(
+          err?.body?.message ||
+          `An installment plan with ${Number(
+            form.installmentCount
+          )} installments already exists.`
+        )
+      } else {
+        setError(
+          err?.body?.message ||
+          err?.body?.error ||
+          err?.message ||
+          'Unable to save installment template.'
+        )
+      }
+    } finally {
+      setSaving(false)
+    }
   }
-} finally {
-  setSaving(false)
-}
+
   const confirmDelete = (template) => {
     setDeleteTarget(template)
   }
@@ -286,7 +289,7 @@ setSaving(true)
 } finally {
   setSaving(false)
 }
-  
+}
 useEffect(() => {
   const handleOutsideClick = (event) => {
     if (!event.target.closest('.installment-action-menu')) {

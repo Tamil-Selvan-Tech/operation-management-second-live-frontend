@@ -17,7 +17,7 @@ import {
   RefreshCcw,
   Shield,
   Users,
-  Wallet,
+  
   CheckCircle2,
   Eye,
   Code2,
@@ -36,6 +36,7 @@ import {
   Building2,
   Check,
   X,
+  Wallet,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -72,6 +73,7 @@ import {
 } from '../lib/branchStudentStore'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
+import RecordPayment from '../components/payments/RecordPayment'
 import {
   groupByDate,
   normalizeBranchNotification,
@@ -1244,6 +1246,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
+  const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
+
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
@@ -4210,6 +4214,17 @@ paymentPlanId: '',
                                           <Trash2 size={15} />
                                           <span>Delete</span>
                                         </button>
+                                        <button
+  type="button"
+  onClick={() => {
+    setStudentActionMenuId('')
+    setStudentActionMenuPinned(false)
+    setRecordPaymentStudent({ ...stu })
+  }}
+>
+  <Wallet size={15} />
+  <span>Record Payment</span>
+</button>
                                       </div>
                                     ) : null}
                                   </div>
@@ -6865,6 +6880,14 @@ paymentPlanId: '',
             </aside>
           </div>
         ) : null}
+         {/* Record Payment */}
+    {recordPaymentStudent ? (
+      <RecordPayment
+        student={recordPaymentStudent}
+        onClose={() => setRecordPaymentStudent(null)}
+      />
+    ) : null}
+
 
         {/* ── STUDENT FORM MODAL ── */}
         {isStudentFormOpen ? (
