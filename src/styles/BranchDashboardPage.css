@@ -6523,7 +6523,7 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 560px;
+  width: 700px;
   max-width: 92vw;
   height: 100vh;
   background: #ffffff;
@@ -7974,4 +7974,84 @@
   height: auto !important;
   max-height: none !important;
   overflow: visible !important;
+}
+.student-installment-schedule {
+  grid-column: 1 / -1;
+  width: 100%;
+  margin-top: 4px;
+}
+
+/* Heading */
+.student-installment-schedule-title {
+  width: 100%;
+  padding-left: 30px;
+    margin-bottom: 10px; 
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Full width table container */
+.student-installment-schedule .student-payment-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+}
+
+/* Table */
+.student-installment-schedule .student-payment-installment-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+/* Header */
+.student-installment-schedule th {
+  padding: 13px 14px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Columns */
+.student-installment-schedule th:nth-child(1),
+.student-installment-schedule td:nth-child(1) {
+  width: 28%;
+}
+
+.student-installment-schedule th:nth-child(2),
+.student-installment-schedule td:nth-child(2) {
+  width: 24%;
+}
+
+.student-installment-schedule th:nth-child(3),
+.student-installment-schedule td:nth-child(3) {
+  width: 24%;
+}
+
+.student-installment-schedule th:nth-child(4),
+.student-installment-schedule td:nth-child(4) {
+  width: 24%;
+}
+
+/* Body */
+.student-installment-schedule td {
+  padding: 14px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.student-installment-schedule tbody tr:last-child td {
+  border-bottom: none;
 }
