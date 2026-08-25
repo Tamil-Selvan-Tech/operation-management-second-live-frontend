@@ -264,8 +264,13 @@ function computeBranchStudentPaymentSummary(stu = {}) {
   const totalFee = Number(
     stu.finalFee ?? stu.courseAmount ?? stu.totalAmount ?? stu.afterDiscount ?? 0
   )
-  const paidAmount = Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
   const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
+  const paidAmount = installments.length
+    ? installments.reduce(
+        (sum, inst) => sum + Number(inst.paidAmount ?? inst.amountPaid ?? 0),
+        0,
+      )
+    : Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
 
   const nextInstallment = installments.find((installment) => {
     const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
@@ -7274,7 +7279,7 @@ const visibleBranchPaymentRows = useMemo(() => {
               <th>Installment</th>
               <th>Amount</th>
               <th>Due Date</th>
-              {/* <th>Status</th> */}
+              <th>Status</th>
             </tr>
           </thead>
 
@@ -7299,7 +7304,7 @@ const visibleBranchPaymentRows = useMemo(() => {
                     : '-'}
                 </td>
 
-                {/* <td>
+                <td>
                   <span
                     className={`status-badge status-${String(
                       inst.status || 'pending'
@@ -7307,7 +7312,7 @@ const visibleBranchPaymentRows = useMemo(() => {
                   >
                     {inst.status || 'Pending'}
                   </span>
-                </td> */}
+                </td>
               </tr>
             ))}
           </tbody>

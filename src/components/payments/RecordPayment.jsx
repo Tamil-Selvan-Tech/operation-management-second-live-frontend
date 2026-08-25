@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./RecordPayment.css";
 import html2pdf from "html2pdf.js";
+import { request } from "../../services/apiClient";
 
 const RecordPayment = ({ student, onClose }) => {
   const [formData, setFormData] = useState({
@@ -20,6 +21,30 @@ const RecordPayment = ({ student, onClose }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [receiptNumber, setReceiptNumber] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [paymentSaved, setPaymentSaved] = useState(false);
+  const [isSavingPayment, setIsSavingPayment] = useState(false);
+
+  useEffect(() => {
+    if (student?.installmentSchedule && Array.isArray(student.installmentSchedule)) {
+      const pendingInstallment = student.installmentSchedule.find(
+        (inst) => inst.status !== "Paid"
+      );
+
+      if (pendingInstallment) {
+        const amount = Number(pendingInstallment.amount || 0);
+        const amountPaid = Number(pendingInstallment.amountPaid || 0);
+        const pendingAmount = Math.max(0, amount - amountPaid);
+        
+        setFormData((prev) => ({
+          ...prev,
+          payAgainst: `Installment ${pendingInstallment.installmentNumber}`,
+          amountToPay: String(pendingAmount),
+          amountReceived: String(pendingAmount),
+        }));
+      }
+    }
+  }, [student]);
 
   // =========================================================
   // STUDENT DATA
@@ -51,15 +76,21 @@ const RecordPayment = ({ student, onClose }) => {
       student?.courseFee ||
       student?.totalFees ||
       student?.totalAmount ||
+      student?.courseAmount ||
+      student?.afterDiscount ||
       0
   );
 
-  const previouslyPaid = Number(
-    student?.previouslyPaid ||
-      student?.paidAmount ||
-      student?.totalPaid ||
-      0
-  );
+  const installments = Array.isArray(student?.installmentSchedule)
+    ? student.installmentSchedule
+    : [];
+
+  const previouslyPaid = installments.length
+    ? installments.reduce(
+        (sum, inst) => sum + Number(inst.paidAmount ?? inst.amountPaid ?? 0),
+        0,
+      )
+    : Number(student?.previouslyPaid || student?.paidAmount || student?.totalPaid || 0);
 
   const currentPayment = Number(
     formData.amountReceived || 0
@@ -71,6 +102,10 @@ const RecordPayment = ({ student, onClose }) => {
     totalCourseFee - totalPaid,
     0
   );
+
+  // Compute the installment-specific balance after this partial payment
+  const currentInstallmentAmount = Number(formData.amountToPay || 0);
+  const installmentBalance = Math.max(currentInstallmentAmount - currentPayment, 0);
 
   // =========================================================
   // FORMAT CURRENCY
@@ -314,31 +349,56 @@ const RecordPayment = ({ student, onClose }) => {
   // =========================================================
 
   const handleConfirmPayment = () => {
-    /*
-      Temporary receipt number.
-
-      Backend connect pannumbothu:
-      backend generated receipt number use pannalam.
-    */
-
-    const generatedReceiptNumber =
-      `REC-${new Date().getFullYear()}-${String(
-        Date.now()
-      ).slice(-4)}`;
-
-    setReceiptNumber(
-      generatedReceiptNumber
-    );
-
-    console.log("Payment Confirmed:", {
-      student,
-      ...formData,
-      receiptNumber:
-        generatedReceiptNumber,
-    });
-
+    // Generate a temporary receipt number for preview
+    const tempReceiptNumber = `REC-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}-${Math.floor(Math.random() * 900 + 100)}`;
+    setReceiptNumber(tempReceiptNumber);
+    setPaymentSaved(false);
     setShowConfirmation(false);
     setShowReceipt(true);
+  };
+
+  // =========================================================
+  // SAVE PAYMENT TO BACKEND (called only after PDF download)
+  // =========================================================
+
+  const savePaymentToBackend = async () => {
+    if (paymentSaved) return true; // Already saved
+    setIsSavingPayment(true);
+    try {
+      const response = await request(
+        `/branch-students/${student.id}/payments`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            amountReceived: formData.amountReceived,
+            paymentMode: formData.paymentMode,
+            transactionReference: formData.transactionReference,
+            paymentDate: formData.paymentDate,
+            collectedBy: formData.collectedBy,
+            notes: formData.notes,
+            payAgainst: formData.payAgainst,
+          }),
+        }
+      );
+
+      const savedReceiptNumber = response?.data?.receiptNumber || receiptNumber;
+      setReceiptNumber(savedReceiptNumber);
+      setPaymentSaved(true);
+
+      console.log("Payment Saved:", {
+        student,
+        ...formData,
+        receiptNumber: savedReceiptNumber,
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Failed to save payment:", error);
+      alert("Failed to save payment. Please try downloading the receipt again.");
+      return false;
+    } finally {
+      setIsSavingPayment(false);
+    }
   };
 
   // =========================================================
@@ -714,6 +774,24 @@ const handleGenerateReceipt = () => {
           </strong>
         </div>
 
+        ${installmentBalance > 0 ? `
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          padding:9px 0;
+          font-size:13px;
+          color:#dc2626;
+        ">
+          <span>
+            Installment Balance
+          </span>
+
+          <strong style="color:#dc2626;">
+            ₹${formatCurrency(installmentBalance)}
+          </strong>
+        </div>
+        ` : ''}
+
         <div style="
           display:flex;
           justify-content:space-between;
@@ -742,7 +820,7 @@ const handleGenerateReceipt = () => {
           </strong>
 
           <strong style="
-            color:#dc2626;
+            color:${balance > 0 ? '#dc2626' : '#059669'};
             font-size:15px;
           ">
             ₹${formatCurrency(balance)}
@@ -770,10 +848,10 @@ const handleGenerateReceipt = () => {
         </span>
 
         <strong style="
-          color:#059669;
+          color:${balance > 0 ? '#f59e0b' : '#059669'};
           font-size:13px;
         ">
-          ✓ PAID
+          ${balance > 0 ? '⚠ PARTIALLY PAID' : '✓ PAID'}
         </strong>
 
       </div>
@@ -846,8 +924,10 @@ const handleGenerateReceipt = () => {
     .set(pdfOptions)
     .from(receiptElement)
     .save()
-    .then(() => {
+    .then(async () => {
       document.body.removeChild(receiptElement);
+      // Save payment to backend AFTER receipt is downloaded
+      await savePaymentToBackend();
     })
     .catch((error) => {
       console.error(
@@ -867,6 +947,12 @@ const handleGenerateReceipt = () => {
   // =========================================================
 
   const handleCloseReceipt = () => {
+    if (!paymentSaved) {
+      const confirmClose = window.confirm(
+        "⚠️ Payment has NOT been saved yet!\n\nPlease download the receipt first to save the payment.\n\nAre you sure you want to close without saving?"
+      );
+      if (!confirmClose) return;
+    }
     setShowReceipt(false);
     onClose();
   };
@@ -1424,11 +1510,10 @@ const handleGenerateReceipt = () => {
               <button
                 type="button"
                 className="popup-confirm-btn"
-                onClick={
-                  handleConfirmPayment
-                }
+                onClick={handleConfirmPayment}
+                disabled={isSubmitting}
               >
-                Confirm Payment
+                {isSubmitting ? "Processing..." : "Confirm Payment"}
               </button>
 
             </div>
@@ -1485,92 +1570,119 @@ const handleGenerateReceipt = () => {
             <div className="receipt-summary">
 
               <div className="receipt-summary-row">
-
-                <span>
-                  Student
-                </span>
-
-                <strong>
-                  {studentName}
-                </strong>
-
+                <span>Student</span>
+                <strong>{studentName}</strong>
               </div>
 
               <div className="receipt-summary-row">
-
-                <span>
-                  Pay Against
-                </span>
-
-                <strong>
-                  {formData.payAgainst}
-                </strong>
-
+                <span>Course</span>
+                <strong>{courseName}</strong>
               </div>
 
               <div className="receipt-summary-row">
-
-                <span>
-                  Payment Mode
-                </span>
-
-                <strong>
-                  {formData.paymentMode}
-                </strong>
-
+                <span>Pay Against</span>
+                <strong>{formData.payAgainst}</strong>
               </div>
 
               <div className="receipt-summary-row">
+                <span>Payment Mode</span>
+                <strong>{formData.paymentMode}</strong>
+              </div>
 
-                <span>
-                  Payment Date
-                </span>
+              <div className="receipt-summary-row">
+                <span>Payment Date</span>
+                <strong>{formatDate(formData.paymentDate)}</strong>
+              </div>
 
-                <strong>
-                  {formatDate(
-                    formData.paymentDate
-                  )}
-                </strong>
+              <div className="receipt-summary-row" style={{ borderTop: '1px solid #e5e7eb', paddingTop: '12px', marginTop: '8px' }}>
+                <span>Total Course Fee</span>
+                <strong>₹{formatCurrency(totalCourseFee)}</strong>
+              </div>
 
+              <div className="receipt-summary-row">
+                <span>Previously Paid</span>
+                <strong>₹{formatCurrency(previouslyPaid)}</strong>
               </div>
 
               <div className="receipt-total-row">
+                <span>Amount Received</span>
+                <strong>₹{formatCurrency(currentPayment)}</strong>
+              </div>
 
-                <span>
-                  Amount Received
-                </span>
+              {installmentBalance > 0 && (
+                <div className="receipt-summary-row" style={{ color: '#dc2626' }}>
+                  <span>Installment Balance</span>
+                  <strong style={{ color: '#dc2626' }}>₹{formatCurrency(installmentBalance)}</strong>
+                </div>
+              )}
 
-                <strong>
-                  ₹
-                  {formatCurrency(
-                    currentPayment
-                  )}
+              <div className="receipt-summary-row" style={{ borderTop: '1px solid #e5e7eb', paddingTop: '12px', marginTop: '8px' }}>
+                <span>Total Paid (Overall)</span>
+                <strong>₹{formatCurrency(totalPaid)}</strong>
+              </div>
+
+              <div className="receipt-summary-row" style={{ color: balance > 0 ? '#dc2626' : '#059669' }}>
+                <span><strong>Overall Balance</strong></span>
+                <strong style={{ color: balance > 0 ? '#dc2626' : '#059669', fontSize: '16px' }}>
+                  ₹{formatCurrency(balance)}
                 </strong>
-
               </div>
 
             </div>
+
+            {paymentSaved && (
+              <div style={{
+                background: '#ecfdf5',
+                border: '1px solid #a7f3d0',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                marginBottom: '12px',
+                color: '#065f46',
+                fontSize: '13px',
+                fontWeight: 600,
+                textAlign: 'center',
+              }}>
+                ✓ Payment saved successfully!
+              </div>
+            )}
+
+            {!paymentSaved && (
+              <div style={{
+                background: '#fef3c7',
+                border: '1px solid #fcd34d',
+                borderRadius: '8px',
+                padding: '10px 16px',
+                marginBottom: '12px',
+                color: '#92400e',
+                fontSize: '13px',
+                fontWeight: 600,
+                textAlign: 'center',
+              }}>
+                ⚠ Payment will be saved only after downloading the receipt
+              </div>
+            )}
 
             <div className="receipt-popup-actions">
 
               <button
                 type="button"
                 className="receipt-close-btn"
-                onClick={
-                  handleCloseReceipt
-                }
+                onClick={handleCloseReceipt}
               >
-                Close
+                {paymentSaved ? 'Close' : 'Cancel'}
               </button>
 
               <button
                 type="button"
                 className="generate-receipt-btn"
-                onClick={
-                  handleGenerateReceipt
-                }
+                onClick={handleGenerateReceipt}
+                disabled={isSavingPayment}
               >
-                Generate Receipt
+                {isSavingPayment
+                  ? 'Saving Payment...'
+                  : paymentSaved
+                    ? '↓ Download Receipt Again'
+                    : '↓ Download Receipt & Save Payment'}
               </button>
 
             </div>
