@@ -162,16 +162,38 @@ export async function listBranchInstallmentTemplates(query = {}) {
  * Create a new installment template in the database for the current branch.
  */
 export async function createBranchInstallmentTemplate(payload) {
-  const response = await request('/branch-installment-templates', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  try {
+    const response = await request('/branch-installment-templates', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
 
-  const normalized = normalizeBranchInstallmentTemplate(unwrapData(response))
-  emitBranchInstallmentTemplateChange()
-  return normalized
+    const normalized = normalizeBranchInstallmentTemplate(
+      unwrapData(response)
+    )
+
+    emitBranchInstallmentTemplateChange()
+    return normalized
+  } catch (error) {
+    if (
+      error?.status === 409 ||
+      error?.response?.status === 409
+    ) {
+      const duplicateError = new Error(
+        `An installment plan with ${Number(
+          payload.installmentCount
+        )} installments already exists.`
+      )
+
+      duplicateError.status = 409
+      duplicateError.isDuplicate = true
+
+      throw duplicateError
+    }
+
+    throw error
+  }
 }
-
 /**
  * Update an existing installment template in the database.
  */

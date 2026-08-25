@@ -17,7 +17,7 @@ import {
   RefreshCcw,
   Shield,
   Users,
-  Wallet,
+  
   CheckCircle2,
   Eye,
   Code2,
@@ -36,6 +36,7 @@ import {
   Building2,
   Check,
   X,
+  Wallet,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -72,6 +73,7 @@ import {
 } from '../lib/branchStudentStore'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
+import RecordPayment from '../components/payments/RecordPayment'
 import {
   groupByDate,
   normalizeBranchNotification,
@@ -1244,6 +1246,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
+  const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
+
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
@@ -1348,7 +1352,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     }
   }, [])
 
-  const loadBranchInstallmentPlanOptions = useCallback(async () => {
+const branchInstallmentTemplatesRequestRef = useRef(null)
+ const loadBranchInstallmentPlanOptions = useCallback(async () => {
+  // Prevent duplicate requests
+  if (branchInstallmentTemplatesRequestRef.current) {
+    return branchInstallmentTemplatesRequestRef.current
+  }
+
+  const requestPromise = (async () => {
     setIsBranchInstallmentTemplatesLoading(true)
     setBranchInstallmentTemplatesError('')
 
@@ -1365,22 +1376,43 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
           sortOrder: 'desc',
         })
 
-        collectedTemplates.push(...(Array.isArray(result?.data) ? result.data : []))
-        totalPages = Math.max(1, Number(result?.meta?.totalPages || 1))
+        collectedTemplates.push(
+          ...(Array.isArray(result?.data) ? result.data : [])
+        )
+
+        totalPages = Math.max(
+          1,
+          Number(result?.meta?.totalPages || 1)
+        )
+
         page += 1
       } while (page <= totalPages)
 
       setBranchInstallmentTemplates(collectedTemplates)
+
       return collectedTemplates
     } catch (error) {
       console.error('Failed to fetch installment templates:', error)
+
       setBranchInstallmentTemplates([])
-      setBranchInstallmentTemplatesError(apiErrorMessage(error, 'Unable to load payment plans right now.'))
+      setBranchInstallmentTemplatesError(
+        apiErrorMessage(
+          error,
+          'Unable to load payment plans right now.'
+        )
+      )
+
       return []
     } finally {
       setIsBranchInstallmentTemplatesLoading(false)
+      branchInstallmentTemplatesRequestRef.current = null
     }
-  }, [])
+  })()
+
+  branchInstallmentTemplatesRequestRef.current = requestPromise
+
+  return requestPromise
+}, [])
 
   const loadBranchNotifications = useCallback(async () => {
     try {
@@ -4178,6 +4210,17 @@ paymentPlanId: '',
                                           <Trash2 size={15} />
                                           <span>Delete</span>
                                         </button>
+                                        <button
+  type="button"
+  onClick={() => {
+    setStudentActionMenuId('')
+    setStudentActionMenuPinned(false)
+    setRecordPaymentStudent({ ...stu })
+  }}
+>
+  <Wallet size={15} />
+  <span>Record Payment</span>
+</button>
                                       </div>
                                     ) : null}
                                   </div>
@@ -6870,6 +6913,14 @@ paymentPlanId: '',
             </aside>
           </div>
         ) : null}
+         {/* Record Payment */}
+    {recordPaymentStudent ? (
+      <RecordPayment
+        student={recordPaymentStudent}
+        onClose={() => setRecordPaymentStudent(null)}
+      />
+    ) : null}
+
 
         {/* ── STUDENT FORM MODAL ── */}
         {isStudentFormOpen ? (

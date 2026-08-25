@@ -141,6 +141,21 @@ export function BranchInstallmentTemplatesPage() {
       }
     })
   }
+const checkDuplicateTemplate = (
+  installmentCount,
+  currentId = ''
+) => {
+  const normalizedCount = Number(installmentCount || 0)
+
+  return templates.some((template) => {
+    const existingCount = Number(template.installmentCount || 0)
+
+    return (
+      existingCount === normalizedCount &&
+      String(template.id) !== String(currentId)
+    )
+  })
+}
 
   const resetForm = () => {
     setEditingTemplateId('')
@@ -172,13 +187,30 @@ export function BranchInstallmentTemplatesPage() {
       status: true,
     }
     setTouched(nextTouched)
+if (Object.keys(validation.errors).length > 0) {
+  setError(
+    Object.values(validation.errors)[0] ||
+    'Please complete the template form.'
+  )
+  return
+}
 
-    if (Object.keys(validation.errors).length > 0) {
-      setError(Object.values(validation.errors)[0] || 'Please complete the template form.')
-      return
-    }
+// Check duplicate template
+const duplicateExists = checkDuplicateTemplate(
+  form.installmentCount,
+  editingTemplateId
+)
 
-    setSaving(true)
+if (duplicateExists) {
+  setError(
+    `An installment plan with ${Number(
+      form.installmentCount
+    )} installments already exists.`
+  )
+  return
+}
+
+setSaving(true)
     try {
       const normalizedInstallmentCount = Math.max(1, Number(form.installmentCount || 0) || 1)
       const normalizedPlanType = normalizedInstallmentCount <= 1 ? 'FULL_PAYMENT' : 'CUSTOM'
@@ -192,7 +224,7 @@ export function BranchInstallmentTemplatesPage() {
         status: String(form.status || 'ACTIVE').trim(),
       }
 
-      if (editingTemplateId) {
+            if (editingTemplateId) {
         await updateBranchInstallmentTemplate(editingTemplateId, payload)
       } else {
         await createBranchInstallmentTemplate(payload)
@@ -201,8 +233,23 @@ export function BranchInstallmentTemplatesPage() {
       resetForm()
       setIsCreateOpen(false)
       await loadTemplates(editingTemplateId ? page : 1)
+
     } catch (err) {
-      setError(err?.message || 'Unable to save installment template.')
+      if (err?.status === 409) {
+        setError(
+          err?.body?.message ||
+          `An installment plan with ${Number(
+            form.installmentCount
+          )} installments already exists.`
+        )
+      } else {
+        setError(
+          err?.body?.message ||
+          err?.body?.error ||
+          err?.message ||
+          'Unable to save installment template.'
+        )
+      }
     } finally {
       setSaving(false)
     }
@@ -220,12 +267,29 @@ export function BranchInstallmentTemplatesPage() {
       setDeleteTarget(null)
       await loadTemplates(page)
     } catch (err) {
-      setError(err?.message || 'Unable to delete template.')
-    } finally {
-      setSaving(false)
-    }
+  console.log('SAVE ERROR:', err)
+  console.log('SAVE ERROR BODY:', err?.body)
+
+  if (err?.status === 409) {
+    setError(
+      err?.body?.message ||
+      err?.body?.error ||
+      `An installment plan with ${Number(
+        form.installmentCount
+      )} installments already exists.`
+    )
+  } else {
+    setError(
+      err?.body?.message ||
+      err?.body?.error ||
+      err?.message ||
+      'Unable to save installment template.'
+    )
   }
-  
+} finally {
+  setSaving(false)
+}
+}
 useEffect(() => {
   const handleOutsideClick = (event) => {
     if (!event.target.closest('.installment-action-menu')) {
