@@ -5566,7 +5566,7 @@ const visibleBranchPaymentRows = useMemo(() => {
               <th>Next Installment</th>
               <th>Due Date</th>
               <th>Status</th>
-              <th>Action</th>
+              {/* <th>Action</th> */}
             </tr>
 
           </thead>
@@ -5694,7 +5694,7 @@ const visibleBranchPaymentRows = useMemo(() => {
 
                     <td>
 
-                      <button
+                      {/* <button
                         type="button"
                         className="button button-solid"
                         onClick={() =>
@@ -5707,7 +5707,7 @@ const visibleBranchPaymentRows = useMemo(() => {
                         }
                       >
                         Record Payment
-                      </button>
+                      </button> */}
 
                     </td>
 
