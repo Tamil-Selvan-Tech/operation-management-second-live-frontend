@@ -8162,6 +8162,17 @@
   overflow: hidden;
 }
 
+.branch-course-table td:nth-child(9) {
+  overflow: hidden !important;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.branch-course-table td:nth-child(9) .branch-student-payment-status {
+  max-width: 100%;
+  min-width: 0;
+}
+
 /* Total fee */
 .branch-course-table td:nth-child(4) strong {
   color: #0f172a;

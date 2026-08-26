@@ -4029,7 +4029,7 @@ const visibleBranchPaymentRows = useMemo(() => {
     if (!studentDeleteTarget) return
     try {
       setIsStudentDeleting(true)
-      await removeBranchStudent(studentDeleteTarget)
+      await removeBranchStudent(studentDeleteTarget, branchStudentScope)
       const deletedStudentId = String(studentDeleteTarget.studentId || '').trim()
       const deletedRecordId = String(
         studentDeleteTarget.id ||
@@ -4052,11 +4052,12 @@ const visibleBranchPaymentRows = useMemo(() => {
         }),
       )
 
-      void reloadBranchStudents()
+      const nextStudents = loadBranchStudents(branchStudentScope)
+      setBranchStudents(nextStudents)
       setStudentDeleteTarget(null)
       setStudentSuccessPopup({ title: 'Student Deleted', message: 'Student deleted successfully.' })
       // Adjust page if needed
-      const nextCount = branchStudents.length - 1
+      const nextCount = nextStudents.length
       const nextPages = Math.max(1, Math.ceil(nextCount / BRANCH_STUDENTS_PER_PAGE))
       setStudentPage((c) => Math.min(c, nextPages))
     } catch (error) {

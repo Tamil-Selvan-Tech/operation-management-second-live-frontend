@@ -3,8 +3,6 @@ import {
   CalendarDays,
   CirclePlus,
   Pencil,
-  Search,
-  Filter,
   Trash2,
   X,
 } from 'lucide-react'
@@ -73,7 +71,6 @@ export function BranchInstallmentTemplatesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -93,7 +90,6 @@ export function BranchInstallmentTemplatesPage() {
         page: nextPage,
         limit: pageSize,
         search: searchTerm,
-        status: statusFilter,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       })
@@ -111,12 +107,12 @@ export function BranchInstallmentTemplatesPage() {
     } finally {
       setLoading(false)
     }
-  }, [searchTerm, statusFilter])
+  }, [searchTerm])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadTemplates(page)
-  }, [searchTerm, statusFilter, page, loadTemplates])
+  }, [searchTerm, page, loadTemplates])
 
   const markTouched = (key) => {
     setTouched((current) => ({
@@ -560,36 +556,36 @@ setSaving(true)
   </div>
 ) : null}
 
-  <div className="installment-table-card">
-    <div className="installment-table-toolbar">
-      <label className="installment-search">
-        <Search size={18} strokeWidth={2.2} />
-        <input
-          type="search"
-          placeholder="Search templates..."
-          value={searchTerm}
-          onChange={(event) => {
-            setSearchTerm(event.target.value)
-            setPage(1)
-          }}
-        />
-      </label>
+    <div className="installment-table-card">
+    <form
+      className="installment-table-toolbar"
+      onSubmit={(event) => {
+        event.preventDefault()
+        setPage(1)
+        void loadTemplates(1)
+      }}
+    >
+      <div className="installment-search-shell">
+        <div className="installment-search-input-wrap">
+          <input
+            type="search"
+            placeholder="Search installment plan"
+            value={searchTerm}
+            onChange={(event) => {
+              setSearchTerm(event.target.value)
+              setPage(1)
+            }}
+          />
+        </div>
 
-      <label className="installment-filter-select">
-        <Filter size={16} strokeWidth={2.2} />
-        <select
-          value={statusFilter}
-          onChange={(event) => {
-            setStatusFilter(event.target.value)
-            setPage(1)
-          }}
+        <button
+          type="submit"
+          className="installment-search-button"
         >
-          <option value="">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
-      </label>
-    </div>
+          Search
+        </button>
+      </div>
+    </form>
 
     <div className="installment-table-shell">
       <div className="installment-template-table-head">
