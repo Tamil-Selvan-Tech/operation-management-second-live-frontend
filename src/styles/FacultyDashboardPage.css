@@ -1001,6 +1001,19 @@
   box-shadow: 0 14px 24px rgba(15, 23, 42, 0.06);
 }
 
+.faculty-today-work-submodule-item.is-completed {
+  cursor: not-allowed;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  box-shadow: none;
+}
+
+.faculty-today-work-submodule-item.is-completed:hover {
+  transform: none;
+  border-color: rgba(16, 185, 129, 0.18);
+  box-shadow: none;
+}
+
 .faculty-today-work-submodule-item input,
 .faculty-today-work-student-item input {
   width: 16px;
@@ -1020,6 +1033,28 @@
   color: #2563eb;
   font-size: 0.76rem;
   font-weight: 900;
+}
+
+.faculty-today-work-submodule-status {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-top: 2px;
+}
+
+.faculty-today-work-submodule-status--completed {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.faculty-today-work-submodule-status--pending {
+  color: #475569;
+  background: rgba(148, 163, 184, 0.12);
 }
 
 .faculty-today-work-submodule-item.is-selected,

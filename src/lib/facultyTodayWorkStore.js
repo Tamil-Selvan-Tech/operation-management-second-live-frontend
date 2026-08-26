@@ -1,32 +1,9 @@
-const FACULTY_TODAY_WORK_KEY = 'cispro.faculty-today-work'
-export const FACULTY_TODAY_WORK_SYNC_EVENT = 'cispro:faculty-today-work-changed'
+import { request } from '../services/apiClient'
 
-function isBrowser() {
-  return typeof window !== 'undefined' && Boolean(window.localStorage)
-}
+const FACULTY_TODAY_WORK_SYNC_EVENT = 'cispro:faculty-today-work-changed'
 
-function readAll() {
-  if (!isBrowser()) return []
-
-  try {
-    const raw = window.localStorage.getItem(FACULTY_TODAY_WORK_KEY)
-    if (!raw) return []
-
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function writeAll(records) {
-  if (!isBrowser()) return
-
-  try {
-    window.localStorage.setItem(FACULTY_TODAY_WORK_KEY, JSON.stringify(records))
-  } catch {
-    // ignore storage errors
-  }
+function normalizeText(value = '') {
+  return String(value || '').trim().toLowerCase()
 }
 
 function dispatchChange() {
@@ -35,26 +12,41 @@ function dispatchChange() {
   }
 }
 
-function normalizeId(value) {
-  return String(value || '').trim()
+function extractEntries(response) {
+  if (Array.isArray(response)) {
+    return response
+  }
+
+  if (Array.isArray(response?.data)) {
+    return response.data
+  }
+
+  if (Array.isArray(response?.entries)) {
+    return response.entries
+  }
+
+  return []
 }
 
-export function listFacultyTodayWorkEntries() {
-  return readAll()
+export { FACULTY_TODAY_WORK_SYNC_EVENT }
+
+export async function listFacultyTodayWorkEntries() {
+  const response = await request('/faculty-today-work')
+  return extractEntries(response)
 }
 
 export function getFacultyTodayWorkEntriesByFaculty(
   { facultyId = '', facultyName = '', facultyEmail = '' } = {},
-  entries = readAll(),
+  entries = [],
 ) {
-  const normalizedFacultyId = String(facultyId || '').trim().toLowerCase()
-  const normalizedFacultyName = String(facultyName || '').trim().toLowerCase()
-  const normalizedFacultyEmail = String(facultyEmail || '').trim().toLowerCase()
+  const normalizedFacultyId = normalizeText(facultyId)
+  const normalizedFacultyName = normalizeText(facultyName)
+  const normalizedFacultyEmail = normalizeText(facultyEmail)
 
   return (Array.isArray(entries) ? entries : []).filter((entry) => {
-    const entryFacultyId = String(entry?.facultyId || '').trim().toLowerCase()
-    const entryFacultyName = String(entry?.facultyName || '').trim().toLowerCase()
-    const entryFacultyEmail = String(entry?.facultyEmail || '').trim().toLowerCase()
+    const entryFacultyId = normalizeText(entry?.facultyId || entry?.facultyProfileId || entry?.facultyUserId)
+    const entryFacultyName = normalizeText(entry?.facultyName)
+    const entryFacultyEmail = normalizeText(entry?.facultyEmail)
 
     return (
       (normalizedFacultyId && entryFacultyId && entryFacultyId === normalizedFacultyId) ||
@@ -64,38 +56,56 @@ export function getFacultyTodayWorkEntriesByFaculty(
   })
 }
 
-export function saveFacultyTodayWorkEntry(entry = {}) {
-  const nextEntry = {
+function normalizeId(value) {
+  return String(value || '').trim()
+}
+
+export async function saveFacultyTodayWorkEntry(entry = {}) {
+  const payload = {
     ...entry,
-    id: normalizeId(entry.id) || `today-work-${Date.now()}`,
-    facultyId: normalizeId(entry.facultyId),
-    facultyName: String(entry.facultyName || '').trim(),
-    facultyEmail: String(entry.facultyEmail || '').trim(),
+    facultyId: normalizeId(entry.facultyId || entry.facultyProfileId),
+    facultyProfileId: normalizeId(entry.facultyProfileId || entry.facultyId),
+    branchId: normalizeId(entry.branchId),
     courseId: normalizeId(entry.courseId),
     courseName: String(entry.courseName || '').trim(),
     moduleId: normalizeId(entry.moduleId),
     moduleName: String(entry.moduleName || '').trim(),
-    createdAt: String(entry.createdAt || new Date().toISOString()).trim(),
+    applyToAllStudents: Boolean(entry.applyToAllStudents),
+    selectedStudentIds: Array.isArray(entry.selectedStudentIds)
+      ? entry.selectedStudentIds.map((value) => normalizeId(value)).filter(Boolean)
+      : Array.isArray(entry.studentIds)
+        ? entry.studentIds.map((value) => normalizeId(value)).filter(Boolean)
+        : [],
+    studentIds: Array.isArray(entry.studentIds)
+      ? entry.studentIds.map((value) => normalizeId(value)).filter(Boolean)
+      : Array.isArray(entry.selectedStudentIds)
+        ? entry.selectedStudentIds.map((value) => normalizeId(value)).filter(Boolean)
+        : [],
+    studentCount: Number(entry.studentCount || 0) || 0,
+    selectedSubmoduleIds: Array.isArray(entry.selectedSubmoduleIds)
+      ? entry.selectedSubmoduleIds.map((value) => normalizeId(value)).filter(Boolean)
+      : Array.isArray(entry.submoduleIds)
+        ? entry.submoduleIds.map((value) => normalizeId(value)).filter(Boolean)
+        : [],
+    submoduleIds: Array.isArray(entry.submoduleIds)
+      ? entry.submoduleIds.map((value) => normalizeId(value)).filter(Boolean)
+      : Array.isArray(entry.selectedSubmoduleIds)
+        ? entry.selectedSubmoduleIds.map((value) => normalizeId(value)).filter(Boolean)
+        : [],
+    submodules: Array.isArray(entry.submodules) ? entry.submodules : [],
+    workDate: String(entry.workDate || '').trim(),
   }
 
-  const records = readAll()
-  const nextRecords = [
-    nextEntry,
-    ...records.filter((record) => String(record?.id || '').trim() !== nextEntry.id),
-  ]
+  const response = await request('/faculty-today-work', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 
-  writeAll(nextRecords)
   dispatchChange()
 
-  return nextEntry
+  return response?.data || response?.entry || response || null
 }
 
 export function clearFacultyTodayWorkEntries() {
-  if (!isBrowser()) return
-  try {
-    window.localStorage.removeItem(FACULTY_TODAY_WORK_KEY)
-    dispatchChange()
-  } catch {
-    // ignore storage errors
-  }
+  dispatchChange()
 }
