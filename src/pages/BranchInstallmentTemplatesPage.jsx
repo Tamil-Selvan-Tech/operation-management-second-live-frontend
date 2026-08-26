@@ -14,6 +14,7 @@ import { PaginationBar } from '../components/PaginationBar'
 import {
   createBranchInstallmentTemplate,
   deleteBranchInstallmentTemplate,
+  getBranchInstallmentTemplateSignature,
   listBranchInstallmentTemplates,
   normalizeBranchInstallmentTemplate,
   updateBranchInstallmentTemplate,
@@ -263,47 +264,53 @@ setSaving(true)
     if (!deleteTarget) return
     setSaving(true)
     try {
-      await deleteBranchInstallmentTemplate(deleteTarget.id)
+      const signature = getBranchInstallmentTemplateSignature(deleteTarget)
+      const duplicateTemplates = templates.filter(
+        (template) => getBranchInstallmentTemplateSignature(template) === signature,
+      )
+
+      await Promise.all(
+        duplicateTemplates.map((template) => deleteBranchInstallmentTemplate(template.id)),
+      )
+
       setDeleteTarget(null)
       await loadTemplates(page)
     } catch (err) {
-  console.log('SAVE ERROR:', err)
-  console.log('SAVE ERROR BODY:', err?.body)
-
-  if (err?.status === 409) {
-    setError(
-      err?.body?.message ||
-      err?.body?.error ||
-      `An installment plan with ${Number(
-        form.installmentCount
-      )} installments already exists.`
-    )
-  } else {
-    setError(
-      err?.body?.message ||
-      err?.body?.error ||
-      err?.message ||
-      'Unable to save installment template.'
-    )
-  }
-} finally {
-  setSaving(false)
-}
-}
-useEffect(() => {
-  const handleOutsideClick = (event) => {
-    if (!event.target.closest('.installment-action-menu')) {
-      setOpenActionMenuId(null)
-      setActionMenuPinned(false)
+      if (err?.status === 409) {
+        setError(
+          err?.body?.message ||
+          err?.body?.error ||
+          `An installment plan with ${Number(
+            form.installmentCount
+          )} installments already exists.`
+        )
+      } else {
+        setError(
+          err?.body?.message ||
+          err?.body?.error ||
+          err?.message ||
+          'Unable to save installment template.'
+        )
+      }
+    } finally {
+      setSaving(false)
     }
   }
 
-  document.addEventListener('mousedown', handleOutsideClick)
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (!event.target.closest('.installment-action-menu')) {
+        setOpenActionMenuId(null)
+        setActionMenuPinned(false)
+      }
+    }
 
-  return () => {
-    document.removeEventListener('mousedown', handleOutsideClick)
-  }
-}, [])
+    document.addEventListener('mousedown', handleOutsideClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+    }
+  }, [])
 
   const shouldShowError = (field) => Boolean(touched[field] && validation.errors[field])
   const safeCurrentPage = Math.min(Math.max(1, Number(page) || 1), totalPages)

@@ -209,12 +209,56 @@ async function syncBranchStudentToBackend(student) {
   }
 }
 
-function resolveStudentDeleteId(studentOrId) {
+function resolveStudentDeleteCandidates(studentOrId) {
+  const candidates = []
+
   if (studentOrId && typeof studentOrId === 'object') {
-    return String(studentOrId.id || studentOrId.studentId || '').trim()
+    candidates.push(
+      studentOrId.id,
+      studentOrId._id,
+      studentOrId.recordId,
+      studentOrId._recordId,
+      studentOrId.studentId,
+      studentOrId.originalStudentId,
+      studentOrId._originalStudentId,
+    )
+  } else {
+    candidates.push(studentOrId)
   }
 
-  return String(studentOrId || '').trim()
+  return [...new Set(candidates.map((value) => String(value || '').trim()).filter(Boolean))]
+}
+
+function removeStudentFromLocalCache(studentOrId, deletedStudentId = '') {
+  const all = readAll()
+  const candidates = resolveStudentDeleteCandidates(studentOrId)
+  const normalizedDeletedStudentId = String(deletedStudentId || '').trim()
+  const next = all.filter((record) => {
+    const recordCandidates = [
+      record.id,
+      record._id,
+      record.recordId,
+      record._recordId,
+      record.studentId,
+      record.originalStudentId,
+      record._originalStudentId,
+    ]
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+
+    if (candidates.some((candidate) => recordCandidates.includes(candidate))) {
+      return false
+    }
+
+    if (normalizedDeletedStudentId && String(record.studentId || '').trim() === normalizedDeletedStudentId) {
+      return false
+    }
+
+    return true
+  })
+
+  writeAll(next)
+  dispatchChange()
 }
 
 export async function refreshBranchStudents(branchId) {
@@ -343,28 +387,74 @@ export async function saveBranchStudent(student) {
 /**
  * Delete a student record by studentId.
  */
-export async function deleteBranchStudent(studentOrId) {
-  const studentKey = resolveStudentDeleteId(studentOrId)
-  if (!studentKey) {
+export async function deleteBranchStudent(studentOrId, branchScopeInput = '') {
+  const candidates = resolveStudentDeleteCandidates(studentOrId)
+  const studentKey = candidates[0] || ''
+  const studentId = studentOrId && typeof studentOrId === 'object'
+    ? String(studentOrId.studentId || studentOrId.originalStudentId || studentOrId._originalStudentId || '').trim()
+    : String(studentKey || '').trim()
+
+  if (!studentKey && !studentId) {
     throw new Error('Student identifier is required for delete')
   }
 
-  const all = readAll()
-  const next = all.filter(
-    (s) => String(s.id || s.studentId || '').trim() !== studentKey
-  )
-  try {
-    await request(`/branch-students/${encodeURIComponent(studentKey)}`, {
-      method: 'DELETE',
-    })
-  } catch (error) {
-    if (error?.status !== 403) {
-      throw error
+  let lastError = null
+  const requestCandidates = [...candidates]
+
+  if (studentId && !requestCandidates.includes(studentId)) {
+    requestCandidates.push(studentId)
+  }
+
+  if (studentOrId && typeof studentOrId === 'object') {
+    const branchScope = String(
+      branchScopeInput ||
+      studentOrId.branchId ||
+      studentOrId.branchCode ||
+      '',
+    ).trim()
+    if (studentId && branchScope) {
+      try {
+        const backendMatch = await findBranchStudentByStudentId(studentId, branchScope)
+        const backendMatchId = String(backendMatch?.id || '').trim()
+        if (backendMatchId && !requestCandidates.includes(backendMatchId)) {
+          requestCandidates.push(backendMatchId)
+        }
+      } catch {
+        // Ignore lookup errors and fall back to the explicit candidates.
+      }
     }
   }
 
-  writeAll(next)
-  dispatchChange()
+  for (const candidate of requestCandidates) {
+    const deletePaths = [
+      `/branch-students/${encodeURIComponent(candidate)}`,
+      `/students/${encodeURIComponent(candidate)}`,
+    ]
+
+    for (const path of deletePaths) {
+      try {
+        await request(path, {
+          method: 'DELETE',
+        })
+        removeStudentFromLocalCache(studentOrId, studentId)
+        return
+      } catch (error) {
+        lastError = error
+        if (error?.status === 403 || error?.status === 404) {
+          continue
+        }
+      }
+    }
+  }
+
+  if (lastError?.status === 403 || lastError?.status === 404) {
+    removeStudentFromLocalCache(studentOrId, studentId)
+    return
+  }
+
+  if (lastError) {
+    throw lastError
+  }
 }
 
 /**

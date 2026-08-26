@@ -67,6 +67,16 @@ function normalizeInstallments(values) {
     .filter((value) => Number.isFinite(value))
 }
 
+export function getBranchInstallmentTemplateSignature(template = {}) {
+  const templateName = normalizeText(template.templateName || template.planName)
+  const installmentCount = String(template.installmentCount || '').trim()
+  const planType = String(template.planType || template.templateType || 'CUSTOM').trim().toUpperCase()
+  const status = String(template.status || 'ACTIVE').trim().toUpperCase()
+  const allowCustomization = String(Boolean(template.allowCustomization ?? true))
+
+  return [templateName, installmentCount, planType, status, allowCustomization].join('|')
+}
+
 export function normalizeBranchInstallmentTemplate(template) {
   if (!template) return null
 
@@ -97,9 +107,17 @@ export function normalizeBranchInstallmentTemplate(template) {
 }
 
 export function normalizeBranchInstallmentTemplateList(templates) {
-  return Array.isArray(templates)
+  const normalized = Array.isArray(templates)
     ? templates.map(normalizeBranchInstallmentTemplate).filter(Boolean)
     : []
+
+  const seen = new Set()
+  return normalized.filter((template) => {
+    const signature = getBranchInstallmentTemplateSignature(template)
+    if (seen.has(signature)) return false
+    seen.add(signature)
+    return true
+  })
 }
 
 // ---------------------------------------------------------------------------

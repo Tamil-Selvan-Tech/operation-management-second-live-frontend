@@ -1409,7 +1409,9 @@ const [selectedPaymentHistory, setSelectedPaymentHistory] = useState(null);
 const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
 const [paymentHistoryMode, setPaymentHistoryMode] = useState('all');
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
-  const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
+  const [studentActionMenuPosition, setStudentActionMenuPosition] = useState({ top: 0, left: 0 })
+  const studentActionMenuRef = useRef(null)
+  const studentActionMenuCloseTimerRef = useRef(null)
 const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
 const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
 const [paymentPage, setPaymentPage] = useState(1)
@@ -1434,20 +1436,34 @@ const BRANCH_PAYMENTS_PER_PAGE = 10
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
-      const clickedInsideActions = e.target.closest(
-        '.branch-student-actions-cell'
-      )
+      const clickedInsideActions = e.target.closest('.branch-student-actions-cell')
+      const clickedInsideMenu = studentActionMenuRef.current?.contains(e.target)
 
-      if (!clickedInsideActions) {
+      if (!clickedInsideActions && !clickedInsideMenu) {
+        if (studentActionMenuCloseTimerRef.current) {
+          clearTimeout(studentActionMenuCloseTimerRef.current)
+        }
         setStudentActionMenuId('')
-        setStudentActionMenuPinned(false)
+        setStudentActionMenuPosition({ top: 0, left: 0 })
       }
     }
 
+    const closeOnScrollOrResize = () => {
+      if (studentActionMenuCloseTimerRef.current) {
+        clearTimeout(studentActionMenuCloseTimerRef.current)
+      }
+      setStudentActionMenuId('')
+      setStudentActionMenuPosition({ top: 0, left: 0 })
+    }
+
     document.addEventListener('mousedown', handleOutsideClick)
+    window.addEventListener('scroll', closeOnScrollOrResize, true)
+    window.addEventListener('resize', closeOnScrollOrResize)
 
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick)
+      window.removeEventListener('scroll', closeOnScrollOrResize, true)
+      window.removeEventListener('resize', closeOnScrollOrResize)
     }
   }, [])
   const profileMenuRef = useRef(null)
@@ -1914,6 +1930,49 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
 
     setCourseActionMenuPosition({ top, left })
+  }
+
+  const openStudentActionMenu = (button) => {
+    if (studentActionMenuCloseTimerRef.current) {
+      clearTimeout(studentActionMenuCloseTimerRef.current)
+    }
+
+    const rect = button.getBoundingClientRect()
+    const menuWidth = 170
+    const menuHeight = 180
+    const gap = 8
+
+    let left = rect.right - menuWidth
+    let top = rect.bottom + gap
+
+    if (left < 8) {
+      left = 8
+    }
+
+    if (left + menuWidth > window.innerWidth - 8) {
+      left = window.innerWidth - menuWidth - 8
+    }
+
+    if (top + menuHeight > window.innerHeight - 8) {
+      top = rect.top - menuHeight - gap
+    }
+
+    if (top < 8) {
+      top = 8
+    }
+
+    setStudentActionMenuPosition({ top, left })
+  }
+
+  const closeStudentActionMenu = () => {
+    if (studentActionMenuCloseTimerRef.current) {
+      clearTimeout(studentActionMenuCloseTimerRef.current)
+    }
+
+    studentActionMenuCloseTimerRef.current = window.setTimeout(() => {
+      setStudentActionMenuId('')
+      setStudentActionMenuPosition({ top: 0, left: 0 })
+    }, 180)
   }
 
   const handleConfirmLogout = async () => {
@@ -3970,7 +4029,29 @@ const visibleBranchPaymentRows = useMemo(() => {
     if (!studentDeleteTarget) return
     try {
       setIsStudentDeleting(true)
-      await removeBranchStudent(studentDeleteTarget.id || studentDeleteTarget.studentId)
+      await removeBranchStudent(studentDeleteTarget)
+      const deletedStudentId = String(studentDeleteTarget.studentId || '').trim()
+      const deletedRecordId = String(
+        studentDeleteTarget.id ||
+        studentDeleteTarget._id ||
+        studentDeleteTarget.recordId ||
+        studentDeleteTarget._recordId ||
+        ''
+      ).trim()
+
+      setBranchStudents((current) =>
+        current.filter((student) => {
+          const currentStudentId = String(student.studentId || '').trim()
+          const currentRecordId = String(student.id || student._id || student.recordId || student._recordId || '').trim()
+
+          if (deletedStudentId && currentStudentId === deletedStudentId) return false
+          if (deletedStudentId && currentRecordId === deletedStudentId) return false
+          if (deletedRecordId && currentStudentId === deletedRecordId) return false
+          if (deletedRecordId && currentRecordId === deletedRecordId) return false
+          return true
+        }),
+      )
+
       void reloadBranchStudents()
       setStudentDeleteTarget(null)
       setStudentSuccessPopup({ title: 'Student Deleted', message: 'Student deleted successfully.' })
@@ -4638,45 +4719,72 @@ else {
               {/* Action */}
               <td style={{ textAlign: 'center' }}>
                 <div
-                  className={`branch-student-actions-cell ${
-                    studentActionMenuId === stu.studentId ? 'menu-open' : ''
-                  }`}
-                  onMouseEnter={() => {
-                    if (!studentActionMenuPinned) {
-                      setStudentActionMenuId(stu.studentId)
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    if (!studentActionMenuPinned) {
-                      setStudentActionMenuId('')
-                    }
-                  }}
+                  className={`branch-student-actions-cell ${studentActionMenuId === stu.studentId ? 'menu-open' : ''}`}
                 >
                   <button
                     type="button"
                     className="branch-student-more-btn"
                     aria-label="Student actions"
+                    aria-haspopup="menu"
+                    aria-expanded={studentActionMenuId === stu.studentId}
+                    onMouseEnter={(e) => {
+                      openStudentActionMenu(e.currentTarget)
+                      setStudentActionMenuId(stu.studentId)
+                    }}
+                    onMouseLeave={() => {
+                      closeStudentActionMenu()
+                    }}
                     onClick={(e) => {
                       e.stopPropagation()
                       if (studentActionMenuId === stu.studentId) {
+                        if (studentActionMenuCloseTimerRef.current) {
+                          clearTimeout(studentActionMenuCloseTimerRef.current)
+                        }
                         setStudentActionMenuId('')
-                        setStudentActionMenuPinned(false)
+                        setStudentActionMenuPosition({ top: 0, left: 0 })
                       } else {
+                        if (studentActionMenuCloseTimerRef.current) {
+                          clearTimeout(studentActionMenuCloseTimerRef.current)
+                        }
                         setStudentActionMenuId(stu.studentId)
-                        setStudentActionMenuPinned(true)
+                        openStudentActionMenu(e.currentTarget)
                       }
                     }}
                   >
                     <MoreVertical size={18} />
                   </button>
 
-                  {studentActionMenuId === stu.studentId ? (
-                    <div className="branch-student-actions-menu">
+                </div>
+                {studentActionMenuId === stu.studentId && studentActionMenuPosition && typeof document !== 'undefined'
+                  ? createPortal(
+                    <div
+                      ref={studentActionMenuRef}
+                      className="branch-student-actions-menu"
+                      role="menu"
+                      aria-label="Student actions"
+                      style={{
+                        position: 'fixed',
+                        top: `${studentActionMenuPosition.top}px`,
+                        left: `${studentActionMenuPosition.left}px`,
+                        zIndex: 999999,
+                        display: 'block',
+                      }}
+                      onMouseEnter={() => {
+                        if (studentActionMenuCloseTimerRef.current) {
+                          clearTimeout(studentActionMenuCloseTimerRef.current)
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        closeStudentActionMenu()
+                      }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={() => {
                           setStudentActionMenuId('')
-                          setStudentActionMenuPinned(false)
+                          setStudentActionMenuPosition({ top: 0, left: 0 })
                           setViewStudentDrawer({ ...stu })
                         }}
                       >
@@ -4686,9 +4794,10 @@ else {
 
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={() => {
                           setStudentActionMenuId('')
-                          setStudentActionMenuPinned(false)
+                          setStudentActionMenuPosition({ top: 0, left: 0 })
                           openEditStudentForm({ ...stu })
                         }}
                       >
@@ -4698,9 +4807,10 @@ else {
 
                       <button
                         type="button"
+                        role="menuitem"
                         onClick={() => {
                           setStudentActionMenuId('')
-                          setStudentActionMenuPinned(false)
+                          setStudentActionMenuPosition({ top: 0, left: 0 })
                           setRecordPaymentStudent({ ...stu })
                           goToBranchSection('payments')
                         }}
@@ -4712,18 +4822,20 @@ else {
                       <button
                         type="button"
                         className="is-danger"
+                        role="menuitem"
                         onClick={() => {
                           setStudentActionMenuId('')
-                          setStudentActionMenuPinned(false)
+                          setStudentActionMenuPosition({ top: 0, left: 0 })
                           setStudentDeleteTarget({ ...stu })
                         }}
                       >
                         <Trash2 size={15} />
                         <span>Delete</span>
                       </button>
-                    </div>
-                  ) : null}
-                </div>
+                    </div>,
+                    document.body,
+                  )
+                  : null}
               </td>
             </tr>
           )
