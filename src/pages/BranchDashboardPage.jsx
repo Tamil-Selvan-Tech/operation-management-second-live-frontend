@@ -5190,7 +5190,7 @@ else {
                 <th>Amount</th>
                 <th>Payment Mode</th>
                 <th>Payment Date</th>
-                <th>Receipt</th>
+                {/* <th>Receipt</th> */}
                 <th>Action</th>
               </tr>
             </thead>
@@ -5205,11 +5205,11 @@ else {
         <td><strong>{formatBranchRupees(record.amount)}</strong></td>
         <td>
           <span className="branch-student-payment-status">
-            {record.mode}
+            {record.paymentMode || record.mode || "-"}
           </span>
         </td>
         <td>{record.date}</td>
-        <td>{record.receiptNumber}</td>
+       
         <td>
           <button
             type="button"
@@ -5297,12 +5297,13 @@ else {
                 </div>
 
                 <div className="confirmation-detail-row">
-                  <span>Payment Mode</span>
-                  <strong>
-                    {selectedPaymentHistory.mode}
-                  </strong>
-                </div>
-
+  <span>Payment Mode</span>
+  <strong>
+    {selectedPaymentHistory.paymentMode ||
+      selectedPaymentHistory.mode ||
+      "-"}
+  </strong>
+</div>
                 <div className="confirmation-detail-row">
                   <span>Payment Date</span>
                   <strong>

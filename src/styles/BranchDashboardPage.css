@@ -8283,3 +8283,40 @@
   border-collapse: separate;
   border-spacing: 0;
 }
+
+.branch-course-table-shell {
+  width: 1107px;
+  max-width: 100%;
+ 
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  border-radius: 12px;
+}
+
+.branch-course-table-shell table {
+  min-width: 1900px;
+  width: max-content;
+  border-collapse: collapse;
+}
+
+/* Horizontal scrollbar directly below table */
+.branch-course-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.branch-course-table-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.branch-course-table-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+.branch-course-table-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
