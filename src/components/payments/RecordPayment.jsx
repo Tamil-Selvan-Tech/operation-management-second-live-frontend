@@ -1,9 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "./RecordPayment.css";
 import html2pdf from "html2pdf.js";
 import { request } from "../../services/apiClient";
 
 const RecordPayment = ({ student, onClose }) => {
+  // =========================================================
+  // FORM DATA
+  // =========================================================
+
   const [formData, setFormData] = useState({
     payAgainst: "",
     amountToPay: "",
@@ -17,54 +21,53 @@ const RecordPayment = ({ student, onClose }) => {
     paymentProof: null,
   });
 
+  // =========================================================
+  // STATE
+  // =========================================================
+
   const [errors, setErrors] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+
   const [receiptNumber, setReceiptNumber] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [paymentSaved, setPaymentSaved] = useState(false);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
 
-  useEffect(() => {
-    if (student?.installmentSchedule && Array.isArray(student.installmentSchedule)) {
-      const pendingInstallment = student.installmentSchedule.find(
-        (inst) => inst.status !== "Paid"
-      );
+  const [studentIdInput, setStudentIdInput] = useState(
+    student?.studentId || ""
+  );
 
-      if (pendingInstallment) {
-        const amount = Number(pendingInstallment.amount || 0);
-        const amountPaid = Number(pendingInstallment.amountPaid || 0);
-        const pendingAmount = Math.max(0, amount - amountPaid);
-        
-        setFormData((prev) => ({
-          ...prev,
-          payAgainst: `Installment ${pendingInstallment.installmentNumber}`,
-          amountToPay: String(pendingAmount),
-          amountReceived: String(pendingAmount),
-        }));
-      }
-    }
-  }, [student]);
+  const [selectedStudent, setSelectedStudent] = useState(student || null);
+
+  const [isLoadingStudent, setIsLoadingStudent] = useState(false);
+  const [studentLookupError, setStudentLookupError] = useState("");
+
+  // =========================================================
+  // ACTIVE STUDENT
+  // =========================================================
+
+  const activeStudent = selectedStudent || student || {};
 
   // =========================================================
   // STUDENT DATA
   // =========================================================
 
   const studentName =
-    student?.studentName ||
-    student?.name ||
+    activeStudent?.studentName ||
+    activeStudent?.name ||
     "Student Name";
 
   const admissionId =
-    student?.admissionId ||
-    student?.admissionID ||
-    student?.studentId ||
+    activeStudent?.admissionId ||
+    activeStudent?.admissionID ||
+    activeStudent?.studentId ||
     "ADM-2026-001";
 
   const courseName =
-    student?.courseName ||
-    student?.course ||
-    student?.selectedCourse ||
+    activeStudent?.courseName ||
+    activeStudent?.course ||
+    activeStudent?.selectedCourse ||
     "Data Analytics";
 
   // =========================================================
@@ -72,25 +75,38 @@ const RecordPayment = ({ student, onClose }) => {
   // =========================================================
 
   const totalCourseFee = Number(
-    student?.totalCourseFee ||
-      student?.courseFee ||
-      student?.totalFees ||
-      student?.totalAmount ||
-      student?.courseAmount ||
-      student?.afterDiscount ||
+    activeStudent?.totalCourseFee ||
+      activeStudent?.courseFee ||
+      activeStudent?.totalFees ||
+      activeStudent?.totalAmount ||
+      activeStudent?.courseAmount ||
+      activeStudent?.afterDiscount ||
       0
   );
 
-  const installments = Array.isArray(student?.installmentSchedule)
-    ? student.installmentSchedule
+  const installments = Array.isArray(
+    activeStudent?.installmentSchedule
+  )
+    ? activeStudent.installmentSchedule
     : [];
 
   const previouslyPaid = installments.length
-    ? installments.reduce(
-        (sum, inst) => sum + Number(inst.paidAmount ?? inst.amountPaid ?? 0),
-        0,
-      )
-    : Number(student?.previouslyPaid || student?.paidAmount || student?.totalPaid || 0);
+    ? installments.reduce((sum, installment) => {
+        return (
+          sum +
+          Number(
+            installment?.paidAmount ??
+              installment?.amountPaid ??
+              0
+          )
+        );
+      }, 0)
+    : Number(
+        activeStudent?.previouslyPaid ||
+          activeStudent?.paidAmount ||
+          activeStudent?.totalPaid ||
+          0
+      );
 
   const currentPayment = Number(
     formData.amountReceived || 0
@@ -103,28 +119,178 @@ const RecordPayment = ({ student, onClose }) => {
     0
   );
 
-  // Compute the installment-specific balance after this partial payment
-  const currentInstallmentAmount = Number(formData.amountToPay || 0);
-  const installmentBalance = Math.max(currentInstallmentAmount - currentPayment, 0);
+  // =========================================================
+  // CURRENT INSTALLMENT BALANCE
+  // =========================================================
+
+  const currentInstallmentAmount = Number(
+    formData.amountToPay || 0
+  );
+
+  const installmentBalance = Math.max(
+    currentInstallmentAmount - currentPayment,
+    0
+  );
+
+  // =========================================================
+  // AUTO SELECT FIRST PENDING INSTALLMENT
+  // =========================================================
+
+  useEffect(() => {
+    if (!activeStudent?.installmentSchedule) {
+      return;
+    }
+
+    if (
+      !Array.isArray(
+        activeStudent.installmentSchedule
+      )
+    ) {
+      return;
+    }
+
+    const pendingInstallment =
+      activeStudent.installmentSchedule.find(
+        (installment) => {
+          const status = String(
+            installment?.status || ""
+          ).toLowerCase();
+
+          return status !== "paid";
+        }
+      );
+
+    if (!pendingInstallment) {
+      return;
+    }
+
+    const amount = Number(
+      pendingInstallment?.amount || 0
+    );
+
+    const amountPaid = Number(
+      pendingInstallment?.amountPaid ??
+        pendingInstallment?.paidAmount ??
+        0
+    );
+
+    const pendingAmount = Math.max(
+      amount - amountPaid,
+      0
+    );
+
+    setFormData((previous) => ({
+      ...previous,
+
+      payAgainst: `Installment ${
+        pendingInstallment.installmentNumber
+      }`,
+
+      amountToPay: String(pendingAmount),
+
+      amountReceived: String(pendingAmount),
+    }));
+  }, [activeStudent]);
+
+  // =========================================================
+  // STUDENT LOOKUP
+  // =========================================================
+
+  const handleStudentLookup = async () => {
+    const enteredStudentId =
+      studentIdInput.trim();
+
+    if (!enteredStudentId) {
+      setStudentLookupError(
+        "Please enter Student ID."
+      );
+      return;
+    }
+
+    setIsLoadingStudent(true);
+    setStudentLookupError("");
+
+    try {
+      const response = await request(
+        `/branch-students?studentId=${encodeURIComponent(
+          enteredStudentId
+        )}`,
+        {
+          method: "GET",
+        }
+      );
+
+      const responseData = response?.data;
+
+      let foundStudent = null;
+
+      if (Array.isArray(responseData)) {
+        foundStudent = responseData.find(
+          (item) =>
+            String(
+              item?.studentId || ""
+            ).toLowerCase() ===
+            enteredStudentId.toLowerCase()
+        );
+      } else {
+        foundStudent =
+          responseData?.student ||
+          responseData?.studentData ||
+          responseData;
+      }
+
+      if (!foundStudent?.studentId) {
+        setStudentLookupError(
+          `No student found with ID ${enteredStudentId}.`
+        );
+
+        setSelectedStudent(null);
+
+        return;
+      }
+
+      setSelectedStudent(foundStudent);
+
+      setStudentLookupError("");
+
+      // Clear previous form errors
+      setErrors({});
+    } catch (error) {
+      console.error(
+        "Student lookup failed:",
+        error
+      );
+
+      setStudentLookupError(
+        "Unable to load student details. Please try again."
+      );
+    } finally {
+      setIsLoadingStudent(false);
+    }
+  };
 
   // =========================================================
   // FORMAT CURRENCY
   // =========================================================
 
   const formatCurrency = (amount) => {
-    return Number(amount || 0).toLocaleString("en-IN");
+    return Number(amount || 0).toLocaleString(
+      "en-IN"
+    );
   };
 
   // =========================================================
-  // AMOUNT TO WORDS
+  // NUMBER TO WORDS
   // =========================================================
 
-  const numberToWords = (number) => {
-    number = Number(number);
+  const numberToWords = (value) => {
+    let number = Number(value);
 
     if (!number || number === 0) {
       return "Zero Rupees Only";
     }
+
+    number = Math.floor(number);
 
     const ones = [
       "",
@@ -166,12 +332,17 @@ const RecordPayment = ({ student, onClose }) => {
       let result = "";
 
       if (num >= 100) {
-        result += ones[Math.floor(num / 100)] + " Hundred ";
+        result +=
+          ones[Math.floor(num / 100)] +
+          " Hundred ";
+
         num %= 100;
       }
 
       if (num >= 20) {
-        result += tens[Math.floor(num / 10)] + " ";
+        result +=
+          tens[Math.floor(num / 10)] + " ";
+
         num %= 10;
       }
 
@@ -184,32 +355,45 @@ const RecordPayment = ({ student, onClose }) => {
 
     let result = "";
 
-    const crore = Math.floor(number / 10000000);
+    const crore = Math.floor(
+      number / 10000000
+    );
+
     number %= 10000000;
 
-    const lakh = Math.floor(number / 100000);
+    const lakh = Math.floor(
+      number / 100000
+    );
+
     number %= 100000;
 
-    const thousand = Math.floor(number / 1000);
+    const thousand = Math.floor(
+      number / 1000
+    );
+
     number %= 1000;
 
     if (crore > 0) {
       result +=
-        convertBelowThousand(crore) + " Crore ";
+        convertBelowThousand(crore) +
+        " Crore ";
     }
 
     if (lakh > 0) {
       result +=
-        convertBelowThousand(lakh) + " Lakh ";
+        convertBelowThousand(lakh) +
+        " Lakh ";
     }
 
     if (thousand > 0) {
       result +=
-        convertBelowThousand(thousand) + " Thousand ";
+        convertBelowThousand(thousand) +
+        " Thousand ";
     }
 
     if (number > 0) {
-      result += convertBelowThousand(number);
+      result +=
+        convertBelowThousand(number);
     }
 
     return `Rupees ${result.trim()} Only`;
@@ -226,6 +410,10 @@ const RecordPayment = ({ student, onClose }) => {
 
     const date = new Date(dateString);
 
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+
     return date.toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
@@ -237,8 +425,11 @@ const RecordPayment = ({ student, onClose }) => {
   // HANDLE INPUT CHANGE
   // =========================================================
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const handleChange = (event) => {
+    const {
+      name,
+      value,
+    } = event.target;
 
     if (
       name === "amountToPay" ||
@@ -249,13 +440,13 @@ const RecordPayment = ({ student, onClose }) => {
       }
     }
 
-    setFormData((prev) => ({
-      ...prev,
+    setFormData((previous) => ({
+      ...previous,
       [name]: value,
     }));
 
-    setErrors((prev) => ({
-      ...prev,
+    setErrors((previous) => ({
+      ...previous,
       [name]: "",
     }));
   };
@@ -264,10 +455,13 @@ const RecordPayment = ({ student, onClose }) => {
   // FILE CHANGE
   // =========================================================
 
-  const handleFileChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      paymentProof: e.target.files[0] || null,
+  const handleFileChange = (event) => {
+    const file =
+      event.target.files?.[0] || null;
+
+    setFormData((previous) => ({
+      ...previous,
+      paymentProof: file,
     }));
   };
 
@@ -277,6 +471,11 @@ const RecordPayment = ({ student, onClose }) => {
 
   const validateForm = () => {
     const newErrors = {};
+
+    if (!activeStudent?.id) {
+      newErrors.student =
+        "Please select a valid student.";
+    }
 
     if (!formData.payAgainst.trim()) {
       newErrors.payAgainst =
@@ -303,6 +502,14 @@ const RecordPayment = ({ student, onClose }) => {
         "Amount must be greater than 0.";
     }
 
+    if (
+      Number(formData.amountReceived) >
+      Number(formData.amountToPay)
+    ) {
+      newErrors.amountReceived =
+        "Amount received cannot be greater than amount to pay.";
+    }
+
     if (!formData.paymentMode.trim()) {
       newErrors.paymentMode =
         "This field is required.";
@@ -325,19 +532,19 @@ const RecordPayment = ({ student, onClose }) => {
 
     setErrors(newErrors);
 
-    return Object.keys(newErrors).length === 0;
+    return (
+      Object.keys(newErrors).length === 0
+    );
   };
 
   // =========================================================
-  // SAVE PAYMENT
+  // SUBMIT FORM
   // =========================================================
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
+  const handleSubmit = (event) => {
+    event.preventDefault();
 
-    const isValid = validateForm();
-
-    if (!isValid) {
+    if (!validateForm()) {
       return;
     }
 
@@ -349,52 +556,111 @@ const RecordPayment = ({ student, onClose }) => {
   // =========================================================
 
   const handleConfirmPayment = () => {
-    // Generate a temporary receipt number for preview
-    const tempReceiptNumber = `REC-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}-${Math.floor(Math.random() * 900 + 100)}`;
-    setReceiptNumber(tempReceiptNumber);
+    const temporaryReceiptNumber =
+      `REC-${new Date().getFullYear()}-${String(
+        Date.now()
+      ).slice(-6)}`;
+
+    setReceiptNumber(
+      temporaryReceiptNumber
+    );
+
     setPaymentSaved(false);
+
     setShowConfirmation(false);
+
     setShowReceipt(true);
   };
 
   // =========================================================
-  // SAVE PAYMENT TO BACKEND (called only after PDF download)
+  // SAVE PAYMENT TO BACKEND
   // =========================================================
 
   const savePaymentToBackend = async () => {
-    if (paymentSaved) return true; // Already saved
+    if (paymentSaved) {
+      return true;
+    }
+
+    if (!activeStudent?.id) {
+      alert(
+        "Student information is missing. Payment cannot be saved."
+      );
+
+      return false;
+    }
+
     setIsSavingPayment(true);
+
     try {
       const response = await request(
-        `/branch-students/${student.id}/payments`,
+        `/branch-students/${activeStudent.id}/payments`,
         {
           method: "POST",
+
           body: JSON.stringify({
-            amountReceived: formData.amountReceived,
-            paymentMode: formData.paymentMode,
-            transactionReference: formData.transactionReference,
-            paymentDate: formData.paymentDate,
-            collectedBy: formData.collectedBy,
-            notes: formData.notes,
-            payAgainst: formData.payAgainst,
+            amountReceived:
+              Number(
+                formData.amountReceived
+              ),
+
+            paymentMode:
+              formData.paymentMode,
+
+            transactionReference:
+              formData.transactionReference,
+
+            paymentDate:
+              formData.paymentDate,
+
+            collectedBy:
+              formData.collectedBy,
+
+            branch:
+              formData.branch,
+
+            notes:
+              formData.notes,
+
+            payAgainst:
+              formData.payAgainst,
           }),
         }
       );
 
-      const savedReceiptNumber = response?.data?.receiptNumber || receiptNumber;
-      setReceiptNumber(savedReceiptNumber);
+      const savedReceiptNumber =
+        response?.data?.receiptNumber ||
+        response?.receiptNumber ||
+        receiptNumber;
+
+      setReceiptNumber(
+        savedReceiptNumber
+      );
+
       setPaymentSaved(true);
 
-      console.log("Payment Saved:", {
-        student,
-        ...formData,
-        receiptNumber: savedReceiptNumber,
-      });
+      console.log(
+        "Payment saved successfully:",
+        {
+          student: activeStudent,
+          ...formData,
+          receiptNumber:
+            savedReceiptNumber,
+        }
+      );
 
       return true;
     } catch (error) {
-      console.error("Failed to save payment:", error);
-      alert("Failed to save payment. Please try downloading the receipt again.");
+      console.error(
+        "Failed to save payment:",
+        error
+      );
+
+      alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to save payment. Please try again."
+      );
+
       return false;
     } finally {
       setIsSavingPayment(false);
@@ -405,557 +671,697 @@ const RecordPayment = ({ student, onClose }) => {
   // GENERATE RECEIPT
   // =========================================================
 
- 
-const handleGenerateReceipt = () => {
-  const receiptDate = formatDate(formData.paymentDate);
+  const handleGenerateReceipt = () => {
+    if (isSavingPayment) {
+      return;
+    }
 
-  const amountInWords = numberToWords(currentPayment);
+    const receiptDate =
+      formatDate(formData.paymentDate);
 
-  const instituteName =
-    student?.instituteName ||
-    "Cispro Training and Placement Pvt Ltd";
+    const amountInWords =
+      numberToWords(currentPayment);
 
-  const instituteLocation =
-    student?.instituteLocation ||
-    formData.branch ||
-    "Chennai";
+    const instituteName =
+      activeStudent?.instituteName ||
+      "Cispro Training and Placement Pvt Ltd";
 
-  const institutePhone =
-    student?.institutePhone ||
-    "+91 XXXXX XXXXX";
+    const instituteLocation =
+      activeStudent?.instituteLocation ||
+      formData.branch ||
+      "Chennai";
 
-  // Temporary receipt HTML
-  const receiptElement = document.createElement("div");
+    const institutePhone =
+      activeStudent?.institutePhone ||
+      "+91 XXXXX XXXXX";
 
-  receiptElement.innerHTML = `
-    <div style="
-      width: 800px;
-      background: #ffffff;
-      padding: 38px;
-      color: #111827;
-      font-family: Arial, Helvetica, sans-serif;
-      box-sizing: border-box;
-    ">
+    const receiptElement =
+      document.createElement("div");
 
-      <!-- HEADER -->
-      <div style="
-        text-align: center;
-        margin-bottom: 28px;
-      ">
-
-        <h1 style="
-          margin: 0;
-          font-size: 25px;
-          font-weight: 700;
+    receiptElement.innerHTML = `
+      <div
+        style="
+          width: 800px;
+          background: #ffffff;
+          padding: 38px;
           color: #111827;
-        ">
-          ${instituteName}
-        </h1>
+          font-family: Arial, Helvetica, sans-serif;
+          box-sizing: border-box;
+        "
+      >
 
-        <div style="
-          margin-top: 7px;
-          font-size: 13px;
-          color: #64748b;
-        ">
-          ${instituteLocation} • ${institutePhone}
+        <!-- HEADER -->
+
+        <div
+          style="
+            text-align: center;
+            margin-bottom: 28px;
+          "
+        >
+
+          <h1
+            style="
+              margin: 0;
+              font-size: 25px;
+              font-weight: 700;
+              color: #111827;
+            "
+          >
+            ${instituteName}
+          </h1>
+
+          <div
+            style="
+              margin-top: 7px;
+              font-size: 13px;
+              color: #64748b;
+            "
+          >
+            ${instituteLocation} • ${institutePhone}
+          </div>
+
+          <div
+            style="
+              margin-top: 24px;
+              font-size: 21px;
+              font-weight: 700;
+              letter-spacing: 0.5px;
+              color: #0f766e;
+            "
+          >
+            PAYMENT RECEIPT
+          </div>
+
+        </div>
+
+        <!-- META -->
+
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            padding: 16px 0;
+            border-top: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 26px;
+            font-size: 13px;
+          "
+        >
+
+          <div>
+            Receipt No:
+            <strong>
+              ${receiptNumber}
+            </strong>
+          </div>
+
+          <div>
+            Date:
+            <strong>
+              ${receiptDate}
+            </strong>
+          </div>
+
+        </div>
+
+        <!-- STUDENT DETAILS -->
+
+        <div style="margin-bottom: 25px;">
+
+          <h3
+            style="
+              margin: 0 0 13px;
+              font-size: 13px;
+              font-weight: 700;
+              color: #334155;
+            "
+          >
+            STUDENT DETAILS
+          </h3>
+
+          <div style="
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 20px;
+            padding: 8px 0;
+            font-size: 13px;
+          ">
+            <span style="color:#64748b;">
+              Student Name
+            </span>
+
+            <strong>
+              ${studentName}
+            </strong>
+          </div>
+
+          <div style="
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 20px;
+            padding: 8px 0;
+            font-size: 13px;
+          ">
+            <span style="color:#64748b;">
+              Admission ID
+            </span>
+
+            <strong>
+              ${admissionId}
+            </strong>
+          </div>
+
+          <div style="
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 20px;
+            padding: 8px 0;
+            font-size: 13px;
+          ">
+            <span style="color:#64748b;">
+              Course
+            </span>
+
+            <strong>
+              ${courseName}
+            </strong>
+          </div>
+
+          <div style="
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            gap: 20px;
+            padding: 8px 0;
+            font-size: 13px;
+          ">
+            <span style="color:#64748b;">
+              Branch
+            </span>
+
+            <strong>
+              ${formData.branch}
+            </strong>
+          </div>
+
         </div>
 
         <div style="
-          margin-top: 24px;
-          font-size: 21px;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          color: #0f766e;
-        ">
-          PAYMENT RECEIPT
+          border-top: 1px solid #e5e7eb;
+          margin: 25px 0;
+        "></div>
+
+        <!-- PAYMENT DETAILS -->
+
+        <div style="margin-bottom: 25px;">
+
+          <h3
+            style="
+              margin: 0 0 13px;
+              font-size: 13px;
+              font-weight: 700;
+              color: #334155;
+            "
+          >
+            PAYMENT DETAILS
+          </h3>
+
+          <div style="
+            display:grid;
+            grid-template-columns:180px 1fr;
+            gap:20px;
+            padding:8px 0;
+            font-size:13px;
+          ">
+            <span style="color:#64748b;">
+              Payment For
+            </span>
+
+            <strong>
+              ${formData.payAgainst}
+            </strong>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:180px 1fr;
+            gap:20px;
+            padding:8px 0;
+            font-size:13px;
+          ">
+            <span style="color:#64748b;">
+              Payment Mode
+            </span>
+
+            <strong>
+              ${formData.paymentMode}
+            </strong>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:180px 1fr;
+            gap:20px;
+            padding:8px 0;
+            font-size:13px;
+          ">
+            <span style="color:#64748b;">
+              Transaction Ref
+            </span>
+
+            <strong>
+              ${
+                formData.transactionReference ||
+                "-"
+              }
+            </strong>
+          </div>
+
+          <div style="
+            display:grid;
+            grid-template-columns:180px 1fr;
+            gap:20px;
+            padding:8px 0;
+            font-size:13px;
+          ">
+            <span style="color:#64748b;">
+              Collected By
+            </span>
+
+            <strong>
+              ${formData.collectedBy}
+            </strong>
+          </div>
+
         </div>
 
-      </div>
+        <div style="
+          border-top:1px solid #e5e7eb;
+          margin:25px 0;
+        "></div>
 
-      <!-- META -->
-      <div style="
-        display: flex;
-        justify-content: space-between;
-        padding: 16px 0;
-        border-top: 1px solid #e5e7eb;
-        border-bottom: 1px solid #e5e7eb;
-        margin-bottom: 26px;
-        font-size: 13px;
-      ">
+        <!-- AMOUNT -->
+
+        <div style="padding:18px 0;">
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+          ">
+
+            <div style="
+              font-size:14px;
+              font-weight:600;
+              color:#475569;
+            ">
+              Amount Received
+            </div>
+
+            <div style="
+              font-size:24px;
+              font-weight:700;
+              color:#0f766e;
+            ">
+              ₹${formatCurrency(currentPayment)}
+            </div>
+
+          </div>
+
+          <div style="margin-top:12px;">
+
+            <div style="
+              font-size:12px;
+              color:#64748b;
+              margin-bottom:5px;
+            ">
+              Amount in Words
+            </div>
+
+            <div style="
+              font-size:13px;
+              font-weight:600;
+              color:#334155;
+            ">
+              ${amountInWords}
+            </div>
+
+          </div>
+
+        </div>
+
+        <div style="
+          border-top:1px solid #e5e7eb;
+          margin:25px 0;
+        "></div>
+
+        <!-- FEE SUMMARY -->
 
         <div>
-          Receipt No:
-          <strong>${receiptNumber}</strong>
+
+          <h3
+            style="
+              margin:0 0 13px;
+              font-size:13px;
+              font-weight:700;
+              color:#334155;
+            "
+          >
+            FEE SUMMARY
+          </h3>
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            padding:9px 0;
+            font-size:13px;
+          ">
+            <span style="color:#64748b;">
+              Total Course Fee
+            </span>
+
+            <strong>
+              ₹${formatCurrency(totalCourseFee)}
+            </strong>
+          </div>
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            padding:9px 0;
+            font-size:13px;
+          ">
+            <span style="color:#64748b;">
+              Previously Paid
+            </span>
+
+            <strong>
+              ₹${formatCurrency(previouslyPaid)}
+            </strong>
+          </div>
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            padding:9px 0;
+            font-size:13px;
+          ">
+            <span style="color:#64748b;">
+              This Payment
+            </span>
+
+            <strong>
+              ₹${formatCurrency(currentPayment)}
+            </strong>
+          </div>
+
+          ${
+            installmentBalance > 0
+              ? `
+                <div style="
+                  display:flex;
+                  justify-content:space-between;
+                  padding:9px 0;
+                  font-size:13px;
+                  color:#dc2626;
+                ">
+                  <span>
+                    Installment Balance
+                  </span>
+
+                  <strong style="color:#dc2626;">
+                    ₹${formatCurrency(
+                      installmentBalance
+                    )}
+                  </strong>
+                </div>
+              `
+              : ""
+          }
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            border-top:1px solid #cbd5e1;
+            margin-top:5px;
+            padding-top:13px;
+            font-size:13px;
+          ">
+            <strong>
+              Total Paid
+            </strong>
+
+            <strong>
+              ₹${formatCurrency(totalPaid)}
+            </strong>
+          </div>
+
+          <div style="
+            display:flex;
+            justify-content:space-between;
+            padding-top:12px;
+            font-size:13px;
+          ">
+            <strong>
+              Balance
+            </strong>
+
+            <strong
+              style="
+                color:${
+                  balance > 0
+                    ? "#dc2626"
+                    : "#059669"
+                };
+                font-size:15px;
+              "
+            >
+              ₹${formatCurrency(balance)}
+            </strong>
+          </div>
+
         </div>
 
-        <div>
-          Date:
-          <strong>${receiptDate}</strong>
-        </div>
-
-      </div>
-
-      <!-- STUDENT DETAILS -->
-      <div style="margin-bottom: 25px;">
-
-        <h3 style="
-          margin: 0 0 13px;
-          font-size: 13px;
-          font-weight: 700;
-          color: #334155;
-        ">
-          STUDENT DETAILS
-        </h3>
-
-        <div style="
-          display: grid;
-          grid-template-columns: 180px 1fr;
-          gap: 20px;
-          padding: 8px 0;
-          font-size: 13px;
-        ">
-          <span style="color:#64748b;">
-            Student Name
-          </span>
-
-          <strong>
-            ${studentName}
-          </strong>
-        </div>
-
-        <div style="
-          display: grid;
-          grid-template-columns: 180px 1fr;
-          gap: 20px;
-          padding: 8px 0;
-          font-size: 13px;
-        ">
-          <span style="color:#64748b;">
-            Admission ID
-          </span>
-
-          <strong>
-            ${admissionId}
-          </strong>
-        </div>
-
-        <div style="
-          display: grid;
-          grid-template-columns: 180px 1fr;
-          gap: 20px;
-          padding: 8px 0;
-          font-size: 13px;
-        ">
-          <span style="color:#64748b;">
-            Course
-          </span>
-
-          <strong>
-            ${courseName}
-          </strong>
-        </div>
-
-        <div style="
-          display: grid;
-          grid-template-columns: 180px 1fr;
-          gap: 20px;
-          padding: 8px 0;
-          font-size: 13px;
-        ">
-          <span style="color:#64748b;">
-            Branch
-          </span>
-
-          <strong>
-            ${formData.branch}
-          </strong>
-        </div>
-
-      </div>
-
-      <div style="
-        border-top: 1px solid #e5e7eb;
-        margin: 25px 0;
-      "></div>
-
-      <!-- PAYMENT DETAILS -->
-      <div style="margin-bottom: 25px;">
-
-        <h3 style="
-          margin: 0 0 13px;
-          font-size: 13px;
-          font-weight: 700;
-          color: #334155;
-        ">
-          PAYMENT DETAILS
-        </h3>
-
-        <div style="
-          display:grid;
-          grid-template-columns:180px 1fr;
-          gap:20px;
-          padding:8px 0;
-          font-size:13px;
-        ">
-          <span style="color:#64748b;">
-            Payment For
-          </span>
-
-          <strong>
-            ${formData.payAgainst}
-          </strong>
-        </div>
-
-        <div style="
-          display:grid;
-          grid-template-columns:180px 1fr;
-          gap:20px;
-          padding:8px 0;
-          font-size:13px;
-        ">
-          <span style="color:#64748b;">
-            Payment Mode
-          </span>
-
-          <strong>
-            ${formData.paymentMode}
-          </strong>
-        </div>
-
-        <div style="
-          display:grid;
-          grid-template-columns:180px 1fr;
-          gap:20px;
-          padding:8px 0;
-          font-size:13px;
-        ">
-          <span style="color:#64748b;">
-            Transaction Ref
-          </span>
-
-          <strong>
-            ${formData.transactionReference || "-"}
-          </strong>
-        </div>
-
-        <div style="
-          display:grid;
-          grid-template-columns:180px 1fr;
-          gap:20px;
-          padding:8px 0;
-          font-size:13px;
-        ">
-          <span style="color:#64748b;">
-            Collected By
-          </span>
-
-          <strong>
-            ${formData.collectedBy}
-          </strong>
-        </div>
-
-      </div>
-
-      <div style="
-        border-top:1px solid #e5e7eb;
-        margin:25px 0;
-      "></div>
-
-      <!-- AMOUNT -->
-      <div style="
-        padding:18px 0;
-      ">
+        <!-- STATUS -->
 
         <div style="
           display:flex;
           justify-content:space-between;
-          align-items:center;
+          margin-top:25px;
+          padding:14px 0;
+          border-top:1px solid #e5e7eb;
+          border-bottom:1px solid #e5e7eb;
         ">
 
-          <div style="
-            font-size:14px;
-            font-weight:600;
-            color:#475569;
-          ">
-            Amount Received
-          </div>
-
-          <div style="
-            font-size:24px;
-            font-weight:700;
-            color:#0f766e;
-          ">
-            ₹${formatCurrency(currentPayment)}
-          </div>
-
-        </div>
-
-        <div style="margin-top:12px;">
-
-          <div style="
-            font-size:12px;
-            color:#64748b;
-            margin-bottom:5px;
-          ">
-            Amount in Words
-          </div>
-
-          <div style="
+          <span style="
             font-size:13px;
             font-weight:600;
-            color:#334155;
-          ">
-            ${amountInWords}
-          </div>
-
-        </div>
-
-      </div>
-
-      <div style="
-        border-top:1px solid #e5e7eb;
-        margin:25px 0;
-      "></div>
-
-      <!-- FEE SUMMARY -->
-      <div>
-
-        <h3 style="
-          margin:0 0 13px;
-          font-size:13px;
-          font-weight:700;
-          color:#334155;
-        ">
-          FEE SUMMARY
-        </h3>
-
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          padding:9px 0;
-          font-size:13px;
-        ">
-          <span style="color:#64748b;">
-            Total Course Fee
-          </span>
-
-          <strong>
-            ₹${formatCurrency(totalCourseFee)}
-          </strong>
-        </div>
-
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          padding:9px 0;
-          font-size:13px;
-        ">
-          <span style="color:#64748b;">
-            Previously Paid
-          </span>
-
-          <strong>
-            ₹${formatCurrency(previouslyPaid)}
-          </strong>
-        </div>
-
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          padding:9px 0;
-          font-size:13px;
-        ">
-          <span style="color:#64748b;">
-            This Payment
-          </span>
-
-          <strong>
-            ₹${formatCurrency(currentPayment)}
-          </strong>
-        </div>
-
-        ${installmentBalance > 0 ? `
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          padding:9px 0;
-          font-size:13px;
-          color:#dc2626;
-        ">
-          <span>
-            Installment Balance
-          </span>
-
-          <strong style="color:#dc2626;">
-            ₹${formatCurrency(installmentBalance)}
-          </strong>
-        </div>
-        ` : ''}
-
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          border-top:1px solid #cbd5e1;
-          margin-top:5px;
-          padding-top:13px;
-          font-size:13px;
-        ">
-          <strong>
-            Total Paid
-          </strong>
-
-          <strong>
-            ₹${formatCurrency(totalPaid)}
-          </strong>
-        </div>
-
-        <div style="
-          display:flex;
-          justify-content:space-between;
-          padding-top:12px;
-          font-size:13px;
-        ">
-          <strong>
-            Balance
-          </strong>
-
-          <strong style="
-            color:${balance > 0 ? '#dc2626' : '#059669'};
-            font-size:15px;
-          ">
-            ₹${formatCurrency(balance)}
-          </strong>
-        </div>
-
-      </div>
-
-      <!-- STATUS -->
-      <div style="
-        display:flex;
-        justify-content:space-between;
-        margin-top:25px;
-        padding:14px 0;
-        border-top:1px solid #e5e7eb;
-        border-bottom:1px solid #e5e7eb;
-      ">
-
-        <span style="
-          font-size:13px;
-          font-weight:600;
-          color:#475569;
-        ">
-          Payment Status
-        </span>
-
-        <strong style="
-          color:${balance > 0 ? '#f59e0b' : '#059669'};
-          font-size:13px;
-        ">
-          ${balance > 0 ? '⚠ PARTIALLY PAID' : '✓ PAID'}
-        </strong>
-
-      </div>
-
-      <!-- SIGNATURE -->
-      <div style="
-        display:flex;
-        justify-content:flex-end;
-        margin-top:55px;
-      ">
-
-        <div style="
-          width:190px;
-          text-align:center;
-        ">
-
-          <div style="
-            border-top:1px solid #111827;
-            margin-bottom:8px;
-          "></div>
-
-          <div style="
-            font-size:12px;
             color:#475569;
           ">
-            Authorized Signature
+            Payment Status
+          </span>
+
+          <strong style="
+            color:${
+              balance > 0
+                ? "#f59e0b"
+                : "#059669"
+            };
+            font-size:13px;
+          ">
+            ${
+              balance > 0
+                ? "⚠ PARTIALLY PAID"
+                : "✓ PAID"
+            }
+          </strong>
+
+        </div>
+
+        <!-- NOTES -->
+
+        ${
+          formData.notes
+            ? `
+              <div style="
+                margin-top:25px;
+                padding:14px;
+                background:#f8fafc;
+                border:1px solid #e2e8f0;
+                border-radius:6px;
+              ">
+
+                <div style="
+                  font-size:12px;
+                  color:#64748b;
+                  margin-bottom:6px;
+                  font-weight:600;
+                ">
+                  NOTES
+                </div>
+
+                <div style="
+                  font-size:13px;
+                  color:#334155;
+                ">
+                  ${formData.notes}
+                </div>
+
+              </div>
+            `
+            : ""
+        }
+
+        <!-- SIGNATURE -->
+
+        <div style="
+          display:flex;
+          justify-content:flex-end;
+          margin-top:55px;
+        ">
+
+          <div style="
+            width:190px;
+            text-align:center;
+          ">
+
+            <div style="
+              border-top:1px solid #111827;
+              margin-bottom:8px;
+            "></div>
+
+            <div style="
+              font-size:12px;
+              color:#475569;
+            ">
+              Authorized Signature
+            </div>
+
           </div>
 
         </div>
 
+        <!-- FOOTER -->
+
+        <div style="
+          margin-top:38px;
+          padding-top:18px;
+          border-top:1px solid #e5e7eb;
+          text-align:center;
+          font-size:12px;
+          color:#64748b;
+        ">
+          Thank you for your payment
+        </div>
+
       </div>
+    `;
 
-      <!-- FOOTER -->
-      <div style="
-        margin-top:38px;
-        padding-top:18px;
-        border-top:1px solid #e5e7eb;
-        text-align:center;
-        font-size:12px;
-        color:#64748b;
-      ">
-        Thank you for your payment
-      </div>
+    document.body.appendChild(
+      receiptElement
+    );
 
-    </div>
-  `;
+    const pdfOptions = {
+      margin: 0,
 
-  document.body.appendChild(receiptElement);
+      filename: `Payment_Receipt_${receiptNumber}.pdf`,
 
-  const pdfOptions = {
-    margin: 0,
-    filename: `Payment_Receipt_${receiptNumber}.pdf`,
-    image: {
-      type: "jpeg",
-      quality: 0.98,
-    },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-    },
-    jsPDF: {
-      unit: "px",
-      format: [800, 1150],
-      orientation: "portrait",
-    },
+      image: {
+        type: "jpeg",
+        quality: 0.98,
+      },
+
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      },
+
+      jsPDF: {
+        unit: "px",
+        format: [800, 1150],
+        orientation: "portrait",
+      },
+    };
+
+    html2pdf()
+      .set(pdfOptions)
+      .from(receiptElement)
+      .save()
+      .then(async () => {
+        if (
+          document.body.contains(
+            receiptElement
+          )
+        ) {
+          document.body.removeChild(
+            receiptElement
+          );
+        }
+
+        // IMPORTANT:
+        // Save payment only after PDF download.
+
+        await savePaymentToBackend();
+      })
+      .catch((error) => {
+        console.error(
+          "Receipt PDF generation failed:",
+          error
+        );
+
+        if (
+          document.body.contains(
+            receiptElement
+          )
+        ) {
+          document.body.removeChild(
+            receiptElement
+          );
+        }
+
+        alert(
+          "Unable to generate receipt PDF."
+        );
+      });
   };
 
-  html2pdf()
-    .set(pdfOptions)
-    .from(receiptElement)
-    .save()
-    .then(async () => {
-      document.body.removeChild(receiptElement);
-      // Save payment to backend AFTER receipt is downloaded
-      await savePaymentToBackend();
-    })
-    .catch((error) => {
-      console.error(
-        "Receipt PDF generation failed:",
-        error
-      );
-
-      document.body.removeChild(receiptElement);
-
-      alert(
-        "Unable to generate receipt PDF."
-      );
-    });
-};
   // =========================================================
   // CLOSE RECEIPT
   // =========================================================
 
   const handleCloseReceipt = () => {
     if (!paymentSaved) {
-      const confirmClose = window.confirm(
-        "⚠️ Payment has NOT been saved yet!\n\nPlease download the receipt first to save the payment.\n\nAre you sure you want to close without saving?"
-      );
-      if (!confirmClose) return;
+      const confirmClose =
+        window.confirm(
+          "⚠️ Payment has NOT been saved yet!\n\nPlease download the receipt first to save the payment.\n\nAre you sure you want to close without saving?"
+        );
+
+      if (!confirmClose) {
+        return;
+      }
     }
+
     setShowReceipt(false);
+
     onClose();
   };
+
+  // =========================================================
+  // CLOSE FORM
+  // =========================================================
+
+  const handleCloseForm = () => {
+    if (
+      !showConfirmation &&
+      !showReceipt
+    ) {
+      onClose();
+    }
+  };
+
+  // =========================================================
+  // RENDER
+  // =========================================================
 
   return (
     <>
@@ -972,7 +1378,6 @@ const handleGenerateReceipt = () => {
           <div className="record-payment-header">
 
             <div>
-
               <h2>
                 Record Payment
               </h2>
@@ -980,13 +1385,12 @@ const handleGenerateReceipt = () => {
               <p>
                 Record a payment for this student
               </p>
-
             </div>
 
             <button
               type="button"
               className="record-payment-close"
-              onClick={onClose}
+              onClick={handleCloseForm}
             >
               ×
             </button>
@@ -997,34 +1401,106 @@ const handleGenerateReceipt = () => {
 
           <form onSubmit={handleSubmit}>
 
-            {/* STUDENT */}
+            {/* =================================================
+                STUDENT
+            ================================================= */}
 
             <div className="payment-form-group">
 
-              <label>
+              <label htmlFor="studentId">
                 Student{" "}
                 <span className="required-star">
                   *
                 </span>
               </label>
 
-              <div className="payment-readonly-field">
+              {activeStudent?.studentId ? (
 
-                <span>
-                  {studentName}
-                </span>
+                <div className="payment-readonly-field">
 
-                {student?.studentId && (
-                  <span className="payment-student-id">
-                    {student.studentId}
+                  <span>
+                    {studentName}
                   </span>
-                )}
 
-              </div>
+                  <span className="payment-student-id">
+                    {activeStudent.studentId}
+                  </span>
+
+                </div>
+
+              ) : (
+
+                <>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      alignItems: "stretch",
+                    }}
+                  >
+
+                    <input
+                      type="text"
+                      id="studentId"
+                      value={studentIdInput}
+                      onChange={(event) => {
+                        setStudentIdInput(
+                          event.target.value
+                        );
+
+                        setStudentLookupError("");
+                      }}
+                      onKeyDown={(event) => {
+                        if (
+                          event.key === "Enter"
+                        ) {
+                          event.preventDefault();
+
+                          handleStudentLookup();
+                        }
+                      }}
+                      placeholder="Enter Student ID"
+                    />
+
+                    <button
+                      type="button"
+                      className="button button-solid"
+                      onClick={
+                        handleStudentLookup
+                      }
+                      disabled={
+                        isLoadingStudent
+                      }
+                    >
+                      {isLoadingStudent
+                        ? "Loading..."
+                        : "Search"}
+                    </button>
+
+                  </div>
+
+                  {studentLookupError && (
+                    <span className="payment-error">
+                      {studentLookupError}
+                    </span>
+                  )}
+
+                </>
+
+              )}
+
+              {errors.student && (
+                <span className="payment-error">
+                  {errors.student}
+                </span>
+              )}
 
             </div>
 
-            {/* PAY AGAINST */}
+            {/* =================================================
+                PAY AGAINST
+            ================================================= */}
 
             <div className="payment-form-group">
 
@@ -1076,7 +1552,9 @@ const handleGenerateReceipt = () => {
 
             </div>
 
-            {/* AMOUNT ROW */}
+            {/* =================================================
+                AMOUNT ROW
+            ================================================= */}
 
             <div className="payment-form-row">
 
@@ -1085,13 +1563,10 @@ const handleGenerateReceipt = () => {
               <div className="payment-form-group">
 
                 <label htmlFor="amountToPay">
-
                   Amount to Pay{" "}
-
                   <span className="required-star">
                     *
                   </span>
-
                 </label>
 
                 <div className="payment-input-wrapper">
@@ -1105,7 +1580,9 @@ const handleGenerateReceipt = () => {
                     inputMode="decimal"
                     id="amountToPay"
                     name="amountToPay"
-                    value={formData.amountToPay}
+                    value={
+                      formData.amountToPay
+                    }
                     onChange={handleChange}
                     placeholder="0.00"
                   />
@@ -1125,13 +1602,10 @@ const handleGenerateReceipt = () => {
               <div className="payment-form-group">
 
                 <label htmlFor="amountReceived">
-
                   Amount Received{" "}
-
                   <span className="required-star">
                     *
                   </span>
-
                 </label>
 
                 <div className="payment-input-wrapper">
@@ -1145,7 +1619,9 @@ const handleGenerateReceipt = () => {
                     inputMode="decimal"
                     id="amountReceived"
                     name="amountReceived"
-                    value={formData.amountReceived}
+                    value={
+                      formData.amountReceived
+                    }
                     onChange={handleChange}
                     placeholder="0.00"
                   />
@@ -1162,24 +1638,25 @@ const handleGenerateReceipt = () => {
 
             </div>
 
-            {/* PAYMENT MODE */}
+            {/* =================================================
+                PAYMENT MODE
+            ================================================= */}
 
             <div className="payment-form-group">
 
               <label htmlFor="paymentMode">
-
                 Payment Mode{" "}
-
                 <span className="required-star">
                   *
                 </span>
-
               </label>
 
               <select
                 id="paymentMode"
                 name="paymentMode"
-                value={formData.paymentMode}
+                value={
+                  formData.paymentMode
+                }
                 onChange={handleChange}
               >
 
@@ -1217,7 +1694,9 @@ const handleGenerateReceipt = () => {
 
             </div>
 
-            {/* TRANSACTION REFERENCE */}
+            {/* =================================================
+                TRANSACTION REFERENCE
+            ================================================= */}
 
             <div className="payment-form-group">
 
@@ -1238,25 +1717,26 @@ const handleGenerateReceipt = () => {
 
             </div>
 
-            {/* PAYMENT DATE */}
+            {/* =================================================
+                PAYMENT DATE
+            ================================================= */}
 
             <div className="payment-form-group">
 
               <label htmlFor="paymentDate">
-
                 Payment Date{" "}
-
                 <span className="required-star">
                   *
                 </span>
-
               </label>
 
               <input
                 type="date"
                 id="paymentDate"
                 name="paymentDate"
-                value={formData.paymentDate}
+                value={
+                  formData.paymentDate
+                }
                 onChange={handleChange}
               />
 
@@ -1268,25 +1748,26 @@ const handleGenerateReceipt = () => {
 
             </div>
 
-            {/* COLLECTED BY */}
+            {/* =================================================
+                COLLECTED BY
+            ================================================= */}
 
             <div className="payment-form-group">
 
               <label htmlFor="collectedBy">
-
                 Collected By{" "}
-
                 <span className="required-star">
                   *
                 </span>
-
               </label>
 
               <input
                 type="text"
                 id="collectedBy"
                 name="collectedBy"
-                value={formData.collectedBy}
+                value={
+                  formData.collectedBy
+                }
                 onChange={handleChange}
                 placeholder="Enter collector name"
               />
@@ -1299,18 +1780,17 @@ const handleGenerateReceipt = () => {
 
             </div>
 
-            {/* BRANCH */}
+            {/* =================================================
+                BRANCH
+            ================================================= */}
 
             <div className="payment-form-group">
 
               <label htmlFor="branch">
-
                 Branch{" "}
-
                 <span className="required-star">
                   *
                 </span>
-
               </label>
 
               <input
@@ -1330,7 +1810,9 @@ const handleGenerateReceipt = () => {
 
             </div>
 
-            {/* NOTES */}
+            {/* =================================================
+                NOTES
+            ================================================= */}
 
             <div className="payment-form-group">
 
@@ -1349,7 +1831,9 @@ const handleGenerateReceipt = () => {
 
             </div>
 
-            {/* PAYMENT PROOF */}
+            {/* =================================================
+                PAYMENT PROOF
+            ================================================= */}
 
             <div className="payment-form-group">
 
@@ -1362,29 +1846,31 @@ const handleGenerateReceipt = () => {
                 <input
                   type="file"
                   id="paymentProof"
-                  onChange={handleFileChange}
+                  onChange={
+                    handleFileChange
+                  }
                 />
 
                 <span>
-
                   {formData.paymentProof
                     ? formData.paymentProof.name
                     : "Upload payment proof"}
-
                 </span>
 
               </div>
 
             </div>
 
-            {/* FOOTER */}
+            {/* =================================================
+                FOOTER
+            ================================================= */}
 
             <div className="record-payment-footer">
 
               <button
                 type="button"
                 className="payment-cancel-btn"
-                onClick={onClose}
+                onClick={handleCloseForm}
               >
                 Cancel
               </button>
@@ -1409,6 +1895,7 @@ const handleGenerateReceipt = () => {
       ===================================================== */}
 
       {showConfirmation && (
+
         <div className="payment-popup-overlay">
 
           <div className="payment-confirmation-popup">
@@ -1429,7 +1916,6 @@ const handleGenerateReceipt = () => {
             <div className="confirmation-details">
 
               <div className="confirmation-detail-row">
-
                 <span>
                   Student
                 </span>
@@ -1437,11 +1923,9 @@ const handleGenerateReceipt = () => {
                 <strong>
                   {studentName}
                 </strong>
-
               </div>
 
               <div className="confirmation-detail-row">
-
                 <span>
                   Pay Against
                 </span>
@@ -1449,11 +1933,9 @@ const handleGenerateReceipt = () => {
                 <strong>
                   {formData.payAgainst}
                 </strong>
-
               </div>
 
               <div className="confirmation-detail-row">
-
                 <span>
                   Amount Received
                 </span>
@@ -1464,11 +1946,9 @@ const handleGenerateReceipt = () => {
                     currentPayment
                   )}
                 </strong>
-
               </div>
 
               <div className="confirmation-detail-row">
-
                 <span>
                   Payment Mode
                 </span>
@@ -1476,11 +1956,9 @@ const handleGenerateReceipt = () => {
                 <strong>
                   {formData.paymentMode}
                 </strong>
-
               </div>
 
               <div className="confirmation-detail-row">
-
                 <span>
                   Payment Date
                 </span>
@@ -1490,7 +1968,6 @@ const handleGenerateReceipt = () => {
                     formData.paymentDate
                   )}
                 </strong>
-
               </div>
 
             </div>
@@ -1510,10 +1987,11 @@ const handleGenerateReceipt = () => {
               <button
                 type="button"
                 className="popup-confirm-btn"
-                onClick={handleConfirmPayment}
-                disabled={isSubmitting}
+                onClick={
+                  handleConfirmPayment
+                }
               >
-                {isSubmitting ? "Processing..." : "Confirm Payment"}
+                Confirm Payment
               </button>
 
             </div>
@@ -1521,6 +1999,7 @@ const handleGenerateReceipt = () => {
           </div>
 
         </div>
+
       )}
 
       {/* =====================================================
@@ -1528,6 +2007,7 @@ const handleGenerateReceipt = () => {
       ===================================================== */}
 
       {showReceipt && (
+
         <div className="payment-popup-overlay">
 
           <div className="payment-receipt-popup">
@@ -1551,8 +2031,9 @@ const handleGenerateReceipt = () => {
             </h3>
 
             <p className="payment-popup-description">
-              The payment has been successfully
-              recorded.
+              {paymentSaved
+                ? "The payment has been successfully recorded."
+                : "Download the receipt to save the payment."}
             </p>
 
             <div className="receipt-number-box">
@@ -1567,122 +2048,292 @@ const handleGenerateReceipt = () => {
 
             </div>
 
+            {/* RECEIPT SUMMARY */}
+
             <div className="receipt-summary">
 
               <div className="receipt-summary-row">
-                <span>Student</span>
-                <strong>{studentName}</strong>
+                <span>
+                  Student
+                </span>
+
+                <strong>
+                  {studentName}
+                </strong>
               </div>
 
               <div className="receipt-summary-row">
-                <span>Course</span>
-                <strong>{courseName}</strong>
+                <span>
+                  Course
+                </span>
+
+                <strong>
+                  {courseName}
+                </strong>
               </div>
 
               <div className="receipt-summary-row">
-                <span>Pay Against</span>
-                <strong>{formData.payAgainst}</strong>
+                <span>
+                  Pay Against
+                </span>
+
+                <strong>
+                  {formData.payAgainst}
+                </strong>
               </div>
 
               <div className="receipt-summary-row">
-                <span>Payment Mode</span>
-                <strong>{formData.paymentMode}</strong>
+                <span>
+                  Payment Mode
+                </span>
+
+                <strong>
+                  {formData.paymentMode}
+                </strong>
               </div>
 
               <div className="receipt-summary-row">
-                <span>Payment Date</span>
-                <strong>{formatDate(formData.paymentDate)}</strong>
+                <span>
+                  Payment Date
+                </span>
+
+                <strong>
+                  {formatDate(
+                    formData.paymentDate
+                  )}
+                </strong>
               </div>
 
-              <div className="receipt-summary-row" style={{ borderTop: '1px solid #e5e7eb', paddingTop: '12px', marginTop: '8px' }}>
-                <span>Total Course Fee</span>
-                <strong>₹{formatCurrency(totalCourseFee)}</strong>
+              <div
+                className="receipt-summary-row"
+                style={{
+                  borderTop:
+                    "1px solid #e5e7eb",
+                  paddingTop: "12px",
+                  marginTop: "8px",
+                }}
+              >
+                <span>
+                  Total Course Fee
+                </span>
+
+                <strong>
+                  ₹
+                  {formatCurrency(
+                    totalCourseFee
+                  )}
+                </strong>
               </div>
 
               <div className="receipt-summary-row">
-                <span>Previously Paid</span>
-                <strong>₹{formatCurrency(previouslyPaid)}</strong>
+
+                <span>
+                  Previously Paid
+                </span>
+
+                <strong>
+                  ₹
+                  {formatCurrency(
+                    previouslyPaid
+                  )}
+                </strong>
+
               </div>
 
               <div className="receipt-total-row">
-                <span>Amount Received</span>
-                <strong>₹{formatCurrency(currentPayment)}</strong>
+
+                <span>
+                  Amount Received
+                </span>
+
+                <strong>
+                  ₹
+                  {formatCurrency(
+                    currentPayment
+                  )}
+                </strong>
+
               </div>
 
               {installmentBalance > 0 && (
-                <div className="receipt-summary-row" style={{ color: '#dc2626' }}>
-                  <span>Installment Balance</span>
-                  <strong style={{ color: '#dc2626' }}>₹{formatCurrency(installmentBalance)}</strong>
+
+                <div
+                  className="receipt-summary-row"
+                  style={{
+                    color: "#dc2626",
+                  }}
+                >
+
+                  <span>
+                    Installment Balance
+                  </span>
+
+                  <strong
+                    style={{
+                      color: "#dc2626",
+                    }}
+                  >
+                    ₹
+                    {formatCurrency(
+                      installmentBalance
+                    )}
+                  </strong>
+
                 </div>
+
               )}
 
-              <div className="receipt-summary-row" style={{ borderTop: '1px solid #e5e7eb', paddingTop: '12px', marginTop: '8px' }}>
-                <span>Total Paid (Overall)</span>
-                <strong>₹{formatCurrency(totalPaid)}</strong>
+              <div
+                className="receipt-summary-row"
+                style={{
+                  borderTop:
+                    "1px solid #e5e7eb",
+                  paddingTop: "12px",
+                  marginTop: "8px",
+                }}
+              >
+
+                <span>
+                  Total Paid (Overall)
+                </span>
+
+                <strong>
+                  ₹
+                  {formatCurrency(
+                    totalPaid
+                  )}
+                </strong>
+
               </div>
 
-              <div className="receipt-summary-row" style={{ color: balance > 0 ? '#dc2626' : '#059669' }}>
-                <span><strong>Overall Balance</strong></span>
-                <strong style={{ color: balance > 0 ? '#dc2626' : '#059669', fontSize: '16px' }}>
-                  ₹{formatCurrency(balance)}
+              <div
+                className="receipt-summary-row"
+                style={{
+                  color:
+                    balance > 0
+                      ? "#dc2626"
+                      : "#059669",
+                }}
+              >
+
+                <span>
+                  <strong>
+                    Overall Balance
+                  </strong>
+                </span>
+
+                <strong
+                  style={{
+                    color:
+                      balance > 0
+                        ? "#dc2626"
+                        : "#059669",
+
+                    fontSize: "16px",
+                  }}
+                >
+                  ₹
+                  {formatCurrency(
+                    balance
+                  )}
                 </strong>
+
               </div>
 
             </div>
 
-            {paymentSaved && (
-              <div style={{
-                background: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                borderRadius: '8px',
-                padding: '10px 16px',
-                marginBottom: '12px',
-                color: '#065f46',
-                fontSize: '13px',
-                fontWeight: 600,
-                textAlign: 'center',
-              }}>
+            {/* SAVE STATUS */}
+
+            {paymentSaved ? (
+
+              <div
+                style={{
+                  background:
+                    "#ecfdf5",
+
+                  border:
+                    "1px solid #a7f3d0",
+
+                  borderRadius: "8px",
+
+                  padding: "10px 16px",
+
+                  marginBottom: "12px",
+
+                  color: "#065f46",
+
+                  fontSize: "13px",
+
+                  fontWeight: 600,
+
+                  textAlign: "center",
+                }}
+              >
                 ✓ Payment saved successfully!
               </div>
+
+            ) : (
+
+              <div
+                style={{
+                  background:
+                    "#fef3c7",
+
+                  border:
+                    "1px solid #fcd34d",
+
+                  borderRadius: "8px",
+
+                  padding: "10px 16px",
+
+                  marginBottom: "12px",
+
+                  color: "#92400e",
+
+                  fontSize: "13px",
+
+                  fontWeight: 600,
+
+                  textAlign: "center",
+                }}
+              >
+                ⚠ Payment will be saved only
+                after downloading the receipt
+              </div>
+
             )}
 
-            {!paymentSaved && (
-              <div style={{
-                background: '#fef3c7',
-                border: '1px solid #fcd34d',
-                borderRadius: '8px',
-                padding: '10px 16px',
-                marginBottom: '12px',
-                color: '#92400e',
-                fontSize: '13px',
-                fontWeight: 600,
-                textAlign: 'center',
-              }}>
-                ⚠ Payment will be saved only after downloading the receipt
-              </div>
-            )}
+            {/* ACTIONS */}
 
             <div className="receipt-popup-actions">
 
               <button
                 type="button"
                 className="receipt-close-btn"
-                onClick={handleCloseReceipt}
+                onClick={
+                  handleCloseReceipt
+                }
               >
-                {paymentSaved ? 'Close' : 'Cancel'}
+                {paymentSaved
+                  ? "Close"
+                  : "Cancel"}
               </button>
 
               <button
                 type="button"
                 className="generate-receipt-btn"
-                onClick={handleGenerateReceipt}
-                disabled={isSavingPayment}
+                onClick={
+                  handleGenerateReceipt
+                }
+                disabled={
+                  isSavingPayment
+                }
               >
                 {isSavingPayment
-                  ? 'Saving Payment...'
+                  ? "Saving Payment..."
                   : paymentSaved
-                    ? '↓ Download Receipt Again'
-                    : '↓ Download Receipt & Save Payment'}
+                  ? "↓ Download Receipt Again"
+                  : "↓ Download Receipt & Save Payment"}
               </button>
 
             </div>
@@ -1690,6 +2341,7 @@ const handleGenerateReceipt = () => {
           </div>
 
         </div>
+
       )}
 
     </>

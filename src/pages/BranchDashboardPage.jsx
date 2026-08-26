@@ -1305,6 +1305,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
+  const [showPaymentHistory, setShowPaymentHistory] = useState(false)
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
 const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
@@ -4821,11 +4822,17 @@ const visibleBranchPaymentRows = useMemo(() => {
                   </div>
                 </BranchDashboardSection>
               ) : null}
-              {activeSection === 'payments' ? (
+
+
+             {activeSection === 'payments' ? (
   recordPaymentStudent ? (
     <BranchDashboardSection
       title="Record Payment"
-      description={`Recording payment for ${recordPaymentStudent.studentName || recordPaymentStudent.studentId || 'student'}.`}
+description={
+  recordPaymentStudent?.studentName
+    ? `Recording payment for ${recordPaymentStudent.studentName}.`
+    : 'Enter the student ID to load payment details.'
+}
       actions={(
         <button
           type="button"
@@ -4850,11 +4857,42 @@ const visibleBranchPaymentRows = useMemo(() => {
       title="Payments"
       description="Track collections and pending dues across all students."
       actions={(
-        <div className="branch-dashboard-section-summary">
-          <span>Total students:</span>
-          <strong>{filteredBranchPaymentRows.length}</strong>
-        </div>
-      )}
+  <div
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      flexWrap: 'wrap',
+    }}
+  >
+    <div className="branch-dashboard-section-summary">
+      <span>Total students:</span>
+      <strong>{filteredBranchPaymentRows.length}</strong>
+    </div>
+
+    <button
+      type="button"
+      className="button button-solid"
+      onClick={() => {
+        setShowPaymentHistory(false)
+        setRecordPaymentStudent({})
+      }}
+    >
+      Record Payment
+    </button>
+
+    <button
+      type="button"
+      className="button button-ghost"
+      onClick={() => {
+        setRecordPaymentStudent(null)
+        setShowPaymentHistory(true)
+      }}
+    >
+      View History
+    </button>
+  </div>
+)}
     >
       <div className="branch-dashboard-stats" style={{ marginBottom: '20px' }}>
         <article className="branch-dashboard-stat-card">
