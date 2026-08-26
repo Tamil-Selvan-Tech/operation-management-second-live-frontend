@@ -7,7 +7,9 @@
   inset: 0;
   background: rgba(15, 23, 42, 0.45);
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
   z-index: 9999;
 }
 
@@ -16,11 +18,12 @@
 ========================================================= */
 
 .record-payment-modal {
-  width: 520px;
-  height: 100vh;
+  width: min(700px, 100%);
+  max-height: 90vh;
   background: #ffffff;
+  border-radius: 14px;
   overflow-y: auto;
-  box-shadow: -8px 0 30px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
 }
 
 /* =========================================================
@@ -438,16 +441,35 @@
 /* =========================================================
    RECEIPT POPUP
 ========================================================= */
-
 .payment-receipt-popup {
   position: relative;
   width: 100%;
   max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: #ffffff;
   border-radius: 16px;
   padding: 32px;
+  box-sizing: border-box;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
   animation: paymentPopupIn 0.2s ease-out;
+}
+.payment-receipt-popup::-webkit-scrollbar {
+  width: 6px;
+}
+
+.payment-receipt-popup::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.payment-receipt-popup::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+.payment-receipt-popup::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .receipt-popup-close {
@@ -624,10 +646,16 @@
 /* =========================================================
    MOBILE
 ========================================================= */
-
 @media (max-width: 640px) {
+
+  .record-payment-overlay {
+    padding: 10px;
+  }
+
   .record-payment-modal {
     width: 100%;
+    max-height: 95vh;
+    border-radius: 12px;
   }
 
   .payment-form-row {
@@ -673,4 +701,13 @@
   .receipt-summary-row {
     align-items: flex-start;
   }
+}
+
+  .confirmation-detail-row,
+  .receipt-summary-row {
+    align-items: flex-start;
+  }
+.payment-receipt-popup {
+  max-height: 95vh;
+  overflow-y: auto;
 }
