@@ -23,6 +23,7 @@ import {
   Trash2,
   UserRound,
   Users,
+  Lock,
 } from 'lucide-react'
 import {
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
@@ -57,6 +58,7 @@ import { StudentAttendanceReportModal } from '../components/StudentAttendanceRep
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
 import { loadBranchStudents } from '../lib/branchStudentStore'
+import { saveFacultyTodayWorkEntry } from '../lib/facultyTodayWorkStore'
 import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
 import {
 } from '../lib/courseEditRequestStore'
@@ -225,6 +227,31 @@ function getCourseModels(course) {
       : Array.isArray(source.modules)
         ? source.modules
         : []
+}
+
+function getCourseModuleName(module = {}, index = 0) {
+  return String(module?.name || module?.title || module?.moduleName || `Module ${index + 1}`).trim()
+}
+
+function getCourseSubmodules(module = {}) {
+  const source = module && typeof module === 'object' ? module : {}
+
+  return Array.isArray(source.submodules)
+    ? source.submodules
+    : Array.isArray(source.submodels)
+      ? source.submodels
+      : Array.isArray(source.subModules)
+        ? source.subModules
+        : []
+}
+
+function getCourseSubmoduleName(submodule = {}, index = 0) {
+  return String(
+    submodule?.name ||
+    submodule?.title ||
+    submodule?.submoduleName ||
+    `Submodule ${index + 1}`,
+  ).trim()
 }
 
 function getCourseFromSource(source = {}) {
@@ -523,7 +550,7 @@ function SidebarUserAvatar() {
   )
 }
 
-function FacultyDashboardSection({ title, description, children }) {
+function FacultyDashboardSection({ title, description, actions, children }) {
   return (
     <section className="branch-dashboard-section">
       <div className="branch-dashboard-section-heading">
@@ -531,6 +558,7 @@ function FacultyDashboardSection({ title, description, children }) {
           <h2>{title}</h2>
           {description ? <p>{description}</p> : null}
         </div>
+        {actions ? <div className="branch-dashboard-section-heading-actions">{actions}</div> : null}
       </div>
       {children}
     </section>
@@ -602,6 +630,7 @@ export function FacultyDashboardPage() {
   const [courseEditRequests, setCourseEditRequests] = useState([])
   const [isCourseRequestModalOpen, setIsCourseRequestModalOpen] = useState(false)
   const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false)
+  const [isTodayWorkModalOpen, setIsTodayWorkModalOpen] = useState(false)
   const [courseEditView, setCourseEditView] = useState('overview')
   const [courseEditActiveModuleIndex, setCourseEditActiveModuleIndex] = useState(0)
   const [courseEditExpandedModuleIds, setCourseEditExpandedModuleIds] = useState([])
@@ -617,6 +646,14 @@ export function FacultyDashboardPage() {
   const [courseRequestError, setCourseRequestError] = useState('')
   const [isCourseRequestSuccessOpen, setIsCourseRequestSuccessOpen] = useState(false)
   const [isCourseEditSuccessOpen, setIsCourseEditSuccessOpen] = useState(false)
+  const [todayWorkForm, setTodayWorkForm] = useState({
+    applyToAllStudents: true,
+    moduleId: '',
+    submoduleIds: [],
+    selectedStudentIds: [],
+  })
+  const [todayWorkError, setTodayWorkError] = useState('')
+  const [isTodayWorkSaving, setIsTodayWorkSaving] = useState(false)
   const [courseEditError, setCourseEditError] = useState('')
   const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
   const [isCourseEditSaving, setIsCourseEditSaving] = useState(false)
@@ -1044,6 +1081,36 @@ useEffect(() => {
     selectedCourseModuleKeys.length > 0 &&
     selectedCourseModuleKeys.every((moduleId) => expandedCourseModuleIds.includes(moduleId))
 
+  const todayWorkSelectedModule = useMemo(() => {
+    if (!selectedCourseModules.length) return null
+
+    const fallbackModule = selectedCourseModules[0]
+    const normalizedModuleId = String(todayWorkForm.moduleId || fallbackModule?.id || '').trim()
+
+    return selectedCourseModules.find((module, index) => {
+      const moduleId = String(module?.id || `module-${index}`).trim()
+      return moduleId === normalizedModuleId
+    }) || fallbackModule || null
+  }, [selectedCourseModules, todayWorkForm.moduleId])
+
+  const todayWorkSelectedModuleSubmodules = useMemo(
+    () => getCourseSubmodules(todayWorkSelectedModule),
+    [todayWorkSelectedModule],
+  )
+
+  const todayWorkSelectedStudents = useMemo(() => {
+    const selectedIds = new Set(
+      (Array.isArray(todayWorkForm.selectedStudentIds) ? todayWorkForm.selectedStudentIds : [])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    )
+
+    return facultyScopedStudents.filter((student) => {
+      const studentId = String(student?.id || student?.studentId || '').trim()
+      return selectedIds.has(studentId)
+    })
+  }, [facultyScopedStudents, todayWorkForm.selectedStudentIds])
+
   const toggleCourseModule = (moduleId) => {
     const normalizedModuleId = String(moduleId || '').trim()
     if (!normalizedModuleId) return
@@ -1061,6 +1128,165 @@ useEffect(() => {
     setExpandedCourseModuleIds(
       isAllModulesExpanded ? [] : selectedCourseModuleKeys,
     )
+  }
+
+  const openTodayWorkModal = () => {
+    const firstModule = selectedCourseModules[0] || null
+    const firstModuleId = String(firstModule?.id || '').trim()
+
+    setTodayWorkForm({
+      applyToAllStudents: true,
+      moduleId: firstModuleId,
+      submoduleIds: [],
+      selectedStudentIds: facultyScopedStudents
+        .map((student) => String(student?.id || student?.studentId || '').trim())
+        .filter(Boolean),
+    })
+    setTodayWorkError('')
+    setIsTodayWorkModalOpen(true)
+  }
+
+  const closeTodayWorkModal = () => {
+    setIsTodayWorkModalOpen(false)
+    setTodayWorkError('')
+    setIsTodayWorkSaving(false)
+  }
+
+  const updateTodayWorkModule = (moduleId) => {
+    const normalizedModuleId = String(moduleId || '').trim()
+    const nextModule = selectedCourseModules.find((module, index) => String(module?.id || `module-${index}`).trim() === normalizedModuleId) || null
+    const nextSubmodules = getCourseSubmodules(nextModule)
+
+    setTodayWorkForm((current) => ({
+      ...current,
+      moduleId: normalizedModuleId,
+      submoduleIds: [],
+    }))
+  }
+
+  const toggleTodayWorkSubmodule = (submoduleId) => {
+    const normalizedSubmoduleId = String(submoduleId || '').trim()
+    if (!normalizedSubmoduleId) return
+
+    setTodayWorkForm((current) => {
+      const currentIds = Array.isArray(current.submoduleIds) ? current.submoduleIds : []
+      const hasSubmodule = currentIds.includes(normalizedSubmoduleId)
+      return {
+        ...current,
+        submoduleIds: hasSubmodule
+          ? currentIds.filter((id) => id !== normalizedSubmoduleId)
+          : [...currentIds, normalizedSubmoduleId],
+      }
+    })
+  }
+
+  const selectAllTodayWorkSubmodules = () => {
+    setTodayWorkForm((current) => ({
+      ...current,
+      submoduleIds: todayWorkSelectedModuleSubmodules
+        .map((submodule, index) =>
+          String(
+            submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${index}`,
+          ).trim(),
+        )
+        .filter(Boolean),
+    }))
+  }
+
+  const clearAllTodayWorkSubmodules = () => {
+    setTodayWorkForm((current) => ({
+      ...current,
+      submoduleIds: [],
+    }))
+  }
+
+  const toggleTodayWorkStudent = (studentId) => {
+    const normalizedStudentId = String(studentId || '').trim()
+    if (!normalizedStudentId) return
+
+    setTodayWorkForm((current) => {
+      const currentIds = Array.isArray(current.selectedStudentIds) ? current.selectedStudentIds : []
+      const hasStudent = currentIds.includes(normalizedStudentId)
+      return {
+        ...current,
+        selectedStudentIds: hasStudent
+          ? currentIds.filter((id) => id !== normalizedStudentId)
+          : [...currentIds, normalizedStudentId],
+      }
+    })
+  }
+
+  const handleTodayWorkSubmit = (event) => {
+    event.preventDefault()
+
+    if (!selectedCourse?.id) {
+      setTodayWorkError('Please select a course first.')
+      return
+    }
+
+    if (!todayWorkSelectedModule) {
+      setTodayWorkError('No module found for this course.')
+      return
+    }
+
+    const selectedSubmoduleIds = Array.isArray(todayWorkForm.submoduleIds)
+      ? todayWorkForm.submoduleIds.filter(Boolean)
+      : []
+
+    if (!selectedSubmoduleIds.length) {
+      setTodayWorkError('Please select at least one sub-module.')
+      return
+    }
+
+    const selectedStudents = todayWorkForm.applyToAllStudents
+      ? facultyScopedStudents
+      : todayWorkSelectedStudents
+
+    if (!todayWorkForm.applyToAllStudents && !selectedStudents.length) {
+      setTodayWorkError('Please select at least one student.')
+      return
+    }
+
+    const moduleSubmodules = getCourseSubmodules(todayWorkSelectedModule)
+    const submoduleLookup = new Map(
+      moduleSubmodules.map((submodule, index) => {
+        const id = String(submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${index}`).trim()
+        return [id, submodule]
+      }),
+    )
+
+    setIsTodayWorkSaving(true)
+    setTodayWorkError('')
+
+    try {
+      saveFacultyTodayWorkEntry({
+        facultyId: currentFacultyIdentity.facultyId,
+        facultyName: currentFacultyIdentity.facultyName,
+        facultyEmail: currentFacultyIdentity.facultyEmail,
+        branchId: currentFacultyIdentity.branchId,
+        courseId: String(selectedCourse.id || '').trim(),
+        courseName: String(selectedCourse.name || selectedCourse.courseName || '').trim(),
+        moduleId: String(todayWorkSelectedModule.id || '').trim(),
+        moduleName: getCourseModuleName(todayWorkSelectedModule, 0),
+        applyToAllStudents: Boolean(todayWorkForm.applyToAllStudents),
+        studentIds: selectedStudents.map((student) => String(student.id || student.studentId || '').trim()).filter(Boolean),
+        studentCount: selectedStudents.length,
+        submodules: selectedSubmoduleIds.map((submoduleId) => {
+          const submodule = submoduleLookup.get(submoduleId) || {}
+          return {
+            id: submoduleId,
+            name: getCourseSubmoduleName(submodule, 0),
+          }
+        }),
+      })
+
+      closeTodayWorkModal()
+    } catch (error) {
+      console.error('Failed to save today work entry', error)
+      setTodayWorkError('Unable to save work right now.')
+    } finally {
+      setIsTodayWorkSaving(false)
+    }
   }
 
   const openCourseRequestModal = () => {
@@ -2185,7 +2411,20 @@ const nextName = trimmedValue
               ) : null}
 
               {activeSection === 'students' ? (
-                <FacultyDashboardSection title={facultyViewLabel} description={`Learners assigned to ${String(currentFacultyIdentity.facultyName || facultyName || 'this faculty').trim()}.`}>
+                <FacultyDashboardSection
+                  title={facultyViewLabel}
+                  description={`Learners assigned to ${String(currentFacultyIdentity.facultyName || facultyName || 'this faculty').trim()}.`}
+                  actions={(
+                    <button
+                      type="button"
+                      className="faculty-today-work-trigger"
+                      onClick={openTodayWorkModal}
+                    >
+                      <BookOpen size={16} />
+                      <span>Add Today&apos;s Work</span>
+                    </button>
+                  )}
+                >
                   <div className="branch-dashboard-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>
@@ -2454,8 +2693,266 @@ const nextName = trimmedValue
               ) : null}
             </div>
           </main>
-        </div>
       </div>
+    </div>
+
+      {isTodayWorkModalOpen ? (
+        <div className="faculty-today-work-backdrop branch-modal-backdrop" role="presentation" onClick={closeTodayWorkModal}>
+          <div
+            className="faculty-today-work-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-today-work-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="faculty-today-work-header">
+              <div className="faculty-today-work-title-row">
+                <div className="faculty-today-work-title-copy">
+                  <span className="faculty-today-work-title-icon" aria-hidden="true">
+                    <BookOpen size={20} />
+                  </span>
+                  <h3 id="faculty-today-work-title">Add Today&apos;s Work</h3>
+                </div>
+
+                <button
+                  type="button"
+                  className="faculty-today-work-close"
+                  aria-label="Close today's work modal"
+                  onClick={closeTodayWorkModal}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <form className="faculty-today-work-form" onSubmit={handleTodayWorkSubmit}>
+              <label className="faculty-today-work-toggle">
+                <input
+                  type="checkbox"
+                  checked={todayWorkForm.applyToAllStudents}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setTodayWorkForm((current) => ({
+                      ...current,
+                      applyToAllStudents: checked,
+                      selectedStudentIds: checked
+                        ? (Array.isArray(current.selectedStudentIds) && current.selectedStudentIds.length
+                          ? current.selectedStudentIds
+                          : facultyScopedStudents.map((student) => String(student?.id || student?.studentId || '').trim()).filter(Boolean))
+                        : (Array.isArray(current.selectedStudentIds) && current.selectedStudentIds.length
+                          ? current.selectedStudentIds
+                          : facultyScopedStudents.map((student) => String(student?.id || student?.studentId || '').trim()).filter(Boolean)),
+                    }))
+                  }}
+                />
+                <div>
+                  <strong>Update All Students</strong>
+                  <span>Selected work will be applied to all students connected to you.</span>
+                </div>
+              </label>
+
+              <div className="faculty-today-work-grid">
+                <label className="faculty-today-work-field">
+                  <span>Course</span>
+                  <div className="faculty-today-work-input faculty-today-work-input--locked">
+                    <BookOpen size={16} />
+                    <strong>{selectedCourse?.name || selectedCourse?.courseName || 'No course selected'}</strong>
+                    <Lock size={16} className="faculty-today-work-lock-icon" />
+                  </div>
+                  <small className="faculty-today-work-field-note">Auto-applied (your assigned course)</small>
+                </label>
+
+                <label className="faculty-today-work-field">
+                  <span>Module</span>
+                  <select
+                    className="faculty-today-work-select"
+                    value={todayWorkForm.moduleId || ''}
+                    onChange={(event) => updateTodayWorkModule(event.target.value)}
+                    disabled={!selectedCourseModules.length}
+                  >
+                    {selectedCourseModules.length ? (
+                      selectedCourseModules.map((module, index) => {
+                        const moduleId = String(module?.id || `module-${index}`).trim()
+                        return (
+                          <option key={moduleId || index} value={moduleId}>
+                            {getCourseModuleName(module, index)}
+                          </option>
+                        )
+                      })
+                    ) : (
+                      <option value="">No modules found</option>
+                    )}
+                  </select>
+                  <small className="faculty-today-work-field-note">First module is auto-selected</small>
+                </label>
+              </div>
+
+              <section className="faculty-today-work-panel">
+                <div className="faculty-today-work-panel-heading">
+                  <div>
+                    <h4>Sub-modules</h4>
+                    <p>{getCourseModuleName(todayWorkSelectedModule || {}, 0)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="faculty-today-work-link"
+                    onClick={() => {
+                      if (!todayWorkSelectedModuleSubmodules.length) return
+
+                      const allSelected = todayWorkSelectedModuleSubmodules.every((submodule, subIndex) => {
+                        const submoduleId = String(
+                          submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${subIndex}`,
+                        ).trim()
+                        return todayWorkForm.submoduleIds.includes(submoduleId)
+                      })
+
+                      if (allSelected) {
+                        clearAllTodayWorkSubmodules()
+                      } else {
+                        selectAllTodayWorkSubmodules()
+                      }
+                    }}
+                    disabled={!todayWorkSelectedModuleSubmodules.length}
+                  >
+                    {todayWorkSelectedModuleSubmodules.every((submodule, subIndex) => {
+                      const submoduleId = String(
+                        submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${subIndex}`,
+                      ).trim()
+                      return todayWorkForm.submoduleIds.includes(submoduleId)
+                    }) ? 'Clear All' : 'Select All'}
+                  </button>
+                </div>
+
+                <div className="faculty-today-work-submodule-selectbox">
+                  <div className="faculty-today-work-submodule-selectbar">
+                    <span>{todayWorkForm.submoduleIds.length ? `${todayWorkForm.submoduleIds.length} selected` : 'Select Sub-modules'}</span>
+                    <ChevronDown size={18} />
+                  </div>
+
+                  {todayWorkSelectedModuleSubmodules.length ? (
+                    <div className="faculty-today-work-submodule-list">
+                      {todayWorkSelectedModuleSubmodules.map((submodule, subIndex) => {
+                        const submoduleId = String(
+                          submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${subIndex}`,
+                        ).trim()
+                        const checked = todayWorkForm.submoduleIds.includes(submoduleId)
+
+                        return (
+                          <label key={submoduleId || subIndex} className={`faculty-today-work-submodule-item${checked ? ' is-selected' : ''}`.trim()}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleTodayWorkSubmodule(submoduleId)}
+                            />
+                            <span className="faculty-today-work-submodule-check" aria-hidden="true">
+                              ✓
+                            </span>
+                            <div className="faculty-today-work-submodule-copy">
+                              <strong>{getCourseSubmoduleName(submodule, subIndex)}</strong>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="faculty-today-work-empty">
+                      No sub-modules found for this module yet.
+                    </div>
+                  )}
+                </div>
+
+                {todayWorkForm.submoduleIds.length ? (
+                  <div className="faculty-today-work-selected-list faculty-today-work-selected-list--boxed">
+                    <span className="faculty-today-work-selected-label">Selected Sub-modules ({todayWorkForm.submoduleIds.length})</span>
+                    <div className="faculty-today-work-selected-chips">
+                      {todayWorkForm.submoduleIds.map((submoduleId) => {
+                        const submodule = todayWorkSelectedModuleSubmodules.find((item, index) => {
+                          const itemId = String(item?.id || item?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${index}`).trim()
+                          return itemId === submoduleId
+                        })
+
+                        return (
+                          <button
+                            type="button"
+                            key={submoduleId}
+                            className="faculty-today-work-chip"
+                            onClick={() => toggleTodayWorkSubmodule(submoduleId)}
+                            aria-label={`Remove ${getCourseSubmoduleName(submodule || {}, 0)}`}
+                          >
+                            <span>{getCourseSubmoduleName(submodule || {}, 0)}</span>
+                            <span aria-hidden="true">×</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+
+              {!todayWorkForm.applyToAllStudents ? (
+                <section className="faculty-today-work-panel">
+                  <div className="faculty-today-work-panel-heading">
+                    <div>
+                      <h4>Select Students</h4>
+                      <p>Choose the learners who should receive this work.</p>
+                    </div>
+                    <span className="faculty-today-work-panel-chip">
+                      {todayWorkSelectedStudents.length} selected
+                    </span>
+                  </div>
+
+                  {facultyScopedStudents.length ? (
+                    <div className="faculty-today-work-student-list">
+                      {facultyScopedStudents.map((student, index) => {
+                        const studentId = String(student?.id || student?.studentId || '').trim()
+                        const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
+                        const studentEmail = String(student?.emailAddress || student?.email || '-').trim()
+                        const checked = todayWorkForm.selectedStudentIds.includes(studentId)
+
+                        return (
+                          <label key={studentId || `${studentName}-${index}`} className={`faculty-today-work-student-item${checked ? ' is-selected' : ''}`.trim()}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleTodayWorkStudent(studentId)}
+                            />
+                            <div className="faculty-avatar">
+                              {getInitials(studentName)}
+                            </div>
+                            <div className="faculty-today-work-student-copy">
+                              <strong>{studentName}</strong>
+                              <span>{studentEmail}</span>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="faculty-today-work-empty">
+                      No students found for this faculty yet.
+                    </div>
+                  )}
+                </section>
+              ) : (
+                <div className="faculty-today-work-all-note">
+                  This work will be applied to all {facultyScopedStudents.length} student{facultyScopedStudents.length === 1 ? '' : 's'} assigned to {String(currentFacultyIdentity.facultyName || facultyName || 'this faculty').trim()}.
+                </div>
+              )}
+
+              {todayWorkError ? <div className="faculty-today-work-status">{todayWorkError}</div> : null}
+
+              <div className="faculty-today-work-actions">
+                <button type="button" className="faculty-today-work-cancel" onClick={closeTodayWorkModal}>
+                  Cancel
+                </button>
+                <button type="submit" className="faculty-today-work-save" disabled={isTodayWorkSaving}>
+                  {isTodayWorkSaving ? 'Saving...' : 'Save Work'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
 
       {isCourseRequestModalOpen ? (
         <div className="faculty-course-request-backdrop branch-modal-backdrop" role="presentation">
