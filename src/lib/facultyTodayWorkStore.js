@@ -43,6 +43,27 @@ export function listFacultyTodayWorkEntries() {
   return readAll()
 }
 
+export function getFacultyTodayWorkEntriesByFaculty(
+  { facultyId = '', facultyName = '', facultyEmail = '' } = {},
+  entries = readAll(),
+) {
+  const normalizedFacultyId = String(facultyId || '').trim().toLowerCase()
+  const normalizedFacultyName = String(facultyName || '').trim().toLowerCase()
+  const normalizedFacultyEmail = String(facultyEmail || '').trim().toLowerCase()
+
+  return (Array.isArray(entries) ? entries : []).filter((entry) => {
+    const entryFacultyId = String(entry?.facultyId || '').trim().toLowerCase()
+    const entryFacultyName = String(entry?.facultyName || '').trim().toLowerCase()
+    const entryFacultyEmail = String(entry?.facultyEmail || '').trim().toLowerCase()
+
+    return (
+      (normalizedFacultyId && entryFacultyId && entryFacultyId === normalizedFacultyId) ||
+      (normalizedFacultyEmail && entryFacultyEmail && entryFacultyEmail === normalizedFacultyEmail) ||
+      (normalizedFacultyName && entryFacultyName && entryFacultyName === normalizedFacultyName)
+    )
+  })
+}
+
 export function saveFacultyTodayWorkEntry(entry = {}) {
   const nextEntry = {
     ...entry,
@@ -78,4 +99,3 @@ export function clearFacultyTodayWorkEntries() {
     // ignore storage errors
   }
 }
-

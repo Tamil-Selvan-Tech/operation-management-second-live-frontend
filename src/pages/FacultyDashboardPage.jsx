@@ -58,7 +58,12 @@ import { StudentAttendanceReportModal } from '../components/StudentAttendanceRep
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
 import { loadBranchStudents } from '../lib/branchStudentStore'
-import { saveFacultyTodayWorkEntry } from '../lib/facultyTodayWorkStore'
+import {
+  FACULTY_TODAY_WORK_SYNC_EVENT,
+  getFacultyTodayWorkEntriesByFaculty,
+  saveFacultyTodayWorkEntry,
+  listFacultyTodayWorkEntries,
+} from '../lib/facultyTodayWorkStore'
 import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
 import {
 } from '../lib/courseEditRequestStore'
@@ -214,6 +219,61 @@ function getFacultyStudentPaymentProgress(student = {}) {
     paidInstallments,
     totalInstallments,
     paidInstallmentPercentage,
+  }
+}
+
+function normalizeWorkStudentId(value = '') {
+  return String(value || '').trim().toLowerCase()
+}
+
+function getWorkStudentIds(entry = {}) {
+  return (Array.isArray(entry.selectedStudentIds) ? entry.selectedStudentIds : [])
+    .map((value) => normalizeWorkStudentId(value))
+    .filter(Boolean)
+}
+
+function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
+  if (!entry || !student) return false
+
+  const applyToAllStudents = Boolean(entry.applyToAllStudents)
+  const entryStudentIds = getWorkStudentIds(entry)
+  const studentId = normalizeWorkStudentId(student.id || student.studentId || '')
+  const studentCourseId = normalizeWorkStudentId(student.courseId || student.course?.id || '')
+  const entryCourseId = normalizeWorkStudentId(entry.courseId || '')
+
+  const isTargetedStudent = applyToAllStudents || (studentId && entryStudentIds.includes(studentId))
+  if (!isTargetedStudent) return false
+
+  if (entryCourseId && studentCourseId && entryCourseId !== studentCourseId) {
+    return false
+  }
+
+  return true
+}
+
+function getFacultyWorkProgressForEntry(entry = {}, course = {}, selectedSubmoduleIds = []) {
+  const modules = getCourseModels(course)
+  const moduleId = String(entry.moduleId || '').trim()
+  const module =
+    modules.find((item, index) => String(item?.id || `module-${index}`).trim() === moduleId) ||
+    modules[0] ||
+    null
+  const submodules = getCourseSubmodules(module)
+  const totalSubmodules = submodules.length
+  const completedSubmodules = Array.isArray(selectedSubmoduleIds) ? selectedSubmoduleIds.length : 0
+  const submoduleProgress = totalSubmodules > 0 ? Math.min(100, (completedSubmodules / totalSubmodules) * 100) : 0
+  const totalModules = modules.length
+  const moduleWeight = totalModules > 0 ? 100 / totalModules : 0
+  const courseOverallProgress = moduleWeight * (submoduleProgress / 100)
+
+  return {
+    module,
+    submodules,
+    totalSubmodules,
+    completedSubmodules,
+    submoduleProgress,
+    moduleWeight,
+    courseOverallProgress,
   }
 }
 
@@ -617,6 +677,7 @@ export function FacultyDashboardPage() {
   const [dashboardSummary, setDashboardSummary] = useState(null)
   const [facultyNotifications, setFacultyNotifications] =useState([])
   const [notificationOpen, setNotificationOpen] =useState(false)
+  const [todayWorkEntries, setTodayWorkEntries] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -800,6 +861,21 @@ export function FacultyDashboardPage() {
       isMounted = false
       window.removeEventListener('cispro:students-changed', syncStudents)
       window.removeEventListener('cispro:branch-students-changed', syncStudents)
+    }
+  }, [])
+
+  useEffect(() => {
+    const loadTodayWork = () => {
+      setTodayWorkEntries(listFacultyTodayWorkEntries())
+    }
+
+    loadTodayWork()
+    window.addEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, loadTodayWork)
+    window.addEventListener('storage', loadTodayWork)
+
+    return () => {
+      window.removeEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, loadTodayWork)
+      window.removeEventListener('storage', loadTodayWork)
     }
   }, [])
 
@@ -988,6 +1064,34 @@ useEffect(() => {
 
     return getExactFacultyStudents(backfilledStudents, facultyId, facultyNameValue, facultyEmailValue)
   }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
+
+  const facultyTodayWorkEntries = useMemo(() => {
+    return getFacultyTodayWorkEntriesByFaculty({
+      facultyId: currentFacultyIdentity.facultyId,
+      facultyName: currentFacultyIdentity.facultyName,
+      facultyEmail: currentFacultyIdentity.facultyEmail,
+    }, todayWorkEntries)
+  }, [currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, todayWorkEntries])
+
+  const todayWorkEntriesByStudent = useMemo(() => {
+    const sortedEntries = [...facultyTodayWorkEntries].sort(
+      (left, right) => new Date(right?.createdAt || 0).getTime() - new Date(left?.createdAt || 0).getTime(),
+    )
+
+    const mapping = new Map()
+
+    facultyScopedStudents.forEach((student) => {
+      const studentId = String(student?.id || student?.studentId || '').trim().toLowerCase()
+      if (!studentId) return
+
+      const matchedEntry = sortedEntries.find((entry) => isFacultyWorkEntryForStudent(entry, student))
+      if (matchedEntry) {
+        mapping.set(studentId, matchedEntry)
+      }
+    })
+
+    return mapping
+  }, [facultyScopedStudents, facultyTodayWorkEntries])
 
   const activeCourseId = selectedCourseId || String(assignedCourses[0]?.id || '').trim()
 
@@ -2434,6 +2538,8 @@ const nextName = trimmedValue
                           <th>Student Name</th>
                           <th>Email Address</th>
                           <th>Paid</th>
+                          <th>Module Progress</th>
+                          <th>Sub-module Progress</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2444,6 +2550,16 @@ const nextName = trimmedValue
                             const emailLabel = String(student.emailAddress || '-').trim()
                             const paymentProgress = getFacultyStudentPaymentProgress(student)
                             const paidAmountLabel = formatCourseAmount(paymentProgress.paidAmount)
+                            const studentKey = normalizeWorkStudentId(student.id || student.studentId || '')
+                            const workEntry = todayWorkEntriesByStudent.get(studentKey) || null
+                            const workCourse = workEntry
+                              ? courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedCourse || null
+                              : null
+                            const workProgress = workEntry
+                              ? getFacultyWorkProgressForEntry(workEntry, workCourse || {}, Array.isArray(workEntry.submoduleIds) ? workEntry.submoduleIds : [])
+                              : null
+                            const workModuleProgressLabel = workProgress ? `${Math.round(workProgress.submoduleProgress)}% Complete` : '-'
+                            const workSubmoduleProgressLabel = workProgress ? `${Math.round(workProgress.submoduleProgress)}% Complete` : '-'
 
                             return (
                               <tr key={student.id || student.studentId || `${studentName}-${index}`}>
@@ -2474,17 +2590,55 @@ const nextName = trimmedValue
                                         />
                                       </div>
                                       <span className="branch-student-paid-progress-label">
-                                        {Math.round(paymentProgress.paidInstallmentPercentage)}% Paid
+                                    {Math.round(paymentProgress.paidInstallmentPercentage)}% Paid
                                       </span>
                                     </div>
                                   </div>
+                                </td>
+                                <td>
+                                  {workEntry ? (
+                                    <div className="branch-student-paid-cell faculty-today-work-summary">
+                                      <div className="branch-student-paid-progress">
+                                        <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
+                                          <span
+                                            className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
+                                            style={{ width: `${workProgress?.submoduleProgress || 0}%` }}
+                                          />
+                                        </div>
+                                        <span className="branch-student-paid-progress-label">
+                                          {workModuleProgressLabel}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="faculty-today-work-empty-label">-</span>
+                                  )}
+                                </td>
+                                <td>
+                                  {workEntry ? (
+                                    <div className="branch-student-paid-cell faculty-today-work-summary">
+                                      <div className="branch-student-paid-progress">
+                                        <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
+                                          <span
+                                            className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
+                                            style={{ width: `${workProgress?.submoduleProgress || 0}%` }}
+                                          />
+                                        </div>
+                                        <span className="branch-student-paid-progress-label">
+                                          {workSubmoduleProgressLabel}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="faculty-today-work-empty-label">-</span>
+                                  )}
                                 </td>
                               </tr>
                             )
                           })
                         ) : (
                           <tr>
-                            <td colSpan={5}>
+                            <td colSpan={7}>
                               <div className="faculty-my-batches-empty" style={{ padding: '20px 0' }}>
                                 <strong>No enrolled students found</strong>
                                 <p>Students selected with this faculty from the branch dashboard will show up here once they are saved.</p>
@@ -2697,7 +2851,7 @@ const nextName = trimmedValue
     </div>
 
       {isTodayWorkModalOpen ? (
-        <div className="faculty-today-work-backdrop branch-modal-backdrop" role="presentation" onClick={closeTodayWorkModal}>
+        <div className="faculty-today-work-backdrop branch-modal-backdrop" role="presentation">
           <div
             className="faculty-today-work-modal"
             role="dialog"

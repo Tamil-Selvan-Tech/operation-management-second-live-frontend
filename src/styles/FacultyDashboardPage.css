@@ -644,7 +644,7 @@
 
 .faculty-today-work-modal {
   position: relative;
-  width: min(1120px, calc(100vw - 24px));
+  width: min(860px, calc(100vw - 48px));
   max-height: min(92vh, 940px);
   overflow: auto;
   padding: 0;
@@ -677,7 +677,7 @@
 }
 
 .faculty-today-work-header {
-  padding: 18px 24px 16px;
+  padding: 18px 20px 16px;
   border-bottom: 1px solid #dfe7f3;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
 }
@@ -743,7 +743,7 @@
 .faculty-today-work-form {
   display: grid;
   gap: 18px;
-  padding: 18px 24px 24px;
+  padding: 18px 20px 22px;
 }
 
 .faculty-today-work-toggle {
@@ -874,10 +874,10 @@
   display: grid;
   gap: 14px;
   padding: 0;
-  border: 1px solid #d9e3f2;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .faculty-today-work-panel-heading {
@@ -913,6 +913,7 @@
   border: 0;
   background: transparent;
   box-shadow: none;
+  width: 100%;
 }
 
 .faculty-today-work-submodule-selectbar {
@@ -921,7 +922,8 @@
   justify-content: space-between;
   gap: 12px;
   min-height: 58px;
-  padding: 0 16px;
+  width: min(100%, 400px);
+  padding: 0 14px;
   border: 1px solid #3b82f6;
   border-radius: 8px;
   background: #ffffff;
@@ -957,6 +959,10 @@
   max-height: 280px;
   overflow: auto;
   padding-right: 2px;
+}
+
+.faculty-today-work-submodule-list {
+  padding-left: 2px;
 }
 
 .faculty-today-work-submodule-item,
@@ -1138,6 +1144,42 @@
   opacity: 0.72;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.faculty-today-work-summary {
+  gap: 6px;
+}
+
+.faculty-today-work-summary-title {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.faculty-today-work-summary-subtitle {
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.faculty-today-work-summary-footnote {
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.faculty-today-work-progress-bar {
+  background: #dbe4f0;
+}
+
+.faculty-today-work-progress-fill {
+  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+}
+
+.faculty-today-work-empty-label {
+  color: #94a3b8;
+  font-weight: 700;
 }
 
 .faculty-course-request-backdrop {
