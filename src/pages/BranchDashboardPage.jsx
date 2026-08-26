@@ -347,7 +347,11 @@ function computeBranchStudentPaymentSummary(stu = {}) {
 }
 
 function getBranchStudentInstallmentProgress(stu = {}) {
-  const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
+  const installments = Array.isArray(stu.installmentSchedule)
+    ? stu.installmentSchedule
+    : Array.isArray(stu.paymentPlan?.installments)
+      ? stu.paymentPlan.installments
+      : []
   const statusFields = [
     stu.firstInstallmentStatus,
     stu.secondInstallmentStatus,
@@ -372,13 +376,18 @@ function getBranchStudentInstallmentProgress(stu = {}) {
     ...explicitCounts,
   )
 
+  const clampPercentage = (value) => {
+    if (!Number.isFinite(value)) return 0
+    return Math.min(100, Math.max(0, value))
+  }
+
   const paidInstallments = installments.length
     ? installments.reduce((count, inst) => {
         const amount = Number(inst.amount ?? inst.installmentAmount ?? 0)
         const paid = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
         const status = String(inst.status ?? inst.paymentStatus ?? '').trim().toLowerCase()
 
-        if (status === 'paid' || paid >= amount || (!amount && paid > 0)) {
+        if (status === 'paid' || (amount > 0 && paid >= amount) || (!amount && paid > 0)) {
           return count + 1
         }
 
@@ -393,9 +402,41 @@ function getBranchStudentInstallmentProgress(stu = {}) {
         return String(status || '').trim().toLowerCase() === 'paid' ? count + 1 : count
       }, 0)
 
-  const paidInstallmentPercentage = totalInstallments > 0
-    ? Math.min(100, (paidInstallments / totalInstallments) * 100)
+  const totalWeight = totalInstallments > 0 ? 100 / totalInstallments : 0
+
+  const installmentBasedProgress = installments.length
+    ? installments.reduce((sum, inst) => {
+        const amount = Number(inst.amount ?? inst.installmentAmount ?? 0)
+        const paid = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
+        const status = String(inst.status ?? inst.paymentStatus ?? '').trim().toLowerCase()
+
+        let installmentRatio = 0
+
+        if (amount > 0) {
+          installmentRatio = Math.min(1, Math.max(0, paid / amount))
+        } else if (status === 'paid' || paid > 0) {
+          installmentRatio = 1
+        }
+
+        return sum + (installmentRatio * totalWeight)
+      }, 0)
     : 0
+
+  const statusBasedProgress = !installments.length && totalInstallments > 0
+    ? (paidInstallments / totalInstallments) * 100
+    : 0
+
+  const fallbackAmountPaid = Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
+  const fallbackTotalAmount = Number(stu.finalFee ?? stu.courseAmount ?? stu.totalAmount ?? stu.afterDiscount ?? 0)
+  const amountBasedProgress = !installments.length && fallbackTotalAmount > 0
+    ? (fallbackAmountPaid / fallbackTotalAmount) * 100
+    : 0
+
+  const paidInstallmentPercentage = clampPercentage(
+    installments.length
+      ? installmentBasedProgress
+      : Math.max(statusBasedProgress, amountBasedProgress),
+  )
 
   return {
     paidInstallments,
