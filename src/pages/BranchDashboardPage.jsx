@@ -3547,6 +3547,75 @@ paymentPlanId: '',
   [branchStudents],
 )
 
+const allPaymentHistoryRecords = useMemo(() => {
+  const records = []
+
+  branchStudents.forEach((stu) => {
+    const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
+
+    installments.forEach((inst, index) => {
+      const paidAmount = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
+      if (paidAmount <= 0) return // paisa pay pannala na skip
+
+      const paymentDateRaw =
+        inst.paymentDate ?? inst.paidDate ?? inst.datePaid ?? inst.paidOn ??
+        inst.updatedAt ?? inst.paidAt ?? null
+
+      records.push({
+        id: `${stu.studentId || stu.id || 'stu'}-${index}`,
+        studentId: stu.studentId || '-',
+        studentName: stu.studentName || '-',
+        course: stu.courseName || stu.courseInterested || stu.course?.name || '-',
+        amount: paidAmount,
+        mode: inst.paymentMode || inst.mode || stu.paymentMode || '-',
+        dateRaw: paymentDateRaw,
+        date: formatBranchPaymentDate(paymentDateRaw),
+        receiptNumber: inst.receiptNumber || inst.receiptNo || inst.receipt || '-',
+        installmentNumber: inst.installmentNumber || inst.number || index + 1,
+      })
+    })
+  })
+
+  return records.sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
+}, [branchStudents])
+
+const filteredPaymentHistoryRecords = useMemo(() => {
+  const q = paymentHistorySearch.trim().toLowerCase()
+  const todayStr = getTodayDateString()
+  const now = new Date()
+
+  return allPaymentHistoryRecords.filter((record) => {
+    const matchesSearch =
+      !q ||
+      String(record.studentId).toLowerCase().includes(q) ||
+      String(record.studentName).toLowerCase().includes(q) ||
+      String(record.course).toLowerCase().includes(q)
+
+    const matchesDate =
+      !paymentHistoryDate ||
+      (record.dateRaw && new Date(record.dateRaw).toISOString().slice(0, 10) === paymentHistoryDate)
+
+    const matchesMode =
+      paymentHistoryMode === 'all' ||
+      String(record.mode).toLowerCase() === paymentHistoryMode.toLowerCase()
+
+    let matchesQuickFilter = true
+    if (paymentHistoryFilter === 'today') {
+      matchesQuickFilter = Boolean(record.dateRaw) &&
+        new Date(record.dateRaw).toISOString().slice(0, 10) === todayStr
+    } else if (paymentHistoryFilter === 'week') {
+      if (!record.dateRaw) {
+        matchesQuickFilter = false
+      } else {
+        const diffDays = (now - new Date(record.dateRaw)) / (1000 * 60 * 60 * 24)
+        matchesQuickFilter = diffDays >= 0 && diffDays <= 7
+      }
+    }
+
+    return matchesSearch && matchesDate && matchesMode && matchesQuickFilter
+  })
+}, [allPaymentHistoryRecords, paymentHistorySearch, paymentHistoryDate, paymentHistoryMode, paymentHistoryFilter])
+
 const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
   (acc, row) => {
     acc.totalCollected += row.summary.paidAmount
@@ -5056,188 +5125,40 @@ const visibleBranchPaymentRows = useMemo(() => {
               </tr>
             </thead>
 
-            <tbody>
-
-              {/* TODAY PAYMENT 1 */}
-              <tr>
-
-                <td>
-                  <strong>STU-003</strong>
-                </td>
-
-                <td>
-                  <strong className="branch-course-name">
-                    Hari
-                  </strong>
-                </td>
-
-                <td>
-                  Artificial Engineering
-                </td>
-
-                <td>
-                  <strong>
-                    ₹14,000
-                  </strong>
-                </td>
-
-                <td>
-                  <span className="branch-student-payment-status">
-                    UPI
-                  </span>
-                </td>
-
-                <td>
-                  26 Aug 2026
-                </td>
-
-                <td>
-                  REC-2026-1001
-                </td>
-
-                <td>
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    onClick={() =>
-                      setSelectedPaymentHistory({
-                        studentId: 'STU-003',
-                        studentName: 'Hari',
-                        course: 'Artificial Engineering',
-                        amount: 14000,
-                        mode: 'UPI',
-                        date: '26 Aug 2026',
-                        receiptNumber: 'REC-2026-1001',
-                      })
-                    }
-                  >
-                    View
-                  </button>
-                </td>
-
-              </tr>
-
-
-              {/* TODAY PAYMENT 2 */}
-              <tr>
-
-                <td>
-                  <strong>STU-005</strong>
-                </td>
-
-                <td>
-                  <strong className="branch-course-name">
-                    Arun
-                  </strong>
-                </td>
-
-                <td>
-                  Python
-                </td>
-
-                <td>
-                  <strong>
-                    ₹8,000
-                  </strong>
-                </td>
-
-                <td>
-                  <span className="branch-student-payment-status">
-                    Cash
-                  </span>
-                </td>
-
-                <td>
-                  26 Aug 2026
-                </td>
-
-                <td>
-                  REC-2026-1002
-                </td>
-
-                <td>
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    onClick={() =>
-                      setSelectedPaymentHistory({
-                        studentId: 'STU-005',
-                        studentName: 'Arun',
-                        course: 'Python',
-                        amount: 8000,
-                        mode: 'Cash',
-                        date: '26 Aug 2026',
-                        receiptNumber: 'REC-2026-1002',
-                      })
-                    }
-                  >
-                    View
-                  </button>
-                </td>
-
-              </tr>
-
-
-              {/* TODAY PAYMENT 3 */}
-              <tr>
-
-                <td>
-                  <strong>STU-007</strong>
-                </td>
-
-                <td>
-                  <strong className="branch-course-name">
-                    Priya
-                  </strong>
-                </td>
-
-                <td>
-                  Data Analytics
-                </td>
-
-                <td>
-                  <strong>
-                    ₹6,000
-                  </strong>
-                </td>
-
-                <td>
-                  <span className="branch-student-payment-status">
-                    Card
-                  </span>
-                </td>
-
-                <td>
-                  26 Aug 2026
-                </td>
-
-                <td>
-                  REC-2026-1003
-                </td>
-
-                <td>
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    onClick={() =>
-                      setSelectedPaymentHistory({
-                        studentId: 'STU-007',
-                        studentName: 'Priya',
-                        course: 'Data Analytics',
-                        amount: 6000,
-                        mode: 'Card',
-                        date: '26 Aug 2026',
-                        receiptNumber: 'REC-2026-1003',
-                      })
-                    }
-                  >
-                    View
-                  </button>
-                </td>
-
-              </tr>
-
-            </tbody>
+           <tbody>
+  {filteredPaymentHistoryRecords.length ? (
+    filteredPaymentHistoryRecords.map((record) => (
+      <tr key={record.id}>
+        <td><strong>{record.studentId}</strong></td>
+        <td><strong className="branch-course-name">{record.studentName}</strong></td>
+        <td>{record.course}</td>
+        <td><strong>{formatBranchRupees(record.amount)}</strong></td>
+        <td>
+          <span className="branch-student-payment-status">
+            {record.mode}
+          </span>
+        </td>
+        <td>{record.date}</td>
+        <td>{record.receiptNumber}</td>
+        <td>
+          <button
+            type="button"
+            className="button button-ghost"
+            onClick={() => setSelectedPaymentHistory(record)}
+          >
+            View
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="8" className="branch-course-empty-state">
+        No payment history found.
+      </td>
+    </tr>
+  )}
+</tbody>
 
           </table>
 
