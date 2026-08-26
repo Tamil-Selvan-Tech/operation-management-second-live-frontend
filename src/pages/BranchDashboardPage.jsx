@@ -124,6 +124,34 @@ const STUDENT_FORM_STEP_THREE_FIELDS = [
 const CURRENT_YEAR = new Date().getFullYear()
 const PASSED_OUT_YEARS = Array.from({ length: 31 }, (_, i) => String(CURRENT_YEAR - i))
 
+function getTodayValue() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function addDaysToDateString(value, days = 0) {
+  const date = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const next = new Date(date)
+  next.setDate(next.getDate() + Number(days || 0))
+
+  const year = next.getFullYear()
+  const month = String(next.getMonth() + 1).padStart(2, '0')
+  const day = String(next.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function buildInstallmentDueDates(count = 0, startDate = getTodayValue(), intervalDays = 30) {
+  const safeCount = Math.max(0, Number(count) || 0)
+  if (!safeCount) return []
+
+  return Array.from({ length: safeCount }, (_, index) => addDaysToDateString(startDate, index * intervalDays))
+}
+
 function createInitialStudentForm(branchId) {
   const nextStudentId = getNextStudentId(branchId)
   return {
@@ -150,7 +178,7 @@ function createInitialStudentForm(branchId) {
     source: '',
     sourceOther: '',
     remarks: '',
-    admissionDate: '',
+    admissionDate: getTodayValue(),
     courseId: '',
     courseName: '',
     facultyId: '',
@@ -1315,6 +1343,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
   const [isAddCourseSaving, setIsAddCourseSaving] = useState(false)
+  const isAddCourseSubmitLockedRef = useRef(false)
   const [addCourseError, setAddCourseError] = useState('')
   const [courseActionError, setCourseActionError] = useState('')
   const [courseSaveSuccess, setCourseSaveSuccess] = useState(null)
@@ -1421,16 +1450,6 @@ const BRANCH_PAYMENTS_PER_PAGE = 10
       document.removeEventListener('mousedown', handleOutsideClick)
     }
   }, [])
-const getTodayDateString = () => {
-  const today = new Date();
-
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-};
-
   const profileMenuRef = useRef(null)
   const notificationMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
@@ -2848,6 +2867,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const resetAddCourseForm = (record = editingCourseRecord, draftKey = courseDraftKey) => {
+    isAddCourseSubmitLockedRef.current = false
     const nextForm = record
       ? buildBranchCourseFormFromRecord(record)
       : createInitialBranchCourseForm()
@@ -2871,6 +2891,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const openAddCourseModal = () => {
+    isAddCourseSubmitLockedRef.current = false
     const nextDraftKey = 'new'
     setCourseDraftKey(nextDraftKey)
     resetAddCourseForm(null, nextDraftKey)
@@ -2898,6 +2919,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setViewCoursePaymentPlanOpenId('')
   }
   const openEditCourseModal = (course) => {
+    isAddCourseSubmitLockedRef.current = false
     const nextEditingCourseId = String(course?.id || '').trim()
     const savedDraft = readBranchCourseDraft(nextEditingCourseId)
     const nextForm = savedDraft?.form || buildBranchCourseFormFromRecord(course)
@@ -2930,6 +2952,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const closeAddCourseModal = () => {
+    isAddCourseSubmitLockedRef.current = false
     setIsAddCourseOpen(false)
     setCourseModuleDeleteTarget(null)
     setCourseSubmoduleDeleteTarget(null)
@@ -3072,6 +3095,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const handleAddCourseSubmit = async (event) => {
     event?.preventDefault()
+    if (isAddCourseSubmitLockedRef.current) return
+    isAddCourseSubmitLockedRef.current = true
     const committedPaymentPlans = normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans)
     const nextTouched = { ...addCourseTouched }
     COURSE_BASIC_FIELDS.forEach((field) => {
@@ -3090,6 +3115,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     if (Object.keys(addCourseValidationErrors.basic).length > 0 || addCourseValidationErrors.hierarchy.modelsError) {
       setAddCourseStep(1)
       setAddCourseError(Object.values(addCourseValidationErrors.basic)[0] || addCourseValidationErrors.hierarchy.modelsError || 'Please fill all required fields before saving.')
+      isAddCourseSubmitLockedRef.current = false
       return
     }
 
@@ -3101,12 +3127,14 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         addCourseValidationErrors.hierarchy.models.find((modelErrors) => modelErrors.submodels.some((submodelErrors) => submodelErrors.name))?.submodels?.find((submodelErrors) => submodelErrors.name)?.name ||
         'Please fill all required fields before saving.',
       )
+      isAddCourseSubmitLockedRef.current = false
       return
     }
 
     if (!committedPaymentPlans.length || addCoursePaymentPlanValidationError) {
       setAddCourseStep(3)
       setAddCourseError(addCoursePaymentPlanValidationError || 'Please select at least one payment plan.')
+      isAddCourseSubmitLockedRef.current = false
       return
     }
 
@@ -3117,6 +3145,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     if (hasInvalidCustomPaymentPlan) {
       setAddCourseStep(3)
       setAddCourseError('Custom payment plan requires a valid installment count.')
+      isAddCourseSubmitLockedRef.current = false
       return
     }
 
@@ -3139,11 +3168,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       if (duplicateCourseCode) {
         setAddCourseError('Course code already exists.')
+        isAddCourseSubmitLockedRef.current = false
         return
       }
 
       if (duplicateCourse) {
         setAddCourseError('Course already exists.')
+        isAddCourseSubmitLockedRef.current = false
         return
       }
 
@@ -3186,6 +3217,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       setAddCourseError(apiErrorMessage(error, 'Unable to save course right now.'))
     } finally {
       setIsAddCourseSaving(false)
+      isAddCourseSubmitLockedRef.current = false
     }
   }
 
@@ -3442,12 +3474,7 @@ useEffect(() => {
     return
   }
 
-  setStudentInstallmentDueDates((current) =>
-    Array.from(
-      { length: studentInstallmentCount },
-      (_, index) => current[index] || ''
-    )
-  )
+  setStudentInstallmentDueDates(buildInstallmentDueDates(studentInstallmentCount))
 }, [studentInstallmentCount])
 
   const handleStudentCourseChange = (courseId) => {
@@ -3649,9 +3676,9 @@ const allPaymentHistoryRecords = useMemo(() => {
   return records.sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
 }, [branchStudents])
 
-const filteredPaymentHistoryRecords = useMemo(() => {
+  const filteredPaymentHistoryRecords = useMemo(() => {
   const q = paymentHistorySearch.trim().toLowerCase()
-  const todayStr = getTodayDateString()
+  const todayStr = getTodayValue()
   const now = new Date()
 
   return allPaymentHistoryRecords.filter((record) => {
@@ -3699,7 +3726,7 @@ const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
 
 const filteredBranchPaymentRows = useMemo(() => {
   const q = paymentSearchTerm.trim().toLowerCase()
-  const todayStr = getTodayDateString()
+  const todayStr = getTodayValue()
 
   return branchPaymentRows.filter(({ student, summary }) => {
     const matchesSearch =
@@ -6831,7 +6858,7 @@ else {
                       Back
                     </button>
                     <button type="submit" className="button button-solid" disabled={isAddCourseSaving}>
-                      {isAddCourseSaving ? 'Saving...' : editingCourseId ? 'Update Course' : 'Save Course'}
+                      {editingCourseId ? 'Update Course' : 'Save Course'}
                     </button>
                   </div>
                 )}
