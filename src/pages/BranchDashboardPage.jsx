@@ -3560,19 +3560,38 @@ const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
 
 const filteredBranchPaymentRows = useMemo(() => {
   const q = paymentSearchTerm.trim().toLowerCase()
+  const todayStr = getTodayDateString()
+
   return branchPaymentRows.filter(({ student, summary }) => {
     const matchesSearch =
       !q ||
       String(student.studentId || '').toLowerCase().includes(q) ||
       String(student.studentName || '').toLowerCase().includes(q) ||
       String(student.courseName || '').toLowerCase().includes(q)
+
     const matchesStatus =
       paymentStatusFilter === 'all' ||
       summary.paymentStatus.toLowerCase().replace(/\s+/g, '-') === paymentStatusFilter
-    return matchesSearch && matchesStatus
+
+    const installments = Array.isArray(student.installmentSchedule) ? student.installmentSchedule : []
+
+    const paidToday = installments.some((inst) => {
+      const paidAmount = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
+      if (paidAmount <= 0) return false
+
+      const paymentDateRaw =
+        inst.paymentDate ?? inst.paidDate ?? inst.datePaid ?? inst.paidOn ??
+        inst.updatedAt ?? inst.paidAt ?? null
+
+      if (!paymentDateRaw) return false
+
+      const paymentDateStr = new Date(paymentDateRaw).toISOString().slice(0, 10)
+      return paymentDateStr === todayStr
+    })
+
+    return matchesSearch && matchesStatus && paidToday
   })
 }, [branchPaymentRows, paymentSearchTerm, paymentStatusFilter])
-
 const totalPaymentPages = Math.max(1, Math.ceil(filteredBranchPaymentRows.length / BRANCH_PAYMENTS_PER_PAGE))
 const safePaymentPage = Math.min(paymentPage, totalPaymentPages)
 const visibleBranchPaymentRows = useMemo(() => {
