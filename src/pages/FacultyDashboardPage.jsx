@@ -227,9 +227,33 @@ function normalizeWorkStudentId(value = '') {
 }
 
 function getWorkStudentIds(entry = {}) {
-  return (Array.isArray(entry.selectedStudentIds) ? entry.selectedStudentIds : [])
+  const source = Array.isArray(entry.selectedStudentIds)
+    ? entry.selectedStudentIds
+    : Array.isArray(entry.studentIds)
+      ? entry.studentIds
+      : []
+
+  return source
     .map((value) => normalizeWorkStudentId(value))
     .filter(Boolean)
+}
+
+function getWorkEntrySubmoduleIds(entry = {}) {
+  const source = Array.isArray(entry.selectedSubmoduleIds)
+    ? entry.selectedSubmoduleIds
+    : Array.isArray(entry.submoduleIds)
+      ? entry.submoduleIds
+      : Array.isArray(entry.submodules)
+        ? entry.submodules.map((item) => item?.id || item?.submoduleId || item?.value || '').filter(Boolean)
+        : []
+
+  return Array.from(
+    new Set(
+      source
+        .map((value) => String(value || '').trim())
+        .filter(Boolean),
+    ),
+  )
 }
 
 function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
@@ -251,6 +275,121 @@ function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
   return true
 }
 
+function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, courseId = '') {
+  const normalizedCourseId = normalizeWorkStudentId(courseId)
+
+  return (Array.isArray(entries) ? entries : []).filter((entry) => {
+    if (!isFacultyWorkEntryForStudent(entry, student)) {
+      return false
+    }
+
+    const entryCourseId = normalizeWorkStudentId(entry.courseId || '')
+    if (normalizedCourseId && entryCourseId && entryCourseId !== normalizedCourseId) {
+      return false
+    }
+
+    return true
+  })
+}
+
+function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentity = {}, courseId = '', moduleId = '') {
+  const normalizedCourseId = normalizeWorkStudentId(courseId)
+  const normalizedModuleId = normalizeWorkStudentId(moduleId)
+  const facultyId = normalizeWorkStudentId(facultyIdentity?.facultyId || '')
+  const facultyEmail = normalizeWorkStudentId(facultyIdentity?.facultyEmail || '')
+
+  const matchingEntries = (Array.isArray(entries) ? entries : []).filter((entry) => {
+    const entryFacultyId = normalizeWorkStudentId(entry?.facultyId || entry?.facultyProfileId || entry?.facultyUserId || '')
+    const entryFacultyEmail = normalizeWorkStudentId(entry?.facultyEmail || '')
+    const entryCourseId = normalizeWorkStudentId(entry?.courseId || '')
+    const entryModuleId = normalizeWorkStudentId(entry?.moduleId || '')
+
+    const matchesFaculty =
+      (facultyId && entryFacultyId && entryFacultyId === facultyId) ||
+      (facultyEmail && entryFacultyEmail && entryFacultyEmail === facultyEmail)
+
+    return matchesFaculty && entryCourseId === normalizedCourseId && entryModuleId === normalizedModuleId
+  })
+
+  return Array.from(
+    new Set(
+      matchingEntries.flatMap((entry) => getWorkEntrySubmoduleIds(entry)),
+    ),
+  )
+}
+
+function buildFacultyTodayWorkProgressSummary(entries = [], course = {}, student = null) {
+  const modules = getCourseModels(course)
+  if (!modules.length) return null
+
+  const normalizedCourseId = normalizeWorkStudentId(course?.id || course?.courseId || '')
+  const matchingEntries = student
+    ? getFacultyTodayWorkEntriesForStudent(entries, student, normalizedCourseId)
+    : (Array.isArray(entries) ? entries : []).filter((entry) => normalizeWorkStudentId(entry.courseId || '') === normalizedCourseId)
+
+  if (!matchingEntries.length) return null
+
+  const latestEntry = [...matchingEntries].sort(
+    (left, right) => new Date(right?.createdAt || 0).getTime() - new Date(left?.createdAt || 0).getTime(),
+  )[0] || null
+
+  const moduleCompletionMap = new Map()
+  modules.forEach((module, moduleIndex) => {
+    const moduleId = String(module?.id || `module-${moduleIndex}`).trim()
+    if (!moduleId) return
+    moduleCompletionMap.set(moduleId, new Set())
+  })
+
+  matchingEntries.forEach((entry) => {
+    const entryModuleId = String(entry?.moduleId || '').trim()
+    if (!entryModuleId) return
+    const submoduleSet = moduleCompletionMap.get(entryModuleId)
+    if (!submoduleSet) return
+
+    getWorkEntrySubmoduleIds(entry).forEach((submoduleId) => {
+      submoduleSet.add(submoduleId)
+    })
+  })
+
+  const moduleSummaries = modules.map((module, moduleIndex) => {
+    const moduleId = String(module?.id || `module-${moduleIndex}`).trim()
+    const submodules = getCourseSubmodules(module)
+    const completedSubmoduleIds = Array.from(moduleCompletionMap.get(moduleId) || new Set())
+    const totalSubmodules = submodules.length
+    const completedCount = totalSubmodules > 0
+      ? Math.min(totalSubmodules, new Set(completedSubmoduleIds).size)
+      : new Set(completedSubmoduleIds).size
+    const moduleProgress = totalSubmodules > 0
+      ? Math.min(100, (completedCount / totalSubmodules) * 100)
+      : (completedCount > 0 ? 100 : 0)
+
+    return {
+      moduleId,
+      module,
+      totalSubmodules,
+      completedCount,
+      moduleProgress,
+    }
+  })
+
+  const courseProgress = moduleSummaries.reduce((sum, moduleSummary) => {
+    const moduleWeight = modules.length > 0 ? 100 / modules.length : 0
+    return sum + (moduleSummary.moduleProgress * moduleWeight) / 100
+  }, 0)
+
+  const currentModuleId = String(latestEntry?.moduleId || '').trim()
+  const currentModuleSummary = moduleSummaries.find((item) => item.moduleId === currentModuleId) || moduleSummaries[0] || null
+
+  return {
+    entry: latestEntry,
+    selectedSubmoduleIds: getWorkEntrySubmoduleIds(latestEntry || {}),
+    moduleProgress: currentModuleSummary?.moduleProgress || 0,
+    courseProgress: Math.min(100, courseProgress),
+    moduleSummary: currentModuleSummary,
+    moduleSummaries,
+  }
+}
+
 function getFacultyWorkProgressForEntry(entry = {}, course = {}, selectedSubmoduleIds = []) {
   const modules = getCourseModels(course)
   const moduleId = String(entry.moduleId || '').trim()
@@ -260,11 +399,14 @@ function getFacultyWorkProgressForEntry(entry = {}, course = {}, selectedSubmodu
     null
   const submodules = getCourseSubmodules(module)
   const totalSubmodules = submodules.length
-  const completedSubmodules = Array.isArray(selectedSubmoduleIds) ? selectedSubmoduleIds.length : 0
-  const submoduleProgress = totalSubmodules > 0 ? Math.min(100, (completedSubmodules / totalSubmodules) * 100) : 0
+  const completedSubmodules = Array.isArray(selectedSubmoduleIds)
+    ? Array.from(new Set(selectedSubmoduleIds.map((value) => String(value || '').trim()).filter(Boolean))).length
+    : 0
+  const submoduleProgress = totalSubmodules > 0 ? Math.min(100, (completedSubmodules / totalSubmodules) * 100) : (completedSubmodules > 0 ? 100 : 0)
   const totalModules = modules.length
   const moduleWeight = totalModules > 0 ? 100 / totalModules : 0
-  const courseOverallProgress = moduleWeight * (submoduleProgress / 100)
+  const moduleProgress = submoduleProgress
+  const courseProgress = Math.min(100, moduleWeight * (moduleProgress / 100))
 
   return {
     module,
@@ -272,8 +414,75 @@ function getFacultyWorkProgressForEntry(entry = {}, course = {}, selectedSubmodu
     totalSubmodules,
     completedSubmodules,
     submoduleProgress,
+    moduleProgress,
     moduleWeight,
-    courseOverallProgress,
+    courseProgress,
+  }
+}
+
+function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], facultyIdentity = {}) {
+  const modules = getCourseModels(course)
+  const normalizedCourseId = normalizeWorkStudentId(course?.id || course?.courseId || '')
+  const facultyEntries = (Array.isArray(todayWorkEntries) ? todayWorkEntries : []).filter((entry) => {
+    const entryFacultyId = normalizeWorkStudentId(entry?.facultyId || entry?.facultyProfileId || entry?.facultyUserId || '')
+    const facultyId = normalizeWorkStudentId(facultyIdentity?.facultyId || '')
+    const facultyEmail = normalizeWorkStudentId(facultyIdentity?.facultyEmail || '')
+    const entryFacultyEmail = normalizeWorkStudentId(entry?.facultyEmail || '')
+    const entryCourseId = normalizeWorkStudentId(entry?.courseId || '')
+
+    const matchesFaculty =
+      (facultyId && entryFacultyId && entryFacultyId === facultyId) ||
+      (facultyEmail && entryFacultyEmail && entryFacultyEmail === facultyEmail)
+
+    return matchesFaculty && (!normalizedCourseId || entryCourseId === normalizedCourseId)
+  })
+
+  const moduleCompletionMap = new Map()
+  modules.forEach((module, index) => {
+    const moduleId = String(module?.id || `module-${index}`).trim()
+    if (!moduleId) return
+    moduleCompletionMap.set(moduleId, new Set())
+  })
+
+  facultyEntries.forEach((entry) => {
+    const moduleId = String(entry?.moduleId || '').trim()
+    const submoduleSet = moduleCompletionMap.get(moduleId)
+    if (!submoduleSet) return
+
+    getWorkEntrySubmoduleIds(entry).forEach((submoduleId) => {
+      submoduleSet.add(submoduleId)
+    })
+  })
+
+  for (const [moduleId, submoduleSet] of moduleCompletionMap.entries()) {
+    const module = modules.find((item, index) => String(item?.id || `module-${index}`).trim() === moduleId) || null
+    const submodules = getCourseSubmodules(module)
+    const pendingSubmodule = submodules.find((submodule, index) => {
+      const submoduleId = String(submodule?.id || submodule?.submoduleId || `${moduleId}-submodule-${index}`).trim()
+      return submoduleId && !submoduleSet.has(submoduleId)
+    })
+
+    if (pendingSubmodule) {
+      const nextSubmoduleId = String(
+        pendingSubmodule?.id ||
+        pendingSubmodule?.submoduleId ||
+        `${moduleId}-submodule-0`,
+      ).trim()
+
+      return {
+        module,
+        moduleId,
+        submoduleIds: nextSubmoduleId ? [nextSubmoduleId] : [],
+      }
+    }
+  }
+
+  const fallbackModule = modules[0] || null
+
+  return {
+    module: fallbackModule,
+    moduleId: String(fallbackModule?.id || '').trim(),
+    submoduleIds: [],
   }
 }
 
@@ -865,17 +1074,26 @@ export function FacultyDashboardPage() {
   }, [])
 
   useEffect(() => {
-    const loadTodayWork = () => {
-      setTodayWorkEntries(listFacultyTodayWorkEntries())
+    let isMounted = true
+
+    const loadTodayWork = async () => {
+      try {
+        const entries = await listFacultyTodayWorkEntries()
+        if (!isMounted) return
+        setTodayWorkEntries(Array.isArray(entries) ? entries : [])
+      } catch (error) {
+        if (!isMounted) return
+        console.error('Failed to load faculty today work entries', error)
+        setTodayWorkEntries([])
+      }
     }
 
-    loadTodayWork()
+    void loadTodayWork()
     window.addEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, loadTodayWork)
-    window.addEventListener('storage', loadTodayWork)
 
     return () => {
+      isMounted = false
       window.removeEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, loadTodayWork)
-      window.removeEventListener('storage', loadTodayWork)
     }
   }, [])
 
@@ -1202,6 +1420,35 @@ useEffect(() => {
     [todayWorkSelectedModule],
   )
 
+  const todayWorkCompletedSubmoduleIds = useMemo(
+    () =>
+      getCompletedTodayWorkSubmoduleIdsForModule(
+        facultyTodayWorkEntries,
+        currentFacultyIdentity,
+        selectedCourse?.id || '',
+        todayWorkSelectedModule?.id || '',
+      ),
+    [
+      currentFacultyIdentity.facultyEmail,
+      currentFacultyIdentity.facultyId,
+      facultyTodayWorkEntries,
+      selectedCourse?.id,
+      todayWorkSelectedModule?.id,
+    ],
+  )
+
+  const todayWorkPendingSubmoduleIds = useMemo(() => {
+    if (!todayWorkSelectedModuleSubmodules.length) return []
+
+    return todayWorkSelectedModuleSubmodules
+      .map((submodule, index) =>
+        String(
+          submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${index}`,
+        ).trim(),
+      )
+      .filter((submoduleId) => submoduleId && !todayWorkCompletedSubmoduleIds.includes(submoduleId))
+  }, [todayWorkCompletedSubmoduleIds, todayWorkSelectedModule?.id, todayWorkSelectedModuleSubmodules])
+
   const todayWorkSelectedStudents = useMemo(() => {
     const selectedIds = new Set(
       (Array.isArray(todayWorkForm.selectedStudentIds) ? todayWorkForm.selectedStudentIds : [])
@@ -1235,13 +1482,14 @@ useEffect(() => {
   }
 
   const openTodayWorkModal = () => {
-    const firstModule = selectedCourseModules[0] || null
-    const firstModuleId = String(firstModule?.id || '').trim()
+    const nextSelection = getNextPendingTodayWorkSelection(selectedCourse || {}, facultyTodayWorkEntries, currentFacultyIdentity)
+    const firstModule = nextSelection.module || selectedCourseModules[0] || null
+    const firstModuleId = String(nextSelection.moduleId || firstModule?.id || '').trim()
 
     setTodayWorkForm({
       applyToAllStudents: true,
       moduleId: firstModuleId,
-      submoduleIds: [],
+      submoduleIds: Array.isArray(nextSelection.submoduleIds) ? nextSelection.submoduleIds : [],
       selectedStudentIds: facultyScopedStudents
         .map((student) => String(student?.id || student?.studentId || '').trim())
         .filter(Boolean),
@@ -1260,11 +1508,22 @@ useEffect(() => {
     const normalizedModuleId = String(moduleId || '').trim()
     const nextModule = selectedCourseModules.find((module, index) => String(module?.id || `module-${index}`).trim() === normalizedModuleId) || null
     const nextSubmodules = getCourseSubmodules(nextModule)
+    const completedSubmoduleIds = getCompletedTodayWorkSubmoduleIdsForModule(
+      facultyTodayWorkEntries,
+      currentFacultyIdentity,
+      selectedCourse?.id || '',
+      normalizedModuleId,
+    )
+    const pendingSubmoduleIds = nextSubmodules
+      .map((submodule, index) =>
+        String(submodule?.id || submodule?.submoduleId || `${normalizedModuleId || 'module'}-submodule-${index}`).trim(),
+      )
+      .filter((submoduleId) => submoduleId && !completedSubmoduleIds.includes(submoduleId))
 
     setTodayWorkForm((current) => ({
       ...current,
       moduleId: normalizedModuleId,
-      submoduleIds: [],
+      submoduleIds: pendingSubmoduleIds.length ? [pendingSubmoduleIds[0]] : [],
     }))
   }
 
@@ -1287,13 +1546,7 @@ useEffect(() => {
   const selectAllTodayWorkSubmodules = () => {
     setTodayWorkForm((current) => ({
       ...current,
-      submoduleIds: todayWorkSelectedModuleSubmodules
-        .map((submodule, index) =>
-          String(
-            submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${index}`,
-          ).trim(),
-        )
-        .filter(Boolean),
+      submoduleIds: todayWorkPendingSubmoduleIds,
     }))
   }
 
@@ -1320,7 +1573,7 @@ useEffect(() => {
     })
   }
 
-  const handleTodayWorkSubmit = (event) => {
+  const handleTodayWorkSubmit = async (event) => {
     event.preventDefault()
 
     if (!selectedCourse?.id) {
@@ -1363,8 +1616,9 @@ useEffect(() => {
     setTodayWorkError('')
 
     try {
-      saveFacultyTodayWorkEntry({
+      await saveFacultyTodayWorkEntry({
         facultyId: currentFacultyIdentity.facultyId,
+        facultyProfileId: currentFacultyIdentity.facultyId,
         facultyName: currentFacultyIdentity.facultyName,
         facultyEmail: currentFacultyIdentity.facultyEmail,
         branchId: currentFacultyIdentity.branchId,
@@ -1374,7 +1628,10 @@ useEffect(() => {
         moduleName: getCourseModuleName(todayWorkSelectedModule, 0),
         applyToAllStudents: Boolean(todayWorkForm.applyToAllStudents),
         studentIds: selectedStudents.map((student) => String(student.id || student.studentId || '').trim()).filter(Boolean),
+        selectedStudentIds: selectedStudents.map((student) => String(student.id || student.studentId || '').trim()).filter(Boolean),
         studentCount: selectedStudents.length,
+        submoduleIds: selectedSubmoduleIds,
+        selectedSubmoduleIds,
         submodules: selectedSubmoduleIds.map((submoduleId) => {
           const submodule = submoduleLookup.get(submoduleId) || {}
           return {
@@ -2539,7 +2796,7 @@ const nextName = trimmedValue
                           <th>Email Address</th>
                           <th>Paid</th>
                           <th>Module Progress</th>
-                          <th>Sub-module Progress</th>
+                          <th>Course Progress</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2555,11 +2812,24 @@ const nextName = trimmedValue
                             const workCourse = workEntry
                               ? courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedCourse || null
                               : null
-                            const workProgress = workEntry
-                              ? getFacultyWorkProgressForEntry(workEntry, workCourse || {}, Array.isArray(workEntry.submoduleIds) ? workEntry.submoduleIds : [])
+                            const workProgressSummary = workEntry
+                              ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, workCourse || {}, student)
                               : null
-                            const workModuleProgressLabel = workProgress ? `${Math.round(workProgress.submoduleProgress)}% Complete` : '-'
-                            const workSubmoduleProgressLabel = workProgress ? `${Math.round(workProgress.submoduleProgress)}% Complete` : '-'
+                            const workProgress = workProgressSummary
+                              ? {
+                                  ...getFacultyWorkProgressForEntry(
+                                    workProgressSummary.entry || workEntry,
+                                    workCourse || {},
+                                    Array.isArray(workProgressSummary.selectedSubmoduleIds)
+                                      ? workProgressSummary.selectedSubmoduleIds
+                                      : [],
+                                  ),
+                                  moduleProgress: workProgressSummary.moduleProgress,
+                                  courseProgress: workProgressSummary.courseProgress,
+                                }
+                              : null
+                            const workModuleProgressLabel = workProgress ? `${Math.round(workProgress.moduleProgress)}% Complete` : '-'
+                            const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
 
                             return (
                               <tr key={student.id || student.studentId || `${studentName}-${index}`}>
@@ -2602,7 +2872,7 @@ const nextName = trimmedValue
                                         <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
                                           <span
                                             className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
-                                            style={{ width: `${workProgress?.submoduleProgress || 0}%` }}
+                                            style={{ width: `${workProgress?.moduleProgress || 0}%` }}
                                           />
                                         </div>
                                         <span className="branch-student-paid-progress-label">
@@ -2621,11 +2891,11 @@ const nextName = trimmedValue
                                         <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
                                           <span
                                             className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
-                                            style={{ width: `${workProgress?.submoduleProgress || 0}%` }}
+                                            style={{ width: `${workProgress?.courseProgress || 0}%` }}
                                           />
                                         </div>
                                         <span className="branch-student-paid-progress-label">
-                                          {workSubmoduleProgressLabel}
+                                          {workCourseProgressLabel}
                                         </span>
                                       </div>
                                     </div>
@@ -2951,14 +3221,11 @@ const nextName = trimmedValue
                     type="button"
                     className="faculty-today-work-link"
                     onClick={() => {
-                      if (!todayWorkSelectedModuleSubmodules.length) return
+                      if (!todayWorkPendingSubmoduleIds.length) return
 
-                      const allSelected = todayWorkSelectedModuleSubmodules.every((submodule, subIndex) => {
-                        const submoduleId = String(
-                          submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${subIndex}`,
-                        ).trim()
-                        return todayWorkForm.submoduleIds.includes(submoduleId)
-                      })
+                      const allSelected = todayWorkPendingSubmoduleIds.every((submoduleId) =>
+                        todayWorkForm.submoduleIds.includes(submoduleId),
+                      )
 
                       if (allSelected) {
                         clearAllTodayWorkSubmodules()
@@ -2966,20 +3233,26 @@ const nextName = trimmedValue
                         selectAllTodayWorkSubmodules()
                       }
                     }}
-                    disabled={!todayWorkSelectedModuleSubmodules.length}
+                    disabled={!todayWorkPendingSubmoduleIds.length}
                   >
-                    {todayWorkSelectedModuleSubmodules.every((submodule, subIndex) => {
-                      const submoduleId = String(
-                        submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${subIndex}`,
-                      ).trim()
-                      return todayWorkForm.submoduleIds.includes(submoduleId)
-                    }) ? 'Clear All' : 'Select All'}
+                    {todayWorkPendingSubmoduleIds.length
+                      ? todayWorkPendingSubmoduleIds.every((submoduleId) => todayWorkForm.submoduleIds.includes(submoduleId))
+                        ? 'Clear All'
+                        : 'Select All'
+                      : 'Completed'}
                   </button>
                 </div>
 
                 <div className="faculty-today-work-submodule-selectbox">
                   <div className="faculty-today-work-submodule-selectbar">
-                    <span>{todayWorkForm.submoduleIds.length ? `${todayWorkForm.submoduleIds.length} selected` : 'Select Sub-modules'}</span>
+                    <span>
+                      {todayWorkForm.submoduleIds.length
+                        ? `${todayWorkForm.submoduleIds.length} selected`
+                        : todayWorkPendingSubmoduleIds.length
+                          ? 'Select Sub-modules'
+                          : 'All sub-modules completed'}
+                      {todayWorkCompletedSubmoduleIds.length ? ` · ${todayWorkCompletedSubmoduleIds.length} completed` : ''}
+                    </span>
                     <ChevronDown size={18} />
                   </div>
 
@@ -2989,20 +3262,38 @@ const nextName = trimmedValue
                         const submoduleId = String(
                           submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${subIndex}`,
                         ).trim()
-                        const checked = todayWorkForm.submoduleIds.includes(submoduleId)
+                        const isCompleted = todayWorkCompletedSubmoduleIds.includes(submoduleId)
+                        const checked = isCompleted || todayWorkForm.submoduleIds.includes(submoduleId)
 
                         return (
-                          <label key={submoduleId || subIndex} className={`faculty-today-work-submodule-item${checked ? ' is-selected' : ''}`.trim()}>
+                          <label
+                            key={submoduleId || subIndex}
+                            className={`faculty-today-work-submodule-item${checked ? ' is-selected' : ''}${isCompleted ? ' is-completed' : ''}`.trim()}
+                          >
                             <input
                               type="checkbox"
                               checked={checked}
-                              onChange={() => toggleTodayWorkSubmodule(submoduleId)}
+                              disabled={isCompleted}
+                              onChange={() => {
+                                if (!isCompleted) {
+                                  toggleTodayWorkSubmodule(submoduleId)
+                                }
+                              }}
                             />
                             <span className="faculty-today-work-submodule-check" aria-hidden="true">
                               ✓
                             </span>
                             <div className="faculty-today-work-submodule-copy">
                               <strong>{getCourseSubmoduleName(submodule, subIndex)}</strong>
+                              {isCompleted ? (
+                                <span className="faculty-today-work-submodule-status faculty-today-work-submodule-status--completed">
+                                  Completed
+                                </span>
+                              ) : (
+                                <span className="faculty-today-work-submodule-status faculty-today-work-submodule-status--pending">
+                                  Pending
+                                </span>
+                              )}
                             </div>
                           </label>
                         )
