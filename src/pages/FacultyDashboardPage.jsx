@@ -372,10 +372,15 @@ function buildFacultyTodayWorkProgressSummary(entries = [], course = {}, student
     }
   })
 
-  const courseProgress = moduleSummaries.reduce((sum, moduleSummary) => {
-    const moduleWeight = modules.length > 0 ? 100 / modules.length : 0
-    return sum + (moduleSummary.moduleProgress * moduleWeight) / 100
-  }, 0)
+  const courseProgressTotals = moduleSummaries.reduce((acc, moduleSummary) => {
+    acc.completed += Number(moduleSummary.completedCount || 0)
+    acc.total += Number(moduleSummary.totalSubmodules || 0)
+    return acc
+  }, { completed: 0, total: 0 })
+
+  const courseProgress = courseProgressTotals.total > 0
+    ? (courseProgressTotals.completed / courseProgressTotals.total) * 100
+    : 0
 
   const currentModuleId = String(latestEntry?.moduleId || '').trim()
   const currentModuleSummary = moduleSummaries.find((item) => item.moduleId === currentModuleId) || moduleSummaries[0] || null
@@ -2828,7 +2833,9 @@ const nextName = trimmedValue
                                   courseProgress: workProgressSummary.courseProgress,
                                 }
                               : null
-                            const workModuleProgressLabel = workProgress ? `${Math.round(workProgress.moduleProgress)}% Complete` : '-'
+                            const workModuleProgressLabel = workProgressSummary
+                              ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
+                              : '-'
                             const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
 
                             return (
