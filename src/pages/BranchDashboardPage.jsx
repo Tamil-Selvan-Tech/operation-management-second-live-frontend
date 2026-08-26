@@ -314,8 +314,72 @@ function computeBranchStudentPaymentSummary(stu = {}) {
   }
 }
 
+function getBranchStudentInstallmentProgress(stu = {}) {
+  const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
+  const statusFields = [
+    stu.firstInstallmentStatus,
+    stu.secondInstallmentStatus,
+    stu.thirdInstallmentStatus,
+    stu.fourthInstallmentStatus,
+  ].filter((value) => String(value || '').trim() !== '')
+
+  const explicitCounts = [
+    stu.installmentCount,
+    stu.totalInstallments,
+    stu.paymentPlanInstallmentCount,
+    stu.paymentPlan?.installmentCount,
+    stu.paymentPlan?.count,
+    Array.isArray(stu.paymentPlan?.installments) ? stu.paymentPlan.installments.length : 0,
+  ]
+    .map((value) => Number(value || 0))
+    .filter((value) => Number.isFinite(value) && value > 0)
+
+  const totalInstallments = Math.max(
+    installments.length,
+    statusFields.length,
+    ...explicitCounts,
+  )
+
+  const paidInstallments = installments.length
+    ? installments.reduce((count, inst) => {
+        const amount = Number(inst.amount ?? inst.installmentAmount ?? 0)
+        const paid = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
+        const status = String(inst.status ?? inst.paymentStatus ?? '').trim().toLowerCase()
+
+        if (status === 'paid' || paid >= amount || (!amount && paid > 0)) {
+          return count + 1
+        }
+
+        return count
+      }, 0)
+    : [
+        stu.firstInstallmentStatus,
+        stu.secondInstallmentStatus,
+        stu.thirdInstallmentStatus,
+        stu.fourthInstallmentStatus,
+      ].reduce((count, status) => {
+        return String(status || '').trim().toLowerCase() === 'paid' ? count + 1 : count
+      }, 0)
+
+  const paidInstallmentPercentage = totalInstallments > 0
+    ? Math.min(100, (paidInstallments / totalInstallments) * 100)
+    : 0
+
+  return {
+    paidInstallments,
+    totalInstallments,
+    paidInstallmentPercentage,
+  }
+}
+
 function formatBranchRupees(amount) {
   return `₹${Number(amount || 0).toLocaleString('en-IN')}`
+}
+
+function formatBranchPercentage(value) {
+  if (!Number.isFinite(value)) return '0'
+  const rounded = Math.round(value * 100) / 100
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '')
 }
 
 function formatBranchPaymentDate(date) {
@@ -4357,6 +4421,8 @@ const visibleBranchPaymentRows = useMemo(() => {
               )
             : Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
 
+          const installmentProgress = getBranchStudentInstallmentProgress(stu)
+
           const nextInstallment = installments.find((installment) => {
             const installmentAmount = Number(installment.amount ?? installment.installmentAmount ?? 0)
             const installmentPaid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
@@ -4491,7 +4557,22 @@ else {
                 </span>
               </td>
               <td><strong>{formatFee(totalFee)}</strong></td>
-              <td><span className="branch-student-paid">{formatFee(paidAmount)}</span></td>
+              <td>
+                <div className="branch-student-paid-cell">
+                  <span className="branch-student-paid-amount">{formatFee(paidAmount)}</span>
+                  <div className="branch-student-paid-progress">
+                    <div className="branch-student-paid-progress-bar" aria-hidden="true">
+                      <span
+                        className="branch-student-paid-progress-fill"
+                        style={{ width: `${installmentProgress.paidInstallmentPercentage}%` }}
+                      />
+                    </div>
+                    <span className="branch-student-paid-progress-label">
+                      {formatBranchPercentage(installmentProgress.paidInstallmentPercentage)}% Paid
+                    </span>
+                  </div>
+                </div>
+              </td>
               <td>
                 {nextInstallment ? (
                   <div className="branch-next-installment">
