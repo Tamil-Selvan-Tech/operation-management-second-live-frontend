@@ -4374,30 +4374,99 @@ const visibleBranchPaymentRows = useMemo(() => {
           const nextDueDate = nextInstallment?.dueDate ?? nextInstallment?.date ?? null
 
           // -----------------------------
-          // Status: Overdue / Upcoming / Completed
-          // -----------------------------
-          let paymentStatus = 'Upcoming'
+// Payment Status
+// Completed / Partial / Overdue / Upcoming
+// -----------------------------
+let paymentStatus = 'Upcoming'
 
-          const allInstallmentsPaid =
-            installments.length > 0 &&
-            installments.every((inst) => {
-              const amt = Number(inst.amount ?? inst.installmentAmount ?? 0)
-              const paid = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
-              return paid >= amt
-            })
+const allInstallmentsPaid =
+  installments.length > 0 &&
+  installments.every((inst) => {
+    const amount = Number(
+      inst.amount ??
+      inst.installmentAmount ??
+      0
+    )
 
-          if (allInstallmentsPaid || (totalFee > 0 && paidAmount >= totalFee)) {
-            paymentStatus = 'Completed'
-          } else if (nextDueDate) {
-            const today = new Date()
-            today.setHours(0, 0, 0, 0)
-            const dueDate = new Date(nextDueDate)
-            if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
-              paymentStatus = 'Overdue'
-            } else {
-              paymentStatus = 'Upcoming'
-            }
-          }
+    const paid = Number(
+      inst.paidAmount ??
+      inst.amountPaid ??
+      0
+    )
+
+    return paid >= amount
+  })
+
+// Check if any installment is partially paid
+const hasPartialInstallment =
+  installments.length > 0 &&
+  installments.some((inst) => {
+    const amount = Number(
+      inst.amount ??
+      inst.installmentAmount ??
+      0
+    )
+
+    const paid = Number(
+      inst.paidAmount ??
+      inst.amountPaid ??
+      0
+    )
+
+    return paid > 0 && paid < amount
+  })
+
+// Get today's date
+const today = new Date()
+today.setHours(0, 0, 0, 0)
+
+// Get next due date
+const dueDate = nextDueDate
+  ? new Date(nextDueDate)
+  : null
+
+if (dueDate) {
+  dueDate.setHours(0, 0, 0, 0)
+}
+
+// -------------------------------------------------
+// 1. COMPLETED
+// -------------------------------------------------
+if (
+  allInstallmentsPaid ||
+  (totalFee > 0 && paidAmount >= totalFee)
+) {
+  paymentStatus = 'Completed'
+}
+
+// -------------------------------------------------
+// 2. OVERDUE
+// Pending amount + due date passed
+// -------------------------------------------------
+else if (
+  nextDueDate &&
+  dueDate &&
+  !Number.isNaN(dueDate.getTime()) &&
+  dueDate < today
+) {
+  paymentStatus = 'Overdue'
+}
+
+// -------------------------------------------------
+// 3. PARTIAL
+// Some amount paid, but full installment not paid
+// -------------------------------------------------
+else if (hasPartialInstallment) {
+  paymentStatus = 'Partial'
+}
+
+// -------------------------------------------------
+// 4. UPCOMING
+// Pending payment + due date is today/future
+// -------------------------------------------------
+else {
+  paymentStatus = 'Upcoming'
+}
 
           const formatFee = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`
 
@@ -4905,6 +4974,7 @@ const visibleBranchPaymentRows = useMemo(() => {
                   ) : null}
                 </BranchDashboardSection>
               ) : null}
+
 {activeSection === 'installments' ? (
   <BranchInstallmentTemplatesPage />
 ) : null}
