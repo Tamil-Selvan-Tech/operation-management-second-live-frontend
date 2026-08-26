@@ -1306,6 +1306,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
   const [showPaymentHistory, setShowPaymentHistory] = useState(false)
+  const [paymentHistoryFilter, setPaymentHistoryFilter] = useState('all');
+  const [paymentHistoryDate, setPaymentHistoryDate] = useState("");
+const [selectedPaymentHistory, setSelectedPaymentHistory] = useState(null);
+const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
+const [paymentHistoryMode, setPaymentHistoryMode] = useState('all');
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPinned, setStudentActionMenuPinned] = useState(false)
 const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
@@ -1348,7 +1353,15 @@ const BRANCH_PAYMENTS_PER_PAGE = 10
       document.removeEventListener('mousedown', handleOutsideClick)
     }
   }, [])
+const getTodayDateString = () => {
+  const today = new Date();
 
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
 
   const profileMenuRef = useRef(null)
   const notificationMenuRef = useRef(null)
@@ -4805,34 +4818,21 @@ const visibleBranchPaymentRows = useMemo(() => {
                 </BranchDashboardSection>
               ) : null}
 
-              {activeSection === 'installments' ? (
-                <BranchInstallmentTemplatesPage />
-              ) : null}
+{activeSection === 'payments' ? (
 
-              {activeSection === 'batches' ? (
-                <BranchDashboardSection title="Batches" description="Current batch schedule overview.">
-                  <div className="branch-dashboard-card-grid">
-                    {batchCards.map((batch) => (
-                      <article key={batch.title} className="branch-dashboard-info-card">
-                        <strong>{batch.title}</strong>
-                        <span>{batch.timing}</span>
-                        <small>{batch.status}</small>
-                      </article>
-                    ))}
-                  </div>
-                </BranchDashboardSection>
-              ) : null}
-
-
-             {activeSection === 'payments' ? (
   recordPaymentStudent ? (
+
+    // =====================================================
+    // RECORD PAYMENT
+    // =====================================================
+
     <BranchDashboardSection
       title="Record Payment"
-description={
-  recordPaymentStudent?.studentName
-    ? `Recording payment for ${recordPaymentStudent.studentName}.`
-    : 'Enter the student ID to load payment details.'
-}
+      description={
+        recordPaymentStudent?.studentName
+          ? `Recording payment for ${recordPaymentStudent.studentName}.`
+          : 'Enter the student ID to load payment details.'
+      }
       actions={(
         <button
           type="button"
@@ -4847,110 +4847,715 @@ description={
       <RecordPayment
         student={recordPaymentStudent}
         onClose={() => {
-          setRecordPaymentStudent(null)
-          void reloadBranchStudents()
+          setRecordPaymentStudent(null);
+          void reloadBranchStudents();
         }}
       />
     </BranchDashboardSection>
+
+  ) : showPaymentHistory ? (
+
+    // =====================================================
+    // FULL PAYMENT HISTORY
+    // =====================================================
+
+    <BranchDashboardSection
+      title="Payment History"
+      description="View and manage all student payment transactions."
+      actions={(
+        <button
+          type="button"
+          className="button button-ghost"
+          onClick={() => setShowPaymentHistory(false)}
+        >
+          <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
+          Back to Payments
+        </button>
+      )}
+    >
+
+      <div className="payment-history-page">
+
+        {/* =====================================================
+            SEARCH + FILTERS
+        ===================================================== */}
+
+        <div
+          className="faculty-search-filter-bar"
+          style={{
+            marginBottom: '18px',
+            display: 'flex',
+            gap: '12px',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}
+        >
+
+          {/* SEARCH */}
+          <div
+            className="faculty-search-wrapper"
+            style={{
+              display: 'flex',
+              gap: '8px',
+              width: '320px',
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Search student, ID or course"
+              value={paymentHistorySearch}
+              onChange={(e) =>
+                setPaymentHistorySearch(e.target.value)
+              }
+              className="faculty-search-input"
+              style={{
+                flex: 1,
+                minWidth: 0,
+              }}
+            />
+          </div>
+
+          {/* DATE */}
+          <input
+            type="date"
+            value={paymentHistoryDate}
+            onChange={(e) =>
+              setPaymentHistoryDate(e.target.value)
+            }
+            style={{
+              height: '46px',
+              padding: '0 12px',
+              borderRadius: '8px',
+              border: '1px solid #d1d5db',
+            }}
+          />
+
+          {/* PAYMENT MODE */}
+          <select
+            value={paymentHistoryMode}
+            onChange={(e) =>
+              setPaymentHistoryMode(e.target.value)
+            }
+            style={{
+              height: '46px',
+              padding: '0 12px',
+              borderRadius: '8px',
+              border: '1px solid #d1d5db',
+            }}
+          >
+            <option value="all">
+              All Payment Modes
+            </option>
+
+            <option value="Cash">Cash</option>
+            <option value="UPI">UPI</option>
+            <option value="Card">Card</option>
+            <option value="Bank">Bank</option>
+            <option value="Cheque">Cheque</option>
+          </select>
+
+        </div>
+
+
+        {/* =====================================================
+            QUICK FILTERS
+        ===================================================== */}
+
+        <div
+          style={{
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap',
+            marginBottom: '24px',
+          }}
+        >
+
+          {[
+            ['all', 'All'],
+            ['today', 'Today'],
+            ['week', 'This Week'],
+            ['partially-paid', 'Partially Paid'],
+            ['pending', 'Pending'],
+            ['overdue', 'Overdue'],
+          ].map(([value, label]) => (
+
+            <button
+              key={value}
+              type="button"
+              className={
+                paymentHistoryFilter === value
+                  ? 'button button-solid'
+                  : 'button button-ghost'
+              }
+              onClick={() =>
+                setPaymentHistoryFilter(value)
+              }
+            >
+              {label}
+            </button>
+
+          ))}
+
+        </div>
+
+
+        {/* =====================================================
+            PAYMENT HISTORY TABLE
+        ===================================================== */}
+
+        <div className="branch-course-table-shell">
+
+          <table className="branch-course-table">
+
+            <thead>
+              <tr>
+                <th>Student ID</th>
+                <th>Student</th>
+                <th>Course</th>
+                <th>Amount</th>
+                <th>Payment Mode</th>
+                <th>Payment Date</th>
+                <th>Receipt</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+
+              {/* TODAY PAYMENT 1 */}
+              <tr>
+
+                <td>
+                  <strong>STU-003</strong>
+                </td>
+
+                <td>
+                  <strong className="branch-course-name">
+                    Hari
+                  </strong>
+                </td>
+
+                <td>
+                  Artificial Engineering
+                </td>
+
+                <td>
+                  <strong>
+                    ₹14,000
+                  </strong>
+                </td>
+
+                <td>
+                  <span className="branch-student-payment-status">
+                    UPI
+                  </span>
+                </td>
+
+                <td>
+                  26 Aug 2026
+                </td>
+
+                <td>
+                  REC-2026-1001
+                </td>
+
+                <td>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() =>
+                      setSelectedPaymentHistory({
+                        studentId: 'STU-003',
+                        studentName: 'Hari',
+                        course: 'Artificial Engineering',
+                        amount: 14000,
+                        mode: 'UPI',
+                        date: '26 Aug 2026',
+                        receiptNumber: 'REC-2026-1001',
+                      })
+                    }
+                  >
+                    View
+                  </button>
+                </td>
+
+              </tr>
+
+
+              {/* TODAY PAYMENT 2 */}
+              <tr>
+
+                <td>
+                  <strong>STU-005</strong>
+                </td>
+
+                <td>
+                  <strong className="branch-course-name">
+                    Arun
+                  </strong>
+                </td>
+
+                <td>
+                  Python
+                </td>
+
+                <td>
+                  <strong>
+                    ₹8,000
+                  </strong>
+                </td>
+
+                <td>
+                  <span className="branch-student-payment-status">
+                    Cash
+                  </span>
+                </td>
+
+                <td>
+                  26 Aug 2026
+                </td>
+
+                <td>
+                  REC-2026-1002
+                </td>
+
+                <td>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() =>
+                      setSelectedPaymentHistory({
+                        studentId: 'STU-005',
+                        studentName: 'Arun',
+                        course: 'Python',
+                        amount: 8000,
+                        mode: 'Cash',
+                        date: '26 Aug 2026',
+                        receiptNumber: 'REC-2026-1002',
+                      })
+                    }
+                  >
+                    View
+                  </button>
+                </td>
+
+              </tr>
+
+
+              {/* TODAY PAYMENT 3 */}
+              <tr>
+
+                <td>
+                  <strong>STU-007</strong>
+                </td>
+
+                <td>
+                  <strong className="branch-course-name">
+                    Priya
+                  </strong>
+                </td>
+
+                <td>
+                  Data Analytics
+                </td>
+
+                <td>
+                  <strong>
+                    ₹6,000
+                  </strong>
+                </td>
+
+                <td>
+                  <span className="branch-student-payment-status">
+                    Card
+                  </span>
+                </td>
+
+                <td>
+                  26 Aug 2026
+                </td>
+
+                <td>
+                  REC-2026-1003
+                </td>
+
+                <td>
+                  <button
+                    type="button"
+                    className="button button-ghost"
+                    onClick={() =>
+                      setSelectedPaymentHistory({
+                        studentId: 'STU-007',
+                        studentName: 'Priya',
+                        course: 'Data Analytics',
+                        amount: 6000,
+                        mode: 'Card',
+                        date: '26 Aug 2026',
+                        receiptNumber: 'REC-2026-1003',
+                      })
+                    }
+                  >
+                    View
+                  </button>
+                </td>
+
+              </tr>
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+
+        {/* =====================================================
+            PAYMENT DETAILS POPUP
+        ===================================================== */}
+
+        {selectedPaymentHistory && (
+
+          <div className="payment-popup-overlay">
+
+            <div
+              className="payment-confirmation-popup"
+              style={{
+                maxWidth: '520px',
+              }}
+            >
+
+              <button
+                type="button"
+                className="receipt-popup-close"
+                onClick={() =>
+                  setSelectedPaymentHistory(null)
+                }
+              >
+                ×
+              </button>
+
+              <h3>
+                Payment Details
+              </h3>
+
+              <div className="confirmation-details">
+
+                <div className="confirmation-detail-row">
+                  <span>Student ID</span>
+                  <strong>
+                    {selectedPaymentHistory.studentId}
+                  </strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Student</span>
+                  <strong>
+                    {selectedPaymentHistory.studentName}
+                  </strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Course</span>
+                  <strong>
+                    {selectedPaymentHistory.course}
+                  </strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Amount</span>
+                  <strong className="confirmation-amount">
+                    {formatBranchRupees(
+                      selectedPaymentHistory.amount
+                    )}
+                  </strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Payment Mode</span>
+                  <strong>
+                    {selectedPaymentHistory.mode}
+                  </strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Payment Date</span>
+                  <strong>
+                    {selectedPaymentHistory.date}
+                  </strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Receipt Number</span>
+                  <strong>
+                    {selectedPaymentHistory.receiptNumber}
+                  </strong>
+                </div>
+
+              </div>
+
+              <div
+                className="payment-popup-actions"
+                style={{
+                  marginTop: '20px',
+                }}
+              >
+                <button
+                  type="button"
+                  className="popup-cancel-btn"
+                  onClick={() =>
+                    setSelectedPaymentHistory(null)
+                  }
+                >
+                  Close
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
+        )}
+
+      </div>
+
+    </BranchDashboardSection>
+
   ) : (
+
+    // =====================================================
+    // MAIN PAYMENTS PAGE
+    // =====================================================
+
     <BranchDashboardSection
       title="Payments"
       description="Track collections and pending dues across all students."
       actions={(
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      flexWrap: 'wrap',
-    }}
-  >
-    <div className="branch-dashboard-section-summary">
-      <span>Total students:</span>
-      <strong>{filteredBranchPaymentRows.length}</strong>
-    </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            flexWrap: 'wrap',
+          }}
+        >
 
-    <button
-      type="button"
-      className="button button-solid"
-      onClick={() => {
-        setShowPaymentHistory(false)
-        setRecordPaymentStudent({})
-      }}
-    >
-      Record Payment
-    </button>
+          {/* TOTAL STUDENTS */}
+          <div className="branch-dashboard-section-summary">
+            <span>Total students:</span>
+            <strong>
+              {filteredBranchPaymentRows.length}
+            </strong>
+          </div>
 
-    <button
-      type="button"
-      className="button button-ghost"
-      onClick={() => {
-        setRecordPaymentStudent(null)
-        setShowPaymentHistory(true)
-      }}
+
+          {/* RECORD PAYMENT */}
+          <button
+            type="button"
+            className="button button-solid"
+            onClick={() => {
+              setShowPaymentHistory(false);
+              setRecordPaymentStudent({});
+            }}
+          >
+            Record Payment
+          </button>
+
+
+          {/* VIEW HISTORY */}
+          <button
+            type="button"
+            className="button button-ghost"
+            onClick={() => {
+              setRecordPaymentStudent(null);
+              setShowPaymentHistory(true);
+            }}
+          >
+            View History
+          </button>
+
+        </div>
+      )}
     >
-      View History
-    </button>
-  </div>
-)}
-    >
-      <div className="branch-dashboard-stats" style={{ marginBottom: '20px' }}>
+
+      {/* =====================================================
+          4 SUMMARY CARDS
+      ===================================================== */}
+
+      <div
+        className="branch-dashboard-stats"
+        style={{
+          marginBottom: '20px',
+        }}
+      >
+
+        {/* THIS WEEK COLLECTION */}
         <article className="branch-dashboard-stat-card">
-          <span>Total Collected</span>
-          <strong>{formatBranchRupees(branchPaymentStats.totalCollected)}</strong>
-          <small>Across all students</small>
+
+          <span>
+            This Week Collection
+          </span>
+
+          <strong>
+            {formatBranchRupees(
+              branchPaymentStats.weeklyCollected ??
+              branchPaymentStats.totalCollected ??
+              0
+            )}
+          </strong>
+
+          <small>
+            Payments collected this week
+          </small>
+
         </article>
+
+
+        {/* TOTAL PENDING */}
         <article className="branch-dashboard-stat-card">
-          <span>Total Pending</span>
-          <strong>{formatBranchRupees(branchPaymentStats.totalPending)}</strong>
-          <small>Yet to be collected</small>
+
+          <span>
+            Total Pending
+          </span>
+
+          <strong>
+            {formatBranchRupees(
+              branchPaymentStats.totalPending
+            )}
+          </strong>
+
+          <small>
+            Amount yet to be collected
+          </small>
+
         </article>
+
+
+        {/* PENDING PAYMENTS */}
         <article className="branch-dashboard-stat-card">
-          <span>Overdue</span>
-          <strong>{branchPaymentStats.overdueCount}</strong>
-          <small>Students past due date</small>
+
+          <span>
+            Pending Payments
+          </span>
+
+          <strong>
+            {branchPaymentStats.pendingCount ?? 0}
+          </strong>
+
+          <small>
+            Students with pending payments
+          </small>
+
         </article>
+
+
+        {/* FULLY PAID */}
         <article className="branch-dashboard-stat-card">
-          <span>Fully Paid</span>
-          <strong>{branchPaymentStats.paidCount}</strong>
-          <small>Students cleared in full</small>
+
+          <span>
+            Fully Paid
+          </span>
+
+          <strong>
+            {branchPaymentStats.paidCount}
+          </strong>
+
+          <small>
+            Students cleared in full
+          </small>
+
         </article>
+
       </div>
 
-      <div className="faculty-search-filter-bar" style={{ marginBottom: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-        <div className="faculty-search-wrapper" style={{ display: 'flex', gap: '8px', width: '370px' }}>
+
+      {/* =====================================================
+          STUDENT PAYMENT SUMMARY FILTER
+      ===================================================== */}
+
+      <div
+        className="faculty-search-filter-bar"
+        style={{
+          marginBottom: '16px',
+          display: 'flex',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
+
+        <div
+          className="faculty-search-wrapper"
+          style={{
+            display: 'flex',
+            gap: '8px',
+            width: '370px',
+          }}
+        >
+
           <input
             type="text"
             placeholder="Search by student, ID or course"
             value={paymentSearchTerm}
             onChange={(e) => {
-              setPaymentSearchTerm(e.target.value)
-              setPaymentPage(1)
+              setPaymentSearchTerm(e.target.value);
+              setPaymentPage(1);
             }}
             className="faculty-search-input"
-            style={{ flex: 1, minWidth: 0 }}
+            style={{
+              flex: 1,
+              minWidth: 0,
+            }}
           />
+
         </div>
+
 
         <select
           value={paymentStatusFilter}
           onChange={(e) => {
-            setPaymentStatusFilter(e.target.value)
-            setPaymentPage(1)
+            setPaymentStatusFilter(e.target.value);
+            setPaymentPage(1);
           }}
-          style={{ height: '46px', padding: '0 12px', borderRadius: '8px' }}
+          style={{
+            height: '46px',
+            padding: '0 12px',
+            borderRadius: '8px',
+          }}
         >
-          <option value="all">All Statuses</option>
-          <option value="paid">Paid</option>
-          <option value="partially-paid">Partially Paid</option>
-          <option value="pending">Pending</option>
-          <option value="overdue">Overdue</option>
+
+          <option value="all">
+            All Statuses
+          </option>
+
+          <option value="paid">
+            Paid
+          </option>
+
+          <option value="partially-paid">
+            Partially Paid
+          </option>
+
+          <option value="pending">
+            Pending
+          </option>
+
+          <option value="overdue">
+            Overdue
+          </option>
+
         </select>
+
       </div>
 
+
+      {/* =====================================================
+          STUDENT PAYMENT SUMMARY TABLE
+      ===================================================== */}
+
       <div className="branch-course-table-shell">
+
         <table className="branch-course-table">
+
           <thead>
+
             <tr>
               <th>Student ID</th>
               <th>Student Name</th>
@@ -4963,108 +5568,268 @@ description={
               <th>Status</th>
               <th>Action</th>
             </tr>
+
           </thead>
+
+
           <tbody>
+
             {visibleBranchPaymentRows.length ? (
-              visibleBranchPaymentRows.map(({ student, summary }) => (
-                <tr key={student.studentId}>
-                  <td><strong>{student.studentId || '-'}</strong></td>
-                  <td><strong className="branch-course-name">{student.studentName || '-'}</strong></td>
-                  <td>
-                    <span className="branch-student-course">
-                      {student.courseName || student.courseInterested || student.course?.name || '-'}
-                    </span>
-                  </td>
-                  <td><strong>{formatBranchRupees(summary.totalFee)}</strong></td>
-                  <td><span className="branch-student-paid">{formatBranchRupees(summary.paidAmount)}</span></td>
-                  <td>{formatBranchRupees(summary.pendingAmount)}</td>
-                  <td>
-                    {summary.nextInstallment ? (
-                      <div className="branch-next-installment">
-                        <strong>{formatBranchRupees(summary.nextInstallmentAmount)}</strong>
-                        <span>
-                          Installment {summary.nextInstallment.installmentNumber || summary.nextInstallment.number || ''}
+
+              visibleBranchPaymentRows.map(
+                ({ student, summary }) => (
+
+                  <tr key={student.studentId}>
+
+                    <td>
+                      <strong>
+                        {student.studentId || '-'}
+                      </strong>
+                    </td>
+
+
+                    <td>
+                      <strong className="branch-course-name">
+                        {student.studentName || '-'}
+                      </strong>
+                    </td>
+
+
+                    <td>
+                      <span className="branch-student-course">
+                        {
+                          student.courseName ||
+                          student.courseInterested ||
+                          student.course?.name ||
+                          '-'
+                        }
+                      </span>
+                    </td>
+
+
+                    <td>
+                      <strong>
+                        {formatBranchRupees(
+                          summary.totalFee
+                        )}
+                      </strong>
+                    </td>
+
+
+                    <td>
+                      <span className="branch-student-paid">
+                        {formatBranchRupees(
+                          summary.paidAmount
+                        )}
+                      </span>
+                    </td>
+
+
+                    <td>
+                      {formatBranchRupees(
+                        summary.pendingAmount
+                      )}
+                    </td>
+
+
+                    <td>
+
+                      {summary.nextInstallment ? (
+
+                        <div className="branch-next-installment">
+
+                          <strong>
+                            {formatBranchRupees(
+                              summary.nextInstallmentAmount
+                            )}
+                          </strong>
+
+                          <span>
+                            Installment {
+                              summary.nextInstallment
+                                .installmentNumber ||
+                              summary.nextInstallment.number ||
+                              ''
+                            }
+                          </span>
+
+                        </div>
+
+                      ) : (
+
+                        <span className="branch-no-installment">
+                          -
                         </span>
-                      </div>
-                    ) : (
-                      <span className="branch-no-installment">-</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className="branch-student-due-date">
-                      {formatBranchPaymentDate(summary.nextDueDate)}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      className={`branch-student-payment-status ${summary.paymentStatus
-                        .toLowerCase()
-                        .replace(/\s+/g, '-')}`}
-                    >
-                      {summary.paymentStatus}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="button button-solid"
-                      onClick={() => setRecordPaymentStudent({ ...student })}
-                      disabled={summary.paymentStatus === 'Paid'}
-                    >
-                      Record Payment
-                    </button>
-                  </td>
-                </tr>
-              ))
+
+                      )}
+
+                    </td>
+
+
+                    <td>
+
+                      <span className="branch-student-due-date">
+                        {formatBranchPaymentDate(
+                          summary.nextDueDate
+                        )}
+                      </span>
+
+                    </td>
+
+
+                    <td>
+
+                      <span
+                        className={`branch-student-payment-status ${
+                          summary.paymentStatus
+                            .toLowerCase()
+                            .replace(/\s+/g, '-')
+                        }`}
+                      >
+                        {summary.paymentStatus}
+                      </span>
+
+                    </td>
+
+
+                    <td>
+
+                      <button
+                        type="button"
+                        className="button button-solid"
+                        onClick={() =>
+                          setRecordPaymentStudent({
+                            ...student,
+                          })
+                        }
+                        disabled={
+                          summary.paymentStatus === 'Paid'
+                        }
+                      >
+                        Record Payment
+                      </button>
+
+                    </td>
+
+                  </tr>
+
+                )
+
+              )
+
             ) : (
+
               <tr>
-                <td colSpan="10" className="branch-course-empty-state">
+
+                <td
+                  colSpan="10"
+                  className="branch-course-empty-state"
+                >
                   No payment records found.
                 </td>
+
               </tr>
+
             )}
+
           </tbody>
+
         </table>
+
       </div>
 
-      {filteredBranchPaymentRows.length > BRANCH_PAYMENTS_PER_PAGE ? (
+
+      {/* =====================================================
+          PAGINATION
+      ===================================================== */}
+
+      {filteredBranchPaymentRows.length >
+        BRANCH_PAYMENTS_PER_PAGE ? (
+
         <div className="branch-course-pagination">
+
           <button
             type="button"
             className="branch-course-pagination-button"
-            onClick={() => setPaymentPage((c) => Math.max(1, c - 1))}
-            disabled={safePaymentPage === 1}
+            onClick={() =>
+              setPaymentPage((c) =>
+                Math.max(1, c - 1)
+              )
+            }
+            disabled={
+              safePaymentPage === 1
+            }
           >
             Prev
           </button>
-          <div className="branch-course-pagination-pages" role="navigation" aria-label="Payment pagination">
-            {Array.from({ length: totalPaymentPages }, (_, i) => i + 1).map((pg) => (
+
+
+          <div
+            className="branch-course-pagination-pages"
+            role="navigation"
+            aria-label="Payment pagination"
+          >
+
+            {Array.from(
+              {
+                length: totalPaymentPages,
+              },
+              (_, i) => i + 1
+            ).map((pg) => (
+
               <button
                 key={pg}
                 type="button"
-                className={`branch-course-pagination-page ${pg === safePaymentPage ? 'is-active' : ''}`.trim()}
-                onClick={() => setPaymentPage(pg)}
-                aria-current={pg === safePaymentPage ? 'page' : undefined}
+                className={`branch-course-pagination-page ${
+                  pg === safePaymentPage
+                    ? 'is-active'
+                    : ''
+                }`.trim()}
+                onClick={() =>
+                  setPaymentPage(pg)
+                }
+                aria-current={
+                  pg === safePaymentPage
+                    ? 'page'
+                    : undefined
+                }
               >
                 {pg}
               </button>
+
             ))}
+
           </div>
+
+
           <button
             type="button"
             className="branch-course-pagination-button"
-            onClick={() => setPaymentPage((c) => Math.min(totalPaymentPages, c + 1))}
-            disabled={safePaymentPage === totalPaymentPages}
+            onClick={() =>
+              setPaymentPage((c) =>
+                Math.min(
+                  totalPaymentPages,
+                  c + 1
+                )
+              )
+            }
+            disabled={
+              safePaymentPage === totalPaymentPages
+            }
           >
             Next
           </button>
+
         </div>
+
       ) : null}
+
     </BranchDashboardSection>
+
   )
+
 ) : null}
-
-
+              
               {activeSection === 'profile' ? (
                 <BranchDashboardSection title="Profile" description="Branch profile and login details.">
                   <div className="branch-dashboard-profile-grid">
