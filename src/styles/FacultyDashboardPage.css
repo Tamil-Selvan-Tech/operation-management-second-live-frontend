@@ -348,6 +348,22 @@
   background: #f8fbff;
 }
 
+.super-admin-page .faculty-students-table-shell {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table {
+  width: max-content;
+  min-width: 1120px;
+}
+
 .faculty-course-empty-state {
   padding: 22px 24px;
   border: 1px dashed rgba(148, 163, 184, 0.4);

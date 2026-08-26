@@ -2529,7 +2529,7 @@ const nextName = trimmedValue
                     </button>
                   )}
                 >
-                  <div className="branch-dashboard-table-shell">
+                  <div className="branch-dashboard-table-shell faculty-students-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>
                         <tr>
