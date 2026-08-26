@@ -56,6 +56,7 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
+import { loadBranchStudents } from '../lib/branchStudentStore'
 import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
 import {
 } from '../lib/courseEditRequestStore'
@@ -138,6 +139,80 @@ function formatCourseHours(value) {
   if (!/^\d+(\.\d+)?$/.test(normalized)) return normalized
 
   return `${normalized} hour${normalized === '1' ? '' : 's'}`
+}
+
+function getExactFacultyStudents(students = [], facultyId = '', facultyName = '', facultyEmail = '') {
+  const normalizedFacultyId = String(facultyId || '').trim().toLowerCase()
+  const normalizedFacultyName = String(facultyName || '').trim().toLowerCase()
+  const normalizedFacultyEmail = String(facultyEmail || '').trim().toLowerCase()
+
+  return (Array.isArray(students) ? students : []).filter((student) => {
+    const studentFacultyId = String(student?.facultyId || '').trim().toLowerCase()
+    const studentFacultyName = String(student?.facultyName || '').trim().toLowerCase()
+    const studentFacultyEmail = String(student?.facultyEmail || '').trim().toLowerCase()
+
+    const matchesFacultyId =
+      normalizedFacultyId &&
+      studentFacultyId &&
+      studentFacultyId === normalizedFacultyId
+
+    const matchesFacultyEmail =
+      normalizedFacultyEmail &&
+      studentFacultyEmail &&
+      studentFacultyEmail === normalizedFacultyEmail
+
+    const matchesFacultyName =
+      normalizedFacultyName &&
+      studentFacultyName &&
+      studentFacultyName === normalizedFacultyName
+
+    return matchesFacultyId || matchesFacultyEmail || matchesFacultyName
+  })
+}
+
+function getFacultyStudentPaymentProgress(student = {}) {
+  const installments = Array.isArray(student.installmentSchedule) ? student.installmentSchedule : []
+
+  const explicitCount = [
+    student.installmentCount,
+    student.totalInstallments,
+    Array.isArray(student.paymentPlan?.installments) ? student.paymentPlan.installments.length : 0,
+  ]
+    .map((value) => Number(value || 0))
+    .filter((value) => Number.isFinite(value) && value > 0)
+
+  const totalInstallments = Math.max(installments.length, ...explicitCount, 0)
+
+  const paidInstallments = installments.length
+    ? installments.reduce((count, installment) => {
+        const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
+        const paid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
+        const status = String(installment.status ?? installment.paymentStatus ?? '').trim().toLowerCase()
+
+        if (status === 'paid' || paid >= amount || (!amount && paid > 0)) {
+          return count + 1
+        }
+
+        return count
+      }, 0)
+    : Number(student.paidInstallments ?? student.completedInstallments ?? 0) || 0
+
+  const totalFee = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
+  const paidAmount = installments.length
+    ? installments.reduce((sum, installment) => sum + Number(installment.paidAmount ?? installment.amountPaid ?? 0), 0)
+    : Number(student.paidAmount ?? student.totalPaid ?? student.amountPaid ?? 0)
+
+  const paidInstallmentPercentage = totalInstallments > 0
+    ? Math.min(100, (paidInstallments / totalInstallments) * 100)
+    : 0
+
+  return {
+    totalFee,
+    paidAmount,
+    paidInstallments,
+    totalInstallments,
+    paidInstallmentPercentage,
+  }
 }
 
 function getCourseModels(course) {
@@ -520,6 +595,7 @@ export function FacultyDashboardPage() {
   const [facultyProfile, setFacultyProfile] = useState(null)
   const [branchCourses, setBranchCourses] = useState([])
   const [courseCatalog, setCourseCatalog] = useState([])
+  const [students, setStudents] = useState([])
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
   const [courseModulePage, setCourseModulePage] = useState(1)
@@ -626,8 +702,10 @@ export function FacultyDashboardPage() {
           branchCoursesResult.status === 'fulfilled' && Array.isArray(branchCoursesResult.value?.data)
             ? branchCoursesResult.value.data
             : []
+        const nextStudents = loadBranchStudents()
 
         setBranchCourses(branchCourseList)
+        setStudents(nextStudents)
 
         const mergedCourseMap = new Map()
 
@@ -677,9 +755,14 @@ export function FacultyDashboardPage() {
     }
 
     loadCourseData()
+    const syncStudents = () => void loadCourseData()
+    window.addEventListener('cispro:students-changed', syncStudents)
+    window.addEventListener('cispro:branch-students-changed', syncStudents)
 
     return () => {
       isMounted = false
+      window.removeEventListener('cispro:students-changed', syncStudents)
+      window.removeEventListener('cispro:branch-students-changed', syncStudents)
     }
   }, [])
 
@@ -830,12 +913,107 @@ useEffect(() => {
     return courseCatalog.filter((course) => normalizeCourseKey(course?.name || course?.courseName || '') === normalizeCourseKey(fallbackName))
   }, [assignedCourseIds, assignedCourseNames, courseCatalog])
 
+  const currentFacultyIdentity = useMemo(() => {
+    const profile = facultyProfile || {}
+    const branch = facultyDetails?.branch || {}
+    return {
+      facultyId: String(profile.id || profile.facultyId || profile.facultyUserId || facultyDetails?.id || '').trim(),
+      facultyName: String(profile.facultyName || profile.name || facultyDetails?.name || '').trim(),
+      facultyEmail: String(profile.facultyEmail || profile.email || facultyDetails?.email || '').trim(),
+      branchId: String(profile.branchId || branch.id || facultyDetails?.branchId || facultyDetails?.branch?.id || '').trim(),
+    }
+  }, [facultyDetails, facultyProfile])
+
+  const facultyViewLabel = useMemo(() => {
+    const name = String(currentFacultyIdentity.facultyName || facultyName || 'Faculty').trim() || 'Faculty'
+    return `${name}'s Faculty View`
+  }, [currentFacultyIdentity.facultyName, facultyName])
+
+  const facultyBackfillRecords = useMemo(
+    () =>
+      [
+        facultyProfile,
+        dashboardSummary?.faculty,
+        dashboardSummary?.profile,
+      ].filter(Boolean),
+    [dashboardSummary, facultyProfile],
+  )
+
+  const backfilledStudents = useMemo(
+    () => enrichStudentsWithFacultyReferences(students, facultyBackfillRecords, courseCatalog),
+    [courseCatalog, facultyBackfillRecords, students],
+  )
+
+  const facultyScopedStudents = useMemo(() => {
+    const facultyId = currentFacultyIdentity.facultyId
+    const facultyNameValue = currentFacultyIdentity.facultyName
+    const facultyEmailValue = currentFacultyIdentity.facultyEmail
+
+    return getExactFacultyStudents(backfilledStudents, facultyId, facultyNameValue, facultyEmailValue)
+  }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
+
   const activeCourseId = selectedCourseId || String(assignedCourses[0]?.id || '').trim()
 
   const selectedCourse = useMemo(() => {
     if (!assignedCourses.length) return null
     return assignedCourses.find((course) => String(course?.id || '').trim() === activeCourseId) || assignedCourses[0] || null
   }, [activeCourseId, assignedCourses])
+
+  const facultyBatchRows = useMemo(() => {
+    const facultyId = currentFacultyIdentity.facultyId
+    const facultyNameValue = currentFacultyIdentity.facultyName
+    const facultyEmailValue = currentFacultyIdentity.facultyEmail
+    const summary = dashboardSummary || {}
+    const rawEntries = [
+      ...(Array.isArray(facultyProfile?.batchEntries) ? facultyProfile.batchEntries : []),
+      ...(Array.isArray(summary?.batchEntries) ? summary.batchEntries : []),
+    ]
+
+    const matchedEntries = sortByNameThenTiming(rawEntries).map((entry) => {
+      const studentsForBatch = getExactFacultyStudents(backfilledStudents, facultyId, facultyNameValue, facultyEmailValue)
+
+      return {
+        id: String(entry?.id || `${entry?.courseId || 'course'}-${entry?.batchName || entry?.batch || 'batch'}`).trim(),
+        course: String(entry?.courseName || entry?.course || '-').trim() || '-',
+        code: String(entry?.batchCode || entry?.code || entry?.id || '-').trim() || '-',
+        timing: String(entry?.batchTiming || entry?.timing || '-').trim() || '-',
+        students: studentsForBatch.length,
+        status: String(entry?.status || 'Active').trim() || 'Active',
+      }
+    })
+
+    if (matchedEntries.length) {
+      return matchedEntries
+    }
+
+    const groups = new Map()
+    facultyScopedStudents.forEach((student) => {
+      const batchId = String(student.batchId || student.batchEntryId || '').trim()
+      const batchName = String(student.batchName || student.batch || '').trim()
+      const courseId = String(student.courseId || '').trim()
+      const courseName = String(student.courseInterested || student.courseName || student.course?.name || '-').trim() || '-'
+      const batchTiming = String(student.batchTiming || student.batchTime || '-').trim() || '-'
+      const key = batchId || `${courseId}-${batchName}-${batchTiming}` || courseName
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          id: key,
+          course: courseName,
+          code: batchName || batchId || '-',
+          timing: batchTiming,
+          students: [],
+        })
+      }
+
+      groups.get(key).students.push(student)
+    })
+
+    return Array.from(groups.values()).map((entry) => ({
+      ...entry,
+      status: 'Active',
+      students: entry.students.length,
+    }))
+  }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyProfile?.batchEntries, dashboardSummary, facultyScopedStudents])
 
   const selectedCourseModules = useMemo(() => getCourseModels(selectedCourse), [selectedCourse])
   const courseModulesPerPage = 5
@@ -1975,25 +2153,31 @@ const nextName = trimmedValue
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { course: 'React Native Development', code: 'RN-B3', timing: 'Mon, Wed, Fri | 09:30 AM', students: '24', status: 'Active' },
-                          { course: 'Full-Stack Web Development', code: 'WD-B9', timing: 'Tue, Thu | 02:00 PM', students: '18', status: 'Active' },
-                          { course: 'UI/UX Premium Design', code: 'UX-B2', timing: 'Saturday | 10:00 AM', students: '15', status: 'Active' },
-                          { course: 'Advanced JavaScript Mastery', code: 'JS-B1', timing: 'Sunday | 11:30 AM', students: '28', status: 'Active' },
-                        ].map((batch, index) => (
-                          <tr key={batch.code}>
-                            <td>{index + 1}</td>
-                            <td><strong className="text-slate-800">{batch.course}</strong></td>
-                            <td><strong style={{ color: '#0f172a' }}>{batch.code}</strong></td>
-                            <td>{batch.timing}</td>
-                            <td>{batch.students} students</td>
-                            <td>
-                              <span className="branch-course-status-pill active">
-                                {batch.status}
-                              </span>
+                        {facultyBatchRows.length ? (
+                          facultyBatchRows.map((batch, index) => (
+                            <tr key={batch.id || batch.code || `${batch.course}-${index}`}>
+                              <td>{index + 1}</td>
+                              <td><strong className="text-slate-800">{batch.course}</strong></td>
+                              <td><strong style={{ color: '#0f172a' }}>{batch.code}</strong></td>
+                              <td>{batch.timing}</td>
+                              <td>{batch.students} students</td>
+                              <td>
+                                <span className={`branch-course-status-pill ${String(batch.status || 'active').toLowerCase().replace(/\s+/g, '-')}`}>
+                                  {batch.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6}>
+                              <div className="faculty-my-batches-empty" style={{ padding: '20px 0' }}>
+                                <strong>No batches mapped yet</strong>
+                                <p>When the branch assigns students to your faculty, the matching batches will appear here automatically.</p>
+                              </div>
                             </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -2001,57 +2185,74 @@ const nextName = trimmedValue
               ) : null}
 
               {activeSection === 'students' ? (
-                <FacultyDashboardSection title="Enrolled Students" description="Learners enrolled in your courses across all active batches.">
+                <FacultyDashboardSection title={facultyViewLabel} description={`Learners assigned to ${String(currentFacultyIdentity.facultyName || facultyName || 'this faculty').trim()}.`}>
                   <div className="branch-dashboard-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>
                         <tr>
                           <th style={{ width: '60px' }}>S.No</th>
+                          <th>Student ID</th>
                           <th>Student Name</th>
-                          <th>Batch</th>
-                          <th>Course</th>
                           <th>Email Address</th>
-                          <th>Status</th>
+                          <th>Paid</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {[
-                          { name: 'Ananya S', batch: 'RN-B3', course: 'React Native Development', email: 'ananya.s@gmail.com', status: 'Active' },
-                          { name: 'Rahul P', batch: 'WD-B9', course: 'Full-Stack Web Development', email: 'rahul.p@gmail.com', status: 'Active' },
-                          { name: 'Meena K', batch: 'RN-B3', course: 'React Native Development', email: 'meena.k@gmail.com', status: 'Active' },
-                          { name: 'Arun V', batch: 'UX-B2', course: 'UI/UX Premium Design', email: 'arun.v@gmail.com', status: 'Active' },
-                          { name: 'Sanjay Kumar', batch: 'JS-B1', course: 'Advanced JavaScript Mastery', email: 'sanjay.k@gmail.com', status: 'Active' },
-                        ].map((student, index) => (
-                          <tr key={student.name}>
-                            <td>{index + 1}</td>
-                            <td>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div className="faculty-avatar">
-                                  {String(student?.name || 'ST')
-                                    .split(' ')
-                                    .map((n) => n[0])
-                                    .join('')
-                                    .substring(0, 2)
-                                    .toUpperCase()}
-                                </div>
-                                <strong className="branch-course-name">{student.name}</strong>
+                        {facultyScopedStudents.length ? (
+                          facultyScopedStudents.map((student, index) => {
+                            const studentIdLabel = String(student.studentId || student.id || '-').trim()
+                            const studentName = String(student.studentName || '-').trim()
+                            const emailLabel = String(student.emailAddress || '-').trim()
+                            const paymentProgress = getFacultyStudentPaymentProgress(student)
+                            const paidAmountLabel = formatCourseAmount(paymentProgress.paidAmount)
+
+                            return (
+                              <tr key={student.id || student.studentId || `${studentName}-${index}`}>
+                                <td>{index + 1}</td>
+                                <td><strong>{studentIdLabel}</strong></td>
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div className="faculty-avatar">
+                                      {getInitials(studentName)}
+                                    </div>
+                                    <strong className="branch-course-name">{studentName}</strong>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className="faculty-info-link">
+                                    <Mail size={14} style={{ color: '#94a3b8' }} />
+                                    {emailLabel}
+                                  </span>
+                                </td>
+                                <td>
+                                  <div className="branch-student-paid-cell">
+                                    <span className="branch-student-paid-amount">{paidAmountLabel}</span>
+                                    <div className="branch-student-paid-progress">
+                                      <div className="branch-student-paid-progress-bar" aria-hidden="true">
+                                        <span
+                                          className="branch-student-paid-progress-fill"
+                                          style={{ width: `${paymentProgress.paidInstallmentPercentage}%` }}
+                                        />
+                                      </div>
+                                      <span className="branch-student-paid-progress-label">
+                                        {Math.round(paymentProgress.paidInstallmentPercentage)}% Paid
+                                      </span>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={5}>
+                              <div className="faculty-my-batches-empty" style={{ padding: '20px 0' }}>
+                                <strong>No enrolled students found</strong>
+                                <p>Students selected with this faculty from the branch dashboard will show up here once they are saved.</p>
                               </div>
                             </td>
-                            <td><strong>{student.batch}</strong></td>
-                            <td>{student.course}</td>
-                            <td>
-                              <span className="faculty-info-link">
-                                <Mail size={14} style={{ color: '#94a3b8' }} />
-                                {student.email}
-                              </span>
-                            </td>
-                            <td>
-                              <span className="branch-course-status-pill active">
-                                {student.status}
-                              </span>
-                            </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
