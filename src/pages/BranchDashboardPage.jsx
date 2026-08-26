@@ -4836,6 +4836,23 @@ const visibleBranchPaymentRows = useMemo(() => {
                   ) : null}
                 </BranchDashboardSection>
               ) : null}
+{activeSection === 'installments' ? (
+  <BranchInstallmentTemplatesPage />
+) : null}
+
+{activeSection === 'batches' ? (
+  <BranchDashboardSection title="Batches" description="Current batch schedule overview.">
+    <div className="branch-dashboard-card-grid">
+      {batchCards.map((batch) => (
+        <article key={batch.title} className="branch-dashboard-info-card">
+          <strong>{batch.title}</strong>
+          <span>{batch.timing}</span>
+          <small>{batch.status}</small>
+        </article>
+      ))}
+    </div>
+  </BranchDashboardSection>
+) : null}
 
 {activeSection === 'payments' ? (
 
