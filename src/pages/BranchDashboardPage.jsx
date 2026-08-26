@@ -4550,6 +4550,7 @@ const visibleBranchPaymentRows = useMemo(() => {
         <th>Course</th>
         <th>Total Fee</th>
         <th>Paid</th>
+        <th>Course Progress</th>
         <th>Next Installment</th>
         <th>Due Date</th>
         <th>Status</th>
@@ -4580,6 +4581,16 @@ const visibleBranchPaymentRows = useMemo(() => {
             : Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
 
           const installmentProgress = getBranchStudentInstallmentProgress(stu)
+          const courseProgressRaw = Number(
+            stu.courseProgress ??
+            stu.courseCompletionPercentage ??
+            stu.progress ??
+            installmentProgress.paidInstallmentPercentage ??
+            0,
+          )
+          const courseProgressPercentage = Number.isFinite(courseProgressRaw)
+            ? Math.min(100, Math.max(0, courseProgressRaw))
+            : 0
 
           const nextInstallment = installments.find((installment) => {
             const installmentAmount = Number(installment.amount ?? installment.installmentAmount ?? 0)
@@ -4727,6 +4738,22 @@ else {
                     </div>
                     <span className="branch-student-paid-progress-label">
                       {formatBranchPercentage(installmentProgress.paidInstallmentPercentage)}% Paid
+                    </span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div className="branch-student-paid-cell">
+                  <span className="branch-student-paid-amount">{formatBranchPercentage(courseProgressPercentage)}%</span>
+                  <div className="branch-student-paid-progress">
+                    <div className="branch-student-paid-progress-bar" aria-hidden="true">
+                      <span
+                        className="branch-student-paid-progress-fill"
+                        style={{ width: `${courseProgressPercentage}%` }}
+                      />
+                    </div>
+                    <span className="branch-student-paid-progress-label">
+                      {formatBranchPercentage(courseProgressPercentage)}% Complete
                     </span>
                   </div>
                 </div>
