@@ -6721,25 +6721,6 @@ else {
                     </td>
 
 
-                    <td>
-
-                      {/* <button
-                        type="button"
-                        className="button button-solid"
-                        onClick={() =>
-                          setRecordPaymentStudent({
-                            ...student,
-                          })
-                        }
-                        disabled={
-                          summary.paymentStatus === 'Paid'
-                        }
-                      >
-                        Record Payment
-                      </button> */}
-
-                    </td>
-
                   </tr>
 
                 )
