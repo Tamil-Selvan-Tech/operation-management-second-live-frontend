@@ -107,8 +107,9 @@ export function mergeBranchCoursesWithSnapshot(records) {
     const snapshotModels = Array.isArray(snapshotCourse?.models) ? snapshotCourse.models : []
 
     return normalizeBranchCourseSnapshotRecord({
-      ...course,
       ...snapshotCourse,
+      ...course,
+      id: course?.id || snapshotCourse?.id || '',
       models: snapshotModels.length ? snapshotModels : primaryModels,
       courseModels: snapshotModels.length ? snapshotModels : primaryModels,
       modules: snapshotModels.length ? snapshotModels : primaryModels,

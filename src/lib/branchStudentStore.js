@@ -338,7 +338,6 @@ export async function refreshBranchStudents(branchId) {
 
   const remaining = all.filter((record) => !recordMatchesBranchScope(record, branchScopeKeys))
   writeAll([...records, ...remaining])
-  dispatchChange()
   return records
 }
 
@@ -455,11 +454,12 @@ export async function deleteBranchStudent(studentOrId, branchScopeInput = '') {
   }
 
   let lastError = null
-  const requestCandidates = [...candidates]
-
-  if (studentId && !requestCandidates.includes(studentId)) {
-    requestCandidates.push(studentId)
-  }
+  const requestCandidates = [
+    ...new Set([
+      ...(studentId ? [studentId] : []),
+      ...candidates,
+    ]),
+  ]
 
   if (studentOrId && typeof studentOrId === 'object') {
     const branchScope = String(
@@ -482,23 +482,16 @@ export async function deleteBranchStudent(studentOrId, branchScopeInput = '') {
   }
 
   for (const candidate of requestCandidates) {
-    const deletePaths = [
-      `/branch-students/${encodeURIComponent(candidate)}`,
-      `/students/${encodeURIComponent(candidate)}`,
-    ]
-
-    for (const path of deletePaths) {
-      try {
-        await request(path, {
-          method: 'DELETE',
-        })
-        removeStudentFromLocalCache(studentOrId, studentId)
-        return
-      } catch (error) {
-        lastError = error
-        if (error?.status === 403 || error?.status === 404) {
-          continue
-        }
+    try {
+      await request(`/branch-students/${encodeURIComponent(candidate)}`, {
+        method: 'DELETE',
+      })
+      removeStudentFromLocalCache(studentOrId, studentId)
+      return
+    } catch (error) {
+      lastError = error
+      if (error?.status === 403 || error?.status === 404) {
+        continue
       }
     }
   }

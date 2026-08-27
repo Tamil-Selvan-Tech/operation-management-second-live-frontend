@@ -1317,7 +1317,15 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
 
   return {
     ...course,
-    id: String(course.id || course.courseCode || course.name || `branch-course-${index + 1}`),
+    id: String(
+      course.id ||
+      course.branchCourseId ||
+      course.dbId ||
+      course.courseId ||
+      course.courseCode ||
+      course.name ||
+      `branch-course-${index + 1}`,
+    ),
     courseCode: String(course.courseCode || '').trim(),
     name: String(course.name || '').trim(),
     mode: String(course.mode || '').trim(),
@@ -1334,6 +1342,24 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
     installmentTemplate,
     createdAt: String(course.createdAt || new Date().toISOString()),
   }
+}
+
+function resolveBranchCourseEditableId(course = {}, availableCourses = []) {
+  const directId = String(course?.id || course?.branchCourseId || course?.dbId || course?.courseId || '').trim()
+  if (directId) return directId
+
+  const courseCode = String(course?.courseCode || '').trim().toLowerCase()
+  const courseName = String(course?.name || course?.courseName || '').trim().toLowerCase()
+
+  const matchedCourse = Array.isArray(availableCourses)
+    ? availableCourses.find((item) => {
+      const itemCode = String(item?.courseCode || '').trim().toLowerCase()
+      const itemName = String(item?.name || item?.courseName || '').trim().toLowerCase()
+      return (courseCode && itemCode === courseCode) || (courseName && itemName === courseName)
+    })
+    : null
+
+  return String(matchedCourse?.id || '').trim()
 }
 
 function buildBranchCoursePayload(form) {
@@ -1502,6 +1528,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [isAddCourseSaving, setIsAddCourseSaving] = useState(false)
   const [isCourseDeleting, setIsCourseDeleting] = useState(false)
   const isAddCourseSubmitLockedRef = useRef(false)
+  const courseSaveIntentRef = useRef(false)
   const [addCourseError, setAddCourseError] = useState('')
   const [courseActionError, setCourseActionError] = useState('')
   const [courseSaveSuccess, setCourseSaveSuccess] = useState(null)
@@ -3240,7 +3267,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
   const openEditCourseModal = (course) => {
     isAddCourseSubmitLockedRef.current = false
-    const nextEditingCourseId = String(course?.id || '').trim()
+    const nextEditingCourseId = resolveBranchCourseEditableId(course, branchCourseCards)
     const savedDraft = readBranchCourseDraft(nextEditingCourseId)
     const nextForm = savedDraft?.form || buildBranchCourseFormFromRecord(course)
     const nextSavedPaymentPlans = normalizeBranchCoursePaymentPlanSelections(nextForm.paymentPlans)
@@ -3398,8 +3425,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     try {
       setIsCourseDeleting(true)
-      await deleteBranchCourse(courseDeleteTarget.id)
-      const nextCards = branchCourseCards.filter((course) => String(course.id || '').trim() !== String(courseDeleteTarget.id || '').trim())
+      const targetCourseId = resolveBranchCourseEditableId(courseDeleteTarget, branchCourseCards)
+      await deleteBranchCourse(targetCourseId)
+      const nextCards = branchCourseCards.filter((course) => String(course.id || '').trim() !== String(targetCourseId || '').trim())
       setBranchCourseCards(nextCards)
       const nextTotalPages = Math.max(1, Math.ceil(nextCards.length / BRANCH_COURSES_PER_PAGE))
       setBranchCoursePage((current) => Math.min(current, nextTotalPages))
@@ -3413,6 +3441,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const handleAddCourseSubmit = async (event) => {
     event?.preventDefault()
+    if (!courseSaveIntentRef.current) return
+    courseSaveIntentRef.current = false
     if (isAddCourseSubmitLockedRef.current) return
     isAddCourseSubmitLockedRef.current = true
     const committedPaymentPlans = normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans)
@@ -3471,7 +3501,14 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setIsAddCourseSaving(true)
     try {
       const normalizedCourseCode = normalizeBranchCourseCode(addCourseForm.courseCode)
-      const editingTargetId = String(editingCourseId || '').trim()
+      const editingTargetId = resolveBranchCourseEditableId(
+        branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || {
+          id: editingCourseId,
+          courseCode: addCourseForm.courseCode,
+          name: addCourseForm.name,
+        },
+        branchCourseCards,
+      )
       const duplicateCourse = branchCourseCards.find(
         (course) =>
           String(course.id || '').trim() !== editingTargetId &&
@@ -3539,6 +3576,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
   }
 
+  const triggerAddCourseSubmit = () => {
+    courseSaveIntentRef.current = true
+    void handleAddCourseSubmit()
+  }
+
   const handleCourseBasicNext = () => {
     const nextTouched = { ...addCourseTouched }
     COURSE_BASIC_FIELDS.forEach((field) => {
@@ -3571,9 +3613,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     })
     setAddCourseTouched(nextTouched)
 
-    if (courseEditorStage !== 'closed' && Number.isInteger(selectedSavedModelIndex)) {
-      const savedCurrentModel = handleCourseModuleFinalSave(selectedSavedModelIndex)
-      if (!savedCurrentModel) return
+    if (isSubmoduleDraftOpen) {
+      setAddCourseError('Please save or cancel the current submodule before continuing.')
+      setAddCourseStep(2)
+      return
     }
 
     const validationErrors = createBranchCourseErrors(addCourseForm)
@@ -6923,9 +6966,7 @@ else {
                 <button
                   type="button"
                   className={`course-stepper-item ${addCourseStep === 2 ? 'is-active' : ''}`.trim()}
-                  onClick={() => {
-                    handleCourseBasicNext()
-                  }}
+                  onClick={() => setAddCourseStep(2)}
                   disabled={Object.keys(addCourseValidationErrors.basic).length > 0}
                 >
                   <span className="course-stepper-icon" aria-hidden="true">
@@ -6937,17 +6978,11 @@ else {
                   type="button"
                   className={`course-stepper-item ${addCourseStep === 3 ? 'is-active' : ''}`.trim()}
                   onClick={() => {
-                    if (addCourseStep === 1) {
-                      handleCourseBasicNext()
-                      return
-                    }
-
-                    if (addCourseStep === 2) {
-                      handleCourseModulesNext()
-                      return
-                    }
-
                     setAddCourseStep(3)
+                    setCourseEditorStage('closed')
+                    setIsSubmoduleDraftOpen(false)
+                    setSelectedSavedModelIndex(0)
+                    setSelectedSavedSubmodelIndex(0)
                   }}
                   disabled={Boolean(Object.keys(addCourseValidationErrors.basic).length > 0 || addCourseValidationErrors.hierarchy.modelsError)}
                 >
@@ -7457,8 +7492,8 @@ else {
                     </Field>
 
                     <Field
-                      label="Select Installment Plan"
-                      hint="Choose one or more plans"
+                      label="Installment Plans"
+                      hint="Choose one or more templates"
                       error={addCoursePaymentPlanVisibleError}
                     >
                       <div
@@ -7471,7 +7506,7 @@ else {
                           className={`course-payment-plan-dropdown-trigger ${addCoursePaymentPlanSelectedIds.length ? 'has-value' : ''}`.trim()}
                           onClick={() => setIsPaymentPlanDropdownOpen((current) => !current)}
                           aria-expanded={isPaymentPlanDropdownOpen}
-                          aria-label="Select Installment Plan"
+                          aria-label="Select Installment Plans"
                         >
                           <span className="course-payment-plan-dropdown-trigger-copy">
                             <strong>
@@ -7537,31 +7572,6 @@ else {
                                 )
                               })}
 
-                              <label
-                                className={`course-payment-plan-checklist-item ${addCoursePaymentPlanSelectedIds.includes(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE) ? 'is-checked' : ''}`.trim()}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={addCoursePaymentPlanSelectedIds.includes(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE)}
-                                  onChange={(event) => {
-                                    markAddCourseTouched('paymentPlans')
-                                    const nextSelected = new Set(addCoursePaymentPlanSelectedIds)
-                                    if (event.target.checked) {
-                                      nextSelected.add(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE)
-                                    } else {
-                                      nextSelected.delete(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE)
-                                    }
-                                    updateAddCoursePaymentPlanSelections(Array.from(nextSelected))
-                                  }}
-                                />
-                                <span className="course-payment-plan-checkmark" aria-hidden="true">
-                                  {addCoursePaymentPlanSelectedIds.includes(BRANCH_PAYMENT_PLAN_CUSTOM_VALUE) ? <Check size={12} strokeWidth={3} /> : null}
-                                </span>
-                                <span className="course-payment-plan-checklist-copy">
-                                  <strong>Custom</strong>
-                                  <small>Manual installment count</small>
-                                </span>
-                              </label>
                             </div>
 
                             <div className="course-payment-plan-dropdown-footer">
@@ -7611,17 +7621,7 @@ else {
                         {addCourseSavedPaymentPlanDisplayPlans.map((plan, planIndex) => {
                           const planId = String(plan.id || `${plan.type}-${planIndex}`).trim()
                           const isOpen = addCourseSavedPaymentPlanId === planId
-                          const customInstallmentCountValue = plan.type === 'custom'
-                            ? String(addCourseDraftCustomPaymentPlan?.installmentCount || '')
-                            : ''
-                          const effectiveInstallmentCount = plan.type === 'custom'
-                            ? Math.max(0, Number(customInstallmentCountValue || 0) || 0)
-                            : Number(plan.installmentCount || 0) || 0
-                          const effectiveInstallments = plan.type === 'custom'
-                            ? (effectiveInstallmentCount > 0
-                              ? buildBranchCoursePaymentPlanInstallments(addCourseFinalFee, effectiveInstallmentCount)
-                              : [])
-                            : plan.installments
+                          const effectiveInstallments = Array.isArray(plan.installments) ? plan.installments : []
                           const installmentLabel = plan.installmentCountLabel
                             ? `${plan.installmentCountLabel} ${Number(plan.installmentCountLabel) === 1 ? 'Installment' : 'Installments'}`
                             : 'Set count'
@@ -7637,7 +7637,7 @@ else {
                               >
                                 <span className="course-payment-plan-saved-card-copy">
                                   <strong>{plan.templateName || 'Payment Plan'}</strong>
-                                  <small>{plan.type === 'custom' ? 'Manual installment count' : 'Installment plan'}</small>
+                                  <small>Installment plan</small>
                                 </span>
                                 <span className="course-payment-plan-saved-card-arrow" aria-hidden="true">
                                   <ChevronRight size={18} strokeWidth={2.2} />
@@ -7646,28 +7646,9 @@ else {
 
                               {isOpen ? (
                                 <div className="course-payment-plan-saved-card-body">
-                                  {plan.type === 'custom' ? (
-                                    <Field
-                                      label="Number of Installments"
-                                      required
-                                      hint="Enter the number of parts for the final fee split"
-                                    >
-                                      <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        value={customInstallmentCountValue}
-                                        onChange={(event) => {
-                                          markAddCourseTouched('paymentPlans')
-                                          updateAddCourseCustomPaymentPlanInstallmentCount(event.target.value)
-                                        }}
-                                      />
-                                    </Field>
-                                  ) : (
-                                    <div className="course-payment-plan-meta">
-                                      <span>{plan.dueRule || 'Admission'}</span>
-                                    </div>
-                                  )}
+                                  <div className="course-payment-plan-meta">
+                                    <span>{plan.dueRule || 'Admission'}</span>
+                                  </div>
 
                                   <div className="course-payment-plan-count-inline">
                                     {installmentLabel}
@@ -7698,7 +7679,7 @@ else {
                                     </div>
                                   ) : (
                                     <div className="course-payment-plan-checklist-empty">
-                                      Enter a custom installment count to split the final fee.
+                                      No installment rows found for this plan.
                                     </div>
                                   )}
                                 </div>
@@ -7744,7 +7725,7 @@ else {
                     <button type="button" className="button button-ghost" onClick={() => setAddCourseStep(2)} disabled={isAddCourseSaving}>
                       Back
                     </button>
-                    <button type="submit" className="button button-solid" disabled={isAddCourseSaving}>
+                    <button type="button" className="button button-solid" onClick={triggerAddCourseSubmit} disabled={isAddCourseSaving}>
                       {editingCourseId ? 'Update Course' : 'Save Course'}
                     </button>
                   </div>
