@@ -309,14 +309,18 @@ function computeBranchStudentPaymentSummary(stu = {}) {
     stu.finalFee ?? stu.courseAmount ?? stu.totalAmount ?? stu.afterDiscount ?? 0
   )
   const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
-  const paidAmount = installments.length
-    ? installments.reduce(
+  const paymentPlanInstallments = Array.isArray(stu.paymentPlan?.installments)
+    ? stu.paymentPlan.installments
+    : []
+  const scheduleInstallments = installments.length ? installments : paymentPlanInstallments
+  const paidAmount = scheduleInstallments.length
+    ? scheduleInstallments.reduce(
         (sum, inst) => sum + Number(inst.paidAmount ?? inst.amountPaid ?? 0),
         0,
       )
     : Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
 
-  const nextInstallment = installments.find((installment) => {
+  const nextInstallment = scheduleInstallments.find((installment) => {
     const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
     const paid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
     return paid < amount
@@ -336,25 +340,54 @@ function computeBranchStudentPaymentSummary(stu = {}) {
 
   const nextDueDate = nextInstallment?.dueDate ?? nextInstallment?.date ?? null
 
+  const allInstallmentsPaid =
+    scheduleInstallments.length > 0 &&
+    scheduleInstallments.every((inst) => {
+      const amount = Number(inst.amount ?? inst.installmentAmount ?? 0)
+      const paid = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
+      return paid >= amount
+    })
+
+  const hasPartialInstallment =
+    scheduleInstallments.length > 0 &&
+    scheduleInstallments.some((inst) => {
+      const amount = Number(inst.amount ?? inst.installmentAmount ?? 0)
+      const paid = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
+      return paid > 0 && paid < amount
+    })
+
+  const completionTolerance = scheduleInstallments.length > 0 ? 2 : 0
+  const isEffectivelyCompleted =
+    totalFee > 0 &&
+    (
+      allInstallmentsPaid ||
+      paidAmount >= Math.max(totalFee - completionTolerance, 0)
+    )
+
+  const displayPaidAmount = isEffectivelyCompleted ? totalFee : paidAmount
+  const displayPendingAmount = isEffectivelyCompleted ? 0 : Math.max(totalFee - paidAmount, 0)
+
   let paymentStatus = 'Pending'
-  if (totalFee > 0 && paidAmount >= totalFee) {
+  if (isEffectivelyCompleted) {
     paymentStatus = 'Completed'
+  } else if (hasPartialInstallment) {
+    paymentStatus = 'Partially Paid'
   } else if (nextDueDate) {
     const today = new Date()
     const dueDate = new Date(nextDueDate)
     if (!Number.isNaN(dueDate.getTime()) && dueDate < today) {
       paymentStatus = 'Overdue'
-    } else if (paidAmount > 0) {
-      paymentStatus = 'Partially Paid'
     }
   } else if (paidAmount > 0) {
-    paymentStatus = 'Partially Paid'
+    paymentStatus = 'Upcoming'
+  } else {
+    paymentStatus = 'Upcoming'
   }
 
   return {
     totalFee,
-    paidAmount,
-    pendingAmount: Math.max(totalFee - paidAmount, 0),
+    paidAmount: displayPaidAmount,
+    pendingAmount: displayPendingAmount,
     nextInstallment,
     nextInstallmentAmount,
     nextInstallmentLabel,
@@ -6535,10 +6568,6 @@ else {
 
           <option value="pending">
             Pending
-          </option>
-
-          <option value="overdue">
-            Overdue
           </option>
 
         </select>
