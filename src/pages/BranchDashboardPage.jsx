@@ -93,6 +93,7 @@ import {
   saveNotifications,
   subscribeNotifications,
 } from '../lib/notificationStore'
+import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import {
   buildProgressComparisonNotification,
   syncProgressComparisonNotifications,
@@ -519,6 +520,47 @@ function formatBranchPaymentDate(date) {
   const parsedDate = new Date(date)
   if (Number.isNaN(parsedDate.getTime())) return '-'
   return parsedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function resolveBranchPaymentMode(record = {}) {
+  const candidates = [
+    record.paymentMode,
+    record.mode,
+    record.paymentMethod,
+    record.method,
+    record.transactionMode,
+    record.modeOfPayment,
+    record.actualPaymentMode,
+  ]
+
+  const firstNonEmpty = candidates.find((value) => String(value || '').trim())
+  const mode = String(firstNonEmpty || '').trim()
+
+  if (!mode) return '-'
+  if (/^installment(s)?$/i.test(mode)) return '-'
+
+  return mode
+}
+
+function formatBranchPaymentMode(record = {}) {
+  const resolvedMode = resolveBranchPaymentMode(record)
+  if (resolvedMode !== '-') {
+    return resolvedMode
+  }
+
+  const fallbackMode = String(record.paymentMode || record.mode || '').trim()
+  if (/^installment(s)?$/i.test(fallbackMode)) {
+    return 'Installment'
+  }
+
+  return fallbackMode || '-'
+}
+
+function getBranchPaymentModePriority(record = {}) {
+  const rawMode = String(record.paymentMode || record.mode || '').trim()
+  if (!rawMode) return 0
+  if (/^installment(s)?$/i.test(rawMode)) return 1
+  return 2
 }
 function formatStudentDate(value) {
   const text = String(value || '').trim()
@@ -3620,6 +3662,21 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     branchId,
     branchCode,
   }), [branchId, branchCode])
+  const storedPaymentHistoryRecords = useMemo(() => {
+    const scopedRecords = loadBranchPaymentHistoryEntries(branchStudentScope)
+    if (scopedRecords.length > 0) {
+      return scopedRecords
+    }
+
+    const allRecords = loadBranchPaymentHistoryEntries('')
+    const branchStudentIds = new Set(
+      branchStudents
+        .map((student) => String(student.studentId || '').trim())
+        .filter(Boolean),
+    )
+
+    return allRecords.filter((record) => branchStudentIds.has(String(record.studentId || '').trim()))
+  }, [branchStudentScope, branchStudents])
 
   const reloadBranchStudents = useCallback(async () => {
     if (!branchStudentScope.id && !branchStudentScope.branchCode) return []
@@ -3915,37 +3972,103 @@ paymentPlanId: '',
   [branchStudents],
 )
 
-const allPaymentHistoryRecords = useMemo(() => {
-  const records = []
+  const allPaymentHistoryRecords = useMemo(() => {
+    const records = new Map()
 
-  branchStudents.forEach((stu) => {
-    const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
+    const addRecord = (record = {}) => {
+      const id = String(
+        record.id ||
+        record.receiptNumber ||
+        `${record.studentId || 'payment'}-${record.dateRaw || record.date || ''}-${record.amount || 0}-${record.mode || 'mode'}`,
+      ).trim()
+      const normalizedRecord = {
+        ...record,
+        id,
+        studentId: String(record.studentId || '-').trim(),
+        studentName: String(record.studentName || '-').trim(),
+        course: String(record.course || '-').trim(),
+        amount: Number(record.amount || 0),
+        mode: resolveBranchPaymentMode(record),
+        paymentMode: resolveBranchPaymentMode(record),
+        dateRaw: record.dateRaw || record.paymentDateRaw || record.paymentDate || record.createdAt || '',
+        date: formatBranchPaymentDate(
+          record.dateRaw || record.paymentDateRaw || record.paymentDate || record.createdAt || record.date || '',
+        ),
+        receiptNumber: String(record.receiptNumber || '-').trim(),
+      }
 
-    installments.forEach((inst, index) => {
-      const paidAmount = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
-      if (paidAmount <= 0) return // paisa pay pannala na skip
+      const key = [
+        normalizedRecord.studentId,
+        normalizedRecord.dateRaw,
+        normalizedRecord.amount,
+        normalizedRecord.payAgainst || '',
+      ].join('|')
 
-      const paymentDateRaw =
-        inst.paymentDate ?? inst.paidDate ?? inst.datePaid ?? inst.paidOn ??
-        inst.updatedAt ?? inst.paidAt ?? null
+      const existingRecord = records.get(key)
+      if (
+        !existingRecord ||
+        getBranchPaymentModePriority(normalizedRecord) >= getBranchPaymentModePriority(existingRecord)
+      ) {
+        records.set(key, normalizedRecord)
+      }
+    }
 
-      records.push({
-        id: `${stu.studentId || stu.id || 'stu'}-${index}`,
-        studentId: stu.studentId || '-',
-        studentName: stu.studentName || '-',
-        course: stu.courseName || stu.courseInterested || stu.course?.name || '-',
-        amount: paidAmount,
-        mode: inst.paymentMode || inst.mode || stu.paymentMode || '-',
-        dateRaw: paymentDateRaw,
-        date: formatBranchPaymentDate(paymentDateRaw),
-        receiptNumber: inst.receiptNumber || inst.receiptNo || inst.receipt || '-',
-        installmentNumber: inst.installmentNumber || inst.number || index + 1,
+    storedPaymentHistoryRecords.forEach((entry) => {
+      addRecord({
+        ...entry,
+        studentId: entry.studentId,
+        studentName: entry.studentName,
+        course: entry.course,
+        amount: entry.amount,
+        payAgainst: entry.payAgainst,
       })
     })
-  })
 
-  return records.sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
-}, [branchStudents])
+    branchStudents.forEach((stu) => {
+      const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
+
+      installments.forEach((inst, index) => {
+        const paidAmount = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
+        if (paidAmount <= 0) return
+
+        const paymentDateRaw =
+          inst.paymentDate ?? inst.paidDate ?? inst.datePaid ?? inst.paidOn ??
+          inst.updatedAt ?? inst.paidAt ?? null
+
+        addRecord({
+          id: `${stu.studentId || stu.id || 'stu'}-${index}`,
+          studentId: stu.studentId || '-',
+          studentName: stu.studentName || '-',
+          course: stu.courseName || stu.courseInterested || stu.course?.name || '-',
+          amount: paidAmount,
+          paymentMode:
+            inst.paymentMode ||
+            inst.mode ||
+            inst.paymentMethod ||
+            inst.method ||
+            inst.transactionMode ||
+            inst.modeOfPayment ||
+            stu.paymentMode ||
+            'Installment',
+          mode:
+            inst.paymentMode ||
+            inst.mode ||
+            inst.paymentMethod ||
+            inst.method ||
+            inst.transactionMode ||
+            inst.modeOfPayment ||
+            stu.paymentMode ||
+            'Installment',
+          dateRaw: paymentDateRaw,
+          receiptNumber: inst.receiptNumber || inst.receiptNo || inst.receipt || '',
+          installmentNumber: inst.installmentNumber || inst.number || index + 1,
+          payAgainst: inst.payAgainst || `Installment ${inst.installmentNumber || inst.number || index + 1}`,
+        })
+      })
+    })
+
+    return Array.from(records.values()).sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
+  }, [branchStudents, storedPaymentHistoryRecords])
 
   const filteredPaymentHistoryRecords = useMemo(() => {
   const q = paymentHistorySearch.trim().toLowerCase()
@@ -5899,9 +6022,7 @@ else {
                     </td>
                     <td>
                       <span className="branch-student-payment-status">
-                        {record.paymentMode ||
-                          record.mode ||
-                          "-"}
+                        {formatBranchPaymentMode(record)}
                       </span>
                     </td>
                     <td>{record.date}</td>
@@ -6053,22 +6174,13 @@ else {
                 <div className="confirmation-detail-row">
   <span>Payment Mode</span>
   <strong>
-    {selectedPaymentHistory.paymentMode ||
-      selectedPaymentHistory.mode ||
-      "-"}
+    {formatBranchPaymentMode(selectedPaymentHistory)}
   </strong>
 </div>
                 <div className="confirmation-detail-row">
                   <span>Payment Date</span>
                   <strong>
                     {selectedPaymentHistory.date}
-                  </strong>
-                </div>
-
-                <div className="confirmation-detail-row">
-                  <span>Receipt Number</span>
-                  <strong>
-                    {selectedPaymentHistory.receiptNumber}
                   </strong>
                 </div>
 

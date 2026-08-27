@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import "./RecordPayment.css";
 import html2pdf from "html2pdf.js";
 import { request } from "../../services/apiClient";
+import { saveBranchPaymentHistoryEntry } from "../../lib/branchPaymentHistoryStore";
 
 const RecordPayment = ({ student, onClose }) => {
   // =========================================================
@@ -654,6 +655,26 @@ const RecordPayment = ({ student, onClose }) => {
         response?.data?.receiptNumber ||
         response?.receiptNumber ||
         receiptNumber;
+
+      saveBranchPaymentHistoryEntry({
+        id: savedReceiptNumber,
+        receiptNumber: savedReceiptNumber,
+        studentId: activeStudent?.studentId || activeStudent?.id || "",
+        studentName,
+        course: courseName,
+        amount: Number(formData.amountReceived),
+        paymentMode: formData.paymentMode,
+        mode: formData.paymentMode,
+        payAgainst: formData.payAgainst,
+        paymentDate: formData.paymentDate,
+        dateRaw: formData.paymentDate,
+        date: formData.paymentDate,
+        branchId: activeStudent?.branchId || student?.branchId || "",
+        branchCode: activeStudent?.branchCode || student?.branchCode || "",
+        collectedBy: formData.collectedBy,
+        notes: formData.notes,
+        transactionReference: formData.transactionReference,
+      });
 
       setReceiptNumber(
         savedReceiptNumber

@@ -73,7 +73,7 @@ function normalizePaymentMode(value) {
   if (!text) return ''
 
   const normalized = text.toLowerCase()
-  if (normalized === 'installment' || normalized === 'installments') {
+  if (/^installment(s)?(\b|\s|$)/i.test(normalized)) {
     return ''
   }
 
