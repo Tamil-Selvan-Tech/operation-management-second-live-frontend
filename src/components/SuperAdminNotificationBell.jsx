@@ -129,30 +129,6 @@ export function SuperAdminNotificationBell({
   }, [])
 
   useEffect(() => {
-    if (!isOpen) return undefined
-
-    const handlePointerDown = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsOpen(false)
-      }
-    }
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isOpen])
-
-  useEffect(() => {
     if (typeof document === 'undefined') return undefined
 
     document.body.classList.toggle('super-admin-notification-menu-open', isOpen)
@@ -272,7 +248,6 @@ const handleMarkAllAsRead = () => {
         <div
           className="super-admin-notification-backdrop"
           aria-hidden="true"
-          onMouseDown={() => setIsOpen(false)}
         />
       ) : null}
 
