@@ -75,7 +75,6 @@ import {
 } from '../lib/courseEditRequestStore'
 import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
 import { Button } from '../components/Button'
-import { ProgressComparisonNotificationCard } from '../components/ProgressComparisonNotificationCard'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 import '../styles/FacultyDashboardPage.css'
@@ -2857,19 +2856,6 @@ const nextName = trimmedValue
                     </button>
                   )}
                 >
-                  {facultyProgressComparisonNotifications.length ? (
-                    <section className="notifications-group" aria-label="Progress status notifications">
-                      <p className="notifications-group-label">Progress Status Notifications</p>
-                      <div className="notifications-group-list">
-                        {facultyProgressComparisonNotifications.map((notification) => (
-                          <ProgressComparisonNotificationCard
-                            key={notification.id}
-                            notification={notification}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  ) : null}
                   <div className="branch-dashboard-table-shell faculty-students-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>

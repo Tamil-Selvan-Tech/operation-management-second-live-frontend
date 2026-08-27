@@ -74,7 +74,6 @@ import {
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
-import { ProgressComparisonNotificationCard } from '../components/ProgressComparisonNotificationCard'
 import {
   groupByDate,
   normalizeBranchNotification,
@@ -4599,21 +4598,6 @@ const visibleBranchPaymentRows = useMemo(() => {
                     </div>
                   </div>
 
-                  {branchProgressComparisonNotifications.length ? (
-                    <section className="notifications-group" aria-label="Progress status notifications" style={{ marginBottom: '16px' }}>
-                      <p className="notifications-group-label">Progress Status Notifications</p>
-                      <div className="notifications-group-list">
-                        {branchProgressComparisonNotifications.map((notification) => (
-                          <ProgressComparisonNotificationCard
-                            key={notification.id}
-                            notification={notification}
-                          />
-                        ))}
-                      </div>
-                    </section>
-                  ) : null}
-  
-     
 <div className="branch-course-table-shell">
   <table className="branch-course-table">
     <thead>
