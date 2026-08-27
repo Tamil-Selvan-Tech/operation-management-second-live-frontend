@@ -53,7 +53,10 @@ export function normalizeBranchNotification(notification = {}) {
   const kind = String(notification.kind || '').trim()
   const title = String(notification.title || '').trim()
   const message = String(notification.message || '').trim()
-  const createdAt = String(notification.createdAt || '').trim()
+  const createdAt =
+    String(notification.createdAt || '').trim() ||
+    String(notification.updatedAt || '').trim() ||
+    new Date().toISOString()
   const isFacultyLogin = kind === 'branch-faculty-login' || kind === 'faculty-login'
   const isCourseEditRequest = kind === 'branch-course-edit-request' || kind === 'course-edit-request'
   const isCourseEditAccepted =

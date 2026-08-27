@@ -494,6 +494,14 @@
   background: #eff6ff;
 }
 
+.faculty-btn-cancel:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: #f8fafc;
+  color: #94a3b8;
+  border-color: #cbd5e1;
+}
+
 .faculty-btn-submit {
   height: 42px;
   padding: 0 24px;
@@ -1920,4 +1928,105 @@
     width: 100%;
     justify-content: flex-start;
   }
+}
+
+/* Faculty view drawer needs its own scroll handling because this page does
+   not load the BranchDashboardPage drawer stylesheet. */
+.branch-course-drawer-backdrop {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+  background: rgba(15, 27, 37, 0.28);
+}
+
+.branch-course-view-drawer {
+  width: min(560px, 92vw);
+  height: 100vh;
+  max-height: 100vh;
+  border-radius: 0;
+  box-shadow: -12px 0 35px rgba(15, 27, 37, 0.16);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.branch-course-view-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 24px 24px;
+}
+
+.branch-course-view-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: calc(100vh - 210px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  padding-right: 4px;
+}
+
+.branch-course-view-table {
+  display: grid;
+  width: 100%;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.branch-course-view-table-header {
+  display: grid;
+  grid-template-columns: 35% 65%;
+  border-bottom: 1px solid #dbe4f0;
+  background: linear-gradient(180deg, #f6f9ff 0%, #eef4ff 100%);
+}
+
+.branch-course-view-table-head {
+  padding: 10px 16px;
+  color: #2563eb;
+  font-size: 14px;
+  font-weight: 900;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.branch-course-view-table-head:first-child {
+  border-right: 1px solid #dbe4f0;
+}
+
+.branch-course-view-row {
+  display: grid;
+  grid-template-columns: 35% 65%;
+  border-bottom: 1px solid #dbe4f0;
+  background: #ffffff;
+}
+
+.branch-course-view-row:last-child {
+  border-bottom: 0;
+}
+
+.branch-course-view-cell {
+  padding: 16px;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.branch-course-view-cell-label {
+  background: #fcfdff;
+  color: #475569;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border-right: 1px solid #dbe4f0;
+}
+
+.branch-course-view-cell-value {
+  color: #0f172a;
+  font-size: 0.96rem;
+  font-weight: 600;
 }

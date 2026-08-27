@@ -1342,6 +1342,7 @@ export function BranchFacultyPage() {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   className="faculty-btn-cancel"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </button>
@@ -1431,102 +1432,103 @@ export function BranchFacultyPage() {
 
               {/* Details Table */}
               <div className="branch-course-view-body">
-                <div className="branch-course-view-table" role="table" aria-label="Faculty information details">
-                  <div className="branch-course-view-table-header" role="row">
-                    <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
-                    <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
+                <div className="branch-course-view-scroll">
+                  <div className="branch-course-view-table" role="table" aria-label="Faculty information details">
+                    <div className="branch-course-view-table-header" role="row">
+                      <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
+                      <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                        <span>Faculty ID</span>
+                      </div>
+                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                        <strong>{viewFaculty.id}</strong>
+                      </div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                        <span>Faculty Name</span>
+                      </div>
+                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                        <strong>{viewFaculty.name}</strong>
+                      </div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                        <span>Email Address</span>
+                      </div>
+                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                        <strong>{viewFaculty.email}</strong>
+                      </div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                        <span>Phone Number</span>
+                      </div>
+                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                        <strong>{viewFaculty.phone}</strong>
+                      </div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                        <span>Country</span>
+                      </div>
+                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                        <strong>{viewFaculty.country}</strong>
+                      </div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                        <span>State</span>
+                      </div>
+                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                        <strong>{viewFaculty.state}</strong>
+                      </div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                        <span>City</span>
+                      </div>
+                      <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                        <strong>{viewFaculty.city}</strong>
+                      </div>
+                    </div>
+
+                    <div className="branch-course-view-row" role="row">
+                      <div
+                        className="branch-course-view-cell branch-course-view-cell-label"
+                        role="cell"
+                      >
+                        <span>Address</span>
+                      </div>
+
+                      <div
+                        className="branch-course-view-cell branch-course-view-cell-value"
+                        role="cell"
+                      >
+                        <strong>
+                          {viewFaculty.address
+                            ?.split(',')
+                            .map((part, index, arr) => (
+                              <span key={index}>
+                                {part.trim()}
+                                {index < arr.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                        </strong>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <span>Faculty ID</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewFaculty.id}</strong>
-                    </div>
-                  </div>
-
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <span>Faculty Name</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewFaculty.name}</strong>
-                    </div>
-                  </div>
-
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <span>Email Address</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewFaculty.email}</strong>
-                    </div>
-                  </div>
-
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <span>Phone Number</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewFaculty.phone}</strong>
-                    </div>
-                  </div>
-
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <span>Country</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewFaculty.country}</strong>
-                    </div>
-                  </div>
-
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <span>State</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewFaculty.state}</strong>
-                    </div>
-                  </div>
-
-                  <div className="branch-course-view-row" role="row">
-                    <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
-                      <span>City</span>
-                    </div>
-                    <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
-                      <strong>{viewFaculty.city}</strong>
-                    </div>
-                  </div>
-
-                 <div className="branch-course-view-row" role="row">
-  <div
-    className="branch-course-view-cell branch-course-view-cell-label"
-    role="cell"
-  >
-    <span>Address</span>
-  </div>
-
-  <div
-    className="branch-course-view-cell branch-course-view-cell-value"
-    role="cell"
-  >
-  <strong>
-  {viewFaculty.address
-    ?.split(',')
-    .map((part, index, arr) => (
-      <span key={index}>
-        {part.trim()}
-        {index < arr.length - 1 ? ', ' : ''}
-      </span>
-    ))}
-</strong>
-  </div>
-</div>
-
-
                 </div>
+
               </div>
             </aside>
           </div>,

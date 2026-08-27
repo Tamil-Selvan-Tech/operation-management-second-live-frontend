@@ -723,11 +723,22 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
       <div className="notifications-group-list">
         {items.map((item) => {
           const Icon = item.icon
+          const isCourseEditRequest =
+            item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
 
           return (
             <article
               key={`${label}-${item.id || item.title}-${item.time}`}
               className={`notifications-item ${item.unread ? 'is-unread' : ''}`.trim()}
+              role="button"
+              tabIndex={0}
+              onClick={() => onView?.(item)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onView?.(item)
+                }
+              }}
             >
               <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
                 <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
@@ -739,7 +750,7 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
                   <small>{item.time}</small>
                 </div>
                 <p>{item.message}</p>
-                {item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request' ? (
+                {isCourseEditRequest ? (
                   <div className="notification-copy">
                     {item.requestTitle ? <small><strong>Title:</strong> {item.requestTitle}</small> : null}
                     {item.requestReason ? <small><strong>Reason:</strong> {item.requestReason}</small> : null}
@@ -752,14 +763,14 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
                 <span className={`notifications-item-chip tone-${item.tone}`}>
                   {item.categoryLabel || item.actionLabel || 'View'}
                 </span>
-                {item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request' ? (
+                {isCourseEditRequest ? (
                   <button
                     type="button"
                     className="notifications-item-view-button"
                     onClick={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
-                      alert('ACCEPT BUTTON CLICKED')
+                      onAcceptRequest?.(item)
                     }}
                   >
                     Accept
@@ -768,7 +779,11 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
                   <button
                     type="button"
                     className="notifications-item-view-button"
-                    onClick={() => onView?.(item)}
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onView?.(item)
+                    }}
                   >
                     View
                   </button>
@@ -1109,7 +1124,7 @@ function normalizeBranchCourseSubmodels(submodels = [], modelIndex = 0) {
 
   return items.map((submodel, submodelIndex) => ({
     id: String(submodel?.id || createCourseNodeId(`submodel-${modelIndex + 1}`)),
-    name: String(submodel?.name || submodel?.title || '').trim(),
+    name: String(submodel?.name || submodel?.title || ''),
   }))
 }
 
@@ -1122,7 +1137,7 @@ function normalizeBranchCourseModels(models = []) {
 
   return items.map((model, modelIndex) => ({
     id: String(model?.id || createCourseNodeId(`model-${modelIndex + 1}`)),
-    name: String(model?.name || model?.title || '').trim(),
+    name: String(model?.name || model?.title || ''),
     submodels: normalizeBranchCourseSubmodels(getBranchCourseSubmodelSource(model), modelIndex),
   }))
 }
@@ -2241,6 +2256,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         .filter(
           (notification) =>
             String(notification.kind || '').startsWith('branch-') ||
+            String(notification.kind || '').startsWith('branch-progress-status') ||
             String(notification.kind || '').startsWith('course-edit-') ||
             String(notification.kind || '') === 'faculty-login',
         )
@@ -2320,18 +2336,15 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         ),
       )
 
-      try {
-        await request('/notifications/mark-read', {
-          method: 'PATCH',
-          body: JSON.stringify({ notificationIds: [notification.id] }),
-        })
-      } catch (error) {
+      void request('/notifications/mark-read', {
+        method: 'PATCH',
+        body: JSON.stringify({ notificationIds: [notification.id] }),
+      }).catch((error) => {
         console.error('Failed to sync branch notification read state:', error)
-      }
+      })
     }
     setIsNotificationMenuOpen(false)
-    const targetSection = String(notification?.targetSection || 'batches').trim() || 'batches'
-    goToBranchSection(targetSection)
+    goToBranchSection('notifications')
   }
 
   const resolveCourseEditRequestId = async (notification) => {
@@ -4716,6 +4729,15 @@ useEffect(() => {
                             }`.trim()}
                           onMouseDown={(event) => event.stopPropagation()}
                           onPointerDown={(event) => event.stopPropagation()}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openBranchNotificationTarget(item)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              openBranchNotificationTarget(item)
+                            }
+                          }}
                         >
                           <span className={`notification-badge ${item.tone}`} aria-hidden="true">
                             <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />

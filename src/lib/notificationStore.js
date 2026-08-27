@@ -21,8 +21,18 @@ const writeJSON = (key, value) => {
 const createId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
+const normalizeCreatedAt = (notification = {}) => {
+  const createdAt = String(notification.createdAt || '').trim()
+  if (createdAt) return createdAt
+
+  const updatedAt = String(notification.updatedAt || '').trim()
+  if (updatedAt) return updatedAt
+
+  return new Date().toISOString()
+}
+
 const normalizeNotification = (notification = {}) => {
-  const createdAt = String(notification.createdAt || '').trim() || new Date().toISOString()
+  const createdAt = normalizeCreatedAt(notification)
   const kind = String(notification.kind || 'general').trim() || 'general'
   const tone = String(notification.tone || 'blue').trim() || 'blue'
 
@@ -69,8 +79,22 @@ export function loadNotifications() {
   const stored = readJSON(NOTIFICATION_STORAGE_KEY)
   if (!Array.isArray(stored)) return []
 
+  let needsBackfill = false
   const nextNotifications = stored
-    .map(normalizeNotification)
+    .map((notification) => {
+      const normalizedNotification = normalizeNotification(notification)
+      const rawCreatedAt = String(notification?.createdAt || '').trim()
+      const rawUpdatedAt = String(notification?.updatedAt || '').trim()
+      const normalizedCreatedAt = String(normalizedNotification.createdAt || '').trim()
+
+      if (!rawCreatedAt && normalizedCreatedAt) {
+        needsBackfill = true
+      } else if (!rawCreatedAt && rawUpdatedAt && normalizedCreatedAt === rawUpdatedAt) {
+        needsBackfill = true
+      }
+
+      return normalizedNotification
+    })
     .filter((notification) =>
       String(notification.kind || '').startsWith('branch-') ||
       String(notification.kind || '').startsWith('course-edit-') ||
@@ -79,7 +103,7 @@ export function loadNotifications() {
       String(notification.kind || '') === 'faculty-login',
     )
 
-  if (nextNotifications.length !== stored.length) {
+  if (nextNotifications.length !== stored.length || needsBackfill) {
     saveNotifications(nextNotifications, { emit: false })
   }
 
