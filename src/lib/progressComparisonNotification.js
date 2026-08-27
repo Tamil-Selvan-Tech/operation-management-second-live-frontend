@@ -5,19 +5,19 @@ const PROGRESS_STATUS_CONFIG = {
     statusLabel: 'Course Progress Ahead',
     tone: 'red',
     iconLabel: 'Course progress ahead',
-    title: '🔔 Payment Due Alert',
+    title: 'Payment Due Alert',
   },
   matched: {
     statusLabel: 'Progress Matched',
     tone: 'green',
     iconLabel: 'Progress matched',
-    title: '✅ Progress Matched',
+    title: 'Progress Matched',
   },
   paidAhead: {
     statusLabel: 'Paid Progress Ahead',
     tone: 'amber',
     iconLabel: 'Paid progress ahead',
-    title: '⚠️ Progress Alert',
+    title: 'Progress Alert',
   },
 }
 

@@ -677,8 +677,17 @@ function isWithinSelectedDateRange(createdAt, range) {
   return true
 }
 
-function getFacultyNotificationIcon(kind) {
-  const normalizedKind = String(kind || '').trim().toLowerCase()
+function getFacultyNotificationIcon(notification = {}) {
+  const normalizedKind = String(notification.kind || '').trim().toLowerCase()
+  const normalizedTitle = String(notification.title || '').trim().toLowerCase()
+
+  if (
+    normalizedTitle.includes('payment due alert') ||
+    normalizedKind.includes('payment-due') ||
+    normalizedKind.includes('payment due')
+  ) {
+    return AlertTriangle
+  }
 
   if (normalizedKind.includes('invite') || normalizedKind.includes('mail')) {
     return Mail
@@ -761,19 +770,18 @@ function FacultyNotificationGroup({ label, items, onViewNotification }) {
       <p className="faculty-notifications-group-label">{label}</p>
       <div className="faculty-notifications-group-list">
         {items.map((notification) => {
-          const Icon = getFacultyNotificationIcon(notification.kind)
+          const Icon = getFacultyNotificationIcon(notification)
 
           return (
             <article
               key={notification.id}
               className={`faculty-notification-card ${notification.read ? 'is-read' : 'is-unread'}`.trim()}
             >
-              <span className={`faculty-notification-icon tone-${notification.tone}`} aria-hidden="true">
-                <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-              </span>
-
               <div className="faculty-notification-copy">
                 <div className="faculty-notification-title-row">
+                  <span className={`faculty-notification-icon tone-${notification.tone}`} aria-hidden="true">
+                    <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                  </span>
                   <h3>{notification.title}</h3>
                   <small>{notification.time}</small>
                 </div>
@@ -2414,7 +2422,7 @@ const nextName = trimmedValue
     {/* Notification List */}
     <div className="notification-list">
       {unreadNotifications.length > 0 ? (
-        unreadNotifications.slice(0, 5).map((notification) => (
+        unreadNotifications.slice(0, 3).map((notification) => (
           <button
             key={notification.id}
             type="button"
@@ -3100,7 +3108,6 @@ const nextName = trimmedValue
 
                   <div className="faculty-notifications-toolbar">
                     <label className="faculty-notification-search">
-                      <Search size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                       <input
                         type="search"
                         placeholder="Search notifications"

@@ -1599,25 +1599,21 @@
   height: 54px;
   display: inline-flex;
   align-items: stretch;
-  border: 1px solid #d8e6f8;
-  border-radius: 16px;
-  background: #ffffff;
-  overflow: hidden;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
-}
-
-.faculty-notification-search > svg {
-  margin-left: 14px;
-  align-self: center;
-  color: #94a3b8;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  box-shadow: none;
 }
 
 .faculty-notification-search input {
   flex: 1;
   min-width: 0;
-  border: 0;
+  border: 1px solid #d8e6f8;
+  border-right: 0;
+  border-radius: 16px 0 0 16px;
   outline: none;
-  background: transparent;
+  background: #ffffff;
   padding: 0 12px;
   color: #0f172a;
   font-size: 0.95rem;
@@ -1629,7 +1625,8 @@
 
 .faculty-notification-search-button {
   width: 54px;
-  border: 0;
+  border: 1px solid #2f8fe8;
+  border-radius: 0 16px 16px 0;
   background: linear-gradient(180deg, #4ca6ff 0%, #2f8fe8 100%);
   color: #ffffff;
   display: grid;
@@ -1663,6 +1660,14 @@
   appearance: none;
 }
 
+.faculty-notification-filter select:focus,
+.faculty-notification-filter select:focus-visible,
+.faculty-notification-filter:focus-within {
+  outline: none;
+  box-shadow: none;
+  border-color: #d8e6f8;
+}
+
 .faculty-notification-filter-dot {
   display: grid;
   place-items: center;
@@ -1693,8 +1698,9 @@
 
 .faculty-notification-card {
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "copy meta";
+  align-items: start;
   gap: 14px;
   padding: 14px 18px;
   border: 1px solid #dce7f4;
@@ -1704,11 +1710,13 @@
 }
 
 .faculty-notification-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
   display: grid;
   place-items: center;
+  flex: 0 0 auto;
+  margin-top: 2px;
 }
 
 .faculty-notification-icon.tone-green {
@@ -1727,14 +1735,15 @@
 }
 
 .faculty-notification-copy {
+  grid-area: copy;
   min-width: 0;
 }
 
 .faculty-notification-title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .faculty-notification-title-row h3 {
@@ -1746,6 +1755,7 @@
 }
 
 .faculty-notification-title-row small {
+  margin-left: auto;
   color: #94a3b8;
   font-size: 0.78rem;
   font-weight: 800;
@@ -1760,10 +1770,12 @@
 }
 
 .faculty-notification-meta {
+  grid-area: meta;
   display: inline-flex;
   align-items: center;
   gap: 12px;
   justify-self: end;
+  align-self: start;
 }
 
 .faculty-notification-chip {
@@ -1908,25 +1920,27 @@
   }
 
   .faculty-notification-card {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "copy"
+      "meta";
     gap: 10px;
     padding: 14px;
   }
 
   .faculty-notification-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 12px;
+    width: 26px;
+    height: 26px;
   }
 
   .faculty-notification-title-row {
     align-items: flex-start;
-    flex-direction: column;
   }
 
   .faculty-notification-meta {
     width: 100%;
     justify-content: flex-start;
+    justify-self: start;
   }
 }
 

@@ -21,6 +21,12 @@ const writeJSON = (key, value) => {
 const createId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
+const normalizeNotificationTitle = (title = '') => {
+  return String(title || '')
+    .replace(/^🔔\s*/u, '')
+    .trim()
+}
+
 const normalizeCreatedAt = (notification = {}) => {
   const createdAt = String(notification.createdAt || '').trim()
   if (createdAt) return createdAt
@@ -40,7 +46,7 @@ const normalizeNotification = (notification = {}) => {
     id: String(notification.id || createId()),
     kind,
     tone,
-    title: String(notification.title || '').trim(),
+    title: normalizeNotificationTitle(notification.title),
     message: String(notification.message || '').trim(),
     summary: String(notification.summary || '').trim(),
     actionLabel: String(notification.actionLabel || '').trim(),
@@ -85,11 +91,17 @@ export function loadNotifications() {
       const normalizedNotification = normalizeNotification(notification)
       const rawCreatedAt = String(notification?.createdAt || '').trim()
       const rawUpdatedAt = String(notification?.updatedAt || '').trim()
+      const rawTitle = String(notification?.title || '').trim()
       const normalizedCreatedAt = String(normalizedNotification.createdAt || '').trim()
+      const normalizedTitle = String(normalizedNotification.title || '').trim()
 
       if (!rawCreatedAt && normalizedCreatedAt) {
         needsBackfill = true
       } else if (!rawCreatedAt && rawUpdatedAt && normalizedCreatedAt === rawUpdatedAt) {
+        needsBackfill = true
+      }
+
+      if (rawTitle !== normalizedTitle) {
         needsBackfill = true
       }
 
