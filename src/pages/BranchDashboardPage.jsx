@@ -338,7 +338,7 @@ function computeBranchStudentPaymentSummary(stu = {}) {
 
   let paymentStatus = 'Pending'
   if (totalFee > 0 && paidAmount >= totalFee) {
-    paymentStatus = 'Paid'
+    paymentStatus = 'Completed'
   } else if (nextDueDate) {
     const today = new Date()
     const dueDate = new Date(nextDueDate)
@@ -4170,7 +4170,12 @@ const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
     acc.totalCollected += row.summary.paidAmount
     acc.totalPending += row.summary.pendingAmount
     if (row.summary.paymentStatus === 'Overdue') acc.overdueCount += 1
-    if (row.summary.paymentStatus === 'Paid') acc.paidCount += 1
+    if (
+      row.summary.paymentStatus === 'Completed' ||
+      row.summary.paymentStatus === 'Paid'
+    ) {
+      acc.paidCount += 1
+    }
     return acc
   },
   { totalCollected: 0, totalPending: 0, overdueCount: 0, paidCount: 0 },
@@ -4189,7 +4194,8 @@ const filteredBranchPaymentRows = useMemo(() => {
 
     const matchesStatus =
       paymentStatusFilter === 'all' ||
-      summary.paymentStatus.toLowerCase().replace(/\s+/g, '-') === paymentStatusFilter
+      summary.paymentStatus.toLowerCase().replace(/\s+/g, '-') === paymentStatusFilter ||
+      (paymentStatusFilter === 'paid' && summary.paymentStatus === 'Completed')
 
     const installments = Array.isArray(student.installmentSchedule) ? student.installmentSchedule : []
 
@@ -5151,11 +5157,11 @@ useEffect(() => {
 
           const nextDueDate = nextInstallment?.dueDate ?? nextInstallment?.date ?? null
 
-          // -----------------------------
+// -----------------------------
 // Payment Status
 // Completed / Partial / Overdue / Upcoming
 // -----------------------------
-let paymentStatus = 'Upcoming'
+let paymentStatus
 
 const allInstallmentsPaid =
   installments.length > 0 &&
@@ -6519,8 +6525,8 @@ else {
             All Statuses
           </option>
 
-          <option value="paid">
-            Paid
+          <option value="completed">
+            Completed
           </option>
 
           <option value="partially-paid">
