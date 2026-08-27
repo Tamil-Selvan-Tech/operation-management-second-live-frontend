@@ -9,6 +9,7 @@ import {
 
 import { Button } from '../components/Button'
 import { PaginationBar } from '../components/PaginationBar'
+import { useRef } from 'react'
 import {
   createBranchInstallmentTemplate,
   deleteBranchInstallmentTemplate,
@@ -64,6 +65,37 @@ function createValidationErrors(form) {
   }
 }
 
+async function findBranchDuplicateTemplate({ installmentCount, currentId = '' }) {
+  const normalizedCount = Number(installmentCount || 0)
+  if (!normalizedCount) return null
+
+  const aggregatedTemplates = []
+  let nextPage = 1
+  let totalPages
+
+  do {
+    // Check every page so we do not miss a duplicate that lives outside the
+    // currently visible list.
+    const result = await listBranchInstallmentTemplates({
+      page: nextPage,
+      limit: 100,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    })
+
+    aggregatedTemplates.push(...(result.data || []))
+    totalPages = Math.max(1, Number(result.meta?.totalPages || 1))
+    nextPage += 1
+  } while (nextPage <= totalPages)
+
+  return (
+    aggregatedTemplates.find((template) => {
+      const existingCount = Number(template.installmentCount || 0)
+      return existingCount === normalizedCount && String(template.id) !== String(currentId)
+    }) || null
+  )
+}
+
 export function BranchInstallmentTemplatesPage() {
   const pageSize = 5
   const [templates, setTemplates] = useState([])
@@ -82,6 +114,7 @@ export function BranchInstallmentTemplatesPage() {
   const validation = useMemo(() => createValidationErrors(form), [form])
   const [openActionMenuId, setOpenActionMenuId] = useState(null)
   const [actionMenuPinned, setActionMenuPinned] = useState(false)
+  const submitLockRef = useRef(false)
   const loadTemplates = useMemo(() => async (nextPage = 1) => {
     setLoading(true)
     setError('')
@@ -138,22 +171,6 @@ export function BranchInstallmentTemplatesPage() {
       }
     })
   }
-const checkDuplicateTemplate = (
-  installmentCount,
-  currentId = ''
-) => {
-  const normalizedCount = Number(installmentCount || 0)
-
-  return templates.some((template) => {
-    const existingCount = Number(template.installmentCount || 0)
-
-    return (
-      existingCount === normalizedCount &&
-      String(template.id) !== String(currentId)
-    )
-  })
-}
-
   const resetForm = () => {
     setEditingTemplateId('')
     setForm(createEmptyTemplateForm())
@@ -177,78 +194,84 @@ const checkDuplicateTemplate = (
 
   const submitForm = async (event) => {
     event.preventDefault()
-    const nextTouched = {
-      templateName: true,
-      installmentCount: true,
-      allowCustomization: true,
-      status: true,
-    }
-    setTouched(nextTouched)
-if (Object.keys(validation.errors).length > 0) {
-  setError(
-    Object.values(validation.errors)[0] ||
-    'Please complete the template form.'
-  )
-  return
-}
+    if (submitLockRef.current) return
 
-// Check duplicate template
-const duplicateExists = checkDuplicateTemplate(
-  form.installmentCount,
-  editingTemplateId
-)
-
-if (duplicateExists) {
-  setError(
-    `An installment plan with ${Number(
-      form.installmentCount
-    )} installments already exists.`
-  )
-  return
-}
-
-setSaving(true)
+    submitLockRef.current = true
     try {
-      const normalizedInstallmentCount = Math.max(1, Number(form.installmentCount || 0) || 1)
-      const normalizedPlanType = normalizedInstallmentCount <= 1 ? 'FULL_PAYMENT' : 'CUSTOM'
-
-      const payload = {
-        templateName: String(form.templateName || '').trim(),
-        planType: normalizedPlanType,
-        installmentCount: normalizedInstallmentCount,
-        installments: [],
-        allowCustomization: Boolean(form.allowCustomization),
-        status: String(form.status || 'ACTIVE').trim(),
+      const nextTouched = {
+        templateName: true,
+        installmentCount: true,
+        allowCustomization: true,
+        status: true,
       }
+      setTouched(nextTouched)
 
-            if (editingTemplateId) {
-        await updateBranchInstallmentTemplate(editingTemplateId, payload)
-      } else {
-        await createBranchInstallmentTemplate(payload)
-      }
-
-      resetForm()
-      setIsCreateOpen(false)
-      await loadTemplates(editingTemplateId ? page : 1)
-
-    } catch (err) {
-      if (err?.status === 409) {
+      if (Object.keys(validation.errors).length > 0) {
         setError(
-          err?.body?.message ||
+          Object.values(validation.errors)[0] ||
+          'Please complete the template form.'
+        )
+        return
+      }
+
+      const duplicateExists = await findBranchDuplicateTemplate({
+        installmentCount: form.installmentCount,
+        currentId: editingTemplateId,
+      })
+
+      if (duplicateExists) {
+        setError(
           `An installment plan with ${Number(
             form.installmentCount
           )} installments already exists.`
         )
-      } else {
-        setError(
-          err?.body?.message ||
-          err?.body?.error ||
-          err?.message ||
-          'Unable to save installment template.'
-        )
+        return
+      }
+
+      setSaving(true)
+      try {
+        const normalizedInstallmentCount = Math.max(1, Number(form.installmentCount || 0) || 1)
+        const normalizedPlanType = normalizedInstallmentCount <= 1 ? 'FULL_PAYMENT' : 'CUSTOM'
+
+        const payload = {
+          templateName: String(form.templateName || '').trim(),
+          planType: normalizedPlanType,
+          installmentCount: normalizedInstallmentCount,
+          installments: [],
+          allowCustomization: Boolean(form.allowCustomization),
+          status: String(form.status || 'ACTIVE').trim(),
+        }
+
+        if (editingTemplateId) {
+          await updateBranchInstallmentTemplate(editingTemplateId, payload)
+        } else {
+          await createBranchInstallmentTemplate(payload)
+        }
+
+        resetForm()
+        setIsCreateOpen(false)
+        await loadTemplates(editingTemplateId ? page : 1)
+      } catch (err) {
+        if (err?.status === 409) {
+          setError(
+            err?.body?.message ||
+            `An installment plan with ${Number(
+              form.installmentCount
+            )} installments already exists.`
+          )
+        } else {
+          setError(
+            err?.body?.message ||
+            err?.body?.error ||
+            err?.message ||
+            'Unable to save installment template.'
+          )
+        }
+      } finally {
+        setSaving(false)
       }
     } finally {
-      setSaving(false)
+      submitLockRef.current = false
     }
   }
 
