@@ -279,6 +279,8 @@ const RecordPayment = ({ student, onClose }) => {
     );
   };
 
+  const formatRupees = (amount) => `₹${formatCurrency(amount)}`;
+
   // =========================================================
   // NUMBER TO WORDS
   // =========================================================
@@ -421,6 +423,24 @@ const RecordPayment = ({ student, onClose }) => {
     });
   };
 
+  const formatDateDMY = (dateString) => {
+    if (!dateString) {
+      return "-";
+    }
+
+    const date = new Date(dateString);
+
+    if (Number.isNaN(date.getTime())) {
+      return "-";
+    }
+
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+
+    return `${day}/${month}/${year}`;
+  };
+
   // =========================================================
   // HANDLE INPUT CHANGE
   // =========================================================
@@ -443,6 +463,9 @@ const RecordPayment = ({ student, onClose }) => {
     setFormData((previous) => ({
       ...previous,
       [name]: value,
+      ...(name === "paymentMode" && value === "Cash"
+        ? { transactionReference: "" }
+        : {}),
     }));
 
     setErrors((previous) => ({
@@ -677,7 +700,7 @@ const RecordPayment = ({ student, onClose }) => {
     }
 
     const receiptDate =
-      formatDate(formData.paymentDate);
+      formatDateDMY(formData.paymentDate);
 
     const amountInWords =
       numberToWords(currentPayment);
@@ -1584,6 +1607,8 @@ const RecordPayment = ({ student, onClose }) => {
                       formData.amountToPay
                     }
                     onChange={handleChange}
+                    readOnly
+                    aria-readonly="true"
                     placeholder="0.00"
                   />
 
@@ -1694,28 +1719,26 @@ const RecordPayment = ({ student, onClose }) => {
 
             </div>
 
-            {/* =================================================
-                TRANSACTION REFERENCE
-            ================================================= */}
+            {formData.paymentMode !== "Cash" ? (
+              <div className="payment-form-group">
 
-            <div className="payment-form-group">
+                <label htmlFor="transactionReference">
+                  Transaction Reference
+                </label>
 
-              <label htmlFor="transactionReference">
-                Transaction Reference
-              </label>
+                <input
+                  type="text"
+                  id="transactionReference"
+                  name="transactionReference"
+                  value={
+                    formData.transactionReference
+                  }
+                  onChange={handleChange}
+                  placeholder="Enter transaction reference"
+                />
 
-              <input
-                type="text"
-                id="transactionReference"
-                name="transactionReference"
-                value={
-                  formData.transactionReference
-                }
-                onChange={handleChange}
-                placeholder="Enter transaction reference"
-              />
-
-            </div>
+              </div>
+            ) : null}
 
             {/* =================================================
                 PAYMENT DATE
@@ -1900,9 +1923,16 @@ const RecordPayment = ({ student, onClose }) => {
 
           <div className="payment-confirmation-popup">
 
-            <div className="payment-popup-icon confirmation-icon">
-              ?
-            </div>
+            <button
+              type="button"
+              className="receipt-popup-close"
+              aria-label="Close confirmation popup"
+              onClick={() =>
+                setShowConfirmation(false)
+              }
+            >
+              x
+            </button>
 
             <h3>
               Confirm Payment
@@ -1964,7 +1994,7 @@ const RecordPayment = ({ student, onClose }) => {
                 </span>
 
                 <strong>
-                  {formatDate(
+                  {formatDateDMY(
                     formData.paymentDate
                   )}
                 </strong>
@@ -2098,7 +2128,7 @@ const RecordPayment = ({ student, onClose }) => {
                 </span>
 
                 <strong>
-                  {formatDate(
+                  {formatDateDMY(
                     formData.paymentDate
                   )}
                 </strong>
@@ -2297,8 +2327,7 @@ const RecordPayment = ({ student, onClose }) => {
                   textAlign: "center",
                 }}
               >
-                ⚠ Payment will be saved only
-                after downloading the receipt
+                ⚠ Click "Save Payment" to complete the payment.
               </div>
 
             )}
@@ -2349,3 +2378,4 @@ const RecordPayment = ({ student, onClose }) => {
 };
 
 export default RecordPayment;
+

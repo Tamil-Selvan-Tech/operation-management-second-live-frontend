@@ -80,6 +80,7 @@ import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
+import '../components/payments/RecordPayment.css'
 import {
   groupByDate,
   normalizeBranchNotification,
@@ -328,6 +329,10 @@ function computeBranchStudentPaymentSummary(stu = {}) {
       )
     : 0
 
+  const nextInstallmentLabel = nextInstallment
+    ? `Installment ${nextInstallment.installmentNumber || nextInstallment.number || ''}`.trim()
+    : ''
+
   const nextDueDate = nextInstallment?.dueDate ?? nextInstallment?.date ?? null
 
   let paymentStatus = 'Pending'
@@ -351,6 +356,7 @@ function computeBranchStudentPaymentSummary(stu = {}) {
     pendingAmount: Math.max(totalFee - paidAmount, 0),
     nextInstallment,
     nextInstallmentAmount,
+    nextInstallmentLabel,
     nextDueDate,
     paymentStatus,
   }
@@ -1497,6 +1503,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
+  const [pendingRecordPaymentStudent, setPendingRecordPaymentStudent] = useState(null)
   const [showPaymentHistory, setShowPaymentHistory] = useState(false)
   const [paymentHistoryFilter, setPaymentHistoryFilter] = useState('all');
   const [paymentHistoryDate, setPaymentHistoryDate] = useState("");
@@ -2144,6 +2151,26 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
     setViewStudentDrawer({ ...student })
+  }
+
+  const openRecordPaymentConfirmation = (student) => {
+    if (studentActionMenuCloseTimerRef.current) {
+      clearTimeout(studentActionMenuCloseTimerRef.current)
+    }
+
+    const paymentSummary = computeBranchStudentPaymentSummary(student)
+    setStudentActionMenuId('')
+    setStudentActionMenuPosition({ top: 0, left: 0 })
+    setPendingRecordPaymentStudent({ ...student, paymentSummary })
+  }
+
+  const confirmRecordPayment = () => {
+    if (!pendingRecordPaymentStudent) return
+    const student = pendingRecordPaymentStudent
+    setPendingRecordPaymentStudent(null)
+    setShowPaymentHistory(false)
+    setRecordPaymentStudent(student)
+    goToBranchSection('payments')
   }
 
   const handleConfirmLogout = async () => {
@@ -5198,9 +5225,9 @@ else {
                         onClick={() => {
                           setStudentActionMenuId('')
                           setStudentActionMenuPosition({ top: 0, left: 0 })
-                        openStudentViewDrawer(stu)
-                      }}
-                    >
+                          openStudentViewDrawer(stu)
+                        }}
+                      >
                         <Eye size={15} />
                         <span>View</span>
                       </button>
@@ -5224,8 +5251,7 @@ else {
                         onClick={() => {
                           setStudentActionMenuId('')
                           setStudentActionMenuPosition({ top: 0, left: 0 })
-                          setRecordPaymentStudent({ ...stu })
-                          goToBranchSection('payments')
+                          openRecordPaymentConfirmation(stu)
                         }}
                       >
                         <Wallet size={15} />
@@ -5984,6 +6010,72 @@ else {
 
         )}
 
+        {false && (
+          <div className="payment-popup-overlay">
+            <div
+              className="payment-confirmation-popup"
+              style={{
+                maxWidth: '520px',
+              }}
+            >
+              <button
+                type="button"
+                className="receipt-popup-close"
+                onClick={() => setPendingRecordPaymentStudent(null)}
+              >
+                Ã—
+              </button>
+
+              <h3>Record Payment?</h3>
+
+              <div className="confirmation-details">
+                <div className="confirmation-detail-row">
+                  <span>Student ID</span>
+                  <strong>{pendingRecordPaymentStudent.studentId || '-'}</strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Student</span>
+                  <strong>{pendingRecordPaymentStudent.studentName || '-'}</strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Course</span>
+                  <strong>{pendingRecordPaymentStudent.courseName || pendingRecordPaymentStudent.courseInterested || pendingRecordPaymentStudent.course?.name || '-'}</strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Action</span>
+                  <strong>Open Payments tab</strong>
+                </div>
+              </div>
+
+              <div
+                className="payment-popup-actions"
+                style={{
+                  marginTop: '20px',
+                }}
+              >
+                <button
+                  type="button"
+                  className="popup-cancel-btn"
+                  onClick={() => setPendingRecordPaymentStudent(null)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="button button-solid"
+                  onClick={confirmRecordPayment}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
 
     </BranchDashboardSection>
@@ -6528,6 +6620,86 @@ else {
             </div>
           </main>
         </div>
+
+        {pendingRecordPaymentStudent ? (
+          <div className="payment-popup-overlay">
+            <div
+              className="payment-confirmation-popup"
+              style={{
+                maxWidth: '520px',
+              }}
+            >
+              <button
+                type="button"
+                className="receipt-popup-close"
+                onClick={() => setPendingRecordPaymentStudent(null)}
+                aria-label="Close record payment confirmation"
+              >
+                x
+              </button>
+
+              <h3>Confirm Payment</h3>
+
+              <p className="payment-confirmation-copy">
+                Are you sure you want to confirm this payment for this student?
+              </p>
+
+              <div className="confirmation-details">
+                <div className="confirmation-detail-row">
+                  <span>Student ID</span>
+                  <strong>{pendingRecordPaymentStudent.studentId || '-'}</strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Student</span>
+                  <strong>{pendingRecordPaymentStudent.studentName || '-'}</strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Amount</span>
+                  <strong>
+                    {formatBranchRupees(
+                      pendingRecordPaymentStudent.paymentSummary?.nextInstallmentAmount ||
+                        pendingRecordPaymentStudent.paymentSummary?.pendingAmount ||
+                        0,
+                    )}
+                  </strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Payment</span>
+                  <strong>
+                    {pendingRecordPaymentStudent.paymentSummary?.nextInstallmentLabel ||
+                      'Installment'}
+                  </strong>
+                </div>
+              </div>
+
+              <div
+                className="payment-popup-actions"
+                style={{
+                  marginTop: '20px',
+                }}
+              >
+                <button
+                  type="button"
+                  className="popup-cancel-btn"
+                  onClick={() => setPendingRecordPaymentStudent(null)}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="button button-solid"
+                  onClick={confirmRecordPayment}
+                >
+                  Confirm Payment
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {isAddCourseOpen ? (
           <div className="course-modal-backdrop" role="presentation">
