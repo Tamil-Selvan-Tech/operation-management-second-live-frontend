@@ -141,9 +141,16 @@ export function normalizeBranchCourse(course) {
     course.paymentPlans || course.paymentPlanSelections || course.installmentPlans || [],
   )
 
+  const resolvedId = String(
+    course.id ||
+    course.branchCourseId ||
+    course.dbId ||
+    '',
+  ).trim()
+
   return {
     ...course,
-    id: course.id || '',
+    id: resolvedId || '',
     courseCode: normalizeText(course.courseCode),
     name: normalizeText(course.name || course.courseName),
     description: normalizeText(course.description),
