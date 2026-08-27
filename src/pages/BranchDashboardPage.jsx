@@ -74,6 +74,7 @@ import {
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
+import { ProgressComparisonNotificationCard } from '../components/ProgressComparisonNotificationCard'
 import {
   groupByDate,
   normalizeBranchNotification,
@@ -86,6 +87,9 @@ import {
   saveNotifications,
   subscribeNotifications,
 } from '../lib/notificationStore'
+import {
+  buildProgressComparisonNotification,
+} from '../lib/progressComparisonNotification'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
@@ -3881,6 +3885,41 @@ const visibleBranchPaymentRows = useMemo(() => {
     return filteredBranchStudents.slice(start, start + BRANCH_STUDENTS_PER_PAGE)
   }, [filteredBranchStudents, safeStudentPage])
 
+  const branchProgressComparisonNotifications = useMemo(() => {
+    return visibleBranchStudents
+      .map((stu) => {
+        const studentIdLabel = String(stu.studentId || stu.id || '-').trim()
+        const studentName = String(stu.studentName || '-').trim()
+        const installmentProgress = getBranchStudentInstallmentProgress(stu)
+        const courseProgressRaw = Number(
+          stu.courseProgress ??
+          stu.courseCompletionPercentage ??
+          stu.progress ??
+          installmentProgress.paidInstallmentPercentage ??
+          0,
+        )
+        const courseProgressPercentage = Number.isFinite(courseProgressRaw)
+          ? Math.min(100, Math.max(0, courseProgressRaw))
+          : null
+        const paidProgress = Number.isFinite(Number(installmentProgress.paidInstallmentPercentage))
+          ? Number(installmentProgress.paidInstallmentPercentage)
+          : null
+
+        if (courseProgressPercentage === null || paidProgress === null) {
+          return null
+        }
+
+        return buildProgressComparisonNotification({
+          studentName,
+          studentId: studentIdLabel,
+          courseProgress: courseProgressPercentage,
+          paidProgress,
+          recipientLabel: 'Branch Admin Dashboard',
+        })
+      })
+      .filter(Boolean)
+  }, [visibleBranchStudents])
+
   const studentFormValidationErrors = useMemo(
     () => validateStudentForm(studentForm, branchStudents),
     [branchStudents, studentForm],
@@ -4539,6 +4578,20 @@ const visibleBranchPaymentRows = useMemo(() => {
                       </button>
                     </div>
                   </div>
+
+                  {branchProgressComparisonNotifications.length ? (
+                    <section className="notifications-group" aria-label="Progress status notifications" style={{ marginBottom: '16px' }}>
+                      <p className="notifications-group-label">Progress Status Notifications</p>
+                      <div className="notifications-group-list">
+                        {branchProgressComparisonNotifications.map((notification) => (
+                          <ProgressComparisonNotificationCard
+                            key={notification.id}
+                            notification={notification}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
   
      
 <div className="branch-course-table-shell">

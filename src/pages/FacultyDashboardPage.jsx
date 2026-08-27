@@ -69,9 +69,13 @@ import {
 } from '../lib/courseEditRequestStore'
 import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
 import { Button } from '../components/Button'
+import { ProgressComparisonNotificationCard } from '../components/ProgressComparisonNotificationCard'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 import '../styles/FacultyDashboardPage.css'
+import {
+  buildProgressComparisonNotification,
+} from '../lib/progressComparisonNotification'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -1284,6 +1288,37 @@ useEffect(() => {
     if (!assignedCourses.length) return null
     return assignedCourses.find((course) => String(course?.id || '').trim() === activeCourseId) || assignedCourses[0] || null
   }, [activeCourseId, assignedCourses])
+
+  const facultyProgressComparisonNotifications = useMemo(() => {
+    return facultyScopedStudents
+      .map((student) => {
+        const studentIdLabel = String(student.studentId || student.id || '-').trim()
+        const studentName = String(student.studentName || '-').trim()
+        const paymentProgress = getStudentPaymentProgress(student)
+        const studentKey = normalizeWorkStudentId(student.id || student.studentId || '')
+        const workEntry = todayWorkEntriesByStudent.get(studentKey) || null
+        const workCourse = workEntry
+          ? courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedCourse || null
+          : null
+        const workProgressSummary = workEntry
+          ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, workCourse || {}, student)
+          : null
+
+        if (!workProgressSummary) return null
+
+        const courseProgress = Number(workProgressSummary.courseProgress)
+        const paidProgress = Number(paymentProgress.paidInstallmentPercentage)
+
+        return buildProgressComparisonNotification({
+          studentName,
+          studentId: studentIdLabel,
+          courseProgress,
+          paidProgress,
+          recipientLabel: 'Faculty Dashboard',
+        })
+      })
+      .filter(Boolean)
+  }, [courseCatalog, facultyScopedStudents, facultyTodayWorkEntries, selectedCourse, todayWorkEntriesByStudent])
 
   const facultyBatchRows = useMemo(() => {
     const facultyId = currentFacultyIdentity.facultyId
@@ -2753,6 +2788,19 @@ const nextName = trimmedValue
                     </button>
                   )}
                 >
+                  {facultyProgressComparisonNotifications.length ? (
+                    <section className="notifications-group" aria-label="Progress status notifications">
+                      <p className="notifications-group-label">Progress Status Notifications</p>
+                      <div className="notifications-group-list">
+                        {facultyProgressComparisonNotifications.map((notification) => (
+                          <ProgressComparisonNotificationCard
+                            key={notification.id}
+                            notification={notification}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  ) : null}
                   <div className="branch-dashboard-table-shell faculty-students-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>
