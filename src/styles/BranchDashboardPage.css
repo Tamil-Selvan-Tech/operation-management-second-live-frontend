@@ -8300,8 +8300,8 @@ body.branch-notification-menu-open .main-area {
   align-items: center;
   justify-content: center;
 
-  min-width: 82px;
-  padding: 6px 10px;
+  min-width: 88px;
+  padding: 6px 12px;
 
   border-radius: 999px;
 
@@ -8324,6 +8324,26 @@ body.branch-notification-menu-open .main-area {
 .branch-student-payment-status.partially-paid {
   background: #dbeafe;
   color: #2563eb;
+}
+
+.branch-course-table td:nth-child(8) {
+  text-align: center;
+}
+
+.branch-course-table td:nth-child(8) .branch-student-payment-status {
+  min-width: 112px;
+  border: 1px solid transparent;
+}
+
+.branch-course-table td:nth-child(8) .branch-student-payment-status.partially-paid {
+  width: 160px;
+  min-width: 160px;
+  padding-left: 0;
+  padding-right: 0;
+  background: #dbeafe;
+  color: #2563eb;
+  border-color: #bfdbfe;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.08);
 }
 
 .branch-student-payment-status.overdue {
