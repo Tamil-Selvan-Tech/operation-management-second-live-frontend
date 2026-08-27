@@ -4502,11 +4502,21 @@ const visibleBranchPaymentRows = useMemo(() => {
                           <span className={`notification-badge ${item.tone}`} aria-hidden="true">
                             <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                           </span>
-                          <div className="notification-copy">
-                            <p>{item.title}</p>
-                            <span>{item.message}</span>
-                            <small>{item.time}</small>
-                          </div>
+              <div className="notification-copy">
+                <p>{item.title}</p>
+                <span>{item.message}</span>
+                {String(item.kind || '').includes('progress-status') ? (
+                  <div className="notification-progress-details">
+                    <p><strong>Student ID:</strong> {item.studentId || '-'}</p>
+                    <p><strong>Student Name:</strong> {item.studentName || '-'}</p>
+                    <p><strong>Course Progress:</strong> {item.courseProgress ? `${item.courseProgress}%` : '-'}</p>
+                    <p><strong>Paid Progress:</strong> {item.paidProgress ? `${item.paidProgress}%` : '-'}</p>
+                    <p><strong>Status:</strong> {item.statusLabel || '-'}</p>
+                    <p><strong>Summary:</strong> {item.summary || item.message}</p>
+                  </div>
+                ) : null}
+                <small>{item.time}</small>
+              </div>
 
                           <div
                             className="notification-dropdown-item-actions"

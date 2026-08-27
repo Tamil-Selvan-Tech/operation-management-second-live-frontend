@@ -5,16 +5,19 @@ const PROGRESS_STATUS_CONFIG = {
     statusLabel: 'Course Progress Ahead',
     tone: 'red',
     iconLabel: 'Course progress ahead',
+    title: '🔔 Payment Due Alert',
   },
   matched: {
     statusLabel: 'Progress Matched',
     tone: 'green',
     iconLabel: 'Progress matched',
+    title: '✅ Progress Matched',
   },
   paidAhead: {
     statusLabel: 'Paid Progress Ahead',
     tone: 'amber',
     iconLabel: 'Paid progress ahead',
+    title: '⚠️ Progress Alert',
   },
 }
 
@@ -62,19 +65,19 @@ export function getProgressComparisonState(courseProgress, paidProgress) {
 
 function buildSummaryText(state, studentName, courseProgress, paidProgress) {
   const name = String(studentName || 'the student').trim() || 'the student'
-  const courseLabel = formatProgressPercentage(courseProgress)
-  const paidLabel = formatProgressPercentage(paidProgress)
+  const courseValue = formatProgressPercentage(courseProgress)
+  const differenceValue = formatProgressPercentage(Math.abs(Number(courseProgress) - Number(paidProgress)))
 
   if (state === 'courseAhead') {
-    return `The student has completed ${courseLabel}% of the course, while only ${paidLabel}% of the course fee has been paid. Course progress has moved ahead of paid progress, so the next installment payment should be followed up.`
+    return `Course progress is ${differenceValue}% ahead of the paid progress. The next installment payment should be followed up.`
   }
 
   if (state === 'matched') {
-    return `The student's course progress and paid progress are both at ${courseLabel}%. Both are currently in sync.`
+    return `Course progress and paid progress are currently matched at ${courseValue}%. The next installment payment should be completed before starting the next module/submodule.`
   }
 
   if (state === 'paidAhead') {
-    return `The student has completed ${courseLabel}% of the course, while ${paidLabel}% of the course fee has been paid. Paid progress is currently ahead of course progress by ${formatProgressPercentage(Number(paidProgress) - Number(courseProgress))}%, and the student is approaching the next course progress milestone.`
+    return `Paid progress is only ${differenceValue}% ahead of the course progress. Since the course progress is close to the paid progress, the student only needs to be informed.`
   }
 
   return `${name}'s course progress and paid progress do not require an alert right now.`
@@ -105,7 +108,7 @@ export function buildProgressComparisonNotification({
     id: notificationId,
     kind: `${notificationPrefix}`,
     tone: config.tone,
-    title: 'Progress Status Notification',
+    title: config.title,
     message: buildSummaryText(state, safeStudentName, courseProgress, paidProgress),
     summary: buildSummaryText(state, safeStudentName, courseProgress, paidProgress),
     statusKey: state,

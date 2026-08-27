@@ -722,6 +722,14 @@ function normalizeFacultyNotification(notification = {}) {
     createdAt,
     time: formatNotificationTime(createdAt),
     read: Boolean(source.read),
+    summary: String(source.summary || '').trim(),
+    studentId: String(source.studentId || '').trim(),
+    studentName: String(source.studentName || '').trim(),
+    courseProgress: String(source.courseProgress || '').trim(),
+    paidProgress: String(source.paidProgress || '').trim(),
+    statusKey: String(source.statusKey || '').trim(),
+    statusLabel: String(source.statusLabel || '').trim(),
+    recipientLabel: String(source.recipientLabel || '').trim(),
   }
 }
 
@@ -770,6 +778,16 @@ function FacultyNotificationGroup({ label, items, onViewNotification }) {
                   <small>{notification.time}</small>
                 </div>
                 <p>{notification.message}</p>
+                {String(notification.kind || '').includes('progress-status') ? (
+                  <div className="faculty-notification-progress-details">
+                    <p><strong>Student ID:</strong> {notification.studentId || '-'}</p>
+                    <p><strong>Student Name:</strong> {notification.studentName || '-'}</p>
+                    <p><strong>Course Progress:</strong> {notification.courseProgress ? `${notification.courseProgress}%` : '-'}</p>
+                    <p><strong>Paid Progress:</strong> {notification.paidProgress ? `${notification.paidProgress}%` : '-'}</p>
+                    <p><strong>Status:</strong> {notification.statusLabel || '-'}</p>
+                    <p><strong>Summary:</strong> {notification.summary || notification.message}</p>
+                  </div>
+                ) : null}
               </div>
 
               <div className="faculty-notification-meta">
