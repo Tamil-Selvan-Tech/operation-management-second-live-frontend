@@ -67,6 +67,7 @@ import {
 import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
 import {
 } from '../lib/courseEditRequestStore'
+import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -132,6 +133,12 @@ function formatCourseAmount(value) {
   return `₹${new Intl.NumberFormat('en-IN').format(numeric)}`
 }
 
+function formatPaymentPercentage(value) {
+  if (!Number.isFinite(value)) return '0'
+  const rounded = Math.round(value * 100) / 100
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '')
+}
+
 function formatCourseDuration(value) {
   const normalized = String(value ?? '').trim()
   if (!normalized) return '-'
@@ -175,51 +182,6 @@ function getExactFacultyStudents(students = [], facultyId = '', facultyName = ''
 
     return matchesFacultyId || matchesFacultyEmail || matchesFacultyName
   })
-}
-
-function getFacultyStudentPaymentProgress(student = {}) {
-  const installments = Array.isArray(student.installmentSchedule) ? student.installmentSchedule : []
-
-  const explicitCount = [
-    student.installmentCount,
-    student.totalInstallments,
-    Array.isArray(student.paymentPlan?.installments) ? student.paymentPlan.installments.length : 0,
-  ]
-    .map((value) => Number(value || 0))
-    .filter((value) => Number.isFinite(value) && value > 0)
-
-  const totalInstallments = Math.max(installments.length, ...explicitCount, 0)
-
-  const paidInstallments = installments.length
-    ? installments.reduce((count, installment) => {
-        const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
-        const paid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
-        const status = String(installment.status ?? installment.paymentStatus ?? '').trim().toLowerCase()
-
-        if (status === 'paid' || paid >= amount || (!amount && paid > 0)) {
-          return count + 1
-        }
-
-        return count
-      }, 0)
-    : Number(student.paidInstallments ?? student.completedInstallments ?? 0) || 0
-
-  const totalFee = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
-  const paidAmount = installments.length
-    ? installments.reduce((sum, installment) => sum + Number(installment.paidAmount ?? installment.amountPaid ?? 0), 0)
-    : Number(student.paidAmount ?? student.totalPaid ?? student.amountPaid ?? 0)
-
-  const paidInstallmentPercentage = totalInstallments > 0
-    ? Math.min(100, (paidInstallments / totalInstallments) * 100)
-    : 0
-
-  return {
-    totalFee,
-    paidAmount,
-    paidInstallments,
-    totalInstallments,
-    paidInstallmentPercentage,
-  }
 }
 
 function normalizeWorkStudentId(value = '') {
@@ -2810,7 +2772,7 @@ const nextName = trimmedValue
                             const studentIdLabel = String(student.studentId || student.id || '-').trim()
                             const studentName = String(student.studentName || '-').trim()
                             const emailLabel = String(student.emailAddress || '-').trim()
-                            const paymentProgress = getFacultyStudentPaymentProgress(student)
+                            const paymentProgress = getStudentPaymentProgress(student)
                             const paidAmountLabel = formatCourseAmount(paymentProgress.paidAmount)
                             const studentKey = normalizeWorkStudentId(student.id || student.studentId || '')
                             const workEntry = todayWorkEntriesByStudent.get(studentKey) || null
@@ -2867,7 +2829,7 @@ const nextName = trimmedValue
                                         />
                                       </div>
                                       <span className="branch-student-paid-progress-label">
-                                    {Math.round(paymentProgress.paidInstallmentPercentage)}% Paid
+                                        {formatPaymentPercentage(paymentProgress.paidInstallmentPercentage)}% Paid
                                       </span>
                                     </div>
                                   </div>
