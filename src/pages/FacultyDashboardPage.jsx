@@ -1165,7 +1165,7 @@ useEffect(() => {
     () => [
       ...facultyNotifications.map((notification) => normalizeFacultyNotification(notification)),
       ...localProgressNotifications,
-    ],
+    ].sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
     [facultyNotifications, localProgressNotifications],
   )
   const unreadNotifications = useMemo(

@@ -2243,7 +2243,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             String(notification.kind || '').startsWith('branch-') ||
             String(notification.kind || '').startsWith('course-edit-') ||
             String(notification.kind || '') === 'faculty-login',
-        ),
+        )
+        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
     [branchNotificationRecords],
   )
   const branchNotificationSections = useMemo(
@@ -2260,7 +2261,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     [normalizedBranchNotifications],
   )
   const branchNotificationPreviewItems = useMemo(
-    () => normalizedBranchNotifications.filter((item) => !item.dropdownViewed).slice(0, 2),
+    () => {
+      const visibleItems = normalizedBranchNotifications.filter((item) => !item.dropdownViewed)
+      const progressItems = visibleItems.filter((item) => String(item.kind || '').includes('progress-status'))
+      const otherItems = visibleItems.filter((item) => !String(item.kind || '').includes('progress-status'))
+
+      return [...progressItems, ...otherItems].slice(0, 2)
+    },
     [normalizedBranchNotifications],
   )
   const branchNotificationTotalCount = branchNotificationItems.length
