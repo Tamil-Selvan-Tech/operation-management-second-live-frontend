@@ -6893,7 +6893,7 @@ else {
                 Are you sure you want to confirm this payment for this student?
               </p>
 
-              <div className="confirmation-details">
+              {/* <div className="confirmation-details">
                 <div className="confirmation-detail-row">
                   <span>Student ID</span>
                   <strong>{pendingRecordPaymentStudent.studentId || '-'}</strong>
@@ -6922,7 +6922,7 @@ else {
                       'Installment'}
                   </strong>
                 </div>
-              </div>
+              </div> */}
 
               <div
                 className="payment-popup-actions"
