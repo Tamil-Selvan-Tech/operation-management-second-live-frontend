@@ -1518,6 +1518,8 @@ const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
 const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
 const [paymentPage, setPaymentPage] = useState(1)
 const BRANCH_PAYMENTS_PER_PAGE = 10
+const [paymentHistoryPage, setPaymentHistoryPage] = useState(1)
+const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
@@ -4034,6 +4036,17 @@ const visibleBranchPaymentRows = useMemo(() => {
   return filteredBranchPaymentRows.slice(start, start + BRANCH_PAYMENTS_PER_PAGE)
 }, [filteredBranchPaymentRows, safePaymentPage])
 
+const totalPaymentHistoryPages = Math.max(1, Math.ceil(filteredPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
+const safePaymentHistoryPage = Math.min(paymentHistoryPage, totalPaymentHistoryPages)
+const visiblePaymentHistoryRecords = useMemo(() => {
+  const start = (safePaymentHistoryPage - 1) * BRANCH_PAYMENT_HISTORY_PER_PAGE
+  return filteredPaymentHistoryRecords.slice(start, start + BRANCH_PAYMENT_HISTORY_PER_PAGE)
+}, [filteredPaymentHistoryRecords, safePaymentHistoryPage])
+
+useEffect(() => {
+  setPaymentHistoryPage(1)
+}, [paymentHistorySearch, paymentHistoryDate, paymentHistoryMode, paymentHistoryFilter])
+
   const filteredBranchStudents = useMemo(() => {
     const q = studentSearchTerm.trim().toLowerCase()
     if (!q) return branchStudents
@@ -5708,6 +5721,13 @@ else {
         <button
           type="button"
           className="button button-ghost"
+          style={{
+            marginRight: '16px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            whiteSpace: 'nowrap',
+          }}
           onClick={() => setShowPaymentHistory(false)}
         >
           <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
@@ -5816,9 +5836,6 @@ else {
             ['all', 'All'],
             ['today', 'Today'],
             ['week', 'This Week'],
-            ['partially-paid', 'Partially Paid'],
-            ['pending', 'Pending'],
-            ['overdue', 'Overdue'],
           ].map(([value, label]) => (
 
             <button
@@ -5862,44 +5879,114 @@ else {
               </tr>
             </thead>
 
-           <tbody>
-  {filteredPaymentHistoryRecords.length ? (
-    filteredPaymentHistoryRecords.map((record) => (
-      <tr key={record.id}>
-        <td><strong>{record.studentId}</strong></td>
-        <td><strong className="branch-course-name">{record.studentName}</strong></td>
-        <td>{record.course}</td>
-        <td><strong>{formatBranchRupees(record.amount)}</strong></td>
-        <td>
-          <span className="branch-student-payment-status">
-            {record.paymentMode || record.mode || "-"}
-          </span>
-        </td>
-        <td>{record.date}</td>
-       
-        <td>
-          <button
-            type="button"
-            className="button button-ghost"
-            onClick={() => setSelectedPaymentHistory(record)}
-          >
-            View
-          </button>
-        </td>
-      </tr>
-    ))
-  ) : (
-    <tr>
-      <td colSpan="8" className="branch-course-empty-state">
-        No payment history found.
-      </td>
-    </tr>
-  )}
-</tbody>
+            <tbody>
+              {visiblePaymentHistoryRecords.length ? (
+                visiblePaymentHistoryRecords.map((record) => (
+                  <tr key={record.id}>
+                    <td>
+                      <strong>{record.studentId}</strong>
+                    </td>
+                    <td>
+                      <strong className="branch-course-name">
+                        {record.studentName}
+                      </strong>
+                    </td>
+                    <td>{record.course}</td>
+                    <td>
+                      <strong>
+                        {formatBranchRupees(record.amount)}
+                      </strong>
+                    </td>
+                    <td>
+                      <span className="branch-student-payment-status">
+                        {record.paymentMode ||
+                          record.mode ||
+                          "-"}
+                      </span>
+                    </td>
+                    <td>{record.date}</td>
+
+                    <td>
+                      <button
+                        type="button"
+                        className="button button-ghost"
+                        onClick={() =>
+                          setSelectedPaymentHistory(record)
+                        }
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan="8"
+                    className="branch-course-empty-state"
+                  >
+                    No payment history found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
 
           </table>
 
         </div>
+
+        {totalPaymentHistoryPages > 1 && (
+          <div
+            className="branch-course-pagination"
+            style={{ marginTop: '18px' }}
+          >
+            <button
+              type="button"
+              className="button button-ghost branch-course-pagination-button"
+              onClick={() =>
+                setPaymentHistoryPage((page) =>
+                  Math.max(1, page - 1)
+                )
+              }
+              disabled={safePaymentHistoryPage === 1}
+            >
+              Previous
+            </button>
+
+            <div className="branch-course-pagination-pages">
+              {Array.from(
+                { length: totalPaymentHistoryPages },
+                (_, index) => index + 1
+              ).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  className={`branch-course-pagination-page ${
+                    page === safePaymentHistoryPage ? 'active' : ''
+                  }`}
+                  onClick={() => setPaymentHistoryPage(page)}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="button button-ghost branch-course-pagination-button"
+              onClick={() =>
+                setPaymentHistoryPage((page) =>
+                  Math.min(totalPaymentHistoryPages, page + 1)
+                )
+              }
+              disabled={
+                safePaymentHistoryPage === totalPaymentHistoryPages
+              }
+            >
+              Next
+            </button>
+          </div>
+        )}
 
 
         {/* =====================================================
@@ -6127,6 +6214,7 @@ else {
             className="button button-ghost"
             onClick={() => {
               setRecordPaymentStudent(null);
+              setPaymentHistoryPage(1);
               setShowPaymentHistory(true);
             }}
           >
@@ -6143,6 +6231,7 @@ else {
 
       <div
         className="branch-dashboard-stats"
+        data-layout="payments-summary"
         style={{
           marginBottom: '20px',
         }}
