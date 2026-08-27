@@ -58,6 +58,7 @@ import {
 } from '../services/branchInstallmentTemplateService'
 import {
   mergeBranchCoursesWithSnapshot,
+  saveBranchCourseSnapshot,
   subscribeBranchCourseSnapshot,
 } from '../lib/branchCourseSnapshot'
 import {
@@ -1998,18 +1999,45 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         selectedFacultyIds,
       )
 
+      const assignedFaculty = Array.isArray(updatedCourse?.assignedFaculty)
+        ? updatedCourse.assignedFaculty
+        : facultyList.filter((faculty) => selectedFacultyIds.includes(faculty.id))
+
+      const normalizedAssignedFaculty = assignedFaculty
+        .map((faculty) => {
+          const id = String(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || '').trim()
+          const name = String(faculty?.name || faculty?.facultyName || '').trim()
+
+          if (!id && !name) return null
+
+          return {
+            id: id || name,
+            name: name || id,
+          }
+        })
+        .filter(Boolean)
+
+      const nextCourseCards = branchCourseCards.map((course) =>
+        String(course.id || '').trim() === String(assignFacultyCourse.id || '').trim()
+          ? {
+              ...course,
+              ...updatedCourse,
+              assignedFaculty: normalizedAssignedFaculty,
+            }
+          : course,
+      )
+
+      setBranchCourseCards(nextCourseCards)
+      saveBranchCourseSnapshot(nextCourseCards)
+
       await Promise.all([
         loadBranchCourses(),
         loadFacultyList(),
       ])
 
-      const assignedFaculty = Array.isArray(updatedCourse?.assignedFaculty)
-        ? updatedCourse.assignedFaculty
-        : facultyList.filter((faculty) => selectedFacultyIds.includes(faculty.id))
-
       setAssignFacultySuccess({
         courseName: updatedCourse?.name || assignFacultyCourse?.name || 'Course',
-        facultyNames: assignedFaculty.map((f) => f.name).filter(Boolean),
+        facultyNames: normalizedAssignedFaculty.map((f) => f.name).filter(Boolean),
       })
 
       closeAssignFacultyModal()
