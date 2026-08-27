@@ -1,6 +1,7 @@
 ﻿import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
+  AlertTriangle,
   Bell,
   BookOpen,
   CalendarDays,
@@ -59,6 +60,11 @@ import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
 import { loadBranchStudents } from '../lib/branchStudentStore'
 import {
+  loadNotifications as loadStoredNotifications,
+  markNotificationsAsRead,
+  subscribeNotifications,
+} from '../lib/notificationStore'
+import {
   FACULTY_TODAY_WORK_SYNC_EVENT,
   getFacultyTodayWorkEntriesByFaculty,
   saveFacultyTodayWorkEntry,
@@ -75,6 +81,7 @@ import '../styles/BranchDashboardPage.css'
 import '../styles/FacultyDashboardPage.css'
 import {
   buildProgressComparisonNotification,
+  syncProgressComparisonNotifications,
 } from '../lib/progressComparisonNotification'
 
 function getInitials(name) {
@@ -678,6 +685,10 @@ function getFacultyNotificationIcon(kind) {
     return Mail
   }
 
+  if (normalizedKind.includes('progress-status')) {
+    return AlertTriangle
+  }
+
   if (
     normalizedKind.includes('login') ||
     normalizedKind.includes('assigned') ||
@@ -697,6 +708,7 @@ function normalizeFacultyNotification(notification = {}) {
     String(source.createdAt || source.createdOn || source.updatedAt || '').trim() ||
     new Date().toISOString()
   const isCourseEdit = kind.includes('course-edit')
+  const isProgressStatus = kind.includes('progress-status')
 
   return {
     id: String(source.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
@@ -707,7 +719,7 @@ function normalizeFacultyNotification(notification = {}) {
     title: String(source.title || 'Notification').trim(),
     message: String(source.message || '').trim(),
     actionLabel: String(source.actionLabel || '').trim() || 'View',
-    categoryLabel: String(source.categoryLabel || (isCourseEdit ? 'Course Edit' : 'Faculty')).trim() || 'Faculty',
+    categoryLabel: String(source.categoryLabel || (isProgressStatus ? String(source.statusLabel || 'Progress Status').trim() || 'Progress Status' : isCourseEdit ? 'Course Edit' : 'Faculty')).trim() || 'Faculty',
     createdAt,
     time: formatNotificationTime(createdAt),
     read: Boolean(source.read),
@@ -857,6 +869,7 @@ export function FacultyDashboardPage() {
   const [dashboardSummary, setDashboardSummary] = useState(null)
   const [facultyNotifications, setFacultyNotifications] =useState([])
   const [notificationOpen, setNotificationOpen] =useState(false)
+  const [notificationStoreVersion, setNotificationStoreVersion] = useState(0)
   const [todayWorkEntries, setTodayWorkEntries] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
@@ -928,6 +941,14 @@ export function FacultyDashboardPage() {
       isMounted = false
       window.clearInterval(intervalId)
     }
+  }, [])
+
+  useEffect(() => {
+    const unsubscribe = subscribeNotifications(() => {
+      setNotificationStoreVersion((current) => current + 1)
+    })
+
+    return unsubscribe
   }, [])
 
   useEffect(() => {
@@ -1116,16 +1137,28 @@ useEffect(() => {
     }
   }, [])
 
+  const localProgressNotifications = useMemo(() => {
+    if (notificationStoreVersion < 0) return []
+
+    return loadStoredNotifications()
+      .filter((notification) => String(notification.kind || '').trim().startsWith('faculty-progress-status'))
+      .map((notification) => normalizeFacultyNotification(notification))
+  }, [notificationStoreVersion])
+  const normalizedNotifications = useMemo(
+    () => [
+      ...facultyNotifications.map((notification) => normalizeFacultyNotification(notification)),
+      ...localProgressNotifications,
+    ],
+    [facultyNotifications, localProgressNotifications],
+  )
   const unreadNotifications = useMemo(
-    () => facultyNotifications.filter((notification) => !notification.read),
-    [facultyNotifications],
+    () => normalizedNotifications.filter((notification) => !notification.read),
+    [normalizedNotifications],
   )
   const unreadNotificationCount = unreadNotifications.length
-  const normalizedNotifications = useMemo(
-    () => facultyNotifications.map((notification) => normalizeFacultyNotification(notification)),
-    [facultyNotifications],
-  )
   const totalNotificationCount = normalizedNotifications.length
+  const isFacultyProgressNotification = (notification = {}) =>
+    String(notification.kind || '').trim().startsWith('faculty-progress-status')
 
   const assignedCourseIds = useMemo(() => {
     const summary = dashboardSummary || {}
@@ -1319,6 +1352,24 @@ useEffect(() => {
       })
       .filter(Boolean)
   }, [courseCatalog, facultyScopedStudents, facultyTodayWorkEntries, selectedCourse, todayWorkEntriesByStudent])
+
+  useEffect(() => {
+    if (!facultyProgressComparisonNotifications.length) {
+      syncProgressComparisonNotifications([], 'faculty')
+      return
+    }
+
+    syncProgressComparisonNotifications(
+      facultyProgressComparisonNotifications.map((notification) => ({
+        studentName: notification.studentName,
+        studentId: notification.studentId,
+        courseProgress: notification.courseProgress,
+        paidProgress: notification.paidProgress,
+        recipientLabel: notification.recipientLabel,
+      })),
+      'faculty',
+    )
+  }, [facultyProgressComparisonNotifications])
 
   const facultyBatchRows = useMemo(() => {
     const facultyId = currentFacultyIdentity.facultyId
@@ -2271,19 +2322,33 @@ const nextName = trimmedValue
           type="button"
           className="mark-all-read-btn"
           onClick={async () => {
-            const unreadIds = facultyNotifications
+            const unreadItems = unreadNotifications
+            const unreadIds = unreadItems
               .filter((item) => !item.read)
               .map((item) => item.id)
 
             if (!unreadIds.length) return
 
             try {
-              await markFacultyNotificationsAsRead(unreadIds)
+              const localUnreadIds = unreadItems
+                .filter((item) => isFacultyProgressNotification(item))
+                .map((item) => item.id)
+              const remoteUnreadIds = unreadItems
+                .filter((item) => !isFacultyProgressNotification(item))
+                .map((item) => item.id)
+
+              if (localUnreadIds.length) {
+                markNotificationsAsRead(localUnreadIds)
+              }
+
+              if (remoteUnreadIds.length) {
+                await markFacultyNotificationsAsRead(remoteUnreadIds)
+              }
 
               setFacultyNotifications((current) =>
                 current.map((item) => ({
                   ...item,
-                  read: true,
+                  read: remoteUnreadIds.includes(item.id) ? true : item.read,
                 })),
               )
             } catch (error) {
@@ -2318,9 +2383,13 @@ const nextName = trimmedValue
             className="notification-card is-unread"
             onClick={async () => {
               try {
-                await markFacultyNotificationsAsRead([
-                  notification.id,
-                ])
+                if (isFacultyProgressNotification(notification)) {
+                  markNotificationsAsRead([notification.id])
+                } else {
+                  await markFacultyNotificationsAsRead([
+                    notification.id,
+                  ])
+                }
 
                 setFacultyNotifications((current) =>
                   current.map((item) =>
@@ -2957,19 +3026,31 @@ const nextName = trimmedValue
                         type="button"
                         className="faculty-mark-all-btn"
                         onClick={async () => {
-                          const unreadIds = facultyNotifications
-                            .filter((item) => !item.read)
-                            .map((item) => item.id)
+                          const unreadItems = unreadNotifications
+                          const unreadIds = unreadItems.map((item) => item.id)
 
                           if (!unreadIds.length) return
 
                           try {
-                            await markFacultyNotificationsAsRead(unreadIds)
+                            const localUnreadIds = unreadItems
+                              .filter((item) => isFacultyProgressNotification(item))
+                              .map((item) => item.id)
+                            const remoteUnreadIds = unreadItems
+                              .filter((item) => !isFacultyProgressNotification(item))
+                              .map((item) => item.id)
+
+                            if (localUnreadIds.length) {
+                              markNotificationsAsRead(localUnreadIds)
+                            }
+
+                            if (remoteUnreadIds.length) {
+                              await markFacultyNotificationsAsRead(remoteUnreadIds)
+                            }
 
                             setFacultyNotifications((current) =>
                               current.map((item) => ({
                                 ...item,
-                                read: true,
+                                read: remoteUnreadIds.includes(item.id) ? true : item.read,
                               })),
                             )
                           } catch (error) {
@@ -3039,21 +3120,25 @@ const nextName = trimmedValue
                   <div className="faculty-notifications-feed">
                     {groupedNotifications.length ? (
                       groupedNotifications.map((group) => (
-                        <FacultyNotificationGroup
+                          <FacultyNotificationGroup
                           key={group.label}
                           label={group.label}
                           items={group.items}
                           onViewNotification={async (notification) => {
                             if (!notification.read) {
                               try {
-                                await markFacultyNotificationsAsRead([notification.id])
+                                if (isFacultyProgressNotification(notification)) {
+                                  markNotificationsAsRead([notification.id])
+                                } else {
+                                  await markFacultyNotificationsAsRead([notification.id])
+                                }
 
                                 setFacultyNotifications((current) =>
                                   current.map((item) =>
                                     item.id === notification.id
                                       ? {
                                           ...item,
-                                          read: true,
+                                          read: !isFacultyProgressNotification(notification) ? true : item.read,
                                         }
                                       : item,
                                   ),

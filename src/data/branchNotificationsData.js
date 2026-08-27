@@ -1,4 +1,4 @@
-import { BadgeCheck, Bell, CheckCircle2, UsersRound, Mail } from 'lucide-react'
+import { AlertTriangle, BadgeCheck, Bell, CheckCircle2, UsersRound, Mail } from 'lucide-react'
 import { loadNotifications } from '../lib/notificationStore'
 
 function formatNotificationTime(createdAt) {
@@ -38,6 +38,9 @@ function getNotificationIcon(kind) {
     case 'branch-course-edit-accepted':
     case 'branch-course-edit-updated':
       return Bell
+    case 'faculty-progress-status':
+    case 'branch-progress-status':
+      return AlertTriangle
     case 'branch-faculty-login':
     case 'faculty-login':
       return UsersRound
@@ -59,6 +62,8 @@ export function normalizeBranchNotification(notification = {}) {
     kind === 'course-edit-request-rejected'
   const isCourseEditUpdated =
     kind === 'branch-course-edit-updated' || kind === 'course-edit-module-updated'
+  const isProgressStatus =
+    kind === 'faculty-progress-status' || kind === 'branch-progress-status'
 
   return {
     id: String(notification.id || '').trim(),
@@ -76,6 +81,8 @@ export function normalizeBranchNotification(notification = {}) {
             ? `${notification.courseName || 'Course'} edit approved`
             : isCourseEditUpdated
               ? `${notification.courseName || 'Course'} updated`
+              : isProgressStatus
+                ? 'Progress Status Notification'
         : 'Notification'),
     message:
       message ||
@@ -89,6 +96,8 @@ export function normalizeBranchNotification(notification = {}) {
             ? `${notification.requestDescription || notification.message || 'The edit request was rejected.'}`
             : isCourseEditUpdated
               ? `${notification.facultyName || 'Faculty'} saved module and submodule changes for ${notification.courseName || 'the course'}.`
+              : isProgressStatus
+                ? notification.summary || notification.message || ''
         : ''),
     time: formatNotificationTime(createdAt),
     categoryLabel:
@@ -101,6 +110,8 @@ export function normalizeBranchNotification(notification = {}) {
             ? 'Rejected'
           : isCourseEditUpdated
             ? 'Updated'
+            : isProgressStatus
+              ? String(notification.statusLabel || 'Progress Status').trim() || 'Progress Status'
             : isFacultyLogin
               ? 'Faculty'
               : 'View'),
@@ -126,6 +137,14 @@ export function normalizeBranchNotification(notification = {}) {
     requestReason: String(notification.requestReason || '').trim(),
     requestDescription: String(notification.requestDescription || '').trim(),
     requestedChanges: String(notification.requestedChanges || '').trim(),
+    summary: String(notification.summary || '').trim(),
+    studentId: String(notification.studentId || '').trim(),
+    studentName: String(notification.studentName || '').trim(),
+    courseProgress: String(notification.courseProgress || '').trim(),
+    paidProgress: String(notification.paidProgress || '').trim(),
+    statusKey: String(notification.statusKey || '').trim(),
+    statusLabel: String(notification.statusLabel || '').trim(),
+    recipientLabel: String(notification.recipientLabel || '').trim(),
   }
 }
 

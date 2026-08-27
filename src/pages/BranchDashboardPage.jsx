@@ -89,6 +89,7 @@ import {
 } from '../lib/notificationStore'
 import {
   buildProgressComparisonNotification,
+  syncProgressComparisonNotifications,
 } from '../lib/progressComparisonNotification'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -3886,7 +3887,7 @@ const visibleBranchPaymentRows = useMemo(() => {
   }, [filteredBranchStudents, safeStudentPage])
 
   const branchProgressComparisonNotifications = useMemo(() => {
-    return visibleBranchStudents
+    return branchStudents
       .map((stu) => {
         const studentIdLabel = String(stu.studentId || stu.id || '-').trim()
         const studentName = String(stu.studentName || '-').trim()
@@ -3915,10 +3916,29 @@ const visibleBranchPaymentRows = useMemo(() => {
           courseProgress: courseProgressPercentage,
           paidProgress,
           recipientLabel: 'Branch Admin Dashboard',
+          audience: 'branch',
         })
       })
       .filter(Boolean)
-  }, [visibleBranchStudents])
+  }, [branchStudents])
+
+  useEffect(() => {
+    if (!branchProgressComparisonNotifications.length) {
+      syncProgressComparisonNotifications([], 'branch')
+      return
+    }
+
+    syncProgressComparisonNotifications(
+      branchProgressComparisonNotifications.map((notification) => ({
+        studentName: notification.studentName,
+        studentId: notification.studentId,
+        courseProgress: notification.courseProgress,
+        paidProgress: notification.paidProgress,
+        recipientLabel: notification.recipientLabel,
+      })),
+      'branch',
+    )
+  }, [branchProgressComparisonNotifications])
 
   const studentFormValidationErrors = useMemo(
     () => validateStudentForm(studentForm, branchStudents),

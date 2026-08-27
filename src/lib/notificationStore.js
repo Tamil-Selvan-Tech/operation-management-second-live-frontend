@@ -32,6 +32,7 @@ const normalizeNotification = (notification = {}) => {
     tone,
     title: String(notification.title || '').trim(),
     message: String(notification.message || '').trim(),
+    summary: String(notification.summary || '').trim(),
     actionLabel: String(notification.actionLabel || '').trim(),
     targetBranchId: String(notification.targetBranchId || '').trim(),
     targetBranchEmail: String(notification.targetBranchEmail || '').trim().toLowerCase(),
@@ -51,6 +52,13 @@ const normalizeNotification = (notification = {}) => {
     requestedChanges: String(notification.requestedChanges || '').trim(),
     sourceNotificationId: String(notification.sourceNotificationId || '').trim(),
     changeSummary: String(notification.changeSummary || '').trim(),
+    studentId: String(notification.studentId || '').trim(),
+    studentName: String(notification.studentName || '').trim(),
+    courseProgress: String(notification.courseProgress || '').trim(),
+    paidProgress: String(notification.paidProgress || '').trim(),
+    statusKey: String(notification.statusKey || '').trim(),
+    statusLabel: String(notification.statusLabel || '').trim(),
+    recipientLabel: String(notification.recipientLabel || '').trim(),
     createdAt,
     read: Boolean(notification.read),
     dropdownViewed: Boolean(notification.dropdownViewed),
@@ -66,6 +74,8 @@ export function loadNotifications() {
     .filter((notification) =>
       String(notification.kind || '').startsWith('branch-') ||
       String(notification.kind || '').startsWith('course-edit-') ||
+      String(notification.kind || '').startsWith('faculty-progress-status') ||
+      String(notification.kind || '').startsWith('branch-progress-status') ||
       String(notification.kind || '') === 'faculty-login',
     )
 

@@ -1,3 +1,5 @@
+import { loadNotifications, saveNotifications } from './notificationStore'
+
 const PROGRESS_STATUS_CONFIG = {
   courseAhead: {
     statusLabel: 'Course Progress Ahead',
@@ -14,6 +16,11 @@ const PROGRESS_STATUS_CONFIG = {
     tone: 'amber',
     iconLabel: 'Paid progress ahead',
   },
+}
+
+const PROGRESS_NOTIFICATION_PREFIX_BY_AUDIENCE = {
+  faculty: 'faculty-progress-status',
+  branch: 'branch-progress-status',
 }
 
 function normalizeProgressValue(value) {
@@ -79,6 +86,7 @@ export function buildProgressComparisonNotification({
   courseProgress,
   paidProgress,
   recipientLabel = 'Faculty Dashboard',
+  audience = 'faculty',
   createdAt = new Date().toISOString(),
 } = {}) {
   const state = getProgressComparisonState(courseProgress, paidProgress)
@@ -89,10 +97,13 @@ export function buildProgressComparisonNotification({
 
   const safeStudentName = String(studentName || 'Student').trim() || 'Student'
   const safeStudentId = String(studentId || '-').trim() || '-'
+  const normalizedAudience = String(audience || 'faculty').trim().toLowerCase() === 'branch' ? 'branch' : 'faculty'
+  const notificationPrefix = PROGRESS_NOTIFICATION_PREFIX_BY_AUDIENCE[normalizedAudience]
+  const notificationId = `${notificationPrefix}-${safeStudentId}`
 
   return {
-    id: `progress-status-${safeStudentId}-${state}`,
-    kind: 'progress-status-notification',
+    id: notificationId,
+    kind: `${notificationPrefix}`,
     tone: config.tone,
     title: 'Progress Status Notification',
     message: buildSummaryText(state, safeStudentName, courseProgress, paidProgress),
@@ -106,6 +117,46 @@ export function buildProgressComparisonNotification({
     recipientLabel,
     createdAt,
     time: 'Just now',
+    targetSection: 'students',
   }
 }
 
+export function syncProgressComparisonNotifications(notifications = [], audience = 'faculty') {
+  const normalizedAudience = String(audience || 'faculty').trim().toLowerCase() === 'branch' ? 'branch' : 'faculty'
+  const notificationPrefix = PROGRESS_NOTIFICATION_PREFIX_BY_AUDIENCE[normalizedAudience]
+  const currentNotifications = (Array.isArray(notifications) ? notifications : [])
+    .map((notification) => buildProgressComparisonNotification({
+      ...notification,
+      audience: normalizedAudience,
+    }))
+    .filter(Boolean)
+
+  const existingNotifications = loadNotifications()
+  const currentIds = new Set(currentNotifications.map((notification) => String(notification.id || '').trim()))
+
+  const nextNotifications = existingNotifications
+    .filter((notification) => !String(notification.kind || '').trim().startsWith(notificationPrefix))
+    .concat(currentNotifications)
+
+  const shouldWrite =
+    nextNotifications.length !== existingNotifications.length ||
+    nextNotifications.some((notification, index) => {
+      const previous = existingNotifications[index]
+      if (!previous) return true
+      return (
+        String(previous.id || '') !== String(notification.id || '') ||
+        String(previous.kind || '') !== String(notification.kind || '') ||
+        String(previous.title || '') !== String(notification.title || '') ||
+        String(previous.message || '') !== String(notification.message || '') ||
+        String(previous.statusKey || '') !== String(notification.statusKey || '') ||
+        String(previous.statusLabel || '') !== String(notification.statusLabel || '')
+      )
+    }) ||
+    currentNotifications.some((notification) => !currentIds.has(String(notification.id || '').trim()))
+
+  if (shouldWrite) {
+    saveNotifications(nextNotifications)
+  }
+
+  return currentNotifications
+}
