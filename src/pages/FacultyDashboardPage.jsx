@@ -1120,31 +1120,35 @@ export function FacultyDashboardPage() {
     }
   }, [])
 
-  // Close notification dropdown when clicking outside
-useEffect(() => {
-  const handleOutsideNotificationClick = (event) => {
-    if (
-      notificationRef.current &&
-      !notificationRef.current.contains(event.target)
-    ) {
-      setNotificationOpen(false)
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+
+    // Keep the dashboard fixed while the notification panel is open.
+    document.body.classList.toggle('faculty-notification-menu-open', notificationOpen)
+
+    return () => {
+      document.body.classList.remove('faculty-notification-menu-open')
     }
-  }
+  }, [notificationOpen])
 
-  if (notificationOpen) {
-    document.addEventListener(
-      'mousedown',
-      handleOutsideNotificationClick,
-    )
-  }
+  useEffect(() => {
+    if (!notificationOpen) return undefined
 
-  return () => {
-    document.removeEventListener(
-      'mousedown',
-      handleOutsideNotificationClick,
-    )
-  }
-}, [notificationOpen])
+    const handlePointerDown = (event) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(event.target)
+      ) {
+        setNotificationOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+    }
+  }, [notificationOpen])
 
   useEffect(() => {
     let isMounted = true
@@ -2519,15 +2523,14 @@ const nextName = trimmedValue
     </div>
 
     <button
-  type="button"
-  className="notification-footer"
-  onClick={() => {
-    setNotificationOpen(false)
-    setActiveSection('notifications')
-  }}
->
-  View all notifications
-</button>
+      type="button"
+      className="notification-footer"
+      onClick={() => {
+        setActiveSection('notifications')
+      }}
+    >
+      View all notifications
+    </button>
   </div>
 ) : null}
          

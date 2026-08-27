@@ -2,6 +2,18 @@
    Faculty Logout Confirmation Modal
 ========================================= */
 
+body.faculty-notification-menu-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+  height: 100%;
+}
+
+body.faculty-notification-menu-open .super-admin-main,
+body.faculty-notification-menu-open .super-admin-content {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
 .branch-modal-backdrop {
   position: fixed;
   inset: 0;

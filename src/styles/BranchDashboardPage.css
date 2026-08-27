@@ -7305,9 +7305,11 @@ body.branch-notification-menu-open .main-area {
 
 .notification-content {
   min-width: 0;
+  flex: 1;
 
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .notification-content strong {
@@ -7320,7 +7322,7 @@ body.branch-notification-menu-open .main-area {
 }
 
 .notification-message {
-  margin-top: 1px;
+  display: block;
 
   color: #0f172a;
 
@@ -7333,7 +7335,8 @@ body.branch-notification-menu-open .main-area {
 }
 
 .notification-time {
-  margin-top: 4px;
+  display: block;
+  margin-top: 2px;
 
   color: #94a3b8;
 
