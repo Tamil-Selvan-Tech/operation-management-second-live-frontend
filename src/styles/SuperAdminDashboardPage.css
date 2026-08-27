@@ -230,6 +230,25 @@
   min-height: calc(100vh - 20px);
 }
 
+body.super-admin-notification-menu-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+  height: 100%;
+}
+
+body.super-admin-notification-menu-open .super-admin-main,
+body.super-admin-notification-menu-open .super-admin-content {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+body.super-admin-notification-menu-open .super-admin-content {
+  filter: blur(2px);
+  -webkit-filter: blur(2px);
+  pointer-events: none;
+  user-select: none;
+}
+
 .super-admin-topbar {
   position: sticky;
   top: 0;
@@ -445,13 +464,168 @@
   margin-right: 4px;
 }
 
+.super-admin-notification-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(2px);
+  z-index: 99990;
+}
+
 .super-admin-notification-menu .notification-dropdown {
+  position: fixed;
+  top: 78px;
   right: 25px;
   left: auto;
+  width: min(392px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  border: 1px solid #dbe4ef;
+  border-radius: 22px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  box-shadow:
+    0 20px 45px rgba(15, 23, 42, 0.12),
+    0 4px 12px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+  z-index: 99999;
 }
 
 .super-admin-notification-menu .notification-dropdown::before {
   right: 62px;
+}
+
+.super-admin-notification-menu .notification-dropdown-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.super-admin-notification-menu .notification-dropdown-head strong {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.super-admin-notification-menu .notification-dropdown-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.super-admin-notification-menu .notification-dropdown-close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.super-admin-notification-menu .notification-dropdown-close:hover,
+.super-admin-notification-menu .notification-dropdown-close:focus-visible {
+  background: #dbeafe;
+  outline: none;
+}
+
+.super-admin-notification-menu .notification-dropdown-list {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  max-height: min(340px, calc(100vh - 220px));
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+.super-admin-notification-menu .notification-dropdown-item {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid #e5edf6;
+  border-radius: 16px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.super-admin-notification-menu .notification-dropdown-item:hover {
+  border-color: #d6e3f2;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.super-admin-notification-menu .notification-dropdown-item.is-highlighted {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.super-admin-notification-menu .notification-dropdown-item.is-muted {
+  opacity: 0.92;
+}
+
+.super-admin-notification-menu .notification-badge {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  flex: 0 0 auto;
+}
+
+.super-admin-notification-menu .notification-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.super-admin-notification-menu .notification-copy p {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.96rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.super-admin-notification-menu .notification-copy span {
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.super-admin-notification-menu .notification-copy small {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.super-admin-notification-menu .notification-dropdown-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 14px 18px;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 800;
 }
 
 .super-admin-icon-button:hover,

@@ -152,12 +152,22 @@ export function SuperAdminNotificationBell({
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+
+    document.body.classList.toggle('super-admin-notification-menu-open', isOpen)
+
+    return () => {
+      document.body.classList.remove('super-admin-notification-menu-open')
+    }
+  }, [isOpen])
+
   const notificationCount = useMemo(
     () => visibleNotifications.filter((notification) => !notification.dropdownViewed).length,
     [visibleNotifications],
   )
   const visibleDropdownNotifications = useMemo(
-    () => visibleNotifications.filter((notification) => !notification.dropdownViewed).slice(0, 3),
+    () => visibleNotifications.filter((notification) => !notification.dropdownViewed).slice(0, 2),
     [visibleNotifications],
   )
   const handleOpenNotification = async (notification) => {
@@ -257,6 +267,14 @@ const handleMarkAllAsRead = () => {
         <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
         <b>{isLoading ? '...' : notificationCount}</b>
       </button>
+
+      {isOpen ? (
+        <div
+          className="super-admin-notification-backdrop"
+          aria-hidden="true"
+          onMouseDown={() => setIsOpen(false)}
+        />
+      ) : null}
 
       {isOpen ? (
         <div className="notification-dropdown" role="menu" aria-label="Notifications">
