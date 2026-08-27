@@ -4466,7 +4466,8 @@ useEffect(() => {
       : studentFormStep === 2
         ? STUDENT_FORM_STEP_TWO_FIELDS
         : STUDENT_FORM_STEP_THREE_FIELDS
-  const studentActiveStepErrorField = studentActiveStepFields.find((field) => studentFormValidationErrors[field]) || ''
+  const studentActiveStepErrorField =
+    studentActiveStepFields.find((field) => studentFormTouched[field] && studentFormValidationErrors[field]) || ''
   const studentActiveStepError = studentActiveStepErrorField ? studentFormValidationErrors[studentActiveStepErrorField] : ''
 
   const updateStudentField = (field, value) => {
