@@ -14,7 +14,6 @@ import {
   Layers3,
   LogOut,
   MoreVertical,
-  EllipsisVertical,
   RefreshCcw,
   Shield,
   Users,
@@ -2135,6 +2134,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       setStudentActionMenuId('')
       setStudentActionMenuPosition({ top: 0, left: 0 })
     }, 180)
+  }
+
+  const openStudentViewDrawer = (student) => {
+    if (studentActionMenuCloseTimerRef.current) {
+      clearTimeout(studentActionMenuCloseTimerRef.current)
+    }
+
+    setStudentActionMenuId('')
+    setStudentActionMenuPosition({ top: 0, left: 0 })
+    setViewStudentDrawer({ ...student })
   }
 
   const handleConfirmLogout = async () => {
@@ -5021,7 +5030,20 @@ else {
           }
 
           return (
-            <tr key={stu.studentId}>
+            <tr
+              key={stu.studentId}
+              className="branch-student-row"
+              role="button"
+              tabIndex={0}
+              aria-label={`View details for ${stu.studentName || stu.studentId || 'student'}`}
+              onClick={() => openStudentViewDrawer(stu)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  openStudentViewDrawer(stu)
+                }
+              }}
+            >
               <td><strong>{stu.studentId || '-'}</strong></td>
               <td><strong className="branch-course-name">{stu.studentName || '-'}</strong></td>
               <td>
@@ -5138,7 +5160,11 @@ else {
                       }
                     }}
                   >
-                    <EllipsisVertical size={18} strokeWidth={2.4} aria-hidden="true" focusable="false" />
+                    <span className="branch-student-more-dots" aria-hidden="true">
+                      <span />
+                      <span />
+                      <span />
+                    </span>
                   </button>
 
                 </div>
@@ -5172,9 +5198,9 @@ else {
                         onClick={() => {
                           setStudentActionMenuId('')
                           setStudentActionMenuPosition({ top: 0, left: 0 })
-                          setViewStudentDrawer({ ...stu })
-                        }}
-                      >
+                        openStudentViewDrawer(stu)
+                      }}
+                    >
                         <Eye size={15} />
                         <span>View</span>
                       </button>

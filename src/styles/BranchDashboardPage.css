@@ -667,7 +667,7 @@
 
 .branch-course-table {
   width: 100%;
-  min-width: 1250px;
+  min-width: 1350px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -1752,6 +1752,10 @@ body.branch-notification-menu-open .main-area {
 
 .branch-course-table th:nth-child(9) {
   width: 80px;
+}
+
+.branch-course-table th:nth-child(10) {
+  width: 96px;
 }
 /* Final override: restore the original right-side drawer look */
 .branch-course-drawer-backdrop {
@@ -3411,6 +3415,8 @@ body.branch-notification-menu-open .main-area {
 
 .branch-course-table-shell .branch-course-table td:last-child {
   text-align: center;
+  width: 96px;
+  min-width: 96px;
 }
 
 .course-validation-note {
@@ -6447,9 +6453,13 @@ body.branch-notification-menu-open .main-area {
   justify-content: center;
   align-items: center;
 }
+
+.branch-student-row {
+  cursor: pointer;
+}
 .branch-student-more-btn {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border: 1px solid #e5e7eb;
   background: #ffffff;
   border-radius: 7px;
@@ -6457,13 +6467,31 @@ body.branch-notification-menu-open .main-area {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #475569;
+  color: #334155;
   transition: all 0.2s ease;
 }
 
 .branch-student-more-btn:hover {
   background: #f8fafc;
   border-color: #cbd5e1;
+}
+
+.branch-student-more-dots {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+.branch-student-more-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
 }
 
 /* Default hidden */
@@ -8184,6 +8212,12 @@ body.branch-notification-menu-open .main-area {
   min-width: 0;
 }
 
+.branch-course-table th:last-child,
+.branch-course-table td:last-child {
+  width: 96px;
+  min-width: 96px;
+}
+
 /* Total fee */
 .branch-course-table td:nth-child(4) strong {
   color: #0f172a;
@@ -8307,8 +8341,8 @@ body.branch-notification-menu-open .main-area {
 }
 
 .branch-student-more-btn {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
 
   display: flex;
   align-items: center;
@@ -8318,7 +8352,7 @@ body.branch-notification-menu-open .main-area {
   border-radius: 8px;
 
   background: #ffffff;
-  color: #475569;
+  color: #334155;
 
   cursor: pointer;
 
@@ -8328,6 +8362,24 @@ body.branch-notification-menu-open .main-area {
 .branch-student-more-btn:hover {
   background: #f8fafc;
   border-color: #cbd5e1;
+}
+
+.branch-student-more-dots {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+.branch-student-more-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
 }
 .branch-course-table-shell {
   width: 100%;
@@ -8344,7 +8396,7 @@ body.branch-notification-menu-open .main-area {
 
 .branch-course-table {
   width: 100%;
-  min-width: 1250px !important;
+  min-width: 1350px !important;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -8360,7 +8412,7 @@ body.branch-notification-menu-open .main-area {
 
 .branch-course-table-shell table {
   width: 100%;
-  min-width: 1250px;
+  min-width: 1350px;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
