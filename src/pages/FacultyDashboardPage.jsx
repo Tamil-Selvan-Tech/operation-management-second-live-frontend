@@ -845,6 +845,7 @@ function FacultyDashboardSection({ title, description, actions, children }) {
 export function FacultyDashboardPage() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState('dashboard')
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
@@ -933,6 +934,8 @@ export function FacultyDashboardPage() {
   })
   const [todayWorkError, setTodayWorkError] = useState('')
   const [isTodayWorkSaving, setIsTodayWorkSaving] = useState(false)
+  const [isTodayWorkConfirmOpen, setIsTodayWorkConfirmOpen] = useState(false)
+  const [pendingTodayWorkSubmission, setPendingTodayWorkSubmission] = useState(null)
   const [courseEditError, setCourseEditError] = useState('')
   const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
   const [isCourseEditSaving, setIsCourseEditSaving] = useState(false)
@@ -1004,9 +1007,10 @@ export function FacultyDashboardPage() {
       setCoursesError('')
 
       try {
+        const shouldLoadMasterCourses = userRole === 'operation-manager' || userRole === 'business-owner'
         const [profileResult, masterCoursesResult, branchCoursesResult] = await Promise.allSettled([
           getCurrentFacultyProfile(),
-          listCourses({ page: 1, limit: 100 }),
+          shouldLoadMasterCourses ? listCourses({ page: 1, limit: 100 }) : Promise.resolve({ data: [], meta: null }),
           listBranchCourses({ page: 1, limit: 100 }),
         ])
 
@@ -1019,7 +1023,9 @@ export function FacultyDashboardPage() {
         }
 
         const masterCourses =
-          masterCoursesResult.status === 'fulfilled' && Array.isArray(masterCoursesResult.value?.data)
+          shouldLoadMasterCourses &&
+          masterCoursesResult.status === 'fulfilled' &&
+          Array.isArray(masterCoursesResult.value?.data)
             ? masterCoursesResult.value.data
             : []
         const branchCourseList =
@@ -1580,6 +1586,8 @@ useEffect(() => {
     setIsTodayWorkModalOpen(false)
     setTodayWorkError('')
     setIsTodayWorkSaving(false)
+    setIsTodayWorkConfirmOpen(false)
+    setPendingTodayWorkSubmission(null)
   }
 
   const updateTodayWorkModule = (moduleId) => {
@@ -1651,17 +1659,15 @@ useEffect(() => {
     })
   }
 
-  const handleTodayWorkSubmit = async (event) => {
-    event.preventDefault()
-
+  const buildTodayWorkSubmission = () => {
     if (!selectedCourse?.id) {
       setTodayWorkError('Please select a course first.')
-      return
+      return null
     }
 
     if (!todayWorkSelectedModule) {
       setTodayWorkError('No module found for this course.')
-      return
+      return null
     }
 
     const selectedSubmoduleIds = Array.isArray(todayWorkForm.submoduleIds)
@@ -1670,7 +1676,7 @@ useEffect(() => {
 
     if (!selectedSubmoduleIds.length) {
       setTodayWorkError('Please select at least one sub-module.')
-      return
+      return null
     }
 
     const selectedStudents = todayWorkForm.applyToAllStudents
@@ -1679,7 +1685,7 @@ useEffect(() => {
 
     if (!todayWorkForm.applyToAllStudents && !selectedStudents.length) {
       setTodayWorkError('Please select at least one student.')
-      return
+      return null
     }
 
     const moduleSubmodules = getCourseSubmodules(todayWorkSelectedModule)
@@ -1689,6 +1695,23 @@ useEffect(() => {
         return [id, submodule]
       }),
     )
+
+    return {
+      selectedSubmoduleIds,
+      selectedStudents,
+      submoduleLookup,
+    }
+  }
+
+  const performTodayWorkSave = async (submission) => {
+    const selectedSubmoduleIds = Array.isArray(submission?.selectedSubmoduleIds) ? submission.selectedSubmoduleIds : []
+    const selectedStudents = Array.isArray(submission?.selectedStudents) ? submission.selectedStudents : []
+    const submoduleLookup = submission?.submoduleLookup instanceof Map ? submission.submoduleLookup : new Map()
+
+    if (!selectedSubmoduleIds.length || !selectedStudents.length) {
+      setTodayWorkError('Please select at least one sub-module and student.')
+      return
+    }
 
     setIsTodayWorkSaving(true)
     setTodayWorkError('')
@@ -1747,6 +1770,25 @@ useEffect(() => {
     } finally {
       setIsTodayWorkSaving(false)
     }
+  }
+
+  const handleTodayWorkSubmit = (event) => {
+    event.preventDefault()
+
+    const submission = buildTodayWorkSubmission()
+    if (!submission) return
+
+    setPendingTodayWorkSubmission(submission)
+    setIsTodayWorkConfirmOpen(true)
+  }
+
+  const handleConfirmTodayWorkSave = async () => {
+    const submission = pendingTodayWorkSubmission || buildTodayWorkSubmission()
+    if (!submission) return
+
+    setIsTodayWorkConfirmOpen(false)
+    setPendingTodayWorkSubmission(null)
+    await performTodayWorkSave(submission)
   }
 
   const openCourseRequestModal = () => {
@@ -3529,6 +3571,56 @@ const nextName = trimmedValue
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isTodayWorkConfirmOpen ? (
+        <div className="faculty-today-work-confirm-backdrop branch-modal-backdrop" role="presentation">
+          <div
+            className="faculty-today-work-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-today-work-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="faculty-course-request-success-icon" aria-hidden="true">
+              <CheckCircle2 size={30} strokeWidth={2.4} />
+            </div>
+
+            <div className="faculty-course-request-success-copy">
+              <p className="faculty-course-request-success-kicker">Confirm Save</p>
+              <h3 id="faculty-today-work-confirm-title">Save today&apos;s work?</h3>
+              <p>
+                {pendingTodayWorkSubmission?.selectedSubmoduleIds?.length || 0} sub-module
+                {(pendingTodayWorkSubmission?.selectedSubmoduleIds?.length || 0) === 1 ? '' : 's'}
+                {' '}selected for{' '}
+                {pendingTodayWorkSubmission?.selectedStudents?.length || 0} student
+                {(pendingTodayWorkSubmission?.selectedStudents?.length || 0) === 1 ? '' : 's'}.
+              </p>
+            </div>
+
+            <div className="faculty-course-request-success-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'center', width: '100%' }}>
+              <button
+                type="button"
+                className="faculty-course-request-success-button"
+                onClick={() => {
+                  setIsTodayWorkConfirmOpen(false)
+                  setPendingTodayWorkSubmission(null)
+                }}
+                disabled={isTodayWorkSaving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="faculty-course-request-success-button"
+                onClick={handleConfirmTodayWorkSave}
+                disabled={isTodayWorkSaving}
+              >
+                {isTodayWorkSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
