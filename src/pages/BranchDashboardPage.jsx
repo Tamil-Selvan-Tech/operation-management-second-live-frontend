@@ -14,6 +14,7 @@ import {
   Layers3,
   LogOut,
   MoreVertical,
+  EllipsisVertical,
   RefreshCcw,
   Shield,
   Users,
@@ -1437,6 +1438,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
   const [isAddCourseSaving, setIsAddCourseSaving] = useState(false)
+  const [isCourseDeleting, setIsCourseDeleting] = useState(false)
   const isAddCourseSubmitLockedRef = useRef(false)
   const [addCourseError, setAddCourseError] = useState('')
   const [courseActionError, setCourseActionError] = useState('')
@@ -1852,6 +1854,17 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     return () => {
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isNotificationMenuOpen])
+
+  // Body scroll lock for notification dropdown
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+
+    document.body.classList.toggle('branch-notification-menu-open', isNotificationMenuOpen)
+
+    return () => {
+      document.body.classList.remove('branch-notification-menu-open')
     }
   }, [isNotificationMenuOpen])
 
@@ -3281,24 +3294,22 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setCourseActionError('')
   }
 
-  const handleDeleteCourseConfirm = () => {
+  const handleDeleteCourseConfirm = async () => {
     if (!courseDeleteTarget) return
 
-    setIsAddCourseSaving(true)
-    deleteBranchCourse(courseDeleteTarget.id)
-      .then(() => {
-        const nextCards = branchCourseCards.filter((course) => String(course.id || '').trim() !== String(courseDeleteTarget.id || '').trim())
-        setBranchCourseCards(nextCards)
-        const nextTotalPages = Math.max(1, Math.ceil(nextCards.length / BRANCH_COURSES_PER_PAGE))
-        setBranchCoursePage((current) => Math.min(current, nextTotalPages))
-        setCourseDeleteTarget(null)
-      })
-      .catch((error) => {
-        setCourseActionError(apiErrorMessage(error, 'Unable to delete course right now.'))
-      })
-      .finally(() => {
-        setIsAddCourseSaving(false)
-      })
+    try {
+      setIsCourseDeleting(true)
+      await deleteBranchCourse(courseDeleteTarget.id)
+      const nextCards = branchCourseCards.filter((course) => String(course.id || '').trim() !== String(courseDeleteTarget.id || '').trim())
+      setBranchCourseCards(nextCards)
+      const nextTotalPages = Math.max(1, Math.ceil(nextCards.length / BRANCH_COURSES_PER_PAGE))
+      setBranchCoursePage((current) => Math.min(current, nextTotalPages))
+      setCourseDeleteTarget(null)
+    } catch (error) {
+      setCourseActionError(apiErrorMessage(error, 'Unable to delete course right now.'))
+    } finally {
+      setIsCourseDeleting(false)
+    }
   }
 
   const handleAddCourseSubmit = async (event) => {
@@ -5127,7 +5138,7 @@ else {
                       }
                     }}
                   >
-                    <MoreVertical size={18} />
+                    <EllipsisVertical size={18} strokeWidth={2.4} aria-hidden="true" focusable="false" />
                   </button>
 
                 </div>
@@ -8051,7 +8062,8 @@ else {
                 type="button"
                 className="branch-modal-close"
                 aria-label="Close delete confirmation"
-                onClick={closeDeleteCourseConfirm}
+                onClick={isCourseDeleting ? undefined : closeDeleteCourseConfirm}
+                disabled={isCourseDeleting}
               >
                 <X size={22} strokeWidth={2} />
               </button>
@@ -8066,11 +8078,21 @@ else {
               {courseActionError ? <p className="branch-delete-copy" style={{ color: '#dc2626' }}>{courseActionError}</p> : null}
 
               <div className="branch-modal-actions">
-                <button type="button" className="branch-modal-cancel" onClick={closeDeleteCourseConfirm}>
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={closeDeleteCourseConfirm}
+                  disabled={isCourseDeleting}
+                >
                   Cancel
                 </button>
-                <button type="button" className="branch-modal-submit is-danger" onClick={handleDeleteCourseConfirm}>
-                  Delete
+                <button
+                  type="button"
+                  className="branch-modal-submit is-danger"
+                  onClick={handleDeleteCourseConfirm}
+                  disabled={isCourseDeleting}
+                >
+                  {isCourseDeleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>

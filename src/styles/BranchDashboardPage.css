@@ -672,6 +672,17 @@
   border-spacing: 0;
   table-layout: fixed;
 }
+body.branch-notification-menu-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+  height: 100%;
+}
+
+body.branch-notification-menu-open .main-area {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
 /* Header */
 .branch-course-table thead th {
   padding: 16px 14px;
