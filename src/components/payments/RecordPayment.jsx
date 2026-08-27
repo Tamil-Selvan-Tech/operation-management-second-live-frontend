@@ -1,15 +1,80 @@
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "./RecordPayment.css";
 import html2pdf from "html2pdf.js";
 import { request } from "../../services/apiClient";
 import { saveBranchPaymentHistoryEntry } from "../../lib/branchPaymentHistoryStore";
+import { loadBranchStudents } from "../../lib/branchStudentStore";
 
-const RecordPayment = ({ student, onClose }) => {
+const getStudentSearchText = (studentRecord) => {
+  const studentId = String(studentRecord?.studentId || "").trim();
+  const studentName = String(
+    studentRecord?.studentName || studentRecord?.name || ""
+  ).trim();
+
+  return `${studentId} ${studentName}`.trim().toLowerCase();
+};
+
+const getStudentSearchTokens = (studentRecord) => {
+  const studentId = String(studentRecord?.studentId || "").trim().toLowerCase();
+  const studentName = String(
+    studentRecord?.studentName || studentRecord?.name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  return [studentId, studentName].filter(Boolean);
+};
+
+const formatStudentSuggestionLabel = (studentRecord) => {
+  const studentId = String(studentRecord?.studentId || "").trim();
+  const studentName = String(
+    studentRecord?.studentName || studentRecord?.name || "Unnamed Student"
+  ).trim();
+
+  if (studentId && studentName) {
+    return `${studentName} (${studentId})`;
+  }
+
+  return studentName || studentId || "Student";
+};
+
+const getPendingInstallmentDefaults = (studentRecord) => {
+  const installmentSchedule = Array.isArray(studentRecord?.installmentSchedule)
+    ? studentRecord.installmentSchedule
+    : [];
+
+  const pendingInstallment = installmentSchedule.find((installment) => {
+    const status = String(installment?.status || "").toLowerCase();
+    return status !== "paid";
+  });
+
+  if (!pendingInstallment) {
+    return null;
+  }
+
+  const amount = Number(pendingInstallment?.amount || 0);
+  const amountPaid = Number(
+    pendingInstallment?.amountPaid ?? pendingInstallment?.paidAmount ?? 0
+  );
+  const pendingAmount = Math.max(amount - amountPaid, 0);
+
+  return {
+    payAgainst: `Installment ${pendingInstallment.installmentNumber}`,
+    amountToPay: String(pendingAmount),
+    amountReceived: String(pendingAmount),
+  };
+};
+
+const EMPTY_STUDENT = {};
+
+const RecordPayment = ({ student, students = [], onClose }) => {
+  const initialStudent = student?.studentId ? student : null;
+
   // =========================================================
   // FORM DATA
   // =========================================================
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     payAgainst: "",
     amountToPay: "",
     amountReceived: "",
@@ -20,7 +85,8 @@ const RecordPayment = ({ student, onClose }) => {
     branch: "",
     notes: "",
     paymentProof: null,
-  });
+    ...(getPendingInstallmentDefaults(initialStudent || null) || {}),
+  }));
 
   // =========================================================
   // STATE
@@ -36,19 +102,31 @@ const RecordPayment = ({ student, onClose }) => {
   const [isSavingPayment, setIsSavingPayment] = useState(false);
 
   const [studentIdInput, setStudentIdInput] = useState(
-    student?.studentId || ""
+    initialStudent?.studentId || ""
   );
 
-  const [selectedStudent, setSelectedStudent] = useState(student || null);
+  const [selectedStudent, setSelectedStudent] = useState(initialStudent);
 
   const [isLoadingStudent, setIsLoadingStudent] = useState(false);
   const [studentLookupError, setStudentLookupError] = useState("");
+  const [studentSearchResults, setStudentSearchResults] = useState([]);
+  const [showStudentSuggestions, setShowStudentSuggestions] =
+    useState(false);
+  const [isSearchingStudents, setIsSearchingStudents] = useState(false);
+  const studentSearchRequestIdRef = useRef(0);
+  const currentBranchScope = useMemo(
+    () => initialStudent?.branchId || initialStudent?.branchCode || initialStudent?.branchKey || "",
+    [initialStudent]
+  );
 
   // =========================================================
   // ACTIVE STUDENT
   // =========================================================
 
-  const activeStudent = selectedStudent || student || {};
+  const activeStudent = useMemo(
+    () => selectedStudent || initialStudent || EMPTY_STUDENT,
+    [selectedStudent, initialStudent]
+  );
 
   // =========================================================
   // STUDENT DATA
@@ -133,77 +211,109 @@ const RecordPayment = ({ student, onClose }) => {
     0
   );
 
-  // =========================================================
-  // AUTO SELECT FIRST PENDING INSTALLMENT
-  // =========================================================
+  const selectStudent = useCallback((studentRecord) => {
+    if (!studentRecord?.studentId) {
+      return;
+    }
+
+    setSelectedStudent(studentRecord);
+    setStudentIdInput(String(studentRecord.studentId || "").trim());
+    setStudentLookupError("");
+    setStudentSearchResults([]);
+    setShowStudentSuggestions(false);
+    setErrors({});
+    const installmentDefaults = getPendingInstallmentDefaults(studentRecord);
+    if (installmentDefaults) {
+      setFormData((previous) => ({
+        ...previous,
+        ...installmentDefaults,
+      }));
+    }
+  }, []);
+
+  const searchStudents = useCallback(async (searchTerm) => {
+    const query = String(searchTerm || "").trim();
+
+    if (!query) {
+      setStudentSearchResults([]);
+      setShowStudentSuggestions(false);
+      return [];
+    }
+
+    const requestId = studentSearchRequestIdRef.current + 1;
+    studentSearchRequestIdRef.current = requestId;
+
+    setIsSearchingStudents(true);
+
+    try {
+      const normalizedQuery = query.toLowerCase();
+      const localStudents =
+        Array.isArray(students) && students.length > 0
+          ? students
+          : loadBranchStudents(currentBranchScope);
+
+      const matches = localStudents.filter((record) => {
+        const haystack = getStudentSearchText(record);
+        const tokens = getStudentSearchTokens(record);
+
+        return (
+          haystack.includes(normalizedQuery) ||
+          tokens.some((token) => token.startsWith(normalizedQuery))
+        );
+      });
+
+      if (studentSearchRequestIdRef.current !== requestId) {
+        return matches;
+      }
+
+      setStudentSearchResults(matches.slice(0, 10));
+      setShowStudentSuggestions(true);
+
+      return matches;
+    } catch (error) {
+      console.error("Student search failed:", error);
+
+      if (studentSearchRequestIdRef.current === requestId) {
+        setStudentSearchResults([]);
+        setShowStudentSuggestions(false);
+      }
+
+      return [];
+    } finally {
+      if (studentSearchRequestIdRef.current === requestId) {
+        setIsSearchingStudents(false);
+      }
+    }
+  }, [currentBranchScope, students]);
 
   useEffect(() => {
-    if (!activeStudent?.installmentSchedule) {
+    if (selectedStudent) {
       return;
     }
 
-    if (
-      !Array.isArray(
-        activeStudent.installmentSchedule
-      )
-    ) {
+    const query = studentIdInput.trim();
+
+    if (!query) {
       return;
     }
 
-    const pendingInstallment =
-      activeStudent.installmentSchedule.find(
-        (installment) => {
-          const status = String(
-            installment?.status || ""
-          ).toLowerCase();
+    const debounceId = window.setTimeout(() => {
+      searchStudents(query);
+    }, 250);
 
-          return status !== "paid";
-        }
-      );
-
-    if (!pendingInstallment) {
-      return;
-    }
-
-    const amount = Number(
-      pendingInstallment?.amount || 0
-    );
-
-    const amountPaid = Number(
-      pendingInstallment?.amountPaid ??
-        pendingInstallment?.paidAmount ??
-        0
-    );
-
-    const pendingAmount = Math.max(
-      amount - amountPaid,
-      0
-    );
-
-    setFormData((previous) => ({
-      ...previous,
-
-      payAgainst: `Installment ${
-        pendingInstallment.installmentNumber
-      }`,
-
-      amountToPay: String(pendingAmount),
-
-      amountReceived: String(pendingAmount),
-    }));
-  }, [activeStudent]);
+    return () => window.clearTimeout(debounceId);
+  }, [studentIdInput, selectedStudent, searchStudents]);
 
   // =========================================================
   // STUDENT LOOKUP
   // =========================================================
 
   const handleStudentLookup = async () => {
-    const enteredStudentId =
-      studentIdInput.trim();
+    const enteredStudentQuery = studentIdInput.trim();
 
-    if (!enteredStudentId) {
+    if (!enteredStudentQuery) {
       setStudentLookupError(
-        "Please enter Student ID."
+        "Please enter Student ID or Student Name."
       );
       return;
     }
@@ -212,50 +322,47 @@ const RecordPayment = ({ student, onClose }) => {
     setStudentLookupError("");
 
     try {
-      const response = await request(
-        `/branch-students?studentId=${encodeURIComponent(
-          enteredStudentId
-        )}`,
-        {
-          method: "GET",
-        }
-      );
+      const matches = await searchStudents(enteredStudentQuery);
 
-      const responseData = response?.data;
-
-      let foundStudent = null;
-
-      if (Array.isArray(responseData)) {
-        foundStudent = responseData.find(
-          (item) =>
-            String(
-              item?.studentId || ""
-            ).toLowerCase() ===
-            enteredStudentId.toLowerCase()
-        );
-      } else {
-        foundStudent =
-          responseData?.student ||
-          responseData?.studentData ||
-          responseData;
-      }
-
-      if (!foundStudent?.studentId) {
+      if (!matches.length) {
         setStudentLookupError(
-          `No student found with ID ${enteredStudentId}.`
+          `No student found matching "${enteredStudentQuery}".`
         );
-
         setSelectedStudent(null);
-
+        setShowStudentSuggestions(false);
         return;
       }
 
-      setSelectedStudent(foundStudent);
+      const normalizedQuery = enteredStudentQuery.toLowerCase();
+      const exactMatch = matches.find((item) => {
+        const studentId = String(item?.studentId || "").trim().toLowerCase();
+        const studentName = String(
+          item?.studentName || item?.name || ""
+        )
+          .trim()
+          .toLowerCase();
 
-      setStudentLookupError("");
+        return (
+          studentId === normalizedQuery ||
+          studentName === normalizedQuery
+        );
+      });
 
-      // Clear previous form errors
-      setErrors({});
+      if (exactMatch) {
+        selectStudent(exactMatch);
+        return;
+      }
+
+      if (matches.length === 1) {
+        selectStudent(matches[0]);
+        return;
+      }
+
+      setStudentSearchResults(matches.slice(0, 10));
+      setShowStudentSuggestions(true);
+      setStudentLookupError(
+        `Multiple students found for "${enteredStudentQuery}". Please choose one from the list.`
+      );
     } catch (error) {
       console.error(
         "Student lookup failed:",
@@ -279,8 +386,6 @@ const RecordPayment = ({ student, onClose }) => {
       "en-IN"
     );
   };
-
-  const formatRupees = (amount) => `₹${formatCurrency(amount)}`;
 
   // =========================================================
   // NUMBER TO WORDS
@@ -400,28 +505,6 @@ const RecordPayment = ({ student, onClose }) => {
     }
 
     return `Rupees ${result.trim()} Only`;
-  };
-
-  // =========================================================
-  // DATE FORMAT
-  // =========================================================
-
-  const formatDate = (dateString) => {
-    if (!dateString) {
-      return "-";
-    }
-
-    const date = new Date(dateString);
-
-    if (Number.isNaN(date.getTime())) {
-      return "-";
-    }
-
-    return date.toLocaleDateString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
   };
 
   const formatDateDMY = (dateString) => {
@@ -1476,51 +1559,94 @@ const RecordPayment = ({ student, onClose }) => {
 
                 <>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "8px",
-                      alignItems: "stretch",
-                    }}
-                  >
+                  <div className="payment-student-search">
 
-                    <input
-                      type="text"
-                      id="studentId"
-                      value={studentIdInput}
+                    <div className="payment-student-search-row">
+
+                      <input
+                        type="text"
+                        id="studentId"
+                        value={studentIdInput}
                       onChange={(event) => {
-                        setStudentIdInput(
-                          event.target.value
-                        );
+                          const nextValue = event.target.value;
+                          setStudentIdInput(nextValue);
+                          setStudentLookupError("");
+                          const hasQuery = Boolean(nextValue.trim());
+                          setShowStudentSuggestions(hasQuery);
 
-                        setStudentLookupError("");
-                      }}
-                      onKeyDown={(event) => {
-                        if (
-                          event.key === "Enter"
-                        ) {
-                          event.preventDefault();
+                          if (!hasQuery) {
+                            setStudentSearchResults([]);
+                          }
+                        }}
+                        onFocus={() => {
+                          if (studentSearchResults.length > 0 && studentIdInput.trim()) {
+                            setShowStudentSuggestions(true);
+                          }
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") {
+                            event.preventDefault();
+                            handleStudentLookup();
+                          }
+                        }}
+                        placeholder="Enter Student ID or Name"
+                        aria-autocomplete="list"
+                        aria-expanded={showStudentSuggestions}
+                        aria-controls="student-search-results"
+                      />
 
-                          handleStudentLookup();
-                        }
-                      }}
-                      placeholder="Enter Student ID"
-                    />
+                      <button
+                        type="button"
+                        className="button button-solid"
+                        onClick={handleStudentLookup}
+                        disabled={isLoadingStudent || isSearchingStudents}
+                      >
+                        {isLoadingStudent || isSearchingStudents
+                          ? "Searching..."
+                          : "Search"}
+                      </button>
 
-                    <button
-                      type="button"
-                      className="button button-solid"
-                      onClick={
-                        handleStudentLookup
-                      }
-                      disabled={
-                        isLoadingStudent
-                      }
-                    >
-                      {isLoadingStudent
-                        ? "Loading..."
-                        : "Search"}
-                    </button>
+                    </div>
+
+                    {showStudentSuggestions &&
+                      studentIdInput.trim() &&
+                      studentSearchResults.length > 0 && (
+                        <div
+                          className="payment-student-search-dropdown"
+                          id="student-search-results"
+                          role="listbox"
+                          aria-label="Student search results"
+                        >
+                          {studentSearchResults.map((result) => (
+                            <button
+                              key={String(result?.id || result?.studentId || formatStudentSuggestionLabel(result))}
+                              type="button"
+                              className="payment-student-search-option"
+                              role="option"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                selectStudent(result);
+                              }}
+                            >
+                              <span className="payment-student-search-option-name">
+                                {formatStudentSuggestionLabel(result)}
+                              </span>
+                              <span className="payment-student-search-option-meta">
+                                {String(result?.courseName || result?.courseInterested || result?.batchName || "").trim()}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                    {showStudentSuggestions &&
+                      studentIdInput.trim() &&
+                      !isSearchingStudents &&
+                      studentSearchResults.length === 0 && (
+                        <div className="payment-student-search-empty">
+                          No students found for "{studentIdInput.trim()}".
+                        </div>
+                      )}
 
                   </div>
 

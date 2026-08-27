@@ -1566,7 +1566,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [paymentHistoryDate, setPaymentHistoryDate] = useState("");
 const [selectedPaymentHistory, setSelectedPaymentHistory] = useState(null);
 const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
-const [paymentHistoryMode, setPaymentHistoryMode] = useState('all');
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPosition, setStudentActionMenuPosition] = useState({ top: 0, left: 0 })
   const studentActionMenuRef = useRef(null)
@@ -4106,10 +4105,6 @@ paymentPlanId: '',
       !paymentHistoryDate ||
       (record.dateRaw && new Date(record.dateRaw).toISOString().slice(0, 10) === paymentHistoryDate)
 
-    const matchesMode =
-      paymentHistoryMode === 'all' ||
-      String(record.mode).toLowerCase() === paymentHistoryMode.toLowerCase()
-
     let matchesQuickFilter = true
     if (paymentHistoryFilter === 'today') {
       matchesQuickFilter = Boolean(record.dateRaw) &&
@@ -4123,9 +4118,9 @@ paymentPlanId: '',
       }
     }
 
-    return matchesSearch && matchesDate && matchesMode && matchesQuickFilter
+    return matchesSearch && matchesDate && matchesQuickFilter
   })
-}, [allPaymentHistoryRecords, paymentHistorySearch, paymentHistoryDate, paymentHistoryMode, paymentHistoryFilter])
+}, [allPaymentHistoryRecords, paymentHistorySearch, paymentHistoryDate, paymentHistoryFilter])
 
 const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
   (acc, row) => {
@@ -4188,7 +4183,7 @@ const visiblePaymentHistoryRecords = useMemo(() => {
 
 useEffect(() => {
   setPaymentHistoryPage(1)
-}, [paymentHistorySearch, paymentHistoryDate, paymentHistoryMode, paymentHistoryFilter])
+}, [paymentHistorySearch, paymentHistoryDate, paymentHistoryFilter])
 
   const filteredBranchStudents = useMemo(() => {
     const q = studentSearchTerm.trim().toLowerCase()
@@ -5853,6 +5848,7 @@ else {
     >
       <RecordPayment
         student={recordPaymentStudent}
+        students={branchStudents}
         onClose={() => {
           setRecordPaymentStudent(null);
           void reloadBranchStudents();
@@ -5944,30 +5940,6 @@ else {
             }}
           />
 
-          {/* PAYMENT MODE */}
-          <select
-            value={paymentHistoryMode}
-            onChange={(e) =>
-              setPaymentHistoryMode(e.target.value)
-            }
-            style={{
-              height: '46px',
-              padding: '0 12px',
-              borderRadius: '8px',
-              border: '1px solid #d1d5db',
-            }}
-          >
-            <option value="all">
-              All Payment Modes
-            </option>
-
-            <option value="Cash">Cash</option>
-            <option value="UPI">UPI</option>
-            <option value="Card">Card</option>
-            <option value="Bank">Bank</option>
-            <option value="Cheque">Cheque</option>
-          </select>
-
         </div>
 
 
@@ -6024,7 +5996,6 @@ else {
                 <th>Student</th>
                 <th>Course</th>
                 <th>Amount</th>
-                <th>Payment Mode</th>
                 <th>Payment Date</th>
                 {/* <th>Receipt</th> */}
                 <th>Action</th>
@@ -6049,11 +6020,6 @@ else {
                         {formatBranchRupees(record.amount)}
                       </strong>
                     </td>
-                    <td>
-                      <span className="branch-student-payment-status">
-                        {formatBranchPaymentMode(record)}
-                      </span>
-                    </td>
                     <td>{record.date}</td>
 
                     <td>
@@ -6072,7 +6038,7 @@ else {
               ) : (
                 <tr>
                   <td
-                    colSpan="8"
+                    colSpan="6"
                     className="branch-course-empty-state"
                   >
                     No payment history found.
@@ -6200,12 +6166,6 @@ else {
                   </strong>
                 </div>
 
-                <div className="confirmation-detail-row">
-  <span>Payment Mode</span>
-  <strong>
-    {formatBranchPaymentMode(selectedPaymentHistory)}
-  </strong>
-</div>
                 <div className="confirmation-detail-row">
                   <span>Payment Date</span>
                   <strong>
