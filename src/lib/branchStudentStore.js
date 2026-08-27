@@ -57,9 +57,30 @@ function normalizeStoredStudentRecord(record = {}) {
     branchId: String(record.branchId || '').trim(),
     branchCode: String(record.branchCode || record.branchKey || '').trim(),
     studentId: String(record.studentId || '').trim(),
+    courseProgress: record.courseProgress,
+    courseCompletionPercentage: record.courseCompletionPercentage,
+    progress: record.progress,
     _fromBackend: Boolean(record._fromBackend),
     _isExistingRecord: Boolean(record._isExistingRecord),
   }
+}
+
+function mergePreservedStudentFields(incoming = {}, existing = {}) {
+  const nextRecord = { ...incoming }
+
+  if (nextRecord.courseProgress === undefined && existing.courseProgress !== undefined) {
+    nextRecord.courseProgress = existing.courseProgress
+  }
+
+  if (nextRecord.courseCompletionPercentage === undefined && existing.courseCompletionPercentage !== undefined) {
+    nextRecord.courseCompletionPercentage = existing.courseCompletionPercentage
+  }
+
+  if (nextRecord.progress === undefined && existing.progress !== undefined) {
+    nextRecord.progress = existing.progress
+  }
+
+  return nextRecord
 }
 
 function readAll() {
@@ -286,6 +307,35 @@ export async function refreshBranchStudents(branchId) {
   }
 
   const all = readAll()
+  const existingByStudentId = new Map(
+    all
+      .filter((record) => recordMatchesBranchScope(record, branchScopeKeys))
+      .map((record) => [String(record.studentId || '').trim(), record])
+      .filter(([studentId]) => Boolean(studentId)),
+  )
+  const existingByRecordId = new Map(
+    all
+      .filter((record) => recordMatchesBranchScope(record, branchScopeKeys))
+      .map((record) => [String(record.id || record._id || record.recordId || record._recordId || '').trim(), record])
+      .filter(([recordId]) => Boolean(recordId)),
+  )
+
+  records = records.map((record) => {
+    const recordId = String(record.id || record._id || record.recordId || record._recordId || '').trim()
+    const studentId = String(record.studentId || '').trim()
+    const existingRecord = existingByRecordId.get(recordId) || existingByStudentId.get(studentId) || null
+    return normalizeStoredStudentRecord(
+      mergePreservedStudentFields(
+        {
+          ...record,
+          _fromBackend: true,
+          _isExistingRecord: true,
+        },
+        existingRecord || {},
+      ),
+    )
+  })
+
   const remaining = all.filter((record) => !recordMatchesBranchScope(record, branchScopeKeys))
   writeAll([...records, ...remaining])
   dispatchChange()
@@ -367,7 +417,13 @@ export async function saveBranchStudent(student) {
     || ''
   ).trim()
   const savedRecord = normalizeStoredStudentRecord({
-    ...(backendRecord || nextStudent),
+    ...mergePreservedStudentFields(
+      {
+        ...(backendRecord || {}),
+        ...nextStudent,
+      },
+      existingStudent || {},
+    ),
     id: resolvedRecordId,
     _id: resolvedRecordId,
     recordId: resolvedRecordId,

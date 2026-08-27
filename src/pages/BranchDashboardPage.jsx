@@ -71,6 +71,11 @@ import {
   deleteBranchStudent as removeBranchStudent,
   getNextStudentId,
 } from '../lib/branchStudentStore'
+import {
+  FACULTY_TODAY_WORK_SYNC_EVENT,
+  listFacultyTodayWorkEntries,
+} from '../lib/facultyTodayWorkStore'
+import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
@@ -457,6 +462,49 @@ function formatBranchPercentage(value) {
   if (!Number.isFinite(value)) return '0'
   const rounded = Math.round(value * 100) / 100
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '')
+}
+
+function normalizeBranchStudentLookupKey(student = {}) {
+  return String(student?.id || student?.studentId || '').trim().toLowerCase()
+}
+
+function resolveBranchStudentCourse(student = {}, courses = []) {
+  const studentCourseId = String(student?.courseId || student?.course?.id || '').trim()
+  const studentCourseName = String(
+    student?.courseName ||
+    student?.courseInterested ||
+    student?.course?.name ||
+    '',
+  ).trim().toLowerCase()
+
+  if (studentCourseId) {
+    const matchedCourse = Array.isArray(courses)
+      ? courses.find((course) => String(course?.id || '').trim() === studentCourseId)
+      : null
+
+    if (matchedCourse) {
+      return matchedCourse
+    }
+  }
+
+  if (studentCourseName) {
+    const matchedCourseByName = Array.isArray(courses)
+      ? courses.find((course) => {
+          const courseName = String(course?.name || course?.courseName || course?.title || '').trim().toLowerCase()
+          return courseName && courseName === studentCourseName
+        })
+      : null
+
+    if (matchedCourseByName) {
+      return matchedCourseByName
+    }
+  }
+
+  if (student && typeof student.course === 'object') {
+    return student.course
+  }
+
+  return null
 }
 
 function formatBranchPaymentDate(date) {
@@ -1472,6 +1520,8 @@ const BRANCH_PAYMENTS_PER_PAGE = 10
   const [stuCityOptions, setStuCityOptions] = useState([])
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
+  const [facultyTodayWorkEntries, setFacultyTodayWorkEntries] = useState([])
+  const branchCourseProgressBackfillSignatureRef = useRef('')
 
   useEffect(() => {
   if (viewStudentDrawer) {
@@ -1674,6 +1724,18 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
   }, [])
 
+  const loadFacultyTodayWorkEntries = useCallback(async () => {
+    try {
+      const entries = await listFacultyTodayWorkEntries()
+      setFacultyTodayWorkEntries(Array.isArray(entries) ? entries : [])
+      return Array.isArray(entries) ? entries : []
+    } catch (error) {
+      console.error('Failed to load faculty today work entries:', error)
+      setFacultyTodayWorkEntries([])
+      return []
+    }
+  }, [])
+
   useEffect(() => {
     if (!embeddedMode && (!isAuthenticated || role !== 'branch-admin')) {
       navigate('/login', { replace: true })
@@ -1808,6 +1870,20 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     return unsubscribe
   }, [loadBranchCourses])
+
+  useEffect(() => {
+    void loadFacultyTodayWorkEntries()
+
+    const handleTodayWorkChanged = () => {
+      void loadFacultyTodayWorkEntries()
+    }
+
+    window.addEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, handleTodayWorkChanged)
+
+    return () => {
+      window.removeEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, handleTodayWorkChanged)
+    }
+  }, [loadFacultyTodayWorkEntries])
 
   useEffect(() => {
     const unsubscribe = subscribeBranchInstallmentTemplateChanges(() => {
@@ -3642,6 +3718,20 @@ paymentPlanId: '',
     void reloadBranchStudents()
   }, [reloadBranchStudents])
 
+  useEffect(() => {
+    const handleBranchStudentsChanged = () => {
+      void reloadBranchStudents()
+    }
+
+    window.addEventListener('cispro:branch-students-changed', handleBranchStudentsChanged)
+    window.addEventListener('cispro:students-changed', handleBranchStudentsChanged)
+
+    return () => {
+      window.removeEventListener('cispro:branch-students-changed', handleBranchStudentsChanged)
+      window.removeEventListener('cispro:students-changed', handleBranchStudentsChanged)
+    }
+  }, [reloadBranchStudents])
+
   // Load country options for student form
   useEffect(() => {
     let cancelled = false
@@ -3885,22 +3975,140 @@ const visibleBranchPaymentRows = useMemo(() => {
     return filteredBranchStudents.slice(start, start + BRANCH_STUDENTS_PER_PAGE)
   }, [filteredBranchStudents, safeStudentPage])
 
+  const branchStudentCourseProgressByKey = useMemo(() => {
+    const progressByStudentKey = new Map()
+
+    branchStudents.forEach((student) => {
+      const studentKey = normalizeBranchStudentLookupKey(student)
+      if (!studentKey) return
+
+      const storedProgress = Number(
+        student?.courseProgress ??
+        student?.courseCompletionPercentage ??
+        student?.progress ??
+        NaN,
+      )
+      if (Number.isFinite(storedProgress)) {
+        progressByStudentKey.set(studentKey, Math.min(100, Math.max(0, storedProgress)))
+        return
+      }
+
+      const course = resolveBranchStudentCourse(student, branchCourseCards)
+      const progressSummary = course
+        ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, course, student)
+        : null
+      const courseProgress = Number(progressSummary?.courseProgress)
+
+      progressByStudentKey.set(
+        studentKey,
+        Number.isFinite(courseProgress) ? Math.min(100, Math.max(0, courseProgress)) : null,
+      )
+    })
+
+    return progressByStudentKey
+  }, [branchCourseCards, branchStudents, facultyTodayWorkEntries])
+
+  const branchStudentProgressByNotificationKey = useMemo(() => {
+    const progressByStudentKey = new Map()
+
+    branchNotificationRecords.forEach((notification) => {
+      const kind = String(notification?.kind || '').trim().toLowerCase()
+      if (!kind.endsWith('progress-status')) return
+
+      const studentKey = normalizeBranchStudentLookupKey({
+        studentId: notification?.studentId,
+      })
+      const courseProgress = Number(notification?.courseProgress)
+
+      if (!studentKey || !Number.isFinite(courseProgress)) return
+
+      progressByStudentKey.set(
+        studentKey,
+        Math.min(100, Math.max(0, courseProgress)),
+      )
+    })
+
+    return progressByStudentKey
+  }, [branchNotificationRecords])
+
+  useEffect(() => {
+    if (!branchStudents.length || !branchCourseCards.length || !facultyTodayWorkEntries.length) {
+      return undefined
+    }
+
+    const updates = branchStudents
+      .map((student) => {
+        const studentKey = normalizeBranchStudentLookupKey(student)
+        if (!studentKey) return null
+
+        const course = resolveBranchStudentCourse(student, branchCourseCards)
+        if (!course) return null
+
+        const progressSummary = buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, course, student)
+        const computedProgress = Number(progressSummary?.courseProgress)
+        if (!Number.isFinite(computedProgress)) return null
+
+        const normalizedProgress = Math.min(100, Math.max(0, computedProgress))
+        const storedProgress = Number(student?.courseProgress)
+        const needsUpdate =
+          !Number.isFinite(storedProgress) ||
+          Math.abs(storedProgress - normalizedProgress) > 0.01
+
+        if (!needsUpdate) return null
+
+        return {
+          ...student,
+          courseProgress: normalizedProgress,
+        }
+      })
+      .filter(Boolean)
+
+    if (!updates.length) {
+      return undefined
+    }
+
+    const signature = updates
+      .map((student) => `${String(student.studentId || student.id || '').trim()}:${String(student.courseProgress ?? '').trim()}`)
+      .sort()
+      .join('|')
+
+    if (!signature || branchCourseProgressBackfillSignatureRef.current === signature) {
+      return undefined
+    }
+
+    branchCourseProgressBackfillSignatureRef.current = signature
+
+    let cancelled = false
+
+    const runBackfill = async () => {
+      try {
+        await Promise.allSettled(updates.map((student) => saveBranchStudent(student)))
+        if (cancelled) return
+        void reloadBranchStudents()
+      } catch (error) {
+        console.error('Failed to backfill branch course progress:', error)
+        branchCourseProgressBackfillSignatureRef.current = ''
+      }
+    }
+
+    void runBackfill()
+
+    return () => {
+      cancelled = true
+    }
+  }, [branchCourseCards, branchStudents, facultyTodayWorkEntries, reloadBranchStudents])
+
   const branchProgressComparisonNotifications = useMemo(() => {
     return branchStudents
       .map((stu) => {
         const studentIdLabel = String(stu.studentId || stu.id || '-').trim()
         const studentName = String(stu.studentName || '-').trim()
         const installmentProgress = getBranchStudentInstallmentProgress(stu)
-        const courseProgressRaw = Number(
-          stu.courseProgress ??
-          stu.courseCompletionPercentage ??
-          stu.progress ??
-          installmentProgress.paidInstallmentPercentage ??
-          0,
-        )
-        const courseProgressPercentage = Number.isFinite(courseProgressRaw)
-          ? Math.min(100, Math.max(0, courseProgressRaw))
-          : null
+        const studentKey = normalizeBranchStudentLookupKey(stu)
+        const courseProgressPercentage =
+          branchStudentProgressByNotificationKey.get(studentKey) ??
+          branchStudentCourseProgressByKey.get(studentKey) ??
+          null
         const paidProgress = Number.isFinite(Number(installmentProgress.paidInstallmentPercentage))
           ? Number(installmentProgress.paidInstallmentPercentage)
           : null
@@ -3919,7 +4127,7 @@ const visibleBranchPaymentRows = useMemo(() => {
         })
       })
       .filter(Boolean)
-  }, [branchStudents])
+  }, [branchStudentCourseProgressByKey, branchStudentProgressByNotificationKey, branchStudents])
 
   useEffect(() => {
     if (!branchProgressComparisonNotifications.length) {
@@ -4638,16 +4846,6 @@ const visibleBranchPaymentRows = useMemo(() => {
             : Number(stu.paidAmount ?? stu.totalPaid ?? stu.amountPaid ?? 0)
 
           const installmentProgress = getBranchStudentInstallmentProgress(stu)
-          const courseProgressRaw = Number(
-            stu.courseProgress ??
-            stu.courseCompletionPercentage ??
-            stu.progress ??
-            installmentProgress.paidInstallmentPercentage ??
-            0,
-          )
-          const courseProgressPercentage = Number.isFinite(courseProgressRaw)
-            ? Math.min(100, Math.max(0, courseProgressRaw))
-            : 0
 
           const nextInstallment = installments.find((installment) => {
             const installmentAmount = Number(installment.amount ?? installment.installmentAmount ?? 0)
@@ -4800,20 +4998,34 @@ else {
                 </div>
               </td>
               <td>
-                <div className="branch-student-paid-cell">
-                  <span className="branch-student-paid-amount">{formatBranchPercentage(courseProgressPercentage)}%</span>
-                  <div className="branch-student-paid-progress">
-                    <div className="branch-student-paid-progress-bar" aria-hidden="true">
-                      <span
-                        className="branch-student-paid-progress-fill"
-                        style={{ width: `${courseProgressPercentage}%` }}
-                      />
+                {(() => {
+                  const studentKey = normalizeBranchStudentLookupKey(stu)
+                  const studentCourseProgress =
+                    branchStudentCourseProgressByKey.get(studentKey) ??
+                    branchStudentProgressByNotificationKey.get(studentKey)
+                  const hasCourseProgress = Number.isFinite(studentCourseProgress)
+
+                  return hasCourseProgress ? (
+                    <div className="branch-student-paid-cell">
+                      <span className="branch-student-paid-amount">
+                        {formatBranchPercentage(studentCourseProgress)}%
+                      </span>
+                      <div className="branch-student-paid-progress">
+                        <div className="branch-student-paid-progress-bar" aria-hidden="true">
+                          <span
+                            className="branch-student-paid-progress-fill"
+                            style={{ width: `${studentCourseProgress}%` }}
+                          />
+                        </div>
+                        <span className="branch-student-paid-progress-label">
+                          {formatBranchPercentage(studentCourseProgress)}% Complete
+                        </span>
+                      </div>
                     </div>
-                    <span className="branch-student-paid-progress-label">
-                      {formatBranchPercentage(courseProgressPercentage)}% Complete
-                    </span>
-                  </div>
-                </div>
+                  ) : (
+                    <span className="faculty-today-work-empty-label">-</span>
+                  )
+                })()}
               </td>
               <td>
                 {nextInstallment ? (
@@ -4968,7 +5180,7 @@ else {
         })
       ) : (
         <tr>
-          <td colSpan="9" className="branch-course-empty-state">
+          <td colSpan="10" className="branch-course-empty-state">
             No students yet. Use + Add Student to add the first one.
           </td>
         </tr>

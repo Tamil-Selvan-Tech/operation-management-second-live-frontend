@@ -58,7 +58,7 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import { loadBranchStudents } from '../lib/branchStudentStore'
+import { loadBranchStudents, saveBranchStudent } from '../lib/branchStudentStore'
 import {
   loadNotifications as loadStoredNotifications,
   markNotificationsAsRead,
@@ -1668,7 +1668,7 @@ useEffect(() => {
     setTodayWorkError('')
 
     try {
-      await saveFacultyTodayWorkEntry({
+      const savedEntry = await saveFacultyTodayWorkEntry({
         facultyId: currentFacultyIdentity.facultyId,
         facultyProfileId: currentFacultyIdentity.facultyId,
         facultyName: currentFacultyIdentity.facultyName,
@@ -1692,6 +1692,27 @@ useEffect(() => {
           }
         }),
       })
+
+      const nextWorkEntries = [...facultyTodayWorkEntries, savedEntry].filter(Boolean)
+      const progressUpdates = selectedStudents
+        .map((student) => {
+          const progressSummary = buildFacultyTodayWorkProgressSummary(nextWorkEntries, selectedCourse || {}, student)
+          const courseProgress = Number(progressSummary?.courseProgress)
+
+          if (!Number.isFinite(courseProgress)) {
+            return null
+          }
+
+          return {
+            ...student,
+            courseProgress: Math.min(100, Math.max(0, courseProgress)),
+          }
+        })
+        .filter(Boolean)
+
+      if (progressUpdates.length) {
+        await Promise.allSettled(progressUpdates.map((student) => saveBranchStudent(student)))
+      }
 
       closeTodayWorkModal()
     } catch (error) {
