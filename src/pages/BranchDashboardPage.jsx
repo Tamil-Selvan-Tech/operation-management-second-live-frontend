@@ -509,14 +509,48 @@ function normalizeBranchStudentLookupKey(student = {}) {
   return String(student?.id || student?.studentId || '').trim().toLowerCase()
 }
 
+function getBranchStudentLookupKeys(student = {}) {
+  return Array.from(
+    new Set(
+      [
+        student?.id,
+        student?.studentId,
+        student?.recordId,
+        student?._recordId,
+        student?.originalStudentId,
+        student?._originalStudentId,
+      ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  )
+}
+
 function resolveBranchStudentCourse(student = {}, courses = []) {
   const studentCourseId = String(student?.courseId || student?.course?.id || '').trim()
+  const studentCourseCode = String(student?.courseCode || student?.course?.courseCode || '').trim().toLowerCase()
   const studentCourseName = String(
     student?.courseName ||
     student?.courseInterested ||
     student?.course?.name ||
     '',
   ).trim().toLowerCase()
+  const studentFacultyId = String(student?.facultyId || student?.course?.facultyId || '').trim().toLowerCase()
+  const studentFacultyName = String(student?.facultyName || student?.course?.facultyName || '').trim().toLowerCase()
+
+  const matchesFaculty = (course = {}) => {
+    const assignedFaculty = Array.isArray(course?.assignedFaculty) ? course.assignedFaculty : []
+    if (!assignedFaculty.length) return false
+
+    return assignedFaculty.some((faculty) => {
+      const facultyId = String(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || '').trim().toLowerCase()
+      const facultyName = String(faculty?.name || faculty?.facultyName || '').trim().toLowerCase()
+      return (
+        (studentFacultyId && facultyId && facultyId === studentFacultyId) ||
+        (studentFacultyName && facultyName && facultyName === studentFacultyName)
+      )
+    })
+  }
 
   if (studentCourseId) {
     const matchedCourse = Array.isArray(courses)
@@ -525,6 +559,16 @@ function resolveBranchStudentCourse(student = {}, courses = []) {
 
     if (matchedCourse) {
       return matchedCourse
+    }
+  }
+
+  if (studentCourseCode) {
+    const matchedCourseByCode = Array.isArray(courses)
+      ? courses.find((course) => String(course?.courseCode || '').trim().toLowerCase() === studentCourseCode)
+      : null
+
+    if (matchedCourseByCode) {
+      return matchedCourseByCode
     }
   }
 
@@ -539,6 +583,14 @@ function resolveBranchStudentCourse(student = {}, courses = []) {
     if (matchedCourseByName) {
       return matchedCourseByName
     }
+  }
+
+  const matchedCourseByFaculty = Array.isArray(courses)
+    ? courses.find((course) => matchesFaculty(course))
+    : null
+
+  if (matchedCourseByFaculty) {
+    return matchedCourseByFaculty
   }
 
   if (student && typeof student.course === 'object') {
@@ -4288,8 +4340,8 @@ useEffect(() => {
     const progressByStudentKey = new Map()
 
     branchStudents.forEach((student) => {
-      const studentKey = normalizeBranchStudentLookupKey(student)
-      if (!studentKey) return
+      const studentKeys = getBranchStudentLookupKeys(student)
+      if (!studentKeys.length) return
 
       const storedProgress = Number(
         student?.courseProgress ??
@@ -4298,7 +4350,9 @@ useEffect(() => {
         NaN,
       )
       if (Number.isFinite(storedProgress)) {
-        progressByStudentKey.set(studentKey, Math.min(100, Math.max(0, storedProgress)))
+        studentKeys.forEach((key) => {
+          progressByStudentKey.set(key, Math.min(100, Math.max(0, storedProgress)))
+        })
         return
       }
 
@@ -4308,10 +4362,13 @@ useEffect(() => {
         : null
       const courseProgress = Number(progressSummary?.courseProgress)
 
-      progressByStudentKey.set(
-        studentKey,
-        Number.isFinite(courseProgress) ? Math.min(100, Math.max(0, courseProgress)) : null,
-      )
+      const normalizedProgress = Number.isFinite(courseProgress)
+        ? Math.min(100, Math.max(0, courseProgress))
+        : null
+
+      studentKeys.forEach((key) => {
+        progressByStudentKey.set(key, normalizedProgress)
+      })
     })
 
     return progressByStudentKey
@@ -4331,10 +4388,7 @@ useEffect(() => {
 
       if (!studentKey || !Number.isFinite(courseProgress)) return
 
-      progressByStudentKey.set(
-        studentKey,
-        Math.min(100, Math.max(0, courseProgress)),
-      )
+      progressByStudentKey.set(studentKey, Math.min(100, Math.max(0, courseProgress)))
     })
 
     return progressByStudentKey
@@ -5341,10 +5395,22 @@ else {
               </td>
               <td>
                 {(() => {
-                  const studentKey = normalizeBranchStudentLookupKey(stu)
+                  const studentKeys = getBranchStudentLookupKeys(stu)
+                  const resolvedCourse = resolveBranchStudentCourse(stu, branchCourseCards)
+                  const directCourseProgressSummary = resolvedCourse
+                    ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, resolvedCourse, stu)
+                    : null
+                  const directCourseProgress = Number(directCourseProgressSummary?.courseProgress)
+                  const storedOrNotifiedProgress = studentKeys
+                    .map((key) =>
+                      branchStudentCourseProgressByKey.get(key) ??
+                      branchStudentProgressByNotificationKey.get(key),
+                    )
+                    .find((value) => Number.isFinite(value))
                   const studentCourseProgress =
-                    branchStudentCourseProgressByKey.get(studentKey) ??
-                    branchStudentProgressByNotificationKey.get(studentKey)
+                    Number.isFinite(directCourseProgress)
+                      ? Math.min(100, Math.max(0, directCourseProgress))
+                      : storedOrNotifiedProgress
                   const hasCourseProgress = Number.isFinite(studentCourseProgress)
 
                   return hasCourseProgress ? (
