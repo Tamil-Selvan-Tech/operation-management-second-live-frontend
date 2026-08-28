@@ -1760,7 +1760,8 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       sortOrder: 'desc',
     })
 
-    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [])
+    const activeBranchId = branchProfile?.id || branchProfile?.branchId || ''
+    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [], activeBranchId)
     const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
     setBranchCourseCards((currentCourses) => {
       const currentCoursesById = new Map(
@@ -1794,7 +1795,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       })
     })
     return result
-  }, [])
+  }, [branchProfile?.branchId, branchProfile?.id])
 
   const loadFacultyList = useCallback(async () => {
     try {
@@ -1938,7 +1939,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         if (!isMounted) return
         if (coursesResult.status === 'fulfilled' || coursesResult.value?.data) {
           setBranchCourseCards(
-            mergeBranchCoursesWithSnapshot(Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : []),
+            mergeBranchCoursesWithSnapshot(
+              Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : [],
+              branchData?.id || branchData?.branchId || '',
+            ),
           )
         } else {
           setBranchCourseCards([])
@@ -1958,7 +1962,12 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       if (coursesResult.status === 'fulfilled') {
         setBranchCourseCards(
-          mergeBranchCoursesWithSnapshot(Array.isArray(coursesResult.value?.data) ? coursesResult.value.data : []),
+          mergeBranchCoursesWithSnapshot(
+            Array.isArray(coursesResult.value?.data) ? coursesResult.value.data : [],
+            branchResult.status === 'fulfilled'
+              ? (branchResult.value?.id || branchResult.value?.branchId || '')
+              : (branchProfile?.id || branchProfile?.branchId || ''),
+          ),
         )
       } else {
         setBranchCourseCards([])

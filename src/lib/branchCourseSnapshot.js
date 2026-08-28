@@ -48,6 +48,20 @@ export function loadBranchCourseSnapshot() {
   }
 }
 
+function normalizeBranchScopeId(value = '') {
+  return String(value || '').trim().toLowerCase()
+}
+
+function matchesBranchScope(course = {}, branchId = '') {
+  const scope = normalizeBranchScopeId(branchId)
+  if (!scope) return true
+
+  const courseBranchId = normalizeBranchScopeId(course?.branchId)
+  const courseBranchCode = normalizeBranchScopeId(course?.branchCode)
+
+  return courseBranchId === scope || courseBranchCode === scope
+}
+
 export function saveBranchCourseSnapshot(records) {
   try {
     const storage = getStorage()
@@ -67,9 +81,9 @@ export function saveBranchCourseSnapshot(records) {
   }
 }
 
-export function mergeBranchCoursesWithSnapshot(records) {
+export function mergeBranchCoursesWithSnapshot(records, branchId = '') {
   const primary = normalizeBranchCourseList(Array.isArray(records) ? records : [])
-  const snapshot = loadBranchCourseSnapshot()
+  const snapshot = loadBranchCourseSnapshot().filter((course) => matchesBranchScope(course, branchId))
 
   if (!primary.length) return snapshot
   if (!snapshot.length) return primary
