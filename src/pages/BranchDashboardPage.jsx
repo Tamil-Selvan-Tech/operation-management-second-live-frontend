@@ -90,6 +90,7 @@ import RecordPayment from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
 import {
   groupByDate,
+  doesBranchNotificationBelongToBranch,
   normalizeBranchNotification,
 } from '../data/branchNotificationsData'
 import {
@@ -2856,6 +2857,14 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const branchAdmin = branchProfile?.branchAdminName || user?.name || 'Branch Admin'
   const branchAdminDisplay = formatBranchAdminDisplayName(branchAdmin)
   const branchEmail = branchProfile?.branchEmail || user?.email || 'branch@example.com'
+  const branchScope = useMemo(
+    () => ({
+      id: String(branchProfile?.id || branchProfile?.branchId || '').trim(),
+      branchId: String(branchProfile?.branchId || branchProfile?.id || '').trim(),
+      branchEmail: String(branchProfile?.branchEmail || '').trim().toLowerCase(),
+    }),
+    [branchProfile?.branchEmail, branchProfile?.branchId, branchProfile?.id],
+  )
   const branchLocation = branchProfile?.branchAddress || 'Assigned location'
   const mustResetPassword = Boolean(
     session?.user?.mustResetPassword ??
@@ -2872,8 +2881,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             String(notification.kind || '').startsWith('faculty-') ||
             String(notification.kind || '').startsWith('course-edit-'),
         )
+        .filter((notification) => doesBranchNotificationBelongToBranch(notification, branchScope))
         .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
-    [branchNotificationRecords],
+    [branchNotificationRecords, branchScope],
   )
   const branchNotificationSections = useMemo(
     () => groupByDate(normalizedBranchNotifications),

@@ -67,6 +67,8 @@ export function normalizeBranchNotification(notification = {}) {
     kind === 'branch-course-edit-updated' || kind === 'course-edit-module-updated'
   const isProgressStatus =
     kind === 'faculty-progress-status' || kind === 'branch-progress-status'
+  const branchId = String(notification.branchId || notification.targetBranchId || '').trim()
+  const branchEmail = String(notification.targetBranchEmail || '').trim().toLowerCase()
 
   return {
     id: String(notification.id || '').trim(),
@@ -131,6 +133,9 @@ export function normalizeBranchNotification(notification = {}) {
           : 'batches'),
     facultyName: String(notification.facultyName || '').trim(),
     facultyEmail: String(notification.facultyEmail || '').trim(),
+    branchId,
+    targetBranchId: branchId,
+    targetBranchEmail: branchEmail,
     targetBranchName: String(notification.targetBranchName || '').trim(),
     courseId: String(notification.courseId || '').trim(),
     courseCode: String(notification.courseCode || '').trim(),
@@ -151,6 +156,31 @@ export function normalizeBranchNotification(notification = {}) {
     statusLabel: String(notification.statusLabel || '').trim(),
     recipientLabel: String(notification.recipientLabel || '').trim(),
   }
+}
+
+export function doesBranchNotificationBelongToBranch(notification = {}, branch = {}) {
+  const normalizedNotification = normalizeBranchNotification(notification)
+  const normalizedBranchId = String(branch.id || branch.branchId || '').trim()
+  const normalizedBranchEmail = String(branch.branchEmail || '').trim().toLowerCase()
+
+  if (!normalizedBranchId && !normalizedBranchEmail) {
+    return false
+  }
+
+  const notificationBranchId = String(
+    normalizedNotification.targetBranchId || normalizedNotification.branchId || '',
+  ).trim()
+  const notificationBranchEmail = String(normalizedNotification.targetBranchEmail || '').trim().toLowerCase()
+
+  if (normalizedBranchId && notificationBranchId) {
+    return notificationBranchId === normalizedBranchId
+  }
+
+  if (normalizedBranchEmail && notificationBranchEmail) {
+    return notificationBranchEmail === normalizedBranchEmail
+  }
+
+  return false
 }
 
 export function groupByDate(notifications = []) {

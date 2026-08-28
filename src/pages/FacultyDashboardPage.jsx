@@ -2037,6 +2037,11 @@ const nextName = trimmedValue
     setCourseRequestError('')
 
     try {
+      const facultyBranch = facultyDetails?.branch || {}
+      const targetBranchId = String(currentFacultyIdentity.branchId || facultyBranch.id || facultyBranch.branchId || '').trim()
+      const targetBranchEmail = String(facultyBranch.branchEmail || '').trim().toLowerCase()
+      const targetBranchName = String(facultyBranch.branchName || '').trim()
+
       const response = await createCourseEditRequest({
         branchCourseId: selectedCourse.id,
         courseId: selectedCourse.id,
@@ -2045,6 +2050,10 @@ const nextName = trimmedValue
         title: String(courseRequestForm.title || '').trim(),
         reason,
         description,
+        branchId: targetBranchId,
+        targetBranchId,
+        targetBranchEmail,
+        targetBranchName,
       })
 
       const createdRequest = response?.request || response || null
@@ -2309,6 +2318,10 @@ const nextName = trimmedValue
         message: changeSummary,
         actionLabel: 'Updated',
         targetSection: 'courses',
+        branchId: targetBranchId,
+        targetBranchId,
+        targetBranchEmail,
+        targetBranchName,
         courseId: selectedCourse.id,
         courseCode: selectedCourse.courseCode || selectedCourse.id || '',
         courseName: selectedCourse.name || selectedCourse.courseName || 'Course',

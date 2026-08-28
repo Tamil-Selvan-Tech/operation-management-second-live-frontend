@@ -50,6 +50,7 @@ const normalizeNotification = (notification = {}) => {
     message: String(notification.message || '').trim(),
     summary: String(notification.summary || '').trim(),
     actionLabel: String(notification.actionLabel || '').trim(),
+    branchId: String(notification.branchId || '').trim(),
     targetBranchId: String(notification.targetBranchId || '').trim(),
     targetBranchEmail: String(notification.targetBranchEmail || '').trim().toLowerCase(),
     targetBranchName: String(notification.targetBranchName || '').trim(),
@@ -320,6 +321,10 @@ export function addBranchLoginNotification(branch = {}) {
 }
 
 export function addFacultyLoginNotification(faculty = {}) {
+  const branchId = faculty.branchId || faculty.branch?.id || faculty.branch?.branchId || ''
+  const branchEmail = faculty.branchEmail || faculty.branch?.branchEmail || ''
+  const branchName = faculty.branchName || faculty.branch?.branchName || ''
+
   return addNotification({
     kind: 'faculty-login',
     tone: 'green',
@@ -329,5 +334,9 @@ export function addFacultyLoginNotification(faculty = {}) {
     facultyId: faculty.facultyId || faculty.id || '',
     facultyEmail: faculty.facultyEmail || faculty.email || '',
     facultyName: faculty.facultyName || faculty.name || '',
+    branchId,
+    targetBranchId: branchId,
+    targetBranchEmail: branchEmail,
+    targetBranchName: branchName,
   })
 }
