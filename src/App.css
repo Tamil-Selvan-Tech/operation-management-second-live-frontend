@@ -18010,6 +18010,20 @@ tbody tr:hover {
   color: #0f172a;
 }
 
+.student-stepper-item.is-locked {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.student-stepper-item.is-locked span {
+  background: #eef2f7;
+  color: #6b7280;
+}
+
+.student-stepper-item.is-locked .student-stepper-copy strong {
+  color: #64748b;
+}
+
 .student-step-panel {
   min-height: 330px;
   padding: 12px 18px 18px;

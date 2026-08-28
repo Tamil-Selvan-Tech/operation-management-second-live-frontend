@@ -140,6 +140,11 @@ const STUDENT_FORM_STEP_THREE_FIELDS = [
   'facultyName',
   'courseAmount',
 ]
+const STUDENT_FORM_STEP_FIELDS = {
+  1: STUDENT_FORM_STEP_ONE_FIELDS,
+  2: STUDENT_FORM_STEP_TWO_FIELDS,
+  3: STUDENT_FORM_STEP_THREE_FIELDS,
+}
 
 const CURRENT_YEAR = new Date().getFullYear()
 const PASSED_OUT_YEARS = Array.from({ length: 31 }, (_, i) => String(CURRENT_YEAR - i))
@@ -5010,6 +5015,16 @@ useEffect(() => {
     () => validateStudentForm(studentForm, branchStudents),
     [branchStudents, studentForm],
   )
+  const studentFormStepStatus = useMemo(() => ({
+    1: STUDENT_FORM_STEP_ONE_FIELDS.every((field) => !studentFormValidationErrors[field]),
+    2: STUDENT_FORM_STEP_TWO_FIELDS.every((field) => !studentFormValidationErrors[field]),
+    3: STUDENT_FORM_STEP_THREE_FIELDS.every((field) => !studentFormValidationErrors[field]),
+  }), [studentFormValidationErrors])
+  const studentFormMaxUnlockedStep = studentFormMode === 'view'
+    ? 3
+    : studentFormStepStatus[1]
+      ? (studentFormStepStatus[2] ? 3 : 2)
+      : 1
   const shouldShowStudentError = (field) => Boolean(studentFormTouched[field] && studentFormValidationErrors[field])
   const studentActiveStepFields =
     studentFormStep === 1
@@ -5038,13 +5053,32 @@ useEffect(() => {
     })
   }
 
+  const handleStudentStepJump = (targetStep) => {
+    const safeTargetStep = Math.min(3, Math.max(1, Number(targetStep) || 1))
+
+    if (studentFormMode === 'view') {
+      setStudentFormStep(safeTargetStep)
+      return
+    }
+
+    if (safeTargetStep <= studentFormMaxUnlockedStep) {
+      setStudentFormStep(safeTargetStep)
+      return
+    }
+
+    const blockedStep = Math.max(1, Math.min(studentFormMaxUnlockedStep, safeTargetStep))
+    const blockedFields = STUDENT_FORM_STEP_FIELDS[blockedStep] || []
+    touchStudentFields(blockedFields)
+    setStudentFormStep(blockedStep)
+  }
+
   const handleStudentStepNext = () => {
     if (studentFormMode === 'view') {
       setStudentFormStep((current) => Math.min(3, current + 1))
       return
     }
 
-    const currentStepFields = studentFormStep === 1 ? STUDENT_FORM_STEP_ONE_FIELDS : STUDENT_FORM_STEP_TWO_FIELDS
+    const currentStepFields = STUDENT_FORM_STEP_FIELDS[Math.min(2, studentFormStep)] || []
     touchStudentFields(currentStepFields)
 
     const hasStepErrors = currentStepFields.some((field) => studentFormValidationErrors[field])
@@ -9938,12 +9972,13 @@ else {
                     <button
                       key={item.step}
                       type="button"
-                      className={`student-stepper-item ${isActive ? 'active' : ''} ${isDone ? 'done' : ''}`.trim()}
+                      className={`student-stepper-item ${isActive ? 'active' : ''} ${isDone ? 'done' : ''} ${studentFormMode !== 'view' && item.step > studentFormMaxUnlockedStep ? 'is-locked' : ''}`.trim()}
                       aria-current={isActive ? 'step' : undefined}
+                      aria-disabled={studentFormMode !== 'view' && item.step > studentFormMaxUnlockedStep}
                       onClick={(event) => {
                         event.preventDefault()
                         event.stopPropagation()
-                        setStudentFormStep(item.step)
+                        handleStudentStepJump(item.step)
                       }}
                     >
                       {content}
