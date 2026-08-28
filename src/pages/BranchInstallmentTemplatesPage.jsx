@@ -45,6 +45,32 @@ function createEmptyTemplateForm() {
   }
 }
 
+function deriveInstallmentCountFromTemplateName(templateName = '') {
+  const normalizedName = String(templateName || '').trim().toLowerCase()
+
+  if (!normalizedName) return null
+
+  if (
+    normalizedName.includes('full payment') ||
+    normalizedName.includes('full installment') ||
+    normalizedName.includes('full plan')
+  ) {
+    return '1'
+  }
+
+  const countMatch = normalizedName.match(/(\d+)\s*(?:installment|installments|instalment|instalments)\b/)
+  if (countMatch) {
+    return String(Math.max(1, Number(countMatch[1]) || 1))
+  }
+
+  const leadingCountMatch = normalizedName.match(/^(\d+)\b/)
+  if (leadingCountMatch && normalizedName.includes('install')) {
+    return String(Math.max(1, Number(leadingCountMatch[1]) || 1))
+  }
+
+  return null
+}
+
 function createValidationErrors(form) {
   const errors = {}
   const installmentCount = Number(form.installmentCount || 0)
@@ -162,6 +188,17 @@ export function BranchInstallmentTemplatesPage() {
         return {
           ...current,
           installmentCount: safeCountValue,
+        }
+      }
+
+      if (field === 'templateName') {
+        const safeTemplateName = String(value || '')
+        const derivedCount = deriveInstallmentCountFromTemplateName(safeTemplateName)
+
+        return {
+          ...current,
+          templateName: safeTemplateName,
+          installmentCount: derivedCount ?? current.installmentCount,
         }
       }
 

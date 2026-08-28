@@ -2346,9 +2346,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     [normalizedBranchNotifications],
   )
   const branchNotificationTotalCount = branchNotificationItems.length
+  const totalBranchStudents = branchStudents.length
   const overviewStats = useMemo(
     () => [
-      { label: 'Total Students', value: '246', note: 'Active learners this month' },
+      { label: 'Total Students', value: String(totalBranchStudents), note: 'Active learners this month' },
       {
         label: 'Total Courses',
         value: String(branchCourseCards.length),
@@ -2357,7 +2358,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       { label: 'Active Batches', value: '11', note: 'Running live batches' },
       { label: 'Pending Payments', value: '14', note: 'Needs follow-up today' },
     ],
-    [branchCourseCards.length],
+    [branchCourseCards.length, totalBranchStudents],
   )
 
   const openResetPassword = () => {
@@ -5088,7 +5089,7 @@ useEffect(() => {
                       </button>
                       <div className="branch-dashboard-section-summary">
                         <span>Total students:</span>
-                        <strong>{filteredBranchStudents.length}</strong>
+                        <strong>{totalBranchStudents}</strong>
                       </div>
                     </>
                   )}
