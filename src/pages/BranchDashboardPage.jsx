@@ -2064,6 +2064,7 @@ const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
   const [studentActionMenuPosition, setStudentActionMenuPosition] = useState({ top: 0, left: 0 })
   const studentActionMenuRef = useRef(null)
   const studentActionMenuCloseTimerRef = useRef(null)
+  const studentActionMenuHoverCountRef = useRef(0)
 const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
 const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
 const [paymentPage, setPaymentPage] = useState(1)
@@ -2651,6 +2652,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const openStudentActionMenu = (button) => {
     if (studentActionMenuCloseTimerRef.current) {
       clearTimeout(studentActionMenuCloseTimerRef.current)
+      studentActionMenuCloseTimerRef.current = null
     }
 
     const rect = button.getBoundingClientRect()
@@ -2680,15 +2682,31 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setStudentActionMenuPosition({ top, left })
   }
 
-  const closeStudentActionMenu = () => {
+  const enterStudentActionMenuArea = () => {
+    studentActionMenuHoverCountRef.current += 1
+    if (studentActionMenuCloseTimerRef.current) {
+      clearTimeout(studentActionMenuCloseTimerRef.current)
+      studentActionMenuCloseTimerRef.current = null
+    }
+  }
+
+  const leaveStudentActionMenuArea = () => {
+    studentActionMenuHoverCountRef.current = Math.max(0, studentActionMenuHoverCountRef.current - 1)
+
+    if (studentActionMenuHoverCountRef.current > 0) {
+      return
+    }
+
     if (studentActionMenuCloseTimerRef.current) {
       clearTimeout(studentActionMenuCloseTimerRef.current)
     }
 
     studentActionMenuCloseTimerRef.current = window.setTimeout(() => {
+      if (studentActionMenuHoverCountRef.current > 0) return
       setStudentActionMenuId('')
       setStudentActionMenuPosition({ top: 0, left: 0 })
-    }, 180)
+      studentActionMenuCloseTimerRef.current = null
+    }, 360)
   }
 
   const openStudentViewDrawer = (student) => {
@@ -2696,6 +2714,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       clearTimeout(studentActionMenuCloseTimerRef.current)
     }
 
+    studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
     setViewStudentDrawer({ ...student })
@@ -2706,6 +2725,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       clearTimeout(studentActionMenuCloseTimerRef.current)
     }
 
+    studentActionMenuHoverCountRef.current = 0
     const paymentSummary = computeBranchStudentPaymentSummary(student)
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
@@ -6017,11 +6037,12 @@ else {
                     aria-haspopup="menu"
                     aria-expanded={studentActionMenuId === stu.studentId}
                     onMouseEnter={(e) => {
+                      enterStudentActionMenuArea()
                       openStudentActionMenu(e.currentTarget)
                       setStudentActionMenuId(stu.studentId)
                     }}
                     onMouseLeave={() => {
-                      closeStudentActionMenu()
+                      leaveStudentActionMenuArea()
                     }}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -6060,15 +6081,13 @@ else {
                         top: `${studentActionMenuPosition.top}px`,
                         left: `${studentActionMenuPosition.left}px`,
                         zIndex: 999999,
-                        display: 'block',
+                      display: 'block',
                       }}
                       onMouseEnter={() => {
-                        if (studentActionMenuCloseTimerRef.current) {
-                          clearTimeout(studentActionMenuCloseTimerRef.current)
-                        }
+                        enterStudentActionMenuArea()
                       }}
                       onMouseLeave={() => {
-                        closeStudentActionMenu()
+                        leaveStudentActionMenuArea()
                       }}
                       onClick={(event) => event.stopPropagation()}
                     >
