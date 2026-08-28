@@ -709,6 +709,30 @@ body.branch-notification-menu-open .main-area {
   text-overflow: ellipsis;
 }
 
+.branch-course-actions-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.branch-course-actions-cell .button {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.branch-dashboard-page .payment-popup-overlay {
+  z-index: 2147483647 !important;
+}
+
+.branch-dashboard-page .payment-confirmation-popup {
+  position: relative;
+  z-index: 2147483647;
+}
+
 /* Last row */
 .branch-course-table tbody tr:last-child td {
   border-bottom: none;
@@ -8520,4 +8544,169 @@ body.branch-notification-menu-open .main-area {
 
 .branch-course-table-scroll::-webkit-scrollbar-track {
   background: #f1f5f9;
+}
+
+/* =========================================================
+   LEDGER POPUP
+========================================================= */
+
+.branch-ledger-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 980px;
+  width: min(980px, 96vw);
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.branch-ledger-popup-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 42px;
+}
+
+.branch-ledger-popup-header h3 {
+  margin: 0 0 6px;
+}
+
+.branch-ledger-popup-subtitle {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.branch-ledger-source-badge {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.branch-ledger-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.branch-ledger-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.branch-ledger-summary-card span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.branch-ledger-summary-card strong {
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.branch-ledger-summary-card-emphasis {
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+  border-color: #bfdbfe;
+}
+
+.branch-ledger-loading,
+.branch-ledger-note {
+  padding: 2px 2px 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.branch-ledger-table-shell {
+  max-height: 44vh;
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.branch-ledger-table {
+  width: 100%;
+  min-width: 760px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.branch-ledger-table th,
+.branch-ledger-table td {
+  padding: 12px 12px;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: top;
+  text-align: left;
+}
+
+.branch-ledger-table th:first-child,
+.branch-ledger-table td:first-child {
+  padding-left: 10px;
+  text-align: left;
+}
+
+.branch-ledger-table th:last-child,
+.branch-ledger-table td:last-child {
+  padding-right: 10px;
+}
+
+.branch-ledger-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.branch-ledger-table tbody tr:nth-child(even) {
+  background: #fcfdff;
+}
+
+.branch-ledger-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.branch-ledger-table td strong {
+  color: #0f172a;
+}
+
+@media (max-width: 920px) {
+  .branch-ledger-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .branch-ledger-popup {
+    max-height: 92vh;
+  }
+}
+
+@media (max-width: 640px) {
+  .branch-ledger-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .branch-ledger-popup-header {
+    flex-direction: column;
+    padding-right: 0;
+  }
 }

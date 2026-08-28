@@ -44,6 +44,7 @@ import { Button } from '../components/Button'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { getCurrentBranchProfile } from '../services/branchService'
 import { listBranchFaculty } from '../services/branchFacultyService'
+import { getBranchStudentLedger } from '../services/branchLedgerService'
 import {
   clearBranchCourseListCache,
   assignFacultyToBranchCourse,
@@ -647,6 +648,370 @@ function getBranchPaymentModePriority(record = {}) {
   if (/^installment(s)?$/i.test(rawMode)) return 1
   return 2
 }
+
+function getBranchPaymentHistoryDisplayText(...values) {
+  const text = values
+    .map((value) => String(value || '').trim())
+    .find((value) => value && value !== '-' && value !== 'â€”' && value !== 'â€“')
+
+  return text || ''
+}
+
+function getBranchPaymentHistoryInstallmentNumber(record = {}) {
+  const label = getBranchPaymentHistoryDisplayText(record.payAgainst, record.description)
+  const match = String(label || '').match(/installment\s*(\d+)/i)
+  return match ? Number(match[1]) : null
+}
+
+function getBranchPaymentHistoryDateKey(record = {}) {
+  const rawDate = getBranchLedgerEntryDateRaw(record, '')
+  if (!rawDate) return ''
+
+  const parsedDate = new Date(rawDate)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return normalizeBranchLedgerEntryLabel(rawDate)
+  }
+
+  return parsedDate.toISOString().slice(0, 10)
+}
+
+function getBranchPaymentHistoryCanonicalKey(record = {}) {
+  const studentId = String(record.studentId || '').trim().toLowerCase()
+  const installmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
+  const label = installmentNumber
+    ? `installment-${installmentNumber}`
+    : normalizeBranchLedgerEntryLabel(getBranchPaymentHistoryDisplayText(record.payAgainst, record.description, record.referenceType))
+  const amount = Math.max(getFirstFiniteNumber(record.amount), 0)
+
+  return [
+    studentId,
+    label,
+    getBranchPaymentHistoryDateKey(record),
+    amount,
+  ].join('|')
+}
+
+function getFirstFiniteNumber(...values) {
+  for (const value of values) {
+    const numericValue = Number(value)
+    if (Number.isFinite(numericValue)) {
+      return numericValue
+    }
+  }
+
+  return 0
+}
+
+function getBranchStudentCourseFeeAmount(student = {}) {
+  return Math.max(
+    getFirstFiniteNumber(
+      student.finalFee,
+      student.courseAmount,
+      student.totalAmount,
+      student.afterDiscount,
+    ),
+    0,
+  )
+}
+
+function getBranchStudentOpeningBalanceAmount(student = {}) {
+  return Math.max(
+    getFirstFiniteNumber(
+      student.openingBalance,
+      student.broughtForward,
+      student.balanceBroughtForward,
+      student.carryForwardBalance,
+      student.carryForwardDue,
+      student.previousDue,
+      student.pendingCarryForward,
+      student.outstandingBalance,
+    ),
+    0,
+  )
+}
+
+function getBranchLedgerEntryDateRaw(entry = {}, fallbackDate = getTodayValue()) {
+  const candidate = String(
+    entry.dateRaw ||
+    entry.paymentDateRaw ||
+    entry.paymentDate ||
+    entry.createdAt ||
+    entry.date ||
+    fallbackDate ||
+    '',
+  ).trim()
+
+  return candidate || fallbackDate || ''
+}
+
+function getBranchLedgerEntrySortPriority(entry = {}) {
+  if (String(entry.entryType || '').trim().toUpperCase() === 'OPENING_BALANCE') {
+    return 0
+  }
+
+  if (Number(entry.debit || 0) > 0 && Number(entry.credit || 0) <= 0) {
+    return 1
+  }
+
+  if (Number(entry.credit || 0) > 0 && Number(entry.debit || 0) <= 0) {
+    return 2
+  }
+
+  return 3
+}
+
+function normalizeBranchLedgerEntryLabel(value = '') {
+  const text = String(value || '').trim().toLowerCase()
+  if (!text) return ''
+
+  return text
+    .replace(/\s+/g, ' ')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+}
+
+function getBranchLedgerDisplayText(...values) {
+  const text = values
+    .map((value) => String(value || '').trim())
+    .find((value) => value && value !== '-' && value !== '—' && value !== '–')
+
+  return text || ''
+}
+
+function getBranchLedgerDateKey(value = '') {
+  const text = String(value || '').trim()
+  if (!text) return ''
+
+  const parsedDate = new Date(text)
+  if (Number.isNaN(parsedDate.getTime())) {
+    return normalizeBranchLedgerEntryLabel(text)
+  }
+
+  return parsedDate.toISOString().slice(0, 10)
+}
+
+function getBranchLedgerInstallmentNumber(value = '') {
+  const match = String(value || '').match(/installment\s*(\d+)/i)
+  return match ? Number(match[1]) : null
+}
+
+function getBranchLedgerPaymentKey(record = {}) {
+  const amount = Math.max(getFirstFiniteNumber(record.amount), 0)
+  const dateKey = getBranchLedgerDateKey(getBranchLedgerEntryDateRaw(record, ''))
+  const receiptNumber = String(record.receiptNumber || '').trim().toLowerCase()
+  const payAgainst = normalizeBranchLedgerEntryLabel(
+    getBranchLedgerDisplayText(record.payAgainst, record.description),
+  )
+  const installmentNo = getBranchLedgerInstallmentNumber(payAgainst)
+
+  const primaryLabel = installmentNo ? `installment-${installmentNo}` : payAgainst
+  return [
+    String(record.studentId || record.studentRecordId || record.branchStudentId || '').trim().toLowerCase(),
+    primaryLabel,
+    dateKey,
+    amount,
+    installmentNo ? '' : receiptNumber,
+  ].join('|')
+}
+
+function buildBranchStudentLedgerFallback(student = {}, paymentHistoryRecords = []) {
+  const studentId = String(student.studentId || student.id || '').trim()
+  const studentName = String(student.studentName || '-').trim()
+  const courseName = String(
+    student.courseName ||
+    student.courseInterested ||
+    student.course?.name ||
+    '-',
+  ).trim()
+  const baseDate =
+    student.admissionDate ||
+    student.createdAt ||
+    student.updatedAt ||
+    getTodayValue()
+
+  const entries = []
+  let sequence = 0
+
+  const pushEntry = (entry = {}) => {
+    const debit = Math.max(Number(entry.debit || 0), 0)
+    const credit = Math.max(Number(entry.credit || 0), 0)
+
+      entries.push({
+        id: String(
+          entry.id ||
+          `${studentId || 'ledger'}-${entry.referenceType || 'entry'}-${entry.dateRaw || baseDate}-${sequence}`,
+        ).trim(),
+      studentRecordId: String(entry.studentRecordId || student.id || student.recordId || '').trim(),
+      branchId: String(entry.branchId || student.branchId || '').trim(),
+      studentId,
+      studentName,
+      course: courseName,
+      description: String(entry.description || '').trim(),
+      entryType: String(entry.entryType || (credit > 0 ? 'CREDIT' : 'DEBIT')).trim().toUpperCase(),
+      debit,
+      credit,
+      amount: Number(entry.amount ?? debit ?? credit ?? 0),
+      runningBalance: 0,
+      studentBalanceAfter: 0,
+      paymentMode: String(entry.paymentMode || '').trim(),
+      receiptNumber: String(entry.receiptNumber || '').trim(),
+      payAgainst: String(entry.payAgainst || '').trim(),
+      transactionReference: String(entry.transactionReference || '').trim(),
+      notes: String(entry.notes || '').trim(),
+      referenceType: String(entry.referenceType || '').trim(),
+      referenceId: String(entry.referenceId || '').trim(),
+      dateRaw: getBranchLedgerEntryDateRaw(entry, baseDate),
+      date: String(entry.date || '').trim(),
+      status: String(entry.status || '').trim(),
+      entryNo: sequence + 1,
+      sequence,
+    })
+
+    sequence += 1
+  }
+
+  const openingBalance = getBranchStudentOpeningBalanceAmount(student)
+  if (openingBalance > 0) {
+    pushEntry({
+      description: 'Opening Balance',
+      debit: openingBalance,
+      entryType: 'OPENING_BALANCE',
+      referenceType: 'opening-balance',
+      dateRaw: baseDate,
+      date: baseDate,
+    })
+  }
+
+  const courseFee = getBranchStudentCourseFeeAmount(student)
+  if (courseFee > 0) {
+    pushEntry({
+      description: 'Course Fee',
+      debit: courseFee,
+      entryType: 'DEBIT',
+      referenceType: 'course-fee',
+      dateRaw: baseDate,
+      date: baseDate,
+    })
+  }
+
+  const chargeFields = [
+    ['registrationFee', 'Registration Fee'],
+    ['registrationFees', 'Registration Fee'],
+    ['materialFee', 'Material Fee'],
+    ['extraFee', 'Extra Fee'],
+    ['lateFee', 'Late Fee'],
+    ['admissionFee', 'Admission Fee'],
+  ]
+
+  chargeFields.forEach(([field, label]) => {
+    const amount = Math.max(getFirstFiniteNumber(student[field]), 0)
+    if (amount <= 0) return
+
+    pushEntry({
+      description: label,
+      debit: amount,
+      entryType: 'DEBIT',
+      referenceType: field,
+      dateRaw: baseDate,
+      date: baseDate,
+    })
+  })
+
+  const knownPaymentKeys = new Set(
+    getBranchStudentLookupKeys(student).filter(Boolean),
+  )
+
+  const paymentRecordsByKey = new Map()
+
+  paymentHistoryRecords
+    .filter((record = {}) => {
+      const recordKeys = [
+        record.studentId,
+        record.studentRecordId,
+        record.branchStudentId,
+      ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean)
+
+      return recordKeys.some((recordKey) => knownPaymentKeys.has(recordKey))
+    })
+    .forEach((record = {}) => {
+      const amount = Math.max(getFirstFiniteNumber(record.amount), 0)
+      if (amount <= 0) return
+
+      const key = getBranchLedgerPaymentKey(record)
+      const candidate = {
+        id: String(record.id || record.receiptNumber || '').trim(),
+        description: getBranchLedgerDisplayText(record.payAgainst, record.description) || 'Payment',
+        credit: amount,
+        entryType: 'CREDIT',
+        referenceType: 'payment',
+        referenceId: String(record.id || record.receiptNumber || '').trim(),
+        paymentMode: String(record.paymentMode || record.mode || '').trim(),
+        receiptNumber: String(record.receiptNumber || '').trim(),
+        payAgainst: String(record.payAgainst || '').trim(),
+        transactionReference: String(record.transactionReference || '').trim(),
+        notes: String(record.notes || '').trim(),
+        dateRaw: getBranchLedgerEntryDateRaw(record, baseDate),
+        date: String(record.date || '').trim(),
+      }
+
+      const existing = paymentRecordsByKey.get(key)
+      if (!existing || getBranchPaymentModePriority(candidate) >= getBranchPaymentModePriority(existing)) {
+        paymentRecordsByKey.set(key, candidate)
+      }
+    })
+
+  paymentRecordsByKey.forEach((record) => {
+    pushEntry(record)
+  })
+
+  entries.sort((left, right) => {
+    const leftTime = new Date(left.dateRaw || baseDate).getTime()
+    const rightTime = new Date(right.dateRaw || baseDate).getTime()
+
+    if (leftTime !== rightTime) {
+      return leftTime - rightTime
+    }
+
+    const priorityDelta = getBranchLedgerEntrySortPriority(left) - getBranchLedgerEntrySortPriority(right)
+    if (priorityDelta !== 0) {
+      return priorityDelta
+    }
+
+    return left.sequence - right.sequence
+  })
+
+  let runningBalance = 0
+  let totalDebit = 0
+  let totalCredit = 0
+
+  const normalizedEntries = entries.map((entry, index) => {
+    totalDebit += Number(entry.debit || 0)
+    totalCredit += Number(entry.credit || 0)
+    runningBalance += Number(entry.debit || 0) - Number(entry.credit || 0)
+
+    return {
+      ...entry,
+      entryNo: index + 1,
+      runningBalance,
+      studentBalanceAfter: runningBalance,
+    }
+  })
+
+  return {
+    entries: normalizedEntries,
+    summary: {
+      totalDebit,
+      totalCredit,
+      outstandingBalance: runningBalance,
+      entryCount: normalizedEntries.length,
+      paymentCount: normalizedEntries.filter((entry) => Number(entry.credit || 0) > 0).length,
+      studentCount: studentId ? 1 : 0,
+    },
+  }
+}
+
 function formatStudentDate(value) {
   const text = String(value || '').trim()
   if (!text) return '-'
@@ -1678,6 +2043,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [paymentHistoryDate, setPaymentHistoryDate] = useState("");
 const [selectedPaymentHistory, setSelectedPaymentHistory] = useState(null);
 const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
+  const [ledgerStudent, setLedgerStudent] = useState(null)
+  const [ledgerView, setLedgerView] = useState({ entries: [], summary: null, source: 'local' })
+  const [ledgerLoading, setLedgerLoading] = useState(false)
+  const [ledgerError, setLedgerError] = useState('')
   const [studentActionMenuId, setStudentActionMenuId] = useState('')
   const [studentActionMenuPosition, setStudentActionMenuPosition] = useState({ top: 0, left: 0 })
   const studentActionMenuRef = useRef(null)
@@ -4138,19 +4507,19 @@ paymentPlanId: '',
         amount: Number(record.amount || 0),
         mode: resolveBranchPaymentMode(record),
         paymentMode: resolveBranchPaymentMode(record),
-        dateRaw: record.dateRaw || record.paymentDateRaw || record.paymentDate || record.createdAt || '',
+        dateRaw: getBranchLedgerEntryDateRaw(record, ''),
         date: formatBranchPaymentDate(
           record.dateRaw || record.paymentDateRaw || record.paymentDate || record.createdAt || record.date || '',
         ),
-        receiptNumber: String(record.receiptNumber || '-').trim(),
+        receiptNumber: String(record.receiptNumber || '').trim(),
+        payAgainst: getBranchPaymentHistoryDisplayText(
+          record.payAgainst,
+          record.description,
+          record.referenceType,
+        ) || '-',
       }
 
-      const key = [
-        normalizedRecord.studentId,
-        normalizedRecord.dateRaw,
-        normalizedRecord.amount,
-        normalizedRecord.payAgainst || '',
-      ].join('|')
+      const key = getBranchPaymentHistoryCanonicalKey(normalizedRecord)
 
       const existingRecord = records.get(key)
       if (
@@ -4309,12 +4678,73 @@ const visibleBranchPaymentRows = useMemo(() => {
   return filteredBranchPaymentRows.slice(start, start + BRANCH_PAYMENTS_PER_PAGE)
 }, [filteredBranchPaymentRows, safePaymentPage])
 
-const totalPaymentHistoryPages = Math.max(1, Math.ceil(filteredPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
-const safePaymentHistoryPage = Math.min(paymentHistoryPage, totalPaymentHistoryPages)
-const visiblePaymentHistoryRecords = useMemo(() => {
+  const totalPaymentHistoryPages = Math.max(1, Math.ceil(filteredPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
+  const safePaymentHistoryPage = Math.min(paymentHistoryPage, totalPaymentHistoryPages)
+  const visiblePaymentHistoryRecords = useMemo(() => {
   const start = (safePaymentHistoryPage - 1) * BRANCH_PAYMENT_HISTORY_PER_PAGE
   return filteredPaymentHistoryRecords.slice(start, start + BRANCH_PAYMENT_HISTORY_PER_PAGE)
 }, [filteredPaymentHistoryRecords, safePaymentHistoryPage])
+
+  const resolveBranchLedgerStudent = useCallback((studentLike = {}) => {
+    const lookupKeys = getBranchStudentLookupKeys(studentLike)
+    const studentName = String(studentLike.studentName || studentLike.name || '-').trim()
+    const studentId = String(studentLike.studentId || studentLike.id || '').trim()
+
+    const matchedStudent = branchStudents.find((candidate) => {
+      const candidateKeys = getBranchStudentLookupKeys(candidate)
+      return lookupKeys.some((key) => candidateKeys.includes(key))
+    })
+
+    if (matchedStudent) {
+      return matchedStudent
+    }
+
+    return {
+      ...studentLike,
+      studentId,
+      studentName,
+      courseName: String(
+        studentLike.courseName ||
+        studentLike.courseInterested ||
+        studentLike.course?.name ||
+        '',
+      ).trim(),
+    }
+  }, [branchStudents])
+
+  const openBranchLedger = useCallback(async (studentLike = {}) => {
+    const student = resolveBranchLedgerStudent(studentLike)
+    setLedgerStudent(student)
+    setLedgerLoading(true)
+    setLedgerError('')
+    setLedgerView({ entries: [], summary: null, source: 'backend' })
+
+    try {
+      setLedgerView({
+        ...(student.studentId ? await getBranchStudentLedger(student.studentId) : { entries: [], summary: null }),
+        source: 'backend',
+      })
+    } catch (error) {
+      console.error('Failed to load branch student ledger:', error)
+      setLedgerError('Unable to load ledger from backend. Please try again.')
+      setLedgerView({ entries: [], summary: null, source: 'backend' })
+    } finally {
+      setLedgerLoading(false)
+    }
+  }, [resolveBranchLedgerStudent])
+
+  const handleOpenBranchLedger = useCallback((event, studentLike = {}) => {
+    event?.preventDefault?.()
+    event?.stopPropagation?.()
+    void openBranchLedger(studentLike)
+  }, [openBranchLedger])
+
+  const closeBranchLedger = useCallback(() => {
+    setLedgerStudent(null)
+    setLedgerView({ entries: [], summary: null, source: 'backend' })
+    setLedgerLoading(false)
+    setLedgerError('')
+  }, [])
 
 useEffect(() => {
   setPaymentHistoryPage(1)
@@ -4687,10 +5117,11 @@ useEffect(() => {
       }
     } catch (error) {
       console.error('Failed to save branch student:', error)
+      const backendMessage = apiErrorMessage(error, 'Unable to save student. Please try again.')
       const conflictMessage = error?.status === 409
-        ? (error?.body?.message || 'Student email or mobile number already exists in this branch.')
+        ? backendMessage
         : null
-      setStudentFormError(conflictMessage || 'Unable to save student. Please try again.')
+      setStudentFormError(conflictMessage || backendMessage)
     } finally {
       setIsStudentSaving(false)
     }
@@ -6173,15 +6604,24 @@ else {
                     <td>{record.date}</td>
 
                     <td>
-                      <button
-                        type="button"
-                        className="button button-ghost"
-                        onClick={() =>
-                          setSelectedPaymentHistory(record)
-                        }
-                      >
-                        View
-                      </button>
+                      <div className="branch-course-actions-cell">
+                        <button
+                          type="button"
+                          className="button button-ghost"
+                          onClick={() =>
+                            setSelectedPaymentHistory(record)
+                          }
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          className="button button-ghost"
+                          onClick={(event) => handleOpenBranchLedger(event, record)}
+                        >
+                          Ledger
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -6347,6 +6787,136 @@ else {
           </div>
 
         )}
+
+        {ledgerStudent ? (typeof document !== 'undefined' ? createPortal((
+          <div className="payment-popup-overlay">
+            <div
+              className="payment-confirmation-popup branch-ledger-popup"
+              style={{
+                maxWidth: '980px',
+                width: 'min(980px, 96vw)',
+              }}
+            >
+              <button
+                type="button"
+                className="receipt-popup-close"
+                onClick={closeBranchLedger}
+              >
+                ×
+              </button>
+
+              <div className="branch-ledger-popup-header">
+                <div>
+                  <h3>Student Ledger</h3>
+                  <p className="branch-ledger-popup-subtitle">
+                    {ledgerStudent.studentName || '-'} · {ledgerStudent.studentId || '-'} · {
+                      ledgerStudent.courseName ||
+                      ledgerStudent.courseInterested ||
+                      ledgerStudent.course?.name ||
+                      '-'
+                    }
+                  </p>
+                </div>
+
+              </div>
+
+              <div className="branch-ledger-summary-grid">
+                <article className="branch-ledger-summary-card">
+                  <span>Total Debit</span>
+                  <strong>{formatBranchRupees(ledgerView.summary?.totalDebit ?? 0)}</strong>
+                </article>
+                <article className="branch-ledger-summary-card">
+                  <span>Total Credit</span>
+                  <strong>{formatBranchRupees(ledgerView.summary?.totalCredit ?? 0)}</strong>
+                </article>
+                <article className="branch-ledger-summary-card branch-ledger-summary-card-emphasis">
+                  <span>Outstanding Balance</span>
+                  <strong>{formatBranchRupees(ledgerView.summary?.outstandingBalance ?? 0)}</strong>
+                </article>
+                <article className="branch-ledger-summary-card">
+                  <span>Entries</span>
+                  <strong>{ledgerView.summary?.entryCount ?? ledgerView.entries.length ?? 0}</strong>
+                </article>
+              </div>
+
+              {ledgerLoading ? (
+                <div className="branch-ledger-loading">
+                  Loading ledger...
+                </div>
+              ) : null}
+
+              {ledgerError ? (
+                <div className="branch-ledger-note">
+                  {ledgerError}
+                </div>
+              ) : null}
+
+              <div className="branch-ledger-table-shell">
+                <table className="branch-ledger-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Description</th>
+                      <th>Debit</th>
+                      <th>Credit</th>
+                      <th>Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledgerView.entries.length ? (
+                      ledgerView.entries.map((entry) => (
+                        <tr key={entry.id}>
+                          <td>{formatBranchPaymentDate(entry.dateRaw || entry.paymentDateRaw || entry.createdAt || entry.date)}</td>
+                          <td>
+                            <strong className="branch-course-name">
+                              {entry.description || entry.payAgainst || entry.referenceType || '-'}
+                            </strong>
+                            {entry.paymentMode ? (
+                              <div className="branch-ledger-note">
+                                {entry.paymentMode}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td>
+                            <strong>
+                              {Number(entry.debit || 0) > 0 ? formatBranchRupees(entry.debit) : '-'}
+                            </strong>
+                          </td>
+                          <td>
+                            <strong>
+                              {Number(entry.credit || 0) > 0 ? formatBranchRupees(entry.credit) : '-'}
+                            </strong>
+                          </td>
+                          <td>
+                            <strong>
+                              {formatBranchRupees(entry.runningBalance ?? entry.studentBalanceAfter ?? 0)}
+                            </strong>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="5" className="branch-course-empty-state">
+                          No ledger entries found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="payment-popup-actions" style={{ marginTop: '12px' }}>
+                <button
+                  type="button"
+                  className="popup-cancel-btn"
+                  onClick={closeBranchLedger}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        ), document.body) : null) : null}
 
         {false && (
           <div className="payment-popup-overlay">
@@ -6663,7 +7233,7 @@ else {
               <th>Next Installment</th>
               <th>Due Date</th>
               <th>Status</th>
-              {/* <th>Action</th> */}
+              <th>Action</th>
             </tr>
 
           </thead>
@@ -6786,6 +7356,16 @@ else {
                         {summary.paymentStatus}
                       </span>
 
+                    </td>
+
+                    <td>
+                      <button
+                        type="button"
+                        className="button button-ghost"
+                        onClick={(event) => handleOpenBranchLedger(event, student)}
+                      >
+                        Ledger
+                      </button>
                     </td>
 
 
