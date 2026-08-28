@@ -157,6 +157,18 @@ function getTodayValue() {
   return `${year}-${month}-${day}`
 }
 
+function getLocalDateValue(value) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function addDaysToDateString(value, days = 0) {
   const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return ''
@@ -4756,6 +4768,18 @@ const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
   { totalCollected: 0, totalPending: 0, overdueCount: 0, paidCount: 0 },
 ), [branchPaymentRows])
 
+const todaysPaymentAmount = useMemo(() => {
+  const todayStr = getTodayValue()
+
+  return allPaymentHistoryRecords.reduce((total, record) => {
+    if (getLocalDateValue(record.dateRaw) !== todayStr) {
+      return total
+    }
+
+    return total + Number(record.amount || 0)
+  }, 0)
+}, [allPaymentHistoryRecords])
+
 const filteredBranchPaymentRows = useMemo(() => {
   const q = paymentSearchTerm.trim().toLowerCase()
   const todayStr = getTodayValue()
@@ -7272,6 +7296,22 @@ else {
 
         </article>
 
+        {/* TODAY'S PAYMENTS */}
+        <article className="branch-dashboard-stat-card">
+
+          <span>
+            Today's Payments
+          </span>
+
+          <strong>
+            {formatBranchCourseAmount(todaysPaymentAmount ?? 0)}
+          </strong>
+
+          <small>
+            Amount collected today
+          </small>
+
+        </article>
 
         {/* FULLY PAID */}
         <article className="branch-dashboard-stat-card">

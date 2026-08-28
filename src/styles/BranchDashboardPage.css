@@ -465,7 +465,7 @@
 }
 
 .branch-dashboard-stats[data-layout="payments-summary"] {
-  grid-template-columns: repeat(2, minmax(190px, 230px));
+  grid-template-columns: repeat(3, minmax(170px, 220px));
   justify-content: start;
 }
 
@@ -492,6 +492,12 @@
 @media (max-width: 720px) {
   .branch-dashboard-stats[data-layout="payments-summary"] {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1120px) {
+  .branch-dashboard-stats[data-layout="payments-summary"] {
+    grid-template-columns: repeat(2, minmax(170px, 220px));
   }
 }
 
