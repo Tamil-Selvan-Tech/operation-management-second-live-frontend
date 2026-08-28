@@ -8502,6 +8502,31 @@ body.branch-notification-menu-open .main-area {
   min-width: 1100px !important;
 }
 
+.payment-history-page .branch-course-table th:last-child,
+.payment-history-page .branch-course-table td:last-child {
+  width: 180px;
+  min-width: 180px;
+}
+
+.payment-history-page .branch-course-table thead th:last-child {
+  padding-left: 28px;
+}
+
+.payment-history-page .branch-course-actions-cell {
+  display: grid;
+  width: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.payment-history-page .branch-course-actions-cell .button {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  font-size: 13px;
+  min-height: 36px;
+}
+
 .branch-course-table {
   width: 100%;
   min-width: 1350px !important;
