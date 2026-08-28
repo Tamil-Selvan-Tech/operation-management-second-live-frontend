@@ -398,9 +398,9 @@ export function BranchInstallmentTemplatesPage() {
       <div className="installment-page-hero">
         <div className="installment-hero-copy">
           <p className="installment-kicker">INSTALLMENT TEMPLATES</p>
-          <h2>Payment plans made simple</h2>
+          <h2>Flexible Payment Plans</h2>
           <p className="installment-hero-description">
-            Create and manage reusable payment schedules for your courses.
+            Create and manage structured installment plans for your courses.
           </p>
         </div>
         <div className="installment-hero-actions">

@@ -2784,6 +2784,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setPendingRecordPaymentStudent({ ...student, paymentSummary })
   }
 
+  const resetPaymentsView = () => {
+    setRecordPaymentStudent(null)
+    setShowPaymentHistory(false)
+  }
+
   const confirmRecordPayment = () => {
     if (!pendingRecordPaymentStudent) return
     const student = pendingRecordPaymentStudent
@@ -6612,7 +6617,7 @@ else {
         <button
           type="button"
           className="button button-ghost"
-          onClick={() => setRecordPaymentStudent(null)}
+          onClick={resetPaymentsView}
         >
           <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
           Back to Payments
@@ -6623,7 +6628,7 @@ else {
         student={recordPaymentStudent}
         students={branchStudents}
         onClose={() => {
-          setRecordPaymentStudent(null);
+          resetPaymentsView();
           void reloadBranchStudents();
         }}
       />
