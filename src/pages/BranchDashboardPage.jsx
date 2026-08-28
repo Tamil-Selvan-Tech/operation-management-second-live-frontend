@@ -261,8 +261,8 @@ function buildStudentFormFromRecord(student = {}) {
 
 function validateStudentForm(form, students = []) {
   const errors = {}
-  if (!form.studentIdSuffix.trim()) errors.studentIdSuffix = 'Student ID is required.'
-  else if (!/^\d+$/.test(form.studentIdSuffix.trim())) errors.studentIdSuffix = 'Only numbers are allowed.'
+  const studentIdSuffixError = getStudentIdSuffixError(form, students)
+  if (studentIdSuffixError) errors.studentIdSuffix = studentIdSuffixError
   if (!form.studentName.trim()) errors.studentName = 'Student Name is required.'
   else if (!/^[A-Za-z][A-Za-z ]*$/.test(form.studentName.trim())) errors.studentName = 'Only letters and spaces allowed.'
   if (!form.emailAddress.trim()) errors.emailAddress = 'Email is required.'
@@ -331,6 +331,25 @@ function validateStudentForm(form, students = []) {
   }
 
   return errors
+}
+
+function getStudentIdSuffixError(form, students = []) {
+  const suffix = String(form.studentIdSuffix || '').trim()
+  if (!suffix) return 'Student ID is required.'
+  if (!/^\d+$/.test(suffix)) return 'Only numbers are allowed.'
+
+  const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
+  const resolvedStudentId = buildStudentIdFromSuffix(suffix).trim().toLowerCase()
+
+  if (!resolvedStudentId) return ''
+
+  const duplicateStudentId = students.find((student) => {
+    const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
+    const studentId = String(student?.studentId || '').trim().toLowerCase()
+    return studentId && studentId === resolvedStudentId && studentRecordId !== currentRecordId
+  })
+
+  return duplicateStudentId ? 'Student ID already exists.' : ''
 }
 function computeBranchStudentPaymentSummary(stu = {}) {
   const totalFee = Number(
@@ -2800,6 +2819,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setPendingRecordPaymentStudent({ ...student, paymentSummary })
   }
 
+  const resetPaymentsView = () => {
+    setRecordPaymentStudent(null)
+    setShowPaymentHistory(false)
+  }
+
   const confirmRecordPayment = () => {
     if (!pendingRecordPaymentStudent) return
     const student = pendingRecordPaymentStudent
@@ -5140,6 +5164,21 @@ useEffect(() => {
     }))
   }
 
+  const handleStudentIdSuffixChange = (value) => {
+    updateStudentField('studentIdSuffix', value)
+    setStudentFormTouched((current) => ({
+      ...current,
+      studentIdSuffix: true,
+    }))
+  }
+
+  const handleStudentIdSuffixBlur = () => {
+    setStudentFormTouched((current) => ({
+      ...current,
+      studentIdSuffix: true,
+    }))
+  }
+
   const touchStudentFields = (fields = []) => {
     setStudentFormTouched((current) => {
       const next = { ...current }
@@ -6612,7 +6651,7 @@ else {
         <button
           type="button"
           className="button button-ghost"
-          onClick={() => setRecordPaymentStudent(null)}
+          onClick={resetPaymentsView}
         >
           <ArrowLeft size={16} strokeWidth={2.2} aria-hidden="true" />
           Back to Payments
@@ -6623,7 +6662,7 @@ else {
         student={recordPaymentStudent}
         students={branchStudents}
         onClose={() => {
-          setRecordPaymentStudent(null);
+          resetPaymentsView();
           void reloadBranchStudents();
         }}
       />
@@ -7258,11 +7297,11 @@ else {
           </span>
 
           <strong>
-            {branchPaymentStats.pendingCount ?? 0}
+            {formatBranchCourseAmount(branchPaymentStats.totalPending ?? 0)}
           </strong>
 
           <small>
-            Students with pending payments
+            Total pending amount
           </small>
 
         </article>
@@ -10060,14 +10099,9 @@ else {
               placeholder="001"
               value={studentForm.studentIdSuffix || ''}
               onChange={(e) =>
-                updateStudentField('studentIdSuffix', e.target.value)
+                handleStudentIdSuffixChange(e.target.value)
               }
-              onBlur={() =>
-                setStudentFormTouched((c) => ({
-                  ...c,
-                  studentIdSuffix: true,
-                }))
-              }
+              onBlur={handleStudentIdSuffixBlur}
               disabled={studentFormMode === 'view'}
             />
           </div>

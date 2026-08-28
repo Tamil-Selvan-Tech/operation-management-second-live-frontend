@@ -96,6 +96,7 @@ const RecordPayment = ({ student, students = [], onClose }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [isGeneratingReceipt, setIsGeneratingReceipt] = useState(false);
 
   const [receiptNumber, setReceiptNumber] = useState("");
 
@@ -800,11 +801,11 @@ const RecordPayment = ({ student, students = [], onClose }) => {
   // =========================================================
 
   const handleGenerateReceipt = () => {
-    if (isSavingPayment) {
+    if (isSavingPayment || isGeneratingReceipt) {
       return;
     }
 
-    setShowReceipt(false);
+    setIsGeneratingReceipt(true);
 
     const receiptDate =
       formatDateDMY(formData.paymentDate);
@@ -1435,6 +1436,7 @@ const RecordPayment = ({ student, students = [], onClose }) => {
 
         if (isSaved) {
           setShowPaymentSuccess(true);
+          setShowReceipt(false);
         } else {
           setShowReceipt(true);
         }
@@ -1460,6 +1462,9 @@ const RecordPayment = ({ student, students = [], onClose }) => {
         );
 
         setShowReceipt(true);
+      })
+      .finally(() => {
+        setIsGeneratingReceipt(false);
       });
   };
 
@@ -1490,6 +1495,7 @@ const RecordPayment = ({ student, students = [], onClose }) => {
 
   const handleCloseSuccessPopup = () => {
     setShowPaymentSuccess(false);
+    setShowReceipt(false);
     onClose?.();
   };
 
@@ -1516,9 +1522,10 @@ const RecordPayment = ({ student, students = [], onClose }) => {
           RECORD PAYMENT PANEL
       ===================================================== */}
 
-      <div className="record-payment-overlay">
+      {!showReceipt && !showPaymentSuccess ? (
+        <div className="record-payment-overlay">
 
-        <div className="record-payment-modal">
+          <div className="record-payment-modal">
 
           {/* HEADER */}
 
@@ -2076,9 +2083,9 @@ const RecordPayment = ({ student, students = [], onClose }) => {
 
           </form>
 
+          </div>
         </div>
-
-      </div>
+      ) : null}
 
       {/* =====================================================
           CONFIRMATION POPUP
@@ -2522,10 +2529,12 @@ const RecordPayment = ({ student, students = [], onClose }) => {
                   handleGenerateReceipt
                 }
                 disabled={
-                  isSavingPayment
+                  isSavingPayment ||
+                  isGeneratingReceipt
                 }
               >
-                {isSavingPayment
+                {isSavingPayment ||
+                isGeneratingReceipt
                   ? "Saving Payment..."
                   : paymentSaved
                   ? "↓ Download Receipt Again"
@@ -2575,6 +2584,7 @@ const RecordPayment = ({ student, students = [], onClose }) => {
               <button
                 type="button"
                 className="payment-success-btn"
+                onClick={handleCloseSuccessPopup}
               >
                 OK
               </button>
