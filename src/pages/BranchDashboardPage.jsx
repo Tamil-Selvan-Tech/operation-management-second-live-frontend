@@ -7263,11 +7263,11 @@ else {
           </span>
 
           <strong>
-            {branchPaymentStats.pendingCount ?? 0}
+            {formatBranchCourseAmount(branchPaymentStats.totalPending ?? 0)}
           </strong>
 
           <small>
-            Students with pending payments
+            Total pending amount
           </small>
 
         </article>
