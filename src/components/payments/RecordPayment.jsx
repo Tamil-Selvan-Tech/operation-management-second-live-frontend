@@ -1428,7 +1428,12 @@ const RecordPayment = ({ student, students = [], onClose }) => {
         // IMPORTANT:
         // Save payment only after PDF download.
 
-        await savePaymentToBackend();
+        const isSaved = await savePaymentToBackend();
+
+        if (isSaved) {
+          setShowReceipt(false);
+          onClose?.();
+        }
       })
       .catch((error) => {
         console.error(

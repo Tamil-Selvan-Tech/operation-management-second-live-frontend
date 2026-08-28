@@ -2805,8 +2805,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         value: String(branchCourseCards.length),
         note: 'Published course catalog',
       },
-      { label: 'Active Batches', value: '0', note: 'Running live batches' },
-      { label: 'Pending Payments', value: '0', note: 'Needs follow-up today' },
     ],
     [branchCourseCards.length, totalBranchStudents],
   )
@@ -4689,6 +4687,24 @@ const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
   { totalCollected: 0, totalPending: 0, overdueCount: 0, paidCount: 0 },
 ), [branchPaymentRows])
 
+const paymentOverviewStats = useMemo(
+  () => [
+    {
+      label: 'This Week Collection',
+      value: formatBranchRupees(
+        branchPaymentStats.weeklyCollected ?? branchPaymentStats.totalCollected ?? 0,
+      ),
+      note: 'Payments collected this week',
+    },
+    {
+      label: 'Total Pending',
+      value: formatBranchRupees(branchPaymentStats.totalPending),
+      note: 'Amount yet to be collected',
+    },
+  ],
+  [branchPaymentStats.totalPending, branchPaymentStats.totalCollected, branchPaymentStats.weeklyCollected],
+)
+
 const filteredBranchPaymentRows = useMemo(() => {
   const q = paymentSearchTerm.trim().toLowerCase()
   const todayStr = getTodayValue()
@@ -5592,8 +5608,8 @@ useEffect(() => {
                   ) : null}
                 
 
-                  <div className="branch-dashboard-stats">
-                    {overviewStats.map((stat) => (
+                  <div className="branch-dashboard-stats" data-layout="overview-payments-summary" style={{ marginBottom: '20px' }}>
+                    {[...overviewStats, ...paymentOverviewStats].map((stat) => (
                       <article key={stat.label} className="branch-dashboard-stat-card">
                         <span>{stat.label}</span>
                         <strong>{stat.value}</strong>
@@ -5602,22 +5618,6 @@ useEffect(() => {
                     ))}
                   </div>
 
-                  <BranchDashboardSection title="Today" description="A quick snapshot of branch activity.">
-                    <div className="branch-dashboard-activity-grid">
-                      <article className="branch-dashboard-panel">
-                        <strong>Attendance</strong>
-                        <p>224 students checked in before 10:00 AM.</p>
-                      </article>
-                      <article className="branch-dashboard-panel">
-                        <strong>Revenue</strong>
-                        <p>₹1.84L collected in the last 7 days.</p>
-                      </article>
-                      <article className="branch-dashboard-panel">
-                        <strong>Follow-ups</strong>
-                        <p>14 pending payment reminders scheduled for today.</p>
-                      </article>
-                    </div>
-                  </BranchDashboardSection>
                 </>
               ) : null}
 

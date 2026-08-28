@@ -138,6 +138,23 @@ export function SuperAdminNotificationBell({
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (!isOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (menuRef.current?.contains(target)) return
+      setIsOpen(false)
+    }
+
+    window.addEventListener('pointerdown', handlePointerDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown)
+    }
+  }, [isOpen])
+
   const notificationCount = useMemo(
     () => visibleNotifications.filter((notification) => !notification.dropdownViewed).length,
     [visibleNotifications],
@@ -248,6 +265,7 @@ const handleMarkAllAsRead = () => {
         <div
           className="super-admin-notification-backdrop"
           aria-hidden="true"
+          onClick={() => setIsOpen(false)}
         />
       ) : null}
 
