@@ -61,6 +61,7 @@ import { loadFacultyRegistry } from '../lib/facultyAuth'
 import { BRANCH_STUDENTS_KEY, loadBranchStudents, saveBranchStudent } from '../lib/branchStudentStore'
 import {
   loadNotifications as loadStoredNotifications,
+  addNotification,
   markNotificationsAsRead,
   subscribeNotifications,
 } from '../lib/notificationStore'
@@ -608,12 +609,32 @@ function buildFacultyCourseUpdatePayload(course = {}, modules = []) {
 }
 
 function summarizeFacultyEditChanges(modules = []) {
-  const moduleCount = Array.isArray(modules) ? modules.length : 0
-  const submoduleCount = Array.isArray(modules)
-    ? modules.reduce((count, module) => count + (Array.isArray(module?.submodules) ? module.submodules.length : 0), 0)
-    : 0
+  if (!Array.isArray(modules) || !modules.length) {
+    return 'Module structure updated'
+  }
 
-  return `${moduleCount} module${moduleCount === 1 ? '' : 's'} and ${submoduleCount} submodule${submoduleCount === 1 ? '' : 's'} updated`
+  const moduleSummaries = modules
+    .map((module, moduleIndex) => {
+      const moduleName = String(module?.name || `Module ${moduleIndex + 1}`).trim()
+      const submoduleNames = Array.isArray(module?.submodules)
+        ? module.submodules
+            .map((submodule, subIndex) => String(submodule?.name || `Submodule ${subIndex + 1}`).trim())
+            .filter(Boolean)
+        : []
+
+      if (!submoduleNames.length) {
+        return moduleName
+      }
+
+      return `${moduleName} (${submoduleNames.join(', ')})`
+    })
+    .filter(Boolean)
+
+  const previewSummaries = moduleSummaries.slice(0, 3)
+  const remainingCount = moduleSummaries.length - previewSummaries.length
+  const suffix = remainingCount > 0 ? ` + ${remainingCount} more` : ''
+
+  return `Updated ${previewSummaries.join('; ')}${suffix}`
 }
 
 function formatNotificationTime(createdAt) {
@@ -2176,6 +2197,7 @@ const nextName = trimmedValue
         courseModels: normalizedModules,
         models: normalizedModules,
       }
+      const changeSummary = summarizeFacultyEditChanges(normalizedModules)
       const response = await saveCourseEditRequestModules(currentCourseEditRequest.id, payload)
       const updatedCourseRecord = response?.course || payload
       const updatedModules = cloneFacultyEditModules(updatedCourseRecord)
@@ -2224,6 +2246,7 @@ const nextName = trimmedValue
         requestStatus: 'completed',
         completedAt: response?.request?.completedAt || new Date().toISOString(),
         updatedAt: response?.request?.updatedAt || new Date().toISOString(),
+        changeSummary,
       }
 
       if (completedRequest.id) {
@@ -2232,9 +2255,31 @@ const nextName = trimmedValue
             String(request.id || '').trim() === String(completedRequest.id || '').trim()
               ? completedRequest
               : request,
-          ),
-        )
+            ),
+          )
       }
+
+      addNotification({
+        kind: 'branch-course-edit-updated',
+        tone: 'amber',
+        title: `${selectedCourse?.name || selectedCourse?.courseName || 'Course'} updated`,
+        message: `${facultyDetails?.name || facultyDetails?.facultyName || 'Faculty'} saved module and submodule changes for ${selectedCourse?.name || selectedCourse?.courseName || 'the course'}. ${changeSummary}.`,
+        actionLabel: 'Updated',
+        targetSection: 'courses',
+        courseId: selectedCourse.id,
+        courseCode: selectedCourse.courseCode || selectedCourse.id || '',
+        courseName: selectedCourse.name || selectedCourse.courseName || 'Course',
+        facultyId: facultyDetails?.id || facultyDetails?.facultyId || '',
+        facultyName: facultyDetails?.name || facultyDetails?.facultyName || '',
+        facultyEmail: facultyDetails?.email || facultyDetails?.facultyEmail || '',
+        requestId: completedRequest.id || currentCourseEditRequest.id,
+        requestStatus: 'completed',
+        requestTitle: completedRequest.requestTitle || currentCourseEditRequest.requestTitle || '',
+        requestReason: completedRequest.requestReason || currentCourseEditRequest.requestReason || '',
+        requestDescription: completedRequest.requestDescription || currentCourseEditRequest.requestDescription || '',
+        changeSummary,
+        summary: changeSummary,
+      })
 
       setIsCourseEditModalOpen(false)
       setCourseEditDraft(null)

@@ -155,11 +155,12 @@ function notifyBranchCourseEditAccepted(request) {
 }
 
 function notifyBranchCourseEditUpdated(request) {
+  const changeSummary = normalizeText(request.changeSummary)
   return addNotification({
     kind: 'branch-course-edit-updated',
     tone: 'amber',
     title: `${request.courseName || 'Course'} updated`,
-    message: `${request.facultyName || 'Faculty'} saved module and submodule changes for ${request.courseName || 'the course'}.`,
+    message: `${request.facultyName || 'Faculty'} saved module and submodule changes for ${request.courseName || 'the course'}.${changeSummary ? ` ${changeSummary}.` : ''}`,
     actionLabel: 'Updated',
     targetSection: 'courses',
     courseId: request.courseId,
@@ -170,7 +171,8 @@ function notifyBranchCourseEditUpdated(request) {
     facultyEmail: request.facultyEmail,
     requestId: request.id,
     requestStatus: 'accepted',
-    changeSummary: request.changeSummary,
+    changeSummary,
+    summary: changeSummary,
     requestTitle: request.requestTitle,
     requestReason: request.requestReason,
     requestDescription: request.requestDescription,
@@ -277,7 +279,7 @@ export function recordCourseEditChange(requestId = '', changeSummary = '') {
     actionLabel: 'Edit Request',
     tone: 'amber',
     title: `${updatedRequest.courseName || 'Course'} updated`,
-    message: `${updatedRequest.facultyName || 'Faculty'} saved module and submodule changes for ${updatedRequest.courseName || 'the course'}.`,
+    message: `${updatedRequest.facultyName || 'Faculty'} saved module and submodule changes for ${updatedRequest.courseName || 'the course'}.${updatedRequest.changeSummary ? ` ${updatedRequest.changeSummary}.` : ''}`,
   })
   notifyBranchCourseEditUpdated(updatedRequest)
   return updatedRequest

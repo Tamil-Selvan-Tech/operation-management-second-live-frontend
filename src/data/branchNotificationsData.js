@@ -141,6 +141,7 @@ export function normalizeBranchNotification(notification = {}) {
     requestReason: String(notification.requestReason || '').trim(),
     requestDescription: String(notification.requestDescription || '').trim(),
     requestedChanges: String(notification.requestedChanges || '').trim(),
+    changeSummary: String(notification.changeSummary || '').trim(),
     summary: String(notification.summary || '').trim(),
     studentId: String(notification.studentId || '').trim(),
     studentName: String(notification.studentName || '').trim(),
