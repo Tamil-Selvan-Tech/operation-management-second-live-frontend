@@ -8317,6 +8317,13 @@ body.branch-notification-menu-open .main-area {
   line-height: 1.1;
 }
 
+.branch-student-course-progress-amount {
+  color: #2563eb;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.1;
+}
+
 .branch-student-paid-progress {
   display: grid;
   gap: 5px;
@@ -8337,6 +8344,23 @@ body.branch-notification-menu-open .main-area {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #16a34a 0%, #22c55e 100%);
+}
+
+.branch-student-course-progress-bar {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbe4f0;
+}
+
+.branch-student-course-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
 }
 
 .branch-student-paid-progress-label {

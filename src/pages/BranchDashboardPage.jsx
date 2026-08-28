@@ -71,13 +71,19 @@ import {
   refreshBranchStudents,
   saveBranchStudent,
   deleteBranchStudent as removeBranchStudent,
+  BRANCH_STUDENTS_KEY,
   getNextStudentId,
 } from '../lib/branchStudentStore'
 import {
   FACULTY_TODAY_WORK_SYNC_EVENT,
+  FACULTY_TODAY_WORK_SYNC_KEY,
   listFacultyTodayWorkEntries,
 } from '../lib/facultyTodayWorkStore'
-import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
+import {
+  buildFacultyTodayWorkProgressSummary,
+  isFacultyWorkEntryForStudent,
+  normalizeWorkStudentId,
+} from '../lib/facultyProgress'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
@@ -95,6 +101,7 @@ import {
   subscribeNotifications,
 } from '../lib/notificationStore'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
+import { enrichStudentsWithFacultyReferences } from '../lib/facultyFlow'
 import {
   buildProgressComparisonNotification,
   syncProgressComparisonNotifications,
@@ -2021,6 +2028,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [assignFacultyCourse, setAssignFacultyCourse] = useState(null)
   const [selectedFacultyIds, setSelectedFacultyIds] = useState([])
   const [facultyList, setFacultyList] = useState([])
+  const [branchFacultyRecords, setBranchFacultyRecords] = useState([])
   const [assignFacultyPage, setAssignFacultyPage] = useState(1)
   const [assignFacultySuccess, setAssignFacultySuccess] = useState(null)
   const [isAssignFacultySaving, setIsAssignFacultySaving] = useState(false)
@@ -2121,7 +2129,8 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       sortOrder: 'desc',
     })
 
-    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [])
+    const activeBranchId = branchProfile?.id || branchProfile?.branchId || ''
+    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [], activeBranchId)
     const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
     setBranchCourseCards((currentCourses) => {
       const currentCoursesById = new Map(
@@ -2155,12 +2164,13 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       })
     })
     return result
-  }, [])
+  }, [branchProfile?.branchId, branchProfile?.id])
 
   const loadFacultyList = useCallback(async () => {
     try {
       const res = await listBranchFaculty()
       if (res?.data) {
+        setBranchFacultyRecords(Array.isArray(res.data) ? res.data : [])
         const mapped = res.data.map((f) => ({
           id: f.facultyId || f.id,
           name: f.name,
@@ -2298,7 +2308,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         if (!isMounted) return
         if (coursesResult.status === 'fulfilled' || coursesResult.value?.data) {
           setBranchCourseCards(
-            mergeBranchCoursesWithSnapshot(Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : []),
+            mergeBranchCoursesWithSnapshot(
+              Array.isArray(coursesResult?.value?.data) ? coursesResult.value.data : [],
+              branchData?.id || branchData?.branchId || '',
+            ),
           )
         } else {
           setBranchCourseCards([])
@@ -2318,7 +2331,12 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       if (coursesResult.status === 'fulfilled') {
         setBranchCourseCards(
-          mergeBranchCoursesWithSnapshot(Array.isArray(coursesResult.value?.data) ? coursesResult.value.data : []),
+          mergeBranchCoursesWithSnapshot(
+            Array.isArray(coursesResult.value?.data) ? coursesResult.value.data : [],
+            branchResult.status === 'fulfilled'
+              ? (branchResult.value?.id || branchResult.value?.branchId || '')
+              : (branchProfile?.id || branchProfile?.branchId || ''),
+          ),
         )
       } else {
         setBranchCourseCards([])
@@ -2429,20 +2447,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     return unsubscribe
   }, [loadBranchCourses])
-
-  useEffect(() => {
-    void loadFacultyTodayWorkEntries()
-
-    const handleTodayWorkChanged = () => {
-      void loadFacultyTodayWorkEntries()
-    }
-
-    window.addEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, handleTodayWorkChanged)
-
-    return () => {
-      window.removeEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, handleTodayWorkChanged)
-    }
-  }, [loadFacultyTodayWorkEntries])
 
   useEffect(() => {
     const unsubscribe = subscribeBranchInstallmentTemplateChanges(() => {
@@ -4208,6 +4212,30 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       return []
     }
   }, [branchStudentScope])
+
+  useEffect(() => {
+    void loadFacultyTodayWorkEntries()
+
+    const handleTodayWorkChanged = () => {
+      void loadFacultyTodayWorkEntries()
+    }
+
+    const handleStorageChanged = (event) => {
+      if (event?.key === FACULTY_TODAY_WORK_SYNC_KEY || event?.key === BRANCH_STUDENTS_KEY) {
+        void loadFacultyTodayWorkEntries()
+        void reloadBranchStudents()
+      }
+    }
+
+    window.addEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, handleTodayWorkChanged)
+    window.addEventListener('storage', handleStorageChanged)
+
+    return () => {
+      window.removeEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, handleTodayWorkChanged)
+      window.removeEventListener('storage', handleStorageChanged)
+    }
+  }, [loadFacultyTodayWorkEntries, reloadBranchStudents])
+
 const studentCourseOptions = useMemo(() => {
   return branchCourseCards
     .map((course) => {
@@ -4678,12 +4706,42 @@ const visibleBranchPaymentRows = useMemo(() => {
   return filteredBranchPaymentRows.slice(start, start + BRANCH_PAYMENTS_PER_PAGE)
 }, [filteredBranchPaymentRows, safePaymentPage])
 
-  const totalPaymentHistoryPages = Math.max(1, Math.ceil(filteredPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
-  const safePaymentHistoryPage = Math.min(paymentHistoryPage, totalPaymentHistoryPages)
-  const visiblePaymentHistoryRecords = useMemo(() => {
+const totalPaymentHistoryPages = Math.max(1, Math.ceil(filteredPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
+const safePaymentHistoryPage = Math.min(paymentHistoryPage, totalPaymentHistoryPages)
+const visiblePaymentHistoryRecords = useMemo(() => {
   const start = (safePaymentHistoryPage - 1) * BRANCH_PAYMENT_HISTORY_PER_PAGE
   return filteredPaymentHistoryRecords.slice(start, start + BRANCH_PAYMENT_HISTORY_PER_PAGE)
 }, [filteredPaymentHistoryRecords, safePaymentHistoryPage])
+
+const branchStudentsForDisplay = useMemo(
+  () =>
+    enrichStudentsWithFacultyReferences(
+      branchStudents,
+      branchFacultyRecords.length ? branchFacultyRecords : facultyList,
+      branchCourseCards,
+    ),
+  [branchCourseCards, branchFacultyRecords, branchStudents, facultyList],
+)
+
+const branchTodayWorkEntriesByStudent = useMemo(() => {
+  const sortedEntries = [...facultyTodayWorkEntries].sort(
+    (left, right) => new Date(right?.createdAt || 0).getTime() - new Date(left?.createdAt || 0).getTime(),
+  )
+
+  const mapping = new Map()
+
+  branchStudentsForDisplay.forEach((student) => {
+    const studentKey = normalizeWorkStudentId(student?.id || student?.studentId || '')
+    if (!studentKey) return
+
+    const matchedEntry = sortedEntries.find((entry) => isFacultyWorkEntryForStudent(entry, student))
+    if (matchedEntry) {
+      mapping.set(studentKey, matchedEntry)
+    }
+  })
+
+  return mapping
+}, [branchStudentsForDisplay, facultyTodayWorkEntries])
 
   const resolveBranchLedgerStudent = useCallback((studentLike = {}) => {
     const lookupKeys = getBranchStudentLookupKeys(studentLike)
@@ -4752,12 +4810,12 @@ useEffect(() => {
 
   const filteredBranchStudents = useMemo(() => {
     const q = studentSearchTerm.trim().toLowerCase()
-    if (!q) return branchStudents
-    return branchStudents.filter((s) =>
+    if (!q) return branchStudentsForDisplay
+    return branchStudentsForDisplay.filter((s) =>
       String(s.studentId || '').toLowerCase().includes(q) ||
       String(s.studentName || '').toLowerCase().includes(q)
     )
-  }, [branchStudents, studentSearchTerm])
+  }, [branchStudentsForDisplay, studentSearchTerm])
 
   const totalStudentPages = Math.max(1, Math.ceil(filteredBranchStudents.length / BRANCH_STUDENTS_PER_PAGE))
   const safeStudentPage = Math.min(studentPage, totalStudentPages)
@@ -4769,7 +4827,7 @@ useEffect(() => {
   const branchStudentCourseProgressByKey = useMemo(() => {
     const progressByStudentKey = new Map()
 
-    branchStudents.forEach((student) => {
+    branchStudentsForDisplay.forEach((student) => {
       const studentKeys = getBranchStudentLookupKeys(student)
       if (!studentKeys.length) return
 
@@ -4787,8 +4845,12 @@ useEffect(() => {
       }
 
       const course = resolveBranchStudentCourse(student, branchCourseCards)
-      const progressSummary = course
-        ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, course, student)
+      const matchedEntry = branchTodayWorkEntriesByStudent.get(studentKeys[0]) || null
+      const resolvedCourse = course || (matchedEntry
+        ? branchCourseCards.find((item) => String(item?.id || '').trim() === String(matchedEntry?.courseId || '').trim()) || null
+        : null)
+      const progressSummary = resolvedCourse
+        ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, resolvedCourse, student)
         : null
       const courseProgress = Number(progressSummary?.courseProgress)
 
@@ -4802,7 +4864,7 @@ useEffect(() => {
     })
 
     return progressByStudentKey
-  }, [branchCourseCards, branchStudents, facultyTodayWorkEntries])
+  }, [branchCourseCards, branchStudentsForDisplay, branchTodayWorkEntriesByStudent, facultyTodayWorkEntries])
 
   const branchStudentProgressByNotificationKey = useMemo(() => {
     const progressByStudentKey = new Map()
@@ -4825,19 +4887,23 @@ useEffect(() => {
   }, [branchNotificationRecords])
 
   useEffect(() => {
-    if (!branchStudents.length || !branchCourseCards.length || !facultyTodayWorkEntries.length) {
+    if (!branchStudentsForDisplay.length || !branchCourseCards.length || !facultyTodayWorkEntries.length) {
       return undefined
     }
 
-    const updates = branchStudents
+    const updates = branchStudentsForDisplay
       .map((student) => {
         const studentKey = normalizeBranchStudentLookupKey(student)
         if (!studentKey) return null
 
         const course = resolveBranchStudentCourse(student, branchCourseCards)
-        if (!course) return null
+        const matchedEntry = branchTodayWorkEntriesByStudent.get(studentKey) || null
+        const resolvedCourse = course || (matchedEntry
+          ? branchCourseCards.find((item) => String(item?.id || '').trim() === String(matchedEntry?.courseId || '').trim()) || null
+          : null)
+        if (!resolvedCourse) return null
 
-        const progressSummary = buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, course, student)
+        const progressSummary = buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, resolvedCourse, student)
         const computedProgress = Number(progressSummary?.courseProgress)
         if (!Number.isFinite(computedProgress)) return null
 
@@ -4889,10 +4955,10 @@ useEffect(() => {
     return () => {
       cancelled = true
     }
-  }, [branchCourseCards, branchStudents, facultyTodayWorkEntries, reloadBranchStudents])
+  }, [branchCourseCards, branchStudentsForDisplay, branchTodayWorkEntriesByStudent, facultyTodayWorkEntries, reloadBranchStudents])
 
   const branchProgressComparisonNotifications = useMemo(() => {
-    return branchStudents
+    return branchStudentsForDisplay
       .map((stu) => {
         const studentIdLabel = String(stu.studentId || stu.id || '-').trim()
         const studentName = String(stu.studentName || '-').trim()
@@ -4920,7 +4986,7 @@ useEffect(() => {
         })
       })
       .filter(Boolean)
-  }, [branchStudentCourseProgressByKey, branchStudentProgressByNotificationKey, branchStudents])
+  }, [branchStudentCourseProgressByKey, branchStudentProgressByNotificationKey, branchStudentsForDisplay])
 
   useEffect(() => {
     if (!branchProgressComparisonNotifications.length) {
@@ -5828,31 +5894,43 @@ else {
                 {(() => {
                   const studentKeys = getBranchStudentLookupKeys(stu)
                   const resolvedCourse = resolveBranchStudentCourse(stu, branchCourseCards)
-                  const directCourseProgressSummary = resolvedCourse
-                    ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, resolvedCourse, stu)
+                  const matchedEntry = branchTodayWorkEntriesByStudent.get(studentKeys[0]) || null
+                  const effectiveCourse = resolvedCourse || (matchedEntry
+                    ? branchCourseCards.find((item) => String(item?.id || '').trim() === String(matchedEntry?.courseId || '').trim()) || null
+                    : null)
+                  const directCourseProgressSummary = effectiveCourse
+                    ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, effectiveCourse, stu)
                     : null
                   const directCourseProgress = Number(directCourseProgressSummary?.courseProgress)
-                  const storedOrNotifiedProgress = studentKeys
+                  const storedCourseProgress = Number(
+                    stu?.courseProgress ??
+                    stu?.courseCompletionPercentage ??
+                    stu?.progress ??
+                    NaN,
+                  )
+                  const fallbackCourseProgress = studentKeys
                     .map((key) =>
                       branchStudentCourseProgressByKey.get(key) ??
                       branchStudentProgressByNotificationKey.get(key),
                     )
                     .find((value) => Number.isFinite(value))
                   const studentCourseProgress =
-                    Number.isFinite(directCourseProgress)
-                      ? Math.min(100, Math.max(0, directCourseProgress))
-                      : storedOrNotifiedProgress
+                    Number.isFinite(storedCourseProgress)
+                      ? Math.min(100, Math.max(0, storedCourseProgress))
+                      : Number.isFinite(directCourseProgress)
+                        ? Math.min(100, Math.max(0, directCourseProgress))
+                        : (Number.isFinite(fallbackCourseProgress) ? Math.min(100, Math.max(0, fallbackCourseProgress)) : null)
                   const hasCourseProgress = Number.isFinite(studentCourseProgress)
 
                   return hasCourseProgress ? (
                     <div className="branch-student-paid-cell">
-                      <span className="branch-student-paid-amount">
+                      <span className="branch-student-course-progress-amount">
                         {formatBranchPercentage(studentCourseProgress)}%
                       </span>
                       <div className="branch-student-paid-progress">
-                        <div className="branch-student-paid-progress-bar" aria-hidden="true">
+                        <div className="branch-student-course-progress-bar" aria-hidden="true">
                           <span
-                            className="branch-student-paid-progress-fill"
+                            className="branch-student-course-progress-fill"
                             style={{ width: `${studentCourseProgress}%` }}
                           />
                         </div>

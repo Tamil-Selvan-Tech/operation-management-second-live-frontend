@@ -58,7 +58,7 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import { loadBranchStudents, saveBranchStudent } from '../lib/branchStudentStore'
+import { BRANCH_STUDENTS_KEY, loadBranchStudents, saveBranchStudent } from '../lib/branchStudentStore'
 import {
   loadNotifications as loadStoredNotifications,
   markNotificationsAsRead,
@@ -66,6 +66,7 @@ import {
 } from '../lib/notificationStore'
 import {
   FACULTY_TODAY_WORK_SYNC_EVENT,
+  FACULTY_TODAY_WORK_SYNC_KEY,
   getFacultyTodayWorkEntriesByFaculty,
   saveFacultyTodayWorkEntry,
   listFacultyTodayWorkEntries,
@@ -1111,12 +1112,20 @@ export function FacultyDashboardPage() {
       }
     }
 
+    const handleStorageChanged = (event) => {
+      if (event?.key === FACULTY_TODAY_WORK_SYNC_KEY || event?.key === BRANCH_STUDENTS_KEY) {
+        void loadTodayWork()
+      }
+    }
+
     void loadTodayWork()
     window.addEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, loadTodayWork)
+    window.addEventListener('storage', handleStorageChanged)
 
     return () => {
       isMounted = false
       window.removeEventListener(FACULTY_TODAY_WORK_SYNC_EVENT, loadTodayWork)
+      window.removeEventListener('storage', handleStorageChanged)
     }
   }, [])
 
@@ -2986,8 +2995,8 @@ const nextName = trimmedValue
                                       ? workProgressSummary.selectedSubmoduleIds
                                       : [],
                                   ),
-                                  moduleProgress: workProgressSummary.moduleProgress,
                                   courseProgress: workProgressSummary.courseProgress,
+                                  moduleProgress: workProgressSummary.moduleProgress,
                                 }
                               : null
                             const workModuleProgressLabel = workProgressSummary

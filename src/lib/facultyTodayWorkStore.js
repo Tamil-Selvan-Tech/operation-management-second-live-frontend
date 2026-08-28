@@ -1,6 +1,7 @@
 import { request } from '../services/apiClient'
 
-const FACULTY_TODAY_WORK_SYNC_EVENT = 'cispro:faculty-today-work-changed'
+export const FACULTY_TODAY_WORK_SYNC_EVENT = 'cispro:faculty-today-work-changed'
+export const FACULTY_TODAY_WORK_SYNC_KEY = 'cispro:faculty-today-work-sync'
 
 function normalizeText(value = '') {
   return String(value || '').trim().toLowerCase()
@@ -8,6 +9,12 @@ function normalizeText(value = '') {
 
 function dispatchChange() {
   if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.setItem(FACULTY_TODAY_WORK_SYNC_KEY, String(Date.now()))
+    } catch {
+      // ignore storage write failures
+    }
+
     window.dispatchEvent(new CustomEvent(FACULTY_TODAY_WORK_SYNC_EVENT))
   }
 }
@@ -27,8 +34,6 @@ function extractEntries(response) {
 
   return []
 }
-
-export { FACULTY_TODAY_WORK_SYNC_EVENT }
 
 export async function listFacultyTodayWorkEntries() {
   const response = await request('/faculty-today-work')

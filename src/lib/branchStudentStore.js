@@ -6,7 +6,7 @@ import { request } from '../services/apiClient'
  * Each student record carries a `branchId` so Super Admin can count per branch.
  */
 
-const BRANCH_STUDENTS_KEY = 'cispro.branch-students'
+export const BRANCH_STUDENTS_KEY = 'cispro.branch-students'
 
 function isBrowser() {
   return typeof window !== 'undefined' && Boolean(window.localStorage)
