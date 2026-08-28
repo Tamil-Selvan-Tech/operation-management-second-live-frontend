@@ -50,6 +50,17 @@ function getNotificationIcon(kind) {
       return Shield
   }
 }
+
+function isBranchCourseEditNotification(notification = {}) {
+  const kind = String(notification.kind || '').trim().toLowerCase()
+  return kind.startsWith('branch-course-edit-') || kind.startsWith('course-edit-')
+}
+
+function isCourseAssignedNotification(notification = {}) {
+  const kind = String(notification.kind || '').trim().toLowerCase()
+  return kind.includes('assigned')
+}
+
 export function SuperAdminNotificationBell({
   onOpenBranches,
   onViewActivity,
@@ -63,7 +74,10 @@ export function SuperAdminNotificationBell({
   const visibleNotifications = useMemo(
     () =>
       notifications.filter(
-        (notification) => String(notification.kind || '').trim().toLowerCase() !== 'branch-faculty-login',
+        (notification) =>
+          String(notification.kind || '').trim().toLowerCase() !== 'branch-faculty-login' &&
+          !isBranchCourseEditNotification(notification) &&
+          !isCourseAssignedNotification(notification),
       ),
     [notifications],
   )

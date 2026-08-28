@@ -180,6 +180,16 @@ function isWithinSelectedDateRange(createdAt, range) {
   return true
 }
 
+function isBranchCourseEditNotification(notification = {}) {
+  const kind = String(notification.kind || '').trim().toLowerCase()
+  return kind.startsWith('branch-course-edit-') || kind.startsWith('course-edit-')
+}
+
+function isCourseAssignedNotification(notification = {}) {
+  const kind = String(notification.kind || '').trim().toLowerCase()
+  return kind.includes('assigned')
+}
+
 function NotificationItem({ item, onView }) {
   return (
     <article className={`notifications-item ${item.read ? '' : 'is-unread'}`.trim()}>
@@ -220,7 +230,10 @@ export function SuperAdminNotificationsPage() {
   const visibleNotifications = useMemo(
     () =>
       notifications.filter(
-        (notification) => String(notification.kind || '').trim().toLowerCase() !== 'branch-faculty-login',
+        (notification) =>
+          String(notification.kind || '').trim().toLowerCase() !== 'branch-faculty-login' &&
+          !isBranchCourseEditNotification(notification) &&
+          !isCourseAssignedNotification(notification),
       ),
     [notifications],
   )
