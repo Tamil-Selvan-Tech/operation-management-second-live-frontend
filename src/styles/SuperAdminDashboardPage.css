@@ -2,6 +2,7 @@
   min-height: 100vh;
   background: #fff;
   padding: 10px;
+  overflow: hidden;
 }
 
 .super-admin-shell {
@@ -9,10 +10,11 @@
   gap: 0;
   position: relative;
   min-height: calc(100vh - 20px);
+  height: calc(100vh - 20px);
   border-radius: 18px;
   background: #fff;
   box-shadow: none;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .super-admin-sidebar-backdrop {
@@ -228,6 +230,8 @@
   padding: 0;
   margin-left: 216px;
   min-height: calc(100vh - 20px);
+  height: calc(100vh - 20px);
+  overflow: hidden;
 }
 
 body.super-admin-notification-menu-open {
@@ -319,8 +323,11 @@ body.super-admin-notification-menu-open .super-admin-content {
 }
 
 .super-admin-content {
-  min-height: 280px;
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 14px 24px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .super-admin-hero-copy {
