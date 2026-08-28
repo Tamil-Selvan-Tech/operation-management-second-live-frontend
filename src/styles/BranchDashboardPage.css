@@ -464,6 +464,37 @@
   padding: 18px 18px 16px;
 }
 
+.branch-dashboard-stats[data-layout="payments-summary"] {
+  grid-template-columns: repeat(2, minmax(190px, 230px));
+  justify-content: start;
+}
+
+.branch-dashboard-stats[data-layout="payments-summary"] .branch-dashboard-stat-card {
+  gap: 6px;
+  padding: 14px 16px 12px;
+  min-height: 128px;
+}
+
+.branch-dashboard-stats[data-layout="payments-summary"] .branch-dashboard-stat-card span {
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+}
+
+.branch-dashboard-stats[data-layout="payments-summary"] .branch-dashboard-stat-card strong {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+}
+
+.branch-dashboard-stats[data-layout="payments-summary"] .branch-dashboard-stat-card small {
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .branch-dashboard-stats[data-layout="payments-summary"] {
+    grid-template-columns: 1fr;
+  }
+}
+
 .branch-dashboard-stat-card span {
   color: #64748b;
   font-size: 0.78rem;
