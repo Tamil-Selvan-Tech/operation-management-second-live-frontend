@@ -7233,7 +7233,6 @@ else {
               <th>Next Installment</th>
               <th>Due Date</th>
               <th>Status</th>
-              <th>Action</th>
             </tr>
 
           </thead>
@@ -7358,17 +7357,6 @@ else {
 
                     </td>
 
-                    <td>
-                      <button
-                        type="button"
-                        className="button button-ghost"
-                        onClick={(event) => handleOpenBranchLedger(event, student)}
-                      >
-                        Ledger
-                      </button>
-                    </td>
-
-
                   </tr>
 
                 )
@@ -7380,7 +7368,7 @@ else {
               <tr>
 
                 <td
-                  colSpan="10"
+                  colSpan="9"
                   className="branch-course-empty-state"
                 >
                   No payment records found.
