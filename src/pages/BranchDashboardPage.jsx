@@ -2776,8 +2776,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         value: String(branchCourseCards.length),
         note: 'Published course catalog',
       },
-      { label: 'Active Batches', value: '11', note: 'Running live batches' },
-      { label: 'Pending Payments', value: '14', note: 'Needs follow-up today' },
+      { label: 'Active Batches', value: '0', note: 'Running live batches' },
+      { label: 'Pending Payments', value: '0', note: 'Needs follow-up today' },
     ],
     [branchCourseCards.length, totalBranchStudents],
   )

@@ -328,6 +328,13 @@ body.super-admin-notification-menu-open .super-admin-content {
   padding: 14px 24px 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.super-admin-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .super-admin-hero-copy {
