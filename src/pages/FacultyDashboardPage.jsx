@@ -608,33 +608,76 @@ function buildFacultyCourseUpdatePayload(course = {}, modules = []) {
   }
 }
 
-function summarizeFacultyEditChanges(modules = []) {
-  if (!Array.isArray(modules) || !modules.length) {
-    return 'Module structure updated'
+function summarizeFacultyEditChanges(previousModules = [], nextModules = [], facultyName = 'Faculty', courseName = 'Course') {
+  const previousList = Array.isArray(previousModules) ? previousModules : []
+  const nextList = Array.isArray(nextModules) ? nextModules : []
+  const resolvedFacultyName = String(facultyName || 'Faculty').trim() || 'Faculty'
+  const resolvedCourseName = String(courseName || 'Course').trim() || 'Course'
+
+  const getModuleName = (module = {}, moduleIndex = 0) =>
+    String(module?.name || module?.title || module?.moduleName || `Module ${moduleIndex + 1}`).trim() ||
+    `Module ${moduleIndex + 1}`
+
+  const getSubmoduleName = (submodule = {}, subIndex = 0) =>
+    String(submodule?.name || submodule?.title || submodule?.submoduleName || `Submodule ${subIndex + 1}`).trim() ||
+    `Submodule ${subIndex + 1}`
+
+  const getModuleSubmodules = (module = {}) => (Array.isArray(module?.submodules) ? module.submodules : [])
+
+  if (nextList.length > previousList.length) {
+    const addedModuleIndex = Math.max(0, nextList.length - 1)
+    const addedModule = nextList[addedModuleIndex] || {}
+    const addedModuleName = getModuleName(addedModule, addedModuleIndex)
+    const addedSubmodule = getModuleSubmodules(addedModule)[0] || null
+
+    if (addedSubmodule) {
+      return `${resolvedFacultyName} added a new module "${addedModuleName}" with a new submodule "${getSubmoduleName(addedSubmodule, 0)}" in ${resolvedCourseName}.`
+    }
+
+    return `${resolvedFacultyName} added a new module "${addedModuleName}" in ${resolvedCourseName}.`
   }
 
-  const moduleSummaries = modules
-    .map((module, moduleIndex) => {
-      const moduleName = String(module?.name || `Module ${moduleIndex + 1}`).trim()
-      const submoduleNames = Array.isArray(module?.submodules)
-        ? module.submodules
-            .map((submodule, subIndex) => String(submodule?.name || `Submodule ${subIndex + 1}`).trim())
-            .filter(Boolean)
-        : []
+  if (nextList.length < previousList.length) {
+    const deletedModuleIndex = Math.max(0, previousList.length - 1)
+    const deletedModule = previousList[deletedModuleIndex] || {}
+    return `${resolvedFacultyName} deleted the "${getModuleName(deletedModule, deletedModuleIndex)}" module from ${resolvedCourseName}.`
+  }
 
-      if (!submoduleNames.length) {
-        return moduleName
+  for (let moduleIndex = 0; moduleIndex < nextList.length; moduleIndex += 1) {
+    const previousModule = previousList[moduleIndex] || {}
+    const nextModule = nextList[moduleIndex] || {}
+    const previousModuleName = getModuleName(previousModule, moduleIndex)
+    const nextModuleName = getModuleName(nextModule, moduleIndex)
+    const previousSubmodules = getModuleSubmodules(previousModule)
+    const nextSubmodules = getModuleSubmodules(nextModule)
+
+    if (previousModuleName !== nextModuleName) {
+      return `${resolvedFacultyName} edited the module name from "${previousModuleName}" to "${nextModuleName}" in ${resolvedCourseName}.`
+    }
+
+    if (nextSubmodules.length > previousSubmodules.length) {
+      const addedSubmoduleIndex = Math.max(0, nextSubmodules.length - 1)
+      const addedSubmodule = nextSubmodules[addedSubmoduleIndex] || {}
+      return `${resolvedFacultyName} added a new submodule "${getSubmoduleName(addedSubmodule, addedSubmoduleIndex)}" under the "${nextModuleName}" module in ${resolvedCourseName}.`
+    }
+
+    if (nextSubmodules.length < previousSubmodules.length) {
+      const deletedSubmoduleIndex = Math.max(0, previousSubmodules.length - 1)
+      const deletedSubmodule = previousSubmodules[deletedSubmoduleIndex] || {}
+      return `${resolvedFacultyName} deleted the "${getSubmoduleName(deletedSubmodule, deletedSubmoduleIndex)}" submodule from the "${nextModuleName}" module in ${resolvedCourseName}.`
+    }
+
+    for (let submoduleIndex = 0; submoduleIndex < nextSubmodules.length; submoduleIndex += 1) {
+      const previousSubmoduleName = getSubmoduleName(previousSubmodules[submoduleIndex] || {}, submoduleIndex)
+      const nextSubmoduleName = getSubmoduleName(nextSubmodules[submoduleIndex] || {}, submoduleIndex)
+
+      if (previousSubmoduleName !== nextSubmoduleName) {
+        return `${resolvedFacultyName} edited the submodule name from "${previousSubmoduleName}" to "${nextSubmoduleName}" under the "${nextModuleName}" module in ${resolvedCourseName}.`
       }
+    }
+  }
 
-      return `${moduleName} (${submoduleNames.join(', ')})`
-    })
-    .filter(Boolean)
-
-  const previewSummaries = moduleSummaries.slice(0, 3)
-  const remainingCount = moduleSummaries.length - previewSummaries.length
-  const suffix = remainingCount > 0 ? ` + ${remainingCount} more` : ''
-
-  return `Updated ${previewSummaries.join('; ')}${suffix}`
+  return `${resolvedFacultyName} updated modules and submodules in ${resolvedCourseName}.`
 }
 
 function formatNotificationTime(createdAt) {
@@ -2197,7 +2240,7 @@ const nextName = trimmedValue
         courseModels: normalizedModules,
         models: normalizedModules,
       }
-      const changeSummary = summarizeFacultyEditChanges(normalizedModules)
+      const changeSummary = summarizeFacultyEditChanges(selectedCourseModules, normalizedModules, facultyDetails?.name || facultyDetails?.facultyName || 'Faculty', selectedCourse?.name || selectedCourse?.courseName || 'Course')
       const response = await saveCourseEditRequestModules(currentCourseEditRequest.id, payload)
       const updatedCourseRecord = response?.course || payload
       const updatedModules = cloneFacultyEditModules(updatedCourseRecord)
@@ -2263,7 +2306,7 @@ const nextName = trimmedValue
         kind: 'branch-course-edit-updated',
         tone: 'amber',
         title: `${selectedCourse?.name || selectedCourse?.courseName || 'Course'} updated`,
-        message: `${facultyDetails?.name || facultyDetails?.facultyName || 'Faculty'} saved module and submodule changes for ${selectedCourse?.name || selectedCourse?.courseName || 'the course'}. ${changeSummary}.`,
+        message: changeSummary,
         actionLabel: 'Updated',
         targetSection: 'courses',
         courseId: selectedCourse.id,
