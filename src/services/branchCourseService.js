@@ -134,11 +134,44 @@ function normalizeBranchCoursePaymentPlanList(plans) {
   return Array.isArray(plans) ? plans.map(normalizeBranchCoursePaymentPlan).filter(Boolean) : []
 }
 
+function normalizeBranchCourseFacultyList(facultyList) {
+  if (!Array.isArray(facultyList) || !facultyList.length) return []
+
+  return facultyList
+    .map((faculty) => {
+      const id = String(
+        faculty?.id ||
+        faculty?.facultyId ||
+        faculty?.facultyUserId ||
+        faculty?.userId ||
+        '',
+      ).trim()
+      const name = normalizeText(faculty?.name || faculty?.facultyName || faculty?.fullName)
+
+      if (!id && !name) return null
+
+      return {
+        ...faculty,
+        id: id || name,
+        facultyId: faculty?.facultyId || id || '',
+        facultyUserId: faculty?.facultyUserId || faculty?.userId || id || '',
+        name: name || id,
+        email: normalizeText(faculty?.email || faculty?.facultyEmail),
+        phone: normalizeText(faculty?.phone || faculty?.facultyPhone),
+        status: faculty?.status || faculty?.recordStatus || 'ACTIVE',
+      }
+    })
+    .filter(Boolean)
+}
+
 export function normalizeBranchCourse(course) {
   if (!course) return null
 
   const paymentPlans = normalizeBranchCoursePaymentPlanList(
     course.paymentPlans || course.paymentPlanSelections || course.installmentPlans || [],
+  )
+  const assignedFaculty = normalizeBranchCourseFacultyList(
+    course.assignedFaculty || course.branchFaculties || course.facultyAssignments || [],
   )
 
   const resolvedId = String(
@@ -165,6 +198,7 @@ export function normalizeBranchCourse(course) {
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    assignedFaculty,
     paymentPlans,
     paymentPlanSelections: paymentPlans,
     installmentTemplate: normalizeBranchInstallmentTemplate(

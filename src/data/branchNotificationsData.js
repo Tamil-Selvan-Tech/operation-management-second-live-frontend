@@ -121,6 +121,7 @@ export function normalizeBranchNotification(notification = {}) {
     unread: !notification.read,
     dropdownViewed: Boolean(notification.dropdownViewed),
     icon: getNotificationIcon(kind),
+    createdAt,
     targetSection:
       String(notification.targetSection || '').trim() ||
       (isCourseEditRequest || isCourseEditAccepted || isCourseEditUpdated
