@@ -109,6 +109,7 @@ export function loadNotifications() {
     })
     .filter((notification) =>
       String(notification.kind || '').startsWith('branch-') ||
+      String(notification.kind || '').startsWith('faculty-') ||
       String(notification.kind || '').startsWith('course-edit-') ||
       String(notification.kind || '').startsWith('faculty-progress-status') ||
       String(notification.kind || '').startsWith('branch-progress-status') ||

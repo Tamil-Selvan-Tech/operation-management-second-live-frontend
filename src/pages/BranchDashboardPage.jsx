@@ -1809,6 +1809,33 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
     allowCustomization: true,
     status: 'Active',
   })
+  const assignedFaculty = Array.isArray(course.assignedFaculty)
+    ? course.assignedFaculty
+        .map((faculty) => {
+          const id = String(
+            faculty?.id ||
+            faculty?.facultyId ||
+            faculty?.facultyUserId ||
+            faculty?.userId ||
+            '',
+          ).trim()
+          const name = String(faculty?.name || faculty?.facultyName || faculty?.fullName || '').trim()
+
+          if (!id && !name) return null
+
+          return {
+            ...faculty,
+            id: id || name,
+            facultyId: faculty?.facultyId || id || '',
+            facultyUserId: faculty?.facultyUserId || faculty?.userId || id || '',
+            name: name || id,
+            email: String(faculty?.email || faculty?.facultyEmail || '').trim(),
+            phone: String(faculty?.phone || faculty?.facultyPhone || '').trim(),
+            status: faculty?.status || faculty?.recordStatus || 'ACTIVE',
+          }
+        })
+        .filter(Boolean)
+    : []
 
   return {
     ...course,
@@ -1833,6 +1860,7 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
+    assignedFaculty,
     paymentPlans: buildBranchCoursePaymentPlanSelectionsFromRecord(course),
     installmentTemplate,
     createdAt: String(course.createdAt || new Date().toISOString()),
@@ -1927,6 +1955,13 @@ function buildBranchCourseFormFromRecord(course = {}) {
     discount: String(course.discount ?? '').trim(),
     status: String(course.status || 'Active').trim() || 'Active',
     installmentTemplate,
+    assignedFaculty: Array.isArray(course.assignedFaculty)
+      ? course.assignedFaculty.map((faculty) => ({
+          ...faculty,
+          id: String(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || faculty?.userId || '').trim(),
+          name: String(faculty?.name || faculty?.facultyName || faculty?.fullName || '').trim(),
+        })).filter((faculty) => faculty.id || faculty.name)
+      : [],
     models: normalizeBranchCourseModels(course.models || course.courseModels || course.modules || []),
     paymentPlans: buildBranchCoursePaymentPlanSelectionsFromRecord(course),
   }
@@ -2798,9 +2833,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         .filter(
           (notification) =>
             String(notification.kind || '').startsWith('branch-') ||
-            String(notification.kind || '').startsWith('branch-progress-status') ||
-            String(notification.kind || '').startsWith('course-edit-') ||
-            String(notification.kind || '') === 'faculty-login',
+            String(notification.kind || '').startsWith('faculty-') ||
+            String(notification.kind || '').startsWith('course-edit-'),
         )
         .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
     [branchNotificationRecords],

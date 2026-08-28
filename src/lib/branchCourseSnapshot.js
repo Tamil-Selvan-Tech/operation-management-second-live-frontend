@@ -119,6 +119,8 @@ export function mergeBranchCoursesWithSnapshot(records, branchId = '') {
 
     const primaryModels = Array.isArray(course?.models) ? course.models : []
     const snapshotModels = Array.isArray(snapshotCourse?.models) ? snapshotCourse.models : []
+    const primaryAssignedFaculty = Array.isArray(course?.assignedFaculty) ? course.assignedFaculty : []
+    const snapshotAssignedFaculty = Array.isArray(snapshotCourse?.assignedFaculty) ? snapshotCourse.assignedFaculty : []
 
     return normalizeBranchCourseSnapshotRecord({
       ...snapshotCourse,
@@ -127,6 +129,7 @@ export function mergeBranchCoursesWithSnapshot(records, branchId = '') {
       models: snapshotModels.length ? snapshotModels : primaryModels,
       courseModels: snapshotModels.length ? snapshotModels : primaryModels,
       modules: snapshotModels.length ? snapshotModels : primaryModels,
+      assignedFaculty: primaryAssignedFaculty.length ? primaryAssignedFaculty : snapshotAssignedFaculty,
     })
   })
 }
