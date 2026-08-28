@@ -95,6 +95,7 @@ const RecordPayment = ({ student, students = [], onClose }) => {
   const [errors, setErrors] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
   const [receiptNumber, setReceiptNumber] = useState("");
 
@@ -803,6 +804,8 @@ const RecordPayment = ({ student, students = [], onClose }) => {
       return;
     }
 
+    setShowReceipt(false);
+
     const receiptDate =
       formatDateDMY(formData.paymentDate);
 
@@ -1431,8 +1434,9 @@ const RecordPayment = ({ student, students = [], onClose }) => {
         const isSaved = await savePaymentToBackend();
 
         if (isSaved) {
-          setShowReceipt(false);
-          onClose?.();
+          setShowPaymentSuccess(true);
+        } else {
+          setShowReceipt(true);
         }
       })
       .catch((error) => {
@@ -1454,6 +1458,8 @@ const RecordPayment = ({ student, students = [], onClose }) => {
         alert(
           "Unable to generate receipt PDF."
         );
+
+        setShowReceipt(true);
       });
   };
 
@@ -1475,7 +1481,16 @@ const RecordPayment = ({ student, students = [], onClose }) => {
 
     setShowReceipt(false);
 
-    onClose();
+    onClose?.();
+  };
+
+  // =========================================================
+  // CLOSE SUCCESS POPUP
+  // =========================================================
+
+  const handleCloseSuccessPopup = () => {
+    setShowPaymentSuccess(false);
+    onClose?.();
   };
 
   // =========================================================
@@ -2517,6 +2532,52 @@ const RecordPayment = ({ student, students = [], onClose }) => {
                   : "↓ Download Receipt & Save Payment"}
               </button>
 
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
+      {/* =====================================================
+          PAYMENT SUCCESS POPUP
+      ===================================================== */}
+
+      {showPaymentSuccess && (
+
+        <div className="payment-popup-overlay">
+
+          <div className="payment-success-popup" role="dialog" aria-modal="true" aria-labelledby="payment-success-title">
+
+            <button
+              type="button"
+              className="receipt-popup-close payment-success-close"
+              aria-label="Close success popup"
+              onClick={handleCloseSuccessPopup}
+            >
+              Ã—
+            </button>
+
+            <div className="payment-success-icon">
+              ✓
+            </div>
+
+            <h3 id="payment-success-title">
+              Payment saved successfully
+            </h3>
+
+            <p className="payment-popup-description">
+              The receipt has been downloaded and the payment has been completed successfully.
+            </p>
+
+            <div className="payment-success-actions">
+              <button
+                type="button"
+                className="payment-success-btn"
+              >
+                OK
+              </button>
             </div>
 
           </div>

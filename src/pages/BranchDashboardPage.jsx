@@ -4732,24 +4732,6 @@ const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
   { totalCollected: 0, totalPending: 0, overdueCount: 0, paidCount: 0 },
 ), [branchPaymentRows])
 
-const paymentOverviewStats = useMemo(
-  () => [
-    {
-      label: 'This Week Collection',
-      value: formatBranchRupees(
-        branchPaymentStats.weeklyCollected ?? branchPaymentStats.totalCollected ?? 0,
-      ),
-      note: 'Payments collected this week',
-    },
-    {
-      label: 'Total Pending',
-      value: formatBranchRupees(branchPaymentStats.totalPending),
-      note: 'Amount yet to be collected',
-    },
-  ],
-  [branchPaymentStats.totalPending, branchPaymentStats.totalCollected, branchPaymentStats.weeklyCollected],
-)
-
 const filteredBranchPaymentRows = useMemo(() => {
   const q = paymentSearchTerm.trim().toLowerCase()
   const todayStr = getTodayValue()
@@ -5654,7 +5636,7 @@ useEffect(() => {
                 
 
                   <div className="branch-dashboard-stats" data-layout="overview-payments-summary" style={{ marginBottom: '20px' }}>
-                    {[...overviewStats, ...paymentOverviewStats].map((stat) => (
+                    {overviewStats.map((stat) => (
                       <article key={stat.label} className="branch-dashboard-stat-card">
                         <span>{stat.label}</span>
                         <strong>{stat.value}</strong>
@@ -7233,48 +7215,6 @@ else {
           marginBottom: '20px',
         }}
       >
-
-        {/* THIS WEEK COLLECTION */}
-        <article className="branch-dashboard-stat-card">
-
-          <span>
-            This Week Collection
-          </span>
-
-          <strong>
-            {formatBranchRupees(
-              branchPaymentStats.weeklyCollected ??
-              branchPaymentStats.totalCollected ??
-              0
-            )}
-          </strong>
-
-          <small>
-            Payments collected this week
-          </small>
-
-        </article>
-
-
-        {/* TOTAL PENDING */}
-        <article className="branch-dashboard-stat-card">
-
-          <span>
-            Total Pending
-          </span>
-
-          <strong>
-            {formatBranchRupees(
-              branchPaymentStats.totalPending
-            )}
-          </strong>
-
-          <small>
-            Amount yet to be collected
-          </small>
-
-        </article>
-
 
         {/* PENDING PAYMENTS */}
         <article className="branch-dashboard-stat-card">

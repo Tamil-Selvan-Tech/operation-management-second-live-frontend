@@ -534,6 +534,19 @@
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
   animation: paymentPopupIn 0.2s ease-out;
 }
+
+.payment-success-popup {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  animation: paymentPopupIn 0.2s ease-out;
+  text-align: center;
+}
+
 .payment-receipt-popup::-webkit-scrollbar {
   width: 6px;
 }
@@ -570,6 +583,19 @@
   background: #e5e7eb;
 }
 
+.payment-success-close {
+  color: transparent;
+  font-size: 0;
+}
+
+.payment-success-close::before {
+  content: "X";
+  color: #4b5563;
+  font-size: 22px;
+  line-height: 1;
+  display: block;
+}
+
 /* =========================================================
    SUCCESS ICON
 ========================================================= */
@@ -586,6 +612,31 @@
   font-size: 26px;
   font-weight: 700;
   margin-bottom: 16px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.payment-success-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+
+.payment-success-btn {
+  height: 42px;
+  min-width: 120px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 8px;
+  background: #0f766e;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.payment-success-btn:hover {
+  background: #115e59;
 }
 
 /* =========================================================
@@ -760,7 +811,8 @@
   }
 
   .payment-confirmation-popup,
-  .payment-receipt-popup {
+  .payment-receipt-popup,
+  .payment-success-popup {
     padding: 22px;
   }
 
@@ -772,7 +824,8 @@
   .popup-cancel-btn,
   .popup-confirm-btn,
   .receipt-close-btn,
-  .generate-receipt-btn {
+  .generate-receipt-btn,
+  .payment-success-btn {
     width: 100%;
   }
 
