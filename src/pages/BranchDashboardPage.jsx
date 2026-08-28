@@ -288,8 +288,23 @@ function validateStudentForm(form, students = []) {
   if (!form.courseAmount.trim()) errors.courseAmount = 'Course amount is required.'
 
   const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
+  const resolvedStudentId = String(
+    form.studentId || (String(form.studentIdSuffix || '').trim() ? `${STUDENT_ID_PREFIX}${String(form.studentIdSuffix || '').trim()}` : ''),
+  ).trim().toLowerCase()
   const normalizedEmail = String(form.emailAddress || '').trim().toLowerCase()
   const normalizedMobile = String(form.mobileNumber || '').trim()
+
+  if (resolvedStudentId) {
+    const duplicateStudentId = students.find((student) => {
+      const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
+      const studentId = String(student?.studentId || '').trim().toLowerCase()
+      return studentId && studentId === resolvedStudentId && studentRecordId !== currentRecordId
+    })
+
+    if (duplicateStudentId) {
+      errors.studentIdSuffix = 'Student ID already exists.'
+    }
+  }
 
   if (normalizedEmail) {
     const duplicateEmail = students.find((student) => {
@@ -1724,6 +1739,24 @@ function createBranchCourseErrors(form) {
   return { basic, hierarchy }
 }
 
+function getBranchCourseDuplicateErrors(form, existingCourses = [], editingCourseId = null) {
+  const normalizedCourseCode = normalizeBranchCourseCode(form.courseCode).trim().toLowerCase()
+  const normalizedEditingCourseId = String(editingCourseId || '').trim().toLowerCase()
+
+  if (!normalizedCourseCode || normalizedCourseCode.length <= COURSE_CODE_PREFIX.length) {
+    return {}
+  }
+
+  const duplicateCourseCode = (Array.isArray(existingCourses) ? existingCourses : []).find((course) => {
+    const courseId = String(course?.id || '').trim().toLowerCase()
+    const courseCode = String(course?.courseCode || '').trim().toLowerCase()
+
+    return courseId !== normalizedEditingCourseId && courseCode === normalizedCourseCode
+  })
+
+  return duplicateCourseCode ? { courseCode: 'Course code already exists.' } : {}
+}
+
 function formatBranchAdminDisplayName(value) {
   const text = String(value || '').trim()
   if (!text) return 'Branch Admin'
@@ -3034,6 +3067,17 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [addCourseForm.actualFees, addCourseForm.discount, addCourseForm.registrationFees])
 
   const addCourseValidationErrors = useMemo(() => createBranchCourseErrors(addCourseForm), [addCourseForm])
+  const addCourseDuplicateErrors = useMemo(
+    () => getBranchCourseDuplicateErrors(addCourseForm, branchCourseCards, editingCourseId),
+    [addCourseForm.courseCode, branchCourseCards, editingCourseId],
+  )
+  const addCourseVisibleBasicErrors = useMemo(
+    () => ({
+      ...addCourseValidationErrors.basic,
+      ...addCourseDuplicateErrors,
+    }),
+    [addCourseDuplicateErrors, addCourseValidationErrors.basic],
+  )
   const addCoursePaymentPlanSelections = useMemo(
     () => normalizeBranchCoursePaymentPlanSelections(addCourseForm.paymentPlans),
     [addCourseForm.paymentPlans],
@@ -3121,7 +3165,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     [savedCourseHierarchy],
   )
 
-  const shouldShowBasicAddCourseError = (field) => Boolean(addCourseTouched[field] && addCourseValidationErrors.basic[field])
+  const shouldShowBasicAddCourseError = (field) =>
+    Boolean(addCourseTouched[field] && addCourseVisibleBasicErrors[field])
 
   const shouldShowModelNameError = (modelIndex) =>
     Boolean(
@@ -3942,9 +3987,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     nextTouched.paymentPlans = true
     setAddCourseTouched(nextTouched)
 
-    if (Object.keys(addCourseValidationErrors.basic).length > 0 || addCourseValidationErrors.hierarchy.modelsError) {
+    if (Object.keys(addCourseVisibleBasicErrors).length > 0 || addCourseValidationErrors.hierarchy.modelsError) {
       setAddCourseStep(1)
-      setAddCourseError(Object.values(addCourseValidationErrors.basic)[0] || addCourseValidationErrors.hierarchy.modelsError || 'Please fill all required fields before saving.')
+      setAddCourseError(Object.values(addCourseVisibleBasicErrors)[0] || addCourseValidationErrors.hierarchy.modelsError || 'Please fill all required fields before saving.')
       isAddCourseSubmitLockedRef.current = false
       return
     }
@@ -7790,7 +7835,7 @@ else {
                     label="Course Code"
                     required
                     hint="Recommended unique identifier for reports and integrations"
-                    error={shouldShowBasicAddCourseError('courseCode') ? addCourseValidationErrors.basic.courseCode : ''}
+                    error={shouldShowBasicAddCourseError('courseCode') ? addCourseVisibleBasicErrors.courseCode : ''}
                   >
                     <input
                       type="text"
