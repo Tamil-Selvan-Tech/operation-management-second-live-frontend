@@ -764,6 +764,7 @@ export function BranchBatchManagementSection({
           courseId: selectedCourseRecord?.id || '',
           facultyId: selectedFacultyRecord?.id || '',
           rows: cleanedRows.map((row) => ({
+            batchId: row.batchId,
             batchName: row.batchName,
             startTime: row.startTime,
             startPeriod: row.startPeriod,
