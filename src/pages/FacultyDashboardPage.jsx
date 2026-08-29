@@ -1337,6 +1337,15 @@ export function FacultyDashboardPage() {
   const assignedCourses = useMemo(() => {
     if (!Array.isArray(courseCatalog) || !courseCatalog.length) return []
 
+    const toCourseKey = (course = {}) =>
+      normalizeCourseKey([
+        course?.id,
+        course?.courseId,
+        course?.courseCode,
+        course?.name,
+        course?.courseName,
+      ].find((value) => String(value || '').trim()) || '')
+
     const matchedCourses = courseCatalog.filter((course) => {
       const courseId = String(course?.id || '').trim()
       const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
@@ -1350,7 +1359,7 @@ export function FacultyDashboardPage() {
 
     const uniqueMatchedCourses = Array.from(
       new Map(
-        matchedCourses.map((course) => [String(course?.id || course?.courseCode || course?.name || '').trim(), course]),
+        matchedCourses.map((course) => [toCourseKey(course), course]),
       ).values(),
     )
 
@@ -1364,7 +1373,7 @@ export function FacultyDashboardPage() {
     const fallbackCourses = courseCatalog.filter((course) => normalizeCourseKey(course?.name || course?.courseName || '') === normalizeCourseKey(fallbackName))
     return Array.from(
       new Map(
-        fallbackCourses.map((course) => [String(course?.id || course?.courseCode || course?.name || '').trim(), course]),
+        fallbackCourses.map((course) => [toCourseKey(course), course]),
       ).values(),
     )
   }, [assignedCourseIds, assignedCourseNames, courseCatalog])
