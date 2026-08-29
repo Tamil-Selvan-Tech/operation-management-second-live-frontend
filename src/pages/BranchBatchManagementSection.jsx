@@ -2,13 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronRight, Eye, MoreVertical, Pencil, Plus, X, Trash2 } from 'lucide-react'
 import {
-  getNextBatchSequenceNumber,
-  deleteBranchBatchGroup,
-  loadBranchBatchGroups,
-  makeBatchId,
-  subscribeBranchBatchGroups,
-  upsertBranchBatchGroup,
-} from '../lib/branchBatchStore'
+  createBranchBatch,
+  deleteBranchBatch,
+  listBranchBatches,
+  updateBranchBatch,
+} from '../services/branchBatchService'
 import '../styles/BranchBatchManagementSection.css'
 
 function normalizeText(value = '') {
@@ -69,7 +67,8 @@ function formatClockLabel(value = '') {
 
 function convertTimeTo24Hour(value = '', meridiem = 'AM') {
   const text = normalizeText(value)
-  const match = text.match(/^(\d{1,2}):(\d{2})$/)
+  const normalized = formatTimeInput(text)
+  const match = normalized.match(/^(\d{2}):(\d{2})$/)
   if (!match) return text
 
   let hours = Number(match[1])
@@ -90,9 +89,10 @@ function convertTimeTo24Hour(value = '', meridiem = 'AM') {
 function formatTimeInput(value = '') {
   const digits = String(value || '').replace(/\D/g, '').slice(0, 4)
   if (!digits) return ''
-  if (digits.length === 1) return `0${digits}`
+  if (digits.length === 1) return `0${digits}:00`
   if (digits.length === 2) return `${digits}:00`
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`
+  if (digits.length === 3) return `0${digits.slice(0, 1)}:${digits.slice(1)}`
+  return `${digits.slice(0, 2)}:${digits.slice(2, 4)}`
 }
 
 function parseStoredTimeParts(value = '') {
@@ -162,6 +162,33 @@ function createBatchRow(batchId = '') {
   }
 }
 
+function makeBatchId(sequenceNumber = 1) {
+  const safeSequence = Math.max(1, Number(sequenceNumber) || 1)
+  return `BAT-${String(safeSequence).padStart(3, '0')}`
+}
+
+function getNextBatchSequenceNumber(groups = []) {
+  let maxSequence = 0
+
+  const rows = Array.isArray(groups) ? groups.flatMap((group) => {
+    if (Array.isArray(group?.batches) && group.batches.length) {
+      return group.batches
+    }
+    return group ? [group] : []
+  }) : []
+
+  rows.forEach((row) => {
+    const match = String(row?.batchId || '').trim().match(/^BAT-(\d+)$/i)
+    if (!match) return
+    const value = Number(match[1])
+    if (Number.isInteger(value) && value > maxSequence) {
+      maxSequence = value
+    }
+  })
+
+  return maxSequence + 1
+}
+
 function createInitialDraft(sequenceStart, count = 1) {
   const rowCount = Math.max(1, count)
   const rows = Array.from({ length: rowCount }, (_, index) => createBatchRow(makeBatchId(sequenceStart + index)))
@@ -178,8 +205,8 @@ function createDraftFromGroup(group = {}, sequenceStart = 1) {
   const batches = Array.isArray(group.batches) ? group.batches : []
   const rows = batches.length
     ? batches.map((batch, index) => {
-        const startParts = parseStoredTimeParts(batch.startTime || '')
-        const endParts = parseStoredTimeParts(batch.endTime || '')
+        const startParts = parseStoredTimeParts(`${batch.startTime || ''} ${batch.startPeriod || ''}`.trim())
+        const endParts = parseStoredTimeParts(`${batch.endTime || ''} ${batch.endPeriod || ''}`.trim())
 
         return {
           batchId: normalizeText(batch.batchId || makeBatchId(sequenceStart + index)),
@@ -218,7 +245,8 @@ export function BranchBatchManagementSection({
   branchFacultyRecords = [],
   facultyList = [],
 }) {
-  const [batchGroups, setBatchGroups] = useState(() => loadBranchBatchGroups(branchId))
+  const [batchGroups, setBatchGroups] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [createError, setCreateError] = useState('')
@@ -231,19 +259,49 @@ export function BranchBatchManagementSection({
   const [editingGroup, setEditingGroup] = useState(null)
   const [deleteGroupTarget, setDeleteGroupTarget] = useState(null)
   const [deleteRowTarget, setDeleteRowTarget] = useState(null)
-  const [draft, setDraft] = useState(() => createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
+  const [draft, setDraft] = useState(() => createInitialDraft(1, 1))
   const [searchTerm, setSearchTerm] = useState('')
   const [actionMenuOpenId, setActionMenuOpenId] = useState('')
   const [actionMenuPosition, setActionMenuPosition] = useState(null)
 
+  const refreshBatchGroups = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const result = await listBranchBatches()
+      const groups = Array.isArray(result?.data) ? result.data : []
+      setBatchGroups(groups)
+      return groups
+    } catch (error) {
+      console.error('Failed to load branch batches:', error)
+      setBatchGroups([])
+      return []
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    const syncGroups = () => {
-      setBatchGroups(loadBranchBatchGroups(branchId))
+    let active = true
+
+    const syncGroups = async () => {
+      try {
+        const groups = await refreshBatchGroups()
+        if (!active) return
+        if (Array.isArray(groups)) {
+          setBatchGroups(groups)
+        }
+      } catch (error) {
+        if (!active) return
+        console.error('Failed to load branch batches:', error)
+        setBatchGroups([])
+      }
     }
 
     syncGroups()
-    return subscribeBranchBatchGroups(syncGroups)
-  }, [branchId])
+    return () => {
+      active = false
+    }
+  }, [branchId, refreshBatchGroups])
 
   useEffect(() => {
     if (!actionMenuOpenId) return undefined
@@ -360,12 +418,12 @@ export function BranchBatchManagementSection({
   const resetDraft = useCallback(() => {
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
-    setDraft(createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
+    setDraft(createInitialDraft(getNextBatchSequenceNumber(batchGroups), 1))
     setEditingGroup(null)
-  }, [branchId])
+  }, [batchGroups])
 
   const openCreateModal = useCallback(() => {
-    const sequenceStart = getNextBatchSequenceNumber(loadBranchBatchGroups(branchId))
+    const sequenceStart = getNextBatchSequenceNumber(batchGroups)
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
     setDraft(createInitialDraft(sequenceStart, 1))
@@ -373,11 +431,11 @@ export function BranchBatchManagementSection({
     setActionMenuOpenId('')
     setActionMenuPosition(null)
     setIsCreateOpen(true)
-  }, [branchId])
+  }, [batchGroups])
 
   const openEditModal = useCallback(
     (group) => {
-      const nextSequence = getNextBatchSequenceNumber(loadBranchBatchGroups(branchId))
+      const nextSequence = getNextBatchSequenceNumber(batchGroups)
       setCreateError('')
       setFieldErrors({ courseId: '', facultyId: '', rows: [] })
       setEditingGroup(group)
@@ -386,7 +444,7 @@ export function BranchBatchManagementSection({
       setActionMenuOpenId('')
       setActionMenuPosition(null)
     },
-    [branchId],
+    [batchGroups],
   )
 
   const closeCreateModal = useCallback(() => {
@@ -566,21 +624,31 @@ export function BranchBatchManagementSection({
   const confirmDeleteGroup = useCallback(() => {
     if (!deleteGroupTarget) return
 
-    deleteBranchBatchGroup(deleteGroupTarget)
-    setBatchGroups(loadBranchBatchGroups(branchId))
+    ;(async () => {
+      try {
+        setIsSaving(true)
+        await deleteBranchBatch(deleteGroupTarget.id || deleteGroupTarget.batchGroupId || deleteGroupTarget.batchId)
+        await refreshBatchGroups()
 
-    if (detailGroup && String(detailGroup.id || detailGroup.batchGroupId || detailGroup.batchId || '').trim() === String(deleteGroupTarget.id || deleteGroupTarget.batchGroupId || deleteGroupTarget.batchId || '').trim()) {
-      setDetailGroup(null)
-    }
+        if (detailGroup && String(detailGroup.id || detailGroup.batchGroupId || detailGroup.batchId || '').trim() === String(deleteGroupTarget.id || deleteGroupTarget.batchGroupId || deleteGroupTarget.batchId || '').trim()) {
+          setDetailGroup(null)
+        }
 
-    if (editingGroup && String(editingGroup.id || editingGroup.batchGroupId || editingGroup.batchId || '').trim() === String(deleteGroupTarget.id || deleteGroupTarget.batchGroupId || deleteGroupTarget.batchId || '').trim()) {
-      closeCreateModal()
-    }
-    closeDeleteConfirmModal()
-  }, [branchId, closeCreateModal, closeDeleteConfirmModal, deleteGroupTarget, detailGroup, editingGroup])
+        if (editingGroup && String(editingGroup.id || editingGroup.batchGroupId || editingGroup.batchId || '').trim() === String(deleteGroupTarget.id || deleteGroupTarget.batchGroupId || deleteGroupTarget.batchId || '').trim()) {
+          closeCreateModal()
+        }
+        closeDeleteConfirmModal()
+      } catch (error) {
+        console.error('Failed to delete batch:', error)
+        setCreateError(error?.message || 'Unable to delete batch right now.')
+      } finally {
+        setIsSaving(false)
+      }
+    })()
+  }, [closeCreateModal, closeDeleteConfirmModal, deleteGroupTarget, detailGroup, editingGroup, refreshBatchGroups])
 
   const handleSaveBatches = useCallback(
-    (event) => {
+    async (event) => {
       event.preventDefault()
       setCreateError('')
 
@@ -645,11 +713,12 @@ export function BranchBatchManagementSection({
           }
 
           return {
-            id: row.batchId,
             batchId: row.batchId,
             batchName,
             startTime: convertTimeTo24Hour(startTime, startPeriod),
+            startPeriod,
             endTime: convertTimeTo24Hour(endTime, endPeriod),
+            endPeriod,
             batchTiming: buildBatchTiming({
               startTime: formatClockLabel(`${startTime} ${startPeriod}`),
               endTime: formatClockLabel(`${endTime} ${endPeriod}`),
@@ -659,38 +728,39 @@ export function BranchBatchManagementSection({
           }
         })
 
-        const primaryStatus = cleanedRows[0]?.status || 'Active'
-        const record = {
-          id: existingGroup?.id || cleanedRows[0]?.batchId,
-          batchGroupId: existingGroup?.batchGroupId || cleanedRows[0]?.batchId,
-          batchId: cleanedRows[0]?.batchId,
-          branchId,
+        const payload = {
           courseId: selectedCourseRecord?.id || '',
-          courseName: selectedCourseRecord?.name || '',
-          courseCode: selectedCourseRecord?.code || '',
           facultyId: selectedFacultyRecord?.id || '',
-          facultyName: selectedFacultyRecord?.name || '',
-          status: primaryStatus,
-          batches: cleanedRows,
-          batchCount: cleanedRows.length,
-          createdAt: existingGroup?.createdAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          rows: cleanedRows.map((row) => ({
+            batchName: row.batchName,
+            startTime: row.startTime,
+            startPeriod: row.startPeriod,
+            endTime: row.endTime,
+            endPeriod: row.endPeriod,
+            totalSeats: row.totalSeats,
+            status: row.status,
+          })),
         }
 
-        upsertBranchBatchGroup(record)
-        setBatchGroups(loadBranchBatchGroups(branchId))
+        if (existingGroup) {
+          await updateBranchBatch(existingGroup.id || existingGroup.batchGroupId || existingGroup.batchId, payload)
+        } else {
+          await createBranchBatch(payload)
+        }
+
+        const latestGroups = await refreshBatchGroups()
         setIsCreateOpen(false)
         setEditingGroup(null)
         setFieldErrors({ courseId: '', facultyId: '', rows: [] })
-        setDraft(createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
+        setDraft(createInitialDraft(getNextBatchSequenceNumber(latestGroups.length ? latestGroups : batchGroups), 1))
       } catch (error) {
-        console.error('Failed to create batches:', error)
-        setCreateError(error?.message || 'Unable to create batches right now.')
+        console.error('Failed to save batches:', error)
+        setCreateError(error?.message || 'Unable to save batches right now.')
       } finally {
         setIsSaving(false)
       }
     },
-    [activeCourses, availableFacultyOptions, batchGroups, branchId, draft.courseId, draft.facultyId, draft.rows, editingGroup],
+    [activeCourses, availableFacultyOptions, batchGroups, draft.courseId, draft.facultyId, draft.rows, editingGroup, refreshBatchGroups],
   )
 
   const filteredGroups = batchGroups
@@ -1122,7 +1192,7 @@ export function BranchBatchManagementSection({
             ) : (
               <tr>
                 <td colSpan="6" className="branch-course-empty-state">
-                  No batches created yet. Use Create Batch to add the first group.
+                  {isLoading ? 'Loading batches...' : 'No batches created yet. Use Create Batch to add the first group.'}
                 </td>
               </tr>
             )}

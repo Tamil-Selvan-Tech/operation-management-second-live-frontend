@@ -159,9 +159,14 @@ async function request(path, options = {}, retryCount = 0) {
     }
 
     if (!response.ok) {
-      const error = new Error(`Request failed with status ${response.status}`)
+      const body = await safeParseJson(response)
+      const serverMessage =
+        typeof body === 'string'
+          ? body
+          : body?.message || body?.error || body?.errors?.[0]?.message || ''
+      const error = new Error(serverMessage ? `${serverMessage}` : `Request failed with status ${response.status}`)
       error.status = response.status
-      error.body = await safeParseJson(response)
+      error.body = body
       throw error
     }
 
