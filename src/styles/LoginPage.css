@@ -769,7 +769,7 @@
 .login-page {
   --login-field-height: 50px;
   --login-icon-width: 48px;
-  --login-toggle-width: 44px;
+  --login-toggle-width: 38px;
 }
 
 .login-page .form-field {
@@ -819,6 +819,10 @@
 .login-page .field-icon svg {
   width: 17px;
   height: 17px;
+}
+
+.login-page .field-with-icon:not(.password-field) .field-icon {
+  transform: translateX(6px);
 }
 
 
@@ -880,8 +884,8 @@
 }
 
 .login-page .login-form .password-toggle svg {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   display: block;
   stroke-width: 1.9;
 }
