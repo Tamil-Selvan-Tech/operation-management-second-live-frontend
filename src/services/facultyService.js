@@ -100,14 +100,6 @@ function stripStoredBatchName(batchName = '', courseLabel = '') {
   return normalizedBatchName
 }
 
-function storeBatchName(batchName = '', courseId = '', courseName = '') {
-  const normalizedBatchName = stripStoredBatchName(batchName, courseName || courseId)
-  const normalizedCourseLabel = String(courseName || courseId || '').trim()
-  if (!normalizedBatchName || !normalizedCourseLabel) return normalizedBatchName
-
-  return `${normalizedBatchName}${BATCH_NAME_STORAGE_SEPARATOR}${normalizedCourseLabel}`
-}
-
 function unwrapData(response) {
   if (!response) return null
   return response.data ?? response

@@ -62,6 +62,7 @@ import {
   saveBranchCourseSnapshot,
   subscribeBranchCourseSnapshot,
 } from '../lib/branchCourseSnapshot'
+import { FACULTY_RECORD_SYNC_EVENT } from '../data/facultyRecords'
 import {
   acceptCourseEditRequest,
   listCourseEditRequests,
@@ -2546,6 +2547,18 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     return unsubscribe
   }, [loadBranchCourses])
+
+  useEffect(() => {
+    const syncFacultyList = () => {
+      void loadFacultyList()
+    }
+
+    window.addEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyList)
+
+    return () => {
+      window.removeEventListener(FACULTY_RECORD_SYNC_EVENT, syncFacultyList)
+    }
+  }, [loadFacultyList])
 
   useEffect(() => {
     const unsubscribe = subscribeBranchInstallmentTemplateChanges(() => {

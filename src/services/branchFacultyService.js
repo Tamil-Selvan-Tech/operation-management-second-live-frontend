@@ -1,4 +1,5 @@
 import { request } from './apiClient'
+import { FACULTY_RECORD_SYNC_EVENT } from '../data/facultyRecords'
 
 export async function listBranchFaculty(params = {}) {
   const searchParams = new URLSearchParams()
@@ -16,21 +17,39 @@ export async function listBranchFaculty(params = {}) {
 }
 
 export async function createBranchFaculty(payload) {
-  return request('/branch-faculty', {
+  const response = await request('/branch-faculty', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(FACULTY_RECORD_SYNC_EVENT))
+  }
+
+  return response
 }
 
 export async function updateBranchFaculty(id, payload) {
-  return request(`/branch-faculty/${id}`, {
+  const response = await request(`/branch-faculty/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(FACULTY_RECORD_SYNC_EVENT))
+  }
+
+  return response
 }
 
 export async function deleteBranchFaculty(id) {
-  return request(`/branch-faculty/${id}`, {
+  const response = await request(`/branch-faculty/${id}`, {
     method: 'DELETE',
   })
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(FACULTY_RECORD_SYNC_EVENT))
+  }
+
+  return response
 }
