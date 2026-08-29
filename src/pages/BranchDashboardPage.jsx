@@ -85,6 +85,7 @@ import {
   normalizeWorkStudentId,
 } from '../lib/facultyProgress'
 import { BranchFacultyPage } from './BranchFacultyPage'
+import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
@@ -1183,14 +1184,6 @@ function normalizeBranchStudentCourseFacultyOptions(course = {}) {
       .filter(Boolean)
     : []
 }
-
-const batchCards = [
-  { title: 'Batch A-11', timing: 'Mon - Fri | 9:00 AM', status: 'Active' },
-  { title: 'Batch B-02', timing: 'Tue - Thu | 2:00 PM', status: 'Active' },
-  { title: 'Batch C-01', timing: 'Weekend | 11:30 AM', status: 'Review' },
-]
-
-
 
 function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (pathname.endsWith('/notifications')) return 'notifications'
@@ -6653,17 +6646,12 @@ else {
 ) : null}
 
 {activeSection === 'batches' ? (
-  <BranchDashboardSection title="Batches" description="Current batch schedule overview.">
-    <div className="branch-dashboard-card-grid">
-      {batchCards.map((batch) => (
-        <article key={batch.title} className="branch-dashboard-info-card">
-          <strong>{batch.title}</strong>
-          <span>{batch.timing}</span>
-          <small>{batch.status}</small>
-        </article>
-      ))}
-    </div>
-  </BranchDashboardSection>
+  <BranchBatchManagementSection
+    branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
+    branchCourses={branchCourseCards}
+    branchFacultyRecords={branchFacultyRecords}
+    facultyList={facultyList}
+  />
 ) : null}
 
 {activeSection === 'payments' ? (
