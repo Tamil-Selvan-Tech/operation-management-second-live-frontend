@@ -11834,12 +11834,20 @@ tbody tr:hover {
   font-weight: 600;
 }
 
+.course-field-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .course-field span {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
+.course-field-label b,
 .course-field span b {
   color: #ef4444;
   font-weight: 700;

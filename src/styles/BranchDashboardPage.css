@@ -3667,10 +3667,92 @@ body.branch-notification-menu-open .main-area {
   min-width: 0;
 }
 
+.course-field-info-trigger-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.course-field-info-trigger {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #2563eb;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: 0 0 22px;
+}
+
+.course-field-info-trigger:hover,
+.course-field-info-trigger:focus-visible,
+.course-field-info-trigger-wrap.is-open .course-field-info-trigger {
+  color: #0f7bda;
+}
+
+.course-field-info-trigger svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.course-field-info-tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 14px);
+  width: min(280px, 72vw);
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #223149 0%, #172235 100%);
+  color: #f8fbff;
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.24);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 6px);
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+  z-index: 6;
+}
+
+.course-field-info-trigger-wrap:hover .course-field-info-tooltip,
+.course-field-info-trigger:focus-visible + .course-field-info-tooltip,
+.course-field-info-trigger-wrap.is-open .course-field-info-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.course-field-info-tooltip span {
+  display: block;
+  color: rgba(248, 251, 255, 0.9);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.course-field-info-tooltip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(180deg, #223149 0%, #172235 100%);
+  transform: translateX(-50%) rotate(45deg);
+  box-shadow: 3px 3px 10px rgba(15, 23, 42, 0.08);
+}
+
 @media (max-width: 768px) {
   .course-payment-plan-summary-grid {
     grid-template-columns: minmax(0, 1fr);
     max-width: none;
+  }
+
+  .course-field-info-tooltip {
+    width: min(260px, 80vw);
   }
 }
 

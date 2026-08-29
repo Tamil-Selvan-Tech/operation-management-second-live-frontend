@@ -1303,14 +1303,63 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
 function Field({ label, hint, error, children, required = false }) {
   return (
     <label className="course-field">
-      <span>
+      <div className="course-field-label">
         {label}
         {required ? <b>*</b> : null}
-      </span>
+      </div>
       {children}
       {hint ? <small>{hint}</small> : null}
       {error ? <small className="course-field-error">{error}</small> : null}
     </label>
+  )
+}
+
+function CourseFieldInfoTooltip({ label, description }) {
+  const [isPinnedOpen, setIsPinnedOpen] = useState(false)
+  const triggerRef = useRef(null)
+  const isOpen = isPinnedOpen
+
+  useEffect(() => {
+    if (!isPinnedOpen) return undefined
+
+    const handlePointerDown = (event) => {
+      if (triggerRef.current?.contains(event.target)) return
+      setIsPinnedOpen(false)
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setIsPinnedOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isPinnedOpen])
+
+  return (
+    <span
+      ref={triggerRef}
+      className={`course-field-info-trigger-wrap ${isOpen ? 'is-open' : ''}`}
+    >
+      <button
+        type="button"
+        className="course-field-info-trigger"
+        aria-label={label}
+        aria-expanded={isOpen}
+        onClick={() => setIsPinnedOpen((current) => !current)}
+      >
+        <BadgeInfo size={16} strokeWidth={2.3} aria-hidden="true" focusable="false" />
+      </button>
+      <span className="course-field-info-tooltip" role="tooltip">
+        <span>{description}</span>
+      </span>
+    </span>
   )
 }
 
@@ -1942,7 +1991,7 @@ function createInitialBranchCourseForm() {
     mode: '',
     duration: '',
     hours: '',
-    actualFees: '',
+    actualFees: '0',
     registrationFees: '',
     discount: '',
     status: 'Active',
@@ -3288,7 +3337,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const updateAddCourseNumericField = (field, value) => {
-    updateAddCourseField(field, value.replace(/[^\d]/g, ''))
+    const numericValue = String(value || '').replace(/[^\d]/g, '')
+    const normalizedValue =
+      numericValue.length > 1 ? numericValue.replace(/^0+(?=\d)/, '') : numericValue
+    updateAddCourseField(field, normalizedValue)
   }
 
   const updateAddCoursePaymentPlanSelections = (selectedValues = []) => {
@@ -7988,12 +8040,15 @@ else {
                     </div>
                   </Field>
 
-                  <Field
-                    label="Standard Course Fee"
-                    required
-                    hint="Default/base fee before adjustments"
-                    error={shouldShowBasicAddCourseError('actualFees') ? addCourseValidationErrors.basic.actualFees : ''}
-                  >
+                  <div className="course-field course-field-with-info">
+                    <div className="course-field-label">
+                      <span>Standard Course Fee</span>
+                      <CourseFieldInfoTooltip
+                        label="Standard Course Fee"
+                        description="The original course fee before discount or special pricing."
+                      />
+                      <b>*</b>
+                    </div>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -8003,7 +8058,11 @@ else {
                       onBlur={() => markAddCourseTouched('actualFees')}
                       aria-invalid={Boolean(shouldShowBasicAddCourseError('actualFees'))}
                     />
-                  </Field>
+                    <small>Amount: {formatBranchCourseAmount(addCourseForm.actualFees || 0)}</small>
+                    {shouldShowBasicAddCourseError('actualFees') ? (
+                      <small className="course-field-error">{addCourseValidationErrors.basic.actualFees}</small>
+                    ) : null}
+                  </div>
 
                   <Field
                     label="Registration Fee"
