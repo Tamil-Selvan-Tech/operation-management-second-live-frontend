@@ -8,6 +8,7 @@ import {
   subscribeBranchBatchGroups,
   upsertBranchBatchGroup,
 } from '../lib/branchBatchStore'
+import '../styles/BranchBatchManagementSection.css'
 
 function normalizeText(value = '') {
   return String(value || '').trim()

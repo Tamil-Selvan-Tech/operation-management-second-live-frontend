@@ -1,0 +1,332 @@
+.batch-management-section {
+  gap: 18px;
+}
+
+.batch-management-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) repeat(3, minmax(140px, 220px));
+  gap: 12px;
+}
+
+.batch-management-toolbar input,
+.batch-management-toolbar select,
+.batch-management-field input,
+.batch-management-field select,
+.batch-management-row input,
+.batch-management-row select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #0f172a;
+  font: inherit;
+}
+
+.batch-management-toolbar input:focus,
+.batch-management-toolbar select:focus,
+.batch-management-field input:focus,
+.batch-management-field select:focus,
+.batch-management-row input:focus,
+.batch-management-row select:focus {
+  outline: none;
+  border-color: #8ab4f8;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.batch-management-count-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.batch-management-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 82px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.batch-management-status-pill.open {
+  background: #ecfeff;
+  color: #0f766e;
+}
+
+.batch-management-status-pill.full {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.batch-management-status-pill.closed {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.batch-management-status-pill.inactive {
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.batch-modal-backdrop {
+  z-index: 1200;
+}
+
+.batch-management-modal,
+.batch-detail-modal {
+  width: min(1120px, calc(100vw - 32px));
+  max-height: min(90vh, 980px);
+  overflow: auto;
+}
+
+.batch-management-modal-header {
+  margin-bottom: 18px;
+}
+
+.batch-management-modal-subtitle {
+  margin-top: 6px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.batch-management-form-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.batch-management-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+}
+
+.batch-management-field {
+  display: grid;
+  gap: 8px;
+}
+
+.batch-management-field span,
+.batch-management-details-head p,
+.batch-management-context span,
+.batch-detail-summary span {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.batch-management-field strong,
+.batch-management-context strong,
+.batch-detail-summary strong,
+.batch-detail-card strong {
+  color: #0f172a;
+}
+
+.batch-management-field small {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.batch-management-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+.batch-management-details {
+  display: grid;
+  gap: 14px;
+}
+
+.batch-management-details-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.batch-management-details-head h4 {
+  color: #0f172a;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.batch-management-details-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.batch-management-details-grid-head,
+.batch-management-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(260px, 1.5fr) minmax(110px, 120px) minmax(110px, 140px) 44px;
+  gap: 12px;
+  align-items: center;
+}
+
+.batch-management-details-grid-head {
+  padding: 0 6px;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.batch-management-row {
+  padding: 14px 12px;
+  border: 1px solid #e5edf7;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.batch-management-row-name {
+  display: grid;
+  gap: 6px;
+}
+
+.batch-management-row-name small {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.batch-management-row-timing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.batch-management-row-timing span {
+  color: #94a3b8;
+  font-weight: 800;
+}
+
+.batch-management-row-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #fff;
+  color: #ef4444;
+  cursor: pointer;
+}
+
+.batch-management-row-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.batch-management-error {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.batch-management-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.batch-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.batch-detail-summary > div,
+.batch-detail-card {
+  padding: 14px 16px;
+  border: 1px solid #dbe4f0;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.batch-detail-summary > div {
+  display: grid;
+  gap: 6px;
+}
+
+.batch-detail-list {
+  display: grid;
+  gap: 12px;
+}
+
+.batch-detail-card {
+  display: grid;
+  gap: 12px;
+}
+
+.batch-detail-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.batch-detail-card-head span {
+  color: #94a3b8;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.batch-detail-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.batch-detail-card-grid > div {
+  display: grid;
+  gap: 4px;
+}
+
+.batch-detail-card-grid > div span {
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .batch-management-toolbar,
+  .batch-management-form-grid,
+  .batch-detail-summary,
+  .batch-detail-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-management-details-grid-head,
+  .batch-management-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .batch-management-row-timing {
+    grid-template-columns: 1fr;
+  }
+}
