@@ -2129,6 +2129,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [branchProfile, setBranchProfile] = useState(null)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+  const [isPaymentPlanRequiredOpen, setIsPaymentPlanRequiredOpen] = useState(false)
   const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
   const [isAddCourseSaving, setIsAddCourseSaving] = useState(false)
   const [isCourseDeleting, setIsCourseDeleting] = useState(false)
@@ -3903,6 +3904,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const openAddCourseModal = () => {
+    if (!isBranchInstallmentTemplatesLoading && !branchInstallmentTemplates.length) {
+      setIsPaymentPlanRequiredOpen(true)
+      return
+    }
+
     isAddCourseSubmitLockedRef.current = false
     const nextDraftKey = 'new'
     setCourseDraftKey(nextDraftKey)
@@ -3913,6 +3919,15 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setCourseSubmoduleDeleteTarget(null)
     setIsAddCourseOpen(true)
     goToBranchSection('courses')
+  }
+
+  const closePaymentPlanRequiredModal = () => {
+    setIsPaymentPlanRequiredOpen(false)
+  }
+
+  const goToCreatePaymentPlan = () => {
+    setIsPaymentPlanRequiredOpen(false)
+    navigate('/branch-dashboard?section=installments')
   }
 
   const openViewCourseDrawer = (course) => {
@@ -7877,6 +7892,55 @@ else {
             </div>
           </div>
         ) : null}
+
+        {typeof document !== 'undefined' && isPaymentPlanRequiredOpen
+          ? createPortal(
+            <div className="payment-popup-overlay" role="presentation">
+              <div
+                className="payment-confirmation-popup branch-payment-plan-required-popup"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="payment-plan-required-title"
+                aria-describedby="payment-plan-required-description"
+              >
+                <button
+                  type="button"
+                  className="receipt-popup-close"
+                  onClick={closePaymentPlanRequiredModal}
+                  aria-label="Close payment plan required dialog"
+                >
+                  x
+                </button>
+
+                <h3 id="payment-plan-required-title">Payment Plan Required</h3>
+                <p id="payment-plan-required-description" className="payment-confirmation-copy">
+                  No installment payment plan has been created yet.
+                  <br />
+                  Please create an installment payment plan before adding a course.
+                </p>
+
+                <div className="payment-popup-actions" style={{ marginTop: '22px' }}>
+                  <button
+                    type="button"
+                    className="popup-cancel-btn"
+                    onClick={closePaymentPlanRequiredModal}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="button button-solid"
+                    onClick={goToCreatePaymentPlan}
+                  >
+                    Create Payment Plan
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+          : null}
 
         {isAddCourseOpen ? (
           <div className="course-modal-backdrop" role="presentation">

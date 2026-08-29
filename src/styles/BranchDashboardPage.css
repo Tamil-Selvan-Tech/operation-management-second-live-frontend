@@ -770,6 +770,10 @@ body.branch-notification-menu-open .main-area {
   z-index: 2147483647;
 }
 
+.branch-payment-plan-required-popup {
+  width: min(560px, calc(100vw - 32px));
+}
+
 /* Last row */
 .branch-course-table tbody tr:last-child td {
   border-bottom: none;
