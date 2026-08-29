@@ -1219,7 +1219,7 @@ function BranchDashboardSection({ title, description, actions, children }) {
   )
 }
 
-function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
+function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDetails = false }) {
   return (
     <section className="notifications-group">
       <p className="notifications-group-label">{label}</p>
@@ -1253,7 +1253,17 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
                   <small>{item.time}</small>
                 </div>
                 <p>{item.message}</p>
-                {isCourseEditRequest ? (
+                {showDetails && String(item.kind || '').includes('progress-status') ? (
+                  <div className="notification-progress-details">
+                    <p><strong>Student ID:</strong> {item.studentId || '-'}</p>
+                    <p><strong>Student Name:</strong> {item.studentName || '-'}</p>
+                    <p><strong>Course Progress:</strong> {item.courseProgress ? `${item.courseProgress}%` : '-'}</p>
+                    <p><strong>Paid Progress:</strong> {item.paidProgress ? `${item.paidProgress}%` : '-'}</p>
+                    <p><strong>Status:</strong> {item.statusLabel || '-'}</p>
+                    <p><strong>Summary:</strong> {item.summary || item.message}</p>
+                  </div>
+                ) : null}
+                {showDetails && isCourseEditRequest ? (
                   <div className="notification-copy">
                     {item.requestTitle ? <small><strong>Title:</strong> {item.requestTitle}</small> : null}
                     {item.requestReason ? <small><strong>Reason:</strong> {item.requestReason}</small> : null}
@@ -1287,10 +1297,10 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest }) {
                       e.stopPropagation()
                       onView?.(item)
                     }}
-                  >
-                    View
-                  </button>
-                )}
+                    >
+                      View
+                    </button>
+                  )}
               </div>
             </article>
           )
@@ -5672,16 +5682,6 @@ useEffect(() => {
               <div className="notification-copy">
                 <p>{item.title}</p>
                 <span>{item.message}</span>
-                {String(item.kind || '').includes('progress-status') ? (
-                  <div className="notification-progress-details">
-                    <p><strong>Student ID:</strong> {item.studentId || '-'}</p>
-                    <p><strong>Student Name:</strong> {item.studentName || '-'}</p>
-                    <p><strong>Course Progress:</strong> {item.courseProgress ? `${item.courseProgress}%` : '-'}</p>
-                    <p><strong>Paid Progress:</strong> {item.paidProgress ? `${item.paidProgress}%` : '-'}</p>
-                    <p><strong>Status:</strong> {item.statusLabel || '-'}</p>
-                    <p><strong>Summary:</strong> {item.summary || item.message}</p>
-                  </div>
-                ) : null}
                 <small>{item.time}</small>
               </div>
 
@@ -5883,12 +5883,13 @@ useEffect(() => {
                   <div className="notifications-feed">
                     {branchNotificationSections.length ? (
                       branchNotificationSections.map((section) => (
-                        <BranchNotificationGroup
+                      <BranchNotificationGroup
                           key={section.label}
                           label={section.label}
                           items={section.items}
                           onView={openBranchNotificationTarget}
                           onAcceptRequest={acceptBranchCourseEditNotification}
+                          showDetails
                         />
                       ))
                     ) : (
