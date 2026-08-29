@@ -1287,7 +1287,9 @@ export function FacultyDashboardPage() {
     sources.forEach((source) => {
       if (Array.isArray(source)) {
         source.forEach((entry) => {
-          const value = String(entry?.courseId ?? entry?.id ?? entry ?? '').trim()
+          const value = typeof entry === 'string' || typeof entry === 'number'
+            ? String(entry).trim()
+            : String(entry?.courseId ?? entry?.course?.id ?? entry?.course?.courseId ?? '').trim()
           if (value) ids.push(value)
         })
         return
@@ -1346,14 +1348,25 @@ export function FacultyDashboardPage() {
       return assignedCourseNames.some((name) => normalizeCourseKey(name) === courseName)
     })
 
-    if (matchedCourses.length) {
-      return matchedCourses
+    const uniqueMatchedCourses = Array.from(
+      new Map(
+        matchedCourses.map((course) => [String(course?.id || course?.courseCode || course?.name || '').trim(), course]),
+      ).values(),
+    )
+
+    if (uniqueMatchedCourses.length) {
+      return uniqueMatchedCourses
     }
 
     const fallbackName = assignedCourseNames[0]
     if (!fallbackName) return []
 
-    return courseCatalog.filter((course) => normalizeCourseKey(course?.name || course?.courseName || '') === normalizeCourseKey(fallbackName))
+    const fallbackCourses = courseCatalog.filter((course) => normalizeCourseKey(course?.name || course?.courseName || '') === normalizeCourseKey(fallbackName))
+    return Array.from(
+      new Map(
+        fallbackCourses.map((course) => [String(course?.id || course?.courseCode || course?.name || '').trim(), course]),
+      ).values(),
+    )
   }, [assignedCourseIds, assignedCourseNames, courseCatalog])
 
   const currentFacultyIdentity = useMemo(() => {
@@ -2405,7 +2418,7 @@ const nextName = trimmedValue
 
   // Mock statistics for the faculty member
   const stats = [
-    { label: 'Assigned Courses', value: dashboardSummary?.faculty?.courseName || '—', note: 'Active curriculum' },
+    { label: 'Assigned Courses', value: String(new Set(assignedCourseIds).size || assignedCourses.length || dashboardSummary?.courseIds?.length || 0), note: 'Active curriculum' },
     { label: 'Total Batches', value: dashboardSummary?.totalBatches ?? '—', note: 'Across all modes' },
     { label: 'Enrolled Learners', value: dashboardSummary?.totalStudents ?? '—', note: 'Active students' },
     { label: 'Attendance Rate', value: '96.4%', note: 'Past 30 days' },
