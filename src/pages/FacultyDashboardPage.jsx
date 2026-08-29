@@ -32,12 +32,13 @@ import {
   loadFacultyBatchAttendanceState,
   loadFacultyAttendanceState,
   resolveBatchAttendanceWindow,
+  resolveFacultyBatchContextForStudent,
   resolveTodayFacultyAttendanceStatus,
   normalizeAttendanceSessions,
   formatAttendanceTimeLabel,
   saveFacultyBatchAttendanceState,
 } from '../lib/facultyAttendanceStore'
-import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, resolveFacultyBatchContextForStudent } from '../lib/facultyFlow'
+import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope } from '../lib/facultyFlow'
 import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { PaginationBar } from '../components/PaginationBar'
@@ -73,8 +74,6 @@ import {
   listFacultyTodayWorkEntries,
 } from '../lib/facultyTodayWorkStore'
 import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
-import {
-} from '../lib/courseEditRequestStore'
 import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
@@ -1419,6 +1418,20 @@ export function FacultyDashboardPage() {
     }
   }, [facultyDetails, facultyProfile])
 
+  const facultyBranch = useMemo(() => facultyDetails?.branch || {}, [facultyDetails])
+  const facultyBranchScope = useMemo(() => {
+    const targetBranchId = String(currentFacultyIdentity.branchId || facultyBranch.id || facultyBranch.branchId || '').trim()
+    const targetBranchEmail = String(facultyBranch.branchEmail || '').trim().toLowerCase()
+    const targetBranchName = String(facultyBranch.branchName || '').trim()
+
+    return {
+      branchId: targetBranchId,
+      targetBranchId,
+      targetBranchEmail,
+      targetBranchName,
+    }
+  }, [currentFacultyIdentity.branchId, facultyBranch])
+
   const facultyViewLabel = useMemo(() => {
     const name = String(currentFacultyIdentity.facultyName || facultyName || 'Faculty').trim() || 'Faculty'
     return `${name}'s Faculty View`
@@ -2216,11 +2229,6 @@ const nextName = trimmedValue
     setCourseRequestError('')
 
     try {
-      const facultyBranch = facultyDetails?.branch || {}
-      const targetBranchId = String(currentFacultyIdentity.branchId || facultyBranch.id || facultyBranch.branchId || '').trim()
-      const targetBranchEmail = String(facultyBranch.branchEmail || '').trim().toLowerCase()
-      const targetBranchName = String(facultyBranch.branchName || '').trim()
-
       const response = await createCourseEditRequest({
         branchCourseId: selectedCourse.id,
         courseId: selectedCourse.id,
@@ -2229,10 +2237,7 @@ const nextName = trimmedValue
         title: String(courseRequestForm.title || '').trim(),
         reason,
         description,
-        branchId: targetBranchId,
-        targetBranchId,
-        targetBranchEmail,
-        targetBranchName,
+        ...facultyBranchScope,
       })
 
       const createdRequest = response?.request || response || null
@@ -2497,10 +2502,7 @@ const nextName = trimmedValue
         message: changeSummary,
         actionLabel: 'Updated',
         targetSection: 'courses',
-        branchId: targetBranchId,
-        targetBranchId,
-        targetBranchEmail,
-        targetBranchName,
+        ...facultyBranchScope,
         courseId: selectedCourse.id,
         courseCode: selectedCourse.courseCode || selectedCourse.id || '',
         courseName: selectedCourse.name || selectedCourse.courseName || 'Course',
