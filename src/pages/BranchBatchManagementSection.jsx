@@ -167,6 +167,11 @@ function makeBatchId(sequenceNumber = 1) {
   return `BAT-${String(safeSequence).padStart(3, '0')}`
 }
 
+function makeBatchGroupId(sequenceNumber = 1) {
+  const safeSequence = Math.max(1, Number(sequenceNumber) || 1)
+  return `BBG-${String(safeSequence).padStart(3, '0')}`
+}
+
 function getNextBatchSequenceNumber(groups = []) {
   let maxSequence = 0
 
@@ -189,11 +194,28 @@ function getNextBatchSequenceNumber(groups = []) {
   return maxSequence + 1
 }
 
-function createInitialDraft(sequenceStart, count = 1) {
+function getNextBatchGroupSequenceNumber(groups = []) {
+  let maxSequence = 0
+
+  const items = Array.isArray(groups) ? groups : []
+  items.forEach((group) => {
+    const match = String(group?.batchGroupId || group?.id || '').trim().match(/^BBG-(\d+)$/i)
+    if (!match) return
+    const value = Number(match[1])
+    if (Number.isInteger(value) && value > maxSequence) {
+      maxSequence = value
+    }
+  })
+
+  return maxSequence + 1
+}
+
+function createInitialDraft(sequenceStart, groupSequence = 1, count = 1) {
   const rowCount = Math.max(1, count)
   const rows = Array.from({ length: rowCount }, (_, index) => createBatchRow(makeBatchId(sequenceStart + index)))
 
   return {
+    batchGroupId: makeBatchGroupId(groupSequence),
     courseId: '',
     facultyId: '',
     rows,
@@ -201,7 +223,7 @@ function createInitialDraft(sequenceStart, count = 1) {
   }
 }
 
-function createDraftFromGroup(group = {}, sequenceStart = 1) {
+function createDraftFromGroup(group = {}, sequenceStart = 1, groupSequence = 1) {
   const batches = Array.isArray(group.batches) ? group.batches : []
   const rows = batches.length
     ? batches.map((batch, index) => {
@@ -222,6 +244,7 @@ function createDraftFromGroup(group = {}, sequenceStart = 1) {
     : [createBatchRow(makeBatchId(sequenceStart))]
 
   return {
+    batchGroupId: normalizeText(group.batchGroupId || makeBatchGroupId(groupSequence)),
     courseId: normalizeText(group.courseId || ''),
     facultyId: normalizeText(group.facultyId || ''),
     rows,
@@ -358,7 +381,7 @@ export function BranchBatchManagementSection({
     }
 
     setActionMenuPosition({ top, left })
-    setActionMenuOpenId(String(group.id || group.batchId || ''))
+    setActionMenuOpenId(String(group.id || group.batchGroupId || group.batchId || ''))
   }, [])
 
   const activeCourses = useMemo(() => {
@@ -413,20 +436,22 @@ export function BranchBatchManagementSection({
     return [...mappedOptions, ...remainingOptions]
   }, [activeFaculty, mappedFacultyIds])
 
-  const nextSequenceStart = useMemo(() => getNextBatchSequenceNumber(batchGroups), [batchGroups])
+  const nextBatchSequenceStart = useMemo(() => getNextBatchSequenceNumber(batchGroups), [batchGroups])
+  const nextBatchGroupSequenceStart = useMemo(() => getNextBatchGroupSequenceNumber(batchGroups), [batchGroups])
 
   const resetDraft = useCallback(() => {
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
-    setDraft(createInitialDraft(getNextBatchSequenceNumber(batchGroups), 1))
+    setDraft(createInitialDraft(nextBatchSequenceStart, nextBatchGroupSequenceStart, 1))
     setEditingGroup(null)
-  }, [batchGroups])
+  }, [nextBatchGroupSequenceStart, nextBatchSequenceStart])
 
   const openCreateModal = useCallback(() => {
     const sequenceStart = getNextBatchSequenceNumber(batchGroups)
+    const groupSequenceStart = getNextBatchGroupSequenceNumber(batchGroups)
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
-    setDraft(createInitialDraft(sequenceStart, 1))
+    setDraft(createInitialDraft(sequenceStart, groupSequenceStart, 1))
     setEditingGroup(null)
     setActionMenuOpenId('')
     setActionMenuPosition(null)
@@ -436,10 +461,11 @@ export function BranchBatchManagementSection({
   const openEditModal = useCallback(
     (group) => {
       const nextSequence = getNextBatchSequenceNumber(batchGroups)
+      const nextGroupSequence = getNextBatchGroupSequenceNumber(batchGroups)
       setCreateError('')
       setFieldErrors({ courseId: '', facultyId: '', rows: [] })
       setEditingGroup(group)
-      setDraft(createDraftFromGroup(group, nextSequence))
+      setDraft(createDraftFromGroup(group, nextSequence, nextGroupSequence))
       setIsCreateOpen(true)
       setActionMenuOpenId('')
       setActionMenuPosition(null)
@@ -464,7 +490,7 @@ export function BranchBatchManagementSection({
   const renderActionMenu = () => {
     if (!actionMenuOpenId || !actionMenuPosition || typeof document === 'undefined') return null
 
-    const activeGroup = filteredGroups.find((group) => String(group.id || group.batchId || '') === actionMenuOpenId)
+    const activeGroup = filteredGroups.find((group) => String(group.id || group.batchGroupId || group.batchId || '') === actionMenuOpenId)
     if (!activeGroup) return null
 
     return createPortal(
@@ -729,6 +755,7 @@ export function BranchBatchManagementSection({
         })
 
         const payload = {
+          batchGroupId: draft.batchGroupId,
           courseId: selectedCourseRecord?.id || '',
           facultyId: selectedFacultyRecord?.id || '',
           rows: cleanedRows.map((row) => ({
@@ -752,7 +779,9 @@ export function BranchBatchManagementSection({
         setIsCreateOpen(false)
         setEditingGroup(null)
         setFieldErrors({ courseId: '', facultyId: '', rows: [] })
-        setDraft(createInitialDraft(getNextBatchSequenceNumber(latestGroups.length ? latestGroups : batchGroups), 1))
+        const latestSequence = getNextBatchSequenceNumber(latestGroups.length ? latestGroups : batchGroups)
+        const latestGroupSequence = getNextBatchGroupSequenceNumber(latestGroups.length ? latestGroups : batchGroups)
+        setDraft(createInitialDraft(latestSequence, latestGroupSequence, 1))
       } catch (error) {
         console.error('Failed to save batches:', error)
         setCreateError(error?.message || 'Unable to save batches right now.')
@@ -760,7 +789,7 @@ export function BranchBatchManagementSection({
         setIsSaving(false)
       }
     },
-    [activeCourses, availableFacultyOptions, batchGroups, draft.courseId, draft.facultyId, draft.rows, editingGroup, refreshBatchGroups],
+    [activeCourses, availableFacultyOptions, batchGroups, draft.batchGroupId, draft.courseId, draft.facultyId, draft.rows, editingGroup, refreshBatchGroups],
   )
 
   const filteredGroups = batchGroups
@@ -769,6 +798,7 @@ export function BranchBatchManagementSection({
       if (!search) return true
 
       const haystack = [
+        group.batchGroupId,
         group.batchId,
         group.courseName,
         group.facultyName,
@@ -817,9 +847,9 @@ export function BranchBatchManagementSection({
           <div className="batch-management-form-shell">
             <div className="batch-management-form-grid">
               <label className="batch-management-field">
-                <span>Batch ID *</span>
-                <input type="text" value={draft.rows[0]?.batchId || makeBatchId(nextSequenceStart)} readOnly />
-                <small>Each row will auto-generate a unique batch ID.</small>
+                <span>Batch Group ID *</span>
+                <input type="text" value={draft.batchGroupId || ''} readOnly />
+                <small>This group will contain multiple batch rows with unique batch IDs.</small>
               </label>
 
               <label className="batch-management-field">
@@ -1055,7 +1085,7 @@ export function BranchBatchManagementSection({
           <div className="course-modal-header batch-management-modal-header">
             <div>
               <p className="section-kicker">Batch Details</p>
-              <h3 id="batch-detail-title">{detailGroup.courseName || detailGroup.batchId}</h3>
+              <h3 id="batch-detail-title">{detailGroup.courseName || detailGroup.batchGroupId || detailGroup.batchId}</h3>
               <p className="batch-management-modal-subtitle">
                 Faculty: {detailGroup.facultyName || '-'}
               </p>
@@ -1063,7 +1093,7 @@ export function BranchBatchManagementSection({
           </div>
 
           <div className="batch-detail-summary">
-            <div><span>Batch ID</span><strong>{detailGroup.batchId}</strong></div>
+            <div><span>Batch Group ID</span><strong>{detailGroup.batchGroupId || detailGroup.batchId}</strong></div>
             <div><span>Course</span><strong>{detailGroup.courseName || '-'}</strong></div>
             <div><span>Faculty</span><strong>{detailGroup.facultyName || '-'}</strong></div>
             <div><span>Total Batches</span><strong>{detailGroup.batchCount || detailGroup.batches?.length || 0}</strong></div>
@@ -1149,8 +1179,8 @@ export function BranchBatchManagementSection({
           <tbody>
             {filteredGroups.length ? (
               filteredGroups.map((group) => (
-                <tr key={group.id || group.batchId}>
-                  <td>{group.batchId}</td>
+                <tr key={group.id || group.batchGroupId || group.batchId}>
+                  <td>{group.batchGroupId || group.batchId}</td>
                   <td>{group.courseName || '-'}</td>
                   <td>{group.facultyName || '-'}</td>
                   <td>
@@ -1165,16 +1195,16 @@ export function BranchBatchManagementSection({
                     </span>
                   </td>
                   <td className="batch-management-actions-cell">
-                    <div className={`batch-management-actions ${actionMenuOpenId === String(group.id || group.batchId || '') ? 'is-open' : ''}`.trim()}>
+                    <div className={`batch-management-actions ${actionMenuOpenId === String(group.id || group.batchGroupId || group.batchId || '') ? 'is-open' : ''}`.trim()}>
                       <button
                         type="button"
                         className="batch-management-actions-trigger"
-                        aria-label={`Open actions for ${group.courseName || group.batchId || 'batch'}`}
+                        aria-label={`Open actions for ${group.courseName || group.batchGroupId || group.batchId || 'batch'}`}
                         aria-haspopup="menu"
-                        aria-expanded={actionMenuOpenId === String(group.id || group.batchId || '')}
+                        aria-expanded={actionMenuOpenId === String(group.id || group.batchGroupId || group.batchId || '')}
                         onClick={(event) => {
                           event.stopPropagation()
-                          const actionId = String(group.id || group.batchId || '')
+                          const actionId = String(group.id || group.batchGroupId || group.batchId || '')
                           if (actionMenuOpenId === actionId) {
                             setActionMenuOpenId('')
                             setActionMenuPosition(null)
