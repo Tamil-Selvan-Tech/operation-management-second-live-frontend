@@ -5220,10 +5220,22 @@ useEffect(() => {
           paidProgress,
           recipientLabel: 'Branch Admin Dashboard',
           audience: 'branch',
+          branchId: branchScope.id || branchScope.branchId,
+          targetBranchId: branchScope.id || branchScope.branchId,
+          targetBranchEmail: branchScope.branchEmail,
+          targetBranchName: branchTitle,
         })
       })
       .filter(Boolean)
-  }, [branchStudentCourseProgressByKey, branchStudentProgressByNotificationKey, branchStudentsForDisplay])
+  }, [
+    branchScope.branchEmail,
+    branchScope.branchId,
+    branchScope.id,
+    branchStudentCourseProgressByKey,
+    branchStudentProgressByNotificationKey,
+    branchStudentsForDisplay,
+    branchTitle,
+  ])
 
   useEffect(() => {
     if (!branchProgressComparisonNotifications.length) {
@@ -5238,6 +5250,10 @@ useEffect(() => {
         courseProgress: notification.courseProgress,
         paidProgress: notification.paidProgress,
         recipientLabel: notification.recipientLabel,
+        branchId: notification.branchId,
+        targetBranchId: notification.targetBranchId,
+        targetBranchEmail: notification.targetBranchEmail,
+        targetBranchName: notification.targetBranchName,
       })),
       'branch',
     )

@@ -90,6 +90,10 @@ export function buildProgressComparisonNotification({
   paidProgress,
   recipientLabel = 'Faculty Dashboard',
   audience = 'faculty',
+  branchId = '',
+  targetBranchId = '',
+  targetBranchEmail = '',
+  targetBranchName = '',
   createdAt = new Date().toISOString(),
 } = {}) {
   const state = getProgressComparisonState(courseProgress, paidProgress)
@@ -102,6 +106,9 @@ export function buildProgressComparisonNotification({
   const safeStudentId = String(studentId || '-').trim() || '-'
   const normalizedAudience = String(audience || 'faculty').trim().toLowerCase() === 'branch' ? 'branch' : 'faculty'
   const notificationPrefix = PROGRESS_NOTIFICATION_PREFIX_BY_AUDIENCE[normalizedAudience]
+  const safeBranchId = String(targetBranchId || branchId || '').trim()
+  const safeBranchEmail = String(targetBranchEmail || '').trim().toLowerCase()
+  const safeBranchName = String(targetBranchName || '').trim()
   const courseProgressLabel = formatProgressPercentage(courseProgress)
   const paidProgressLabel = formatProgressPercentage(paidProgress)
   const notificationId = `${notificationPrefix}-${safeStudentId}-${state}-${courseProgressLabel}-${paidProgressLabel}`.replace(
@@ -123,6 +130,10 @@ export function buildProgressComparisonNotification({
     courseProgress: courseProgressLabel,
     paidProgress: paidProgressLabel,
     recipientLabel,
+    branchId: safeBranchId,
+    targetBranchId: safeBranchId,
+    targetBranchEmail: safeBranchEmail,
+    targetBranchName: safeBranchName,
     createdAt,
     time: 'Just now',
     targetSection: 'students',
@@ -140,16 +151,29 @@ export function syncProgressComparisonNotifications(notifications = [], audience
 
   const existingNotifications = loadNotifications()
   const nextNotifications = [...existingNotifications]
-  const existingIds = new Set(existingNotifications.map((notification) => String(notification.id || '').trim()))
+  const existingIndexById = new Map(
+    existingNotifications.map((notification, index) => [String(notification.id || '').trim(), index]),
+  )
 
   currentNotifications.forEach((notification) => {
     const normalizedId = String(notification.id || '').trim()
-    if (!normalizedId || existingIds.has(normalizedId)) {
+    if (!normalizedId) {
+      return
+    }
+
+    const existingIndex = existingIndexById.get(normalizedId)
+    if (Number.isInteger(existingIndex)) {
+      const existingNotification = nextNotifications[existingIndex]
+      nextNotifications[existingIndex] = {
+        ...existingNotification,
+        ...notification,
+        read: Boolean(existingNotification?.read),
+        dropdownViewed: Boolean(existingNotification?.dropdownViewed),
+      }
       return
     }
 
     nextNotifications.unshift(notification)
-    existingIds.add(normalizedId)
   })
 
   const shouldWrite =
