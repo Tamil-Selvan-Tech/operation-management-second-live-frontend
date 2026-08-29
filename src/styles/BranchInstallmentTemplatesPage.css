@@ -990,7 +990,7 @@
 .installment-action-dropdown {
   position: absolute;
   top: calc(100% + 7px);
-  right: 14px;
+  right: 0;
   z-index: 9999;
 
   width: 145px;
@@ -1011,7 +1011,7 @@
 .installment-template-table-row:last-child .installment-action-dropdown {
   top: auto;
   bottom: calc(100% + 7px);
-  right: 14px;
+  right: 0;
 }
 
 
@@ -1396,7 +1396,7 @@
   border-radius: 22px;
   background: #ffffff;
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.05);
-  overflow: hidden;
+  overflow: visible;
 }
 
 .installment-table-toolbar {
