@@ -37,7 +37,7 @@ import {
   formatAttendanceTimeLabel,
   saveFacultyBatchAttendanceState,
 } from '../lib/facultyAttendanceStore'
-import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, sortByNameThenTiming } from '../lib/facultyFlow'
+import { enrichStudentsWithFacultyReferences, getFacultyBatchEntriesForCourse, getFacultyBatchStudentRecords, getFacultyCourseIds, getFacultyCourses, getMatchingStudents, getUniqueStudentCountForFacultyRecords, getUniqueStudentCountForFacultyScope, resolveFacultyBatchContextForStudent } from '../lib/facultyFlow'
 import { markFacultyStudentAttendance } from '../services/attendanceService'
 import { getFacultyMyBatchesSummary } from '../services/dashboardService'
 import { PaginationBar } from '../components/PaginationBar'
@@ -972,6 +972,8 @@ export function FacultyDashboardPage() {
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
   const [courseModulePage, setCourseModulePage] = useState(1)
+  const [batchPage, setBatchPage] = useState(1)
+  const [studentsPage, setStudentsPage] = useState(1)
   const [courseEditRequests, setCourseEditRequests] = useState([])
   const [isCourseRequestModalOpen, setIsCourseRequestModalOpen] = useState(false)
   const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false)
@@ -1337,14 +1339,32 @@ export function FacultyDashboardPage() {
   const assignedCourses = useMemo(() => {
     if (!Array.isArray(courseCatalog) || !courseCatalog.length) return []
 
-    const toCourseKey = (course = {}) =>
-      normalizeCourseKey([
-        course?.id,
-        course?.courseId,
-        course?.courseCode,
-        course?.name,
-        course?.courseName,
-      ].find((value) => String(value || '').trim()) || '')
+    const toCourseKey = (course = {}) => {
+      const courseNameKey = normalizeCourseKey(course?.name || course?.courseName || '')
+      if (courseNameKey) return `name:${courseNameKey}`
+
+      const courseCodeKey = normalizeCourseKey(course?.courseCode || '')
+      if (courseCodeKey && courseCodeKey !== 'course') return `code:${courseCodeKey}`
+
+      const courseIdKey = normalizeCourseKey(course?.courseId || course?.id || '')
+      return courseIdKey ? `id:${courseIdKey}` : ''
+    }
+
+    const getCourseScore = (course = {}) => {
+      const nameScore = String(course?.name || course?.courseName || '').trim() ? 3 : 0
+      const codeValue = String(course?.courseCode || '').trim().toLowerCase()
+      const codeScore = codeValue && codeValue !== 'course' ? 2 : 0
+      const idScore = String(course?.id || course?.courseId || '').trim() ? 1 : 0
+      return nameScore + codeScore + idScore
+    }
+
+    const mergeBestCourse = (existingCourse, candidateCourse) => {
+      if (!existingCourse) return candidateCourse
+      if (!candidateCourse) return existingCourse
+      return getCourseScore(candidateCourse) > getCourseScore(existingCourse)
+        ? { ...existingCourse, ...candidateCourse }
+        : { ...candidateCourse, ...existingCourse }
+    }
 
     const matchedCourses = courseCatalog.filter((course) => {
       const courseId = String(course?.id || '').trim()
@@ -1358,9 +1378,14 @@ export function FacultyDashboardPage() {
     })
 
     const uniqueMatchedCourses = Array.from(
-      new Map(
-        matchedCourses.map((course) => [toCourseKey(course), course]),
-      ).values(),
+      matchedCourses.reduce((map, course) => {
+        const key = toCourseKey(course)
+        if (!key) return map
+
+        const existingCourse = map.get(key)
+        map.set(key, mergeBestCourse(existingCourse, course))
+        return map
+      }, new Map()).values(),
     )
 
     if (uniqueMatchedCourses.length) {
@@ -1372,9 +1397,14 @@ export function FacultyDashboardPage() {
 
     const fallbackCourses = courseCatalog.filter((course) => normalizeCourseKey(course?.name || course?.courseName || '') === normalizeCourseKey(fallbackName))
     return Array.from(
-      new Map(
-        fallbackCourses.map((course) => [toCourseKey(course), course]),
-      ).values(),
+      fallbackCourses.reduce((map, course) => {
+        const key = toCourseKey(course)
+        if (!key) return map
+
+        const existingCourse = map.get(key)
+        map.set(key, mergeBestCourse(existingCourse, course))
+        return map
+      }, new Map()).values(),
     )
   }, [assignedCourseIds, assignedCourseNames, courseCatalog])
 
@@ -1416,6 +1446,18 @@ export function FacultyDashboardPage() {
 
     return getExactFacultyStudents(backfilledStudents, facultyId, facultyNameValue, facultyEmailValue)
   }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
+
+  const studentsPerPage = 5
+  const studentsTotalPages = Math.max(1, Math.ceil(facultyScopedStudents.length / studentsPerPage))
+  const safeStudentsPage = Math.min(Math.max(1, studentsPage), studentsTotalPages)
+  const paginatedFacultyStudents = useMemo(() => {
+    const startIndex = (safeStudentsPage - 1) * studentsPerPage
+    return facultyScopedStudents.slice(startIndex, startIndex + studentsPerPage)
+  }, [facultyScopedStudents, safeStudentsPage])
+
+  useEffect(() => {
+    setStudentsPage((current) => Math.min(Math.max(1, current), studentsTotalPages))
+  }, [studentsTotalPages])
 
   const facultyTodayWorkEntries = useMemo(() => {
     return getFacultyTodayWorkEntriesByFaculty({
@@ -1506,23 +1548,123 @@ export function FacultyDashboardPage() {
     const facultyNameValue = currentFacultyIdentity.facultyName
     const facultyEmailValue = currentFacultyIdentity.facultyEmail
     const summary = dashboardSummary || {}
+    const getBatchStudentCount = (entry = {}) => {
+      const normalizedBatchId = String(entry?.id || entry?.batchId || '').trim().toLowerCase()
+      const normalizedBatchName = String(entry?.batchName || entry?.batch || entry?.code || '').trim().toLowerCase()
+      const normalizedBatchTiming = String(entry?.batchTiming || entry?.timing || '').trim().toLowerCase()
+      const normalizedCourseId = String(entry?.courseId || entry?.course?.id || '').trim().toLowerCase()
+      const normalizedCourseName = String(entry?.courseName || entry?.course || '').trim().toLowerCase()
+
+      const matchedStudents = backfilledStudents.filter((student) => {
+        const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
+        const resolvedBatch = context?.batchEntry || null
+        if (!resolvedBatch) return false
+
+        const resolvedBatchId = String(resolvedBatch?.id || '').trim().toLowerCase()
+        const resolvedBatchName = String(resolvedBatch?.batchName || resolvedBatch?.batch || '').trim().toLowerCase()
+        const resolvedBatchTiming = String(resolvedBatch?.batchTiming || '').trim().toLowerCase()
+        const resolvedCourseId = String(resolvedBatch?.courseId || '').trim().toLowerCase()
+        const resolvedCourseName = String(resolvedBatch?.courseName || '').trim().toLowerCase()
+
+        return (
+          (normalizedBatchId && resolvedBatchId && normalizedBatchId === resolvedBatchId) ||
+          (normalizedBatchName && resolvedBatchName && normalizedBatchName === resolvedBatchName) ||
+          (normalizedBatchTiming && resolvedBatchTiming && normalizedBatchTiming === resolvedBatchTiming) ||
+          (normalizedCourseId && resolvedCourseId && normalizedCourseId === resolvedCourseId) ||
+          (normalizedCourseName && resolvedCourseName && normalizedCourseName === resolvedCourseName)
+        )
+      })
+
+      return matchedStudents.length
+    }
+    const assignedCourseOrder = new Map(
+      assignedCourses.map((course, index) => [
+        normalizeCourseKey(course?.name || course?.courseName || ''),
+        index,
+      ]),
+    )
     const rawEntries = [
       ...(Array.isArray(facultyProfile?.batchEntries) ? facultyProfile.batchEntries : []),
       ...(Array.isArray(summary?.batchEntries) ? summary.batchEntries : []),
     ]
 
-    const matchedEntries = sortByNameThenTiming(rawEntries).map((entry) => {
-      const studentsForBatch = getExactFacultyStudents(backfilledStudents, facultyId, facultyNameValue, facultyEmailValue)
+    const uniqueEntries = Array.from(
+      rawEntries.reduce((map, entry) => {
+        const entryId = String(entry?.id || '').trim()
+        const batchCode = String(entry?.batchCode || entry?.code || '').trim().toLowerCase()
+        const batchName = String(entry?.batchName || entry?.batch || '').trim().toLowerCase()
+        const courseId = String(entry?.courseId || '').trim().toLowerCase()
+        const courseName = String(entry?.courseName || entry?.course || '').trim().toLowerCase()
+        const batchTiming = String(entry?.batchTiming || entry?.timing || '').trim().toLowerCase()
+        const key =
+          entryId ||
+          `${courseId || courseName}-${batchCode || batchName}-${batchTiming}`.trim() ||
+          `${courseName}-${batchTiming}`.trim()
 
-      return {
-        id: String(entry?.id || `${entry?.courseId || 'course'}-${entry?.batchName || entry?.batch || 'batch'}`).trim(),
-        course: String(entry?.courseName || entry?.course || '-').trim() || '-',
-        code: String(entry?.batchCode || entry?.code || entry?.id || '-').trim() || '-',
-        timing: String(entry?.batchTiming || entry?.timing || '-').trim() || '-',
-        students: studentsForBatch.length,
-        status: String(entry?.status || 'Active').trim() || 'Active',
-      }
-    })
+        if (!map.has(key)) {
+          map.set(key, entry)
+          return map
+        }
+
+        const existing = map.get(key) || {}
+        map.set(key, {
+          ...existing,
+          ...entry,
+          id: existing.id || entry.id,
+        })
+        return map
+      }, new Map()).values(),
+    )
+
+    const compareTimings = (leftValue = '', rightValue = '') =>
+      String(leftValue || '').trim().localeCompare(String(rightValue || '').trim(), undefined, { numeric: true, sensitivity: 'base' })
+
+    const matchedEntries = uniqueEntries
+      .slice()
+      .sort((left, right) => {
+        const leftCourseName = normalizeCourseKey(left?.courseName || left?.course || '')
+        const rightCourseName = normalizeCourseKey(right?.courseName || right?.course || '')
+        const leftCourseOrder = assignedCourseOrder.has(leftCourseName)
+          ? assignedCourseOrder.get(leftCourseName)
+          : Number.MAX_SAFE_INTEGER
+        const rightCourseOrder = assignedCourseOrder.has(rightCourseName)
+          ? assignedCourseOrder.get(rightCourseName)
+          : Number.MAX_SAFE_INTEGER
+
+        if (leftCourseOrder !== rightCourseOrder) {
+          return leftCourseOrder - rightCourseOrder
+        }
+
+        const courseNameCompare = String(left?.course || left?.courseName || '').trim().localeCompare(
+          String(right?.course || right?.courseName || '').trim(),
+          undefined,
+          { numeric: true, sensitivity: 'base' },
+        )
+        if (courseNameCompare !== 0) {
+          return courseNameCompare
+        }
+
+        const timingCompare = compareTimings(left?.batchTiming || left?.timing || '', right?.batchTiming || right?.timing || '')
+        if (timingCompare !== 0) {
+          return timingCompare
+        }
+
+        return String(left?.batchName || left?.batch || left?.id || '').trim().localeCompare(
+          String(right?.batchName || right?.batch || right?.id || '').trim(),
+          undefined,
+          { numeric: true, sensitivity: 'base' },
+        )
+      })
+      .map((entry) => {
+        return {
+          id: String(entry?.id || `${entry?.courseId || 'course'}-${entry?.batchName || entry?.batch || 'batch'}`).trim(),
+          course: String(entry?.courseName || entry?.course || '-').trim() || '-',
+          code: String(entry?.batchCode || entry?.code || entry?.id || '-').trim() || '-',
+          timing: String(entry?.batchTiming || entry?.timing || '-').trim() || '-',
+          students: getBatchStudentCount(entry),
+          status: String(entry?.status || 'Active').trim() || 'Active',
+        }
+      })
 
     if (matchedEntries.length) {
       return matchedEntries
@@ -1540,7 +1682,10 @@ export function FacultyDashboardPage() {
       if (!groups.has(key)) {
         groups.set(key, {
           id: key,
+          courseId,
           course: courseName,
+          batchId: batchId || key,
+          batchName,
           code: batchName || batchId || '-',
           timing: batchTiming,
           students: [],
@@ -1553,9 +1698,21 @@ export function FacultyDashboardPage() {
     return Array.from(groups.values()).map((entry) => ({
       ...entry,
       status: 'Active',
-      students: entry.students.length,
+      students: getBatchStudentCount(entry),
     }))
   }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyProfile?.batchEntries, dashboardSummary, facultyScopedStudents])
+
+  const batchesPerPage = 5
+  const totalBatchPages = Math.max(1, Math.ceil(facultyBatchRows.length / batchesPerPage))
+  const safeBatchPage = Math.min(Math.max(1, Number(batchPage) || 1), totalBatchPages)
+  const paginatedFacultyBatchRows = useMemo(() => {
+    const startIndex = (safeBatchPage - 1) * batchesPerPage
+    return facultyBatchRows.slice(startIndex, startIndex + batchesPerPage)
+  }, [facultyBatchRows, safeBatchPage])
+
+  useEffect(() => {
+    setBatchPage((current) => Math.min(Math.max(1, current), totalBatchPages))
+  }, [totalBatchPages])
 
   const selectedCourseModules = useMemo(() => getCourseModels(selectedCourse), [selectedCourse])
   const courseModulesPerPage = 5
@@ -2425,12 +2582,9 @@ const nextName = trimmedValue
     [visibleNotifications],
   )
 
-  // Mock statistics for the faculty member
   const stats = [
-    { label: 'Assigned Courses', value: String(new Set(assignedCourseIds).size || assignedCourses.length || dashboardSummary?.courseIds?.length || 0), note: 'Active curriculum' },
-    { label: 'Total Batches', value: dashboardSummary?.totalBatches ?? '—', note: 'Across all modes' },
-    { label: 'Enrolled Learners', value: dashboardSummary?.totalStudents ?? '—', note: 'Active students' },
-    { label: 'Attendance Rate', value: '96.4%', note: 'Past 30 days' },
+    { label: 'Assigned Courses', value: String(new Set(assignedCourseIds).size || assignedCourses.length || dashboardSummary?.courseIds?.length || 0), note: 'Active courses' },
+    { label: 'Total Batches', value: dashboardSummary?.totalBatches ?? '—', note: 'Across all Courses' },
   ]
 
   // Close profile dropdown menu on click outside
@@ -2748,26 +2902,6 @@ const nextName = trimmedValue
                       </article>
                     ))}
                   </div>
-
-                  <FacultyDashboardSection title="Today's Classes" description="Schedule of your batches for today.">
-                    <div className="branch-dashboard-activity-grid">
-                      <article className="branch-dashboard-panel">
-                        <strong className="block text-slate-800 text-[1.1rem]">Batch F-01 (React Native)</strong>
-                        <p className="text-slate-600 mt-1">Timing: 09:30 AM - 11:30 AM</p>
-                        <span className="inline-block mt-3 px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-700">Completed</span>
-                      </article>
-                      <article className="branch-dashboard-panel">
-                        <strong className="block text-slate-800 text-[1.1rem]">Batch F-02 (Web Development)</strong>
-                        <p className="text-slate-600 mt-1">Timing: 02:00 PM - 04:00 PM</p>
-                        <span className="inline-block mt-3 px-2 py-0.5 text-xs font-semibold rounded bg-sky-100 text-sky-700">In Progress</span>
-                      </article>
-                      <article className="branch-dashboard-panel">
-                        <strong className="block text-slate-800 text-[1.1rem]">Batch F-03 (UI/UX Design)</strong>
-                        <p className="text-slate-600 mt-1">Timing: 05:00 PM - 07:00 PM</p>
-                        <span className="inline-block mt-3 px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 text-amber-700">Scheduled</span>
-                      </article>
-                    </div>
-                  </FacultyDashboardSection>
                 </>
               ) : null}
 
@@ -3027,19 +3161,17 @@ const nextName = trimmedValue
                         <tr>
                           <th style={{ width: '60px' }}>S.No</th>
                           <th>Course Name</th>
-                          <th>Batch Code</th>
                           <th>Timings</th>
                           <th>Total Students</th>
                           <th>Status</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {facultyBatchRows.length ? (
-                          facultyBatchRows.map((batch, index) => (
+                        {paginatedFacultyBatchRows.length ? (
+                          paginatedFacultyBatchRows.map((batch, index) => (
                             <tr key={batch.id || batch.code || `${batch.course}-${index}`}>
-                              <td>{index + 1}</td>
+                              <td>{(safeBatchPage - 1) * batchesPerPage + index + 1}</td>
                               <td><strong className="text-slate-800">{batch.course}</strong></td>
-                              <td><strong style={{ color: '#0f172a' }}>{batch.code}</strong></td>
                               <td>{batch.timing}</td>
                               <td>{batch.students} students</td>
                               <td>
@@ -3051,7 +3183,7 @@ const nextName = trimmedValue
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={6}>
+                            <td colSpan={5}>
                               <div className="faculty-my-batches-empty" style={{ padding: '20px 0' }}>
                                 <strong>No batches mapped yet</strong>
                                 <p>When the branch assigns students to your faculty, the matching batches will appear here automatically.</p>
@@ -3061,6 +3193,17 @@ const nextName = trimmedValue
                         )}
                       </tbody>
                     </table>
+                    {facultyBatchRows.length > batchesPerPage ? (
+                      <div className="faculty-batches-pagination-wrap">
+                        <PaginationBar
+                          currentPage={safeBatchPage}
+                          totalPages={totalBatchPages}
+                          onPageChange={setBatchPage}
+                          className="faculty-batches-pagination"
+                          label="My Batches pagination"
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </FacultyDashboardSection>
               ) : null}
@@ -3068,7 +3211,6 @@ const nextName = trimmedValue
               {activeSection === 'students' ? (
                 <FacultyDashboardSection
                   title={facultyViewLabel}
-                  description={`Learners assigned to ${String(currentFacultyIdentity.facultyName || facultyName || 'this faculty').trim()}.`}
                   actions={(
                     <button
                       type="button"
@@ -3084,7 +3226,7 @@ const nextName = trimmedValue
                     <table className="branch-dashboard-table">
                       <thead>
                         <tr>
-                          <th style={{ width: '60px' }}>S.No</th>
+                          <th style={{ width: '64px' }}>S.No</th>
                           <th>Student ID</th>
                           <th>Student Name</th>
                           <th>Email Address</th>
@@ -3094,8 +3236,9 @@ const nextName = trimmedValue
                         </tr>
                       </thead>
                       <tbody>
-                        {facultyScopedStudents.length ? (
-                          facultyScopedStudents.map((student, index) => {
+                        {paginatedFacultyStudents.length ? (
+                          paginatedFacultyStudents.map((student, index) => {
+                            const displayIndex = (safeStudentsPage - 1) * studentsPerPage + index + 1
                             const studentIdLabel = String(student.studentId || student.id || '-').trim()
                             const studentName = String(student.studentName || '-').trim()
                             const emailLabel = String(student.emailAddress || '-').trim()
@@ -3129,7 +3272,7 @@ const nextName = trimmedValue
 
                             return (
                               <tr key={student.id || student.studentId || `${studentName}-${index}`}>
-                                <td>{index + 1}</td>
+                                <td>{displayIndex}</td>
                                 <td><strong>{studentIdLabel}</strong></td>
                                 <td>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3204,9 +3347,9 @@ const nextName = trimmedValue
                           })
                         ) : (
                           <tr>
-                            <td colSpan={7}>
-                              <div className="faculty-my-batches-empty" style={{ padding: '20px 0' }}>
-                                <strong>No enrolled students found</strong>
+                            <td className="faculty-students-empty-cell" colSpan={7}>
+                              <div className="faculty-my-batches-empty">
+                                <strong>No students found</strong>
                                 <p>Students selected with this faculty from the branch dashboard will show up here once they are saved.</p>
                               </div>
                             </td>
@@ -3214,6 +3357,17 @@ const nextName = trimmedValue
                         )}
                       </tbody>
                     </table>
+                    {facultyScopedStudents.length > studentsPerPage ? (
+                      <div className="faculty-students-pagination-wrap">
+                        <PaginationBar
+                          currentPage={safeStudentsPage}
+                          totalPages={studentsTotalPages}
+                          onPageChange={setStudentsPage}
+                          className="faculty-students-pagination"
+                          label="Students pagination"
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 </FacultyDashboardSection>
               ) : null}
