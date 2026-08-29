@@ -3903,8 +3903,12 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     writeBranchCourseDraft(draftKey, null)
   }
 
-  const openAddCourseModal = () => {
-    if (!isBranchInstallmentTemplatesLoading && !branchInstallmentTemplates.length) {
+  const openAddCourseModal = async () => {
+    const availableTemplates = branchInstallmentTemplates.length
+      ? branchInstallmentTemplates
+      : await loadBranchInstallmentPlanOptions()
+
+    if (!availableTemplates.length) {
       setIsPaymentPlanRequiredOpen(true)
       return
     }
