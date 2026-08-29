@@ -8684,6 +8684,91 @@ body.branch-notification-menu-open .main-area {
   border-spacing: 0;
 }
 
+.branch-courses-table-shell .branch-course-table th:nth-child(1),
+.branch-courses-table-shell .branch-course-table td:nth-child(1) {
+  width: 6%;
+}
+
+.branch-courses-table-shell .branch-course-table th:nth-child(2),
+.branch-courses-table-shell .branch-course-table td:nth-child(2) {
+  width: 14%;
+}
+
+.branch-courses-table-shell .branch-course-table th:nth-child(3),
+.branch-courses-table-shell .branch-course-table td:nth-child(3) {
+  width: 24%;
+}
+
+.branch-courses-table-shell .branch-course-table th:nth-child(4),
+.branch-courses-table-shell .branch-course-table td:nth-child(4) {
+  width: 13%;
+}
+
+.branch-courses-table-shell .branch-course-table th:nth-child(5),
+.branch-courses-table-shell .branch-course-table td:nth-child(5) {
+  width: 22%;
+}
+
+.branch-courses-table-shell .branch-course-table th:nth-child(6),
+.branch-courses-table-shell .branch-course-table td:nth-child(6) {
+  width: 12%;
+}
+
+.branch-courses-table-shell .branch-course-table th:nth-child(7),
+.branch-courses-table-shell .branch-course-table td:nth-child(7) {
+  width: 9%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(1),
+.branch-students-table-shell .branch-course-table td:nth-child(1) {
+  width: 8%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(2),
+.branch-students-table-shell .branch-course-table td:nth-child(2) {
+  width: 14%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(3),
+.branch-students-table-shell .branch-course-table td:nth-child(3) {
+  width: 17%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(4),
+.branch-students-table-shell .branch-course-table td:nth-child(4) {
+  width: 10%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(5),
+.branch-students-table-shell .branch-course-table td:nth-child(5) {
+  width: 13%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(6),
+.branch-students-table-shell .branch-course-table td:nth-child(6) {
+  width: 13%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(7),
+.branch-students-table-shell .branch-course-table td:nth-child(7) {
+  width: 12%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(8),
+.branch-students-table-shell .branch-course-table td:nth-child(8) {
+  width: 10%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(9),
+.branch-students-table-shell .branch-course-table td:nth-child(9) {
+  width: 5%;
+}
+
+.branch-students-table-shell .branch-course-table th:nth-child(10),
+.branch-students-table-shell .branch-course-table td:nth-child(10) {
+  width: 8%;
+}
+
 .branch-course-table-shell {
   width: 100%;
   max-width: 100%;

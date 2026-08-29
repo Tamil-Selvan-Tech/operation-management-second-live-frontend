@@ -5951,7 +5951,7 @@ useEffect(() => {
                     </div>
                   </div>
 
-<div className="branch-course-table-shell">
+<div className="branch-course-table-shell branch-students-table-shell">
   <table className="branch-course-table">
     <thead>
       <tr>
@@ -6466,7 +6466,7 @@ else {
                       </button>
                     </div>
                   </div>
-                  <div className="branch-course-table-shell">
+                  <div className="branch-course-table-shell branch-courses-table-shell">
                     <table className="branch-course-table">
                       <thead>
                         <tr>
@@ -6678,7 +6678,7 @@ else {
                           })
                         ) : (
                           <tr>
-                            <td colSpan="12" className="branch-course-empty-state">
+                            <td colSpan="7" className="branch-course-empty-state">
                               No courses saved yet. Use Add Course to create the first one.
                             </td>
                           </tr>
