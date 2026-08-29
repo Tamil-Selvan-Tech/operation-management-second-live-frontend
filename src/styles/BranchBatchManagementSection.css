@@ -88,12 +88,12 @@
 .batch-management-modal,
 .batch-detail-modal {
   width: min(1120px, calc(100vw - 32px));
-  max-height: min(90vh, 980px);
+  max-height: min(82vh, 820px);
   overflow: auto;
 }
 
 .batch-management-modal-header {
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 .batch-management-modal-subtitle {
@@ -104,18 +104,19 @@
 
 .batch-management-form-shell {
   display: grid;
-  gap: 18px;
+  gap: 10px;
 }
 
 .batch-management-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 14px;
+  gap: 10px;
+  margin-top: -4px;
 }
 
 .batch-management-field {
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .batch-management-field span,
@@ -139,12 +140,22 @@
   line-height: 1.45;
 }
 
+.batch-management-field .batch-management-field-error,
+.batch-management-row .batch-management-field-error,
+.batch-management-row .batch-management-row-error {
+  color: #dc2626 !important;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
 .batch-management-context {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  padding: 14px 16px;
+  padding: 10px 14px;
   border: 1px solid #dbe4f0;
   border-radius: 14px;
   background: #f8fbff;
@@ -152,7 +163,8 @@
 
 .batch-management-details {
   display: grid;
-  gap: 14px;
+  gap: 10px;
+  margin-top: 6px;
 }
 
 .batch-management-details-head {
@@ -160,12 +172,20 @@
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+  margin-top: 4px;
 }
 
 .batch-management-details-head h4 {
   color: #0f172a;
   font-size: 1.02rem;
   font-weight: 800;
+}
+
+.batch-add-row-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
 }
 
 .batch-management-details-grid {
@@ -183,6 +203,7 @@
 
 .batch-management-details-grid-head {
   padding: 0 6px;
+  margin-top: 2px;
   color: #64748b;
   font-size: 0.82rem;
   font-weight: 800;
@@ -191,7 +212,7 @@
 }
 
 .batch-management-row {
-  padding: 14px 12px;
+  padding: 12px 12px;
   border: 1px solid #e5edf7;
   border-radius: 16px;
   background: #fff;
@@ -212,6 +233,29 @@
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 8px;
   align-items: center;
+}
+
+.batch-management-row-seats-wrap,
+.batch-management-row-status-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+.batch-management-row-error {
+  display: block;
+  margin-top: 4px;
+}
+
+.batch-management-time-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 8px;
+  align-items: center;
+}
+
+.batch-management-time-group select {
+  padding: 0 10px;
+  text-align: center;
 }
 
 .batch-management-row-timing span {
@@ -251,6 +295,94 @@
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.batch-delete-confirm-modal {
+  position: relative;
+  width: min(400px, calc(100vw - 28px));
+  padding: 20px 22px 18px;
+  border-radius: 24px;
+  text-align: center;
+}
+
+.batch-delete-close {
+  top: 14px;
+  right: 14px;
+}
+
+.batch-delete-confirm-head {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  padding-top: 4px;
+}
+
+.batch-delete-confirm-kicker {
+  color: #ef2b2b;
+  font-size: 0.98rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.batch-delete-confirm-head h3 {
+  max-width: 20ch;
+  color: #1f2a44;
+  font-size: 1.25rem;
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+}
+
+.batch-delete-confirm-subtitle {
+  color: #7183a6;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.batch-delete-confirm-divider {
+  height: 1px;
+  margin: 14px 0 12px;
+  background: #e6eef9;
+}
+
+.batch-delete-confirm-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.batch-delete-confirm-actions .button {
+  min-width: 140px;
+  min-height: 44px;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.batch-delete-confirm-actions .button.button-ghost {
+  background: #fff;
+  border-color: #d6e0f0;
+  color: #4b5d7c;
+}
+
+.batch-delete-confirm-actions .button.is-danger {
+  background: #e02525;
+  border-color: #e02525;
+  color: #fff;
+  box-shadow: 0 18px 30px rgba(224, 37, 37, 0.24);
+}
+
+.batch-delete-confirm-actions .button.is-danger:hover,
+.batch-delete-confirm-actions .button.is-danger:focus-visible {
+  background: #cf2020;
+  border-color: #cf2020;
+}
+
+.batch-delete-confirm-actions .button.button-ghost:hover,
+.batch-delete-confirm-actions .button.button-ghost:focus-visible {
+  background: #f8fbff;
+  border-color: #cfdaf0;
 }
 
 .batch-detail-summary {
@@ -328,5 +460,9 @@
 
   .batch-management-row-timing {
     grid-template-columns: 1fr;
+  }
+
+  .batch-management-time-group {
+    grid-template-columns: minmax(0, 1fr) 88px;
   }
 }

@@ -37,6 +37,24 @@ function formatClockLabel(value = '') {
   const text = normalizeText(value)
   if (!text) return ''
 
+  const amPmMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (amPmMatch) {
+    const hours = Number(amPmMatch[1])
+    const minutes = Number(amPmMatch[2])
+    const period = String(amPmMatch[3] || '').toUpperCase()
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return text
+
+    const convertedHours =
+      period === 'PM'
+        ? (hours === 12 ? 12 : hours + 12)
+        : (hours === 12 ? 0 : hours)
+
+    const displayHours = convertedHours % 12 || 12
+    const displayPeriod = convertedHours >= 12 ? 'PM' : 'AM'
+    return `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${displayPeriod}`
+  }
+
   const [hoursText, minutesText] = text.split(':')
   const hours = Number(hoursText)
   const minutes = Number(minutesText || '0')
@@ -46,6 +64,34 @@ function formatClockLabel(value = '') {
   const period = hours >= 12 ? 'PM' : 'AM'
   const normalizedHours = hours % 12 || 12
   return `${String(normalizedHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`
+}
+
+function convertTimeTo24Hour(value = '', meridiem = 'AM') {
+  const text = normalizeText(value)
+  const match = text.match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return text
+
+  let hours = Number(match[1])
+  const minutes = String(match[2]).padStart(2, '0')
+  const period = String(meridiem || 'AM').toUpperCase()
+
+  if (!Number.isFinite(hours)) return text
+
+  if (period === 'AM') {
+    if (hours === 12) hours = 0
+  } else if (period === 'PM') {
+    if (hours < 12) hours += 12
+  }
+
+  return `${String(hours).padStart(2, '0')}:${minutes}`
+}
+
+function formatTimeInput(value = '') {
+  const digits = String(value || '').replace(/\D/g, '').slice(0, 4)
+  if (!digits) return ''
+  if (digits.length === 1) return `0${digits}`
+  if (digits.length === 2) return `${digits}:00`
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`
 }
 
 function getCourseLabel(course = {}) {
@@ -61,13 +107,15 @@ function createBatchRow(batchId = '') {
     batchId,
     batchName: '',
     startTime: '',
+    startPeriod: 'AM',
     endTime: '',
+    endPeriod: 'AM',
     totalSeats: '',
     status: 'Active',
   }
 }
 
-function createInitialDraft(sequenceStart, count = 2) {
+function createInitialDraft(sequenceStart, count = 1) {
   const rowCount = Math.max(1, count)
   const rows = Array.from({ length: rowCount }, (_, index) => createBatchRow(makeBatchId(sequenceStart + index)))
 
@@ -99,8 +147,14 @@ export function BranchBatchManagementSection({
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [createError, setCreateError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({
+    courseId: '',
+    facultyId: '',
+    rows: [],
+  })
   const [detailGroup, setDetailGroup] = useState(null)
-  const [draft, setDraft] = useState(() => createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 2))
+  const [deleteRowTarget, setDeleteRowTarget] = useState(null)
+  const [draft, setDraft] = useState(() => createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
   const [searchTerm, setSearchTerm] = useState('')
   const [courseFilter, setCourseFilter] = useState('all')
   const [facultyFilter, setFacultyFilter] = useState('all')
@@ -167,28 +221,26 @@ export function BranchBatchManagementSection({
     return [...mappedOptions, ...remainingOptions]
   }, [activeFaculty, mappedFacultyIds])
 
-  const selectedFaculty = useMemo(
-    () => availableFacultyOptions.find((faculty) => faculty.id === draft.facultyId) || activeFaculty.find((faculty) => faculty.id === draft.facultyId) || null,
-    [activeFaculty, availableFacultyOptions, draft.facultyId],
-  )
-
   const nextSequenceStart = useMemo(() => getNextBatchSequenceNumber(batchGroups), [batchGroups])
 
   const resetDraft = useCallback(() => {
     setCreateError('')
-    setDraft(createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 2))
+    setFieldErrors({ courseId: '', facultyId: '', rows: [] })
+    setDraft(createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
   }, [branchId])
 
   const openCreateModal = useCallback(() => {
     const sequenceStart = getNextBatchSequenceNumber(loadBranchBatchGroups(branchId))
     setCreateError('')
-    setDraft(createInitialDraft(sequenceStart, 2))
+    setFieldErrors({ courseId: '', facultyId: '', rows: [] })
+    setDraft(createInitialDraft(sequenceStart, 1))
     setIsCreateOpen(true)
   }, [branchId])
 
   const closeCreateModal = useCallback(() => {
     if (isSaving) return
     setIsCreateOpen(false)
+    setDeleteRowTarget(null)
     resetDraft()
   }, [isSaving, resetDraft])
 
@@ -202,12 +254,46 @@ export function BranchBatchManagementSection({
       [field]: value,
       ...(field === 'courseId' ? { facultyId: '' } : {}),
     }))
+    if (field === 'courseId') {
+      setFieldErrors((current) => ({
+        ...current,
+        courseId: '',
+        facultyId: '',
+      }))
+    }
+    if (field === 'facultyId') {
+      setFieldErrors((current) => ({
+        ...current,
+        facultyId: '',
+      }))
+    }
   }, [])
 
   const handleRowChange = useCallback((index, field, value) => {
     setDraft((current) => ({
       ...current,
-      rows: current.rows.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)),
+      rows: current.rows.map((row, rowIndex) => {
+        if (rowIndex !== index) return row
+
+        if (field === 'startTime' || field === 'endTime') {
+          return { ...row, [field]: formatTimeInput(value) }
+        }
+
+        return { ...row, [field]: value }
+      }),
+    }))
+    setFieldErrors((current) => ({
+      ...current,
+      rows: current.rows.map((rowErrors, rowIndex) => {
+        if (rowIndex !== index) return rowErrors
+        return {
+          ...rowErrors,
+          ...(field === 'batchName' ? { batchName: '' } : {}),
+          ...(field === 'startTime' || field === 'endTime' || field === 'startPeriod' || field === 'endPeriod' ? { timing: '' } : {}),
+          ...(field === 'totalSeats' ? { totalSeats: '' } : {}),
+          ...(field === 'status' ? { status: '' } : {}),
+        }
+      }),
     }))
   }, [])
 
@@ -220,16 +306,36 @@ export function BranchBatchManagementSection({
         nextSequence: current.nextSequence + 1,
       }
     })
+    setFieldErrors((current) => ({
+      ...current,
+      rows: [...current.rows, { batchName: '', timing: '', totalSeats: '', status: '' }],
+    }))
   }, [])
 
   const handleRemoveRow = useCallback((index) => {
+    setDeleteRowTarget({ index, row: draft.rows[index] || null })
+  }, [draft.rows])
+
+  const confirmDeleteRow = useCallback(() => {
+    if (!deleteRowTarget) return
+
     setDraft((current) => {
-      if (current.rows.length <= 1) return current
+      if (!current.rows.length) return current
       return {
         ...current,
-        rows: current.rows.filter((_, rowIndex) => rowIndex !== index),
+        rows: current.rows.filter((_, rowIndex) => rowIndex !== deleteRowTarget.index),
       }
     })
+    setFieldErrors((current) => ({
+      ...current,
+      rows: current.rows.filter((_, rowIndex) => rowIndex !== deleteRowTarget.index),
+    }))
+
+    setDeleteRowTarget(null)
+  }, [deleteRowTarget])
+
+  const cancelDeleteRow = useCallback(() => {
+    setDeleteRowTarget(null)
   }, [])
 
   const handleSaveBatches = useCallback(
@@ -237,30 +343,56 @@ export function BranchBatchManagementSection({
       event.preventDefault()
       setCreateError('')
 
-      if (!draft.courseId) {
-        setCreateError('Please select a course.')
-        return
-      }
-
-      if (!draft.facultyId) {
-        setCreateError('Please select a faculty.')
-        return
+      const nextErrors = {
+        courseId: draft.courseId ? '' : 'This field is required',
+        facultyId: draft.facultyId ? '' : 'This field is required',
+        rows: draft.rows.map(() => ({
+          batchName: '',
+          timing: '',
+          totalSeats: '',
+          status: '',
+        })),
       }
 
       if (!draft.rows.length) {
         setCreateError('Please add at least one batch row.')
+        setFieldErrors(nextErrors)
         return
       }
+
+      draft.rows.forEach((row, index) => {
+        if (!normalizeText(row.batchName)) nextErrors.rows[index].batchName = 'This field is required'
+        if (!normalizeText(row.startTime) || !normalizeText(row.endTime)) nextErrors.rows[index].timing = 'This field is required'
+        if (!toNumber(row.totalSeats)) nextErrors.rows[index].totalSeats = 'This field is required'
+        if (!normalizeText(row.status)) nextErrors.rows[index].status = 'This field is required'
+      })
+
+      const hasFieldErrors =
+        Boolean(nextErrors.courseId) ||
+        Boolean(nextErrors.facultyId) ||
+        nextErrors.rows.some((rowErrors) =>
+          Boolean(rowErrors.batchName || rowErrors.timing || rowErrors.totalSeats || rowErrors.status),
+        )
+
+      if (hasFieldErrors) {
+        setFieldErrors(nextErrors)
+        return
+      }
+
+      setFieldErrors(nextErrors)
 
       const selectedCourseRecord = activeCourses.find((course) => course.id === draft.courseId) || null
       const selectedFacultyRecord = availableFacultyOptions.find((faculty) => faculty.id === draft.facultyId) || null
 
       try {
         setIsSaving(true)
+        setFieldErrors(nextErrors)
         const cleanedRows = draft.rows.map((row, index) => {
           const batchName = normalizeText(row.batchName)
           const startTime = normalizeText(row.startTime)
           const endTime = normalizeText(row.endTime)
+          const startPeriod = normalizeText(row.startPeriod || 'AM').toUpperCase()
+          const endPeriod = normalizeText(row.endPeriod || 'AM').toUpperCase()
           const totalSeats = toNumber(row.totalSeats)
           const status = normalizeStatus(row.status || 'Active')
 
@@ -272,9 +404,12 @@ export function BranchBatchManagementSection({
             id: row.batchId,
             batchId: row.batchId,
             batchName,
-            startTime,
-            endTime,
-            batchTiming: buildBatchTiming({ startTime, endTime }),
+            startTime: convertTimeTo24Hour(startTime, startPeriod),
+            endTime: convertTimeTo24Hour(endTime, endPeriod),
+            batchTiming: buildBatchTiming({
+              startTime: formatClockLabel(`${startTime} ${startPeriod}`),
+              endTime: formatClockLabel(`${endTime} ${endPeriod}`),
+            }),
             totalSeats,
             status,
           }
@@ -301,7 +436,8 @@ export function BranchBatchManagementSection({
         upsertBranchBatchGroup(record)
         setBatchGroups(loadBranchBatchGroups(branchId))
         setIsCreateOpen(false)
-        setDraft(createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 2))
+        setFieldErrors({ courseId: '', facultyId: '', rows: [] })
+        setDraft(createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
       } catch (error) {
         console.error('Failed to create batches:', error)
         setCreateError(error?.message || 'Unable to create batches right now.')
@@ -347,7 +483,7 @@ export function BranchBatchManagementSection({
     if (!isCreateOpen || typeof document === 'undefined') return null
 
     return createPortal(
-      <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation" onClick={closeCreateModal}>
+      <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation">
         <form
           className="course-modal panel-card batch-management-modal"
           role="dialog"
@@ -388,6 +524,7 @@ export function BranchBatchManagementSection({
                     </option>
                   ))}
                 </select>
+                {fieldErrors.courseId ? <small className="batch-management-field-error">{fieldErrors.courseId}</small> : null}
               </label>
 
               <label className="batch-management-field">
@@ -400,15 +537,9 @@ export function BranchBatchManagementSection({
                     </option>
                   ))}
                 </select>
+                {fieldErrors.facultyId ? <small className="batch-management-field-error">{fieldErrors.facultyId}</small> : null}
               </label>
             </div>
-
-            {selectedCourse ? (
-              <div className="batch-management-context">
-                <strong>{selectedCourse.name}</strong>
-                <span>{selectedFaculty ? `Faculty: ${selectedFaculty.name}` : 'Choose an active faculty. Mapped faculty appear first.'}</span>
-              </div>
-            ) : null}
 
             <div className="batch-management-details">
               <div className="batch-management-details-head">
@@ -441,47 +572,76 @@ export function BranchBatchManagementSection({
                         onChange={(event) => handleRowChange(index, 'batchName', event.target.value)}
                       />
                       <small>ID: {row.batchId}</small>
+                      {fieldErrors.rows[index]?.batchName ? (
+                        <small className="batch-management-field-error">{fieldErrors.rows[index].batchName}</small>
+                      ) : null}
                     </div>
 
                     <div className="batch-management-row-timing">
-                      <input
-                        type="time"
-                        value={row.startTime}
-                        onChange={(event) => handleRowChange(index, 'startTime', event.target.value)}
-                      />
+                      <div className="batch-management-time-group">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="09:00"
+                          value={row.startTime}
+                          onChange={(event) => handleRowChange(index, 'startTime', event.target.value)}
+                        />
+                        <select value={row.startPeriod} onChange={(event) => handleRowChange(index, 'startPeriod', event.target.value)}>
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
                       <span>-</span>
-                      <input
-                        type="time"
-                        value={row.endTime}
-                        onChange={(event) => handleRowChange(index, 'endTime', event.target.value)}
-                      />
+                      <div className="batch-management-time-group">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="11:00"
+                          value={row.endTime}
+                          onChange={(event) => handleRowChange(index, 'endTime', event.target.value)}
+                        />
+                        <select value={row.endPeriod} onChange={(event) => handleRowChange(index, 'endPeriod', event.target.value)}>
+                          <option value="AM">AM</option>
+                          <option value="PM">PM</option>
+                        </select>
+                      </div>
+                      {fieldErrors.rows[index]?.timing ? (
+                        <small className="batch-management-row-error">{fieldErrors.rows[index].timing}</small>
+                      ) : null}
                     </div>
 
-                    <input
-                      className="batch-management-row-seats"
-                      type="number"
-                      min="1"
-                      placeholder="20"
-                      value={row.totalSeats}
-                      onChange={(event) => handleRowChange(index, 'totalSeats', event.target.value)}
-                    />
+                    <div className="batch-management-row-seats-wrap">
+                      <input
+                        className="batch-management-row-seats"
+                        type="number"
+                        min="1"
+                        placeholder="20"
+                        value={row.totalSeats}
+                        onChange={(event) => handleRowChange(index, 'totalSeats', event.target.value)}
+                      />
+                      {fieldErrors.rows[index]?.totalSeats ? (
+                        <small className="batch-management-field-error">{fieldErrors.rows[index].totalSeats}</small>
+                      ) : null}
+                    </div>
 
-                    <select
-                      className="batch-management-row-status"
-                      value={row.status}
-                      onChange={(event) => handleRowChange(index, 'status', event.target.value)}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Open">Open</option>
-                      <option value="Full">Full</option>
-                      <option value="Closed">Closed</option>
-                    </select>
+                    <div className="batch-management-row-status-wrap">
+                      <select
+                        className="batch-management-row-status"
+                        value={row.status}
+                        onChange={(event) => handleRowChange(index, 'status', event.target.value)}
+                      >
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                      </select>
+                      {fieldErrors.rows[index]?.status ? (
+                        <small className="batch-management-field-error">{fieldErrors.rows[index].status}</small>
+                      ) : null}
+                    </div>
 
                     <button
                       type="button"
                       className="batch-management-row-remove"
                       onClick={() => handleRemoveRow(index)}
-                      disabled={draft.rows.length <= 1}
                       aria-label={`Remove batch row ${index + 1}`}
                     >
                       <Trash2 size={15} strokeWidth={2.2} aria-hidden="true" />
@@ -494,7 +654,7 @@ export function BranchBatchManagementSection({
             {createError ? <div className="batch-management-error" role="alert">{createError}</div> : null}
 
             <div className="batch-management-footer">
-              <button type="button" className="button button-ghost" onClick={closeCreateModal} disabled={isSaving}>
+              <button type="button" className="button button-ghost" disabled={isSaving}>
                 Cancel
               </button>
               <button type="submit" className="button button-solid" disabled={isSaving}>
@@ -503,6 +663,50 @@ export function BranchBatchManagementSection({
             </div>
           </div>
         </form>
+      </div>,
+      document.body,
+    )
+  }
+
+  const renderDeleteConfirmModal = () => {
+    if (!deleteRowTarget || typeof document === 'undefined') return null
+
+    const targetRow = deleteRowTarget.row || {}
+
+    return createPortal(
+      <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation">
+        <div
+          className="course-modal panel-card batch-delete-confirm-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="batch-delete-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button type="button" className="course-modal-close batch-delete-close" onClick={cancelDeleteRow} aria-label="Close delete confirmation">
+            <X size={18} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+
+          <div className="batch-delete-confirm-head">
+            <p className="batch-delete-confirm-kicker">DELETE BATCH</p>
+            <h3 id="batch-delete-title">Are you sure you want to delete this batch row?</h3>
+            <p className="batch-delete-confirm-subtitle">
+              {targetRow.batchName || targetRow.batchId
+                ? `${targetRow.batchName || targetRow.batchId} will be removed from this form.`
+                : 'This batch row will be removed from this form.'}
+            </p>
+          </div>
+
+          <div className="batch-delete-confirm-divider" />
+
+          <div className="batch-delete-confirm-actions">
+            <button type="button" className="button button-ghost" onClick={cancelDeleteRow}>
+              Cancel
+            </button>
+            <button type="button" className="button button-solid is-danger" onClick={confirmDeleteRow}>
+              Delete
+            </button>
+          </div>
+        </div>
       </div>,
       document.body,
     )
@@ -675,6 +879,7 @@ export function BranchBatchManagementSection({
       </div>
 
       {renderCreateModal()}
+      {renderDeleteConfirmModal()}
       {renderDetailModal()}
     </section>
   )
