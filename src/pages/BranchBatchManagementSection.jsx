@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronRight, Plus, X, Trash2 } from 'lucide-react'
+import { ChevronRight, Eye, MoreVertical, Pencil, Plus, X, Trash2 } from 'lucide-react'
 import {
   getNextBatchSequenceNumber,
+  deleteBranchBatchGroup,
   loadBranchBatchGroups,
   makeBatchId,
   subscribeBranchBatchGroups,
@@ -94,6 +95,52 @@ function formatTimeInput(value = '') {
   return `${digits.slice(0, 2)}:${digits.slice(2)}`
 }
 
+function parseStoredTimeParts(value = '') {
+  const text = normalizeText(value)
+  if (!text) {
+    return { time: '', period: 'AM' }
+  }
+
+  const withPeriodMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (withPeriodMatch) {
+    let hours = Number(withPeriodMatch[1])
+    const minutes = String(withPeriodMatch[2]).padStart(2, '0')
+    const period = String(withPeriodMatch[3] || 'AM').toUpperCase()
+
+    if (!Number.isFinite(hours)) {
+      return { time: '', period }
+    }
+
+    if (period === 'AM') {
+      if (hours === 12) hours = 0
+    } else if (hours < 12) {
+      hours += 12
+    }
+
+    return {
+      time: `${String(hours % 12 || 12).padStart(2, '0')}:${minutes}`,
+      period: hours >= 12 ? 'PM' : 'AM',
+    }
+  }
+
+  const clockMatch = text.match(/^(\d{1,2}):(\d{2})$/)
+  if (!clockMatch) {
+    return { time: '', period: 'AM' }
+  }
+
+  const hours = Number(clockMatch[1])
+  const minutes = String(clockMatch[2]).padStart(2, '0')
+
+  if (!Number.isFinite(hours)) {
+    return { time: '', period: 'AM' }
+  }
+
+  return {
+    time: `${String(hours % 12 || 12).padStart(2, '0')}:${minutes}`,
+    period: hours >= 12 ? 'PM' : 'AM',
+  }
+}
+
 function getCourseLabel(course = {}) {
   return normalizeText(course?.name || course?.courseName || course?.courseCode || '')
 }
@@ -127,6 +174,34 @@ function createInitialDraft(sequenceStart, count = 1) {
   }
 }
 
+function createDraftFromGroup(group = {}, sequenceStart = 1) {
+  const batches = Array.isArray(group.batches) ? group.batches : []
+  const rows = batches.length
+    ? batches.map((batch, index) => {
+        const startParts = parseStoredTimeParts(batch.startTime || '')
+        const endParts = parseStoredTimeParts(batch.endTime || '')
+
+        return {
+          batchId: normalizeText(batch.batchId || makeBatchId(sequenceStart + index)),
+          batchName: normalizeText(batch.batchName || ''),
+          startTime: startParts.time,
+          startPeriod: startParts.period,
+          endTime: endParts.time,
+          endPeriod: endParts.period,
+          totalSeats: normalizeText(batch.totalSeats || ''),
+          status: normalizeStatus(batch.status || 'Active'),
+        }
+      })
+    : [createBatchRow(makeBatchId(sequenceStart))]
+
+  return {
+    courseId: normalizeText(group.courseId || ''),
+    facultyId: normalizeText(group.facultyId || ''),
+    rows,
+    nextSequence: Math.max(sequenceStart, getNextBatchSequenceNumber([group])),
+  }
+}
+
 function buildBatchTiming(row = {}) {
   const startTime = normalizeText(row.startTime)
   const endTime = normalizeText(row.endTime)
@@ -153,12 +228,13 @@ export function BranchBatchManagementSection({
     rows: [],
   })
   const [detailGroup, setDetailGroup] = useState(null)
+  const [editingGroup, setEditingGroup] = useState(null)
+  const [deleteGroupTarget, setDeleteGroupTarget] = useState(null)
   const [deleteRowTarget, setDeleteRowTarget] = useState(null)
   const [draft, setDraft] = useState(() => createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
   const [searchTerm, setSearchTerm] = useState('')
-  const [courseFilter, setCourseFilter] = useState('all')
-  const [facultyFilter, setFacultyFilter] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all')
+  const [actionMenuOpenId, setActionMenuOpenId] = useState('')
+  const [actionMenuPosition, setActionMenuPosition] = useState(null)
 
   useEffect(() => {
     const syncGroups = () => {
@@ -168,6 +244,64 @@ export function BranchBatchManagementSection({
     syncGroups()
     return subscribeBranchBatchGroups(syncGroups)
   }, [branchId])
+
+  useEffect(() => {
+    if (!actionMenuOpenId) return undefined
+
+    const handleDocumentPointerDown = (event) => {
+      if (!event.target?.closest?.('.batch-management-actions')) {
+        setActionMenuOpenId('')
+      }
+    }
+
+    const handleDocumentKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActionMenuOpenId('')
+      }
+    }
+
+    document.addEventListener('mousedown', handleDocumentPointerDown)
+    document.addEventListener('touchstart', handleDocumentPointerDown)
+    document.addEventListener('keydown', handleDocumentKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentPointerDown)
+      document.removeEventListener('touchstart', handleDocumentPointerDown)
+      document.removeEventListener('keydown', handleDocumentKeyDown)
+    }
+  }, [actionMenuOpenId])
+
+  const openActionMenu = useCallback((group, button) => {
+    if (!button || typeof window === 'undefined') return
+
+    const rect = button.getBoundingClientRect()
+    const menuWidth = 170
+    const menuHeight = 132
+    const gap = 8
+    const padding = 8
+
+    let left = rect.right - menuWidth
+    let top = rect.bottom + gap
+
+    if (left < padding) {
+      left = padding
+    }
+
+    if (left + menuWidth > window.innerWidth - padding) {
+      left = window.innerWidth - menuWidth - padding
+    }
+
+    if (top + menuHeight > window.innerHeight - padding) {
+      top = rect.top - menuHeight - gap
+    }
+
+    if (top < padding) {
+      top = padding
+    }
+
+    setActionMenuPosition({ top, left })
+    setActionMenuOpenId(String(group.id || group.batchId || ''))
+  }, [])
 
   const activeCourses = useMemo(() => {
     return (Array.isArray(branchCourses) ? branchCourses : [])
@@ -227,6 +361,7 @@ export function BranchBatchManagementSection({
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
     setDraft(createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
+    setEditingGroup(null)
   }, [branchId])
 
   const openCreateModal = useCallback(() => {
@@ -234,19 +369,103 @@ export function BranchBatchManagementSection({
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
     setDraft(createInitialDraft(sequenceStart, 1))
+    setEditingGroup(null)
+    setActionMenuOpenId('')
+    setActionMenuPosition(null)
     setIsCreateOpen(true)
   }, [branchId])
+
+  const openEditModal = useCallback(
+    (group) => {
+      const nextSequence = getNextBatchSequenceNumber(loadBranchBatchGroups(branchId))
+      setCreateError('')
+      setFieldErrors({ courseId: '', facultyId: '', rows: [] })
+      setEditingGroup(group)
+      setDraft(createDraftFromGroup(group, nextSequence))
+      setIsCreateOpen(true)
+      setActionMenuOpenId('')
+      setActionMenuPosition(null)
+    },
+    [branchId],
+  )
 
   const closeCreateModal = useCallback(() => {
     if (isSaving) return
     setIsCreateOpen(false)
     setDeleteRowTarget(null)
+    setEditingGroup(null)
+    setActionMenuOpenId('')
+    setActionMenuPosition(null)
     resetDraft()
   }, [isSaving, resetDraft])
 
   const closeDetailModal = useCallback(() => {
     setDetailGroup(null)
   }, [])
+
+  const renderActionMenu = () => {
+    if (!actionMenuOpenId || !actionMenuPosition || typeof document === 'undefined') return null
+
+    const activeGroup = filteredGroups.find((group) => String(group.id || group.batchId || '') === actionMenuOpenId)
+    if (!activeGroup) return null
+
+    return createPortal(
+      <div
+        className="batch-management-actions batch-management-actions-portal"
+        role="presentation"
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          position: 'fixed',
+          top: `${actionMenuPosition.top}px`,
+          left: `${actionMenuPosition.left}px`,
+          zIndex: 1600,
+        }}
+      >
+        <div
+          className="batch-management-actions-menu"
+          role="menu"
+          aria-label={`${activeGroup.courseName || activeGroup.batchId || 'Batch'} actions`}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setDetailGroup(activeGroup)
+              setActionMenuOpenId('')
+              setActionMenuPosition(null)
+            }}
+          >
+            <Eye size={14} strokeWidth={2.2} aria-hidden="true" />
+            View
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              openEditModal(activeGroup)
+              setActionMenuPosition(null)
+            }}
+          >
+            <Pencil size={14} strokeWidth={2.2} aria-hidden="true" />
+            Edit
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="is-danger"
+            onClick={() => {
+              requestDeleteGroup(activeGroup)
+              setActionMenuPosition(null)
+            }}
+          >
+            <Trash2 size={14} strokeWidth={2.2} aria-hidden="true" />
+            Delete
+          </button>
+        </div>
+      </div>,
+      document.body,
+    )
+  }
 
   const handleDraftChange = useCallback((field, value) => {
     setDraft((current) => ({
@@ -333,9 +552,32 @@ export function BranchBatchManagementSection({
     setDeleteRowTarget(null)
   }, [deleteRowTarget])
 
-  const cancelDeleteRow = useCallback(() => {
+  const closeDeleteConfirmModal = useCallback(() => {
     setDeleteRowTarget(null)
+    setDeleteGroupTarget(null)
   }, [])
+
+  const requestDeleteGroup = useCallback((group) => {
+    setDeleteGroupTarget(group)
+    setActionMenuOpenId('')
+    setActionMenuPosition(null)
+  }, [])
+
+  const confirmDeleteGroup = useCallback(() => {
+    if (!deleteGroupTarget) return
+
+    deleteBranchBatchGroup(deleteGroupTarget)
+    setBatchGroups(loadBranchBatchGroups(branchId))
+
+    if (detailGroup && String(detailGroup.id || detailGroup.batchGroupId || detailGroup.batchId || '').trim() === String(deleteGroupTarget.id || deleteGroupTarget.batchGroupId || deleteGroupTarget.batchId || '').trim()) {
+      setDetailGroup(null)
+    }
+
+    if (editingGroup && String(editingGroup.id || editingGroup.batchGroupId || editingGroup.batchId || '').trim() === String(deleteGroupTarget.id || deleteGroupTarget.batchGroupId || deleteGroupTarget.batchId || '').trim()) {
+      closeCreateModal()
+    }
+    closeDeleteConfirmModal()
+  }, [branchId, closeCreateModal, closeDeleteConfirmModal, deleteGroupTarget, detailGroup, editingGroup])
 
   const handleSaveBatches = useCallback(
     (event) => {
@@ -382,6 +624,9 @@ export function BranchBatchManagementSection({
 
       const selectedCourseRecord = activeCourses.find((course) => course.id === draft.courseId) || null
       const selectedFacultyRecord = availableFacultyOptions.find((faculty) => faculty.id === draft.facultyId) || null
+      const existingGroup = editingGroup
+        ? batchGroups.find((group) => String(group.id || group.batchGroupId || group.batchId || '').trim() === String(editingGroup.id || editingGroup.batchGroupId || editingGroup.batchId || '').trim()) || editingGroup
+        : null
 
       try {
         setIsSaving(true)
@@ -416,8 +661,8 @@ export function BranchBatchManagementSection({
 
         const primaryStatus = cleanedRows[0]?.status || 'Active'
         const record = {
-          id: cleanedRows[0]?.batchId,
-          batchGroupId: cleanedRows[0]?.batchId,
+          id: existingGroup?.id || cleanedRows[0]?.batchId,
+          batchGroupId: existingGroup?.batchGroupId || cleanedRows[0]?.batchId,
           batchId: cleanedRows[0]?.batchId,
           branchId,
           courseId: selectedCourseRecord?.id || '',
@@ -428,13 +673,14 @@ export function BranchBatchManagementSection({
           status: primaryStatus,
           batches: cleanedRows,
           batchCount: cleanedRows.length,
-          createdAt: new Date().toISOString(),
+          createdAt: existingGroup?.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
 
         upsertBranchBatchGroup(record)
         setBatchGroups(loadBranchBatchGroups(branchId))
         setIsCreateOpen(false)
+        setEditingGroup(null)
         setFieldErrors({ courseId: '', facultyId: '', rows: [] })
         setDraft(createInitialDraft(getNextBatchSequenceNumber(loadBranchBatchGroups(branchId)), 1))
       } catch (error) {
@@ -444,42 +690,35 @@ export function BranchBatchManagementSection({
         setIsSaving(false)
       }
     },
-    [activeCourses, availableFacultyOptions, branchId, draft.courseId, draft.facultyId, draft.rows],
+    [activeCourses, availableFacultyOptions, batchGroups, branchId, draft.courseId, draft.facultyId, draft.rows, editingGroup],
   )
 
-  const filteredGroups = useMemo(() => {
-    const search = normalizeText(searchTerm).toLowerCase()
+  const filteredGroups = batchGroups
+    .filter((group) => {
+      const search = normalizeText(searchTerm).toLowerCase()
+      if (!search) return true
 
-    return batchGroups
-      .filter((group) => {
-        if (courseFilter !== 'all' && normalizeText(group.courseId) !== courseFilter) return false
-        if (facultyFilter !== 'all' && normalizeText(group.facultyId) !== facultyFilter) return false
-        if (statusFilter !== 'all' && normalizeStatus(group.status).toLowerCase() !== statusFilter.toLowerCase()) return false
-        if (!search) return true
+      const haystack = [
+        group.batchId,
+        group.courseName,
+        group.facultyName,
+        group.status,
+        ...(Array.isArray(group.batches) ? group.batches.flatMap((batch) => [batch.batchName, batch.batchTiming, batch.status]) : []),
+      ]
+        .join(' ')
+        .toLowerCase()
 
-        const haystack = [
-          group.batchId,
-          group.courseName,
-          group.facultyName,
-          group.status,
-          ...(Array.isArray(group.batches) ? group.batches.flatMap((batch) => [batch.batchName, batch.batchTiming, batch.status]) : []),
-        ]
-          .join(' ')
-          .toLowerCase()
+      return haystack.includes(search)
+    })
+    .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')))
 
-        return haystack.includes(search)
-      })
-      .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')))
-  }, [batchGroups, courseFilter, facultyFilter, searchTerm, statusFilter])
-
-  const summaryText = useMemo(() => {
-    const totalGroups = batchGroups.length
-    const totalRows = batchGroups.reduce((count, group) => count + Number(group.batchCount || 0), 0)
-    return `${totalGroups} batch group${totalGroups === 1 ? '' : 's'} | ${totalRows} batch row${totalRows === 1 ? '' : 's'}`
-  }, [batchGroups])
+  const totalGroups = batchGroups.length
+  const totalRows = batchGroups.reduce((count, group) => count + Number(group.batchCount || 0), 0)
+  const summaryText = `${totalGroups} batch group${totalGroups === 1 ? '' : 's'} | ${totalRows} batch row${totalRows === 1 ? '' : 's'}`
 
   const renderCreateModal = () => {
     if (!isCreateOpen || typeof document === 'undefined') return null
+    const isEditingBatch = Boolean(editingGroup)
 
     return createPortal(
       <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation">
@@ -498,7 +737,7 @@ export function BranchBatchManagementSection({
           <div className="course-modal-header batch-management-modal-header">
             <div>
               <p className="section-kicker">Batch Management</p>
-              <h3 id="batch-create-title">Create Batch</h3>
+              <h3 id="batch-create-title">{isEditingBatch ? 'Edit Batch' : 'Create Batch'}</h3>
               <p className="batch-management-modal-subtitle">
                 Select one active course and faculty, then add multiple batch rows in a single submit.
               </p>
@@ -657,7 +896,7 @@ export function BranchBatchManagementSection({
                 Cancel
               </button>
               <button type="submit" className="button button-solid" disabled={isSaving}>
-                {isSaving ? 'Creating...' : 'Create Batches'}
+                {isSaving ? (isEditingBatch ? 'Updating...' : 'Creating...') : isEditingBatch ? 'Update Batches' : 'Create Batches'}
               </button>
             </div>
           </div>
@@ -668,9 +907,11 @@ export function BranchBatchManagementSection({
   }
 
   const renderDeleteConfirmModal = () => {
-    if (!deleteRowTarget || typeof document === 'undefined') return null
-
-    const targetRow = deleteRowTarget.row || {}
+    if (typeof document === 'undefined') return null
+    const targetGroup = deleteGroupTarget || deleteRowTarget?.row || null
+    if (!targetGroup) return null
+    const isGroupDelete = Boolean(deleteGroupTarget)
+    const targetRow = deleteRowTarget?.row || {}
 
     return createPortal(
       <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation">
@@ -681,27 +922,41 @@ export function BranchBatchManagementSection({
           aria-labelledby="batch-delete-title"
           onClick={(event) => event.stopPropagation()}
         >
-          <button type="button" className="course-modal-close batch-delete-close" onClick={cancelDeleteRow} aria-label="Close delete confirmation">
+          <button type="button" className="course-modal-close batch-delete-close" onClick={closeDeleteConfirmModal} aria-label="Close delete confirmation">
             <X size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
           <div className="batch-delete-confirm-head">
             <p className="batch-delete-confirm-kicker">DELETE BATCH</p>
-            <h3 id="batch-delete-title">Are you sure you want to delete this batch row?</h3>
+            <h3 id="batch-delete-title">{isGroupDelete ? 'Are you sure you want to delete this batch group?' : 'Are you sure you want to delete this batch row?'}</h3>
             <p className="batch-delete-confirm-subtitle">
-              {targetRow.batchName || targetRow.batchId
-                ? `${targetRow.batchName || targetRow.batchId} will be removed from this form.`
-                : 'This batch row will be removed from this form.'}
+              {isGroupDelete ? (
+                <>
+                  <strong>{targetGroup.courseName || targetGroup.batchId || 'This batch'}</strong>
+                  {' '}
+                  with <strong>{targetGroup.batchCount || (Array.isArray(targetGroup.batches) ? targetGroup.batches.length : 0)}</strong>
+                  {' '}
+                  row{(targetGroup.batchCount || (Array.isArray(targetGroup.batches) ? targetGroup.batches.length : 0)) === 1 ? '' : 's'} will be removed.
+                </>
+              ) : targetRow.batchName || targetRow.batchId ? (
+                `${targetRow.batchName || targetRow.batchId} will be removed from this form.`
+              ) : (
+                'This batch row will be removed from this form.'
+              )}
             </p>
           </div>
 
           <div className="batch-delete-confirm-divider" />
 
           <div className="batch-delete-confirm-actions">
-            <button type="button" className="button button-ghost" onClick={cancelDeleteRow}>
+            <button type="button" className="button button-ghost" onClick={closeDeleteConfirmModal}>
               Cancel
             </button>
-            <button type="button" className="button button-solid is-danger" onClick={confirmDeleteRow}>
+            <button
+              type="button"
+              className="button button-solid is-danger"
+              onClick={isGroupDelete ? confirmDeleteGroup : confirmDeleteRow}
+            >
               Delete
             </button>
           </div>
@@ -784,56 +1039,30 @@ export function BranchBatchManagementSection({
           <p>{summaryText}</p>
         </div>
         <div className="branch-dashboard-section-heading-actions">
-          <button type="button" className="button button-solid" onClick={openCreateModal}>
+          <button type="button" className="button button-solid batch-create-button" onClick={openCreateModal}>
             <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
             Create Batch
           </button>
         </div>
       </div>
 
-      <div className="batch-management-toolbar">
-        <input
-          type="search"
-          className="batch-management-search"
-          placeholder="Search batch, course, faculty"
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-        />
-
-        <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
-          <option value="all">Course</option>
-          {activeCourses.map((course) => (
-            <option key={course.id} value={course.id}>
-              {course.name}
-            </option>
-          ))}
-        </select>
-
-        <select value={facultyFilter} onChange={(event) => setFacultyFilter(event.target.value)}>
-          <option value="all">Faculty</option>
-          {(Array.isArray(branchFacultyRecords) && branchFacultyRecords.length ? branchFacultyRecords : facultyList)
-            .map((faculty) => ({
-              id: normalizeText(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || faculty?.userId || ''),
-              name: getFacultyLabel(faculty),
-              status: normalizeStatus(faculty?.status || faculty?.recordStatus || 'Active'),
-            }))
-            .filter((faculty) => faculty.id && faculty.name && faculty.status.toLowerCase() === 'active')
-            .map((faculty) => (
-              <option key={faculty.id} value={faculty.id}>
-                {faculty.name}
-              </option>
-            ))}
-        </select>
-
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-          <option value="all">Status</option>
-          <option value="active">Active</option>
-          <option value="open">Open</option>
-          <option value="full">Full</option>
-          <option value="closed">Closed</option>
-          <option value="inactive">Inactive</option>
-        </select>
-      </div>
+      <form
+        className="batch-management-toolbar"
+        onSubmit={(event) => event.preventDefault()}
+      >
+        <div className="batch-management-search-bar">
+          <input
+            type="search"
+            className="batch-management-search"
+            placeholder="Search installment plan"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+          />
+          <button type="submit" className="button button-solid batch-management-search-button">
+            Search
+          </button>
+        </div>
+      </form>
 
       <div className="branch-dashboard-table-shell batch-management-table-shell">
         <table className="branch-dashboard-table batch-management-table">
@@ -844,6 +1073,7 @@ export function BranchBatchManagementSection({
               <th>Faculty Name</th>
               <th>Batch Count</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -864,11 +1094,34 @@ export function BranchBatchManagementSection({
                       {getBatchGroupStatus(group)}
                     </span>
                   </td>
+                  <td className="batch-management-actions-cell">
+                    <div className={`batch-management-actions ${actionMenuOpenId === String(group.id || group.batchId || '') ? 'is-open' : ''}`.trim()}>
+                      <button
+                        type="button"
+                        className="batch-management-actions-trigger"
+                        aria-label={`Open actions for ${group.courseName || group.batchId || 'batch'}`}
+                        aria-haspopup="menu"
+                        aria-expanded={actionMenuOpenId === String(group.id || group.batchId || '')}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          const actionId = String(group.id || group.batchId || '')
+                          if (actionMenuOpenId === actionId) {
+                            setActionMenuOpenId('')
+                            setActionMenuPosition(null)
+                          } else {
+                            openActionMenu(group, event.currentTarget)
+                          }
+                        }}
+                      >
+                        <MoreVertical size={16} strokeWidth={2.3} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="branch-course-empty-state">
+                <td colSpan="6" className="branch-course-empty-state">
                   No batches created yet. Use Create Batch to add the first group.
                 </td>
               </tr>
@@ -877,6 +1130,7 @@ export function BranchBatchManagementSection({
         </table>
       </div>
 
+      {renderActionMenu()}
       {renderCreateModal()}
       {renderDeleteConfirmModal()}
       {renderDetailModal()}

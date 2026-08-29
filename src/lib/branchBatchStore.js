@@ -171,6 +171,30 @@ export function upsertBranchBatchGroup(record = {}) {
   return nextRecord
 }
 
+export function deleteBranchBatchGroup(target = {}) {
+  const targetId = String(target?.id || target?.batchGroupId || target?.batchId || '').trim()
+  const targetBranchId = String(target?.branchId || '').trim()
+
+  const all = readAll().map(normalizeBatchGroup)
+  const next = all.filter((item) => {
+    if (targetId) {
+      if (item.id === targetId) return false
+      if (item.batchGroupId === targetId) return false
+      if (item.batchId === targetId) return false
+    }
+
+    if (targetBranchId && String(item.branchId || '').trim() === targetBranchId && !targetId) {
+      return false
+    }
+
+    return true
+  })
+
+  writeAll(next)
+  dispatchChange()
+  return next
+}
+
 export function subscribeBranchBatchGroups(listener) {
   if (typeof window === 'undefined') return () => {}
 
@@ -213,4 +237,3 @@ export function makeBatchId(sequenceNumber = 1) {
   const safeSequence = Math.max(1, Number(sequenceNumber) || 1)
   return `BAT-${String(safeSequence).padStart(3, '0')}`
 }
-
