@@ -3047,7 +3047,7 @@ const nextName = trimmedValue
                                   <span>S.NO</span>
                                   <span>Module Name</span>
                                   <span>Submodules Count</span>
-                                  <span>Progress</span>
+                                  {/* <span>Progress</span> */}
                                   <span>Action</span>
                                 </div>
 
@@ -3074,9 +3074,9 @@ const nextName = trimmedValue
                                           {submodules.length}
                                         </div>
 
-                                        <div className="faculty-course-table-cell faculty-course-table-cell-progress">
+                                        {/* <div className="faculty-course-table-cell faculty-course-table-cell-progress">
                                           <span>{modulePercent}</span>
-                                        </div>
+                                        </div> */}
 
                                         <button
                                           type="button"
@@ -3093,7 +3093,7 @@ const nextName = trimmedValue
                                             <div className="faculty-course-table-subhead">
                                               <span>Submodule </span>
                                               <span>Submodule Name</span>
-                                              <span>Progress</span>
+                                              {/* <span>Progress</span> */}
                                             </div>
 
                                           {submodules.length ? submodules.map((submodule, subIndex) => (
@@ -3105,9 +3105,9 @@ const nextName = trimmedValue
                                                   <i aria-hidden="true" />
                                                   <strong>{submodule?.name || submodule?.title || `Submodule ${subIndex + 1}`}</strong>
                                                 </div>
-                                                <div className="faculty-course-table-cell faculty-course-table-subcell-progress">
+                                                {/* <div className="faculty-course-table-cell faculty-course-table-subcell-progress">
                                                   {getModulePercentage(submodule, subIndex, submodules.length)}
-                                                </div>
+                                                </div> */}
                                               </div>
                                             )) : (
                                               <div className="faculty-course-table-subempty">No submodules added</div>
