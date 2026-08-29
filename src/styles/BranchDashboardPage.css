@@ -7378,6 +7378,16 @@ body.branch-notification-menu-open .main-area {
   pointer-events: auto !important;
 }
 
+.branch-notifications-page .notifications-item-title-row {
+  display: flex;
+  align-items: center;
+}
+
+.branch-notifications-page .notifications-item-title-row small {
+  margin-left: 8px;
+  transform: translateX(4px);
+}
+
 /* List */
 
 .notification-list {

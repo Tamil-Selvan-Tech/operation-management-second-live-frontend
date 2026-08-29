@@ -1228,11 +1228,12 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
           const Icon = item.icon
           const isCourseEditRequest =
             item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
+          const isProgressNotification = String(item.kind || '').includes('progress-status')
 
           return (
             <article
               key={`${label}-${item.id || item.title}-${item.time}`}
-              className={`notifications-item ${item.unread ? 'is-unread' : ''}`.trim()}
+              className={showDetails ? '' : `notifications-item ${item.unread ? 'is-unread' : ''}`.trim()}
               role="button"
               tabIndex={0}
               onClick={() => onView?.(item)}
@@ -1242,66 +1243,239 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                   onView?.(item)
                 }
               }}
+              style={
+                showDetails
+                  ? {
+                      display: 'block',
+                      width: '100%',
+                      padding: '18px 20px',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '18px',
+                      background: item.unread ? '#f5fbf7' : '#ffffff',
+                      boxShadow: '0 1px 0 rgba(15, 23, 42, 0.03)',
+                      cursor: 'pointer',
+                      boxSizing: 'border-box',
+                    }
+                  : undefined
+              }
             >
-              <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
-                <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-              </span>
-
-              <div className="notifications-item-copy">
-                <div className="notifications-item-title-row">
-                  <h3>{item.title}</h3>
-                  <small>{item.time}</small>
-                </div>
-                <p>{item.message}</p>
-                {showDetails && String(item.kind || '').includes('progress-status') ? (
-                  <div className="notification-progress-details">
-                    <p><strong>Student ID:</strong> {item.studentId || '-'}</p>
-                    <p><strong>Student Name:</strong> {item.studentName || '-'}</p>
-                    <p><strong>Course Progress:</strong> {item.courseProgress ? `${item.courseProgress}%` : '-'}</p>
-                    <p><strong>Paid Progress:</strong> {item.paidProgress ? `${item.paidProgress}%` : '-'}</p>
-                    <p><strong>Status:</strong> {item.statusLabel || '-'}</p>
-                    <p><strong>Summary:</strong> {item.summary || item.message}</p>
-                  </div>
-                ) : null}
-                {showDetails && isCourseEditRequest ? (
-                  <div className="notification-copy">
-                    {item.requestTitle ? <small><strong>Title:</strong> {item.requestTitle}</small> : null}
-                    {item.requestReason ? <small><strong>Reason:</strong> {item.requestReason}</small> : null}
-                    {item.requestDescription ? <small><strong>Description:</strong> {item.requestDescription}</small> : null}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="notifications-item-meta">
-                <span className={`notifications-item-chip tone-${item.tone}`}>
-                  {item.categoryLabel || item.actionLabel || 'View'}
-                </span>
-                {isCourseEditRequest ? (
-                  <button
-                    type="button"
-                    className="notifications-item-view-button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      onAcceptRequest?.(item)
+              {showDetails ? (
+                <>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '14px',
+                      minWidth: 0,
                     }}
                   >
-                    Accept
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="notifications-item-view-button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      onView?.(item)
-                    }}
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '14px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flex: '0 0 auto',
+                        background:
+                          item.tone === 'green'
+                            ? '#e8f9ee'
+                            : item.tone === 'amber'
+                              ? '#fff7e6'
+                              : item.tone === 'red'
+                                ? '#fff1f2'
+                                : '#eef4ff',
+                        color:
+                          item.tone === 'green'
+                            ? '#16a34a'
+                            : item.tone === 'amber'
+                              ? '#d97706'
+                              : item.tone === 'red'
+                                ? '#e11d48'
+                                : '#2563eb',
+                      }}
                     >
-                      View
-                    </button>
-                  )}
-              </div>
+                      <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                    </span>
+
+                    <div style={{ minWidth: 0, flex: '1 1 auto', display: 'grid', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                        <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+                          <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1.02rem', lineHeight: 1.25, fontWeight: 800 }}>
+                            {item.title}
+                          </h3>
+                          <p style={{ margin: '6px 0 0', color: '#475569', fontSize: '0.95rem', lineHeight: 1.45 }}>
+                            {item.message}
+                          </p>
+                        </div>
+                        <small style={{ flex: '0 0 auto', whiteSpace: 'nowrap', color: '#94a3b8', fontWeight: 700 }}>
+                          {item.time}
+                        </small>
+                      </div>
+
+                      {isProgressNotification ? (
+                        <div
+                          style={{
+                            display: 'grid',
+                            gap: '6px',
+                            padding: '12px 14px',
+                            borderRadius: '14px',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            color: '#0f172a',
+                            fontSize: '0.92rem',
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          <p style={{ margin: 0 }}><strong>Student ID:</strong> {item.studentId || '-'}</p>
+                          <p style={{ margin: 0 }}><strong>Student Name:</strong> {item.studentName || '-'}</p>
+                          <p style={{ margin: 0 }}><strong>Course Progress:</strong> {item.courseProgress ? `${item.courseProgress}%` : '-'}</p>
+                          <p style={{ margin: 0 }}><strong>Paid Progress:</strong> {item.paidProgress ? `${item.paidProgress}%` : '-'}</p>
+                          <p style={{ margin: 0 }}><strong>Status:</strong> {item.statusLabel || '-'}</p>
+                          <p style={{ margin: 0 }}><strong>Summary:</strong> {item.summary || item.message}</p>
+                        </div>
+                      ) : null}
+
+                      {isCourseEditRequest ? (
+                        <div
+                          style={{
+                            display: 'grid',
+                            gap: '6px',
+                            padding: '12px 14px',
+                            borderRadius: '14px',
+                            background: '#f8fafc',
+                            border: '1px solid #e2e8f0',
+                            color: '#0f172a',
+                            fontSize: '0.92rem',
+                            lineHeight: 1.45,
+                          }}
+                        >
+                          {item.requestTitle ? <p style={{ margin: 0 }}><strong>Title:</strong> {item.requestTitle}</p> : null}
+                          {item.requestReason ? <p style={{ margin: 0 }}><strong>Reason:</strong> {item.requestReason}</p> : null}
+                          {item.requestDescription ? <p style={{ margin: 0 }}><strong>Description:</strong> {item.requestDescription}</p> : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      marginTop: '14px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '30px',
+                        padding: '0 12px',
+                        borderRadius: '999px',
+                        background:
+                          item.tone === 'green'
+                            ? '#dcfce7'
+                            : item.tone === 'amber'
+                              ? '#fef3c7'
+                              : item.tone === 'red'
+                                ? '#fee2e2'
+                                : '#dbeafe',
+                        color:
+                          item.tone === 'green'
+                            ? '#15803d'
+                            : item.tone === 'amber'
+                              ? '#b45309'
+                              : item.tone === 'red'
+                                ? '#b91c1c'
+                                : '#1d4ed8',
+                        fontSize: '0.84rem',
+                        fontWeight: 800,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {item.statusLabel || item.categoryLabel || item.actionLabel || 'View'}
+                    </span>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isCourseEditRequest ? (
+                        <button
+                          type="button"
+                          className="notifications-item-view-button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onAcceptRequest?.(item)
+                          }}
+                        >
+                          Accept
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="notifications-item-view-button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onView?.(item)
+                          }}
+                        >
+                          View
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
+                    <Icon size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                  </span>
+
+                  <div className="notifications-item-copy">
+                    <div className="notifications-item-title-row">
+                      <h3>{item.title}</h3>
+                      <small>{item.time}</small>
+                    </div>
+                    <p>{item.message}</p>
+                  </div>
+
+                  <div className="notifications-item-meta">
+                    <span className={`notifications-item-chip tone-${item.tone}`}>
+                      {item.categoryLabel || item.actionLabel || 'View'}
+                    </span>
+                    {isCourseEditRequest ? (
+                      <button
+                        type="button"
+                        className="notifications-item-view-button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onAcceptRequest?.(item)
+                        }}
+                      >
+                        Accept
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="notifications-item-view-button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onView?.(item)
+                        }}
+                      >
+                        View
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
             </article>
           )
         })}
@@ -5883,7 +6057,7 @@ useEffect(() => {
                   <div className="notifications-feed">
                     {branchNotificationSections.length ? (
                       branchNotificationSections.map((section) => (
-                      <BranchNotificationGroup
+                        <BranchNotificationGroup
                           key={section.label}
                           label={section.label}
                           items={section.items}
