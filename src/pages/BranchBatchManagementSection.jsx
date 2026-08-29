@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronRight, Eye, MoreVertical, Pencil, Plus, X, Trash2 } from 'lucide-react'
+import { CheckCircle2, ChevronRight, Eye, MoreVertical, Pencil, Plus, X, Trash2 } from 'lucide-react'
+import { PaginationBar } from '../components/PaginationBar'
 import {
   createBranchBatch,
   deleteBranchBatch,
@@ -284,8 +285,10 @@ export function BranchBatchManagementSection({
   const [deleteRowTarget, setDeleteRowTarget] = useState(null)
   const [draft, setDraft] = useState(() => createInitialDraft(1, 1))
   const [searchTerm, setSearchTerm] = useState('')
+  const [batchTablePage, setBatchTablePage] = useState(1)
   const [actionMenuOpenId, setActionMenuOpenId] = useState('')
   const [actionMenuPosition, setActionMenuPosition] = useState(null)
+  const [saveSuccessPopup, setSaveSuccessPopup] = useState(null)
 
   const refreshBatchGroups = useCallback(async () => {
     setIsLoading(true)
@@ -451,6 +454,7 @@ export function BranchBatchManagementSection({
     const groupSequenceStart = getNextBatchGroupSequenceNumber(batchGroups)
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
+    setSaveSuccessPopup(null)
     setDraft(createInitialDraft(sequenceStart, groupSequenceStart, 1))
     setEditingGroup(null)
     setActionMenuOpenId('')
@@ -502,6 +506,7 @@ export function BranchBatchManagementSection({
           position: 'fixed',
           top: `${actionMenuPosition.top}px`,
           left: `${actionMenuPosition.left}px`,
+          width: '170px',
           zIndex: 1600,
         }}
       >
@@ -579,7 +584,7 @@ export function BranchBatchManagementSection({
         if (rowIndex !== index) return row
 
         if (field === 'startTime' || field === 'endTime') {
-          return { ...row, [field]: formatTimeInput(value) }
+          return { ...row, [field]: String(value ?? '') }
         }
 
         return { ...row, [field]: value }
@@ -782,6 +787,12 @@ export function BranchBatchManagementSection({
         const latestSequence = getNextBatchSequenceNumber(latestGroups.length ? latestGroups : batchGroups)
         const latestGroupSequence = getNextBatchGroupSequenceNumber(latestGroups.length ? latestGroups : batchGroups)
         setDraft(createInitialDraft(latestSequence, latestGroupSequence, 1))
+        setSaveSuccessPopup({
+          title: existingGroup ? 'Batch Updated' : 'Batch Created',
+          message: existingGroup
+            ? 'The batch group has been updated successfully.'
+            : 'The batch group has been created successfully.',
+        })
       } catch (error) {
         console.error('Failed to save batches:', error)
         setCreateError(error?.message || 'Unable to save batches right now.')
@@ -812,6 +823,22 @@ export function BranchBatchManagementSection({
     })
     .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')))
 
+  const batchRowsPerPage = 5
+  const totalBatchPages = Math.max(1, Math.ceil(filteredGroups.length / batchRowsPerPage))
+  const safeBatchTablePage = Math.min(Math.max(1, batchTablePage), totalBatchPages)
+  const paginatedGroups = filteredGroups.slice(
+    (safeBatchTablePage - 1) * batchRowsPerPage,
+    safeBatchTablePage * batchRowsPerPage,
+  )
+
+  useEffect(() => {
+    setBatchTablePage(1)
+  }, [searchTerm])
+
+  useEffect(() => {
+    setBatchTablePage((currentPage) => Math.min(Math.max(1, currentPage), totalBatchPages))
+  }, [totalBatchPages])
+
   const totalGroups = batchGroups.length
   const totalRows = batchGroups.reduce((count, group) => count + Number(group.batchCount || 0), 0)
   const summaryText = `${totalGroups} batch group${totalGroups === 1 ? '' : 's'} | ${totalRows} batch row${totalRows === 1 ? '' : 's'}`
@@ -838,9 +865,6 @@ export function BranchBatchManagementSection({
             <div>
               <p className="section-kicker">Batch Management</p>
               <h3 id="batch-create-title">{isEditingBatch ? 'Edit Batch' : 'Create Batch'}</h3>
-              <p className="batch-management-modal-subtitle">
-                Select one active course and faculty, then add multiple batch rows in a single submit.
-              </p>
             </div>
           </div>
 
@@ -849,7 +873,6 @@ export function BranchBatchManagementSection({
               <label className="batch-management-field">
                 <span>Batch Group ID *</span>
                 <input type="text" value={draft.batchGroupId || ''} readOnly />
-                <small>This group will contain multiple batch rows with unique batch IDs.</small>
               </label>
 
               <label className="batch-management-field">
@@ -903,13 +926,13 @@ export function BranchBatchManagementSection({
                 {draft.rows.map((row, index) => (
                   <div key={row.batchId} className="batch-management-row">
                     <div className="batch-management-row-name">
+                      <small>ID: {row.batchId}</small>
                       <input
                         type="text"
                         placeholder="Morning Batch"
                         value={row.batchName}
                         onChange={(event) => handleRowChange(index, 'batchName', event.target.value)}
                       />
-                      <small>ID: {row.batchId}</small>
                       {fieldErrors.rows[index]?.batchName ? (
                         <small className="batch-management-field-error">{fieldErrors.rows[index].batchName}</small>
                       ) : null}
@@ -1131,6 +1154,49 @@ export function BranchBatchManagementSection({
     )
   }
 
+  const renderSaveSuccessPopup = () => {
+    if (!saveSuccessPopup || typeof document === 'undefined') return null
+
+    return createPortal(
+      <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation" onClick={() => setSaveSuccessPopup(null)}>
+        <div
+          className="batch-success-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="batch-success-title"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button type="button" className="batch-success-close" aria-label="Close success popup" onClick={() => setSaveSuccessPopup(null)}>
+            <X size={20} strokeWidth={2.2} />
+          </button>
+
+          <div className="batch-success-hero" aria-hidden="true">
+            <span className="batch-success-ring" />
+            <span className="batch-success-icon">
+              <CheckCircle2 size={30} strokeWidth={2.1} />
+            </span>
+          </div>
+
+          <div className="batch-success-copy">
+            <p className="batch-success-kicker">Success</p>
+            <h3 id="batch-success-title">{saveSuccessPopup.title}</h3>
+            <p>{saveSuccessPopup.message}</p>
+          </div>
+
+          <div className="batch-success-actions">
+            <button type="button" className="batch-success-secondary" onClick={() => setSaveSuccessPopup(null)}>
+              Close
+            </button>
+            <button type="button" className="batch-success-primary" onClick={() => setSaveSuccessPopup(null)}>
+              OK
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    )
+  }
+
   return (
     <section className="branch-dashboard-section batch-management-section">
       <div className="branch-dashboard-section-heading">
@@ -1177,8 +1243,8 @@ export function BranchBatchManagementSection({
             </tr>
           </thead>
           <tbody>
-            {filteredGroups.length ? (
-              filteredGroups.map((group) => (
+            {paginatedGroups.length ? (
+              paginatedGroups.map((group) => (
                 <tr key={group.id || group.batchGroupId || group.batchId}>
                   <td>{group.batchGroupId || group.batchId}</td>
                   <td>{group.courseName || '-'}</td>
@@ -1230,10 +1296,21 @@ export function BranchBatchManagementSection({
         </table>
       </div>
 
+      <PaginationBar
+        currentPage={safeBatchTablePage}
+        totalPages={totalBatchPages}
+        onPageChange={setBatchTablePage}
+        className="batch-management-pagination"
+        label="Batch table pagination"
+        previousLabel="Previous"
+        nextLabel="Next"
+      />
+
       {renderActionMenu()}
       {renderCreateModal()}
       {renderDeleteConfirmModal()}
       {renderDetailModal()}
+      {renderSaveSuccessPopup()}
     </section>
   )
 }

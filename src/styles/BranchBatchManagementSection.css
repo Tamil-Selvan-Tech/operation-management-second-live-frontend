@@ -23,8 +23,8 @@
 .batch-management-row input,
 .batch-management-row select {
   width: 100%;
-  min-height: 46px;
-  padding: 0 14px;
+  min-height: 40px;
+  padding: 0 12px;
   border: 1px solid #dbe4f0;
   border-radius: 12px;
   background: #fff;
@@ -75,6 +75,10 @@
 
 .batch-management-actions-cell {
   position: relative;
+  text-align: right;
+}
+
+.batch-management-table thead th:last-child {
   text-align: right;
 }
 
@@ -202,6 +206,157 @@
   z-index: 1200;
 }
 
+.batch-success-modal {
+  position: relative;
+  width: min(92vw, 440px);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.18);
+  padding: 14px 20px 12px;
+  text-align: center;
+  overflow: hidden;
+  pointer-events: auto;
+  animation: batchSuccessPopIn 0.22s ease-out;
+}
+
+.batch-success-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  cursor: pointer;
+}
+
+.batch-success-close:hover,
+.batch-success-close:focus-visible {
+  background: #eef4ff;
+  color: #0f172a;
+  outline: none;
+}
+
+.batch-success-hero {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 2px auto 12px;
+  display: grid;
+  place-items: center;
+}
+
+.batch-success-icon {
+  position: relative;
+  z-index: 1;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #16a34a;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.12);
+}
+
+.batch-success-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.12) 0%, rgba(34, 197, 94, 0) 70%);
+}
+
+.batch-success-copy {
+  max-width: 290px;
+  margin: 0 auto;
+}
+
+.batch-success-kicker {
+  margin: 0 0 4px;
+  color: #22c55e;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.batch-success-modal h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.batch-success-modal p {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.batch-success-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.batch-success-secondary,
+.batch-success-primary {
+  height: 40px;
+  border-radius: 10px;
+  padding: 0 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.batch-success-secondary {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #475569;
+}
+
+.batch-success-primary {
+  border: 1px solid #2563eb;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+}
+
+.batch-success-secondary:hover,
+.batch-success-secondary:focus-visible {
+  background: #f8fafc;
+  outline: none;
+}
+
+.batch-success-primary:hover,
+.batch-success-primary:focus-visible {
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  outline: none;
+}
+
+@keyframes batchSuccessPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .batch-management-modal,
 .batch-detail-modal {
   width: min(1120px, calc(100vw - 32px));
@@ -210,30 +365,30 @@
 }
 
 .batch-management-modal-header {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .batch-management-modal-subtitle {
-  margin-top: 6px;
+  margin-top: 4px;
   color: #64748b;
   line-height: 1.6;
 }
 
 .batch-management-form-shell {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .batch-management-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
-  margin-top: -4px;
+  margin-top: 6px;
 }
 
 .batch-management-field {
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .batch-management-field span,
@@ -253,8 +408,8 @@
 
 .batch-management-field small {
   color: #94a3b8;
-  font-size: 0.8rem;
-  line-height: 1.45;
+  font-size: 0.76rem;
+  line-height: 1.35;
 }
 
 .batch-management-field .batch-management-field-error,

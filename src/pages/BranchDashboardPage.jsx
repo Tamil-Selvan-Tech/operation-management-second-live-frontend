@@ -8551,7 +8551,7 @@ else {
                               aria-invalid={Boolean(addCoursePaymentPlanVisibleError)}
                             >
                               {isBranchInstallmentTemplatesLoading ? (
-                                <div className="course-payment-plan-checklist-empty">Loading payment plans...</div>
+                                <div className="course-payment-plan-checklist-empty">No payment plans found</div>
                               ) : null}
 
                               {!isBranchInstallmentTemplatesLoading && !addCoursePaymentPlanOptions.length ? (
