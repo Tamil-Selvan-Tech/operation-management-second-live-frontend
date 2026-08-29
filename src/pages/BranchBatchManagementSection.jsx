@@ -320,7 +320,6 @@ export function BranchBatchManagementSection({
     if (!deleteRowTarget) return
 
     setDraft((current) => {
-      if (!current.rows.length) return current
       return {
         ...current,
         rows: current.rows.filter((_, rowIndex) => rowIndex !== deleteRowTarget.index),
