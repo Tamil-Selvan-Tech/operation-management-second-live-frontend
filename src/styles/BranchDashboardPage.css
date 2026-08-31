@@ -8377,6 +8377,11 @@ body.branch-notification-menu-open .main-area {
 }
 
 .branch-student-payment-status.overdue {
+  width: 116px;
+  min-width: 116px;
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
   background: #fee2e2;
   color: #dc2626;
 }
@@ -8584,6 +8589,11 @@ body.branch-notification-menu-open .main-area {
 }
 
 .branch-student-payment-status.overdue {
+  width: 116px;
+  min-width: 116px;
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
   background: #fee2e2;
   color: #dc2626;
 }

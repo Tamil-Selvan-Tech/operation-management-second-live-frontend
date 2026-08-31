@@ -5675,7 +5675,10 @@ useEffect(() => {
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
-    const nextStudentForm = await resolveStudentLocationForm(buildStudentFormFromRecord(stu))
+    const nextStudentForm = await resolveStudentLocationForm({
+      ...buildStudentFormFromRecord(stu),
+      ...resolveStudentBatchDisplay(stu, branchBatchGroups),
+    })
     setStudentForm(nextStudentForm)
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
@@ -5686,7 +5689,10 @@ useEffect(() => {
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
-    const nextStudentForm = await resolveStudentLocationForm(buildStudentFormFromRecord(stu))
+    const nextStudentForm = await resolveStudentLocationForm({
+      ...buildStudentFormFromRecord(stu),
+      ...resolveStudentBatchDisplay(stu, branchBatchGroups),
+    })
     setStudentForm(nextStudentForm)
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
