@@ -3047,7 +3047,7 @@ const nextName = trimmedValue
                                   <span>S.NO</span>
                                   <span>Module Name</span>
                                   <span>Submodules Count</span>
-                                  {/* <span>Progress</span> */}
+                                  <span>Progress</span>
                                   <span>Action</span>
                                 </div>
 
@@ -3074,9 +3074,9 @@ const nextName = trimmedValue
                                           {submodules.length}
                                         </div>
 
-                                        {/* <div className="faculty-course-table-cell faculty-course-table-cell-progress">
+                                        <div className="faculty-course-table-cell faculty-course-table-cell-progress">
                                           <span>{modulePercent}</span>
-                                        </div> */}
+                                        </div>
 
                                         <button
                                           type="button"
