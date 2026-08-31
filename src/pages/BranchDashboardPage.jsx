@@ -3083,6 +3083,19 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id, loadBranchBatches])
 
   useEffect(() => {
+    const handleBranchBatchGroupsChanged = () => {
+      const scopeId = branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''
+      void loadBranchBatches(scopeId)
+    }
+
+    window.addEventListener('cispro:branch-batch-groups-changed', handleBranchBatchGroupsChanged)
+
+    return () => {
+      window.removeEventListener('cispro:branch-batch-groups-changed', handleBranchBatchGroupsChanged)
+    }
+  }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id, loadBranchBatches])
+
+  useEffect(() => {
     const nextBranchId = branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || null
 
     if (embeddedMode) {

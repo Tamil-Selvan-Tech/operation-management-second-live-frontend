@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
@@ -206,6 +206,55 @@ function getFacultyLabel(faculty = {}) {
   return normalizeText(faculty?.name || faculty?.facultyName || faculty?.fullName || faculty?.facultyId || '')
 }
 
+function resolveFacultyIdForGroup(group = {}, facultyOptions = []) {
+  const directFacultyId = normalizeText(group?.facultyId || group?.branchFacultyId || group?.facultyUserId || '')
+  if (directFacultyId) return directFacultyId
+
+  const facultyName = normalizeMatchKey(group?.facultyName || '')
+  if (!facultyName) return ''
+
+  const matchedFaculty = (Array.isArray(facultyOptions) ? facultyOptions : []).find((faculty) => {
+    const optionId = normalizeMatchKey(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || faculty?.userId || '')
+    const optionName = normalizeMatchKey(getFacultyLabel(faculty))
+
+    return optionName === facultyName || optionId === facultyName
+  })
+
+  return normalizeText(matchedFaculty?.id || matchedFaculty?.facultyId || matchedFaculty?.facultyUserId || '')
+}
+
+function resolveFacultyNameForGroup(group = {}, facultyOptions = []) {
+  const directFacultyName = normalizeText(group?.facultyName || group?.branchFacultyName || '')
+  if (directFacultyName) return directFacultyName
+
+  const facultyId = normalizeMatchKey(group?.facultyId || group?.branchFacultyId || '')
+  if (!facultyId) return ''
+
+  const matchedFaculty = (Array.isArray(facultyOptions) ? facultyOptions : []).find((faculty) => {
+    const optionId = normalizeMatchKey(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || faculty?.userId || '')
+    return optionId === facultyId
+  })
+
+  return getFacultyLabel(matchedFaculty)
+}
+
+function getFacultySelectionValue(facultyId = '', facultyName = '') {
+  const normalizedFacultyId = normalizeText(facultyId)
+  if (normalizedFacultyId) return normalizedFacultyId
+
+  const normalizedFacultyName = normalizeText(facultyName)
+  return normalizedFacultyName ? `faculty-name:${normalizeMatchKey(normalizedFacultyName)}` : ''
+}
+
+function isFacultyNameFallbackValue(value = '') {
+  return String(value || '').trim().startsWith('faculty-name:')
+}
+
+function getFacultyNameFromFallbackValue(value = '') {
+  const text = String(value || '').trim()
+  return text.startsWith('faculty-name:') ? text.slice('faculty-name:'.length) : ''
+}
+
 function createBatchRow(batchId = '') {
   return {
     batchId,
@@ -275,12 +324,13 @@ function createInitialDraft(sequenceStart, groupSequence = 1, count = 1) {
     batchGroupId: makeBatchGroupId(groupSequence),
     courseId: '',
     facultyId: '',
+    facultyName: '',
     rows,
     nextSequence: sequenceStart + rowCount,
   }
 }
 
-function createDraftFromGroup(group = {}, sequenceStart = 1, groupSequence = 1) {
+function createDraftFromGroup(group = {}, sequenceStart = 1, groupSequence = 1, facultyOptions = []) {
   const batches = Array.isArray(group.batches) ? group.batches : []
   const rows = batches.length
     ? batches.map((batch, index) => {
@@ -303,7 +353,8 @@ function createDraftFromGroup(group = {}, sequenceStart = 1, groupSequence = 1) 
   return {
     batchGroupId: normalizeText(group.batchGroupId || makeBatchGroupId(groupSequence)),
     courseId: normalizeText(group.courseId || ''),
-    facultyId: normalizeText(group.facultyId || ''),
+    facultyId: resolveFacultyIdForGroup(group, facultyOptions),
+    facultyName: resolveFacultyNameForGroup(group, facultyOptions),
     rows,
     nextSequence: Math.max(sequenceStart, getNextBatchSequenceNumber([group])),
   }
@@ -474,6 +525,7 @@ export function BranchBatchManagementSection({
   const [actionMenuOpenId, setActionMenuOpenId] = useState('')
   const [actionMenuPosition, setActionMenuPosition] = useState(null)
   const [saveSuccessPopup, setSaveSuccessPopup] = useState(null)
+  const actionMenuCloseTimerRef = useRef(null)
 
   const refreshBatchGroups = useCallback(async () => {
     setIsLoading(true)
@@ -559,8 +611,22 @@ export function BranchBatchManagementSection({
     }
   }, [actionMenuOpenId])
 
+  useEffect(() => {
+    return () => {
+      if (actionMenuCloseTimerRef.current) {
+        clearTimeout(actionMenuCloseTimerRef.current)
+        actionMenuCloseTimerRef.current = null
+      }
+    }
+  }, [])
+
   const openActionMenu = useCallback((group, button) => {
     if (!button || typeof window === 'undefined') return
+
+    if (actionMenuCloseTimerRef.current) {
+      clearTimeout(actionMenuCloseTimerRef.current)
+      actionMenuCloseTimerRef.current = null
+    }
 
     const rect = button.getBoundingClientRect()
     const menuWidth = 170
@@ -589,6 +655,28 @@ export function BranchBatchManagementSection({
 
     setActionMenuPosition({ top, left })
     setActionMenuOpenId(String(group.id || group.batchGroupId || group.batchId || ''))
+  }, [])
+
+  const closeActionMenu = useCallback(() => {
+    if (actionMenuCloseTimerRef.current) {
+      clearTimeout(actionMenuCloseTimerRef.current)
+      actionMenuCloseTimerRef.current = null
+    }
+
+    setActionMenuOpenId('')
+    setActionMenuPosition(null)
+  }, [])
+
+  const scheduleCloseActionMenu = useCallback(() => {
+    if (actionMenuCloseTimerRef.current) {
+      clearTimeout(actionMenuCloseTimerRef.current)
+    }
+
+    actionMenuCloseTimerRef.current = setTimeout(() => {
+      setActionMenuOpenId('')
+      setActionMenuPosition(null)
+      actionMenuCloseTimerRef.current = null
+    }, 140)
   }, [])
 
   const activeCourses = useMemo(() => {
@@ -712,12 +800,12 @@ export function BranchBatchManagementSection({
       setCreateError('')
       setFieldErrors({ courseId: '', facultyId: '', rows: [] })
       setEditingGroup(group)
-      setDraft(createDraftFromGroup(group, 1, nextGroupSequence))
+      setDraft(createDraftFromGroup(group, 1, nextGroupSequence, availableFacultyOptions))
       setIsCreateOpen(true)
       setActionMenuOpenId('')
       setActionMenuPosition(null)
     },
-    [currentBranchBatchGroups],
+    [availableFacultyOptions, currentBranchBatchGroups],
   )
 
   const closeCreateModal = useCallback(() => {
@@ -745,6 +833,13 @@ export function BranchBatchManagementSection({
         className="batch-management-actions batch-management-actions-portal"
         role="presentation"
         onClick={(event) => event.stopPropagation()}
+        onMouseEnter={() => {
+          if (actionMenuCloseTimerRef.current) {
+            clearTimeout(actionMenuCloseTimerRef.current)
+            actionMenuCloseTimerRef.current = null
+          }
+        }}
+        onMouseLeave={scheduleCloseActionMenu}
         style={{
           position: 'fixed',
           top: `${actionMenuPosition.top}px`,
@@ -803,7 +898,15 @@ export function BranchBatchManagementSection({
     setDraft((current) => ({
       ...current,
       [field]: value,
-      ...(field === 'courseId' ? { facultyId: '' } : {}),
+      ...(field === 'courseId' ? { facultyId: '', facultyName: '' } : {}),
+      ...(field === 'facultyId'
+        ? {
+            facultyName:
+              availableFacultyOptions.find((faculty) => normalizeText(faculty.id) === normalizeText(value))?.name ||
+              current.facultyName ||
+              '',
+          }
+        : {}),
     }))
     if (field === 'courseId') {
       setFieldErrors((current) => ({
@@ -818,7 +921,7 @@ export function BranchBatchManagementSection({
         facultyId: '',
       }))
     }
-  }, [])
+  }, [availableFacultyOptions])
 
   const handleRowChange = useCallback((index, field, value) => {
     setDraft((current) => ({
@@ -965,7 +1068,11 @@ export function BranchBatchManagementSection({
       setFieldErrors(nextErrors)
 
       const selectedCourseRecord = activeCourses.find((course) => course.id === draft.courseId) || null
-      const selectedFacultyRecord = availableFacultyOptions.find((faculty) => faculty.id === draft.facultyId) || null
+      const resolvedFacultyId = isFacultyNameFallbackValue(draft.facultyId) ? '' : normalizeText(draft.facultyId)
+      const resolvedFacultyName = isFacultyNameFallbackValue(draft.facultyId)
+        ? getFacultyNameFromFallbackValue(draft.facultyId) || normalizeText(draft.facultyName)
+        : normalizeText(draft.facultyName)
+      const selectedFacultyRecord = availableFacultyOptions.find((faculty) => faculty.id === resolvedFacultyId) || null
       const existingGroup = editingGroup
         ? batchGroups.find((group) => String(group.id || group.batchGroupId || group.batchId || '').trim() === String(editingGroup.id || editingGroup.batchGroupId || editingGroup.batchId || '').trim()) || editingGroup
         : null
@@ -1005,7 +1112,7 @@ export function BranchBatchManagementSection({
         const payload = {
           batchGroupId: draft.batchGroupId,
           courseId: selectedCourseRecord?.id || '',
-          facultyId: selectedFacultyRecord?.id || '',
+          facultyId: selectedFacultyRecord?.id || existingGroup?.facultyId || resolvedFacultyId || '',
           rows: cleanedRows.map((row) => ({
             batchId: row.batchId,
             batchName: row.batchName,
@@ -1032,7 +1139,7 @@ export function BranchBatchManagementSection({
           courseId: String(payload.courseId || existingGroup?.courseId || '').trim(),
           courseName: String(selectedCourseRecord?.name || existingGroup?.courseName || '').trim(),
           facultyId: String(payload.facultyId || existingGroup?.facultyId || '').trim(),
-          facultyName: String(selectedFacultyRecord?.name || existingGroup?.facultyName || '').trim(),
+          facultyName: String(selectedFacultyRecord?.name || existingGroup?.facultyName || resolvedFacultyName || '').trim(),
           status: normalizeStatus(savedGroup?.status || cleanedRows[0]?.status || existingGroup?.status || 'Active'),
           rows: cleanedRows,
           batches: cleanedRows,
@@ -1115,6 +1222,10 @@ export function BranchBatchManagementSection({
   const renderCreateModal = () => {
     if (!isCreateOpen || typeof document === 'undefined') return null
     const isEditingBatch = Boolean(editingGroup)
+    const facultyOptionById = availableFacultyOptions.find((faculty) => normalizeText(faculty.id) === normalizeText(draft.facultyId)) || null
+    const facultyOptionByName = availableFacultyOptions.find((faculty) => normalizeMatchKey(faculty.name) === normalizeMatchKey(draft.facultyName)) || null
+    const facultySelectionValue = facultyOptionById?.id || facultyOptionByName?.id || getFacultySelectionValue('', draft.facultyName)
+    const showFacultyFallback = Boolean(draft.facultyName && !facultyOptionById && !facultyOptionByName)
 
     return createPortal(
       <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation">
@@ -1159,8 +1270,13 @@ export function BranchBatchManagementSection({
 
               <label className="batch-management-field">
                 <span>Faculty Name *</span>
-                <select value={draft.facultyId} onChange={(event) => handleDraftChange('facultyId', event.target.value)} disabled={!draft.courseId}>
+                <select value={facultySelectionValue} onChange={(event) => handleDraftChange('facultyId', event.target.value)} disabled={!draft.courseId}>
                   <option value="">{draft.courseId ? 'Select Faculty' : 'Select Course first'}</option>
+                  {showFacultyFallback ? (
+                    <option value={getFacultySelectionValue('', draft.facultyName)}>
+                      {draft.facultyName}
+                    </option>
+                  ) : null}
                   {availableFacultyOptions.map((faculty) => (
                     <option key={faculty.id} value={faculty.id}>
                       {faculty.name}
@@ -1599,12 +1715,19 @@ export function BranchBatchManagementSection({
                         aria-label={`Open actions for ${group.courseName || group.batchGroupId || group.batchId || 'batch'}`}
                         aria-haspopup="menu"
                         aria-expanded={actionMenuOpenId === String(group.id || group.batchGroupId || group.batchId || '')}
+                        onMouseEnter={(event) => {
+                          event.stopPropagation()
+                          openActionMenu(group, event.currentTarget)
+                        }}
+                        onMouseLeave={scheduleCloseActionMenu}
+                        onFocus={(event) => {
+                          openActionMenu(group, event.currentTarget)
+                        }}
                         onClick={(event) => {
                           event.stopPropagation()
                           const actionId = String(group.id || group.batchGroupId || group.batchId || '')
                           if (actionMenuOpenId === actionId) {
-                            setActionMenuOpenId('')
-                            setActionMenuPosition(null)
+                            closeActionMenu()
                           } else {
                             openActionMenu(group, event.currentTarget)
                           }
