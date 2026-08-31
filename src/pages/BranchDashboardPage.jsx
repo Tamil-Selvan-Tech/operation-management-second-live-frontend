@@ -106,7 +106,7 @@ import {
   subscribeNotifications,
 } from '../lib/notificationStore'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
-import { enrichStudentsWithFacultyReferences } from '../lib/facultyFlow'
+import { enrichStudentsWithFacultyReferences, getMatchingStudents } from '../lib/facultyFlow'
 import {
   buildProgressComparisonNotification,
   syncProgressComparisonNotifications,
@@ -265,6 +265,89 @@ function resolveStudentBatchDisplay(student = {}, batchGroups = []) {
     batchId: batchId || String(matchedBatch?.batchId || matchedBatch?.id || '').trim(),
     batchName: batchName || String(matchedBatch?.batchName || matchedBatch?.batchId || '').trim() || batchId,
     batchTiming: resolvedBatchTiming,
+  }
+}
+
+function normalizeSeatKey(value = '') {
+  return String(value || '').trim().toLowerCase()
+}
+
+function getStudentSeatKeys(student = {}) {
+  return [...new Set([
+    student?.id,
+    student?._id,
+    student?.recordId,
+    student?._recordId,
+    student?.studentId,
+    student?.originalStudentId,
+    student?._originalStudentId,
+  ]
+    .map(normalizeSeatKey)
+    .filter(Boolean))]
+}
+
+function getBatchStudentIdentityKey(student = {}) {
+  const fallbackKey = [
+    student?.courseId,
+    student?.batchGroupId,
+    student?.batchId,
+    student?.batchEntryId,
+    student?.batchName,
+    student?.facultyId,
+    student?.admissionDate,
+    student?.studentName,
+    student?.mobileNumber,
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean)
+    .join('|')
+
+  return (
+    normalizeSeatKey(
+      student?.studentId ||
+      student?.id ||
+      student?._id ||
+      student?.recordId ||
+      student?._recordId ||
+      student?.originalStudentId ||
+      student?._originalStudentId ||
+      fallbackKey,
+    ) || fallbackKey
+  )
+}
+
+function getBatchSeatSummary(batch = {}, students = [], excludedStudentKeys = []) {
+  const matchingStudents = getMatchingStudents(students, {
+    facultyId: batch?.facultyId || '',
+    facultyName: batch?.facultyName || '',
+    courseId: batch?.courseId || '',
+    courseName: batch?.courseName || '',
+    batchId: batch?.batchId || '',
+    batchName: batch?.batchName || '',
+    batchTiming: batch?.batchTiming || '',
+  })
+
+  const excludedKeys = new Set((Array.isArray(excludedStudentKeys) ? excludedStudentKeys : [])
+    .map(normalizeSeatKey)
+    .filter(Boolean))
+
+  const uniqueStudents = new Set()
+
+  matchingStudents.forEach((student) => {
+    const studentKey = getBatchStudentIdentityKey(student)
+    if (!studentKey || excludedKeys.has(studentKey)) return
+    uniqueStudents.add(studentKey)
+  })
+
+  const totalSeats = Math.max(Number(batch?.totalSeats || 0) || 0, 0)
+  const usedSeats = uniqueStudents.size
+  const availableSeats = Math.max(totalSeats - usedSeats, 0)
+
+  return {
+    totalSeats,
+    usedSeats,
+    availableSeats,
+    isFull: availableSeats <= 0,
   }
 }
 
@@ -5048,6 +5131,11 @@ const studentCourseOptions = useMemo(() => {
     () => String(selectedStudentCourse?.amount || studentForm.courseAmount || '').trim(),
     [selectedStudentCourse, studentForm.courseAmount],
   )
+  const currentStudentSeatKeys = useMemo(() => (
+    studentFormMode === 'edit'
+      ? getStudentSeatKeys(studentForm)
+      : []
+  ), [studentForm, studentFormMode])
   const selectedStudentCourseBatchOptions = useMemo(() => {
     const courseId = String(studentForm.courseId || '').trim()
     if (!courseId) return []
@@ -5063,6 +5151,20 @@ const studentCourseOptions = useMemo(() => {
             if (!batchId && !batchName) return null
 
             const batchTiming = formatStudentBatchTiming(batch)
+            const seatSummary = getBatchSeatSummary({
+              batchId,
+              batchName,
+              batchTiming,
+              totalSeats: batch?.totalSeats || 0,
+              courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
+              courseName: String(group?.courseName || '').trim(),
+              facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
+              facultyName: String(group?.facultyName || '').trim(),
+            }, branchStudents, currentStudentSeatKeys)
+            const baseLabel = batchName || batchId || 'Batch'
+            const seatLabel = seatSummary.totalSeats
+              ? `${seatSummary.availableSeats} of ${seatSummary.totalSeats} seats left`
+              : 'No seats configured'
             return {
               value: batchId || batchName,
               batchId: batchId || batchName,
@@ -5075,13 +5177,18 @@ const studentCourseOptions = useMemo(() => {
               facultyName: String(group?.facultyName || '').trim(),
               facultyEmail: String(group?.facultyEmail || '').trim(),
               facultyPhone: String(group?.facultyPhone || '').trim(),
-              label: batchName || batchId || 'Batch',
+              totalSeats: seatSummary.totalSeats,
+              usedSeats: seatSummary.usedSeats,
+              availableSeats: seatSummary.availableSeats,
+              isFull: seatSummary.isFull,
+              isSelectable: seatSummary.availableSeats > 0,
+              label: `${baseLabel} - ${batchTiming || 'No timing'} (${seatLabel})`,
             }
           })
           .filter(Boolean)
       })
       .sort((left, right) => String(left.batchId || left.batchName || '').localeCompare(String(right.batchId || right.batchName || '')))
-  }, [branchBatchGroups, studentForm.courseId])
+  }, [branchBatchGroups, branchStudents, currentStudentSeatKeys, studentForm.courseId, studentFormMode])
 
   const selectedStudentBatchOption = useMemo(
     () => selectedStudentCourseBatchOptions.find((batch) => {
@@ -5095,6 +5202,10 @@ const studentCourseOptions = useMemo(() => {
       )
     }) || null,
     [selectedStudentCourseBatchOptions, studentForm.batchId, studentForm.batchName, studentForm.batchTiming],
+  )
+  const hasSelectableStudentBatchOption = useMemo(
+    () => selectedStudentCourseBatchOptions.some((batch) => batch.isSelectable),
+    [selectedStudentCourseBatchOptions],
   )
 
   const selectedStudentCoursePaymentPlans = useMemo(
@@ -5837,8 +5948,40 @@ useEffect(() => {
   }, [branchProgressComparisonNotifications])
 
   const studentFormValidationErrors = useMemo(
-    () => validateStudentForm(studentForm, branchStudents),
-    [branchStudents, studentForm],
+    () => {
+      const nextErrors = validateStudentForm(studentForm, branchStudents)
+
+      if (
+        studentForm.courseId &&
+        selectedStudentCourseBatchOptions.length &&
+        !hasSelectableStudentBatchOption
+      ) {
+        nextErrors.batchId = 'No seats available for this course.'
+      }
+
+      if (
+        studentForm.courseId &&
+        studentForm.batchId &&
+        selectedStudentBatchOption &&
+        selectedStudentBatchOption.isFull &&
+        !(studentFormMode === 'edit' && currentStudentSeatKeys.length)
+      ) {
+        nextErrors.batchId = 'No seats available for this batch.'
+      }
+
+      return nextErrors
+    },
+    [
+      branchStudents,
+      currentStudentSeatKeys.length,
+      hasSelectableStudentBatchOption,
+      selectedStudentBatchOption,
+      selectedStudentCourseBatchOptions.length,
+      studentForm,
+      studentForm.courseId,
+      studentForm.batchId,
+      studentFormMode,
+    ],
   )
   const studentFormStepStatus = useMemo(() => ({
     1: STUDENT_FORM_STEP_ONE_FIELDS.every((field) => !studentFormValidationErrors[field]),
@@ -6001,6 +6144,12 @@ useEffect(() => {
     const selectedCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null
     const selectedBatch = selectedStudentBatchOption
     const resolvedCourseAmount = String(selectedCourse?.amount || studentForm.courseAmount || '').trim()
+
+    if (selectedBatch && selectedBatch.isFull && !(studentFormMode === 'edit' && currentStudentSeatKeys.length)) {
+      setStudentFormError('No seats available for the selected batch.')
+      return
+    }
+
     const duplicateStudent = branchStudents.find((student) => {
       const currentStudentId = String(student.studentId || '').trim()
       return currentStudentId === resolvedStudentId && currentStudentId !== originalStudentId
@@ -11709,13 +11858,21 @@ else {
             disabled={
               studentFormMode === 'view' ||
               !studentForm.courseId ||
-              !selectedStudentCourseBatchOptions.length
+              !hasSelectableStudentBatchOption
             }
           >
-            <option value="">{studentForm.courseId ? 'Select Batch' : 'Select Course first'}</option>
+            <option value="">
+              {studentForm.courseId
+                ? (hasSelectableStudentBatchOption ? 'Select Batch' : 'No seats available')
+                : 'Select Course first'}
+            </option>
 
             {selectedStudentCourseBatchOptions.map((batch) => (
-              <option key={`${batch.batchId}-${batch.batchName}`} value={batch.batchId}>
+              <option
+                key={`${batch.batchId}-${batch.batchName}`}
+                value={batch.batchId}
+                disabled={!batch.isSelectable}
+              >
                 {batch.label}
               </option>
             ))}
@@ -11727,6 +11884,13 @@ else {
                 </option>
               )}
           </select>
+          {selectedStudentBatchOption ? (
+            <small className={`student-batch-seat-note ${selectedStudentBatchOption.isFull ? 'is-full' : ''}`.trim()}>
+              {selectedStudentBatchOption.isFull
+                ? 'No seats available for this batch.'
+                : `${selectedStudentBatchOption.availableSeats} seat${selectedStudentBatchOption.availableSeats === 1 ? '' : 's'} left out of ${selectedStudentBatchOption.totalSeats}`}
+            </small>
+          ) : null}
         </Field>
 
         <Field

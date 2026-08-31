@@ -21,6 +21,7 @@ import {
   loadBranchBatchGroups,
   saveBranchBatchGroups,
 } from '../lib/branchBatchStore'
+import { getMatchingStudents } from '../lib/facultyFlow'
 import '../styles/BranchBatchManagementSection.css'
 
 function normalizeText(value = '') {
@@ -39,6 +40,48 @@ function normalizeStatus(value = '') {
 
 function normalizeId(value = '') {
   return normalizeText(value).toLowerCase()
+}
+
+function getStudentIdentityKey(student = {}) {
+  return normalizeId(
+    student?.studentId ||
+    student?.id ||
+    student?._id ||
+    student?.recordId ||
+    student?._recordId ||
+    student?.originalStudentId ||
+    student?._originalStudentId ||
+    `${student?.courseId || ''}|${student?.batchGroupId || ''}|${student?.batchId || ''}|${student?.batchName || ''}|${student?.facultyId || ''}|${student?.studentName || ''}|${student?.admissionDate || ''}`,
+  )
+}
+
+function getBatchSeatSummary(batch = {}, students = []) {
+  const matchingStudents = getMatchingStudents(students, {
+    facultyId: batch?.facultyId || '',
+    facultyName: batch?.facultyName || '',
+    courseId: batch?.courseId || '',
+    courseName: batch?.courseName || '',
+    batchId: batch?.batchId || '',
+    batchName: batch?.batchName || '',
+    batchTiming: batch?.batchTiming || '',
+  })
+
+  const uniqueStudents = new Set()
+  matchingStudents.forEach((student) => {
+    const studentKey = getStudentIdentityKey(student)
+    if (!studentKey) return
+    uniqueStudents.add(studentKey)
+  })
+
+  const totalSeats = Math.max(Number(batch?.totalSeats || 0) || 0, 0)
+  const usedSeats = uniqueStudents.size
+  const remainingSeats = Math.max(totalSeats - usedSeats, 0)
+
+  return {
+    totalSeats,
+    usedSeats,
+    remainingSeats,
+  }
 }
 
 function toNumber(value = '') {
@@ -613,6 +656,29 @@ export function BranchBatchManagementSection({
       if (!key) return
 
       counts.set(key, getBatchGroupStudentCount(group, branchStudents))
+    })
+
+    return counts
+  }, [branchStudents, currentBranchBatchGroups])
+
+  const batchSeatSummaryMap = useMemo(() => {
+    const counts = new Map()
+
+    currentBranchBatchGroups.forEach((group) => {
+      const batches = Array.isArray(group?.batches) ? group.batches : []
+
+      batches.forEach((batch) => {
+        const key = normalizeMatchKey(batch?.batchId || batch?.id || '')
+        if (!key) return
+
+        counts.set(key, getBatchSeatSummary({
+          ...batch,
+          courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
+          courseName: String(group?.courseName || '').trim(),
+          facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
+          facultyName: String(group?.facultyName || '').trim(),
+        }, branchStudents))
+      })
     })
 
     return counts
@@ -1351,6 +1417,14 @@ export function BranchBatchManagementSection({
           <div className="batch-detail-list">
             <h4 className="batch-detail-list-title">Batch List</h4>
             {(Array.isArray(detailGroup.batches) ? detailGroup.batches : []).map((batch) => {
+              const seatSummary = batchSeatSummaryMap.get(normalizeMatchKey(batch.batchId || batch.id || '')) || getBatchSeatSummary({
+                ...batch,
+                courseId: String(detailGroup?.courseId || detailGroup?.branchCourseId || '').trim(),
+                courseName: String(detailGroup?.courseName || '').trim(),
+                facultyId: String(detailGroup?.facultyId || detailGroup?.branchFacultyId || '').trim(),
+                facultyName: String(detailGroup?.facultyName || '').trim(),
+              }, branchStudents)
+
               return (
                 <article key={batch.batchId} className="batch-detail-card">
                   <div className="batch-detail-card-icon">
@@ -1372,7 +1446,12 @@ export function BranchBatchManagementSection({
                       </div>
                       <div>
                         <span>Seats</span>
-                        <strong>{batch.totalSeats}</strong>
+                        <strong>
+                          {seatSummary.usedSeats}/{seatSummary.totalSeats}
+                        </strong>
+                        <span>
+                          {seatSummary.remainingSeats} left
+                        </span>
                       </div>
                       <div>
                         <span>Status</span>
