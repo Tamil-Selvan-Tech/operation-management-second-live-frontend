@@ -572,7 +572,7 @@
 .batch-management-details-grid-head,
 .batch-management-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(260px, 1.5fr) minmax(110px, 120px) minmax(110px, 140px) 44px;
+  grid-template-columns: minmax(140px, 0.85fr) minmax(320px, 1.7fr) minmax(92px, 102px) minmax(92px, 112px) 44px;
   gap: 12px;
   align-items: center;
 }
@@ -597,6 +597,8 @@
 .batch-management-row-name {
   display: grid;
   gap: 6px;
+  min-width: 0;
+  max-width: 280px;
 }
 
 .batch-management-row-name small {
@@ -622,21 +624,60 @@
   margin-top: 4px;
 }
 
-.batch-management-time-group {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-  gap: 8px;
-  align-items: center;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-.batch-management-time-group select {
+.batch-management-time-group {
+  display: grid;
+  gap: 6px;
+  align-items: start;
+}
+
+.batch-management-time-title {
+  color: #64748b;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.batch-management-time-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
+  gap: 6px;
+}
+
+.batch-management-time-select {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.batch-management-time-select select {
+  min-width: 0;
+  min-height: 44px;
   padding: 0 10px;
   text-align: center;
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .batch-management-row-timing span {
   color: #94a3b8;
   font-weight: 800;
+  align-self: center;
+  padding-top: 16px;
 }
 
 .batch-management-row-remove {
@@ -926,11 +967,19 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  .batch-management-row-name {
+    max-width: none;
+  }
+
   .batch-management-row-timing {
     grid-template-columns: 1fr;
   }
 
   .batch-management-time-group {
-    grid-template-columns: minmax(0, 1fr) 88px;
+    gap: 4px;
+  }
+
+  .batch-management-time-controls {
+    grid-template-columns: repeat(3, minmax(72px, 1fr));
   }
 }

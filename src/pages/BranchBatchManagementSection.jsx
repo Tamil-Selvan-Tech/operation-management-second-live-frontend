@@ -198,6 +198,28 @@ function parseStoredTimeParts(value = '') {
   }
 }
 
+const TIME_HOUR_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'))
+const TIME_MINUTE_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, '0'))
+
+function getTimePickerParts(time = '', period = 'AM', fallbackHour = '09') {
+  const parsed = parseStoredTimeParts(`${time || ''} ${period || ''}`.trim())
+  const [hour = '', minute = ''] = String(parsed.time || '').split(':')
+
+  if (!String(time || '').trim() && !String(period || '').trim()) {
+    return {
+      hour: '',
+      minute: '',
+      period: '',
+    }
+  }
+
+  return {
+    hour: hour || fallbackHour,
+    minute: minute || '00',
+    period: parsed.period || period || 'AM',
+  }
+}
+
 function getCourseLabel(course = {}) {
   return normalizeText(course?.name || course?.courseName || course?.courseCode || '')
 }
@@ -260,9 +282,9 @@ function createBatchRow(batchId = '') {
     batchId,
     batchName: '',
     startTime: '',
-    startPeriod: 'AM',
+    startPeriod: '',
     endTime: '',
-    endPeriod: 'AM',
+    endPeriod: '',
     totalSeats: '',
     status: 'Active',
   }
@@ -1310,88 +1332,149 @@ export function BranchBatchManagementSection({
 
                 {draft.rows.map((row, index) => (
                   <div key={row.batchId} className="batch-management-row">
-                    <div className="batch-management-row-name">
-                      <small>ID: {row.batchId}</small>
-                      <input
-                        type="text"
-                        placeholder=" Batch Name"
-                        value={row.batchName}
-                        onChange={(event) => handleRowChange(index, 'batchName', event.target.value)}
-                      />
-                      {fieldErrors.rows[index]?.batchName ? (
-                        <small className="batch-management-field-error">{fieldErrors.rows[index].batchName}</small>
-                      ) : null}
-                    </div>
+                    {(() => {
+                      const startParts = getTimePickerParts(row.startTime, row.startPeriod, '09')
+                      const endParts = getTimePickerParts(row.endTime, row.endPeriod, '11')
 
-                    <div className="batch-management-row-timing">
-                      <div className="batch-management-time-group">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="09:00"
-                          value={row.startTime}
-                          onChange={(event) => handleRowChange(index, 'startTime', event.target.value)}
-                        />
-                        <select value={row.startPeriod} onChange={(event) => handleRowChange(index, 'startPeriod', event.target.value)}>
-                          <option value="AM">AM</option>
-                          <option value="PM">PM</option>
-                        </select>
-                      </div>
-                      <span>-</span>
-                      <div className="batch-management-time-group">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="11:00"
-                          value={row.endTime}
-                          onChange={(event) => handleRowChange(index, 'endTime', event.target.value)}
-                        />
-                        <select value={row.endPeriod} onChange={(event) => handleRowChange(index, 'endPeriod', event.target.value)}>
-                          <option value="AM">AM</option>
-                          <option value="PM">PM</option>
-                        </select>
-                      </div>
-                      {fieldErrors.rows[index]?.timing ? (
-                        <small className="batch-management-row-error">{fieldErrors.rows[index].timing}</small>
-                      ) : null}
-                    </div>
+                      return (
+                        <>
+                          <div className="batch-management-row-name">
+                            <small>ID: {row.batchId}</small>
+                            <input
+                              type="text"
+                              placeholder=" Batch Name"
+                              value={row.batchName}
+                              onChange={(event) => handleRowChange(index, 'batchName', event.target.value)}
+                            />
+                            {fieldErrors.rows[index]?.batchName ? (
+                              <small className="batch-management-field-error">{fieldErrors.rows[index].batchName}</small>
+                            ) : null}
+                          </div>
 
-                    <div className="batch-management-row-seats-wrap">
-                      <input
-                        className="batch-management-row-seats"
-                        type="number"
-                        min="1"
-                        placeholder="20"
-                        value={row.totalSeats}
-                        onChange={(event) => handleRowChange(index, 'totalSeats', event.target.value)}
-                      />
-                      {fieldErrors.rows[index]?.totalSeats ? (
-                        <small className="batch-management-field-error">{fieldErrors.rows[index].totalSeats}</small>
-                      ) : null}
-                    </div>
+                          <div className="batch-management-row-timing">
+                            <div className="batch-management-time-group">
+                              <div className="batch-management-time-title">Start</div>
+                              <div className="batch-management-time-controls">
+                                <label className="batch-management-time-select">
+                                  <span className="sr-only">Start hour</span>
+                                  <select
+                                    value={startParts.hour}
+                                    onChange={(event) => handleRowChange(index, 'startTime', `${event.target.value || '09'}:${startParts.minute || '00'}`)}
+                                    aria-label="Start hour"
+                                  >
+                                    <option value="" />
+                                    {TIME_HOUR_OPTIONS.map((hour) => (
+                                      <option key={hour} value={hour}>{hour}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="batch-management-time-select">
+                                  <span className="sr-only">Start minute</span>
+                                  <select
+                                    value={startParts.minute}
+                                    onChange={(event) => handleRowChange(index, 'startTime', `${startParts.hour || '09'}:${event.target.value || '00'}`)}
+                                    aria-label="Start minute"
+                                  >
+                                    <option value="" />
+                                    {TIME_MINUTE_OPTIONS.map((minute) => (
+                                      <option key={minute} value={minute}>{minute}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="batch-management-time-select">
+                                  <span className="sr-only">Start AM/PM</span>
+                                  <select value={row.startPeriod || ''} onChange={(event) => handleRowChange(index, 'startPeriod', event.target.value || 'AM')} aria-label="Start AM or PM">
+                                    <option value="" />
+                                    <option value="AM">AM</option>
+                                    <option value="PM">PM</option>
+                                  </select>
+                                </label>
+                              </div>
+                            </div>
+                            <span>-</span>
+                            <div className="batch-management-time-group">
+                              <div className="batch-management-time-title">End</div>
+                              <div className="batch-management-time-controls">
+                                <label className="batch-management-time-select">
+                                  <span className="sr-only">End hour</span>
+                                  <select
+                                    value={endParts.hour}
+                                    onChange={(event) => handleRowChange(index, 'endTime', `${event.target.value || '11'}:${endParts.minute || '00'}`)}
+                                    aria-label="End hour"
+                                  >
+                                    <option value="" />
+                                    {TIME_HOUR_OPTIONS.map((hour) => (
+                                      <option key={hour} value={hour}>{hour}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="batch-management-time-select">
+                                  <span className="sr-only">End minute</span>
+                                  <select
+                                    value={endParts.minute}
+                                    onChange={(event) => handleRowChange(index, 'endTime', `${endParts.hour || '11'}:${event.target.value || '00'}`)}
+                                    aria-label="End minute"
+                                  >
+                                    <option value="" />
+                                    {TIME_MINUTE_OPTIONS.map((minute) => (
+                                      <option key={minute} value={minute}>{minute}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="batch-management-time-select">
+                                  <span className="sr-only">End AM/PM</span>
+                                  <select value={row.endPeriod || ''} onChange={(event) => handleRowChange(index, 'endPeriod', event.target.value || 'AM')} aria-label="End AM or PM">
+                                    <option value="" />
+                                    <option value="AM">AM</option>
+                                    <option value="PM">PM</option>
+                                  </select>
+                                </label>
+                              </div>
+                            </div>
+                            {fieldErrors.rows[index]?.timing ? (
+                              <small className="batch-management-row-error">{fieldErrors.rows[index].timing}</small>
+                            ) : null}
+                          </div>
 
-                    <div className="batch-management-row-status-wrap">
-                      <select
-                        className="batch-management-row-status"
-                        value={row.status}
-                        onChange={(event) => handleRowChange(index, 'status', event.target.value)}
-                      >
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                      </select>
-                      {fieldErrors.rows[index]?.status ? (
-                        <small className="batch-management-field-error">{fieldErrors.rows[index].status}</small>
-                      ) : null}
-                    </div>
+                          <div className="batch-management-row-seats-wrap">
+                            <input
+                              className="batch-management-row-seats"
+                              type="number"
+                              min="1"
+                              placeholder="20"
+                              value={row.totalSeats}
+                              onChange={(event) => handleRowChange(index, 'totalSeats', event.target.value)}
+                            />
+                            {fieldErrors.rows[index]?.totalSeats ? (
+                              <small className="batch-management-field-error">{fieldErrors.rows[index].totalSeats}</small>
+                            ) : null}
+                          </div>
 
-                    <button
-                      type="button"
-                      className="batch-management-row-remove"
-                      onClick={() => handleRemoveRow(index)}
-                      aria-label={`Remove batch row ${index + 1}`}
-                    >
-                      <Trash2 size={15} strokeWidth={2.2} aria-hidden="true" />
-                    </button>
+                          <div className="batch-management-row-status-wrap">
+                            <select
+                              className="batch-management-row-status"
+                              value={row.status}
+                              onChange={(event) => handleRowChange(index, 'status', event.target.value)}
+                            >
+                              <option value="Active">Active</option>
+                              <option value="Inactive">Inactive</option>
+                            </select>
+                            {fieldErrors.rows[index]?.status ? (
+                              <small className="batch-management-field-error">{fieldErrors.rows[index].status}</small>
+                            ) : null}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="batch-management-row-remove"
+                            onClick={() => handleRemoveRow(index)}
+                            aria-label={`Remove batch row ${index + 1}`}
+                          >
+                            <Trash2 size={15} strokeWidth={2.2} aria-hidden="true" />
+                          </button>
+                        </>
+                      )
+                    })()}
                   </div>
                 ))}
               </div>
