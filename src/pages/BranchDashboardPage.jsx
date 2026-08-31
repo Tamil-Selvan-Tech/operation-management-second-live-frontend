@@ -9663,10 +9663,31 @@ else {
                     </section>
                   ) : (
                     <section className="branch-course-view-hierarchy" aria-label="Modules and submodules">
+                      {viewCourseModels.length ? (
+                        <div className="course-module-weightage-card branch-course-view-weightage-card">
+                          <div className="course-module-weightage-card-copy">
+                            <div className="course-module-weightage-card-icon" aria-hidden="true">
+                              <PieChart size={28} strokeWidth={2.2} />
+                            </div>
+                            <div>
+                              <strong>Module Weightage Summary</strong>
+                              <p>Total module weightage for this course is 100%.</p>
+                              <span>Module weightage is automatically distributed equally based on the total number of modules.</span>
+                            </div>
+                          </div>
+
+                          <div className="course-module-weightage-card-summary branch-course-view-weightage-summary">
+                            <span>Total Modules</span>
+                            <strong>{viewCourseModels.length}</strong>
+                            <p>Equal Distribution</p>
+                          </div>
+                        </div>
+                      ) : null}
+
                       <div className="branch-course-view-hierarchy-header">
                         <div>
                           <p>Added Modules</p>
-                          <strong>{viewCourseModels.length} Total</strong>
+                          <strong>{viewCourseModels.length} Total Modules</strong>
                         </div>
                         <span>Click the arrow to expand a module</span>
                       </div>
@@ -9723,7 +9744,6 @@ else {
                                             <span>Submodel {submodelIndex + 1}</span>
                                             <strong>{submodel.name || `Submodel ${submodelIndex + 1}`}</strong>
                                           </div>
-                                          <strong>{formatBranchCoursePercentage(submodel.percentage)}</strong>
                                         </div>
                                       ))
                                     ) : (
@@ -9739,6 +9759,18 @@ else {
                               </article>
                             )
                           })}
+
+                          <article className="branch-course-view-model-card branch-course-view-model-card--total" aria-label="Module total">
+                            <div className="branch-course-view-model-row branch-course-view-model-row--total" role="row">
+                              <div className="branch-course-view-model-cell branch-course-view-model-cell-total-label" role="cell">
+                                <strong>Module Total</strong>
+                              </div>
+
+                              <div className="branch-course-view-model-cell branch-course-view-model-cell-total-percentage" role="cell">
+                                <strong className="branch-course-view-total-percentage">100%</strong>
+                              </div>
+                            </div>
+                          </article>
                         </div>
                       ) : (
                         <div className="branch-course-view-empty-state">

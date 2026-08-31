@@ -5871,6 +5871,14 @@ body.branch-notification-menu-open .main-area {
   background: #ffffff;
 }
 
+.branch-course-view-weightage-card {
+  margin: 0 24px 16px;
+}
+
+.branch-course-view-weightage-summary {
+  min-width: 180px;
+}
+
 /* ---------- Table header ---------- */
 
 .branch-course-view-model-table-header {
@@ -5914,6 +5922,11 @@ body.branch-notification-menu-open .main-area {
   border-top: 1px solid #e5ebf3;
 }
 
+.branch-course-view-model-card--total {
+  border-top: 1px solid #dbe4f0;
+  background: #f8fbff;
+}
+
 /* ---------- Main row ---------- */
 
 .branch-course-view-model-row {
@@ -5924,6 +5937,13 @@ body.branch-notification-menu-open .main-area {
   padding: 0 22px;
 }
 
+.branch-course-view-model-row--total {
+  min-height: 54px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  grid-template-columns: 145px minmax(0, 1fr) 145px;
+}
+
 .branch-course-view-model-card:last-child .branch-course-view-model-row {
   border-bottom: 0;
 }
@@ -5931,6 +5951,33 @@ body.branch-notification-menu-open .main-area {
 .branch-course-view-model-cell {
   min-width: 0;
  
+}
+
+.branch-course-view-model-cell-total-label {
+  grid-column: 1 / span 2;
+  display: flex;
+  justify-content: center;
+  padding-right: 18px;
+}
+
+.branch-course-view-model-cell-total-label strong {
+  color: #172033;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.branch-course-view-model-cell-total-percentage {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 0;
+  grid-column: 3;
+}
+
+.branch-course-view-total-percentage {
+  color: #2563eb;
+  font-size: 1.05rem;
+  font-weight: 900;
 }
 /* ---------- Action ---------- */
 
@@ -6030,7 +6077,7 @@ body.branch-notification-menu-open .main-area {
 
 .branch-course-view-submodel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 96px;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 10px;
   padding: 12px 18px;
@@ -6412,13 +6459,6 @@ body.branch-notification-menu-open .main-area {
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.branch-course-view-submodel > strong {
-  color: #2563eb;
-  font-size: 14px;
-  font-weight: 750;
-  text-align: right;
 }
 
 
@@ -8393,6 +8433,14 @@ body.branch-notification-menu-open .main-area {
   height: auto !important;
   max-height: none !important;
   overflow: visible !important;
+}
+
+.branch-course-view-weightage-card {
+  width: calc(100% - 48px);
+}
+
+.branch-course-view-weightage-card .course-module-weightage-card-summary {
+  min-width: 182px;
 }
 .student-installment-schedule {
   grid-column: 1 / -1;
