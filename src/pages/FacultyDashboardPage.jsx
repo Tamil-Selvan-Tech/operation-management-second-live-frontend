@@ -1968,6 +1968,14 @@ export function FacultyDashboardPage() {
 
   const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyScopedStudents
   const studentsFlowLevel = selectedStudentsBatch ? 3 : selectedStudentsCourse ? 2 : 1
+  const todayWorkCourse = useMemo(() => {
+    if (studentsFlowLevel === 3) {
+      return selectedStudentsCourse || null
+    }
+
+    return selectedCourse
+  }, [selectedCourse, selectedStudentsCourse, studentsFlowLevel])
+  const todayWorkCourseModules = useMemo(() => getCourseModels(todayWorkCourse), [todayWorkCourse])
 
   useEffect(() => {
     if (
@@ -2046,16 +2054,16 @@ export function FacultyDashboardPage() {
     selectedCourseModuleKeys.every((moduleId) => expandedCourseModuleIds.includes(moduleId))
 
   const todayWorkSelectedModule = useMemo(() => {
-    if (!selectedCourseModules.length) return null
+    if (!todayWorkCourseModules.length) return null
 
-    const fallbackModule = selectedCourseModules[0]
+    const fallbackModule = todayWorkCourseModules[0]
     const normalizedModuleId = String(todayWorkForm.moduleId || fallbackModule?.id || '').trim()
 
-    return selectedCourseModules.find((module, index) => {
+    return todayWorkCourseModules.find((module, index) => {
       const moduleId = String(module?.id || `module-${index}`).trim()
       return moduleId === normalizedModuleId
     }) || fallbackModule || null
-  }, [selectedCourseModules, todayWorkForm.moduleId])
+  }, [todayWorkCourseModules, todayWorkForm.moduleId])
 
   const todayWorkSelectedModuleSubmodules = useMemo(
     () => getCourseSubmodules(todayWorkSelectedModule),
@@ -2067,14 +2075,14 @@ export function FacultyDashboardPage() {
       getCompletedTodayWorkSubmoduleIdsForModule(
         facultyTodayWorkEntries,
         currentFacultyIdentity,
-        selectedCourse?.id || '',
+        todayWorkCourse?.id || '',
         todayWorkSelectedModule?.id || '',
       ),
     [
       currentFacultyIdentity.facultyEmail,
       currentFacultyIdentity.facultyId,
       facultyTodayWorkEntries,
-      selectedCourse?.id,
+      todayWorkCourse?.id,
       todayWorkSelectedModule?.id,
     ],
   )
@@ -2124,8 +2132,9 @@ export function FacultyDashboardPage() {
   }
 
   const openTodayWorkModal = () => {
-    const nextSelection = getNextPendingTodayWorkSelection(selectedCourse || {}, facultyTodayWorkEntries, currentFacultyIdentity)
-    const firstModule = nextSelection.module || selectedCourseModules[0] || null
+    const activeTodayWorkCourse = todayWorkCourse || null
+    const nextSelection = getNextPendingTodayWorkSelection(activeTodayWorkCourse || {}, facultyTodayWorkEntries, currentFacultyIdentity)
+    const firstModule = nextSelection.module || todayWorkCourseModules[0] || null
     const firstModuleId = String(nextSelection.moduleId || firstModule?.id || '').trim()
 
     setTodayWorkForm({
@@ -2150,12 +2159,12 @@ export function FacultyDashboardPage() {
 
   const updateTodayWorkModule = (moduleId) => {
     const normalizedModuleId = String(moduleId || '').trim()
-    const nextModule = selectedCourseModules.find((module, index) => String(module?.id || `module-${index}`).trim() === normalizedModuleId) || null
+    const nextModule = todayWorkCourseModules.find((module, index) => String(module?.id || `module-${index}`).trim() === normalizedModuleId) || null
     const nextSubmodules = getCourseSubmodules(nextModule)
     const completedSubmoduleIds = getCompletedTodayWorkSubmoduleIdsForModule(
       facultyTodayWorkEntries,
       currentFacultyIdentity,
-      selectedCourse?.id || '',
+      todayWorkCourse?.id || '',
       normalizedModuleId,
     )
     const pendingSubmoduleIds = nextSubmodules
@@ -2218,7 +2227,7 @@ export function FacultyDashboardPage() {
   }
 
   const buildTodayWorkSubmission = () => {
-    if (!selectedCourse?.id) {
+    if (!todayWorkCourse?.id) {
       setTodayWorkError('Please select a course first.')
       return null
     }
@@ -2281,8 +2290,8 @@ export function FacultyDashboardPage() {
         facultyName: currentFacultyIdentity.facultyName,
         facultyEmail: currentFacultyIdentity.facultyEmail,
         branchId: currentFacultyIdentity.branchId,
-        courseId: String(selectedCourse.id || '').trim(),
-        courseName: String(selectedCourse.name || selectedCourse.courseName || '').trim(),
+        courseId: String(todayWorkCourse.id || '').trim(),
+        courseName: String(todayWorkCourse.name || todayWorkCourse.courseName || '').trim(),
         moduleId: String(todayWorkSelectedModule.id || '').trim(),
         moduleName: getCourseModuleName(todayWorkSelectedModule, 0),
         applyToAllStudents: Boolean(todayWorkForm.applyToAllStudents),
@@ -2303,7 +2312,7 @@ export function FacultyDashboardPage() {
       const nextWorkEntries = [...facultyTodayWorkEntries, savedEntry].filter(Boolean)
       const progressUpdates = selectedStudents
         .map((student) => {
-          const progressSummary = buildFacultyTodayWorkProgressSummary(nextWorkEntries, selectedCourse || {}, student)
+          const progressSummary = buildFacultyTodayWorkProgressSummary(nextWorkEntries, todayWorkCourse || {}, student)
           const courseProgress = Number(progressSummary?.courseProgress)
 
           if (!Number.isFinite(courseProgress)) {
@@ -4068,10 +4077,12 @@ const nextName = trimmedValue
                   <span>Course</span>
                   <div className="faculty-today-work-input faculty-today-work-input--locked">
                     <BookOpen size={16} />
-                    <strong>{selectedCourse?.name || selectedCourse?.courseName || 'No course selected'}</strong>
+                    <strong>{todayWorkCourse?.name || todayWorkCourse?.courseName || 'No course selected'}</strong>
                     <Lock size={16} className="faculty-today-work-lock-icon" />
                   </div>
-                  <small className="faculty-today-work-field-note">Auto-applied (your assigned course)</small>
+                  <small className="faculty-today-work-field-note">
+                    Auto-applied ({studentsFlowLevel === 3 ? 'selected batch course' : 'your assigned course'})
+                  </small>
                 </label>
 
                 <label className="faculty-today-work-field">
@@ -4080,10 +4091,10 @@ const nextName = trimmedValue
                     className="faculty-today-work-select"
                     value={todayWorkForm.moduleId || ''}
                     onChange={(event) => updateTodayWorkModule(event.target.value)}
-                    disabled={!selectedCourseModules.length}
+                    disabled={!todayWorkCourseModules.length}
                   >
-                    {selectedCourseModules.length ? (
-                      selectedCourseModules.map((module, index) => {
+                    {todayWorkCourseModules.length ? (
+                      todayWorkCourseModules.map((module, index) => {
                         const moduleId = String(module?.id || `module-${index}`).trim()
                         return (
                           <option key={moduleId || index} value={moduleId}>
