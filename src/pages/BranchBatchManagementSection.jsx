@@ -277,6 +277,10 @@ function getBatchGroupStatus(group = {}) {
   return normalizeStatus(group?.status || group?.batches?.[0]?.status || 'Active')
 }
 
+function isInactiveBatchGroup(group = {}) {
+  return getBatchGroupStatus(group).toLowerCase() === 'inactive'
+}
+
 export function BranchBatchManagementSection({
   branchId = '',
   branchCourses = [],
@@ -313,6 +317,10 @@ export function BranchBatchManagementSection({
       const mergedGroups = [
         ...backendGroups,
         ...localGroups.filter((localGroup) => {
+          if (!isInactiveBatchGroup(localGroup)) {
+            return false
+          }
+
           const localKey = String(localGroup?.id || localGroup?.batchGroupId || localGroup?.batchId || '').trim()
           if (!localKey) return true
 
@@ -831,6 +839,10 @@ export function BranchBatchManagementSection({
         const nextLocalGroups = [
           normalizedSavedGroup,
           ...localBranchGroups.filter((group) => {
+            if (!isInactiveBatchGroup(group)) {
+              return false
+            }
+
             const groupKey = String(group?.id || group?.batchGroupId || group?.batchId || '').trim()
             const savedKey = String(normalizedSavedGroup.id || normalizedSavedGroup.batchGroupId || normalizedSavedGroup.batchId || '').trim()
             return !groupKey || groupKey !== savedKey
