@@ -1473,14 +1473,61 @@ export function FacultyDashboardPage() {
     return `${name}'s Faculty View`
   }, [currentFacultyIdentity.facultyName, facultyName])
 
+  const facultySummaryBackfillRecord = useMemo(() => {
+    const batchEntries = Array.isArray(dashboardSummary?.batchEntries) ? dashboardSummary.batchEntries : []
+    if (!batchEntries.length) return null
+
+    return {
+      id: String(
+        dashboardSummary?.faculty?.id ||
+        dashboardSummary?.faculty?.facultyId ||
+        facultyProfile?.id ||
+        facultyProfile?.facultyId ||
+        currentFacultyIdentity.facultyId ||
+        '',
+      ).trim(),
+      facultyId: String(
+        dashboardSummary?.faculty?.id ||
+        dashboardSummary?.faculty?.facultyId ||
+        facultyProfile?.id ||
+        facultyProfile?.facultyId ||
+        currentFacultyIdentity.facultyId ||
+        '',
+      ).trim(),
+      facultyName: String(
+        dashboardSummary?.faculty?.facultyName ||
+        dashboardSummary?.faculty?.name ||
+        facultyProfile?.facultyName ||
+        facultyProfile?.name ||
+        currentFacultyIdentity.facultyName ||
+        '',
+      ).trim(),
+      facultyEmail: String(
+        dashboardSummary?.faculty?.facultyEmail ||
+        dashboardSummary?.faculty?.email ||
+        facultyProfile?.facultyEmail ||
+        facultyProfile?.email ||
+        currentFacultyIdentity.facultyEmail ||
+        '',
+      ).trim(),
+      courseId: String(
+        dashboardSummary?.faculty?.courseId ||
+        facultyProfile?.courseId ||
+        '',
+      ).trim(),
+      batchEntries,
+    }
+  }, [dashboardSummary, facultyProfile, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
+
   const facultyBackfillRecords = useMemo(
     () =>
       [
         facultyProfile,
         dashboardSummary?.faculty,
         dashboardSummary?.profile,
+        facultySummaryBackfillRecord,
       ].filter(Boolean),
-    [dashboardSummary, facultyProfile],
+    [dashboardSummary, facultyProfile, facultySummaryBackfillRecord],
   )
 
   const backfilledStudents = useMemo(

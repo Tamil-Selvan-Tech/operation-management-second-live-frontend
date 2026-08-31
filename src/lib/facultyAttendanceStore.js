@@ -735,8 +735,10 @@ function findFacultyRecordForStudent(student = {}, facultyRecords = []) {
   const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
   const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
   const studentBatchGroupId = String(student?.batchGroupId || '').trim().toLowerCase()
+  const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
   const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
   const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
+  const studentBatchTiming = normalizeText(student?.batchTiming || student?.batchTime || '')
 
   return (
     records.find((record) => {
@@ -751,12 +753,15 @@ function findFacultyRecordForStudent(student = {}, facultyRecords = []) {
         const entryId = String(entry?.id || '').trim().toLowerCase()
         const entryBatchName = normalizeText(entry?.batchName || entry?.batch || '')
         const entryBatchToken = normalizeBatchToken(entry?.batchName || entry?.batch || '')
+        const entryBatchTiming = normalizeText(entry?.batchTiming || '')
         const entryCourseId = String(entry?.courseId || '').trim().toLowerCase()
         const entryCourseName = normalizeText(entry?.courseName || '')
 
         return (
           (studentBatchGroupId && entryBatchGroupId && studentBatchGroupId === entryBatchGroupId) ||
           (studentBatchGroupId && entryId && studentBatchGroupId === entryId) ||
+          (studentBatchId && entryId && studentBatchId === entryId) ||
+          (studentBatchTiming && entryBatchTiming && studentBatchTiming === entryBatchTiming) ||
           (studentBatchName && entryBatchName && entryBatchName === studentBatchName) ||
           (studentBatchToken && entryBatchToken && entryBatchToken === studentBatchToken) ||
           (studentCourseId && entryCourseId && entryCourseId === studentCourseId) ||
@@ -786,40 +791,61 @@ function findMatchedBatchEntryForStudent(student = {}, facultyRecord = {}) {
   const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
   const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
 
-  const exactBatchMatch =
-    batchEntries.find((entry) => {
+  const rankedMatches = batchEntries
+    .map((entry) => {
       const entryBatchId = String(entry?.id || '').trim().toLowerCase()
       const entryBatchGroupId = String(entry?.batchGroupId || entry?.groupId || '').trim().toLowerCase()
       const entryBatchName = normalizeText(entry?.batchName || entry?.batch || '')
       const entryBatchToken = normalizeBatchToken(entry?.batchName || entry?.batch || '')
       const entryBatchTiming = normalizeText(entry?.batchTiming || '')
+      const entryCourseId = String(entry?.courseId || '').trim().toLowerCase()
+      const entryCourseName = normalizeText(entry?.courseName || '')
 
-      return (
-        (studentBatchId && entryBatchId && studentBatchId === entryBatchId) ||
-        (studentBatchGroupId && entryBatchGroupId && studentBatchGroupId === entryBatchGroupId) ||
-        (studentBatchGroupId && entryBatchId && studentBatchGroupId === entryBatchId) ||
-        (studentBatchName && entryBatchName && studentBatchName === entryBatchName) ||
-        (studentBatchToken && entryBatchToken && studentBatchToken === entryBatchToken) ||
-        (studentBatchTiming && entryBatchTiming && studentBatchTiming === entryBatchTiming)
-      )
-    }) || null
+      let score = 0
+      if (studentBatchGroupId && entryBatchGroupId && studentBatchGroupId === entryBatchGroupId) score += 100
+      if (studentBatchGroupId && entryBatchId && studentBatchGroupId === entryBatchId) score += 95
+      if (studentBatchId && entryBatchId && studentBatchId === entryBatchId) score += 95
+      if (studentBatchTiming && entryBatchTiming && studentBatchTiming === entryBatchTiming) score += 90
+      if (studentBatchName && entryBatchName && studentBatchName === entryBatchName) score += 80
+      else if (studentBatchToken && entryBatchToken && studentBatchToken === entryBatchToken) score += 60
+      if (studentCourseId && entryCourseId && studentCourseId === entryCourseId) score += 20
+      if (studentCourseName && entryCourseName && studentCourseName === entryCourseName) score += 10
 
-  if (exactBatchMatch) return exactBatchMatch
+      return { entry, score, entryBatchTiming, entryBatchId, entryBatchGroupId }
+    })
+    .filter((candidate) => candidate.score > 0)
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score
+      }
 
-  if (!studentCourseId && !studentCourseName) {
+      const leftTiming = String(left.entryBatchTiming || '').trim().toLowerCase()
+      const rightTiming = String(right.entryBatchTiming || '').trim().toLowerCase()
+      if (leftTiming !== rightTiming) {
+        return leftTiming.localeCompare(rightTiming, undefined, { numeric: true, sensitivity: 'base' })
+      }
+
+      const leftId = String(left.entryBatchGroupId || left.entryBatchId || '').trim().toLowerCase()
+      const rightId = String(right.entryBatchGroupId || right.entryBatchId || '').trim().toLowerCase()
+      return leftId.localeCompare(rightId, undefined, { numeric: true, sensitivity: 'base' })
+    })
+
+  if (!rankedMatches.length) {
     return null
   }
 
-  const courseMatches = batchEntries.filter((entry) => {
-    const entryCourseId = String(entry?.courseId || '').trim().toLowerCase()
-    const entryCourseName = normalizeText(entry?.courseName || '')
-    return (
-      (studentCourseId && entryCourseId && studentCourseId === entryCourseId) ||
-      (studentCourseName && entryCourseName && studentCourseName === entryCourseName)
-    )
-  })
+  const topMatch = rankedMatches[0]
+  const nextMatch = rankedMatches[1] || null
 
-  return courseMatches.length === 1 ? courseMatches[0] : null
+  if (
+    nextMatch &&
+    nextMatch.score === topMatch.score &&
+    topMatch.score < 100
+  ) {
+    return null
+  }
+
+  return topMatch.entry
 }
 
 export function resolveFacultyBatchContextForStudent(student = {}, facultyRecords = []) {
