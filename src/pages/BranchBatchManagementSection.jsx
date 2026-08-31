@@ -449,42 +449,45 @@ export function BranchBatchManagementSection({
     return [...mappedOptions, ...remainingOptions]
   }, [activeFaculty, mappedFacultyIds])
 
-  const nextBatchSequenceStart = useMemo(() => getNextBatchSequenceNumber(batchGroups), [batchGroups])
-  const nextBatchGroupSequenceStart = useMemo(() => getNextBatchGroupSequenceNumber(batchGroups), [batchGroups])
+  const currentBranchBatchGroups = useMemo(
+    () => batchGroups.filter((group) => !branchId || normalizeId(group.branchId) === normalizeId(branchId)),
+    [batchGroups, branchId],
+  )
+
+  const nextBatchSequenceStart = useMemo(() => getNextBatchSequenceNumber(currentBranchBatchGroups), [currentBranchBatchGroups])
+  const nextBatchGroupSequenceStart = useMemo(() => getNextBatchGroupSequenceNumber(currentBranchBatchGroups), [currentBranchBatchGroups])
 
   const resetDraft = useCallback(() => {
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
-    setDraft(createInitialDraft(nextBatchSequenceStart, nextBatchGroupSequenceStart, 1))
+    setDraft(createInitialDraft(1, nextBatchGroupSequenceStart, 1))
     setEditingGroup(null)
   }, [nextBatchGroupSequenceStart, nextBatchSequenceStart])
 
   const openCreateModal = useCallback(() => {
-    const sequenceStart = getNextBatchSequenceNumber(batchGroups)
-    const groupSequenceStart = getNextBatchGroupSequenceNumber(batchGroups)
+    const groupSequenceStart = getNextBatchGroupSequenceNumber(currentBranchBatchGroups)
     setCreateError('')
     setFieldErrors({ courseId: '', facultyId: '', rows: [] })
     setSaveSuccessPopup(null)
-    setDraft(createInitialDraft(sequenceStart, groupSequenceStart, 1))
+    setDraft(createInitialDraft(1, groupSequenceStart, 1))
     setEditingGroup(null)
     setActionMenuOpenId('')
     setActionMenuPosition(null)
     setIsCreateOpen(true)
-  }, [batchGroups])
+  }, [currentBranchBatchGroups])
 
   const openEditModal = useCallback(
     (group) => {
-      const nextSequence = getNextBatchSequenceNumber(batchGroups)
-      const nextGroupSequence = getNextBatchGroupSequenceNumber(batchGroups)
+      const nextGroupSequence = getNextBatchGroupSequenceNumber(currentBranchBatchGroups)
       setCreateError('')
       setFieldErrors({ courseId: '', facultyId: '', rows: [] })
       setEditingGroup(group)
-      setDraft(createDraftFromGroup(group, nextSequence, nextGroupSequence))
+      setDraft(createDraftFromGroup(group, 1, nextGroupSequence))
       setIsCreateOpen(true)
       setActionMenuOpenId('')
       setActionMenuPosition(null)
     },
-    [batchGroups],
+    [currentBranchBatchGroups],
   )
 
   const closeCreateModal = useCallback(() => {
@@ -795,9 +798,9 @@ export function BranchBatchManagementSection({
         setIsCreateOpen(false)
         setEditingGroup(null)
         setFieldErrors({ courseId: '', facultyId: '', rows: [] })
-        const latestSequence = getNextBatchSequenceNumber(latestGroups.length ? latestGroups : batchGroups)
-        const latestGroupSequence = getNextBatchGroupSequenceNumber(latestGroups.length ? latestGroups : batchGroups)
-        setDraft(createInitialDraft(latestSequence, latestGroupSequence, 1))
+        const latestBranchGroups = latestGroups.filter((group) => !branchId || normalizeId(group.branchId) === normalizeId(branchId))
+        const latestGroupSequence = getNextBatchGroupSequenceNumber(latestBranchGroups.length ? latestBranchGroups : currentBranchBatchGroups)
+        setDraft(createInitialDraft(1, latestGroupSequence, 1))
         setSaveSuccessPopup({
           title: existingGroup ? 'Batch Updated' : 'Batch Created',
           message: existingGroup
@@ -849,10 +852,6 @@ export function BranchBatchManagementSection({
   useEffect(() => {
     setBatchTablePage((currentPage) => Math.min(Math.max(1, currentPage), totalBatchPages))
   }, [totalBatchPages])
-
-  const totalGroups = batchGroups.length
-  const totalRows = batchGroups.reduce((count, group) => count + Number(group.batchCount || 0), 0)
-  const summaryText = `${totalGroups} batch group${totalGroups === 1 ? '' : 's'} | ${totalRows} batch row${totalRows === 1 ? '' : 's'}`
 
   const renderCreateModal = () => {
     if (!isCreateOpen || typeof document === 'undefined') return null
@@ -1236,7 +1235,6 @@ export function BranchBatchManagementSection({
       <div className="branch-dashboard-section-heading">
         <div className="branch-dashboard-section-heading-copy">
           <h2>Batch Management</h2>
-          <p>{summaryText}</p>
         </div>
         <div className="branch-dashboard-section-heading-actions">
           <button type="button" className="button button-solid batch-create-button" onClick={openCreateModal}>
