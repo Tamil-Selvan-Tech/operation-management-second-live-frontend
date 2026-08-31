@@ -8887,7 +8887,10 @@ body.branch-notification-menu-open .main-area {
 }
 
 .payment-history-page .branch-course-table thead th:last-child {
-  padding-left: 28px;
+  padding-left: 18px;
+  text-align: left;
+  color: #334155;
+  font-weight: 700;
 }
 
 .payment-history-page .branch-course-actions-cell {
@@ -8903,6 +8906,96 @@ body.branch-notification-menu-open .main-area {
   padding: 7px 8px;
   font-size: 13px;
   min-height: 36px;
+}
+
+.payment-history-actions-cell {
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+}
+
+.payment-history-more-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid #dbe4f0;
+  background: #fff;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #2563eb;
+  transition: all 0.18s ease;
+}
+
+.payment-history-more-btn:hover,
+.payment-history-more-btn:focus-visible {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  outline: none;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.08);
+}
+
+.payment-history-more-dots {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
+}
+
+.payment-history-more-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.payment-history-actions-menu {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  width: 150px;
+  padding: 6px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  z-index: 999999;
+}
+
+.payment-history-actions-cell:hover .payment-history-actions-menu,
+.payment-history-actions-cell.menu-open .payment-history-actions-menu,
+.payment-history-more-btn:focus + .payment-history-actions-menu,
+.payment-history-more-btn:focus-visible + .payment-history-actions-menu,
+.payment-history-actions-cell:focus-within .payment-history-actions-menu {
+  display: block;
+}
+
+.payment-history-actions-menu-item {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #334155;
+  font-size: 13px;
+  text-align: left;
+}
+
+.payment-history-actions-menu-item:hover {
+  background: #f8fafc;
 }
 
 .branch-course-table {

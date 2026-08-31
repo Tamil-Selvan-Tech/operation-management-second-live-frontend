@@ -2602,6 +2602,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [paymentHistoryFilter, setPaymentHistoryFilter] = useState('all');
   const [paymentHistoryDate, setPaymentHistoryDate] = useState("");
   const [paymentModeFilter, setPaymentModeFilter] = useState('all');
+  const [paymentHistoryActionMenuId, setPaymentHistoryActionMenuId] = useState('');
+  const [paymentHistoryActionMenuPosition, setPaymentHistoryActionMenuPosition] = useState({ top: 0, left: 0 });
   const [selectedPaymentHistory, setSelectedPaymentHistory] = useState(null);
   const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
   const [ledgerStudent, setLedgerStudent] = useState(null)
@@ -2613,6 +2615,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const studentActionMenuRef = useRef(null)
   const studentActionMenuCloseTimerRef = useRef(null)
   const studentActionMenuHoverCountRef = useRef(0)
+  const paymentHistoryActionMenuRef = useRef(null)
+  const paymentHistoryActionCloseTimerRef = useRef(null)
 const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
 const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
 const [paymentPage, setPaymentPage] = useState(1)
@@ -2670,6 +2674,65 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       window.removeEventListener('scroll', closeOnScrollOrResize, true)
       window.removeEventListener('resize', closeOnScrollOrResize)
     }
+  }, [])
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      const clickedInsideActions = e.target.closest('.payment-history-actions-cell')
+      const clickedInsideMenu = paymentHistoryActionMenuRef.current?.contains(e.target)
+
+      if (!clickedInsideActions && !clickedInsideMenu) {
+        if (paymentHistoryActionCloseTimerRef.current) {
+          clearTimeout(paymentHistoryActionCloseTimerRef.current)
+        }
+        setPaymentHistoryActionMenuId('')
+        setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+      }
+    }
+
+    const closeOnScrollOrResize = () => {
+      if (paymentHistoryActionCloseTimerRef.current) {
+        clearTimeout(paymentHistoryActionCloseTimerRef.current)
+      }
+      setPaymentHistoryActionMenuId('')
+      setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick)
+    window.addEventListener('scroll', closeOnScrollOrResize, true)
+    window.addEventListener('resize', closeOnScrollOrResize)
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick)
+      window.removeEventListener('scroll', closeOnScrollOrResize, true)
+      window.removeEventListener('resize', closeOnScrollOrResize)
+    }
+  }, [])
+
+  const openPaymentHistoryActionMenu = useCallback((record = {}, target = null) => {
+    const rect = target?.getBoundingClientRect?.()
+    const menuWidth = 150
+    const menuHeight = 92
+    const gap = 6
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 0
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0
+
+    let left = rect ? rect.left : 0
+    let top = rect ? rect.bottom + gap : 0
+
+    if (viewportWidth && left + menuWidth > viewportWidth - 12) {
+      left = Math.max(12, viewportWidth - menuWidth - 12)
+    }
+
+    if (viewportHeight && top + menuHeight > viewportHeight - 12 && rect) {
+      top = Math.max(12, rect.top - menuHeight - gap)
+    }
+
+    setPaymentHistoryActionMenuId(record.id || '')
+    setPaymentHistoryActionMenuPosition({
+      top: Math.max(12, top),
+      left: Math.max(12, left),
+    })
   }, [])
   const profileMenuRef = useRef(null)
   const notificationMenuRef = useRef(null)
@@ -5454,10 +5517,18 @@ const visibleBranchPaymentRows = useMemo(() => {
 
 const totalPaymentHistoryPages = Math.max(1, Math.ceil(filteredPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
 const safePaymentHistoryPage = Math.min(paymentHistoryPage, totalPaymentHistoryPages)
-const visiblePaymentHistoryRecords = useMemo(() => {
-  const start = (safePaymentHistoryPage - 1) * BRANCH_PAYMENT_HISTORY_PER_PAGE
-  return filteredPaymentHistoryRecords.slice(start, start + BRANCH_PAYMENT_HISTORY_PER_PAGE)
-}, [filteredPaymentHistoryRecords, safePaymentHistoryPage])
+  const visiblePaymentHistoryRecords = useMemo(() => {
+    const start = (safePaymentHistoryPage - 1) * BRANCH_PAYMENT_HISTORY_PER_PAGE
+    return filteredPaymentHistoryRecords.slice(start, start + BRANCH_PAYMENT_HISTORY_PER_PAGE)
+  }, [filteredPaymentHistoryRecords, safePaymentHistoryPage])
+
+  const activePaymentHistoryActionRecord = useMemo(
+    () =>
+      allPaymentHistoryRecords.find((record) => record.id === paymentHistoryActionMenuId) ||
+      visiblePaymentHistoryRecords.find((record) => record.id === paymentHistoryActionMenuId) ||
+      null,
+    [allPaymentHistoryRecords, paymentHistoryActionMenuId, visiblePaymentHistoryRecords],
+  )
 
 const branchStudentsForDisplay = useMemo(
   () =>
@@ -7403,6 +7474,62 @@ else {
 
         </div>
 
+        {activePaymentHistoryActionRecord && paymentHistoryActionMenuId && typeof document !== 'undefined'
+          ? createPortal(
+            <div
+              ref={paymentHistoryActionMenuRef}
+              className="payment-history-actions-menu"
+              role="menu"
+              aria-label="Payment actions"
+              style={{
+                position: 'fixed',
+                top: `${paymentHistoryActionMenuPosition.top}px`,
+                left: `${paymentHistoryActionMenuPosition.left}px`,
+                zIndex: 999999,
+                display: 'block',
+              }}
+              onMouseEnter={() => {
+                if (paymentHistoryActionCloseTimerRef.current) {
+                  clearTimeout(paymentHistoryActionCloseTimerRef.current)
+                }
+              }}
+              onMouseLeave={() => {
+                paymentHistoryActionCloseTimerRef.current = setTimeout(() => {
+                  setPaymentHistoryActionMenuId('')
+                  setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+                }, 180)
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="payment-history-actions-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  setPaymentHistoryActionMenuId('')
+                  setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+                  setSelectedPaymentHistory(activePaymentHistoryActionRecord)
+                }}
+              >
+                View
+              </button>
+              <button
+                type="button"
+                className="payment-history-actions-menu-item"
+                role="menuitem"
+                onClick={(event) => {
+                  setPaymentHistoryActionMenuId('')
+                  setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+                  handleOpenBranchLedger(event, activePaymentHistoryActionRecord)
+                }}
+              >
+                Ledger
+              </button>
+            </div>,
+            document.body,
+          )
+          : null}
+
 
         {/* =====================================================
             QUICK FILTERS
@@ -7486,22 +7613,49 @@ else {
                     <td>{record.date}</td>
 
                     <td>
-                      <div className="branch-course-actions-cell">
+                      <div
+                        className={`payment-history-actions-cell ${paymentHistoryActionMenuId === record.id ? 'menu-open' : ''}`.trim()}
+                      >
                         <button
                           type="button"
-                          className="button button-ghost"
-                          onClick={() =>
-                            setSelectedPaymentHistory(record)
+                          className="payment-history-more-btn"
+                          onMouseEnter={(event) => {
+                            if (paymentHistoryActionCloseTimerRef.current) {
+                              clearTimeout(paymentHistoryActionCloseTimerRef.current)
+                            }
+                            if (paymentHistoryActionMenuId !== record.id) {
+                              openPaymentHistoryActionMenu(record, event.currentTarget)
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            paymentHistoryActionCloseTimerRef.current = setTimeout(() => {
+                              setPaymentHistoryActionMenuId('')
+                              setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+                            }, 180)
+                          }}
+                          onClick={(event) =>
+                            {
+                              if (paymentHistoryActionMenuId === record.id) {
+                                if (paymentHistoryActionCloseTimerRef.current) {
+                                  clearTimeout(paymentHistoryActionCloseTimerRef.current)
+                                }
+                                setPaymentHistoryActionMenuId('')
+                                setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+                                return
+                              }
+
+                              openPaymentHistoryActionMenu(record, event.currentTarget)
+                            }
                           }
+                          aria-label="Open payment actions"
+                          aria-haspopup="menu"
+                          aria-expanded={paymentHistoryActionMenuId === record.id}
                         >
-                          View
-                        </button>
-                        <button
-                          type="button"
-                          className="button button-ghost"
-                          onClick={(event) => handleOpenBranchLedger(event, record)}
-                        >
-                          Ledger
+                          <span className="payment-history-more-dots" aria-hidden="true">
+                            <span />
+                            <span />
+                            <span />
+                          </span>
                         </button>
                       </div>
                     </td>
