@@ -234,42 +234,37 @@ function resolveStudentBatchDisplay(student = {}, batchGroups = []) {
   const batchName = String(student?.batchName || student?.batch || '').trim()
   const batchTiming = String(student?.batchTiming || student?.batchTime || '').trim()
   const courseId = String(student?.courseId || student?.course?.id || '').trim()
-
-  if (batchTiming) {
-    return {
-      batchId,
-      batchName: batchName || batchId,
-      batchTiming,
-    }
-  }
+  const normalizedBatchTiming = batchTiming.toLowerCase()
 
   const groups = Array.isArray(batchGroups) ? batchGroups : []
+  let matchedBatch = null
+
   for (const group of groups) {
     const groupCourseId = String(group?.courseId || group?.branchCourseId || '').trim()
     if (courseId && groupCourseId && groupCourseId !== courseId) continue
 
-    const matchedBatch = (Array.isArray(group?.batches) ? group.batches : []).find((batch) => {
+    matchedBatch = (Array.isArray(group?.batches) ? group.batches : []).find((batch) => {
       const candidateBatchId = String(batch?.batchId || batch?.id || '').trim()
       const candidateBatchName = String(batch?.batchName || '').trim()
+      const candidateBatchTiming = String(formatStudentBatchTiming(batch) || batch?.batchTiming || '').trim()
       return (
         (batchId && candidateBatchId && candidateBatchId === batchId) ||
-        (batchName && candidateBatchName && candidateBatchName === batchName)
+        (batchName && candidateBatchName && candidateBatchName === batchName) ||
+        (normalizedBatchTiming && candidateBatchTiming && candidateBatchTiming.toLowerCase() === normalizedBatchTiming)
       )
     }) || null
 
     if (matchedBatch) {
-      return {
-        batchId: batchId || String(matchedBatch.batchId || matchedBatch.id || '').trim(),
-        batchName: batchName || String(matchedBatch.batchName || matchedBatch.batchId || '').trim(),
-        batchTiming: formatStudentBatchTiming(matchedBatch),
-      }
+      break
     }
   }
 
+  const resolvedBatchTiming = batchTiming || (matchedBatch ? formatStudentBatchTiming(matchedBatch) : '')
+
   return {
-    batchId,
-    batchName: batchName || batchId,
-    batchTiming,
+    batchId: batchId || String(matchedBatch?.batchId || matchedBatch?.id || '').trim(),
+    batchName: batchName || String(matchedBatch?.batchName || matchedBatch?.batchId || '').trim() || batchId,
+    batchTiming: resolvedBatchTiming,
   }
 }
 
@@ -5092,12 +5087,14 @@ const studentCourseOptions = useMemo(() => {
     () => selectedStudentCourseBatchOptions.find((batch) => {
       const currentBatchId = String(studentForm.batchId || '').trim().toLowerCase()
       const currentBatchName = String(studentForm.batchName || '').trim().toLowerCase()
+      const currentBatchTiming = String(studentForm.batchTiming || '').trim().toLowerCase()
       return (
         String(batch.batchId || '').trim().toLowerCase() === currentBatchId ||
-        String(batch.batchName || '').trim().toLowerCase() === currentBatchName
+        String(batch.batchName || '').trim().toLowerCase() === currentBatchName ||
+        String(batch.batchTiming || '').trim().toLowerCase() === currentBatchTiming
       )
     }) || null,
-    [selectedStudentCourseBatchOptions, studentForm.batchId, studentForm.batchName],
+    [selectedStudentCourseBatchOptions, studentForm.batchId, studentForm.batchName, studentForm.batchTiming],
   )
 
   const selectedStudentCoursePaymentPlans = useMemo(
@@ -11698,7 +11695,7 @@ else {
           }
         >
           <select
-            value={studentForm.batchId}
+            value={selectedStudentBatchOption?.batchId || selectedStudentBatchOption?.batchName || studentForm.batchId || studentForm.batchName || ''}
             onChange={(e) =>
               handleStudentBatchChange(e.target.value)
             }

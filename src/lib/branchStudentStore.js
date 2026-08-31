@@ -80,6 +80,31 @@ function mergePreservedStudentFields(incoming = {}, existing = {}) {
     nextRecord.progress = existing.progress
   }
 
+  if (!String(nextRecord.batchId || '').trim() && String(existing.batchId || existing.batchEntryId || '').trim()) {
+    nextRecord.batchId = String(existing.batchId || existing.batchEntryId || '').trim()
+  }
+
+  if (!String(nextRecord.batchGroupId || '').trim() && String(existing.batchGroupId || '').trim()) {
+    nextRecord.batchGroupId = String(existing.batchGroupId || '').trim()
+  }
+
+  if (!String(nextRecord.batchName || nextRecord.batch || '').trim() && String(existing.batchName || existing.batch || '').trim()) {
+    nextRecord.batchName = String(existing.batchName || existing.batch || '').trim()
+    nextRecord.batch = String(existing.batchName || existing.batch || '').trim()
+  }
+
+  if (!String(nextRecord.batchTiming || nextRecord.batchTime || '').trim() && String(existing.batchTiming || existing.batchTime || '').trim()) {
+    nextRecord.batchTiming = String(existing.batchTiming || existing.batchTime || '').trim()
+  }
+
+  if (!String(nextRecord.facultyId || '').trim() && String(existing.facultyId || '').trim()) {
+    nextRecord.facultyId = String(existing.facultyId || '').trim()
+  }
+
+  if (!String(nextRecord.facultyName || '').trim() && String(existing.facultyName || '').trim()) {
+    nextRecord.facultyName = String(existing.facultyName || '').trim()
+  }
+
   return nextRecord
 }
 
