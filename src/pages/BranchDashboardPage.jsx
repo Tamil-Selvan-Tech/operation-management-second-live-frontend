@@ -7324,6 +7324,7 @@ else {
     branchCourses={branchCourseCards}
     branchFacultyRecords={branchFacultyRecords}
     facultyList={facultyList}
+    branchStudents={branchStudents}
   />
 ) : null}
 

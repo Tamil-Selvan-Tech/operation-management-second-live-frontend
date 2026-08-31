@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
-  ChevronRight,
   Eye,
   MoreVertical,
   Pencil,
@@ -281,11 +280,136 @@ function isInactiveBatchGroup(group = {}) {
   return getBatchGroupStatus(group).toLowerCase() === 'inactive'
 }
 
+function normalizeMatchKey(value = '') {
+  return normalizeId(value)
+}
+
+function buildBatchGroupStudentMatcher(group = {}) {
+  const batches = Array.isArray(group?.batches) ? group.batches : []
+
+  const matcher = {
+    batchGroupId: normalizeMatchKey(group?.batchGroupId || group?.id || ''),
+    courseId: normalizeMatchKey(group?.courseId || group?.branchCourseId || ''),
+    facultyId: normalizeMatchKey(group?.facultyId || group?.branchFacultyId || ''),
+    facultyName: normalizeMatchKey(group?.facultyName || ''),
+    batchIds: new Set(),
+    batchNames: new Set(),
+    batchTimings: new Set(),
+  }
+
+  batches.forEach((batch) => {
+    const batchId = normalizeMatchKey(batch?.batchId || batch?.id || '')
+    const batchName = normalizeMatchKey(batch?.batchName || '')
+    const batchTiming = normalizeMatchKey(batch?.batchTiming || `${batch?.startTime || ''}${batch?.endTime ? ` - ${batch?.endTime}` : ''}`.trim())
+
+    if (batchId) matcher.batchIds.add(batchId)
+    if (batchName) matcher.batchNames.add(batchName)
+    if (batchTiming) matcher.batchTimings.add(batchTiming)
+  })
+
+  return matcher
+}
+
+function isStudentInBatchGroup(student = {}, matcher = {}) {
+  const studentCourseId = normalizeMatchKey(student?.courseId || student?.course?.id || '')
+  const studentFacultyId = normalizeMatchKey(student?.facultyId || student?.course?.facultyId || '')
+  const studentFacultyName = normalizeMatchKey(student?.facultyName || student?.course?.facultyName || '')
+  const studentBatchGroupId = normalizeMatchKey(student?.batchGroupId || student?.batch?.batchGroupId || '')
+  const studentBatchId = normalizeMatchKey(student?.batchId || student?.batchEntryId || student?.batch?.batchId || '')
+  const studentBatchName = normalizeMatchKey(student?.batchName || student?.batch || student?.batch?.batchName || '')
+  const studentBatchTiming = normalizeMatchKey(student?.batchTiming || student?.batchTime || student?.batch?.batchTiming || '')
+
+  if (matcher.courseId && studentCourseId && matcher.courseId !== studentCourseId) {
+    return false
+  }
+
+  if (matcher.facultyId || matcher.facultyName) {
+    const hasStudentFaculty = Boolean(studentFacultyId || studentFacultyName)
+    if (hasStudentFaculty) {
+      const facultyMatches = [
+        matcher.facultyId && studentFacultyId && matcher.facultyId === studentFacultyId,
+        matcher.facultyName && studentFacultyName && matcher.facultyName === studentFacultyName,
+      ].some(Boolean)
+
+      if (!facultyMatches) {
+        return false
+      }
+    }
+  }
+
+  if (matcher.batchGroupId && studentBatchGroupId && matcher.batchGroupId === studentBatchGroupId) {
+    return true
+  }
+
+  if (studentBatchId && matcher.batchIds.has(studentBatchId)) {
+    return true
+  }
+
+  if (studentBatchName && matcher.batchNames.has(studentBatchName)) {
+    return true
+  }
+
+  if (studentBatchTiming && matcher.batchTimings.has(studentBatchTiming)) {
+    return true
+  }
+
+  return Boolean(
+    matcher.batchGroupId &&
+    studentCourseId &&
+    matcher.courseId === studentCourseId &&
+    (!matcher.facultyId || matcher.facultyId === studentFacultyId || matcher.facultyName === studentFacultyName) &&
+    !studentBatchId &&
+    !studentBatchName &&
+    !studentBatchTiming,
+  )
+}
+
+function getBatchGroupStudentCount(group = {}, students = []) {
+  if (!Array.isArray(students) || !students.length) return 0
+
+  const matcher = buildBatchGroupStudentMatcher(group)
+  const uniqueStudents = new Set()
+
+  students.forEach((student) => {
+    if (!student || !isStudentInBatchGroup(student, matcher)) return
+
+    const studentKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || student?.recordId || '')
+    uniqueStudents.add(studentKey || JSON.stringify({
+      courseId: student?.courseId || student?.course?.id || '',
+      batchGroupId: student?.batchGroupId || student?.batch?.batchGroupId || '',
+      batchId: student?.batchId || student?.batchEntryId || student?.batch?.batchId || '',
+      batchName: student?.batchName || student?.batch || student?.batch?.batchName || '',
+      facultyId: student?.facultyId || student?.course?.facultyId || '',
+    }))
+  })
+
+  return uniqueStudents.size
+}
+
+function getBatchStudentCount(group = {}, batch = {}, students = []) {
+  if (!Array.isArray(students) || !students.length) return 0
+
+  const batchId = normalizeMatchKey(batch?.batchId || batch?.id || '')
+
+  return students.reduce((count, student) => {
+    if (!student) return count
+
+    const studentBatchId = normalizeMatchKey(student?.batchId || student?.batchEntryId || student?.batch?.batchId || '')
+
+    if (batchId && studentBatchId && batchId === studentBatchId) {
+      return count + 1
+    }
+
+    return count
+  }, 0)
+}
+
 export function BranchBatchManagementSection({
   branchId = '',
   branchCourses = [],
   branchFacultyRecords = [],
   facultyList = [],
+  branchStudents = [],
 }) {
   const [batchGroups, setBatchGroups] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -480,6 +604,19 @@ export function BranchBatchManagementSection({
     () => batchGroups.filter((group) => !branchId || normalizeId(group.branchId) === normalizeId(branchId)),
     [batchGroups, branchId],
   )
+
+  const batchGroupStudentCountMap = useMemo(() => {
+    const counts = new Map()
+
+    currentBranchBatchGroups.forEach((group) => {
+      const key = normalizeMatchKey(group?.id || group?.batchGroupId || group?.batchId || '')
+      if (!key) return
+
+      counts.set(key, getBatchGroupStudentCount(group, branchStudents))
+    })
+
+    return counts
+  }, [branchStudents, currentBranchBatchGroups])
 
   const nextBatchSequenceStart = useMemo(() => getNextBatchSequenceNumber(currentBranchBatchGroups), [currentBranchBatchGroups])
   const nextBatchGroupSequenceStart = useMemo(() => getNextBatchGroupSequenceNumber(currentBranchBatchGroups), [currentBranchBatchGroups])
@@ -1338,6 +1475,7 @@ export function BranchBatchManagementSection({
               <th>Course Name</th>
               <th>Faculty Name</th>
               <th>Batch Count</th>
+              <th>Total Students</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -1345,15 +1483,29 @@ export function BranchBatchManagementSection({
           <tbody>
             {paginatedGroups.length ? (
               paginatedGroups.map((group) => (
-                <tr key={group.id || group.batchGroupId || group.batchId}>
+                <tr
+                  key={group.id || group.batchGroupId || group.batchId}
+                  className="batch-management-row-clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setDetailGroup(group)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setDetailGroup(group)
+                    }
+                  }}
+                >
                   <td>{group.batchGroupId || group.batchId}</td>
                   <td>{group.courseName || '-'}</td>
                   <td>{group.facultyName || '-'}</td>
                   <td>
                     <button type="button" className="batch-management-count-button" onClick={() => setDetailGroup(group)}>
                       {group.batchCount || (Array.isArray(group.batches) ? group.batches.length : 0)}
-                      <ChevronRight size={14} strokeWidth={2.2} aria-hidden="true" />
                     </button>
+                  </td>
+                  <td>
+                    <strong>{batchGroupStudentCountMap.get(normalizeMatchKey(group.id || group.batchGroupId || group.batchId || '')) || 0}</strong>
                   </td>
                   <td>
                     <span className={`batch-management-status-pill ${normalizeStatus(group.status).toLowerCase()}`.trim()}>
@@ -1387,7 +1539,7 @@ export function BranchBatchManagementSection({
               ))
             ) : (
               <tr>
-                <td colSpan="6" className="branch-course-empty-state">
+                <td colSpan="7" className="branch-course-empty-state">
                   {isLoading ? 'Loading batches...' : 'No batches created yet. Use Create Batch to add the first group.'}
                 </td>
               </tr>

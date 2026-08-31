@@ -82,6 +82,26 @@
   text-align: right;
 }
 
+.batch-management-row-clickable {
+  cursor: pointer;
+}
+
+.batch-management-row-clickable:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.25);
+  outline-offset: -2px;
+}
+
+.batch-management-table thead th:nth-child(5),
+.batch-management-table tbody td:nth-child(5) {
+  text-align: center;
+}
+
+.batch-management-table tbody td:nth-child(5) strong {
+  display: inline-flex;
+  min-width: 2ch;
+  justify-content: center;
+}
+
 .batch-management-actions {
   position: relative;
   display: inline-flex;
