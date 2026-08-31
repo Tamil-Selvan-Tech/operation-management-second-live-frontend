@@ -144,6 +144,7 @@ const STUDENT_FORM_STEP_THREE_FIELDS = [
   'batchId',
   'batchTiming',
   'courseAmount',
+  'paymentPlanId',
 ]
 const STUDENT_FORM_STEP_FIELDS = {
   1: STUDENT_FORM_STEP_ONE_FIELDS,
@@ -469,6 +470,7 @@ function validateStudentForm(form, students = []) {
   if (!form.batchId.trim()) errors.batchId = 'Batch is required.'
   if (!form.batchTiming.trim()) errors.batchTiming = 'Batch timing is required.'
   if (!form.courseAmount.trim()) errors.courseAmount = 'Course amount is required.'
+  if (!form.paymentPlanId.trim()) errors.paymentPlanId = 'This field is required.'
 
   const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
   const resolvedStudentId = String(
@@ -11948,7 +11950,15 @@ else {
           />
         </Field>
 
-   <Field label="Payment Plan" required>
+       <Field
+         label="Payment Plan"
+         required
+         error={
+           shouldShowStudentError('paymentPlanId')
+             ? studentFormValidationErrors.paymentPlanId
+             : ''
+         }
+       >
   <select
     value={studentForm.paymentPlanId || ''}
     onChange={(e) => {
