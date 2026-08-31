@@ -3526,7 +3526,7 @@ const nextName = trimmedValue
                   {studentsFlowLevel === 1 ? (
                     <div className="faculty-students-flow-stage">
                       {facultyCourseRows.length ? (
-                        <div className="branch-dashboard-table-shell faculty-students-table-shell faculty-students-flow-shell">
+                        <div className="branch-dashboard-table-shell faculty-students-table-shell faculty-students-flow-shell faculty-students-courses-shell">
                           <table className="branch-dashboard-table">
                             <thead>
                               <tr>
@@ -3590,7 +3590,7 @@ const nextName = trimmedValue
                       </div>
 
                       {selectedStudentsCourseBatches.length ? (
-                        <div className="branch-dashboard-table-shell faculty-students-table-shell faculty-students-flow-shell">
+                        <div className="branch-dashboard-table-shell faculty-students-table-shell faculty-students-flow-shell faculty-students-batches-shell">
                           <table className="branch-dashboard-table">
                             <thead>
                               <tr>
