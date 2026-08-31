@@ -2601,8 +2601,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [showPaymentHistory, setShowPaymentHistory] = useState(false)
   const [paymentHistoryFilter, setPaymentHistoryFilter] = useState('all');
   const [paymentHistoryDate, setPaymentHistoryDate] = useState("");
-const [selectedPaymentHistory, setSelectedPaymentHistory] = useState(null);
-const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
+  const [paymentModeFilter, setPaymentModeFilter] = useState('all');
+  const [selectedPaymentHistory, setSelectedPaymentHistory] = useState(null);
+  const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
   const [ledgerStudent, setLedgerStudent] = useState(null)
   const [ledgerView, setLedgerView] = useState({ entries: [], summary: null, source: 'local' })
   const [ledgerLoading, setLedgerLoading] = useState(false)
@@ -5329,38 +5330,57 @@ const studentCourseOptions = useMemo(() => {
     return Array.from(records.values()).sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
   }, [branchStudents, storedPaymentHistoryRecords])
 
-  const filteredPaymentHistoryRecords = useMemo(() => {
-  const q = paymentHistorySearch.trim().toLowerCase()
-  const todayStr = getTodayValue()
-  const now = new Date()
+  const paymentModeFilterOptions = useMemo(() => {
+    const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque', 'Installment']
+    const uniqueModes = new Set(presetModes)
 
-  return allPaymentHistoryRecords.filter((record) => {
-    const matchesSearch =
-      !q ||
-      String(record.studentId).toLowerCase().includes(q) ||
-      String(record.studentName).toLowerCase().includes(q) ||
-      String(record.course).toLowerCase().includes(q)
-
-    const matchesDate =
-      !paymentHistoryDate ||
-      (record.dateRaw && new Date(record.dateRaw).toISOString().slice(0, 10) === paymentHistoryDate)
-
-    let matchesQuickFilter = true
-    if (paymentHistoryFilter === 'today') {
-      matchesQuickFilter = Boolean(record.dateRaw) &&
-        new Date(record.dateRaw).toISOString().slice(0, 10) === todayStr
-    } else if (paymentHistoryFilter === 'week') {
-      if (!record.dateRaw) {
-        matchesQuickFilter = false
-      } else {
-        const diffDays = (now - new Date(record.dateRaw)) / (1000 * 60 * 60 * 24)
-        matchesQuickFilter = diffDays >= 0 && diffDays <= 7
+    allPaymentHistoryRecords.forEach((record) => {
+      const mode = formatBranchPaymentMode(record)
+      if (mode && mode !== '-') {
+        uniqueModes.add(mode)
       }
-    }
+    })
 
-    return matchesSearch && matchesDate && matchesQuickFilter
-  })
-}, [allPaymentHistoryRecords, paymentHistorySearch, paymentHistoryDate, paymentHistoryFilter])
+    return ['all', ...Array.from(uniqueModes)]
+  }, [allPaymentHistoryRecords])
+
+  const filteredPaymentHistoryRecords = useMemo(() => {
+    const q = paymentHistorySearch.trim().toLowerCase()
+    const todayStr = getTodayValue()
+    const now = new Date()
+
+    return allPaymentHistoryRecords.filter((record) => {
+      const matchesSearch =
+        !q ||
+        String(record.studentId).toLowerCase().includes(q) ||
+        String(record.studentName).toLowerCase().includes(q) ||
+        String(record.course).toLowerCase().includes(q)
+
+      const matchesDate =
+        !paymentHistoryDate ||
+        (record.dateRaw && new Date(record.dateRaw).toISOString().slice(0, 10) === paymentHistoryDate)
+
+      const modeValue = formatBranchPaymentMode(record).toLowerCase()
+      const matchesMode =
+        paymentModeFilter === 'all' ||
+        modeValue === paymentModeFilter.toLowerCase()
+
+      let matchesQuickFilter = true
+      if (paymentHistoryFilter === 'today') {
+        matchesQuickFilter = Boolean(record.dateRaw) &&
+          new Date(record.dateRaw).toISOString().slice(0, 10) === todayStr
+      } else if (paymentHistoryFilter === 'week') {
+        if (!record.dateRaw) {
+          matchesQuickFilter = false
+        } else {
+          const diffDays = (now - new Date(record.dateRaw)) / (1000 * 60 * 60 * 24)
+          matchesQuickFilter = diffDays >= 0 && diffDays <= 7
+        }
+      }
+
+      return matchesSearch && matchesDate && matchesMode && matchesQuickFilter
+    })
+  }, [allPaymentHistoryRecords, paymentHistorySearch, paymentHistoryDate, paymentHistoryFilter, paymentModeFilter])
 
 const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
   (acc, row) => {
@@ -7358,6 +7378,28 @@ else {
               border: '1px solid #d1d5db',
             }}
           />
+
+          <select
+            value={paymentModeFilter}
+            onChange={(e) => {
+              setPaymentModeFilter(e.target.value)
+              setPaymentHistoryPage(1)
+            }}
+            style={{
+              height: '46px',
+              padding: '0 12px',
+              borderRadius: '8px',
+              border: '1px solid #d1d5db',
+              minWidth: '180px',
+              backgroundColor: '#fff',
+            }}
+          >
+            {paymentModeFilterOptions.map((mode) => (
+              <option key={mode} value={mode}>
+                {mode === 'all' ? 'All Payment Modes' : mode}
+              </option>
+            ))}
+          </select>
 
         </div>
 
