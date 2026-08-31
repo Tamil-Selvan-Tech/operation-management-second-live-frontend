@@ -426,6 +426,90 @@ body.faculty-notification-menu-open .super-admin-content {
   width: auto;
 }
 
+.super-admin-page .faculty-students-flow-stage {
+  display: grid;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.super-admin-page .faculty-students-flow-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #2563eb;
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.super-admin-page .faculty-students-flow-back-button:hover {
+  color: #1d4ed8;
+}
+
+.super-admin-page .faculty-students-flow-context {
+  display: grid;
+  gap: 2px;
+  padding-left: 2px;
+}
+
+.super-admin-page .faculty-students-flow-context strong {
+  color: #0f172a;
+  font-size: 1.1rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.super-admin-page .faculty-students-flow-context span {
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.super-admin-page .faculty-students-flow-shell {
+  margin-top: 0;
+}
+
+.super-admin-page .faculty-students-flow-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%);
+  color: #1d4ed8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.super-admin-page .faculty-students-flow-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.14);
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.super-admin-page .faculty-students-flow-action-btn.is-primary {
+  border-color: transparent;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+}
+
+.super-admin-page .faculty-students-flow-action-btn.is-primary:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+.super-admin-page .faculty-students-flow-empty {
+  margin-top: 0;
+}
+
 .super-admin-page .faculty-students-table-shell .faculty-students-empty-cell {
   padding: 18px 20px;
   width: auto !important;

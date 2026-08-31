@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
+  ArrowLeft,
   Bell,
   BookOpen,
   CalendarDays,
@@ -126,6 +127,45 @@ function formatMinutesLabel(value = 0) {
 
 function normalizeCourseKey(value = '') {
   return String(value || '').trim().toLowerCase()
+}
+
+function getFacultyFlowCourseKey(course = {}) {
+  return (
+    String(course?.id || course?.courseId || '').trim() ||
+    normalizeCourseKey(course?.courseCode || '') ||
+    normalizeCourseKey(course?.name || course?.courseName || '')
+  )
+}
+
+function getFacultyFlowBatchKey(batch = {}) {
+  return (
+    String(batch?.id || batch?.batchId || batch?.batchEntryId || '').trim() ||
+    normalizeCourseKey(batch?.code || batch?.batchCode || batch?.batchName || batch?.batch || '') ||
+    normalizeCourseKey(batch?.timing || batch?.batchTiming || '')
+  )
+}
+
+function doesFacultyBatchBelongToCourse(batch = {}, course = {}) {
+  const batchCourseId = String(batch?.courseId || '').trim()
+  const batchCourseName = normalizeCourseKey(batch?.course || batch?.courseName || '')
+  const batchCourseCode = normalizeCourseKey(batch?.courseCode || '')
+  const courseId = String(course?.id || course?.courseId || '').trim()
+  const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
+  const courseCode = normalizeCourseKey(course?.courseCode || '')
+
+  if (batchCourseId && courseId) {
+    return batchCourseId === courseId
+  }
+
+  if (batchCourseName && courseName) {
+    return batchCourseName === courseName
+  }
+
+  if (batchCourseCode && courseCode) {
+    return batchCourseCode === courseCode
+  }
+
+  return false
 }
 
 function parseCourseNumber(value) {
@@ -1005,6 +1045,8 @@ export function FacultyDashboardPage() {
   const [courseCatalog, setCourseCatalog] = useState([])
   const [students, setStudents] = useState([])
   const [selectedCourseId, setSelectedCourseId] = useState('')
+  const [selectedStudentsCourseId, setSelectedStudentsCourseId] = useState('')
+  const [selectedStudentsBatchId, setSelectedStudentsBatchId] = useState('')
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
   const [courseModulePage, setCourseModulePage] = useState(1)
   const [batchPage, setBatchPage] = useState(1)
@@ -1543,18 +1585,6 @@ export function FacultyDashboardPage() {
     return getExactFacultyStudents(backfilledStudents, facultyId, facultyNameValue, facultyEmailValue)
   }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
 
-  const studentsPerPage = 5
-  const studentsTotalPages = Math.max(1, Math.ceil(facultyScopedStudents.length / studentsPerPage))
-  const safeStudentsPage = Math.min(Math.max(1, studentsPage), studentsTotalPages)
-  const paginatedFacultyStudents = useMemo(() => {
-    const startIndex = (safeStudentsPage - 1) * studentsPerPage
-    return facultyScopedStudents.slice(startIndex, startIndex + studentsPerPage)
-  }, [facultyScopedStudents, safeStudentsPage])
-
-  useEffect(() => {
-    setStudentsPage((current) => Math.min(Math.max(1, current), studentsTotalPages))
-  }, [studentsTotalPages])
-
   const facultyTodayWorkEntries = useMemo(() => {
     return getFacultyTodayWorkEntriesByFaculty({
       facultyId: currentFacultyIdentity.facultyId,
@@ -1784,7 +1814,10 @@ export function FacultyDashboardPage() {
       .map((entry) => {
         return {
           id: String(entry?.id || `${entry?.courseId || 'course'}-${entry?.batchName || entry?.batch || 'batch'}`).trim(),
+          courseId: String(entry?.courseId || '').trim(),
           course: String(entry?.courseName || entry?.course || '-').trim() || '-',
+          batchId: String(entry?.batchId || entry?.batchEntryId || entry?.id || '').trim(),
+          batchName: String(entry?.batchName || entry?.batch || entry?.code || entry?.id || '').trim() || '-',
           code: String(entry?.batchCode || entry?.code || entry?.id || '-').trim() || '-',
           timing: String(entry?.batchTiming || entry?.timing || '-').trim() || '-',
           students: getBatchStudentCount(entry),
@@ -1827,6 +1860,149 @@ export function FacultyDashboardPage() {
       students: getBatchStudentCount(entry),
     }))
   }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyProfile?.batchEntries, dashboardSummary, facultyScopedStudents])
+
+  const facultyCourseRows = useMemo(() => {
+    return assignedCourses.map((course) => {
+      const relatedBatches = facultyBatchRows.filter((batch) => doesFacultyBatchBelongToCourse(batch, course))
+      const totalBatches = new Set(relatedBatches.map((batch) => getFacultyFlowBatchKey(batch)).filter(Boolean)).size
+
+      return {
+        ...course,
+        totalBatches,
+      }
+    })
+  }, [assignedCourses, facultyBatchRows])
+
+  const selectedStudentsCourse = useMemo(() => {
+    const normalizedCourseId = String(selectedStudentsCourseId || '').trim()
+    if (!normalizedCourseId) return null
+
+    return facultyCourseRows.find((course) => getFacultyFlowCourseKey(course) === normalizedCourseId) || null
+  }, [facultyCourseRows, selectedStudentsCourseId])
+
+  const selectedStudentsCourseBatches = useMemo(() => {
+    if (!selectedStudentsCourse) return []
+
+    return facultyBatchRows.filter((batch) => doesFacultyBatchBelongToCourse(batch, selectedStudentsCourse))
+  }, [facultyBatchRows, selectedStudentsCourse])
+
+  const selectedStudentsBatch = useMemo(() => {
+    const normalizedBatchId = String(selectedStudentsBatchId || '').trim()
+    if (!normalizedBatchId) return null
+
+    return selectedStudentsCourseBatches.find((batch) => getFacultyFlowBatchKey(batch) === normalizedBatchId) || null
+  }, [selectedStudentsBatchId, selectedStudentsCourseBatches])
+
+  const selectedBatchStudents = useMemo(() => {
+    if (!selectedStudentsBatch) return []
+
+    const selectedCourseId = String(selectedStudentsBatch.courseId || selectedStudentsCourse?.id || '').trim().toLowerCase()
+    const selectedCourseName = normalizeCourseKey(selectedStudentsCourse?.name || selectedStudentsCourse?.courseName || selectedStudentsBatch.course || '')
+    const selectedBatchName = normalizeCourseKey(selectedStudentsBatch.batchName || selectedStudentsBatch.code || '')
+    const selectedBatchToken = selectedBatchName.replace(/\s+/g, ' ')
+    const selectedBatchTiming = normalizeCourseKey(selectedStudentsBatch.timing || '')
+    const selectedBatchId = String(selectedStudentsBatch.batchId || selectedStudentsBatch.id || '').trim().toLowerCase()
+    const selectedBatchGroupId = String(selectedStudentsBatch.batchGroupId || '').trim().toLowerCase()
+
+    const matchedStudents = backfilledStudents.filter((student) => {
+      const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
+      const studentFacultyId = String(context?.facultyId || student?.facultyId || '').trim().toLowerCase()
+      const studentFacultyName = normalizeCourseKey(context?.facultyName || student?.facultyName || '')
+      const studentCourseId = String(context?.courseId || student?.courseId || '').trim().toLowerCase()
+      const studentCourseName = normalizeCourseKey(context?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '')
+      const studentBatchId = String(context?.batchId || student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+      const studentBatchGroupId = String(context?.batchGroupId || student?.batchGroupId || '').trim().toLowerCase()
+      const studentBatchName = normalizeCourseKey(context?.batchName || student?.batchName || student?.batch || '')
+      const studentBatchToken = studentBatchName.replace(/\s+/g, ' ')
+      const studentBatchTiming = normalizeCourseKey(context?.batchTiming || student?.batchTiming || student?.batchTime || '')
+
+      if (currentFacultyIdentity.facultyId && studentFacultyId && studentFacultyId !== String(currentFacultyIdentity.facultyId || '').trim().toLowerCase()) {
+        return false
+      }
+
+      if (selectedCourseId && studentCourseId && studentCourseId !== selectedCourseId) {
+        return false
+      }
+
+      if (selectedCourseName && studentCourseName && studentCourseName !== selectedCourseName) {
+        return false
+      }
+
+      if (selectedBatchId && (studentBatchId || studentBatchGroupId)) {
+        if (studentBatchId === selectedBatchId || studentBatchGroupId === selectedBatchId) return true
+      }
+
+      if (selectedBatchGroupId && (studentBatchId || studentBatchGroupId)) {
+        if (studentBatchId === selectedBatchGroupId || studentBatchGroupId === selectedBatchGroupId) return true
+      }
+
+      if (selectedBatchName) {
+        const batchMatches =
+          studentBatchName === selectedBatchName ||
+          studentBatchToken === selectedBatchToken ||
+          studentBatchToken === selectedBatchName ||
+          studentBatchName === selectedBatchToken
+
+        if (batchMatches) return true
+      }
+
+      if (selectedBatchTiming && studentBatchTiming) {
+        if (studentBatchTiming === selectedBatchTiming) return true
+      }
+
+      return false
+    })
+
+    return dedupeStudentsByIdentity(matchedStudents)
+  }, [
+    backfilledStudents,
+    currentFacultyIdentity.facultyId,
+    currentFacultyIdentity.facultyName,
+    facultyBackfillRecords,
+    facultyScopedStudents,
+    selectedStudentsBatch,
+    selectedStudentsCourse?.name,
+    selectedStudentsCourse?.courseName,
+    selectedStudentsCourse?.id,
+  ])
+
+  const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyScopedStudents
+  const studentsFlowLevel = selectedStudentsBatch ? 3 : selectedStudentsCourse ? 2 : 1
+
+  useEffect(() => {
+    if (
+      selectedStudentsCourseId &&
+      !facultyCourseRows.some((course) => getFacultyFlowCourseKey(course) === String(selectedStudentsCourseId || '').trim())
+    ) {
+      setSelectedStudentsCourseId('')
+      setSelectedStudentsBatchId('')
+    }
+  }, [facultyCourseRows, selectedStudentsCourseId])
+
+  useEffect(() => {
+    if (
+      selectedStudentsBatchId &&
+      !selectedStudentsCourseBatches.some((batch) => getFacultyFlowBatchKey(batch) === String(selectedStudentsBatchId || '').trim())
+    ) {
+      setSelectedStudentsBatchId('')
+    }
+  }, [selectedStudentsBatchId, selectedStudentsCourseBatches])
+
+  const studentsPerPage = 5
+  const studentsTotalPages = Math.max(1, Math.ceil(studentsFlowVisibleStudents.length / studentsPerPage))
+  const safeStudentsPage = Math.min(Math.max(1, studentsPage), studentsTotalPages)
+  const paginatedFacultyStudents = useMemo(() => {
+    const startIndex = (safeStudentsPage - 1) * studentsPerPage
+    return studentsFlowVisibleStudents.slice(startIndex, startIndex + studentsPerPage)
+  }, [safeStudentsPage, studentsFlowVisibleStudents])
+
+  useEffect(() => {
+    setStudentsPage((current) => Math.min(Math.max(1, current), studentsTotalPages))
+  }, [studentsTotalPages])
+
+  useEffect(() => {
+    setStudentsPage(1)
+  }, [selectedStudentsBatchId, selectedStudentsCourseId])
 
   const batchesPerPage = 5
   const totalBatchPages = Math.max(1, Math.ceil(facultyBatchRows.length / batchesPerPage))
@@ -1922,11 +2098,11 @@ export function FacultyDashboardPage() {
         .filter(Boolean),
     )
 
-    return facultyScopedStudents.filter((student) => {
+    return studentsFlowVisibleStudents.filter((student) => {
       const studentId = String(student?.id || student?.studentId || '').trim()
       return selectedIds.has(studentId)
     })
-  }, [facultyScopedStudents, todayWorkForm.selectedStudentIds])
+  }, [studentsFlowVisibleStudents, todayWorkForm.selectedStudentIds])
 
   const toggleCourseModule = (moduleId) => {
     const normalizedModuleId = String(moduleId || '').trim()
@@ -1956,7 +2132,7 @@ export function FacultyDashboardPage() {
       applyToAllStudents: true,
       moduleId: firstModuleId,
       submoduleIds: Array.isArray(nextSelection.submoduleIds) ? nextSelection.submoduleIds : [],
-      selectedStudentIds: facultyScopedStudents
+      selectedStudentIds: studentsFlowVisibleStudents
         .map((student) => String(student?.id || student?.studentId || '').trim())
         .filter(Boolean),
     })
@@ -3327,7 +3503,7 @@ const nextName = trimmedValue
               {activeSection === 'students' ? (
                 <FacultyDashboardSection
                   title={facultyViewLabel}
-                  actions={(
+                  actions={studentsFlowLevel === 3 ? (
                     <button
                       type="button"
                       className="faculty-today-work-trigger"
@@ -3336,155 +3512,286 @@ const nextName = trimmedValue
                       <BookOpen size={16} />
                       <span>Add Today&apos;s Work</span>
                     </button>
-                  )}
+                  ) : null}
                 >
-                  <div className="branch-dashboard-table-shell faculty-students-table-shell">
-                    <table className="branch-dashboard-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '64px' }}>S.No</th>
-                          <th>Student ID</th>
-                          <th>Student Name</th>
-                          <th>Email Address</th>
-                          <th>Paid</th>
-                          <th>Module Progress</th>
-                          <th>Course Progress</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {paginatedFacultyStudents.length ? (
-                          paginatedFacultyStudents.map((student, index) => {
-                            const displayIndex = (safeStudentsPage - 1) * studentsPerPage + index + 1
-                            const studentIdLabel = String(student.studentId || student.id || '-').trim()
-                            const studentName = String(student.studentName || '-').trim()
-                            const emailLabel = String(student.emailAddress || '-').trim()
-                            const paymentProgress = getStudentPaymentProgress(student)
-                            const paidAmountLabel = formatCourseAmount(paymentProgress.paidAmount)
-                            const studentKey = normalizeWorkStudentId(student.id || student.studentId || '')
-                            const workEntry = todayWorkEntriesByStudent.get(studentKey) || null
-                            const workCourse = workEntry
-                              ? courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedCourse || null
-                              : null
-                            const workProgressSummary = workEntry
-                              ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, workCourse || {}, student)
-                              : null
-                            const workProgress = workProgressSummary
-                              ? {
-                                  ...getFacultyWorkProgressForEntry(
-                                    workProgressSummary.entry || workEntry,
-                                    workCourse || {},
-                                    Array.isArray(workProgressSummary.selectedSubmoduleIds)
-                                      ? workProgressSummary.selectedSubmoduleIds
-                                      : [],
-                                  ),
-                                  courseProgress: workProgressSummary.courseProgress,
-                                  moduleProgress: workProgressSummary.moduleProgress,
-                                }
-                              : null
-                            const workModuleProgressLabel = workProgressSummary
-                              ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
-                              : '-'
-                            const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
+                  {studentsFlowLevel === 1 ? (
+                    <div className="faculty-students-flow-stage">
+                      {facultyCourseRows.length ? (
+                        <div className="branch-dashboard-table-shell faculty-students-table-shell faculty-students-flow-shell">
+                          <table className="branch-dashboard-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: '72px' }}>S.No</th>
+                                <th>Course Code</th>
+                                <th>Course Name</th>
+                                <th>Total Batches</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {facultyCourseRows.map((course, index) => (
+                                <tr key={course.id || course.courseId || course.name || index}>
+                                  <td>{index + 1}</td>
+                                  <td><strong>{course.courseCode || course.id || '-'}</strong></td>
+                                  <td>{course.name || course.courseName || '-'}</td>
+                                  <td>{course.totalBatches}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="faculty-students-flow-action-btn"
+                                      onClick={() => {
+                                        setSelectedStudentsCourseId(getFacultyFlowCourseKey(course))
+                                        setSelectedStudentsBatchId('')
+                                      }}
+                                    >
+                                      View Batches
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="faculty-my-batches-empty faculty-students-flow-empty">
+                          <strong>No assigned courses found</strong>
+                          <p>We could not find any course mapped to this faculty yet.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
 
-                            return (
-                              <tr key={student.id || student.studentId || `${studentName}-${index}`}>
-                                <td>{displayIndex}</td>
-                                <td><strong>{studentIdLabel}</strong></td>
-                                <td>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <div className="faculty-avatar">
-                                      {getInitials(studentName)}
-                                    </div>
-                                    <strong className="branch-course-name">{studentName}</strong>
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className="faculty-info-link">
-                                    <Mail size={14} style={{ color: '#94a3b8' }} />
-                                    {emailLabel}
-                                  </span>
-                                </td>
-                                <td>
-                                  <div className="branch-student-paid-cell">
-                                    <span className="branch-student-paid-amount">{paidAmountLabel}</span>
-                                    <div className="branch-student-paid-progress">
-                                      <div className="branch-student-paid-progress-bar" aria-hidden="true">
-                                        <span
-                                          className="branch-student-paid-progress-fill"
-                                          style={{ width: `${paymentProgress.paidInstallmentPercentage}%` }}
-                                        />
+                  {studentsFlowLevel === 2 ? (
+                    <div className="faculty-students-flow-stage">
+                      <button
+                        type="button"
+                        className="faculty-students-flow-back-button"
+                        onClick={() => {
+                          setSelectedStudentsCourseId('')
+                          setSelectedStudentsBatchId('')
+                        }}
+                      >
+                        <ArrowLeft size={16} />
+                        <span>Back to Courses</span>
+                      </button>
+
+                      <div className="faculty-students-flow-context">
+                        <strong>{selectedStudentsCourse?.name || selectedStudentsCourse?.courseName || 'Course'}</strong>
+                        <span>{selectedStudentsCourse?.courseCode || selectedStudentsCourse?.id || '-'}</span>
+                      </div>
+
+                      {selectedStudentsCourseBatches.length ? (
+                        <div className="branch-dashboard-table-shell faculty-students-table-shell faculty-students-flow-shell">
+                          <table className="branch-dashboard-table">
+                            <thead>
+                              <tr>
+                                <th style={{ width: '72px' }}>S.No</th>
+                                <th>Batch Name</th>
+                                <th>Students</th>
+                                <th>Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedStudentsCourseBatches.map((batch, index) => (
+                                <tr key={getFacultyFlowBatchKey(batch) || batch.id || index}>
+                                  <td>{index + 1}</td>
+                                  <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
+                                  <td>{batch.students}</td>
+                                  <td>
+                                    <button
+                                      type="button"
+                                      className="faculty-students-flow-action-btn is-primary"
+                                      onClick={() => {
+                                        setSelectedStudentsBatchId(getFacultyFlowBatchKey(batch))
+                                      }}
+                                    >
+                                      View Students
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="faculty-my-batches-empty faculty-students-flow-empty">
+                          <strong>No batches found</strong>
+                          <p>This course does not have any mapped batches yet.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {studentsFlowLevel === 3 ? (
+                    <>
+                      <div className="faculty-students-flow-stage">
+                        <button
+                          type="button"
+                          className="faculty-students-flow-back-button"
+                          onClick={() => {
+                            setSelectedStudentsBatchId('')
+                          }}
+                        >
+                          <ArrowLeft size={16} />
+                          <span>Back to Batches</span>
+                        </button>
+
+                        <div className="faculty-students-flow-context">
+                          <strong>{selectedStudentsCourse?.name || selectedStudentsCourse?.courseName || 'Course'}</strong>
+                          <span>{selectedStudentsCourse?.courseCode || selectedStudentsCourse?.id || '-'}</span>
+                          <strong>{selectedStudentsBatch?.batchName || selectedStudentsBatch?.code || selectedStudentsBatch?.timing || 'Batch'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="branch-dashboard-table-shell faculty-students-table-shell">
+                        <table className="branch-dashboard-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: '64px' }}>S.No</th>
+                              <th>Student ID</th>
+                              <th>Student Name</th>
+                              <th>Email Address</th>
+                              <th>Paid</th>
+                              <th>Module Progress</th>
+                              <th>Course Progress</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {paginatedFacultyStudents.length ? (
+                              paginatedFacultyStudents.map((student, index) => {
+                                const displayIndex = (safeStudentsPage - 1) * studentsPerPage + index + 1
+                                const studentIdLabel = String(student.studentId || student.id || '-').trim()
+                                const studentName = String(student.studentName || '-').trim()
+                                const emailLabel = String(student.emailAddress || '-').trim()
+                                const paymentProgress = getStudentPaymentProgress(student)
+                                const paidAmountLabel = formatCourseAmount(paymentProgress.paidAmount)
+                                const studentKey = normalizeWorkStudentId(student.id || student.studentId || '')
+                                const workEntry = todayWorkEntriesByStudent.get(studentKey) || null
+                                const workCourse = workEntry
+                                  ? courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedCourse || null
+                                  : null
+                                const workProgressSummary = workEntry
+                                  ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, workCourse || {}, student)
+                                  : null
+                                const workProgress = workProgressSummary
+                                  ? {
+                                      ...getFacultyWorkProgressForEntry(
+                                        workProgressSummary.entry || workEntry,
+                                        workCourse || {},
+                                        Array.isArray(workProgressSummary.selectedSubmoduleIds)
+                                          ? workProgressSummary.selectedSubmoduleIds
+                                          : [],
+                                      ),
+                                      courseProgress: workProgressSummary.courseProgress,
+                                      moduleProgress: workProgressSummary.moduleProgress,
+                                    }
+                                  : null
+                                const workModuleProgressLabel = workProgressSummary
+                                  ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
+                                  : '-'
+                                const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
+
+                                return (
+                                  <tr key={student.id || student.studentId || `${studentName}-${index}`}>
+                                    <td>{displayIndex}</td>
+                                    <td><strong>{studentIdLabel}</strong></td>
+                                    <td>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <div className="faculty-avatar">
+                                          {getInitials(studentName)}
+                                        </div>
+                                        <strong className="branch-course-name">{studentName}</strong>
                                       </div>
-                                      <span className="branch-student-paid-progress-label">
-                                        {formatPaymentPercentage(paymentProgress.paidInstallmentPercentage)}% Paid
+                                    </td>
+                                    <td>
+                                      <span className="faculty-info-link">
+                                        <Mail size={14} style={{ color: '#94a3b8' }} />
+                                        {emailLabel}
                                       </span>
-                                    </div>
+                                    </td>
+                                    <td>
+                                      <div className="branch-student-paid-cell">
+                                        <span className="branch-student-paid-amount">{paidAmountLabel}</span>
+                                        <div className="branch-student-paid-progress">
+                                          <div className="branch-student-paid-progress-bar" aria-hidden="true">
+                                            <span
+                                              className="branch-student-paid-progress-fill"
+                                              style={{ width: `${paymentProgress.paidInstallmentPercentage}%` }}
+                                            />
+                                          </div>
+                                          <span className="branch-student-paid-progress-label">
+                                            {formatPaymentPercentage(paymentProgress.paidInstallmentPercentage)}% Paid
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td>
+                                      {workEntry ? (
+                                        <div className="branch-student-paid-cell faculty-today-work-summary">
+                                          <div className="branch-student-paid-progress">
+                                            <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
+                                              <span
+                                                className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
+                                                style={{ width: `${workProgress?.moduleProgress || 0}%` }}
+                                              />
+                                            </div>
+                                            <span className="branch-student-paid-progress-label">
+                                              {workModuleProgressLabel}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="faculty-today-work-empty-label">-</span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      {workEntry ? (
+                                        <div className="branch-student-paid-cell faculty-today-work-summary">
+                                          <div className="branch-student-paid-progress">
+                                            <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
+                                              <span
+                                                className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
+                                                style={{ width: `${workProgress?.courseProgress || 0}%` }}
+                                              />
+                                            </div>
+                                            <span className="branch-student-paid-progress-label">
+                                              {workCourseProgressLabel}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span className="faculty-today-work-empty-label">-</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              })
+                            ) : (
+                              <tr>
+                                <td className="faculty-students-empty-cell" colSpan={7}>
+                                  <div className="faculty-my-batches-empty">
+                                    <strong>No students found</strong>
+                                    <p>Students selected with this batch will show up here once they are saved.</p>
                                   </div>
-                                </td>
-                                <td>
-                                  {workEntry ? (
-                                    <div className="branch-student-paid-cell faculty-today-work-summary">
-                                      <div className="branch-student-paid-progress">
-                                        <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
-                                          <span
-                                            className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
-                                            style={{ width: `${workProgress?.moduleProgress || 0}%` }}
-                                          />
-                                        </div>
-                                        <span className="branch-student-paid-progress-label">
-                                          {workModuleProgressLabel}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <span className="faculty-today-work-empty-label">-</span>
-                                  )}
-                                </td>
-                                <td>
-                                  {workEntry ? (
-                                    <div className="branch-student-paid-cell faculty-today-work-summary">
-                                      <div className="branch-student-paid-progress">
-                                        <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
-                                          <span
-                                            className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
-                                            style={{ width: `${workProgress?.courseProgress || 0}%` }}
-                                          />
-                                        </div>
-                                        <span className="branch-student-paid-progress-label">
-                                          {workCourseProgressLabel}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <span className="faculty-today-work-empty-label">-</span>
-                                  )}
                                 </td>
                               </tr>
-                            )
-                          })
-                        ) : (
-                          <tr>
-                            <td className="faculty-students-empty-cell" colSpan={7}>
-                              <div className="faculty-my-batches-empty">
-                                <strong>No students found</strong>
-                                <p>Students selected with this faculty from the branch dashboard will show up here once they are saved.</p>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                    {facultyScopedStudents.length > studentsPerPage ? (
-                      <div className="faculty-students-pagination-wrap">
-                        <PaginationBar
-                          currentPage={safeStudentsPage}
-                          totalPages={studentsTotalPages}
-                          onPageChange={setStudentsPage}
-                          className="faculty-students-pagination"
-                          label="Students pagination"
-                        />
+                            )}
+                          </tbody>
+                        </table>
+                        {studentsFlowVisibleStudents.length > studentsPerPage ? (
+                          <div className="faculty-students-pagination-wrap">
+                            <PaginationBar
+                              currentPage={safeStudentsPage}
+                              totalPages={studentsTotalPages}
+                              onPageChange={setStudentsPage}
+                              className="faculty-students-pagination"
+                              label="Students pagination"
+                            />
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
-                  </div>
+                    </>
+                  ) : null}
                 </FacultyDashboardSection>
               ) : null}
 
@@ -3743,16 +4050,16 @@ const nextName = trimmedValue
                       selectedStudentIds: checked
                         ? (Array.isArray(current.selectedStudentIds) && current.selectedStudentIds.length
                           ? current.selectedStudentIds
-                          : facultyScopedStudents.map((student) => String(student?.id || student?.studentId || '').trim()).filter(Boolean))
+                          : studentsFlowVisibleStudents.map((student) => String(student?.id || student?.studentId || '').trim()).filter(Boolean))
                         : (Array.isArray(current.selectedStudentIds) && current.selectedStudentIds.length
                           ? current.selectedStudentIds
-                          : facultyScopedStudents.map((student) => String(student?.id || student?.studentId || '').trim()).filter(Boolean)),
+                          : studentsFlowVisibleStudents.map((student) => String(student?.id || student?.studentId || '').trim()).filter(Boolean)),
                     }))
                   }}
                 />
                 <div>
                   <strong>Update All Students</strong>
-                  <span>Selected work will be applied to all students connected to you.</span>
+                  <span>Selected work will be applied to the students currently visible in this flow.</span>
                 </div>
               </label>
 
@@ -3927,9 +4234,9 @@ const nextName = trimmedValue
                     </span>
                   </div>
 
-                  {facultyScopedStudents.length ? (
+                  {studentsFlowVisibleStudents.length ? (
                     <div className="faculty-today-work-student-list">
-                      {facultyScopedStudents.map((student, index) => {
+                      {studentsFlowVisibleStudents.map((student, index) => {
                         const studentId = String(student?.id || student?.studentId || '').trim()
                         const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
                         const studentEmail = String(student?.emailAddress || student?.email || '-').trim()
@@ -3955,13 +4262,13 @@ const nextName = trimmedValue
                     </div>
                   ) : (
                     <div className="faculty-today-work-empty">
-                      No students found for this faculty yet.
+                      No students found for the selected batch yet.
                     </div>
                   )}
                 </section>
               ) : (
                 <div className="faculty-today-work-all-note">
-                  This work will be applied to all {facultyScopedStudents.length} student{facultyScopedStudents.length === 1 ? '' : 's'} assigned to {String(currentFacultyIdentity.facultyName || facultyName || 'this faculty').trim()}.
+                  This work will be applied to all {studentsFlowVisibleStudents.length} student{studentsFlowVisibleStudents.length === 1 ? '' : 's'} currently visible in this batch.
                 </div>
               )}
 
