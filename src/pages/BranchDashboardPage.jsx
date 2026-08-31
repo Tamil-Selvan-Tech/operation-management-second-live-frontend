@@ -1730,7 +1730,10 @@ function buildBalancedBranchInstallmentAmounts(totalFee = 0, count = 3) {
   }
 
   const averageAmount = safeTotal / safeCount
-  const roundedInstallmentAmount = Math.floor(averageAmount / 1000) * 1000
+  let roundedInstallmentAmount = Math.round(averageAmount / 1000) * 1000
+  while (roundedInstallmentAmount > 0 && roundedInstallmentAmount * (safeCount - 1) > safeTotal) {
+    roundedInstallmentAmount -= 1000
+  }
   const previousInstallmentsTotal = roundedInstallmentAmount * (safeCount - 1)
   const finalInstallmentAmount = Math.max(safeTotal - previousInstallmentsTotal, 0)
 
@@ -5070,18 +5073,7 @@ const studentCourseOptions = useMemo(() => {
 
     if (!total || !studentInstallmentCount) return []
 
-    const baseAmount = Math.floor((total / studentInstallmentCount) * 100) / 100
-    const amounts = Array(studentInstallmentCount).fill(baseAmount)
-
-    const currentTotal = amounts.reduce((sum, amount) => sum + amount, 0)
-    const difference = Number((total - currentTotal).toFixed(2))
-
-    // Any decimal/remainder goes to the last installment
-    amounts[amounts.length - 1] = Number(
-      (amounts[amounts.length - 1] + difference).toFixed(2),
-    )
-
-    return amounts
+    return buildBranchCoursePaymentPlanInstallments(total, studentInstallmentCount).map((amount) => Number(amount))
   }, [selectedStudentCourseAmount, studentInstallmentCount])
 
   useEffect(() => {
@@ -10734,11 +10726,7 @@ else {
                 </td>
 
                 <td>
-                  ₹
-                  {(inst.amount || 0).toLocaleString('en-IN', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
+                  {formatBranchRupees(inst.amount || 0)}
                 </td>
 
                 <td>
@@ -11658,10 +11646,7 @@ else {
     <td>Installment {index + 1}</td>
 
     <td>
-      ₹{amount.toLocaleString('en-IN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}
+      {formatBranchRupees(amount)}
     </td>
 
     <td>
@@ -11689,14 +11674,7 @@ else {
               <strong>Total</strong>
             </td>
             <td>
-              <strong>
-                ₹{studentInstallmentAmounts
-                  .reduce((sum, amount) => sum + amount, 0)
-                  .toLocaleString('en-IN', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })}
-              </strong>
+              <strong>{formatBranchRupees(studentInstallmentAmounts.reduce((sum, amount) => sum + amount, 0))}</strong>
             </td>
           </tr>
         </tbody>
