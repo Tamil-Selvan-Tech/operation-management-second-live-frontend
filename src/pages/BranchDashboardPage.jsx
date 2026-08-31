@@ -53,6 +53,7 @@ import {
   listBranchCourses,
   updateBranchCourse,
 } from '../services/branchCourseService'
+import { listBranchBatches } from '../services/branchBatchService'
 import {
   listBranchInstallmentTemplates,
   subscribeBranchInstallmentTemplateChanges,
@@ -139,8 +140,8 @@ const STUDENT_FORM_STEP_TWO_FIELDS = [
 ]
 const STUDENT_FORM_STEP_THREE_FIELDS = [
   'courseId',
-  'facultyId',
-  'facultyName',
+  'batchId',
+  'batchTiming',
   'courseAmount',
 ]
 const STUDENT_FORM_STEP_FIELDS = {
@@ -192,6 +193,85 @@ function buildInstallmentDueDates(count = 0, startDate = getTodayValue(), interv
   return Array.from({ length: safeCount }, (_, index) => addDaysToDateString(startDate, index * intervalDays))
 }
 
+function formatStudentBatchTiming(batch = {}) {
+  const directTiming = String(batch?.batchTiming || '').trim()
+  if (directTiming) return directTiming
+
+  const startTime = String(batch?.startTime || '').trim()
+  const endTime = String(batch?.endTime || '').trim()
+  const startPeriod = String(batch?.startPeriod || '').trim().toUpperCase()
+  const endPeriod = String(batch?.endPeriod || '').trim().toUpperCase()
+
+  const buildClock = (time, period) => {
+    if (!time) return ''
+    const text = String(time).trim()
+    if (/AM|PM/i.test(text)) return text
+    return period ? `${text} ${period}` : text
+  }
+
+  const formattedStart = buildClock(startTime, startPeriod)
+  const formattedEnd = buildClock(endTime, endPeriod)
+
+  if (formattedStart && formattedEnd) return `${formattedStart} - ${formattedEnd}`
+  if (formattedStart) return formattedStart
+  if (formattedEnd) return formattedEnd
+  return ''
+}
+
+function formatStudentBatchLabel(batch = {}) {
+  const name = String(batch?.batchName || batch?.batchId || '').trim()
+  const id = String(batch?.batchId || '').trim()
+  const timing = String(batch?.batchTiming || '').trim()
+
+  if (name && timing) return `${name} • ${timing}`
+  if (name && id) return `${name} • ${id}`
+  return name || id || timing || 'Batch'
+}
+
+function resolveStudentBatchDisplay(student = {}, batchGroups = []) {
+  const batchId = String(student?.batchId || student?.batchEntryId || '').trim()
+  const batchName = String(student?.batchName || student?.batch || '').trim()
+  const batchTiming = String(student?.batchTiming || student?.batchTime || '').trim()
+  const courseId = String(student?.courseId || student?.course?.id || '').trim()
+
+  if (batchTiming) {
+    return {
+      batchId,
+      batchName: batchName || batchId,
+      batchTiming,
+    }
+  }
+
+  const groups = Array.isArray(batchGroups) ? batchGroups : []
+  for (const group of groups) {
+    const groupCourseId = String(group?.courseId || group?.branchCourseId || '').trim()
+    if (courseId && groupCourseId && groupCourseId !== courseId) continue
+
+    const matchedBatch = (Array.isArray(group?.batches) ? group.batches : []).find((batch) => {
+      const candidateBatchId = String(batch?.batchId || batch?.id || '').trim()
+      const candidateBatchName = String(batch?.batchName || '').trim()
+      return (
+        (batchId && candidateBatchId && candidateBatchId === batchId) ||
+        (batchName && candidateBatchName && candidateBatchName === batchName)
+      )
+    }) || null
+
+    if (matchedBatch) {
+      return {
+        batchId: batchId || String(matchedBatch.batchId || matchedBatch.id || '').trim(),
+        batchName: batchName || String(matchedBatch.batchName || matchedBatch.batchId || '').trim(),
+        batchTiming: formatStudentBatchTiming(matchedBatch),
+      }
+    }
+  }
+
+  return {
+    batchId,
+    batchName: batchName || batchId,
+    batchTiming,
+  }
+}
+
 function createInitialStudentForm(branchId) {
   const nextStudentId = getNextStudentId(branchId)
   return {
@@ -221,6 +301,10 @@ function createInitialStudentForm(branchId) {
     admissionDate: getTodayValue(),
     courseId: '',
     courseName: '',
+    batchGroupId: '',
+    batchId: '',
+    batchName: '',
+    batchTiming: '',
     facultyId: '',
     facultyName: '',
     facultyEmail: '',
@@ -260,6 +344,10 @@ function buildStudentFormFromRecord(student = {}) {
     admissionDate: student.admissionDate || '',
     courseId: student.courseId || student.course?.id || '',
     courseName: student.courseName || student.courseInterested || student.course?.name || '',
+    batchGroupId: student.batchGroupId || student.batch?.batchGroupId || '',
+    batchId: student.batchId || student.batch?.batchId || student.batchEntryId || '',
+    batchName: student.batchName || student.batch?.batchName || student.batch || '',
+    batchTiming: student.batchTiming || student.batch?.batchTiming || '',
     facultyId: student.facultyId || student.course?.facultyId || '',
     facultyName: student.facultyName || student.course?.facultyName || '',
     facultyEmail: student.facultyEmail || student.course?.facultyEmail || '',
@@ -299,7 +387,8 @@ function validateStudentForm(form, students = []) {
   if (form.source === 'Others' && !form.sourceOther.trim()) errors.sourceOther = 'Please specify.'
   if (!form.admissionDate) errors.admissionDate = 'Admission Date is required.'
   if (!form.courseId) errors.courseId = 'Course is required.'
-  if (!form.facultyName.trim()) errors.facultyName = 'Faculty is required.'
+  if (!form.batchId.trim()) errors.batchId = 'Batch is required.'
+  if (!form.batchTiming.trim()) errors.batchTiming = 'Batch timing is required.'
   if (!form.courseAmount.trim()) errors.courseAmount = 'Course amount is required.'
 
   const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
@@ -2329,6 +2418,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [selectedSavedSubmodelIndex, setSelectedSavedSubmodelIndex] = useState(0)
   const [savedCourseHierarchy, setSavedCourseHierarchy] = useState([])
   const [branchCourseCards, setBranchCourseCards] = useState([])
+  const [branchBatchGroups, setBranchBatchGroups] = useState([])
   const [courseSearchTerm, setCourseSearchTerm] = useState('')
   const [branchCoursePage, setBranchCoursePage] = useState(1)
   const [editingCourseId, setEditingCourseId] = useState('')
@@ -2499,6 +2589,20 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
     })
     return result
   }, [branchProfile?.branchId, branchProfile?.id])
+
+  const loadBranchBatches = useCallback(async (branchScopeId = '') => {
+    const scopeId = String(branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '').trim()
+    const result = await listBranchBatches({
+      page: 1,
+      limit: 100,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      ...(scopeId ? { branchId: scopeId } : {}),
+    })
+
+    setBranchBatchGroups(Array.isArray(result?.data) ? result.data : [])
+    return result
+  }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id])
 
   const loadFacultyList = useCallback(async () => {
     try {
@@ -2681,6 +2785,14 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       isMounted = false
     }
   }, [isAuthenticated, loadBranchCourses, loadFacultyList, navigate, role, session, user])
+
+  useEffect(() => {
+    const scopeId = branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''
+    if (!scopeId) return undefined
+
+    void loadBranchBatches(scopeId)
+    return undefined
+  }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id, loadBranchBatches])
 
   useEffect(() => {
     const nextBranchId = branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || null
@@ -3057,7 +3169,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
-    setViewStudentDrawer({ ...student })
+    setViewStudentDrawer({
+      ...student,
+      ...resolveStudentBatchDisplay(student, branchBatchGroups),
+    })
   }
 
   const openRecordPaymentConfirmation = (student) => {
@@ -4675,75 +4790,116 @@ const studentCourseOptions = useMemo(() => {
     [studentCourseOptions, studentForm.courseId],
   )
 
-  const selectedStudentCourseFacultyOptions = useMemo(
-    () => Array.isArray(selectedStudentCourse?.assignedFaculty) ? selectedStudentCourse.assignedFaculty : [],
-    [selectedStudentCourse],
-  )
-
   const selectedStudentCourseAmount = useMemo(
     () => String(selectedStudentCourse?.amount || studentForm.courseAmount || '').trim(),
     [selectedStudentCourse, studentForm.courseAmount],
   )
-const selectedStudentCoursePaymentPlans = useMemo(
-  () =>
-    Array.isArray(selectedStudentCourse?.paymentPlans)
-      ? selectedStudentCourse.paymentPlans
-      : [],
-  [selectedStudentCourse],
-)
-const selectedStudentPaymentPlan = useMemo(
-  () =>
-    selectedStudentCoursePaymentPlans.find(
-      (plan) =>
-        String(plan.id || '').trim() ===
-        String(studentForm.paymentPlanId || '').trim()
-    ) || null,
-  [selectedStudentCoursePaymentPlans, studentForm.paymentPlanId]
-)
+  const selectedStudentCourseBatchOptions = useMemo(() => {
+    const courseId = String(studentForm.courseId || '').trim()
+    if (!courseId) return []
 
-const studentInstallmentCount = useMemo(() => {
-  if (!selectedStudentPaymentPlan) return 0
+    return branchBatchGroups
+      .filter((group) => String(group?.courseId || group?.branchCourseId || '').trim() === courseId)
+      .flatMap((group) => {
+        const batches = Array.isArray(group?.batches) ? group.batches : []
+        return batches
+          .map((batch) => {
+            const batchId = String(batch?.batchId || batch?.id || '').trim()
+            const batchName = String(batch?.batchName || '').trim()
+            if (!batchId && !batchName) return null
 
-  const count = Number(
-    selectedStudentPaymentPlan.installmentCount ||
-    selectedStudentPaymentPlan.installments?.length ||
-    0
+            const batchTiming = formatStudentBatchTiming(batch)
+            return {
+              value: batchId || batchName,
+              batchId: batchId || batchName,
+              batchName: batchName || batchId,
+              batchTiming,
+              batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
+              courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
+              courseName: String(group?.courseName || '').trim(),
+              facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
+              facultyName: String(group?.facultyName || '').trim(),
+              facultyEmail: String(group?.facultyEmail || '').trim(),
+              facultyPhone: String(group?.facultyPhone || '').trim(),
+              label: batchName || batchId || 'Batch',
+            }
+          })
+          .filter(Boolean)
+      })
+      .sort((left, right) => String(left.batchId || left.batchName || '').localeCompare(String(right.batchId || right.batchName || '')))
+  }, [branchBatchGroups, studentForm.courseId])
+
+  const selectedStudentBatchOption = useMemo(
+    () => selectedStudentCourseBatchOptions.find((batch) => {
+      const currentBatchId = String(studentForm.batchId || '').trim().toLowerCase()
+      const currentBatchName = String(studentForm.batchName || '').trim().toLowerCase()
+      return (
+        String(batch.batchId || '').trim().toLowerCase() === currentBatchId ||
+        String(batch.batchName || '').trim().toLowerCase() === currentBatchName
+      )
+    }) || null,
+    [selectedStudentCourseBatchOptions, studentForm.batchId, studentForm.batchName],
   )
 
-  return Number.isFinite(count) && count > 0 ? count : 0
-}, [selectedStudentPaymentPlan])
-
-const studentInstallmentAmounts = useMemo(() => {
-  const total = Number(
-    String(selectedStudentCourseAmount || '').replace(/,/g, '')
+  const selectedStudentCoursePaymentPlans = useMemo(
+    () =>
+      Array.isArray(selectedStudentCourse?.paymentPlans)
+        ? selectedStudentCourse.paymentPlans
+        : [],
+    [selectedStudentCourse],
   )
 
-  if (!total || !studentInstallmentCount) return []
-
-  const baseAmount = Math.floor((total / studentInstallmentCount) * 100) / 100
-  const amounts = Array(studentInstallmentCount).fill(baseAmount)
-
-  const currentTotal = amounts.reduce((sum, amount) => sum + amount, 0)
-  const difference = Number((total - currentTotal).toFixed(2))
-
-  // Any decimal/remainder goes to the last installment
-  amounts[amounts.length - 1] = Number(
-    (amounts[amounts.length - 1] + difference).toFixed(2)
+  const selectedStudentPaymentPlan = useMemo(
+    () =>
+      selectedStudentCoursePaymentPlans.find(
+        (plan) =>
+          String(plan.id || '').trim() ===
+          String(studentForm.paymentPlanId || '').trim(),
+      ) || null,
+    [selectedStudentCoursePaymentPlans, studentForm.paymentPlanId],
   )
 
-  return amounts
-}, [
-  selectedStudentCourseAmount,
-  studentInstallmentCount
-])
-useEffect(() => {
-  if (!studentInstallmentCount) {
-    setStudentInstallmentDueDates([])
-    return
-  }
+  const studentInstallmentCount = useMemo(() => {
+    if (!selectedStudentPaymentPlan) return 0
 
-  setStudentInstallmentDueDates(buildInstallmentDueDates(studentInstallmentCount))
-}, [studentInstallmentCount])
+    const count = Number(
+      selectedStudentPaymentPlan.installmentCount ||
+      selectedStudentPaymentPlan.installments?.length ||
+      0,
+    )
+
+    return Number.isFinite(count) && count > 0 ? count : 0
+  }, [selectedStudentPaymentPlan])
+
+  const studentInstallmentAmounts = useMemo(() => {
+    const total = Number(
+      String(selectedStudentCourseAmount || '').replace(/,/g, ''),
+    )
+
+    if (!total || !studentInstallmentCount) return []
+
+    const baseAmount = Math.floor((total / studentInstallmentCount) * 100) / 100
+    const amounts = Array(studentInstallmentCount).fill(baseAmount)
+
+    const currentTotal = amounts.reduce((sum, amount) => sum + amount, 0)
+    const difference = Number((total - currentTotal).toFixed(2))
+
+    // Any decimal/remainder goes to the last installment
+    amounts[amounts.length - 1] = Number(
+      (amounts[amounts.length - 1] + difference).toFixed(2),
+    )
+
+    return amounts
+  }, [selectedStudentCourseAmount, studentInstallmentCount])
+
+  useEffect(() => {
+    if (!studentInstallmentCount) {
+      setStudentInstallmentDueDates([])
+      return
+    }
+
+    setStudentInstallmentDueDates(buildInstallmentDueDates(studentInstallmentCount))
+  }, [studentInstallmentCount])
 
   const handleStudentCourseChange = (courseId) => {
     const nextCourseId = String(courseId || '').trim()
@@ -4753,52 +4909,60 @@ useEffect(() => {
         ...current,
         courseId: '',
         courseName: '',
+        batchGroupId: '',
+        batchId: '',
+        batchName: '',
+        batchTiming: '',
         facultyId: '',
         facultyName: '',
+        facultyEmail: '',
+        facultyPhone: '',
         courseAmount: '',
+        paymentPlans: [],
+        paymentPlan: '',
+        paymentPlanId: '',
       }))
       return
     }
 
     const nextCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === nextCourseId) || null
-    const nextFacultyOptions = Array.isArray(nextCourse?.assignedFaculty) ? nextCourse.assignedFaculty : []
-
-    const nextPaymentPlans = Array.isArray(nextCourse?.paymentPlans)
-  ? nextCourse.paymentPlans
-  : []
+    const nextPaymentPlans = Array.isArray(nextCourse?.paymentPlans) ? nextCourse.paymentPlans : []
 
     setStudentForm((current) => {
-      const currentFacultyId = String(current.facultyId || '').trim().toLowerCase()
-      const currentFacultyName = String(current.facultyName || '').trim().toLowerCase()
-      const matchedFaculty = nextFacultyOptions.find((faculty) =>
-        String(faculty.id || '').trim().toLowerCase() === currentFacultyId ||
-        String(faculty.name || '').trim().toLowerCase() === currentFacultyName,
-      ) || null
-
       return {
         ...current,
         courseId: nextCourse?.id || nextCourseId,
         courseName: nextCourse?.name || '',
         courseAmount: nextCourse?.amount || '',
-        facultyId: matchedFaculty?.id || '',
-        facultyName: matchedFaculty?.name || '',
+        batchGroupId: '',
+        batchId: '',
+        batchName: '',
+        batchTiming: '',
+        facultyId: '',
+        facultyName: '',
+        facultyEmail: '',
+        facultyPhone: '',
         paymentPlans: nextPaymentPlans,
-paymentPlan: '',
-paymentPlanId: '',
+        paymentPlan: '',
+        paymentPlanId: '',
       }
     })
   }
 
-  const handleStudentFacultyChange = (facultyId) => {
-    const nextFacultyId = String(facultyId || '').trim()
-    const nextFaculty = selectedStudentCourseFacultyOptions.find((faculty) => String(faculty.id || '').trim() === nextFacultyId) || null
+  const handleStudentBatchChange = (batchId) => {
+    const nextBatchId = String(batchId || '').trim()
+    const nextBatch = selectedStudentCourseBatchOptions.find((batch) => String(batch.batchId || '').trim() === nextBatchId) || null
 
     setStudentForm((current) => ({
       ...current,
-      facultyId: nextFaculty?.id || '',
-      facultyName: nextFaculty?.name || '',
-      facultyEmail: nextFaculty?.email || '',
-      facultyPhone: nextFaculty?.phone || '',
+      batchGroupId: nextBatch?.batchGroupId || '',
+      batchId: nextBatch?.batchId || '',
+      batchName: nextBatch?.batchName || '',
+      batchTiming: nextBatch?.batchTiming || '',
+      facultyId: nextBatch?.facultyId || '',
+      facultyName: nextBatch?.facultyName || '',
+      facultyEmail: nextBatch?.facultyEmail || '',
+      facultyPhone: nextBatch?.facultyPhone || '',
     }))
   }
 
@@ -4860,49 +5024,6 @@ paymentPlanId: '',
     }).catch(() => { if (!cancelled) setStuCityOptions([]) })
     return () => { cancelled = true }
   }, [studentForm.countryCode, studentForm.stateCode])
-
-  useEffect(() => {
-    if (!isStudentFormOpen || studentFormMode === 'view') return undefined
-    const courseId = String(studentForm.courseId || '').trim()
-    if (!courseId) return undefined
-
-    const currentCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === courseId) || null
-    if (!currentCourse) return undefined
-
-    const nextCourseAmount = String(currentCourse.amount || '').trim()
-    const currentCourseAmount = String(studentForm.courseAmount || '').trim()
-    const nextFacultyOptions = Array.isArray(currentCourse.assignedFaculty) ? currentCourse.assignedFaculty : []
-    const currentFacultyId = String(studentForm.facultyId || '').trim().toLowerCase()
-    const currentFacultyName = String(studentForm.facultyName || '').trim().toLowerCase()
-    const matchedFaculty = nextFacultyOptions.find((faculty) =>
-      String(faculty.id || '').trim().toLowerCase() === currentFacultyId ||
-      String(faculty.name || '').trim().toLowerCase() === currentFacultyName,
-    ) || null
-
-    const needsAmountSync = nextCourseAmount && currentCourseAmount !== nextCourseAmount
-    const needsFacultySync = (currentFacultyId || currentFacultyName) && !matchedFaculty
-
-    if (!needsAmountSync && !needsFacultySync) return undefined
-
-    setStudentForm((current) => {
-      if (String(current.courseId || '').trim() !== courseId) return current
-
-      const syncFaculty = nextFacultyOptions.find((faculty) =>
-        String(faculty.id || '').trim().toLowerCase() === String(current.facultyId || '').trim().toLowerCase() ||
-        String(faculty.name || '').trim().toLowerCase() === String(current.facultyName || '').trim().toLowerCase(),
-      ) || null
-
-      return {
-        ...current,
-        courseName: currentCourse.name || current.courseName,
-        courseAmount: nextCourseAmount || current.courseAmount,
-        facultyId: syncFaculty?.id || '',
-        facultyName: syncFaculty?.name || '',
-      }
-    })
-
-    return undefined
-  }, [isStudentFormOpen, studentCourseOptions, studentForm.courseAmount, studentForm.courseId, studentForm.facultyId, studentForm.facultyName, studentFormMode])
 
   // Body scroll lock for student form
   useEffect(() => {
@@ -5600,12 +5721,7 @@ useEffect(() => {
     const originalStudentId = String(studentForm.originalStudentId || studentForm.studentId || '').trim()
     const resolvedStudentId = buildStudentIdFromSuffix(studentForm.studentIdSuffix)
     const selectedCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null
-    const selectedFaculty = Array.isArray(selectedCourse?.assignedFaculty)
-      ? selectedCourse.assignedFaculty.find((faculty) =>
-        String(faculty.id || '').trim().toLowerCase() === String(studentForm.facultyId || '').trim().toLowerCase() ||
-        String(faculty.name || '').trim().toLowerCase() === String(studentForm.facultyName || '').trim().toLowerCase(),
-      ) || null
-      : null
+    const selectedBatch = selectedStudentBatchOption
     const resolvedCourseAmount = String(selectedCourse?.amount || studentForm.courseAmount || '').trim()
     const duplicateStudent = branchStudents.find((student) => {
       const currentStudentId = String(student.studentId || '').trim()
@@ -5628,10 +5744,14 @@ useEffect(() => {
       source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
       courseId: selectedCourse?.id || String(studentForm.courseId || '').trim(),
       courseName: selectedCourse?.name || String(studentForm.courseName || '').trim(),
-      facultyId: selectedFaculty?.id || String(studentForm.facultyId || '').trim(),
-      facultyName: selectedFaculty?.name || String(studentForm.facultyName || '').trim(),
-      facultyEmail: selectedFaculty?.email || String(studentForm.facultyEmail || '').trim(),
-      facultyPhone: selectedFaculty?.phone || String(studentForm.facultyPhone || '').trim(),
+      batchGroupId: selectedBatch?.batchGroupId || String(studentForm.batchGroupId || '').trim(),
+      batchId: selectedBatch?.batchId || String(studentForm.batchId || '').trim(),
+      batchName: selectedBatch?.batchName || String(studentForm.batchName || '').trim(),
+      batchTiming: selectedBatch?.batchTiming || String(studentForm.batchTiming || '').trim(),
+      facultyId: selectedBatch?.facultyId || String(studentForm.facultyId || '').trim(),
+      facultyName: selectedBatch?.facultyName || String(studentForm.facultyName || '').trim(),
+      facultyEmail: selectedBatch?.facultyEmail || String(studentForm.facultyEmail || '').trim(),
+      facultyPhone: selectedBatch?.facultyPhone || String(studentForm.facultyPhone || '').trim(),
       courseAmount: resolvedCourseAmount,
       totalAmount: resolvedCourseAmount,
       actualFees: String(selectedCourse?.actualFees ?? '').trim(),
@@ -10263,6 +10383,22 @@ else {
   </>
 ) : (
   <>
+    {/* Batch */}
+    <div className="student-details-row">
+      <div className="student-details-label">Batch</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.batchName || viewStudentDrawer.batchId || '-'}
+      </div>
+    </div>
+
+    {/* Batch Timing */}
+    <div className="student-details-row">
+      <div className="student-details-label">Batch Timing</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.batchTiming || '-'}
+      </div>
+    </div>
+
     {/* Course */}
     <div className="student-details-row">
       <div className="student-details-label">Course</div>
@@ -11089,46 +11225,67 @@ else {
         </Field>
 
         <Field
-          label="Select Faculty"
+          label="Select Batch"
           required
           error={
-            shouldShowStudentError('facultyName')
-              ? studentFormValidationErrors.facultyName
+            shouldShowStudentError('batchId')
+              ? studentFormValidationErrors.batchId
               : ''
           }
         >
           <select
-            value={studentForm.facultyId}
+            value={studentForm.batchId}
             onChange={(e) =>
-              handleStudentFacultyChange(e.target.value)
+              handleStudentBatchChange(e.target.value)
             }
             onBlur={() =>
               setStudentFormTouched((c) => ({
                 ...c,
-                facultyName: true,
+                batchId: true,
               }))
             }
             disabled={
               studentFormMode === 'view' ||
               !studentForm.courseId ||
-              !selectedStudentCourseFacultyOptions.length
+              !selectedStudentCourseBatchOptions.length
             }
           >
-            <option value="">Select Faculty</option>
+            <option value="">{studentForm.courseId ? 'Select Batch' : 'Select Course first'}</option>
 
-            {selectedStudentCourseFacultyOptions.map((faculty) => (
-              <option key={faculty.id} value={faculty.id}>
-                {faculty.name}
+            {selectedStudentCourseBatchOptions.map((batch) => (
+              <option key={`${batch.batchId}-${batch.batchName}`} value={batch.batchId}>
+                {batch.label}
               </option>
             ))}
 
             {studentForm.courseId &&
-              !selectedStudentCourseFacultyOptions.length && (
+              !selectedStudentCourseBatchOptions.length && (
                 <option value="" disabled>
-                  No faculty assigned to this course
+                  No batches available for this course
                 </option>
               )}
           </select>
+        </Field>
+
+        <Field
+          label="Batch Timing"
+          required
+          error={
+            shouldShowStudentError('batchTiming')
+              ? studentFormValidationErrors.batchTiming
+              : ''
+          }
+        >
+          <input
+            type="text"
+            value={selectedStudentBatchOption?.batchTiming || studentForm.batchTiming || ''}
+            readOnly
+            placeholder={
+              studentForm.courseId
+                ? 'Select batch to auto-fill timing'
+                : 'Select course first'
+            }
+          />
         </Field>
 
         <Field
