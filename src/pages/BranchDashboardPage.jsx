@@ -1710,16 +1710,19 @@ function createBranchInstallmentAmounts(count = 3, value = '') {
 function buildBalancedBranchInstallmentAmounts(totalFee = 0, count = 3) {
   const safeCount = Math.max(1, Number(count) || 1)
   const safeTotal = Math.max(0, Number(totalFee) || 0)
-  const baseAmount = Math.floor(safeTotal / safeCount)
-  let remainder = safeTotal - baseAmount * safeCount
+  if (safeCount === 1) {
+    return [String(safeTotal)]
+  }
 
-  return Array.from({ length: safeCount }, () => {
-    const nextAmount = baseAmount + (remainder > 0 ? 1 : 0)
-    if (remainder > 0) {
-      remainder -= 1
-    }
-    return String(nextAmount)
-  })
+  const averageAmount = safeTotal / safeCount
+  const roundedInstallmentAmount = Math.floor(averageAmount / 1000) * 1000
+  const previousInstallmentsTotal = roundedInstallmentAmount * (safeCount - 1)
+  const finalInstallmentAmount = Math.max(safeTotal - previousInstallmentsTotal, 0)
+
+  return [
+    ...Array.from({ length: safeCount - 1 }, () => String(roundedInstallmentAmount)),
+    String(finalInstallmentAmount),
+  ]
 }
 
 function normalizeBranchInstallmentTemplate(template = {}, fallback = {}) {
