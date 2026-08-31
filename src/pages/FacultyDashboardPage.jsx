@@ -2814,6 +2814,7 @@ const nextName = trimmedValue
       type="button"
       className="notification-footer"
       onClick={() => {
+        setNotificationOpen(false)
         setActiveSection('notifications')
       }}
     >
