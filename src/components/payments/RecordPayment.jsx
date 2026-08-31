@@ -1731,13 +1731,7 @@ const RecordPayment = ({ student, students = [], onClose }) => {
                   Installment 3
                 </option>
 
-                <option value="General Balance">
-                  General Balance
-                </option>
-
-                <option value="Fee Head">
-                  Fee Head
-                </option>
+                
 
               </select>
 

@@ -5247,8 +5247,8 @@ const studentCourseOptions = useMemo(() => {
         studentName: String(record.studentName || '-').trim(),
         course: String(record.course || '-').trim(),
         amount: Number(record.amount || 0),
-        mode: resolveBranchPaymentMode(record),
-        paymentMode: resolveBranchPaymentMode(record),
+        mode: formatBranchPaymentMode(record),
+        paymentMode: formatBranchPaymentMode(record),
         dateRaw: getBranchLedgerEntryDateRaw(record, ''),
         date: formatBranchPaymentDate(
           record.dateRaw || record.paymentDateRaw || record.paymentDate || record.createdAt || record.date || '',
@@ -7415,6 +7415,7 @@ else {
                 <th>Student</th>
                 <th>Course</th>
                 <th>Amount</th>
+                <th>Payment Mode</th>
                 <th>Payment Date</th>
                 {/* <th>Receipt</th> */}
                 <th>Action</th>
@@ -7439,6 +7440,7 @@ else {
                         {formatBranchRupees(record.amount)}
                       </strong>
                     </td>
+                    <td>{formatBranchPaymentMode(record)}</td>
                     <td>{record.date}</td>
 
                     <td>
@@ -7466,7 +7468,7 @@ else {
               ) : (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="branch-course-empty-state"
                   >
                     No payment history found.
@@ -7591,6 +7593,13 @@ else {
                     {formatBranchRupees(
                       selectedPaymentHistory.amount
                     )}
+                  </strong>
+                </div>
+
+                <div className="confirmation-detail-row">
+                  <span>Payment Mode</span>
+                  <strong>
+                    {formatBranchPaymentMode(selectedPaymentHistory)}
                   </strong>
                 </div>
 
