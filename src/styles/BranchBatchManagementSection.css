@@ -360,8 +360,84 @@
 .batch-management-modal,
 .batch-detail-modal {
   width: min(1120px, calc(100vw - 32px));
-  max-height: min(82vh, 820px);
+  max-height: min(88vh, 860px);
   overflow: auto;
+}
+
+.batch-detail-modal {
+  padding: 18px 22px 22px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfffd 100%);
+}
+
+.batch-detail-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 2px 16px;
+}
+
+.batch-detail-hero-badge {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #16a34a;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.12);
+  flex: 0 0 auto;
+}
+
+.batch-detail-hero-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.batch-detail-hero-topline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.batch-detail-hero-topline h3 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.batch-detail-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 8px;
+  color: #475569;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.batch-detail-hero-meta strong {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.batch-detail-count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #16a34a;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
 .batch-management-modal-header {
@@ -661,15 +737,15 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .batch-detail-summary > div,
 .batch-detail-card {
   padding: 14px 16px;
-  border: 1px solid #dbe4f0;
+  border: 1px solid #e4ebf1;
   border-radius: 16px;
-  background: #fff;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfefe 100%);
 }
 
 .batch-detail-summary > div {
@@ -682,7 +758,50 @@
   gap: 12px;
 }
 
+.batch-detail-list-title {
+  margin: 0 0 2px;
+  color: #16a34a;
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
 .batch-detail-card {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+}
+
+.batch-detail-card-icon {
+  width: 58px;
+  height: 58px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.batch-detail-card-icon.morning {
+  background: #e8f8ea;
+  color: #22a34d;
+}
+
+.batch-detail-card-icon.evening {
+  background: #eaf7ea;
+  color: #41a85d;
+}
+
+.batch-detail-card-icon.default {
+  background: #ecfdf5;
+  color: #16a34a;
+}
+
+.batch-detail-card-body {
+  min-width: 0;
   display: grid;
   gap: 12px;
 }
@@ -695,15 +814,17 @@
 }
 
 .batch-detail-card-head span {
-  color: #94a3b8;
-  font-size: 0.82rem;
-  font-weight: 700;
+  color: #16a34a;
+  font-size: 0.84rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
 }
 
 .batch-detail-card-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.2fr) minmax(90px, 0.55fr) minmax(120px, 0.7fr);
   gap: 12px;
+  align-items: start;
 }
 
 .batch-detail-card-grid > div {
@@ -717,10 +838,70 @@
   font-weight: 700;
 }
 
+.batch-detail-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  width: fit-content;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.batch-detail-status-pill.open,
+.batch-detail-status-pill.active {
+  background: #d1fae5;
+  color: #15803d;
+}
+
+.batch-detail-status-pill.inactive,
+.batch-detail-status-pill.closed {
+  background: #eef2f7;
+  color: #64748b;
+}
+
 @media (max-width: 640px) {
   .batch-management-toolbar,
   .batch-management-form-grid,
   .batch-detail-summary,
+  .batch-detail-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-detail-modal {
+    width: calc(100vw - 20px);
+    padding: 16px 14px 16px;
+    border-radius: 18px;
+  }
+
+  .batch-detail-hero {
+    align-items: flex-start;
+    gap: 12px;
+    padding-top: 2px;
+  }
+
+  .batch-detail-hero-badge {
+    width: 50px;
+    height: 50px;
+    border-radius: 16px;
+  }
+
+  .batch-detail-hero-topline h3 {
+    font-size: 1.05rem;
+  }
+
+  .batch-detail-card {
+    grid-template-columns: 1fr;
+  }
+
+  .batch-detail-card-icon {
+    width: 50px;
+    height: 50px;
+  }
+
   .batch-detail-card-grid {
     grid-template-columns: 1fr;
   }

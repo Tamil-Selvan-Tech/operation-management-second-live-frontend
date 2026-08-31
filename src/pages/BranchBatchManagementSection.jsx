@@ -1,6 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CheckCircle2, ChevronRight, Eye, MoreVertical, Pencil, Plus, X, Trash2 } from 'lucide-react'
+import {
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  Eye,
+  MoreVertical,
+  MoonStar,
+  Pencil,
+  Plus,
+  SunMedium,
+  Trash2,
+  UsersRound,
+  X,
+} from 'lucide-react'
 import { PaginationBar } from '../components/PaginationBar'
 import {
   createBranchBatch,
@@ -31,6 +44,18 @@ function normalizeId(value = '') {
 function toNumber(value = '') {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
+function getBatchListTone(batch = {}) {
+  const label = normalizeText(batch.batchName || batch.batchId || '')
+  const text = `${label} ${normalizeText(batch.startTime)} ${normalizeText(batch.endTime)}`.toLowerCase()
+  if (text.includes('morning') || text.includes('am')) {
+    return { icon: SunMedium, tone: 'morning' }
+  }
+  if (text.includes('evening') || text.includes('pm')) {
+    return { icon: MoonStar, tone: 'evening' }
+  }
+  return { icon: Clock3, tone: 'default' }
 }
 
 function formatClockLabel(value = '') {
@@ -1092,6 +1117,9 @@ export function BranchBatchManagementSection({
 
   const renderDetailModal = () => {
     if (!detailGroup || typeof document === 'undefined') return null
+    const batchCount = detailGroup.batchCount || detailGroup.batches?.length || 0
+    const detailStatus = normalizeStatus(detailGroup.status || 'Active')
+    const detailStatusClass = String(detailStatus).toLowerCase()
 
     return createPortal(
       <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation" onClick={closeDetailModal}>
@@ -1106,13 +1134,22 @@ export function BranchBatchManagementSection({
             <X size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
-          <div className="course-modal-header batch-management-modal-header">
-            <div>
-              <p className="section-kicker">Batch Details</p>
-              <h3 id="batch-detail-title">{detailGroup.courseName || detailGroup.batchGroupId || detailGroup.batchId}</h3>
-              <p className="batch-management-modal-subtitle">
-                Faculty: {detailGroup.facultyName || '-'}
-              </p>
+          <div className="batch-detail-hero">
+            <div className="batch-detail-hero-badge" aria-hidden="true">
+              <UsersRound size={24} strokeWidth={2.2} />
+            </div>
+
+            <div className="batch-detail-hero-copy">
+              <div className="batch-detail-hero-topline">
+                <h3 id="batch-detail-title">{detailGroup.batchGroupId || detailGroup.batchId}</h3>
+                <span className={`batch-detail-status-pill ${detailStatusClass}`}>{detailStatus}</span>
+                <span className="batch-detail-count-pill">{batchCount} Batches</span>
+              </div>
+
+              <div className="batch-detail-hero-meta">
+                <span>Course: <strong>{detailGroup.courseName || '-'}</strong></span>
+                <span>Faculty: <strong>{detailGroup.facultyName || '-'}</strong></span>
+              </div>
             </div>
           </div>
 
@@ -1120,34 +1157,49 @@ export function BranchBatchManagementSection({
             <div><span>Batch Group ID</span><strong>{detailGroup.batchGroupId || detailGroup.batchId}</strong></div>
             <div><span>Course</span><strong>{detailGroup.courseName || '-'}</strong></div>
             <div><span>Faculty</span><strong>{detailGroup.facultyName || '-'}</strong></div>
-            <div><span>Total Batches</span><strong>{detailGroup.batchCount || detailGroup.batches?.length || 0}</strong></div>
+            <div><span>Total Batches</span><strong>{batchCount}</strong></div>
           </div>
 
           <div className="batch-detail-list">
-            {(Array.isArray(detailGroup.batches) ? detailGroup.batches : []).map((batch) => (
-              <article key={batch.batchId} className="batch-detail-card">
-                <div className="batch-detail-card-head">
-                  <strong>{batch.batchName || batch.batchId}</strong>
-                  <span>{batch.batchId}</span>
-                </div>
-                <div className="batch-detail-card-grid">
-                  <div>
-                    <span>Timing</span>
-                    <strong>
-                      {formatClockLabel(batch.startTime)} - {formatClockLabel(batch.endTime)}
-                    </strong>
+            <h4 className="batch-detail-list-title">Batch List</h4>
+            {(Array.isArray(detailGroup.batches) ? detailGroup.batches : []).map((batch) => {
+              const tone = getBatchListTone(batch)
+              const Icon = tone.icon
+
+              return (
+                <article key={batch.batchId} className="batch-detail-card">
+                  <div className={`batch-detail-card-icon ${tone.tone}`}>
+                    <Icon size={22} strokeWidth={2.1} aria-hidden="true" />
                   </div>
-                  <div>
-                    <span>Seats</span>
-                    <strong>{batch.totalSeats}</strong>
+
+                  <div className="batch-detail-card-body">
+                    <div className="batch-detail-card-head">
+                      <strong>{batch.batchName || batch.batchId}</strong>
+                      <span>{batch.batchId}</span>
+                    </div>
+
+                    <div className="batch-detail-card-grid">
+                      <div>
+                        <span>Timing</span>
+                        <strong>
+                          {formatClockLabel(batch.startTime)} - {formatClockLabel(batch.endTime)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span>Seats</span>
+                        <strong>{batch.totalSeats}</strong>
+                      </div>
+                      <div>
+                        <span>Status</span>
+                        <strong className={`batch-detail-status-pill ${String(normalizeStatus(batch.status)).toLowerCase()}`}>
+                          {normalizeStatus(batch.status)}
+                        </strong>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <span>Status</span>
-                    <strong>{normalizeStatus(batch.status)}</strong>
-                  </div>
-                </div>
-              </article>
-            ))}
+                </article>
+              )
+            })}
           </div>
         </section>
       </div>,
