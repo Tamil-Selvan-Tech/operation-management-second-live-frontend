@@ -2149,6 +2149,101 @@ function formatBranchCourseMoney(value) {
   return `₹${text}`
 }
 
+function formatBranchCourseAmountInWords(value) {
+  const normalized = String(value ?? '').replace(/,/g, '').trim()
+  if (!normalized) return '-'
+
+  const number = Number(normalized)
+  if (!Number.isFinite(number)) return '-'
+  if (number === 0) return 'Zero'
+
+  const ones = [
+    'Zero',
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+    'Eleven',
+    'Twelve',
+    'Thirteen',
+    'Fourteen',
+    'Fifteen',
+    'Sixteen',
+    'Seventeen',
+    'Eighteen',
+    'Nineteen',
+  ]
+
+  const tens = [
+    '',
+    '',
+    'Twenty',
+    'Thirty',
+    'Forty',
+    'Fifty',
+    'Sixty',
+    'Seventy',
+    'Eighty',
+    'Ninety',
+  ]
+
+  const convertBelowThousand = (num) => {
+    let result = ''
+
+    if (num >= 100) {
+      result += `${ones[Math.floor(num / 100)]} Hundred `
+      num %= 100
+    }
+
+    if (num >= 20) {
+      result += `${tens[Math.floor(num / 10)]} `
+      num %= 10
+    }
+
+    if (num > 0) {
+      result += `${ones[num]} `
+    }
+
+    return result.trim()
+  }
+
+  let result = ''
+  let remaining = Math.floor(number)
+
+  const crore = Math.floor(remaining / 10000000)
+  remaining %= 10000000
+
+  const lakh = Math.floor(remaining / 100000)
+  remaining %= 100000
+
+  const thousand = Math.floor(remaining / 1000)
+  remaining %= 1000
+
+  if (crore > 0) {
+    result += `${convertBelowThousand(crore)} Crore `
+  }
+
+  if (lakh > 0) {
+    result += `${convertBelowThousand(lakh)} Lakh `
+  }
+
+  if (thousand > 0) {
+    result += `${convertBelowThousand(thousand)} Thousand `
+  }
+
+  if (remaining > 0) {
+    result += convertBelowThousand(remaining)
+  }
+
+  return result.trim()
+}
+
 function formatBranchCoursePercentage(value) {
   const number = Number(value)
   if (!Number.isFinite(number)) return '-'
@@ -8540,7 +8635,7 @@ else {
                       onBlur={() => markAddCourseTouched('actualFees')}
                       aria-invalid={Boolean(shouldShowBasicAddCourseError('actualFees'))}
                     />
-                    <small>Amount: {formatBranchCourseAmount(addCourseForm.actualFees || 0)}</small>
+                    <small>Amount: {formatBranchCourseAmountInWords(addCourseForm.actualFees || 0)}</small>
                     {shouldShowBasicAddCourseError('actualFees') ? (
                       <small className="course-field-error">{addCourseValidationErrors.basic.actualFees}</small>
                     ) : null}
