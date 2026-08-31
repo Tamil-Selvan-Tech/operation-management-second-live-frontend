@@ -18,6 +18,10 @@ import {
   listBranchBatches,
   updateBranchBatch,
 } from '../services/branchBatchService'
+import {
+  loadBranchBatchGroups,
+  saveBranchBatchGroups,
+} from '../lib/branchBatchStore'
 import '../styles/BranchBatchManagementSection.css'
 
 function normalizeText(value = '') {
@@ -304,9 +308,24 @@ export function BranchBatchManagementSection({
     setIsLoading(true)
     try {
       const result = await listBranchBatches()
-      const groups = Array.isArray(result?.data) ? result.data : []
-      setBatchGroups(groups)
-      return groups
+      const backendGroups = Array.isArray(result?.data) ? result.data : []
+      const localGroups = loadBranchBatchGroups(branchId)
+      const mergedGroups = [
+        ...backendGroups,
+        ...localGroups.filter((localGroup) => {
+          const localKey = String(localGroup?.id || localGroup?.batchGroupId || localGroup?.batchId || '').trim()
+          if (!localKey) return true
+
+          return !backendGroups.some((backendGroup) => {
+            const backendKey = String(backendGroup?.id || backendGroup?.batchGroupId || backendGroup?.batchId || '').trim()
+            return backendKey === localKey
+          })
+        }),
+      ]
+
+      saveBranchBatchGroups(mergedGroups)
+      setBatchGroups(mergedGroups)
+      return mergedGroups
     } catch (error) {
       console.error('Failed to load branch batches:', error)
       setBatchGroups([])
@@ -314,7 +333,7 @@ export function BranchBatchManagementSection({
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [branchId])
 
   useEffect(() => {
     let active = true
@@ -788,11 +807,36 @@ export function BranchBatchManagementSection({
           })),
         }
 
-        if (existingGroup) {
-          await updateBranchBatch(existingGroup.id || existingGroup.batchGroupId || existingGroup.batchId, payload)
-        } else {
-          await createBranchBatch(payload)
+        const savedGroup = existingGroup
+          ? await updateBranchBatch(existingGroup.id || existingGroup.batchGroupId || existingGroup.batchId, payload)
+          : await createBranchBatch(payload)
+
+        const normalizedSavedGroup = {
+          ...existingGroup,
+          ...savedGroup,
+          id: String(savedGroup?.id || existingGroup?.id || existingGroup?.batchGroupId || draft.batchGroupId || '').trim(),
+          batchGroupId: String(savedGroup?.batchGroupId || existingGroup?.batchGroupId || draft.batchGroupId || '').trim(),
+          batchId: String(savedGroup?.batchId || existingGroup?.batchId || cleanedRows[0]?.batchId || '').trim(),
+          branchId: String(savedGroup?.branchId || existingGroup?.branchId || branchId || '').trim(),
+          courseId: String(payload.courseId || existingGroup?.courseId || '').trim(),
+          courseName: String(selectedCourseRecord?.name || existingGroup?.courseName || '').trim(),
+          facultyId: String(payload.facultyId || existingGroup?.facultyId || '').trim(),
+          facultyName: String(selectedFacultyRecord?.name || existingGroup?.facultyName || '').trim(),
+          status: normalizeStatus(savedGroup?.status || cleanedRows[0]?.status || existingGroup?.status || 'Active'),
+          rows: cleanedRows,
+          batches: cleanedRows,
         }
+
+        const localBranchGroups = loadBranchBatchGroups(branchId)
+        const nextLocalGroups = [
+          normalizedSavedGroup,
+          ...localBranchGroups.filter((group) => {
+            const groupKey = String(group?.id || group?.batchGroupId || group?.batchId || '').trim()
+            const savedKey = String(normalizedSavedGroup.id || normalizedSavedGroup.batchGroupId || normalizedSavedGroup.batchId || '').trim()
+            return !groupKey || groupKey !== savedKey
+          }),
+        ]
+        saveBranchBatchGroups(nextLocalGroups)
 
         const latestGroups = await refreshBatchGroups()
         setIsCreateOpen(false)
@@ -1055,7 +1099,13 @@ export function BranchBatchManagementSection({
           aria-labelledby="batch-delete-title"
           onClick={(event) => event.stopPropagation()}
         >
-          <button type="button" className="course-modal-close batch-delete-close" onClick={closeDeleteConfirmModal} aria-label="Close delete confirmation">
+          <button
+            type="button"
+            className="course-modal-close batch-delete-close"
+            onClick={closeDeleteConfirmModal}
+            aria-label="Close delete confirmation"
+            disabled={isSaving}
+          >
             <X size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
@@ -1082,15 +1132,21 @@ export function BranchBatchManagementSection({
           <div className="batch-delete-confirm-divider" />
 
           <div className="batch-delete-confirm-actions">
-            <button type="button" className="button button-ghost" onClick={closeDeleteConfirmModal}>
+            <button
+              type="button"
+              className="button button-ghost"
+              onClick={closeDeleteConfirmModal}
+              disabled={isSaving}
+            >
               Cancel
             </button>
             <button
               type="button"
               className="button button-solid is-danger"
               onClick={isGroupDelete ? confirmDeleteGroup : confirmDeleteRow}
+              disabled={isSaving}
             >
-              Delete
+              {isSaving ? 'Deleting...' : 'Delete'}
             </button>
           </div>
         </div>
