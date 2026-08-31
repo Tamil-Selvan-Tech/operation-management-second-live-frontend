@@ -8377,13 +8377,14 @@ body.branch-notification-menu-open .main-area {
 }
 
 .branch-student-payment-status.overdue {
-  width: 116px;
-  min-width: 116px;
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-  background: #fee2e2;
+  width: auto;
+  min-width: 0;
+  justify-content: flex-start;
+  padding: 0;
+  background: transparent;
   color: #dc2626;
+  box-shadow: none;
+  border: 0;
 }
 /* Student ID */
 .branch-course-table tbody td:first-child strong {
@@ -8589,13 +8590,14 @@ body.branch-notification-menu-open .main-area {
 }
 
 .branch-student-payment-status.overdue {
-  width: 116px;
-  min-width: 116px;
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-  background: #fee2e2;
+  width: auto;
+  min-width: 0;
+  justify-content: flex-start;
+  padding: 0;
+  background: transparent;
   color: #dc2626;
+  box-shadow: none;
+  border: 0;
 }
 
 /* Action */
