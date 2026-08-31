@@ -1318,6 +1318,9 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
           const Icon = item.icon
           const isCourseEditRequest =
             item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
+          const isAcceptedRequest =
+            isCourseEditRequest &&
+            String(item.requestStatus || '').trim().toLowerCase() === 'accepted'
           const isProgressNotification = String(item.kind || '').includes('progress-status')
 
           return (
@@ -1493,17 +1496,23 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {isCourseEditRequest ? (
-                        <button
-                          type="button"
-                          className="notifications-item-view-button"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            onAcceptRequest?.(item)
-                          }}
-                        >
-                          Accept
-                        </button>
+                        isAcceptedRequest ? (
+                          <span className="notifications-item-view-button is-accepted" aria-disabled="true">
+                            Accepted
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="notifications-item-view-button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              onAcceptRequest?.(item)
+                            }}
+                          >
+                            Accept
+                          </button>
+                        )
                       ) : (
                         <button
                           type="button"
@@ -1536,20 +1545,26 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
 
                   <div className="notifications-item-meta">
                     <span className={`notifications-item-chip tone-${item.tone}`}>
-                      {item.categoryLabel || item.actionLabel || 'View'}
+                      {isAcceptedRequest ? 'Accepted' : item.categoryLabel || item.actionLabel || 'View'}
                     </span>
                     {isCourseEditRequest ? (
-                      <button
-                        type="button"
-                        className="notifications-item-view-button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          onAcceptRequest?.(item)
-                        }}
-                      >
-                        Accept
-                      </button>
+                      isAcceptedRequest ? (
+                        <span className="notifications-item-view-button is-accepted" aria-disabled="true">
+                          Accepted
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="notifications-item-view-button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onAcceptRequest?.(item)
+                          }}
+                        >
+                          Accept
+                        </button>
+                      )
                     ) : (
                       <button
                         type="button"
@@ -2719,9 +2734,26 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       const storedById = new Map(
         storedNotifications.map((notification) => [String(notification.id || '').trim(), notification]),
       )
+      const storedAcceptedByRequestId = new Map(
+        storedNotifications
+          .filter((notification) => String(notification.requestStatus || '').trim().toLowerCase() === 'accepted')
+          .map((notification) => [String(notification.requestId || '').trim(), notification]),
+      )
       const mergedNotifications = mergeNotificationsWithStoredState(responseData).map((notification) => {
         const storedNotification = storedById.get(String(notification.id || '').trim())
-        return storedNotification ? { ...notification, ...storedNotification } : notification
+        const storedAcceptedNotification = storedAcceptedByRequestId.get(String(notification.requestId || '').trim())
+        const storedNotificationStatus = String(storedNotification?.requestStatus || '').trim().toLowerCase()
+        const storedAcceptedStatus = String(storedAcceptedNotification?.requestStatus || '').trim().toLowerCase()
+
+        if (storedNotificationStatus === 'accepted') {
+          return { ...notification, ...storedNotification }
+        }
+
+        if (storedAcceptedStatus === 'accepted') {
+          return { ...notification, ...storedAcceptedNotification }
+        }
+
+        return notification
       })
       const mergedIds = new Set(mergedNotifications.map((notification) => String(notification.id || '').trim()))
       const preservedNotifications = storedNotifications.filter((notification) => !mergedIds.has(String(notification.id || '').trim()))
@@ -2886,10 +2918,59 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   useEffect(() => {
     if (typeof document === 'undefined') return undefined
 
-    document.body.classList.toggle('branch-notification-menu-open', isNotificationMenuOpen)
+    const { body, documentElement } = document
+    const mainArea = document.querySelector('.main-area')
+    const scrollX = window.scrollX
+    const scrollY = window.scrollY
+    const previousBodyOverflow = body.style.overflow
+    const previousBodyOverscrollBehavior = body.style.overscrollBehavior
+    const previousBodyPosition = body.style.position
+    const previousBodyTop = body.style.top
+    const previousBodyLeft = body.style.left
+    const previousBodyRight = body.style.right
+    const previousBodyWidth = body.style.width
+    const previousHtmlOverflow = documentElement.style.overflow
+    const previousHtmlOverscrollBehavior = documentElement.style.overscrollBehavior
+    const previousMainAreaOverflow = mainArea?.style.overflow || ''
+    const previousMainAreaOverscrollBehavior = mainArea?.style.overscrollBehavior || ''
+
+    body.classList.toggle('branch-notification-menu-open', isNotificationMenuOpen)
+
+    if (isNotificationMenuOpen) {
+      body.style.overflow = 'hidden'
+      body.style.overscrollBehavior = 'none'
+      body.style.position = 'fixed'
+      body.style.top = `-${scrollY}px`
+      body.style.left = '0'
+      body.style.right = '0'
+      body.style.width = '100%'
+      documentElement.style.overflow = 'hidden'
+      documentElement.style.overscrollBehavior = 'none'
+      if (mainArea) {
+        mainArea.style.overflow = 'hidden'
+        mainArea.style.overscrollBehavior = 'none'
+      }
+    }
 
     return () => {
-      document.body.classList.remove('branch-notification-menu-open')
+      body.classList.remove('branch-notification-menu-open')
+      body.style.overflow = previousBodyOverflow
+      body.style.overscrollBehavior = previousBodyOverscrollBehavior
+      body.style.position = previousBodyPosition
+      body.style.top = previousBodyTop
+      body.style.left = previousBodyLeft
+      body.style.right = previousBodyRight
+      body.style.width = previousBodyWidth
+      documentElement.style.overflow = previousHtmlOverflow
+      documentElement.style.overscrollBehavior = previousHtmlOverscrollBehavior
+      if (mainArea) {
+        mainArea.style.overflow = previousMainAreaOverflow
+        mainArea.style.overscrollBehavior = previousMainAreaOverscrollBehavior
+      }
+
+      if (isNotificationMenuOpen) {
+        window.scrollTo(scrollX, scrollY)
+      }
     }
   }, [isNotificationMenuOpen])
 
