@@ -3,13 +3,10 @@ import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
   ChevronRight,
-  Clock3,
   Eye,
   MoreVertical,
-  MoonStar,
   Pencil,
   Plus,
-  SunMedium,
   Trash2,
   UsersRound,
   X,
@@ -44,18 +41,6 @@ function normalizeId(value = '') {
 function toNumber(value = '') {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
-}
-
-function getBatchListTone(batch = {}) {
-  const label = normalizeText(batch.batchName || batch.batchId || '')
-  const text = `${label} ${normalizeText(batch.startTime)} ${normalizeText(batch.endTime)}`.toLowerCase()
-  if (text.includes('morning') || text.includes('am')) {
-    return { icon: SunMedium, tone: 'morning' }
-  }
-  if (text.includes('evening') || text.includes('pm')) {
-    return { icon: MoonStar, tone: 'evening' }
-  }
-  return { icon: Clock3, tone: 'default' }
 }
 
 function formatClockLabel(value = '') {
@@ -955,7 +940,7 @@ export function BranchBatchManagementSection({
                       <small>ID: {row.batchId}</small>
                       <input
                         type="text"
-                        placeholder="Morning Batch"
+                        placeholder=" Batch Name"
                         value={row.batchName}
                         onChange={(event) => handleRowChange(index, 'batchName', event.target.value)}
                       />
@@ -1130,7 +1115,13 @@ export function BranchBatchManagementSection({
           aria-labelledby="batch-detail-title"
           onClick={(event) => event.stopPropagation()}
         >
-          <button type="button" className="course-modal-close" onClick={closeDetailModal} aria-label="Close batch details">
+          <button
+            type="button"
+            className="course-modal-close batch-detail-close"
+            onPointerDown={closeDetailModal}
+            onClick={closeDetailModal}
+            aria-label="Close batch details"
+          >
             <X size={18} strokeWidth={2.2} aria-hidden="true" />
           </button>
 
@@ -1153,23 +1144,13 @@ export function BranchBatchManagementSection({
             </div>
           </div>
 
-          <div className="batch-detail-summary">
-            <div><span>Batch Group ID</span><strong>{detailGroup.batchGroupId || detailGroup.batchId}</strong></div>
-            <div><span>Course</span><strong>{detailGroup.courseName || '-'}</strong></div>
-            <div><span>Faculty</span><strong>{detailGroup.facultyName || '-'}</strong></div>
-            <div><span>Total Batches</span><strong>{batchCount}</strong></div>
-          </div>
-
           <div className="batch-detail-list">
             <h4 className="batch-detail-list-title">Batch List</h4>
             {(Array.isArray(detailGroup.batches) ? detailGroup.batches : []).map((batch) => {
-              const tone = getBatchListTone(batch)
-              const Icon = tone.icon
-
               return (
                 <article key={batch.batchId} className="batch-detail-card">
-                  <div className={`batch-detail-card-icon ${tone.tone}`}>
-                    <Icon size={22} strokeWidth={2.1} aria-hidden="true" />
+                  <div className="batch-detail-card-icon">
+                    <UsersRound size={22} strokeWidth={2.1} aria-hidden="true" />
                   </div>
 
                   <div className="batch-detail-card-body">
