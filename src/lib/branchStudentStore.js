@@ -57,6 +57,7 @@ function normalizeStoredStudentRecord(record = {}) {
     branchId: String(record.branchId || '').trim(),
     branchCode: String(record.branchCode || record.branchKey || '').trim(),
     studentId: String(record.studentId || '').trim(),
+    batchGroupId: String(record.batchGroupId || record.batch?.batchGroupId || '').trim(),
     courseProgress: record.courseProgress,
     courseCompletionPercentage: record.courseCompletionPercentage,
     progress: record.progress,

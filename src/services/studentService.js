@@ -102,6 +102,7 @@ export function normalizeStudent(student) {
     courseId: student.courseId || student.course?.id || '',
     courseInterested: student.courseInterested || student.course?.name || '',
     facultyName: student.facultyName || '',
+    batchGroupId: student.batchGroupId || student.batch?.batchGroupId || '',
     batchId: student.batchId || student.batchEntryId || '',
     batch: student.batchName || student.batch || '',
     batchName: student.batchName || student.batch || '',

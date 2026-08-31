@@ -166,6 +166,42 @@ function formatCourseHours(value) {
   return `${normalized} hour${normalized === '1' ? '' : 's'}`
 }
 
+function getStudentIdentityKey(student = {}) {
+  const primaryKey =
+    String(student?.id || '').trim().toLowerCase() ||
+    String(student?.studentId || '').trim().toLowerCase() ||
+    String(student?.emailAddress || '').trim().toLowerCase() ||
+    String(student?.mobileNumber || '').trim().toLowerCase() ||
+    String(student?.studentCode || '').trim().toLowerCase()
+
+  if (primaryKey) return primaryKey
+
+  return [
+    student?.studentName,
+    student?.courseId,
+    student?.facultyId,
+    student?.batchId || student?.batchEntryId,
+    student?.admissionDate,
+  ]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean)
+    .join('|')
+}
+
+function dedupeStudentsByIdentity(students = []) {
+  const seen = new Set()
+
+  return (Array.isArray(students) ? students : []).filter((student) => {
+    const key = getStudentIdentityKey(student)
+    if (!key || seen.has(key)) {
+      return false
+    }
+
+    seen.add(key)
+    return true
+  })
+}
+
 function getExactFacultyStudents(students = [], facultyId = '', facultyName = '', facultyEmail = '') {
   const normalizedFacultyId = String(facultyId || '').trim().toLowerCase()
   const normalizedFacultyName = String(facultyName || '').trim().toLowerCase()
@@ -1563,32 +1599,62 @@ export function FacultyDashboardPage() {
     const summary = dashboardSummary || {}
     const getBatchStudentCount = (entry = {}) => {
       const normalizedBatchId = String(entry?.id || entry?.batchId || '').trim().toLowerCase()
+      const normalizedBatchGroupId = String(entry?.batchGroupId || '').trim().toLowerCase()
       const normalizedBatchName = String(entry?.batchName || entry?.batch || entry?.code || '').trim().toLowerCase()
       const normalizedBatchTiming = String(entry?.batchTiming || entry?.timing || '').trim().toLowerCase()
-      const normalizedCourseId = String(entry?.courseId || entry?.course?.id || '').trim().toLowerCase()
-      const normalizedCourseName = String(entry?.courseName || entry?.course || '').trim().toLowerCase()
 
       const matchedStudents = backfilledStudents.filter((student) => {
         const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
         const resolvedBatch = context?.batchEntry || null
-        if (!resolvedBatch) return false
 
+        const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+        const studentBatchGroupId = String(student?.batchGroupId || '').trim().toLowerCase()
+        const studentBatchName = String(student?.batchName || student?.batch || '').trim().toLowerCase()
+        const studentBatchTiming = String(student?.batchTiming || student?.batchTime || '').trim().toLowerCase()
         const resolvedBatchId = String(resolvedBatch?.id || '').trim().toLowerCase()
+        const resolvedBatchGroupId = String(resolvedBatch?.batchGroupId || '').trim().toLowerCase()
         const resolvedBatchName = String(resolvedBatch?.batchName || resolvedBatch?.batch || '').trim().toLowerCase()
         const resolvedBatchTiming = String(resolvedBatch?.batchTiming || '').trim().toLowerCase()
-        const resolvedCourseId = String(resolvedBatch?.courseId || '').trim().toLowerCase()
-        const resolvedCourseName = String(resolvedBatch?.courseName || '').trim().toLowerCase()
 
-        return (
-          (normalizedBatchId && resolvedBatchId && normalizedBatchId === resolvedBatchId) ||
-          (normalizedBatchName && resolvedBatchName && normalizedBatchName === resolvedBatchName) ||
-          (normalizedBatchTiming && resolvedBatchTiming && normalizedBatchTiming === resolvedBatchTiming) ||
-          (normalizedCourseId && resolvedCourseId && normalizedCourseId === resolvedCourseId) ||
-          (normalizedCourseName && resolvedCourseName && normalizedCourseName === resolvedCourseName)
-        )
+        if (normalizedBatchId) {
+          return (
+            (studentBatchId && studentBatchId === normalizedBatchId) ||
+            (resolvedBatchId && resolvedBatchId === normalizedBatchId) ||
+            (studentBatchGroupId && studentBatchGroupId === normalizedBatchId) ||
+            (resolvedBatchGroupId && resolvedBatchGroupId === normalizedBatchId)
+          )
+        }
+
+        if (normalizedBatchGroupId) {
+          return (
+            (studentBatchGroupId && studentBatchGroupId === normalizedBatchGroupId) ||
+            (resolvedBatchGroupId && resolvedBatchGroupId === normalizedBatchGroupId) ||
+            (resolvedBatchId && resolvedBatchId === normalizedBatchGroupId)
+          )
+        }
+
+        if (normalizedBatchName || normalizedBatchTiming) {
+          const batchNameMatches =
+            normalizedBatchName &&
+            (
+              studentBatchName === normalizedBatchName ||
+              resolvedBatchName === normalizedBatchName
+            )
+
+          const batchTimingMatches =
+            normalizedBatchTiming &&
+            (
+              studentBatchTiming === normalizedBatchTiming ||
+              resolvedBatchTiming === normalizedBatchTiming
+            )
+
+          return batchNameMatches || batchTimingMatches
+        }
+
+        return false
       })
 
-      return matchedStudents.length
+      return dedupeStudentsByIdentity(matchedStudents).length
     }
     const assignedCourseOrder = new Map(
       assignedCourses.map((course, index) => [

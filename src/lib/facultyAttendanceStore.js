@@ -734,6 +734,7 @@ function findFacultyRecordForStudent(student = {}, facultyRecords = []) {
   const studentFacultyName = normalizeText(student?.facultyName || '')
   const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
   const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
+  const studentBatchGroupId = String(student?.batchGroupId || '').trim().toLowerCase()
   const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
   const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
 
@@ -746,12 +747,16 @@ function findFacultyRecordForStudent(student = {}, facultyRecords = []) {
       const batchEntries = Array.isArray(record?.batchEntries) ? record.batchEntries : []
 
       const batchMatch = batchEntries.some((entry) => {
+        const entryBatchGroupId = String(entry?.batchGroupId || entry?.groupId || '').trim().toLowerCase()
+        const entryId = String(entry?.id || '').trim().toLowerCase()
         const entryBatchName = normalizeText(entry?.batchName || entry?.batch || '')
         const entryBatchToken = normalizeBatchToken(entry?.batchName || entry?.batch || '')
         const entryCourseId = String(entry?.courseId || '').trim().toLowerCase()
         const entryCourseName = normalizeText(entry?.courseName || '')
 
         return (
+          (studentBatchGroupId && entryBatchGroupId && studentBatchGroupId === entryBatchGroupId) ||
+          (studentBatchGroupId && entryId && studentBatchGroupId === entryId) ||
           (studentBatchName && entryBatchName && entryBatchName === studentBatchName) ||
           (studentBatchToken && entryBatchToken && entryBatchToken === studentBatchToken) ||
           (studentCourseId && entryCourseId && entryCourseId === studentCourseId) ||
@@ -774,6 +779,7 @@ function findMatchedBatchEntryForStudent(student = {}, facultyRecord = {}) {
   if (!batchEntries.length) return null
 
   const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+  const studentBatchGroupId = String(student?.batchGroupId || '').trim().toLowerCase()
   const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
   const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
   const studentBatchTiming = normalizeText(student?.batchTiming || student?.batchTime || '')
@@ -783,12 +789,15 @@ function findMatchedBatchEntryForStudent(student = {}, facultyRecord = {}) {
   const exactBatchMatch =
     batchEntries.find((entry) => {
       const entryBatchId = String(entry?.id || '').trim().toLowerCase()
+      const entryBatchGroupId = String(entry?.batchGroupId || entry?.groupId || '').trim().toLowerCase()
       const entryBatchName = normalizeText(entry?.batchName || entry?.batch || '')
       const entryBatchToken = normalizeBatchToken(entry?.batchName || entry?.batch || '')
       const entryBatchTiming = normalizeText(entry?.batchTiming || '')
 
       return (
         (studentBatchId && entryBatchId && studentBatchId === entryBatchId) ||
+        (studentBatchGroupId && entryBatchGroupId && studentBatchGroupId === entryBatchGroupId) ||
+        (studentBatchGroupId && entryBatchId && studentBatchGroupId === entryBatchId) ||
         (studentBatchName && entryBatchName && studentBatchName === entryBatchName) ||
         (studentBatchToken && entryBatchToken && studentBatchToken === entryBatchToken) ||
         (studentBatchTiming && entryBatchTiming && studentBatchTiming === entryBatchTiming)
@@ -823,6 +832,7 @@ export function resolveFacultyBatchContextForStudent(student = {}, facultyRecord
     facultyId: String(facultyRecord?.id || facultyRecord?._id || facultyRecord?.facultyId || student?.facultyId || '').trim(),
     facultyName: String(facultyRecord?.facultyName || student?.facultyName || '').trim(),
     batchId: String(matchedBatchEntry?.id || student?.batchId || student?.batchEntryId || '').trim(),
+    batchGroupId: String(matchedBatchEntry?.batchGroupId || student?.batchGroupId || '').trim(),
     batchName: String(matchedBatchEntry?.batchName || student?.batchName || student?.batch || '').trim(),
     batchTiming: String(matchedBatchEntry?.batchTiming || student?.batchTiming || student?.batchTime || '').trim(),
     courseId: String(matchedBatchEntry?.courseId || student?.courseId || '').trim(),
