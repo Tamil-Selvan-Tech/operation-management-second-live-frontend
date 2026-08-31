@@ -390,9 +390,10 @@ function createInitialStudentForm(branchId) {
     facultyEmail: '',
     facultyPhone: '',
     courseAmount: '',
+    paymentPlanId: '',
+    paymentPlan: '',
     paymentMode: '',
     installmentSchedule: [],
-    
   }
 }
 
@@ -444,33 +445,34 @@ function buildStudentFormFromRecord(student = {}) {
 
 function validateStudentForm(form, students = []) {
   const errors = {}
+  const safeTrim = (value) => String(value ?? '').trim()
   const studentIdSuffixError = getStudentIdSuffixError(form, students)
   if (studentIdSuffixError) errors.studentIdSuffix = studentIdSuffixError
-  if (!form.studentName.trim()) errors.studentName = 'Student Name is required.'
-  else if (!/^[A-Za-z][A-Za-z ]*$/.test(form.studentName.trim())) errors.studentName = 'Only letters and spaces allowed.'
-  if (!form.emailAddress.trim()) errors.emailAddress = 'Email is required.'
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.emailAddress.trim())) errors.emailAddress = 'Enter a valid email.'
-  if (!form.mobileNumber.trim()) errors.mobileNumber = 'Mobile Number is required.'
-  else if (!/^\d{10}$/.test(form.mobileNumber.trim())) errors.mobileNumber = 'Must be exactly 10 digits.'
-  if (!form.parentSpouseNumber.trim()) errors.parentSpouseNumber = 'Parent/Spouse Number is required.'
-  else if (!/^\d{10}$/.test(form.parentSpouseNumber.trim())) errors.parentSpouseNumber = 'Must be exactly 10 digits.'
+  if (!safeTrim(form.studentName)) errors.studentName = 'Student Name is required.'
+  else if (!/^[A-Za-z][A-Za-z ]*$/.test(safeTrim(form.studentName))) errors.studentName = 'Only letters and spaces allowed.'
+  if (!safeTrim(form.emailAddress)) errors.emailAddress = 'Email is required.'
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(safeTrim(form.emailAddress))) errors.emailAddress = 'Enter a valid email.'
+  if (!safeTrim(form.mobileNumber)) errors.mobileNumber = 'Mobile Number is required.'
+  else if (!/^\d{10}$/.test(safeTrim(form.mobileNumber))) errors.mobileNumber = 'Must be exactly 10 digits.'
+  if (!safeTrim(form.parentSpouseNumber)) errors.parentSpouseNumber = 'Parent/Spouse Number is required.'
+  else if (!/^\d{10}$/.test(safeTrim(form.parentSpouseNumber))) errors.parentSpouseNumber = 'Must be exactly 10 digits.'
   if (!form.country) errors.country = 'Country is required.'
   if (!form.state) errors.state = 'State is required.'
   if (!form.city) errors.city = 'City is required.'
-  if (!form.address.trim()) errors.address = 'Address is required.'
-  if (!form.qualification.trim()) errors.qualification = 'Qualification is required.'
+  if (!safeTrim(form.address)) errors.address = 'Address is required.'
+  if (!safeTrim(form.qualification)) errors.qualification = 'Qualification is required.'
   if (!form.passedOutYear) errors.passedOutYear = 'Passed Out Year is required.'
-  if (form.passedOutYear === 'Custom' && !form.passedOutYearCustom.trim()) errors.passedOutYearCustom = 'Please specify the year.'
+  if (form.passedOutYear === 'Custom' && !safeTrim(form.passedOutYearCustom)) errors.passedOutYearCustom = 'Please specify the year.'
   if (!form.currentStatus) errors.currentStatus = 'Current Status is required.'
-  if (form.currentStatus === 'Employee' && !form.designation.trim()) errors.designation = 'Designation is required for employees.'
+  if (form.currentStatus === 'Employee' && !safeTrim(form.designation)) errors.designation = 'Designation is required for employees.'
   if (!form.source) errors.source = 'This field is required.'
-  if (form.source === 'Others' && !form.sourceOther.trim()) errors.sourceOther = 'Please specify.'
+  if (form.source === 'Others' && !safeTrim(form.sourceOther)) errors.sourceOther = 'Please specify.'
   if (!form.admissionDate) errors.admissionDate = 'Admission Date is required.'
   if (!form.courseId) errors.courseId = 'Course is required.'
-  if (!form.batchId.trim()) errors.batchId = 'Batch is required.'
-  if (!form.batchTiming.trim()) errors.batchTiming = 'Batch timing is required.'
-  if (!form.courseAmount.trim()) errors.courseAmount = 'Course amount is required.'
-  if (!form.paymentPlanId.trim()) errors.paymentPlanId = 'This field is required.'
+  if (!safeTrim(form.batchId)) errors.batchId = 'Batch is required.'
+  if (!safeTrim(form.batchTiming)) errors.batchTiming = 'Batch timing is required.'
+  if (!safeTrim(form.courseAmount)) errors.courseAmount = 'Course amount is required.'
+  if (!safeTrim(form.paymentPlanId)) errors.paymentPlanId = 'This field is required.'
 
   const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
   const resolvedStudentId = String(
