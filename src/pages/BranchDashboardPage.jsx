@@ -30,6 +30,7 @@ import {
   Tag,
   BadgeInfo,
   BadgePercent,
+  PieChart,
   UserRound,
   Search,
   UserPlus, Pencil, Trash2,
@@ -2016,6 +2017,18 @@ function buildBranchCourseHierarchySummary(models = []) {
       })),
     }
   })
+}
+
+function getBranchCourseModuleWeightageSummary(models = []) {
+  const totalModules = Array.isArray(models) ? models.length : 0
+
+  return {
+    totalWeightage: 100,
+    moduleCount: totalModules,
+    distributionLabel: totalModules
+      ? `${totalModules} Module${totalModules === 1 ? '' : 's'} • Equal Distribution`
+      : 'No modules added yet',
+  }
 }
 
 function mergeBranchCourseModelHierarchies(primaryModels = [], fallbackModels = []) {
@@ -8704,6 +8717,31 @@ else {
 
                   {courseEditorStage === 'closed' ? (
                     <div className="course-added-modules">
+                      {(() => {
+                        const moduleWeightageSummary = getBranchCourseModuleWeightageSummary(savedCourseRows)
+
+                        return (
+                          <div className="course-module-weightage-card">
+                            <div className="course-module-weightage-card-copy">
+                              <div className="course-module-weightage-card-icon" aria-hidden="true">
+                                <PieChart size={28} strokeWidth={2.2} />
+                              </div>
+                              <div>
+                                <strong>Course Module Weightage</strong>
+                                <p>The total weightage of all modules in this course is 100%.</p>
+                                <span>Module percentages are automatically distributed equally.</span>
+                              </div>
+                            </div>
+
+                            <div className="course-module-weightage-card-summary">
+                              <span>Total Module Weightage</span>
+                              <strong>{formatBranchCoursePercentage(moduleWeightageSummary.totalWeightage)}</strong>
+                              <p>{moduleWeightageSummary.distributionLabel}</p>
+                            </div>
+                          </div>
+                        )
+                      })()}
+
                       <div className="course-added-modules-header">
                         <div>
                           <h5>Modules</h5>
@@ -8792,9 +8830,8 @@ else {
                                       <ul className="course-added-module-card-list">
                                         {submodels.length ? submodels.map((submodel, submodelIndex) => (
                                           <li key={submodel.id}>
-                                            <span className="course-added-module-card-list-index">{submodelIndex + 1}</span>
+                                            <span className="course-added-module-card-list-index">{String(submodelIndex + 1).padStart(2, '0')}</span>
                                             <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
-                                            <span>{formatBranchCoursePercentage(submodel.percentage)}</span>
                                           </li>
                                         )) : (
                                           <li>No submodules yet</li>
@@ -8805,6 +8842,23 @@ else {
                                 </article>
                               )
                             })}
+
+                            <article className="course-added-modules-row course-added-modules-row-total" aria-label="Module total">
+                              <div className="course-added-modules-row-main course-added-modules-row-main--total">
+                                <div className="course-added-modules-row-total-label">
+                                  <strong>Module Total</strong>
+                                </div>
+
+                                <div className="course-added-modules-row-total-percentage">
+                                  <span className="course-table-percentage course-table-percentage--total">
+                                    {formatBranchCoursePercentage(100)}
+                                  </span>
+                                </div>
+
+                                <div className="course-added-modules-row-total-submodules" />
+                                <div className="course-added-modules-row-total-actions" />
+                              </div>
+                            </article>
                           </div>
                         </div>
                       ) : (
