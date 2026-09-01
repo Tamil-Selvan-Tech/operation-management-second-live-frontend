@@ -1953,7 +1953,7 @@ export function FacultyDashboardPage() {
     const selectedBatchId = String(selectedStudentsBatch.batchId || selectedStudentsBatch.id || '').trim().toLowerCase()
     const selectedBatchGroupId = String(selectedStudentsBatch.batchGroupId || '').trim().toLowerCase()
 
-    const matchedStudents = backfilledStudents.filter((student) => {
+    const matchedStudents = facultyScopedStudents.filter((student) => {
       const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
       const studentFacultyId = String(context?.facultyId || student?.facultyId || '').trim().toLowerCase()
       const studentFacultyName = normalizeCourseKey(context?.facultyName || student?.facultyName || '')
@@ -2004,7 +2004,6 @@ export function FacultyDashboardPage() {
 
     return dedupeStudentsByIdentity(matchedStudents)
   }, [
-    backfilledStudents,
     currentFacultyIdentity.facultyId,
     currentFacultyIdentity.facultyName,
     facultyBackfillRecords,
