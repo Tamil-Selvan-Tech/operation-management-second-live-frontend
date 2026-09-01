@@ -1519,6 +1519,7 @@ export function FacultyDashboardPage() {
       facultyName: String(profile.facultyName || profile.name || facultyDetails?.name || '').trim(),
       facultyEmail: String(profile.facultyEmail || profile.email || facultyDetails?.email || '').trim(),
       branchId: String(profile.branchId || branch.id || facultyDetails?.branchId || facultyDetails?.branch?.id || '').trim(),
+      branchCode: String(profile.branchCode || branch.branchId || facultyDetails?.branchCode || facultyDetails?.branch?.branchId || '').trim(),
     }
   }, [facultyDetails, facultyProfile])
 
@@ -1608,8 +1609,21 @@ export function FacultyDashboardPage() {
     const facultyNameValue = currentFacultyIdentity.facultyName
     const facultyEmailValue = currentFacultyIdentity.facultyEmail
 
-    return getExactFacultyStudents(backfilledStudents, facultyId, facultyNameValue, facultyEmailValue)
-  }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
+    const branchKeys = [currentFacultyIdentity.branchId, currentFacultyIdentity.branchCode]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean)
+    const branchScopedStudents = branchKeys.length
+      ? backfilledStudents.filter((student) => {
+          const studentBranchKeys = [student?.branchId, student?.branchCode, student?.branchKey]
+            .map((value) => String(value || '').trim().toLowerCase())
+            .filter(Boolean)
+
+          return studentBranchKeys.some((key) => branchKeys.includes(key))
+        })
+      : backfilledStudents
+
+    return getExactFacultyStudents(branchScopedStudents, facultyId, facultyNameValue, facultyEmailValue)
+  }, [backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
 
   const facultyTodayWorkEntries = useMemo(() => {
     return getFacultyTodayWorkEntriesByFaculty({
@@ -1715,7 +1729,7 @@ export function FacultyDashboardPage() {
       const normalizedBatchName = String(entry?.batchName || entry?.batch || entry?.code || '').trim().toLowerCase()
       const normalizedBatchTiming = String(entry?.batchTiming || entry?.timing || '').trim().toLowerCase()
 
-      const matchedStudents = backfilledStudents.filter((student) => {
+      const matchedStudents = facultyScopedStudents.filter((student) => {
         const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
         const resolvedBatch = context?.batchEntry || null
 
