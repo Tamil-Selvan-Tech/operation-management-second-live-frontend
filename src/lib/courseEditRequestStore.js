@@ -119,7 +119,7 @@ function notifyBranchCourseEditRequest(request) {
     tone: 'blue',
     title: `${request.courseName || 'Course'} edit request`,
     message: `${request.facultyName || 'Faculty'} requested changes for ${request.courseName || 'the course'}.`,
-    actionLabel: 'Accept request',
+    actionLabel: 'Pending',
     targetSection: 'courses',
     branchId: request.targetBranchId || request.branchId,
     targetBranchId: request.targetBranchId || request.branchId,
@@ -160,6 +160,32 @@ function notifyBranchCourseEditAccepted(request) {
     facultyEmail: request.facultyEmail,
     requestId: request.id,
     requestStatus: 'accepted',
+    requestTitle: request.requestTitle,
+    requestReason: request.requestReason,
+    requestDescription: request.requestDescription,
+  })
+}
+
+function notifyBranchCourseEditRejected(request) {
+  return addNotification({
+    kind: 'branch-course-edit-rejected',
+    tone: 'red',
+    title: `${request.courseName || 'Course'} edit rejected`,
+    message: `${request.facultyName || 'Faculty'} edit request was rejected for ${request.courseName || 'the course'}.`,
+    actionLabel: 'Rejected',
+    targetSection: 'courses',
+    branchId: request.targetBranchId || request.branchId,
+    targetBranchId: request.targetBranchId || request.branchId,
+    targetBranchEmail: request.targetBranchEmail,
+    targetBranchName: request.targetBranchName,
+    courseId: request.courseId,
+    courseCode: request.courseCode,
+    courseName: request.courseName,
+    facultyId: request.facultyId,
+    facultyName: request.facultyName,
+    facultyEmail: request.facultyEmail,
+    requestId: request.id,
+    requestStatus: 'rejected',
     requestTitle: request.requestTitle,
     requestReason: request.requestReason,
     requestDescription: request.requestDescription,
@@ -263,6 +289,40 @@ export function acceptCourseEditRequest(requestId = '', updates = {}) {
   })
   notifyBranchCourseEditAccepted(acceptedRequest)
   return acceptedRequest
+}
+
+export function rejectCourseEditRequest(requestId = '', updates = {}) {
+  const normalizedId = normalizeText(requestId)
+  if (!normalizedId) return null
+
+  let rejectedRequest = null
+  const nextRequests = loadCourseEditRequests().map((request) => {
+    if (request.id !== normalizedId) return request
+
+    rejectedRequest = normalizeRequest({
+      ...request,
+      ...updates,
+      status: 'rejected',
+      requestStatus: 'rejected',
+      updatedAt: new Date().toISOString(),
+      rejectedAt: request.rejectedAt || new Date().toISOString(),
+    })
+
+    return rejectedRequest
+  })
+
+  if (!rejectedRequest) return null
+
+  saveCourseEditRequests(nextRequests)
+  updateNotification(rejectedRequest.sourceNotificationId || rejectedRequest.id, {
+    requestStatus: 'rejected',
+    actionLabel: 'Rejected',
+    tone: 'red',
+    title: `${rejectedRequest.courseName || 'Course'} edit rejected`,
+    message: `${rejectedRequest.facultyName || 'Faculty'} edit request was rejected for ${rejectedRequest.courseName || 'the course'}.`,
+  })
+  notifyBranchCourseEditRejected(rejectedRequest)
+  return rejectedRequest
 }
 
 export function recordCourseEditChange(requestId = '', changeSummary = '') {

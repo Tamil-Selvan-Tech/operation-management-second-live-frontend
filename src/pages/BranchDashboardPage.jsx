@@ -67,6 +67,7 @@ import {
 import { FACULTY_RECORD_SYNC_EVENT } from '../data/facultyRecords'
 import {
   acceptCourseEditRequest,
+  rejectCourseEditRequest,
   listCourseEditRequests,
 } from '../services/courseEditRequestService'
 import {
@@ -1402,7 +1403,14 @@ function BranchDashboardSection({ title, description, actions, children }) {
   )
 }
 
-function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDetails = false }) {
+function BranchNotificationGroup({
+  label,
+  items,
+  onView,
+  onAcceptRequest,
+  onRejectRequest,
+  showDetails = false,
+}) {
   return (
     <section className="notifications-group">
       <p className="notifications-group-label">{label}</p>
@@ -1411,9 +1419,10 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
           const Icon = item.icon
           const isCourseEditRequest =
             item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
-          const isAcceptedRequest =
-            isCourseEditRequest &&
-            String(item.requestStatus || '').trim().toLowerCase() === 'accepted'
+          const requestStatus = String(item.requestStatus || '').trim().toLowerCase()
+          const isAcceptedRequest = isCourseEditRequest && requestStatus === 'accepted'
+          const isRejectedRequest = isCourseEditRequest && requestStatus === 'rejected'
+          const isPendingRequest = isCourseEditRequest && requestStatus === 'pending'
           const isProgressNotification = String(item.kind || '').includes('progress-status')
 
           return (
@@ -1557,20 +1566,33 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {isCourseEditRequest ? (
-                        isAcceptedRequest ? (
+                        isAcceptedRequest || isRejectedRequest ? (
                           null
                         ) : (
-                          <button
-                            type="button"
-                            className="notifications-item-view-button"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              onAcceptRequest?.(item)
-                            }}
-                          >
-                            Accept
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              className="notifications-item-view-button is-danger"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onRejectRequest?.(item)
+                              }}
+                            >
+                              Reject
+                            </button>
+                            <button
+                              type="button"
+                              className="notifications-item-view-button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onAcceptRequest?.(item)
+                              }}
+                            >
+                              Accept
+                            </button>
+                          </>
                         )
                       ) : (
                         <button
@@ -1636,23 +1658,42 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
 
                   <div className="notifications-item-meta">
                     <span className={`notifications-item-chip tone-${item.tone}`}>
-                      {isAcceptedRequest ? 'Accepted' : item.categoryLabel || item.actionLabel || 'View'}
+                      {isAcceptedRequest
+                        ? 'Accepted'
+                        : isRejectedRequest
+                          ? 'Rejected'
+                          : isPendingRequest
+                            ? 'Pending'
+                            : item.categoryLabel || item.actionLabel || 'View'}
                     </span>
                     {isCourseEditRequest ? (
-                      isAcceptedRequest ? (
+                      isAcceptedRequest || isRejectedRequest ? (
                         null
                       ) : (
-                        <button
-                          type="button"
-                          className="notifications-item-view-button"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            onAcceptRequest?.(item)
-                          }}
-                        >
-                          Accept
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="notifications-item-view-button is-danger"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              onRejectRequest?.(item)
+                            }}
+                          >
+                            Reject
+                          </button>
+                          <button
+                            type="button"
+                            className="notifications-item-view-button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              onAcceptRequest?.(item)
+                            }}
+                          >
+                            Accept
+                          </button>
+                        </div>
                       )
                     ) : (
                       <button
@@ -3820,6 +3861,53 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       })
     } catch (error) {
       console.error('Failed to accept course edit request:', error)
+    } finally {
+      setProcessingBranchNotificationId('')
+    }
+  }
+
+  const rejectBranchCourseEditNotification = async (notification) => {
+    const notificationId = String(notification?.id || notification?.requestId || '').trim()
+    if (processingBranchNotificationId === notificationId) return
+
+    setProcessingBranchNotificationId(notificationId)
+    let requestId = ''
+
+    try {
+      requestId = await resolveCourseEditRequestId(notification)
+      if (!requestId) {
+        setCourseActionError('Unable to find the edit request to reject.')
+        return
+      }
+
+      const rejectedRequest = await rejectCourseEditRequest(requestId, {
+        responseNote: 'Rejected by branch admin',
+      })
+
+      if (rejectedRequest?.id) {
+        setBranchNotificationRecords((current) =>
+          current.map((item) =>
+            String(item.requestId || item.id || '').trim() === requestId
+              ? {
+                  ...item,
+                  requestStatus: 'rejected',
+                  tone: 'red',
+                  actionLabel: 'Rejected',
+                  categoryLabel: 'Rejected',
+                  unread: true,
+                }
+              : item,
+          ),
+        )
+        void loadBranchNotifications()
+      }
+
+      void openBranchNotificationTarget({
+        ...notification,
+        requestStatus: 'rejected',
+      })
+    } catch (error) {
+      console.error('Failed to reject course edit request:', error)
     } finally {
       setProcessingBranchNotificationId('')
     }
@@ -6512,8 +6600,10 @@ useEffect(() => {
                     branchNotificationPreviewItems.map((item) => {
                       const Icon = item.icon
                       const isCourseEditRequest =
-                        (item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request') &&
-                        item.requestStatus !== 'accepted'
+                        item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request'
+                      const requestStatus = String(item.requestStatus || '').trim().toLowerCase()
+                      const isRespondableCourseEditRequest =
+                        isCourseEditRequest && requestStatus !== 'accepted' && requestStatus !== 'rejected'
                       const isProcessing = processingBranchNotificationId === String(item.id || item.requestId || '').trim()
 
                       return (
@@ -6534,21 +6624,37 @@ useEffect(() => {
                           <div
                             className="notification-dropdown-item-actions"
                           >
-                            {isCourseEditRequest ? (
-                              <button
-                                type="button"
-                                className="notification-dropdown-accept"
-                                onMouseDown={(event) => event.stopPropagation()}
-                                onPointerDown={(event) => event.stopPropagation()}
-                                onClick={(event) => {
-                                  event.preventDefault()
-                                  event.stopPropagation()
-                                  if (isProcessing) return
-                                  void acceptBranchCourseEditNotification(item)
-                                }}
-                              >
-                                {isProcessing ? 'Accepting...' : 'Accept'}
-                              </button>
+                            {isRespondableCourseEditRequest ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="notification-dropdown-reject"
+                                  onMouseDown={(event) => event.stopPropagation()}
+                                  onPointerDown={(event) => event.stopPropagation()}
+                                  onClick={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    if (isProcessing) return
+                                    void rejectBranchCourseEditNotification(item)
+                                  }}
+                                >
+                                  {isProcessing ? 'Rejecting...' : 'Reject'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="notification-dropdown-accept"
+                                  onMouseDown={(event) => event.stopPropagation()}
+                                  onPointerDown={(event) => event.stopPropagation()}
+                                  onClick={(event) => {
+                                    event.preventDefault()
+                                    event.stopPropagation()
+                                    if (isProcessing) return
+                                    void acceptBranchCourseEditNotification(item)
+                                  }}
+                                >
+                                  {isProcessing ? 'Accepting...' : 'Accept'}
+                                </button>
+                              </>
                             ) : null}
                             <button
                               type="button"
@@ -6736,6 +6842,7 @@ useEffect(() => {
                           items={section.items}
                           onView={openBranchNotificationTarget}
                           onAcceptRequest={acceptBranchCourseEditNotification}
+                          onRejectRequest={rejectBranchCourseEditNotification}
                           showDetails
                         />
                       ))

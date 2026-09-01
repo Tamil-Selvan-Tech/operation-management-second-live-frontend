@@ -36,6 +36,7 @@ function getNotificationIcon(kind) {
     case 'course-edit-module-updated':
     case 'branch-course-edit-request':
     case 'branch-course-edit-accepted':
+    case 'branch-course-edit-rejected':
     case 'branch-course-edit-updated':
       return Bell
     case 'faculty-progress-status':
@@ -62,7 +63,7 @@ export function normalizeBranchNotification(notification = {}) {
   const isCourseEditAccepted =
     kind === 'branch-course-edit-accepted' || kind === 'course-edit-request-accepted'
   const isCourseEditRejected =
-    kind === 'course-edit-request-rejected'
+    kind === 'branch-course-edit-rejected' || kind === 'course-edit-request-rejected'
   const isCourseEditUpdated =
     kind === 'branch-course-edit-updated' || kind === 'course-edit-module-updated'
   const isProgressStatus =
@@ -106,20 +107,23 @@ export function normalizeBranchNotification(notification = {}) {
         : ''),
     time: formatNotificationTime(createdAt),
     categoryLabel:
-      String(notification.actionLabel || '').trim() ||
-      (isCourseEditRequest
-        ? 'Accept request'
+      isCourseEditRequest
+        ? String(notification.requestStatus || '').trim().toLowerCase() === 'rejected'
+          ? 'Rejected'
+          : String(notification.requestStatus || '').trim().toLowerCase() === 'accepted'
+            ? 'Accepted'
+            : 'Pending'
         : isCourseEditAccepted
           ? 'Accepted'
           : isCourseEditRejected
             ? 'Rejected'
-          : isCourseEditUpdated
-            ? 'Updated'
-            : isProgressStatus
-              ? String(notification.statusLabel || 'Progress Status').trim() || 'Progress Status'
-            : isFacultyLogin
-              ? 'Faculty'
-              : 'View'),
+            : isCourseEditUpdated
+              ? 'Updated'
+              : isProgressStatus
+                ? String(notification.statusLabel || 'Progress Status').trim() || 'Progress Status'
+                : isFacultyLogin
+                  ? 'Faculty'
+                  : String(notification.actionLabel || '').trim() || 'View',
     unread: !notification.read,
     dropdownViewed: Boolean(notification.dropdownViewed),
     icon: getNotificationIcon(kind),

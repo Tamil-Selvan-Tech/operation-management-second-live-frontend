@@ -2896,7 +2896,7 @@ const nextName = trimmedValue
   const courseEditStatus = String(currentCourseEditRequest?.requestStatus || currentCourseEditRequest?.status || '').trim().toLowerCase()
   const canOpenCourseEditor = courseEditStatus === 'accepted' || courseEditStatus === 'editing'
   const isCourseEditPending = courseEditStatus === 'pending'
-  const isCourseEditCompleted = courseEditStatus === 'completed'
+  const isCourseEditCompleted = courseEditStatus === 'completed' || courseEditStatus === 'rejected'
 
   const visibleNotifications = useMemo(() => {
     const query = searchTerm.trim().toLowerCase()
@@ -3322,7 +3322,7 @@ const nextName = trimmedValue
                                     ? 'Request Pending'
                                     : isCourseEditCompleted
                                       ? 'Request Completed'
-                                    : 'Edit Request'}
+                                      : 'Edit Request'}
                               </span>
                             </button>
                           </div>

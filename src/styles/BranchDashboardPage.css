@@ -7542,7 +7542,13 @@ body.branch-notification-menu-open .main-area {
 }
 
 .notification-dropdown-item.is-course-request {
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.notification-dropdown-item.is-course-request .notification-dropdown-item-actions {
+  grid-column: 2 / -1;
+  justify-self: start;
+  margin-top: 6px;
 }
 
 .notification-copy {
@@ -7571,6 +7577,7 @@ body.branch-notification-menu-open .main-area {
 }
 
 .notification-dropdown-accept,
+.notification-dropdown-reject,
 .notification-dropdown-view {
   position: relative;
   z-index: 99999;
@@ -7600,6 +7607,28 @@ body.branch-notification-menu-open .main-area {
 
 .notification-dropdown-accept:hover {
   filter: brightness(1.02);
+}
+
+.notification-dropdown-reject {
+  border-color: rgba(239, 68, 68, 0.18);
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #ffffff;
+}
+
+.notification-dropdown-reject:hover {
+  filter: brightness(1.02);
+}
+
+.notifications-item-view-button.is-danger {
+  border-color: rgba(239, 68, 68, 0.16);
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.notifications-item-view-button.is-danger:hover,
+.notifications-item-view-button.is-danger:focus-visible {
+  background: #ffe4e6;
+  color: #9f1239;
 }
 
 .notification-dropdown-view:hover {
