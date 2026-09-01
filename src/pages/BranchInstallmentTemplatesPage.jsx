@@ -466,7 +466,7 @@ export function BranchInstallmentTemplatesPage() {
         >
           <input
             type="text"
-            placeholder="Two Installments"
+            placeholder="Enter Installments Plan "
             value={form.templateName}
             onChange={(event) =>
               updateField('templateName', event.target.value)

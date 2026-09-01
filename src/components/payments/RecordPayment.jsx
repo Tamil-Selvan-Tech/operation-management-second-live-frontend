@@ -130,6 +130,8 @@ const RecordPayment = ({ student, students = [], onClose }) => {
     [selectedStudent, initialStudent]
   );
 
+  const isStudentPaymentFlow = Boolean(activeStudent?.studentId);
+
   // =========================================================
   // STUDENT DATA
   // =========================================================
@@ -1708,32 +1710,35 @@ const RecordPayment = ({ student, students = [], onClose }) => {
                 </span>
               </label>
 
-              <select
-                id="payAgainst"
-                name="payAgainst"
-                value={formData.payAgainst}
-                onChange={handleChange}
-              >
-
-                <option value="">
-                  Select payment against
-                </option>
-
-                <option value="Installment 1">
-                  Installment 1
-                </option>
-
-                <option value="Installment 2">
-                  Installment 2
-                </option>
-
-                <option value="Installment 3">
-                  Installment 3
-                </option>
-
-                
-
-              </select>
+              {isStudentPaymentFlow ? (
+                <div
+                  id="payAgainst"
+                  className="payment-readonly-field"
+                  aria-readonly="true"
+                >
+                  {formData.payAgainst || "No pending installment"}
+                </div>
+              ) : (
+                <select
+                  id="payAgainst"
+                  name="payAgainst"
+                  value={formData.payAgainst}
+                  onChange={handleChange}
+                >
+                  <option value="">
+                    Select payment against
+                  </option>
+                  <option value="Installment 1">
+                    Installment 1
+                  </option>
+                  <option value="Installment 2">
+                    Installment 2
+                  </option>
+                  <option value="Installment 3">
+                    Installment 3
+                  </option>
+                </select>
+              )}
 
               {errors.payAgainst && (
                 <span className="payment-error">
