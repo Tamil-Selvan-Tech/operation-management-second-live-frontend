@@ -323,6 +323,7 @@ function getBatchSeatSummary(batch = {}, students = [], excludedStudentKeys = []
     facultyName: batch?.facultyName || '',
     courseId: batch?.courseId || '',
     courseName: batch?.courseName || '',
+    batchGroupId: batch?.batchGroupId || '',
     batchId: batch?.batchId || '',
     batchName: batch?.batchName || '',
     batchTiming: batch?.batchTiming || '',
@@ -5218,6 +5219,7 @@ const studentCourseOptions = useMemo(() => {
               batchId,
               batchName,
               batchTiming,
+              batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
               totalSeats: batch?.totalSeats || 0,
               courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
               courseName: String(group?.courseName || '').trim(),
@@ -6304,7 +6306,7 @@ useEffect(() => {
     console.log("PAYLOAD BEING SENT TO BACKEND:", record)
     try {
       await saveBranchStudent(record)
-      void reloadBranchStudents()
+      await reloadBranchStudents()
       setIsStudentFormOpen(false)
 
       if (studentFormMode === 'add') {

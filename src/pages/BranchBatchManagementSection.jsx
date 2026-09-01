@@ -61,6 +61,7 @@ function getBatchSeatSummary(batch = {}, students = []) {
     facultyName: batch?.facultyName || '',
     courseId: batch?.courseId || '',
     courseName: batch?.courseName || '',
+    batchGroupId: batch?.batchGroupId || '',
     batchId: batch?.batchId || batch?.id || '',
     batchName: batch?.batchName || '',
     batchTiming: batch?.batchTiming || '',
@@ -512,6 +513,12 @@ function normalizeMatchKey(value = '') {
   return normalizeId(value)
 }
 
+function getBatchSeatMapKey(batch = {}, group = {}) {
+  const groupKey = normalizeMatchKey(group?.batchGroupId || group?.id || batch?.batchGroupId || '')
+  const batchKey = normalizeMatchKey(batch?.batchId || batch?.id || '')
+  return `${groupKey}|${batchKey}`
+}
+
 function buildBatchGroupStudentMatcher(group = {}) {
   const batches = Array.isArray(group?.batches) ? group.batches : []
 
@@ -901,11 +908,12 @@ export function BranchBatchManagementSection({
       const batches = Array.isArray(group?.batches) ? group.batches : []
 
       batches.forEach((batch) => {
-        const key = normalizeMatchKey(batch?.batchId || batch?.id || '')
+        const key = getBatchSeatMapKey(batch, group)
         if (!key) return
 
         counts.set(key, getBatchSeatSummary({
           ...batch,
+          batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
           courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
           courseName: String(group?.courseName || '').trim(),
           facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
@@ -1795,8 +1803,9 @@ export function BranchBatchManagementSection({
           <div className="batch-detail-list">
             <h4 className="batch-detail-list-title">Batch List</h4>
             {(Array.isArray(detailGroup.batches) ? detailGroup.batches : []).map((batch) => {
-              const seatSummary = batchSeatSummaryMap.get(normalizeMatchKey(batch.batchId || batch.id || '')) || getBatchSeatSummary({
+              const seatSummary = batchSeatSummaryMap.get(getBatchSeatMapKey(batch, detailGroup)) || getBatchSeatSummary({
                 ...batch,
+                batchGroupId: String(detailGroup?.batchGroupId || detailGroup?.id || '').trim(),
                 courseId: String(detailGroup?.courseId || detailGroup?.branchCourseId || '').trim(),
                 courseName: String(detailGroup?.courseName || '').trim(),
                 facultyId: String(detailGroup?.facultyId || detailGroup?.branchFacultyId || '').trim(),
