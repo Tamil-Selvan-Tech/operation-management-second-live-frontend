@@ -1549,9 +1549,7 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {isCourseEditRequest ? (
                         isAcceptedRequest ? (
-                          <span className="notifications-item-view-button is-accepted" aria-disabled="true">
-                            Accepted
-                          </span>
+                          null
                         ) : (
                           <button
                             type="button"
@@ -1633,9 +1631,7 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                     </span>
                     {isCourseEditRequest ? (
                       isAcceptedRequest ? (
-                        <span className="notifications-item-view-button is-accepted" aria-disabled="true">
-                          Accepted
-                        </span>
+                        null
                       ) : (
                         <button
                           type="button"
