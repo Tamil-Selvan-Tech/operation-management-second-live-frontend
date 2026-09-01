@@ -604,6 +604,7 @@
 .batch-management-row-name small {
   color: #94a3b8;
   font-size: 0.78rem;
+  line-height: 1.1;
 }
 
 .batch-management-row-timing {
@@ -617,6 +618,40 @@
 .batch-management-row-status-wrap {
   display: grid;
   gap: 6px;
+}
+
+.batch-management-row-status-wrap {
+  position: relative;
+}
+
+.batch-management-row-status-wrap::after {
+  position: absolute;
+  top: 36px;
+  right: 14px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid #0f172a;
+  border-bottom: 2px solid #0f172a;
+  transform: rotate(45deg);
+  pointer-events: none;
+  content: '';
+}
+
+.batch-management-row input,
+.batch-management-row select {
+  min-height: 44px;
+  height: 44px;
+  box-sizing: border-box;
+}
+
+.batch-management-row-seats {
+  padding: 0 12px;
+  border-radius: 10px;
+}
+
+.batch-management-row-status {
+  appearance: none;
+  padding-right: 34px !important;
 }
 
 .batch-management-row-error {
@@ -662,15 +697,31 @@
   display: grid;
   gap: 0;
   min-width: 0;
+  position: relative;
 }
 
 .batch-management-time-select select {
   min-width: 0;
   min-height: 44px;
+  appearance: none;
   padding: 0 10px;
+  padding-right: 30px;
   text-align: center;
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.batch-management-time-select::after {
+  position: absolute;
+  top: 17px;
+  right: 12px;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid #0f172a;
+  border-bottom: 2px solid #0f172a;
+  transform: rotate(45deg);
+  pointer-events: none;
+  content: '';
 }
 
 .batch-management-row-timing span {
@@ -684,6 +735,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  align-self: end;
   width: 44px;
   height: 44px;
   border: 1px solid #dbe4f0;

@@ -1639,6 +1639,7 @@ export function BranchBatchManagementSection({
                           </div>
 
                           <div className="batch-management-row-status-wrap">
+                            <div className="batch-management-time-title">Status</div>
                             <select
                               className="batch-management-row-status"
                               value={row.status}
