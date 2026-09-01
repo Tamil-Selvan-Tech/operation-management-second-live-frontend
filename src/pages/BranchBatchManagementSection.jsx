@@ -220,6 +220,110 @@ function getTimePickerParts(time = '', period = 'AM', fallbackHour = '09') {
   }
 }
 
+function parseTimeToMinutes(value = '', period = '') {
+  const text = normalizeText(value)
+  if (!text) return null
+
+  const amPmMatch = text.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (amPmMatch) {
+    let hours = Number(amPmMatch[1])
+    const minutes = Number(amPmMatch[2])
+    const meridiem = String(amPmMatch[3] || '').toUpperCase()
+
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+
+    if (meridiem === 'AM') {
+      if (hours === 12) hours = 0
+    } else if (hours < 12) {
+      hours += 12
+    }
+
+    return hours * 60 + minutes
+  }
+
+  const clockMatch = text.match(/^(\d{1,2}):(\d{2})$/)
+  if (!clockMatch) return null
+
+  let hours = Number(clockMatch[1])
+  const minutes = Number(clockMatch[2])
+  const meridiem = String(period || '').trim().toUpperCase()
+
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null
+
+  if (meridiem === 'AM') {
+    if (hours === 12) hours = 0
+  } else if (meridiem === 'PM') {
+    if (hours < 12) hours += 12
+  } else if (hours > 23 || minutes > 59) {
+    return null
+  }
+
+  return hours * 60 + minutes
+}
+
+function formatRangeLabel(startValue = '', startPeriod = '', endValue = '', endPeriod = '') {
+  const startLabel = formatClockLabel(`${startValue} ${startPeriod}`.trim())
+  const endLabel = formatClockLabel(`${endValue} ${endPeriod}`.trim())
+  return `${startLabel}${startLabel && endLabel ? ' - ' : ''}${endLabel}`.trim()
+}
+
+function isSameCourseFacultyGroup(group = {}, courseId = '', facultyId = '', facultyName = '') {
+  const targetCourseId = normalizeMatchKey(courseId)
+  const targetFacultyId = normalizeMatchKey(facultyId)
+  const targetFacultyName = normalizeMatchKey(facultyName)
+  const groupCourseId = normalizeMatchKey(group?.courseId || group?.branchCourseId || '')
+  const groupFacultyId = normalizeMatchKey(group?.facultyId || group?.branchFacultyId || '')
+  const groupFacultyName = normalizeMatchKey(group?.facultyName || '')
+
+  if (!targetCourseId || !groupCourseId || targetCourseId !== groupCourseId) {
+    return false
+  }
+
+  const facultyIdMatches = Boolean(targetFacultyId && groupFacultyId && targetFacultyId === groupFacultyId)
+  const facultyNameMatches = Boolean(targetFacultyName && groupFacultyName && targetFacultyName === groupFacultyName)
+
+  return Boolean(targetFacultyId || targetFacultyName) && (facultyIdMatches || facultyNameMatches)
+}
+
+function getBatchTimingRange(batch = {}) {
+  const startMinutes = parseTimeToMinutes(batch?.startTime || '', batch?.startPeriod || '')
+  const endMinutes = parseTimeToMinutes(batch?.endTime || '', batch?.endPeriod || '')
+
+  if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || endMinutes <= startMinutes) {
+    return null
+  }
+
+  return {
+    batchId: normalizeText(batch?.batchId || batch?.id || ''),
+    batchName: normalizeText(batch?.batchName || ''),
+    startMinutes,
+    endMinutes,
+    label: normalizeText(
+      batch?.batchTiming ||
+      formatRangeLabel(batch?.startTime || '', batch?.startPeriod || '', batch?.endTime || '', batch?.endPeriod || ''),
+    ),
+  }
+}
+
+function findTimingConflict(startMinutes, endMinutes, ranges = []) {
+  if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes)) return null
+
+  return (Array.isArray(ranges) ? ranges : []).find((range) => {
+    if (!range) return false
+    return startMinutes < range.endMinutes && endMinutes > range.startMinutes
+  }) || null
+}
+
+function isStartTimeOptionDisabled(hour, minute, period, ranges = []) {
+  const candidateMinutes = parseTimeToMinutes(`${hour}:${minute}`, period)
+  if (!Number.isFinite(candidateMinutes)) return false
+
+  return (Array.isArray(ranges) ? ranges : []).some((range) => {
+    if (!range) return false
+    return candidateMinutes >= range.startMinutes && candidateMinutes < range.endMinutes
+  })
+}
+
 function getCourseLabel(course = {}) {
   return normalizeText(course?.name || course?.courseName || course?.courseCode || '')
 }
@@ -502,24 +606,6 @@ function getBatchGroupStudentCount(group = {}, students = []) {
   return uniqueStudents.size
 }
 
-function getBatchStudentCount(group = {}, batch = {}, students = []) {
-  if (!Array.isArray(students) || !students.length) return 0
-
-  const batchId = normalizeMatchKey(batch?.batchId || batch?.id || '')
-
-  return students.reduce((count, student) => {
-    if (!student) return count
-
-    const studentBatchId = normalizeMatchKey(student?.batchId || student?.batchEntryId || student?.batch?.batchId || '')
-
-    if (batchId && studentBatchId && batchId === studentBatchId) {
-      return count + 1
-    }
-
-    return count
-  }, 0)
-}
-
 export function BranchBatchManagementSection({
   branchId = '',
   branchCourses = [],
@@ -736,6 +822,11 @@ export function BranchBatchManagementSection({
     [activeCourses, draft.courseId],
   )
 
+  const resolvedDraftFacultyId = isFacultyNameFallbackValue(draft.facultyId) ? '' : normalizeText(draft.facultyId)
+  const resolvedDraftFacultyName = isFacultyNameFallbackValue(draft.facultyId)
+    ? getFacultyNameFromFallbackValue(draft.facultyId) || normalizeText(draft.facultyName)
+    : normalizeText(draft.facultyName)
+
   const mappedFacultyIds = useMemo(() => {
     const assignedFaculty = Array.isArray(selectedCourse?.assignedFaculty) ? selectedCourse.assignedFaculty : []
     return assignedFaculty
@@ -753,10 +844,34 @@ export function BranchBatchManagementSection({
     return [...mappedOptions, ...remainingOptions]
   }, [activeFaculty, mappedFacultyIds])
 
+  const selectedFacultyRecord = useMemo(
+    () => availableFacultyOptions.find((faculty) => faculty.id === resolvedDraftFacultyId) || null,
+    [availableFacultyOptions, resolvedDraftFacultyId],
+  )
+
   const currentBranchBatchGroups = useMemo(
     () => batchGroups.filter((group) => !branchId || normalizeId(group.branchId) === normalizeId(branchId)),
     [batchGroups, branchId],
   )
+
+  const editingGroupKey = normalizeText(editingGroup?.id || editingGroup?.batchGroupId || editingGroup?.batchId || '')
+
+  const occupiedTimingRanges = useMemo(() => {
+    if (!draft.courseId || (!resolvedDraftFacultyId && !resolvedDraftFacultyName)) return []
+
+    return currentBranchBatchGroups.flatMap((group) => {
+      const groupKey = normalizeText(group?.id || group?.batchGroupId || group?.batchId || '')
+      if (editingGroupKey && groupKey === editingGroupKey) return []
+      if (!isSameCourseFacultyGroup(group, draft.courseId, resolvedDraftFacultyId, resolvedDraftFacultyName)) return []
+
+      return (Array.isArray(group?.batches) ? group.batches : [])
+        .map((batch) => {
+          if (normalizeStatus(batch?.status || '').toLowerCase() === 'inactive') return null
+          return getBatchTimingRange(batch)
+        })
+        .filter(Boolean)
+    })
+  }, [currentBranchBatchGroups, draft.courseId, editingGroupKey, resolvedDraftFacultyId, resolvedDraftFacultyName])
 
   const batchGroupStudentCountMap = useMemo(() => {
     const counts = new Map()
@@ -1090,11 +1205,8 @@ export function BranchBatchManagementSection({
       setFieldErrors(nextErrors)
 
       const selectedCourseRecord = activeCourses.find((course) => course.id === draft.courseId) || null
-      const resolvedFacultyId = isFacultyNameFallbackValue(draft.facultyId) ? '' : normalizeText(draft.facultyId)
-      const resolvedFacultyName = isFacultyNameFallbackValue(draft.facultyId)
-        ? getFacultyNameFromFallbackValue(draft.facultyId) || normalizeText(draft.facultyName)
-        : normalizeText(draft.facultyName)
-      const selectedFacultyRecord = availableFacultyOptions.find((faculty) => faculty.id === resolvedFacultyId) || null
+      const resolvedFacultyId = resolvedDraftFacultyId
+      const resolvedFacultyName = resolvedDraftFacultyName
       const existingGroup = editingGroup
         ? batchGroups.find((group) => String(group.id || group.batchGroupId || group.batchId || '').trim() === String(editingGroup.id || editingGroup.batchGroupId || editingGroup.batchId || '').trim()) || editingGroup
         : null
@@ -1130,6 +1242,35 @@ export function BranchBatchManagementSection({
             status,
           }
         })
+
+        const draftTimingRanges = cleanedRows.map((row) => ({
+          ...row,
+          startMinutes: parseTimeToMinutes(row.startTime, row.startPeriod),
+          endMinutes: parseTimeToMinutes(row.endTime, row.endPeriod),
+          label: formatRangeLabel(row.startTime, row.startPeriod, row.endTime, row.endPeriod),
+        }))
+
+        draftTimingRanges.forEach((rowTiming, index) => {
+          if (!Number.isFinite(rowTiming.startMinutes) || !Number.isFinite(rowTiming.endMinutes) || rowTiming.endMinutes <= rowTiming.startMinutes) {
+            nextErrors.rows[index].timing = 'Please choose a valid time range.'
+            return
+          }
+
+          const existingConflict = findTimingConflict(rowTiming.startMinutes, rowTiming.endMinutes, occupiedTimingRanges)
+          const draftConflict = findTimingConflict(rowTiming.startMinutes, rowTiming.endMinutes, draftTimingRanges.slice(0, index))
+          const conflict = existingConflict || draftConflict
+
+          if (conflict) {
+            nextErrors.rows[index].timing = `${rowTiming.label} is already assigned to another batch. Please select a different time slot.`
+          }
+        })
+
+        const hasTimingOverlap = nextErrors.rows.some((rowErrors) => Boolean(rowErrors.timing))
+        if (hasTimingOverlap) {
+          setFieldErrors(nextErrors)
+          setCreateError('One or more batch timings overlap with an existing batch or another batch in this form. Please select a different time.')
+          return
+        }
 
         const payload = {
           batchGroupId: draft.batchGroupId,
@@ -1202,7 +1343,21 @@ export function BranchBatchManagementSection({
         setIsSaving(false)
       }
     },
-    [activeCourses, availableFacultyOptions, batchGroups, draft.batchGroupId, draft.courseId, draft.facultyId, draft.rows, editingGroup, refreshBatchGroups],
+    [
+      activeCourses,
+      availableFacultyOptions,
+      batchGroups,
+      draft.batchGroupId,
+      draft.courseId,
+      draft.facultyId,
+      draft.rows,
+      editingGroup,
+      occupiedTimingRanges,
+      refreshBatchGroups,
+      resolvedDraftFacultyId,
+      resolvedDraftFacultyName,
+      selectedFacultyRecord,
+    ],
   )
 
   const filteredGroups = batchGroups
@@ -1232,14 +1387,6 @@ export function BranchBatchManagementSection({
     (safeBatchTablePage - 1) * batchRowsPerPage,
     safeBatchTablePage * batchRowsPerPage,
   )
-
-  useEffect(() => {
-    setBatchTablePage(1)
-  }, [searchTerm])
-
-  useEffect(() => {
-    setBatchTablePage((currentPage) => Math.min(Math.max(1, currentPage), totalBatchPages))
-  }, [totalBatchPages])
 
   const renderCreateModal = () => {
     if (!isCreateOpen || typeof document === 'undefined') return null
@@ -1364,7 +1511,13 @@ export function BranchBatchManagementSection({
                                   >
                                     <option value="" />
                                     {TIME_HOUR_OPTIONS.map((hour) => (
-                                      <option key={hour} value={hour}>{hour}</option>
+                                      <option
+                                        key={hour}
+                                        value={hour}
+                                        disabled={isStartTimeOptionDisabled(hour, startParts.minute || '00', startParts.period || row.startPeriod || 'AM', occupiedTimingRanges)}
+                                      >
+                                        {hour}
+                                      </option>
                                     ))}
                                   </select>
                                 </label>
@@ -1377,7 +1530,13 @@ export function BranchBatchManagementSection({
                                   >
                                     <option value="" />
                                     {TIME_MINUTE_OPTIONS.map((minute) => (
-                                      <option key={minute} value={minute}>{minute}</option>
+                                      <option
+                                        key={minute}
+                                        value={minute}
+                                        disabled={isStartTimeOptionDisabled(startParts.hour || '09', minute, startParts.period || row.startPeriod || 'AM', occupiedTimingRanges)}
+                                      >
+                                        {minute}
+                                      </option>
                                     ))}
                                   </select>
                                 </label>
@@ -1385,8 +1544,18 @@ export function BranchBatchManagementSection({
                                   <span className="sr-only">Start AM/PM</span>
                                   <select value={row.startPeriod || ''} onChange={(event) => handleRowChange(index, 'startPeriod', event.target.value || 'AM')} aria-label="Start AM or PM">
                                     <option value="" />
-                                    <option value="AM">AM</option>
-                                    <option value="PM">PM</option>
+                                    <option
+                                      value="AM"
+                                      disabled={isStartTimeOptionDisabled(startParts.hour || '09', startParts.minute || '00', 'AM', occupiedTimingRanges)}
+                                    >
+                                      AM
+                                    </option>
+                                    <option
+                                      value="PM"
+                                      disabled={isStartTimeOptionDisabled(startParts.hour || '09', startParts.minute || '00', 'PM', occupiedTimingRanges)}
+                                    >
+                                      PM
+                                    </option>
                                   </select>
                                 </label>
                               </div>
@@ -1737,7 +1906,10 @@ export function BranchBatchManagementSection({
             className="batch-management-search"
             placeholder="Search installment plan"
             value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
+            onChange={(event) => {
+              setSearchTerm(event.target.value)
+              setBatchTablePage(1)
+            }}
           />
           <button type="submit" className="button button-solid batch-management-search-button">
             Search
