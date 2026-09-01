@@ -556,6 +556,17 @@ function getCourseModuleName(module = {}, index = 0) {
   return String(module?.name || module?.title || module?.moduleName || `Module ${index + 1}`).trim()
 }
 
+function getTodayWorkModuleLabel(module = {}, index = 0) {
+  const moduleName = getCourseModuleName(module, index)
+  const fallbackName = `Module ${index + 1}`
+
+  if (!moduleName || moduleName === fallbackName) {
+    return fallbackName
+  }
+
+  return `${fallbackName} - ${moduleName}`
+}
+
 function getCourseSubmodules(module = {}) {
   const source = module && typeof module === 'object' ? module : {}
 
@@ -4121,7 +4132,7 @@ const nextName = trimmedValue
                         const moduleId = String(module?.id || `module-${index}`).trim()
                         return (
                           <option key={moduleId || index} value={moduleId}>
-                            {getCourseModuleName(module, index)}
+                            {getTodayWorkModuleLabel(module, index)}
                           </option>
                         )
                       })
@@ -4137,7 +4148,7 @@ const nextName = trimmedValue
                 <div className="faculty-today-work-panel-heading">
                   <div>
                     <h4>Sub-modules</h4>
-                    <p>{getCourseModuleName(todayWorkSelectedModule || {}, 0)}</p>
+                    <p>{getTodayWorkModuleLabel(todayWorkSelectedModule || {}, 0)}</p>
                   </div>
                   <button
                     type="button"
