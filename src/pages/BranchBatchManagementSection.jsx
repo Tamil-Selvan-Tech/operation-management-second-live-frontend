@@ -385,10 +385,10 @@ function createBatchRow(batchId = '') {
   return {
     batchId,
     batchName: '',
-    startTime: '',
-    startPeriod: '',
-    endTime: '',
-    endPeriod: '',
+    startTime: '09:00',
+    startPeriod: 'AM',
+    endTime: '11:00',
+    endPeriod: 'AM',
     totalSeats: '',
     status: 'Active',
   }
