@@ -581,15 +581,29 @@ function getCourseFromSource(source = {}) {
   if (!source) return null
 
   const course = source.course || source
-  const courseId = String(course?.id || source?.courseId || '').trim()
+  const branchCourseId = String(
+    course?.branchCourseId ||
+    source?.branchCourseId ||
+    course?.branchCourse?.id ||
+    source?.branchCourse?.id ||
+    '',
+  ).trim()
+  const courseId = String(
+    course?.courseId ||
+    source?.courseId ||
+    course?.id ||
+    '',
+  ).trim()
   const courseName = String(course?.name || course?.courseName || source?.courseName || '').trim()
+  const resolvedId = branchCourseId || courseId || courseName
 
-  if (!courseId && !courseName) return null
+  if (!resolvedId && !courseName) return null
 
   return {
     ...course,
-    id: courseId || courseName,
-    courseId: courseId || source?.courseId || '',
+    id: resolvedId || courseName,
+    branchCourseId,
+    courseId,
     courseName: courseName || courseId || 'Course',
   }
 }
@@ -1620,6 +1634,15 @@ export function FacultyDashboardPage() {
     return assignedCourses.find((course) => String(course?.id || '').trim() === activeCourseId) || assignedCourses[0] || null
   }, [activeCourseId, assignedCourses])
 
+  const selectedCourseRequestId = useMemo(() => {
+    return String(
+      selectedCourse?.branchCourseId ||
+      selectedCourse?.courseId ||
+      selectedCourse?.id ||
+      '',
+    ).trim()
+  }, [selectedCourse])
+
   const facultyProgressComparisonNotifications = useMemo(() => {
     return facultyScopedStudents
       .map((student) => {
@@ -2377,7 +2400,7 @@ export function FacultyDashboardPage() {
 
     setCourseEditError('')
     setCourseEditDraft({
-      courseId: String(selectedCourse?.id || '').trim(),
+      courseId: selectedCourseRequestId,
       courseName: String(selectedCourse?.name || selectedCourse?.courseName || 'Course').trim(),
       modules: cloneFacultyEditModules(selectedCourse),
     })
@@ -2508,7 +2531,7 @@ const nextName = trimmedValue
     const reason = String(courseRequestForm.reason || '').trim()
     const description = String(courseRequestForm.description || '').trim()
 
-    if (!selectedCourse?.id) {
+    if (!selectedCourseRequestId) {
       setCourseRequestError('Please select a course first.')
       return
     }
@@ -2528,9 +2551,9 @@ const nextName = trimmedValue
 
     try {
       const response = await createCourseEditRequest({
-        branchCourseId: selectedCourse.id,
-        courseId: selectedCourse.id,
-        courseCode: selectedCourse.courseCode || selectedCourse.id,
+        branchCourseId: selectedCourseRequestId,
+        courseId: String(selectedCourse?.courseId || selectedCourseRequestId).trim(),
+        courseCode: selectedCourse.courseCode || selectedCourseRequestId,
         courseName: selectedCourse.name || selectedCourse.courseName || 'Course',
         title: String(courseRequestForm.title || '').trim(),
         reason,
@@ -2828,7 +2851,7 @@ const nextName = trimmedValue
   }
 
   const currentCourseEditRequest = (() => {
-    const courseId = String(selectedCourse?.id || '').trim()
+    const courseId = selectedCourseRequestId
     const facultyId = String(facultyDetails?.id || '').trim()
     const facultyEmail = String(facultyDetails?.email || '').trim().toLowerCase()
 
