@@ -52,12 +52,23 @@ function recordMatchesBranchScope(record, branchScope) {
 }
 
 function normalizeStoredStudentRecord(record = {}) {
+  const nestedCourse = record.course && typeof record.course === 'object' ? record.course : {}
+  const nestedBatch = record.batch && typeof record.batch === 'object' ? record.batch : {}
+  const nestedFaculty = record.faculty && typeof record.faculty === 'object' ? record.faculty : {}
+
   return {
     ...record,
     branchId: String(record.branchId || '').trim(),
     branchCode: String(record.branchCode || record.branchKey || '').trim(),
     studentId: String(record.studentId || '').trim(),
-    batchGroupId: String(record.batchGroupId || record.batch?.batchGroupId || '').trim(),
+    courseId: String(record.courseId || nestedCourse.id || '').trim(),
+    courseName: record.courseName || record.courseInterested || nestedCourse.name || '',
+    facultyId: String(record.facultyId || nestedFaculty.id || nestedFaculty.facultyId || '').trim(),
+    facultyName: record.facultyName || nestedFaculty.name || nestedFaculty.facultyName || '',
+    batchGroupId: String(record.batchGroupId || nestedBatch.batchGroupId || '').trim(),
+    batchId: String(record.batchId || record.batchEntryId || nestedBatch.batchId || nestedBatch.id || '').trim(),
+    batchName: record.batchName || (typeof record.batch === 'string' ? record.batch : '') || nestedBatch.batchName || nestedBatch.name || '',
+    batchTiming: record.batchTiming || record.batchTime || nestedBatch.batchTiming || nestedBatch.timing || '',
     courseProgress: record.courseProgress,
     courseCompletionPercentage: record.courseCompletionPercentage,
     progress: record.progress,

@@ -372,6 +372,8 @@ export function getMatchingStudents(
       }
     }
 
+    // Older student records may not have the generated batch ID yet. In that
+    // case the exact batch name/timing match above remains the compatibility fallback.
     if (normalizedBatchId && studentBatchId && studentBatchId !== normalizedBatchId) {
       return false
     }

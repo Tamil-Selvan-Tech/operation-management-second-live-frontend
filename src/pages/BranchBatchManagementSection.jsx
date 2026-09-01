@@ -61,6 +61,7 @@ function getBatchSeatSummary(batch = {}, students = []) {
     facultyName: batch?.facultyName || '',
     courseId: batch?.courseId || '',
     courseName: batch?.courseName || '',
+    batchId: batch?.batchId || batch?.id || '',
     batchName: batch?.batchName || '',
     batchTiming: batch?.batchTiming || '',
   })
