@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   CircleUserRound,
   Clock3,
   Layers3,
@@ -4631,8 +4632,9 @@ const nextName = trimmedValue
                                       toggleCourseEditExpandedModule(moduleId)
                                     }}
                                     aria-label={isExpanded ? 'Collapse module' : 'Expand module'}
+                                    title={isExpanded ? 'Collapse module' : 'Expand module'}
                                   >
-                                    {isExpanded ? '⌃' : '⌄'}
+                                    {isExpanded ? <ChevronUp size={18} strokeWidth={2.25} aria-hidden="true" /> : <ChevronDown size={18} strokeWidth={2.25} aria-hidden="true" />}
                                   </button>
                                   <button
                                     type="button"
@@ -4642,8 +4644,9 @@ const nextName = trimmedValue
                                       openCourseEditModule(moduleIndex)
                                     }}
                                     aria-label={`Edit module ${moduleIndex + 1}`}
+                                    title={`Edit module ${moduleIndex + 1}`}
                                   >
-                                    ✎
+                                    <Pencil size={17} strokeWidth={2.25} aria-hidden="true" />
                                   </button>
                                   <button
                                     type="button"
@@ -4654,8 +4657,9 @@ const nextName = trimmedValue
                                     }}
                                     disabled={courseEditModules.length === 1}
                                     aria-label={`Delete module ${moduleIndex + 1}`}
+                                    title={courseEditModules.length === 1 ? 'At least one module is required' : `Delete module ${moduleIndex + 1}`}
                                   >
-                                    🗑
+                                    <Trash2 size={17} strokeWidth={2.25} aria-hidden="true" />
                                   </button>
                                 </div>
                               </div>
