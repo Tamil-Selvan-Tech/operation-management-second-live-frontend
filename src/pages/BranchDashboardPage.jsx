@@ -451,6 +451,12 @@ function buildStudentFormFromRecord(student = {}) {
 function validateStudentForm(form, students = []) {
   const errors = {}
   const safeTrim = (value) => String(value ?? '').trim()
+  const getStudentEmail = (student) => String(
+    student?.emailAddress || student?.email || student?.studentEmail || '',
+  ).trim().toLowerCase()
+  const getStudentMobile = (student) => String(
+    student?.mobileNumber || student?.phoneNumber || student?.phone || student?.studentPhone || '',
+  ).replace(/\D/g, '')
   const studentIdSuffixError = getStudentIdSuffixError(form, students)
   if (studentIdSuffixError) errors.studentIdSuffix = studentIdSuffixError
   if (!safeTrim(form.studentName)) errors.studentName = 'Student Name is required.'
@@ -484,7 +490,7 @@ function validateStudentForm(form, students = []) {
     form.studentId || (String(form.studentIdSuffix || '').trim() ? `${STUDENT_ID_PREFIX}${String(form.studentIdSuffix || '').trim()}` : ''),
   ).trim().toLowerCase()
   const normalizedEmail = String(form.emailAddress || '').trim().toLowerCase()
-  const normalizedMobile = String(form.mobileNumber || '').trim()
+  const normalizedMobile = String(form.mobileNumber || '').replace(/\D/g, '')
 
   if (resolvedStudentId) {
     const duplicateStudentId = students.find((student) => {
@@ -501,24 +507,24 @@ function validateStudentForm(form, students = []) {
   if (normalizedEmail) {
     const duplicateEmail = students.find((student) => {
       const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
-      const studentEmail = String(student?.emailAddress || '').trim().toLowerCase()
+      const studentEmail = getStudentEmail(student)
       return studentEmail && studentEmail === normalizedEmail && studentRecordId !== currentRecordId
     })
 
     if (duplicateEmail) {
-      errors.emailAddress = 'Email already exists'
+      errors.emailAddress = 'Email already exists.'
     }
   }
 
   if (normalizedMobile) {
     const duplicateMobile = students.find((student) => {
       const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
-      const studentMobile = String(student?.mobileNumber || '').trim()
+      const studentMobile = getStudentMobile(student)
       return studentMobile && studentMobile === normalizedMobile && studentRecordId !== currentRecordId
     })
 
     if (duplicateMobile) {
-      errors.mobileNumber = 'Mobile number already exists'
+      errors.mobileNumber = 'Mobile number already exists.'
     }
   }
 
