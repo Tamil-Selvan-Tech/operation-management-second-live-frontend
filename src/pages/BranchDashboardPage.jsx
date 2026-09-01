@@ -3634,9 +3634,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         .map(normalizeBranchNotification)
         .filter(
           (notification) =>
-            String(notification.kind || '').startsWith('branch-') ||
-            String(notification.kind || '').startsWith('faculty-') ||
-            String(notification.kind || '').startsWith('course-edit-'),
+            String(notification.kind || '').trim() !== 'branch-login' && (
+              String(notification.kind || '').startsWith('branch-') ||
+              String(notification.kind || '').startsWith('faculty-') ||
+              String(notification.kind || '').startsWith('course-edit-')
+            ),
         )
         .filter((notification) => doesBranchNotificationBelongToBranch(notification, branchScope))
         .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
