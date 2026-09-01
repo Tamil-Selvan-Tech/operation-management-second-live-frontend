@@ -1624,6 +1624,7 @@ export function BranchBatchManagementSection({
                           </div>
 
                           <div className="batch-management-row-seats-wrap">
+                            <div className="batch-management-time-title">Seats</div>
                             <input
                               className="batch-management-row-seats"
                               type="number"
