@@ -282,6 +282,14 @@ function isSameCourseFacultyGroup(group = {}, courseId = '', facultyId = '', fac
   const facultyIdMatches = Boolean(targetFacultyId && groupFacultyId && targetFacultyId === groupFacultyId)
   const facultyNameMatches = Boolean(targetFacultyName && groupFacultyName && targetFacultyName === groupFacultyName)
 
+  if (targetFacultyId && groupFacultyId) {
+    return facultyIdMatches
+  }
+
+  if (targetFacultyName && groupFacultyName) {
+    return facultyNameMatches
+  }
+
   return Boolean(targetFacultyId || targetFacultyName) && (facultyIdMatches || facultyNameMatches)
 }
 
@@ -1261,14 +1269,15 @@ export function BranchBatchManagementSection({
           const conflict = existingConflict || draftConflict
 
           if (conflict) {
-            nextErrors.rows[index].timing = `${rowTiming.label} is already assigned to another batch. Please select a different time slot.`
+            const facultyLabel = normalizeText(resolvedDraftFacultyName || selectedFacultyRecord?.name || 'this faculty')
+            nextErrors.rows[index].timing = `${rowTiming.label} is already assigned for ${facultyLabel}. Please select a different time slot or choose another faculty.`
           }
         })
 
         const hasTimingOverlap = nextErrors.rows.some((rowErrors) => Boolean(rowErrors.timing))
         if (hasTimingOverlap) {
           setFieldErrors(nextErrors)
-          setCreateError('One or more batch timings overlap with an existing batch or another batch in this form. Please select a different time.')
+          setCreateError('One or more batch timings overlap for the selected faculty. Different faculty can reuse the same time slot.')
           return
         }
 
@@ -1453,6 +1462,7 @@ export function BranchBatchManagementSection({
                   ))}
                 </select>
                 {fieldErrors.facultyId ? <small className="batch-management-field-error">{fieldErrors.facultyId}</small> : null}
+                
               </label>
             </div>
 
