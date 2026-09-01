@@ -6982,8 +6982,7 @@ else {
                   )
                   const fallbackCourseProgress = studentKeys
                     .map((key) =>
-                      branchStudentCourseProgressByKey.get(key) ??
-                      branchStudentProgressByNotificationKey.get(key),
+                      branchStudentCourseProgressByKey.get(key),
                     )
                     .find((value) => Number.isFinite(value))
                   const studentCourseProgress =
@@ -6991,7 +6990,9 @@ else {
                       ? Math.min(100, Math.max(0, storedCourseProgress))
                       : Number.isFinite(directCourseProgress)
                         ? Math.min(100, Math.max(0, directCourseProgress))
-                        : (Number.isFinite(fallbackCourseProgress) ? Math.min(100, Math.max(0, fallbackCourseProgress)) : null)
+                        : (Number.isFinite(fallbackCourseProgress)
+                          ? Math.min(100, Math.max(0, fallbackCourseProgress))
+                          : (effectiveCourse ? 0 : null))
                   const hasCourseProgress = Number.isFinite(studentCourseProgress)
 
                   return hasCourseProgress ? (
