@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   CircleUserRound,
   Clock3,
   Layers3,
@@ -554,6 +555,17 @@ function getCourseModels(course) {
 
 function getCourseModuleName(module = {}, index = 0) {
   return String(module?.name || module?.title || module?.moduleName || `Module ${index + 1}`).trim()
+}
+
+function getTodayWorkModuleLabel(module = {}, index = 0) {
+  const moduleName = getCourseModuleName(module, index)
+  const fallbackName = `Module ${index + 1}`
+
+  if (!moduleName || moduleName === fallbackName) {
+    return fallbackName
+  }
+
+  return `${fallbackName} - ${moduleName}`
 }
 
 function getCourseSubmodules(module = {}) {
@@ -1507,6 +1519,7 @@ export function FacultyDashboardPage() {
       facultyName: String(profile.facultyName || profile.name || facultyDetails?.name || '').trim(),
       facultyEmail: String(profile.facultyEmail || profile.email || facultyDetails?.email || '').trim(),
       branchId: String(profile.branchId || branch.id || facultyDetails?.branchId || facultyDetails?.branch?.id || '').trim(),
+      branchCode: String(profile.branchCode || branch.branchId || facultyDetails?.branchCode || facultyDetails?.branch?.branchId || '').trim(),
     }
   }, [facultyDetails, facultyProfile])
 
@@ -1596,8 +1609,21 @@ export function FacultyDashboardPage() {
     const facultyNameValue = currentFacultyIdentity.facultyName
     const facultyEmailValue = currentFacultyIdentity.facultyEmail
 
-    return getExactFacultyStudents(backfilledStudents, facultyId, facultyNameValue, facultyEmailValue)
-  }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
+    const branchKeys = [currentFacultyIdentity.branchId, currentFacultyIdentity.branchCode]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean)
+    const branchScopedStudents = branchKeys.length
+      ? backfilledStudents.filter((student) => {
+          const studentBranchKeys = [student?.branchId, student?.branchCode, student?.branchKey]
+            .map((value) => String(value || '').trim().toLowerCase())
+            .filter(Boolean)
+
+          return studentBranchKeys.some((key) => branchKeys.includes(key))
+        })
+      : backfilledStudents
+
+    return getExactFacultyStudents(branchScopedStudents, facultyId, facultyNameValue, facultyEmailValue)
+  }, [backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
 
   const facultyTodayWorkEntries = useMemo(() => {
     return getFacultyTodayWorkEntriesByFaculty({
@@ -1703,7 +1729,7 @@ export function FacultyDashboardPage() {
       const normalizedBatchName = String(entry?.batchName || entry?.batch || entry?.code || '').trim().toLowerCase()
       const normalizedBatchTiming = String(entry?.batchTiming || entry?.timing || '').trim().toLowerCase()
 
-      const matchedStudents = backfilledStudents.filter((student) => {
+      const matchedStudents = facultyScopedStudents.filter((student) => {
         const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
         const resolvedBatch = context?.batchEntry || null
 
@@ -1927,7 +1953,7 @@ export function FacultyDashboardPage() {
     const selectedBatchId = String(selectedStudentsBatch.batchId || selectedStudentsBatch.id || '').trim().toLowerCase()
     const selectedBatchGroupId = String(selectedStudentsBatch.batchGroupId || '').trim().toLowerCase()
 
-    const matchedStudents = backfilledStudents.filter((student) => {
+    const matchedStudents = facultyScopedStudents.filter((student) => {
       const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
       const studentFacultyId = String(context?.facultyId || student?.facultyId || '').trim().toLowerCase()
       const studentFacultyName = normalizeCourseKey(context?.facultyName || student?.facultyName || '')
@@ -1978,7 +2004,6 @@ export function FacultyDashboardPage() {
 
     return dedupeStudentsByIdentity(matchedStudents)
   }, [
-    backfilledStudents,
     currentFacultyIdentity.facultyId,
     currentFacultyIdentity.facultyName,
     facultyBackfillRecords,
@@ -4121,7 +4146,7 @@ const nextName = trimmedValue
                         const moduleId = String(module?.id || `module-${index}`).trim()
                         return (
                           <option key={moduleId || index} value={moduleId}>
-                            {getCourseModuleName(module, index)}
+                            {getTodayWorkModuleLabel(module, index)}
                           </option>
                         )
                       })
@@ -4137,7 +4162,7 @@ const nextName = trimmedValue
                 <div className="faculty-today-work-panel-heading">
                   <div>
                     <h4>Sub-modules</h4>
-                    <p>{getCourseModuleName(todayWorkSelectedModule || {}, 0)}</p>
+                    <p>{getTodayWorkModuleLabel(todayWorkSelectedModule || {}, 0)}</p>
                   </div>
                   <button
                     type="button"
@@ -4620,8 +4645,9 @@ const nextName = trimmedValue
                                       toggleCourseEditExpandedModule(moduleId)
                                     }}
                                     aria-label={isExpanded ? 'Collapse module' : 'Expand module'}
+                                    title={isExpanded ? 'Collapse module' : 'Expand module'}
                                   >
-                                    {isExpanded ? '⌃' : '⌄'}
+                                    {isExpanded ? <ChevronUp size={18} strokeWidth={2.25} aria-hidden="true" /> : <ChevronDown size={18} strokeWidth={2.25} aria-hidden="true" />}
                                   </button>
                                   <button
                                     type="button"
@@ -4631,8 +4657,9 @@ const nextName = trimmedValue
                                       openCourseEditModule(moduleIndex)
                                     }}
                                     aria-label={`Edit module ${moduleIndex + 1}`}
+                                    title={`Edit module ${moduleIndex + 1}`}
                                   >
-                                    ✎
+                                    <Pencil size={17} strokeWidth={2.25} aria-hidden="true" />
                                   </button>
                                   <button
                                     type="button"
@@ -4643,8 +4670,9 @@ const nextName = trimmedValue
                                     }}
                                     disabled={courseEditModules.length === 1}
                                     aria-label={`Delete module ${moduleIndex + 1}`}
+                                    title={courseEditModules.length === 1 ? 'At least one module is required' : `Delete module ${moduleIndex + 1}`}
                                   >
-                                    🗑
+                                    <Trash2 size={17} strokeWidth={2.25} aria-hidden="true" />
                                   </button>
                                 </div>
                               </div>

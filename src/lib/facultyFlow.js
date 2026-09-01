@@ -335,9 +335,19 @@ export function enrichStudentsWithFacultyReferences(students = [], facultyRecord
 
 export function getMatchingStudents(
   students = [],
-  { facultyName = '', facultyId = '', courseId = '', courseName = '', batchName = '', batchId = '', batchTiming = '' } = {},
+  {
+    facultyName = '',
+    facultyId = '',
+    courseId = '',
+    courseName = '',
+    batchGroupId = '',
+    batchName = '',
+    batchId = '',
+    batchTiming = '',
+  } = {},
 ) {
   const normalizedFacultyId = String(facultyId || '').trim()
+  const normalizedBatchGroupId = String(batchGroupId || '').trim()
   const normalizedBatchId = String(batchId || '').trim()
   const normalizedFacultyName = normalizeText(facultyName)
   const normalizedCourseId = String(courseId || '').trim()
@@ -351,6 +361,7 @@ export function getMatchingStudents(
     const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
     const studentFacultyId = String(student?.facultyId || '').trim()
     const studentFacultyName = normalizeText(student?.facultyName || '')
+    const studentBatchGroupId = String(student?.batchGroupId || student?.batch?.batchGroupId || '').trim()
     const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim()
     const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
     const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
@@ -372,6 +383,12 @@ export function getMatchingStudents(
       }
     }
 
+    if (normalizedBatchGroupId && studentBatchGroupId && studentBatchGroupId !== normalizedBatchGroupId) {
+      return false
+    }
+
+    // Older student records may not have the generated batch ID yet. In that
+    // case the exact batch name/timing match above remains the compatibility fallback.
     if (normalizedBatchId && studentBatchId && studentBatchId !== normalizedBatchId) {
       return false
     }

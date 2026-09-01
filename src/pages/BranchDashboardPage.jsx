@@ -323,6 +323,7 @@ function getBatchSeatSummary(batch = {}, students = [], excludedStudentKeys = []
     facultyName: batch?.facultyName || '',
     courseId: batch?.courseId || '',
     courseName: batch?.courseName || '',
+    batchGroupId: batch?.batchGroupId || '',
     batchId: batch?.batchId || '',
     batchName: batch?.batchName || '',
     batchTiming: batch?.batchTiming || '',
@@ -394,6 +395,8 @@ function createInitialStudentForm(branchId) {
     paymentPlan: '',
     paymentMode: '',
     installmentSchedule: [],
+    courseProgress: 0,
+    progress: 0,
   }
 }
 
@@ -1539,11 +1542,43 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
+                      justifyContent: 'flex-end',
                       gap: '12px',
                       marginTop: '14px',
                     }}
                   >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {isCourseEditRequest ? (
+                        isAcceptedRequest ? (
+                          null
+                        ) : (
+                          <button
+                            type="button"
+                            className="notifications-item-view-button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              onAcceptRequest?.(item)
+                            }}
+                          >
+                            Accept
+                          </button>
+                        )
+                      ) : (
+                        <button
+                          type="button"
+                          className="notifications-item-view-button"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onView?.(item)
+                          }}
+                        >
+                          View
+                        </button>
+                      )}
+                    </div>
+
                     <span
                       style={{
                         display: 'inline-flex',
@@ -1575,40 +1610,6 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                     >
                       {item.statusLabel || item.categoryLabel || item.actionLabel || 'View'}
                     </span>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {isCourseEditRequest ? (
-                        isAcceptedRequest ? (
-                          <span className="notifications-item-view-button is-accepted" aria-disabled="true">
-                            Accepted
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="notifications-item-view-button"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              onAcceptRequest?.(item)
-                            }}
-                          >
-                            Accept
-                          </button>
-                        )
-                      ) : (
-                        <button
-                          type="button"
-                          className="notifications-item-view-button"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            onView?.(item)
-                          }}
-                        >
-                          View
-                        </button>
-                      )}
-                    </div>
                   </div>
                 </>
               ) : (
@@ -1631,9 +1632,7 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                     </span>
                     {isCourseEditRequest ? (
                       isAcceptedRequest ? (
-                        <span className="notifications-item-view-button is-accepted" aria-disabled="true">
-                          Accepted
-                        </span>
+                        null
                       ) : (
                         <button
                           type="button"
@@ -1927,8 +1926,9 @@ function normalizeBranchCoursePaymentPlanSelections(plans = [], fallbackPlans = 
   const fallback = Array.isArray(fallbackPlans) ? fallbackPlans : []
   const sourcePlans = primaryPlans.length ? primaryPlans : fallback
 
-  return sourcePlans.map((plan, index) =>
-    normalizeBranchCoursePaymentPlanSelection(plan, {
+  const seenTemplateCounts = new Set()
+  return sourcePlans.map((plan, index) => {
+    const normalizedPlan = normalizeBranchCoursePaymentPlanSelection(plan, {
       id: plan?.id || `payment-plan-${index + 1}`,
       templateId: plan?.templateId || plan?.id || '',
       templateName: plan?.templateName || plan?.planName || '',
@@ -1938,8 +1938,20 @@ function normalizeBranchCoursePaymentPlanSelections(plans = [], fallbackPlans = 
       dueRule: plan?.dueRule || 'Admission',
       allowCustomization: plan?.allowCustomization,
       status: plan?.status || 'Active',
-    }),
-  )
+    })
+
+    if (normalizedPlan.type === 'template') {
+      const installmentCount = getBranchCoursePaymentPlanInstallmentCount(normalizedPlan)
+      if (seenTemplateCounts.has(installmentCount)) return null
+      seenTemplateCounts.add(installmentCount)
+    }
+
+    return normalizedPlan
+  }).filter(Boolean)
+}
+
+function getBranchInstallmentTemplateCountKey(template = {}) {
+  return String(Math.max(1, Number(template?.installmentCount) || 1))
 }
 
 function buildBranchCoursePaymentPlanInstallments(totalFee = 0, count = 1) {
@@ -2677,6 +2689,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
   const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
   const [studentFormTouched, setStudentFormTouched] = useState({})
+  const [isStudentSetupRequiredOpen, setIsStudentSetupRequiredOpen] = useState(false)
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
   const [pendingRecordPaymentStudent, setPendingRecordPaymentStudent] = useState(null)
@@ -2715,6 +2728,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
+  const [processingBranchNotificationId, setProcessingBranchNotificationId] = useState('')
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
   const [facultyTodayWorkEntries, setFacultyTodayWorkEntries] = useState([])
   const branchCourseProgressBackfillSignatureRef = useRef('')
@@ -2934,9 +2948,18 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         page += 1
       } while (page <= totalPages)
 
-      setBranchInstallmentTemplates(collectedTemplates)
+      const uniqueTemplates = []
+      const seenTemplateCounts = new Set()
+      collectedTemplates.forEach((template) => {
+        const countKey = getBranchInstallmentTemplateCountKey(template)
+        if (seenTemplateCounts.has(countKey)) return
+        seenTemplateCounts.add(countKey)
+        uniqueTemplates.push(template)
+      })
 
-      return collectedTemplates
+      setBranchInstallmentTemplates(uniqueTemplates)
+
+      return uniqueTemplates
     } catch (error) {
       console.error('Failed to fetch installment templates:', error)
 
@@ -3159,15 +3182,32 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsNotificationMenuOpen(false)
+        return
       }
+
+      const scrollKeys = [' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown']
+      const target = event.target
+      if (scrollKeys.includes(event.key) && !(target instanceof Element && notificationMenuRef.current?.contains(target))) {
+        event.preventDefault()
+      }
+    }
+
+    const preventBackgroundScroll = (event) => {
+      const target = event.target
+      if (target instanceof Element && notificationMenuRef.current?.contains(target)) return
+      event.preventDefault()
     }
 
     window.addEventListener('pointerdown', onPointerDown)
     window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('wheel', preventBackgroundScroll, { passive: false })
+    window.addEventListener('touchmove', preventBackgroundScroll, { passive: false })
 
     return () => {
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('wheel', preventBackgroundScroll)
+      window.removeEventListener('touchmove', preventBackgroundScroll)
     }
   }, [isNotificationMenuOpen])
 
@@ -3728,6 +3768,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const acceptBranchCourseEditNotification = async (notification) => {
+    const notificationId = String(notification?.id || notification?.requestId || '').trim()
+    if (processingBranchNotificationId === notificationId) return
+
+    setProcessingBranchNotificationId(notificationId)
     let requestId = ''
 
     try {
@@ -3756,15 +3800,18 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               : item,
           ),
         )
-        await loadBranchNotifications()
+        // Refresh in the background so the click does not wait for another API call.
+        void loadBranchNotifications()
       }
 
-      await openBranchNotificationTarget({
+      void openBranchNotificationTarget({
         ...notification,
         requestStatus: 'accepted',
       })
     } catch (error) {
       console.error('Failed to accept course edit request:', error)
+    } finally {
+      setProcessingBranchNotificationId('')
     }
   }
 
@@ -5172,6 +5219,7 @@ const studentCourseOptions = useMemo(() => {
               batchId,
               batchName,
               batchTiming,
+              batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
               totalSeats: batch?.totalSeats || 0,
               courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
               courseName: String(group?.courseName || '').trim(),
@@ -5224,6 +5272,21 @@ const studentCourseOptions = useMemo(() => {
     () => selectedStudentCourseBatchOptions.some((batch) => batch.isSelectable),
     [selectedStudentCourseBatchOptions],
   )
+
+  const hasStudentCreationSetup = useMemo(() => {
+    const hasAnyCourse = studentCourseOptions.length > 0
+    const hasAnyFaculty = Array.isArray(branchFacultyRecords) && branchFacultyRecords.some((faculty) => {
+      const facultyId = String(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || faculty?.userId || '').trim()
+      const facultyName = String(faculty?.name || faculty?.facultyName || '').trim()
+      return Boolean(facultyId || facultyName)
+    })
+    const hasAnyBatch = Array.isArray(branchBatchGroups) && branchBatchGroups.some((group) => {
+      const batches = Array.isArray(group?.batches) ? group.batches : []
+      return batches.length > 0 || Boolean(String(group?.batchId || group?.batchName || '').trim())
+    })
+
+    return hasAnyCourse && hasAnyFaculty && hasAnyBatch
+  }, [branchBatchGroups, branchFacultyRecords, studentCourseOptions])
 
   const selectedStudentCoursePaymentPlans = useMemo(
     () =>
@@ -5838,6 +5901,15 @@ useEffect(() => {
         const studentKey = normalizeBranchStudentLookupKey(student)
         if (!studentKey) return null
 
+        const hasExplicitProgressValue =
+          student?.courseProgress !== undefined ||
+          student?.courseCompletionPercentage !== undefined ||
+          student?.progress !== undefined
+
+        if (hasExplicitProgressValue) {
+          return null
+        }
+
         const course = resolveBranchStudentCourse(student, branchCourseCards)
         const matchedEntry = branchTodayWorkEntriesByStudent.get(studentKey) || null
         const resolvedCourse = course || (matchedEntry
@@ -6092,6 +6164,11 @@ useEffect(() => {
   }
 
   const openAddStudentForm = async () => {
+    if (!hasStudentCreationSetup) {
+      setIsStudentSetupRequiredOpen(true)
+      return
+    }
+
     setStudentFormMode('add')
     setStudentFormError('')
     setIsStudentSaving(false)
@@ -6101,6 +6178,15 @@ useEffect(() => {
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
   }
+
+  const closeStudentSetupRequiredPopup = useCallback(() => {
+    setIsStudentSetupRequiredOpen(false)
+  }, [])
+
+  const goToBatchesFromStudentSetupPopup = useCallback(() => {
+    setIsStudentSetupRequiredOpen(false)
+    goToBranchSection('batches')
+  }, [goToBranchSection])
 
   const openViewStudentForm = async (stu) => {
     setStudentFormMode('view')
@@ -6203,6 +6289,8 @@ useEffect(() => {
       discount: String(selectedCourse?.discount ?? '').trim(),
       afterDiscount: resolvedCourseAmount,
       paymentMode: studentForm.paymentMode || 'Installment',
+      courseProgress: 0,
+      progress: 0,
       installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
         installmentNumber: index + 1,
         amount,
@@ -6218,7 +6306,7 @@ useEffect(() => {
     console.log("PAYLOAD BEING SENT TO BACKEND:", record)
     try {
       await saveBranchStudent(record)
-      void reloadBranchStudents()
+      await reloadBranchStudents()
       setIsStudentFormOpen(false)
 
       if (studentFormMode === 'add') {
@@ -6396,52 +6484,40 @@ useEffect(() => {
                       const isCourseEditRequest =
                         (item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request') &&
                         item.requestStatus !== 'accepted'
+                      const isProcessing = processingBranchNotificationId === String(item.id || item.requestId || '').trim()
 
                       return (
-                        <div
+                        <article
                           key={item.id}
                           className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'} ${isCourseEditRequest ? 'is-course-request' : ''
                             }`.trim()}
-                          onMouseDown={(event) => event.stopPropagation()}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => openBranchNotificationTarget(item)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              openBranchNotificationTarget(item)
-                            }
-                          }}
                         >
                           <span className={`notification-badge ${item.tone}`} aria-hidden="true">
                             <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                           </span>
-              <div className="notification-copy">
-                <p>{item.title}</p>
-                <span>{item.message}</span>
-                <small>{item.time}</small>
-              </div>
+                          <div className="notification-copy">
+                            <p>{item.title}</p>
+                            <span>{item.message}</span>
+                            <small>{item.time}</small>
+                          </div>
 
                           <div
                             className="notification-dropdown-item-actions"
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onPointerDown={(event) => event.stopPropagation()}
                           >
                             {isCourseEditRequest ? (
                               <button
                                 type="button"
                                 className="notification-dropdown-accept"
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => event.stopPropagation()}
                                 onClick={(event) => {
                                   event.preventDefault()
                                   event.stopPropagation()
-
-                                  console.log('ACCEPT CLICKED')
-
+                                  if (isProcessing) return
                                   void acceptBranchCourseEditNotification(item)
                                 }}
                               >
-                                Accept
+                                {isProcessing ? 'Accepting...' : 'Accept'}
                               </button>
                             ) : null}
                             <button
@@ -6449,13 +6525,16 @@ useEffect(() => {
                               className="notification-dropdown-view"
                               onMouseDown={(event) => event.stopPropagation()}
                               onPointerDown={(event) => event.stopPropagation()}
-                              onClickCapture={(event) => event.stopPropagation()}
-                              onClick={() => openBranchNotificationTarget(item)}
+                              onClick={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                void openBranchNotificationTarget(item)
+                              }}
                             >
                               View
                             </button>
                           </div>
-                        </div>
+                        </article>
                       )
                     })
                   ) : (
@@ -6930,8 +7009,7 @@ else {
                   )
                   const fallbackCourseProgress = studentKeys
                     .map((key) =>
-                      branchStudentCourseProgressByKey.get(key) ??
-                      branchStudentProgressByNotificationKey.get(key),
+                      branchStudentCourseProgressByKey.get(key),
                     )
                     .find((value) => Number.isFinite(value))
                   const studentCourseProgress =
@@ -6939,7 +7017,9 @@ else {
                       ? Math.min(100, Math.max(0, storedCourseProgress))
                       : Number.isFinite(directCourseProgress)
                         ? Math.min(100, Math.max(0, directCourseProgress))
-                        : (Number.isFinite(fallbackCourseProgress) ? Math.min(100, Math.max(0, fallbackCourseProgress)) : null)
+                        : (Number.isFinite(fallbackCourseProgress)
+                          ? Math.min(100, Math.max(0, fallbackCourseProgress))
+                          : (effectiveCourse ? 0 : null))
                   const hasCourseProgress = Number.isFinite(studentCourseProgress)
 
                   return hasCourseProgress ? (
@@ -8809,6 +8889,58 @@ else {
                     onClick={goToCreatePaymentPlan}
                   >
                     Create Payment Plan
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+          : null}
+
+        {typeof document !== 'undefined' && isStudentSetupRequiredOpen
+          ? createPortal(
+            <div className="payment-popup-overlay" role="presentation">
+              <div
+                className="payment-confirmation-popup branch-student-setup-required-popup"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="student-setup-required-title"
+                aria-describedby="student-setup-required-description"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="receipt-popup-close"
+                  onClick={closeStudentSetupRequiredPopup}
+                  aria-label="Close setup required dialog"
+                >
+                  X
+                </button>
+
+                <div className="student-setup-required-icon" aria-hidden="true">
+                  <BadgeInfo size={24} strokeWidth={2.2} />
+                </div>
+
+                <h3 id="student-setup-required-title">Create batches before adding students</h3>
+                <p id="student-setup-required-description" className="student-setup-required-copy">
+                  Please assign a faculty member and create at least one batch before adding students. Once the setup is complete, you can add students to the branch.
+                </p>
+
+                <div className="payment-popup-actions" style={{ marginTop: '16px' }}>
+                  <button
+                    type="button"
+                    className="popup-cancel-btn"
+                    onClick={closeStudentSetupRequiredPopup}
+                  >
+                    OK
+                  </button>
+
+                  <button
+                    type="button"
+                    className="button button-solid"
+                    onClick={goToBatchesFromStudentSetupPopup}
+                  >
+                    Go Batches
                   </button>
                 </div>
               </div>
@@ -11283,9 +11415,13 @@ else {
             type="email"
             placeholder="Enter email address"
             value={studentForm.emailAddress}
-            onChange={(e) =>
+            onChange={(e) => {
               updateStudentField('emailAddress', e.target.value)
-            }
+              setStudentFormTouched((c) => ({
+                ...c,
+                emailAddress: true,
+              }))
+            }}
             onBlur={() =>
               setStudentFormTouched((c) => ({
                 ...c,
@@ -11310,12 +11446,16 @@ else {
             inputMode="numeric"
             placeholder="10 digit mobile number"
             value={studentForm.mobileNumber}
-            onChange={(e) =>
+            onChange={(e) => {
               updateStudentField(
                 'mobileNumber',
                 e.target.value.replace(/\D/g, '').slice(0, 10)
               )
-            }
+              setStudentFormTouched((c) => ({
+                ...c,
+                mobileNumber: true,
+              }))
+            }}
             onBlur={() =>
               setStudentFormTouched((c) => ({
                 ...c,

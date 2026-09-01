@@ -774,6 +774,47 @@ body.branch-notification-menu-open .main-area {
   width: min(560px, calc(100vw - 32px));
 }
 
+.branch-student-setup-required-popup {
+  width: min(480px, calc(100vw - 40px));
+  max-width: none;
+  box-sizing: border-box;
+  padding: 22px 24px 20px;
+}
+
+.branch-student-setup-required-popup .student-setup-required-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eaf2ff 0%, #dbeafe 100%);
+  color: #2563eb;
+}
+
+.branch-student-setup-required-popup .student-setup-required-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.branch-student-setup-required-popup h3 {
+  padding-right: 38px;
+}
+
+.branch-student-setup-required-popup .student-setup-required-copy {
+  margin: 8px 0 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.branch-student-setup-required-popup .receipt-popup-close {
+  top: 14px;
+  right: 14px;
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+}
+
 /* Last row */
 .branch-course-table tbody tr:last-child td {
   border-bottom: none;
