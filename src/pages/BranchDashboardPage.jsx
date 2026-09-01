@@ -1541,43 +1541,11 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
+                      justifyContent: 'flex-end',
                       gap: '12px',
                       marginTop: '14px',
                     }}
                   >
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: '30px',
-                        padding: '0 12px',
-                        borderRadius: '999px',
-                        background:
-                          item.tone === 'green'
-                            ? '#dcfce7'
-                            : item.tone === 'amber'
-                              ? '#fef3c7'
-                              : item.tone === 'red'
-                                ? '#fee2e2'
-                                : '#dbeafe',
-                        color:
-                          item.tone === 'green'
-                            ? '#15803d'
-                            : item.tone === 'amber'
-                              ? '#b45309'
-                              : item.tone === 'red'
-                                ? '#b91c1c'
-                                : '#1d4ed8',
-                        fontSize: '0.84rem',
-                        fontWeight: 800,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {item.statusLabel || item.categoryLabel || item.actionLabel || 'View'}
-                    </span>
-
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {isCourseEditRequest ? (
                         isAcceptedRequest ? (
@@ -1611,6 +1579,38 @@ function BranchNotificationGroup({ label, items, onView, onAcceptRequest, showDe
                         </button>
                       )}
                     </div>
+
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '30px',
+                        padding: '0 12px',
+                        borderRadius: '999px',
+                        background:
+                          item.tone === 'green'
+                            ? '#dcfce7'
+                            : item.tone === 'amber'
+                              ? '#fef3c7'
+                              : item.tone === 'red'
+                                ? '#fee2e2'
+                                : '#dbeafe',
+                        color:
+                          item.tone === 'green'
+                            ? '#15803d'
+                            : item.tone === 'amber'
+                              ? '#b45309'
+                              : item.tone === 'red'
+                                ? '#b91c1c'
+                                : '#1d4ed8',
+                        fontSize: '0.84rem',
+                        fontWeight: 800,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {item.statusLabel || item.categoryLabel || item.actionLabel || 'View'}
+                    </span>
                   </div>
                 </>
               ) : (
@@ -3185,15 +3185,32 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsNotificationMenuOpen(false)
+        return
       }
+
+      const scrollKeys = [' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown']
+      const target = event.target
+      if (scrollKeys.includes(event.key) && !(target instanceof Element && notificationMenuRef.current?.contains(target))) {
+        event.preventDefault()
+      }
+    }
+
+    const preventBackgroundScroll = (event) => {
+      const target = event.target
+      if (target instanceof Element && notificationMenuRef.current?.contains(target)) return
+      event.preventDefault()
     }
 
     window.addEventListener('pointerdown', onPointerDown)
     window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('wheel', preventBackgroundScroll, { passive: false })
+    window.addEventListener('touchmove', preventBackgroundScroll, { passive: false })
 
     return () => {
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('wheel', preventBackgroundScroll)
+      window.removeEventListener('touchmove', preventBackgroundScroll)
     }
   }, [isNotificationMenuOpen])
 
