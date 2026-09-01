@@ -123,7 +123,7 @@ async function findBranchDuplicateTemplate({ installmentCount, currentId = '' })
 }
 
 export function BranchInstallmentTemplatesPage() {
-  const pageSize = 5
+  const pageSize = 3
   const [templates, setTemplates] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -146,15 +146,26 @@ export function BranchInstallmentTemplatesPage() {
     setError('')
     try {
       const result = await listBranchInstallmentTemplates({
-        page: nextPage,
-        limit: pageSize,
+        // Fetch the complete branch list first so duplicate templates can be
+        // removed before client-side pagination splits the rows into pages.
+        page: 1,
+        limit: 100,
         search: searchTerm,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       })
-      const nextTotalPages = Math.max(1, Number(result.meta?.totalPages || 1))
-      const nextTotalCount = Number(result.meta?.total || result.meta?.totalCount || result.meta?.count || (result.data || []).length || 0)
-      setTemplates(result.data || [])
+      const uniqueTemplates = []
+      const seenSignatures = new Set()
+      ;(result.data || []).forEach((template) => {
+        const signature = getBranchInstallmentTemplateSignature(template)
+        if (seenSignatures.has(signature)) return
+        seenSignatures.add(signature)
+        uniqueTemplates.push(template)
+      })
+      const nextTotalCount = uniqueTemplates.length
+      const nextTotalPages = Math.max(1, Math.ceil(nextTotalCount / pageSize) || 1)
+      const startIndex = (Math.min(nextPage, nextTotalPages) - 1) * pageSize
+      setTemplates(uniqueTemplates.slice(startIndex, startIndex + pageSize))
       setTotalPages(nextTotalPages)
       setTotalCount(nextTotalCount)
       setPage(Math.min(nextPage, nextTotalPages))
@@ -383,12 +394,11 @@ export function BranchInstallmentTemplatesPage() {
 
     return templates.map((template, index) => {
       const installmentCount = Math.max(1, Number(template.installmentCount) || 1)
-      const isCustom = String(template.planType || '').toUpperCase() === 'CUSTOM' || installmentCount > 1
 
       return {
         ...template,
         accent: accentPalette[index % accentPalette.length],
-        installmentLabel: isCustom ? `${installmentCount} Installments` : 'Custom',
+        installmentLabel: `${installmentCount} ${installmentCount === 1 ? 'Installment' : 'Installments'}`,
       }
     })
   }, [templates])

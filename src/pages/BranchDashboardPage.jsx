@@ -1927,8 +1927,9 @@ function normalizeBranchCoursePaymentPlanSelections(plans = [], fallbackPlans = 
   const fallback = Array.isArray(fallbackPlans) ? fallbackPlans : []
   const sourcePlans = primaryPlans.length ? primaryPlans : fallback
 
-  return sourcePlans.map((plan, index) =>
-    normalizeBranchCoursePaymentPlanSelection(plan, {
+  const seenTemplateCounts = new Set()
+  return sourcePlans.map((plan, index) => {
+    const normalizedPlan = normalizeBranchCoursePaymentPlanSelection(plan, {
       id: plan?.id || `payment-plan-${index + 1}`,
       templateId: plan?.templateId || plan?.id || '',
       templateName: plan?.templateName || plan?.planName || '',
@@ -1938,8 +1939,20 @@ function normalizeBranchCoursePaymentPlanSelections(plans = [], fallbackPlans = 
       dueRule: plan?.dueRule || 'Admission',
       allowCustomization: plan?.allowCustomization,
       status: plan?.status || 'Active',
-    }),
-  )
+    })
+
+    if (normalizedPlan.type === 'template') {
+      const installmentCount = getBranchCoursePaymentPlanInstallmentCount(normalizedPlan)
+      if (seenTemplateCounts.has(installmentCount)) return null
+      seenTemplateCounts.add(installmentCount)
+    }
+
+    return normalizedPlan
+  }).filter(Boolean)
+}
+
+function getBranchInstallmentTemplateCountKey(template = {}) {
+  return String(Math.max(1, Number(template?.installmentCount) || 1))
 }
 
 function buildBranchCoursePaymentPlanInstallments(totalFee = 0, count = 1) {
@@ -2935,9 +2948,18 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         page += 1
       } while (page <= totalPages)
 
-      setBranchInstallmentTemplates(collectedTemplates)
+      const uniqueTemplates = []
+      const seenTemplateCounts = new Set()
+      collectedTemplates.forEach((template) => {
+        const countKey = getBranchInstallmentTemplateCountKey(template)
+        if (seenTemplateCounts.has(countKey)) return
+        seenTemplateCounts.add(countKey)
+        uniqueTemplates.push(template)
+      })
 
-      return collectedTemplates
+      setBranchInstallmentTemplates(uniqueTemplates)
+
+      return uniqueTemplates
     } catch (error) {
       console.error('Failed to fetch installment templates:', error)
 
