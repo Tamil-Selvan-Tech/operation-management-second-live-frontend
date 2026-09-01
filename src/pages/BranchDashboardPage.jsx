@@ -11412,9 +11412,13 @@ else {
             type="email"
             placeholder="Enter email address"
             value={studentForm.emailAddress}
-            onChange={(e) =>
+            onChange={(e) => {
               updateStudentField('emailAddress', e.target.value)
-            }
+              setStudentFormTouched((c) => ({
+                ...c,
+                emailAddress: true,
+              }))
+            }}
             onBlur={() =>
               setStudentFormTouched((c) => ({
                 ...c,
@@ -11439,12 +11443,16 @@ else {
             inputMode="numeric"
             placeholder="10 digit mobile number"
             value={studentForm.mobileNumber}
-            onChange={(e) =>
+            onChange={(e) => {
               updateStudentField(
                 'mobileNumber',
                 e.target.value.replace(/\D/g, '').slice(0, 10)
               )
-            }
+              setStudentFormTouched((c) => ({
+                ...c,
+                mobileNumber: true,
+              }))
+            }}
             onBlur={() =>
               setStudentFormTouched((c) => ({
                 ...c,
