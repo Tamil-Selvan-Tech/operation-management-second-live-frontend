@@ -2677,6 +2677,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
   const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
   const [studentFormTouched, setStudentFormTouched] = useState({})
+  const [isStudentSetupRequiredOpen, setIsStudentSetupRequiredOpen] = useState(false)
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
   const [recordPaymentStudent, setRecordPaymentStudent] = useState(null)
   const [pendingRecordPaymentStudent, setPendingRecordPaymentStudent] = useState(null)
@@ -5225,6 +5226,21 @@ const studentCourseOptions = useMemo(() => {
     [selectedStudentCourseBatchOptions],
   )
 
+  const hasStudentCreationSetup = useMemo(() => {
+    const hasAnyCourse = studentCourseOptions.length > 0
+    const hasAnyFaculty = Array.isArray(branchFacultyRecords) && branchFacultyRecords.some((faculty) => {
+      const facultyId = String(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || faculty?.userId || '').trim()
+      const facultyName = String(faculty?.name || faculty?.facultyName || '').trim()
+      return Boolean(facultyId || facultyName)
+    })
+    const hasAnyBatch = Array.isArray(branchBatchGroups) && branchBatchGroups.some((group) => {
+      const batches = Array.isArray(group?.batches) ? group.batches : []
+      return batches.length > 0 || Boolean(String(group?.batchId || group?.batchName || '').trim())
+    })
+
+    return hasAnyCourse && hasAnyFaculty && hasAnyBatch
+  }, [branchBatchGroups, branchFacultyRecords, studentCourseOptions])
+
   const selectedStudentCoursePaymentPlans = useMemo(
     () =>
       Array.isArray(selectedStudentCourse?.paymentPlans)
@@ -6092,6 +6108,11 @@ useEffect(() => {
   }
 
   const openAddStudentForm = async () => {
+    if (!hasStudentCreationSetup) {
+      setIsStudentSetupRequiredOpen(true)
+      return
+    }
+
     setStudentFormMode('add')
     setStudentFormError('')
     setIsStudentSaving(false)
@@ -6101,6 +6122,15 @@ useEffect(() => {
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
   }
+
+  const closeStudentSetupRequiredPopup = useCallback(() => {
+    setIsStudentSetupRequiredOpen(false)
+  }, [])
+
+  const goToBatchesFromStudentSetupPopup = useCallback(() => {
+    setIsStudentSetupRequiredOpen(false)
+    goToBranchSection('batches')
+  }, [goToBranchSection])
 
   const openViewStudentForm = async (stu) => {
     setStudentFormMode('view')
@@ -8808,6 +8838,58 @@ else {
                     onClick={goToCreatePaymentPlan}
                   >
                     Create Payment Plan
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+          : null}
+
+        {typeof document !== 'undefined' && isStudentSetupRequiredOpen
+          ? createPortal(
+            <div className="payment-popup-overlay" role="presentation">
+              <div
+                className="payment-confirmation-popup branch-student-setup-required-popup"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="student-setup-required-title"
+                aria-describedby="student-setup-required-description"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  className="receipt-popup-close"
+                  onClick={closeStudentSetupRequiredPopup}
+                  aria-label="Close setup required dialog"
+                >
+                  X
+                </button>
+
+                <div className="student-setup-required-icon" aria-hidden="true">
+                  <BadgeInfo size={24} strokeWidth={2.2} />
+                </div>
+
+                <h3 id="student-setup-required-title">Create batches before adding students</h3>
+                <p id="student-setup-required-description" className="student-setup-required-copy">
+                  Please assign a faculty member and create at least one batch before adding students. Once the setup is complete, you can add students to the branch.
+                </p>
+
+                <div className="payment-popup-actions" style={{ marginTop: '16px' }}>
+                  <button
+                    type="button"
+                    className="popup-cancel-btn"
+                    onClick={closeStudentSetupRequiredPopup}
+                  >
+                    OK
+                  </button>
+
+                  <button
+                    type="button"
+                    className="button button-solid"
+                    onClick={goToBatchesFromStudentSetupPopup}
+                  >
+                    Go Batches
                   </button>
                 </div>
               </div>
