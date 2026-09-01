@@ -386,6 +386,7 @@ function createInitialStudentForm(branchId) {
     batchId: '',
     batchName: '',
     batchTiming: '',
+    batchSelectionKey: '',
     facultyId: '',
     facultyName: '',
     facultyEmail: '',
@@ -432,6 +433,7 @@ function buildStudentFormFromRecord(student = {}) {
     batchId: student.batchId || student.batch?.batchId || student.batchEntryId || '',
     batchName: student.batchName || student.batch?.batchName || student.batch || '',
     batchTiming: student.batchTiming || student.batch?.batchTiming || '',
+    batchSelectionKey: '',
     facultyId: student.facultyId || student.course?.facultyId || '',
     facultyName: student.facultyName || student.course?.facultyName || '',
     facultyEmail: student.facultyEmail || student.course?.facultyEmail || '',
@@ -5206,14 +5208,20 @@ const studentCourseOptions = useMemo(() => {
 
     return branchBatchGroups
       .filter((group) => String(group?.courseId || group?.branchCourseId || '').trim() === courseId)
-      .flatMap((group) => {
+      .flatMap((group, groupIndex) => {
         const batches = Array.isArray(group?.batches) ? group.batches : []
         return batches
-          .map((batch) => {
+          .map((batch, batchIndex) => {
             const batchId = String(batch?.batchId || batch?.id || '').trim()
             const batchName = String(batch?.batchName || '').trim()
             if (!batchId && !batchName) return null
 
+            const batchSourceId = String(batch?.id || '').trim()
+            const selectionKey = [
+              String(group?.batchGroupId || group?.id || '').trim(),
+              batchSourceId || batchId || batchName || `batch-${batchIndex}`,
+              `option-${groupIndex}-${batchIndex}`,
+            ].filter(Boolean).join('::')
             const batchTiming = formatStudentBatchTiming(batch)
             const seatSummary = getBatchSeatSummary({
               batchId,
@@ -5231,6 +5239,8 @@ const studentCourseOptions = useMemo(() => {
               ? `${seatSummary.availableSeats} of ${seatSummary.totalSeats} seats left`
               : 'No seats configured'
             return {
+              id: batchSourceId || batchId || batchName,
+              selectionKey,
               value: batchId || batchName,
               batchId: batchId || batchName,
               batchName: batchName || batchId,
@@ -5257,16 +5267,22 @@ const studentCourseOptions = useMemo(() => {
 
   const selectedStudentBatchOption = useMemo(
     () => selectedStudentCourseBatchOptions.find((batch) => {
+      const currentSelectionKey = String(studentForm.batchSelectionKey || '').trim().toLowerCase()
       const currentBatchId = String(studentForm.batchId || '').trim().toLowerCase()
       const currentBatchName = String(studentForm.batchName || '').trim().toLowerCase()
       const currentBatchTiming = String(studentForm.batchTiming || '').trim().toLowerCase()
+      if (currentSelectionKey && String(batch.selectionKey || '').trim().toLowerCase() === currentSelectionKey) {
+        return true
+      }
+      if (currentSelectionKey) return false
+      if (!currentBatchId && !currentBatchName && !currentBatchTiming) return false
       return (
         String(batch.batchId || '').trim().toLowerCase() === currentBatchId ||
         String(batch.batchName || '').trim().toLowerCase() === currentBatchName ||
         String(batch.batchTiming || '').trim().toLowerCase() === currentBatchTiming
       )
     }) || null,
-    [selectedStudentCourseBatchOptions, studentForm.batchId, studentForm.batchName, studentForm.batchTiming],
+    [selectedStudentCourseBatchOptions, studentForm.batchId, studentForm.batchName, studentForm.batchSelectionKey, studentForm.batchTiming],
   )
   const hasSelectableStudentBatchOption = useMemo(
     () => selectedStudentCourseBatchOptions.some((batch) => batch.isSelectable),
@@ -5349,6 +5365,7 @@ const studentCourseOptions = useMemo(() => {
         batchId: '',
         batchName: '',
         batchTiming: '',
+        batchSelectionKey: '',
         facultyId: '',
         facultyName: '',
         facultyEmail: '',
@@ -5374,6 +5391,7 @@ const studentCourseOptions = useMemo(() => {
         batchId: '',
         batchName: '',
         batchTiming: '',
+        batchSelectionKey: '',
         facultyId: '',
         facultyName: '',
         facultyEmail: '',
@@ -5387,10 +5405,13 @@ const studentCourseOptions = useMemo(() => {
 
   const handleStudentBatchChange = (batchId) => {
     const nextBatchId = String(batchId || '').trim()
-    const nextBatch = selectedStudentCourseBatchOptions.find((batch) => String(batch.batchId || '').trim() === nextBatchId) || null
+    const nextBatch = selectedStudentCourseBatchOptions.find((batch) => {
+      return String(batch.selectionKey || '').trim() === nextBatchId || String(batch.batchId || '').trim() === nextBatchId
+    }) || null
 
     setStudentForm((current) => ({
       ...current,
+      batchSelectionKey: nextBatch?.selectionKey || nextBatchId || '',
       batchGroupId: nextBatch?.batchGroupId || '',
       batchId: nextBatch?.batchId || '',
       batchName: nextBatch?.batchName || '',
@@ -6301,6 +6322,7 @@ useEffect(() => {
     delete record.studentIdSuffix
     delete record.originalStudentId
     delete record.recordId
+    delete record.batchSelectionKey
 
     setIsStudentSaving(true)
     console.log("PAYLOAD BEING SENT TO BACKEND:", record)
@@ -12004,7 +12026,7 @@ else {
           }
         >
           <select
-            value={selectedStudentBatchOption?.batchId || selectedStudentBatchOption?.batchName || studentForm.batchId || studentForm.batchName || ''}
+            value={selectedStudentBatchOption?.selectionKey || studentForm.batchSelectionKey || ''}
             onChange={(e) =>
               handleStudentBatchChange(e.target.value)
             }
@@ -12028,8 +12050,8 @@ else {
 
             {selectedStudentCourseBatchOptions.map((batch) => (
               <option
-                key={`${batch.batchId}-${batch.batchName}`}
-                value={batch.batchId}
+                key={batch.selectionKey}
+                value={batch.selectionKey}
                 disabled={!batch.isSelectable}
               >
                 {batch.label}
