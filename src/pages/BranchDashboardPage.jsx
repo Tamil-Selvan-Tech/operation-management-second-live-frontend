@@ -7601,6 +7601,7 @@ else {
       )}
     >
       <RecordPayment
+        key={`${recordPaymentStudent?.id || ''}-${recordPaymentStudent?.studentId || ''}-${recordPaymentStudent?.studentName || recordPaymentStudent?.name || ''}`}
         student={recordPaymentStudent}
         students={branchStudents}
         branchProfile={branchProfile}
