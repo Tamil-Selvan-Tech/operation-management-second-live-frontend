@@ -5,6 +5,188 @@ import { request } from "../../services/apiClient";
 import { saveBranchPaymentHistoryEntry } from "../../lib/branchPaymentHistoryStore";
 import { loadBranchStudents } from "../../lib/branchStudentStore";
 
+const escapeReceiptValue = (value) => String(value ?? "-")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/\"/g, "&quot;")
+  .replace(/'/g, "&#039;");
+
+const getReceiptInstallmentNumber = (paymentFor) => {
+  const match = String(paymentFor || "").match(/installment\s+(\d+)/i);
+  return match ? Number(match[1]) : null;
+};
+
+const getReceiptInstallmentAmount = (installment) => Number(
+  installment?.amount ?? installment?.totalAmount ?? 0
+);
+
+const getReceiptPaidAmount = (installment) => Number(
+  installment?.paidAmount ?? installment?.amountPaid ?? 0
+);
+
+const applyReceiptPaymentToSchedule = (
+  schedule,
+  paymentFor,
+  currentPayment,
+  paymentAlreadyApplied = false
+) => {
+  const source = Array.isArray(schedule) ? schedule : [];
+  const payment = Math.max(Number(currentPayment) || 0, 0);
+  if (paymentAlreadyApplied || !payment || !source.length) {
+    return source.map((installment, index) => ({
+      ...installment,
+      installmentNumber: Number(installment?.installmentNumber || index + 1),
+    }));
+  }
+
+  const targetNumber = getReceiptInstallmentNumber(paymentFor);
+  const result = source.map((installment, index) => ({
+    ...installment,
+    installmentNumber: Number(installment?.installmentNumber || index + 1),
+  }));
+
+  if (targetNumber) {
+    const target = result.find((installment) => installment.installmentNumber === targetNumber);
+    if (!target) {
+      return result;
+    }
+
+    const amount = getReceiptInstallmentAmount(target);
+    const paid = getReceiptPaidAmount(target);
+    if (amount > paid) {
+      target.paidAmount = Math.min(amount, paid + payment);
+    }
+    return result;
+  }
+
+  if (/full\s*payment/i.test(String(paymentFor || ""))) {
+    let remaining = payment;
+    for (const installment of result) {
+      const amount = getReceiptInstallmentAmount(installment);
+      const paid = getReceiptPaidAmount(installment);
+      const outstanding = Math.max(amount - paid, 0);
+      if (!outstanding || remaining <= 0) {
+        continue;
+      }
+      const applied = Math.min(outstanding, remaining);
+      installment.paidAmount = paid + applied;
+      remaining -= applied;
+    }
+  }
+
+  return result;
+};
+
+const buildModernPaymentReceiptHtml = ({
+  logoUrl,
+  instituteName,
+  branchName,
+  branchAddress,
+  branchPhone,
+  branchEmail,
+  studentName,
+  admissionId,
+  courseName,
+  batchName,
+  studentPhone,
+  receiptNumber,
+  receiptDate,
+  paymentDate,
+  paymentFor,
+  paymentMode,
+  transactionReference,
+  collectedBy,
+  notes,
+  totalCourseFee,
+  previouslyPaid,
+  currentPayment,
+  totalPaid,
+  balance,
+  amountInWords,
+  installments,
+  paymentAlreadyApplied = false,
+}) => {
+  const safe = escapeReceiptValue;
+  const money = (value) => `&#8377;${Number(value || 0).toLocaleString("en-IN")}`;
+  const displayInstallments = applyReceiptPaymentToSchedule(
+    installments,
+    paymentFor,
+    currentPayment,
+    paymentAlreadyApplied
+  );
+  const installmentRows = displayInstallments.map((item, index) => {
+    const amount = getReceiptInstallmentAmount(item);
+    const paid = getReceiptPaidAmount(item);
+    const isPaid = amount > 0 && paid >= amount;
+    const isPartial = paid > 0 && paid < amount;
+    const dueDate = item?.dueDate || item?.date || "-";
+    return `<tr>
+      <td>Installment ${safe(item?.installmentNumber || index + 1)}</td>
+      <td>${safe(dueDate)}</td>
+      <td>${money(amount)}</td>
+      <td><span class="status ${isPaid ? "paid" : isPartial ? "partial" : "pending"}">${isPaid ? "PAID" : isPartial ? "PARTIAL" : "PENDING"}</span></td>
+    </tr>`;
+  }).join("");
+
+  const pending = displayInstallments.find((item) => {
+    const amount = getReceiptInstallmentAmount(item);
+    const paid = getReceiptPaidAmount(item);
+    return amount > paid;
+  });
+  const nextPayment = pending ? `<section class="next-payment">
+    <div class="section-title">NEXT PAYMENT DETAILS</div>
+    <div class="next-grid">
+      <span>Next Installment</span><strong>Installment ${safe(pending.installmentNumber || "-")}</strong>
+      <span>Due Date</span><strong>${safe(pending.dueDate || pending.date || "-")}</strong>
+      <span>Amount Due</span><strong class="next-amount">${money(Math.max(Number(pending.amount || pending.totalAmount || 0) - Number(pending.paidAmount ?? pending.amountPaid ?? 0), 0))}</strong>
+    </div>
+  </section>` : "";
+
+  const detailRow = (label, value) => `<div class="detail-row"><span>${safe(label)}</span><strong>${String(value || "-").startsWith("&#8377;") ? value : safe(value || "-")}</strong></div>`;
+
+  return `<style>
+    *{box-sizing:border-box} .receipt-page{width:794px;min-height:1123px;padding:22px 28px 0;background:#fff;color:#132044;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.3}
+    .receipt-header{display:flex;justify-content:space-between;gap:18px;padding-bottom:12px;border-bottom:1px solid #cbd5e1}.brand-block{display:flex;align-items:flex-start;gap:10px;max-width:49%}.brand-logo{width:112px;height:52px;object-fit:contain}.institute-name{font-size:15px;font-weight:800;color:#102b67;text-transform:uppercase;letter-spacing:.2px}.branch-line{margin-top:4px;font-weight:700}.address{margin-top:3px;line-height:1.3;color:#475569}.contact{margin-top:4px;color:#475569}.title-block{text-align:right;min-width:270px}.receipt-title{font-family:"Arial Narrow","Roboto Condensed",Arial,Helvetica,sans-serif;font-size:27px;line-height:1;font-weight:900;letter-spacing:1.5px;color:#102b67;margin:5px 0 10px;white-space:nowrap}.thank-you{display:inline-flex;align-items:center;justify-content:center;padding:6px 10px;border:1px solid #36a269;border-radius:8px;background:#f0faf4;color:#16834a;font-weight:800;white-space:nowrap}
+    .meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:12px 0;padding:9px 10px;border:1px solid #9fb1d2;border-radius:9px}.meta-grid .detail-row{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:4px 10px;border-right:1px dashed #b7c3d8;min-height:42px}.meta-grid .detail-row:nth-child(3n){border-right:0}.meta-grid .detail-row:nth-child(n+4){border-top:1px solid #edf1f7;padding-top:7px}.meta-grid .detail-row span{display:block;text-transform:uppercase;font-size:8px;letter-spacing:.5px}.meta-grid .detail-row strong{display:block;margin-top:3px;font-size:11px;line-height:1.15;overflow-wrap:anywhere}
+    .two-column{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;align-items:start}.card{border:1px solid #bdcbe1;border-radius:8px;overflow:hidden;background:#fff;page-break-inside:avoid}.section-title{font-family:"Arial Narrow","Roboto Condensed",Arial,Helvetica,sans-serif;padding:6px 10px;background:#102b67;color:#fff;font-size:10.5px;font-weight:800;letter-spacing:.8px;line-height:1.15}.detail-row{display:flex;justify-content:space-between;gap:10px;padding:5px 10px;border-bottom:1px solid #edf1f7;min-height:23px}.detail-row span{color:#475569}.detail-row strong{text-align:right;color:#132044;font-weight:700;overflow-wrap:anywhere}.detail-row.green strong{color:#16834a}.table-head{display:flex;justify-content:space-between;padding:5px 10px;background:#f1f5fa;color:#102b67;font-size:9px;font-weight:800;letter-spacing:.35px}.total-row{display:flex;justify-content:space-between;padding:7px 10px;border-top:1px dashed #98a9c5;font-size:12px;font-weight:800}.balance strong{color:#dc3b3b}.amount-box{position:relative;margin:10px 0;padding:10px;text-align:center;border:1px dashed #47ae76;border-radius:9px;background:#f4fbf6;page-break-inside:avoid}.amount-label{font-family:"Arial Narrow","Roboto Condensed",Arial,Helvetica,sans-serif;font-size:11px;font-weight:800;letter-spacing:.7px;color:#16834a}.amount{margin:1px 0;font-size:27px;font-weight:900;letter-spacing:.3px;color:#159447}.words{font-size:10px;color:#475569}.received{position:absolute;right:18px;top:19px;padding:6px 8px;border:2px solid #25a35b;border-radius:50%;color:#16834a;font-size:9px;font-weight:900;transform:rotate(-12deg)}
+    table{width:100%;border-collapse:collapse;font-size:9px}th,td{padding:5px 6px;border-bottom:1px solid #e3eaf3;text-align:left}th{background:#f1f5fa;color:#102b67;font-size:8px;letter-spacing:.35px}th:nth-child(n+3),td:nth-child(n+3){text-align:right}.status{display:inline-flex;align-items:center;justify-content:center;padding:2px 6px;border:1px solid;border-radius:10px;font-size:8px;font-weight:800;letter-spacing:.2px;white-space:nowrap}.status.paid{border-color:#54bc7f;color:#16834a;background:#f1fbf4}.status.partial{border-color:#e3a52e;color:#a26000;background:#fff8e7}.status.pending{border-color:#f1a33d;color:#b96900;background:#fff8ec}.empty{text-align:center!important;color:#64748b}.next-payment{margin:6px 6px 6px;border:1px solid #9dbcf0;border-radius:6px;background:#f4f8ff;page-break-inside:avoid}.next-payment .section-title{padding:5px 8px;background:transparent;color:#164a9c;border-bottom:1px solid #cdddf7}.next-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:6px 8px}.next-grid strong{text-align:right}.next-amount{color:#16834a}.payment-status{display:grid;grid-template-columns:1.3fr auto 2fr;align-items:center;gap:10px;margin-top:10px;padding:8px 10px;border:1px solid #f3b65b;border-radius:7px;background:#fff9ef;color:#743f0b;page-break-inside:avoid}.payment-status>strong{font-family:"Arial Narrow","Roboto Condensed",Arial,Helvetica,sans-serif;color:#9d5500;letter-spacing:.6px}.payment-status>span:last-child{text-align:left;color:#7b5b36}.receipt-footer{display:flex;justify-content:space-between;gap:10px;margin:14px -28px 0;padding:8px 28px;background:#102b67;color:#fff;font-size:8px;line-height:1.2}
+    @media print{.receipt-page{min-height:0;margin:0}.card,.meta-grid,.amount-box,.payment-status,.next-payment{page-break-inside:avoid}}
+  </style><div class="receipt-page">
+    <header class="receipt-header">
+      <div class="brand-block">
+        <img class="brand-logo" src="${safe(logoUrl)}" alt="CISPRO logo" />
+        <div><div class="institute-name">${safe(instituteName)}</div>
+          <div class="branch-line">Branch: ${safe(branchName)}</div>
+          <div class="address">${safe(branchAddress)}</div>
+          <div class="contact">${safe(branchPhone)} ${branchEmail ? `&nbsp;&nbsp;|&nbsp;&nbsp;${safe(branchEmail)}` : ""}</div>
+        </div>
+      </div>
+      <div class="title-block"><div class="receipt-title">PAYMENT RECEIPT</div><div class="thank-you">&#10003;&nbsp; THANK YOU FOR YOUR PAYMENT!</div></div>
+    </header>
+
+    <section class="meta-grid">
+      ${detailRow("Receipt No", receiptNumber)}${detailRow("Receipt Date", receiptDate)}${detailRow("Branch", branchName)}
+      ${detailRow("Student ID", admissionId)}${detailRow("Payment Date", paymentDate)}${detailRow("Payment Type", paymentFor || "Payment")}
+    </section>
+
+    <div class="two-column">
+      <section class="card"><div class="section-title">STUDENT DETAILS</div>${detailRow("Student Name", studentName)}${detailRow("Admission ID", admissionId)}${detailRow("Course", courseName)}${detailRow("Batch", batchName)}${detailRow("Contact Number", studentPhone)}</section>
+      <section class="card"><div class="section-title">PAYMENT DETAILS</div>${detailRow("Payment For", paymentFor)}${detailRow("Payment Mode", paymentMode)}${detailRow("Transaction Ref", transactionReference)}${detailRow("Collected By", collectedBy)}${detailRow("Remarks", notes)}</section>
+    </div>
+
+    <section class="amount-box"><div class="amount-label">AMOUNT RECEIVED</div><div class="amount">${money(currentPayment)}</div><div class="words">${safe(amountInWords)}</div><span class="received">RECEIVED</span></section>
+
+    <div class="two-column summary-columns">
+      <section class="card fee-card"><div class="section-title">FEE SUMMARY</div><div class="table-head"><span>DESCRIPTION</span><span>AMOUNT</span></div>${detailRow("Total Course Fee", money(totalCourseFee))}${detailRow("Previously Paid", money(previouslyPaid))}<div class="detail-row green"><span>Current Payment</span><strong>${money(currentPayment)}</strong></div><div class="total-row"><span>Total Paid</span><strong>${money(totalPaid)}</strong></div><div class="detail-row balance"><span>Remaining Balance</span><strong>${money(balance)}</strong></div></section>
+      <section class="card installment-card"><div class="section-title">INSTALLMENT DETAILS</div><table><thead><tr><th>INSTALLMENT</th><th>DUE DATE</th><th>AMOUNT</th><th>STATUS</th></tr></thead><tbody>${installmentRows || `<tr><td colspan="4" class="empty">No installment schedule available</td></tr>`}</tbody></table>${nextPayment}</section>
+    </div>
+
+    <section class="payment-status"><strong>PAYMENT STATUS</strong><span class="status ${balance > 0 ? "pending" : "paid"}">${balance > 0 ? "PARTIALLY PAID" : "PAID"}</span><span>Thank you! Your payment has been recorded successfully.</span></section>
+    <footer class="receipt-footer"><span>This is a computer-generated receipt and does not require a physical signature.</span><span>Generated on: ${safe(new Date().toLocaleString("en-IN"))}</span></footer>
+  </div>`;
+};
+
 const getStudentSearchText = (studentRecord) => {
   const studentId = String(studentRecord?.studentId || "").trim();
   const studentName = String(
@@ -67,7 +249,7 @@ const getPendingInstallmentDefaults = (studentRecord) => {
 
 const EMPTY_STUDENT = {};
 
-const RecordPayment = ({ student, students = [], onClose }) => {
+const RecordPayment = ({ student, students = [], onClose, branchProfile = null }) => {
   const initialStudent = student?.studentId ? student : null;
 
   // =========================================================
@@ -150,6 +332,37 @@ const RecordPayment = ({ student, students = [], onClose }) => {
     activeStudent?.course ||
     activeStudent?.selectedCourse ||
     "Data Analytics";
+
+  const branchName =
+    branchProfile?.branchName ||
+    activeStudent?.branchName ||
+    formData.branch ||
+    "Cispro Training";
+
+  const branchAddress =
+    branchProfile?.branchAddress ||
+    activeStudent?.branchAddress ||
+    "-";
+
+  const branchPhone =
+    branchProfile?.branchPhone ||
+    activeStudent?.branchPhone ||
+    "";
+
+  const branchEmail =
+    branchProfile?.branchEmail ||
+    activeStudent?.branchEmail ||
+    "";
+
+  const batchName =
+    activeStudent?.batchName ||
+    activeStudent?.batch ||
+    "-";
+
+  const studentPhone =
+    activeStudent?.mobileNumber ||
+    activeStudent?.phone ||
+    "-";
 
   // =========================================================
   // FEE DATA
@@ -685,7 +898,7 @@ const RecordPayment = ({ student, students = [], onClose }) => {
   // SAVE PAYMENT TO BACKEND
   // =========================================================
 
-  const savePaymentToBackend = async () => {
+  const savePaymentToBackend = async (receiptAttachment = null) => {
     if (paymentSaved) {
       return true;
     }
@@ -732,6 +945,8 @@ const RecordPayment = ({ student, students = [], onClose }) => {
 
             payAgainst:
               formData.payAgainst,
+
+            receiptAttachment,
           }),
         }
       );
@@ -1387,6 +1602,36 @@ const RecordPayment = ({ student, students = [], onClose }) => {
       </div>
     `;
 
+    receiptElement.innerHTML = buildModernPaymentReceiptHtml({
+      logoUrl: `${window.location.origin}/logo.png`,
+      instituteName,
+      branchName,
+      branchAddress,
+      branchPhone,
+      branchEmail,
+      studentName,
+      admissionId,
+      courseName,
+      batchName,
+      studentPhone,
+      receiptNumber,
+      receiptDate,
+      paymentDate: formatDateDMY(formData.paymentDate),
+      paymentFor: formData.payAgainst,
+      paymentMode: formData.paymentMode,
+      transactionReference: formData.transactionReference,
+      collectedBy: formData.collectedBy,
+      notes: formData.notes,
+      totalCourseFee,
+      previouslyPaid,
+      currentPayment,
+      totalPaid,
+      balance,
+      amountInWords,
+      installments,
+      paymentAlreadyApplied: paymentSaved,
+    });
+
     document.body.appendChild(
       receiptElement
     );
@@ -1417,8 +1662,12 @@ const RecordPayment = ({ student, students = [], onClose }) => {
     html2pdf()
       .set(pdfOptions)
       .from(receiptElement)
-      .save()
-      .then(async () => {
+      .toPdf()
+      .get("pdf")
+      .then(async (pdf) => {
+        const dataUri = pdf.output("datauristring");
+        const pdfBase64 = String(dataUri || "").split(",")[1] || "";
+        pdf.save(pdfOptions.filename);
         if (
           document.body.contains(
             receiptElement
@@ -1432,7 +1681,11 @@ const RecordPayment = ({ student, students = [], onClose }) => {
         // IMPORTANT:
         // Save payment only after PDF download.
 
-        const isSaved = await savePaymentToBackend();
+        const isSaved = await savePaymentToBackend({
+          filename: pdfOptions.filename,
+          content: pdfBase64,
+          contentType: "application/pdf",
+        });
 
         if (isSaved) {
           setShowPaymentSuccess(true);

@@ -7523,6 +7523,7 @@ else {
       <RecordPayment
         student={recordPaymentStudent}
         students={branchStudents}
+        branchProfile={branchProfile}
         onClose={() => {
           resetPaymentsView();
           void reloadBranchStudents();
