@@ -2731,6 +2731,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
+  const [processingBranchNotificationId, setProcessingBranchNotificationId] = useState('')
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
   const [facultyTodayWorkEntries, setFacultyTodayWorkEntries] = useState([])
   const branchCourseProgressBackfillSignatureRef = useRef('')
@@ -3753,6 +3754,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const acceptBranchCourseEditNotification = async (notification) => {
+    const notificationId = String(notification?.id || notification?.requestId || '').trim()
+    if (processingBranchNotificationId === notificationId) return
+
+    setProcessingBranchNotificationId(notificationId)
     let requestId = ''
 
     try {
@@ -3781,15 +3786,18 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
               : item,
           ),
         )
-        await loadBranchNotifications()
+        // Refresh in the background so the click does not wait for another API call.
+        void loadBranchNotifications()
       }
 
-      await openBranchNotificationTarget({
+      void openBranchNotificationTarget({
         ...notification,
         requestStatus: 'accepted',
       })
     } catch (error) {
       console.error('Failed to accept course edit request:', error)
+    } finally {
+      setProcessingBranchNotificationId('')
     }
   }
 
@@ -6461,52 +6469,40 @@ useEffect(() => {
                       const isCourseEditRequest =
                         (item.kind === 'branch-course-edit-request' || item.kind === 'course-edit-request') &&
                         item.requestStatus !== 'accepted'
+                      const isProcessing = processingBranchNotificationId === String(item.id || item.requestId || '').trim()
 
                       return (
-                        <div
+                        <article
                           key={item.id}
                           className={`notification-dropdown-item ${item.unread ? 'is-highlighted' : 'is-muted'} ${isCourseEditRequest ? 'is-course-request' : ''
                             }`.trim()}
-                          onMouseDown={(event) => event.stopPropagation()}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          role="button"
-                          tabIndex={0}
-                          onClick={() => openBranchNotificationTarget(item)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter' || event.key === ' ') {
-                              event.preventDefault()
-                              openBranchNotificationTarget(item)
-                            }
-                          }}
                         >
                           <span className={`notification-badge ${item.tone}`} aria-hidden="true">
                             <Icon size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                           </span>
-              <div className="notification-copy">
-                <p>{item.title}</p>
-                <span>{item.message}</span>
-                <small>{item.time}</small>
-              </div>
+                          <div className="notification-copy">
+                            <p>{item.title}</p>
+                            <span>{item.message}</span>
+                            <small>{item.time}</small>
+                          </div>
 
                           <div
                             className="notification-dropdown-item-actions"
-                            onMouseDown={(event) => event.stopPropagation()}
-                            onPointerDown={(event) => event.stopPropagation()}
                           >
                             {isCourseEditRequest ? (
                               <button
                                 type="button"
                                 className="notification-dropdown-accept"
+                                onMouseDown={(event) => event.stopPropagation()}
+                                onPointerDown={(event) => event.stopPropagation()}
                                 onClick={(event) => {
                                   event.preventDefault()
                                   event.stopPropagation()
-
-                                  console.log('ACCEPT CLICKED')
-
+                                  if (isProcessing) return
                                   void acceptBranchCourseEditNotification(item)
                                 }}
                               >
-                                Accept
+                                {isProcessing ? 'Accepting...' : 'Accept'}
                               </button>
                             ) : null}
                             <button
@@ -6514,13 +6510,16 @@ useEffect(() => {
                               className="notification-dropdown-view"
                               onMouseDown={(event) => event.stopPropagation()}
                               onPointerDown={(event) => event.stopPropagation()}
-                              onClickCapture={(event) => event.stopPropagation()}
-                              onClick={() => openBranchNotificationTarget(item)}
+                              onClick={(event) => {
+                                event.preventDefault()
+                                event.stopPropagation()
+                                void openBranchNotificationTarget(item)
+                              }}
                             >
                               View
                             </button>
                           </div>
-                        </div>
+                        </article>
                       )
                     })
                   ) : (
