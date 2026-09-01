@@ -394,6 +394,8 @@ function createInitialStudentForm(branchId) {
     paymentPlan: '',
     paymentMode: '',
     installmentSchedule: [],
+    courseProgress: 0,
+    progress: 0,
   }
 }
 
@@ -5876,6 +5878,15 @@ useEffect(() => {
         const studentKey = normalizeBranchStudentLookupKey(student)
         if (!studentKey) return null
 
+        const hasExplicitProgressValue =
+          student?.courseProgress !== undefined ||
+          student?.courseCompletionPercentage !== undefined ||
+          student?.progress !== undefined
+
+        if (hasExplicitProgressValue) {
+          return null
+        }
+
         const course = resolveBranchStudentCourse(student, branchCourseCards)
         const matchedEntry = branchTodayWorkEntriesByStudent.get(studentKey) || null
         const resolvedCourse = course || (matchedEntry
@@ -6255,6 +6266,8 @@ useEffect(() => {
       discount: String(selectedCourse?.discount ?? '').trim(),
       afterDiscount: resolvedCourseAmount,
       paymentMode: studentForm.paymentMode || 'Installment',
+      courseProgress: 0,
+      progress: 0,
       installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
         installmentNumber: index + 1,
         amount,
