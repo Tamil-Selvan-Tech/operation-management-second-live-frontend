@@ -6449,7 +6449,6 @@ useEffect(() => {
     delete record.batchSelectionKey
 
     setIsStudentSaving(true)
-    console.log("PAYLOAD BEING SENT TO BACKEND:", record)
     try {
       await saveBranchStudent(record)
       await reloadBranchStudents()

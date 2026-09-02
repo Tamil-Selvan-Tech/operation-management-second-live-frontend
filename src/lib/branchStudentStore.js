@@ -216,8 +216,31 @@ async function syncBranchStudentToBackend(student) {
       throw new Error('Student record identifier is required for update')
     }
 
+    let backendPathStudentKey = pathStudentKey
     try {
-      const response = await request(`/branch-students/${encodeURIComponent(pathStudentKey)}`, {
+      const backendMatch = await findBranchStudentByStudentId(
+        studentId,
+        payload.branchId || payload.branchCode || '',
+      )
+
+      if (!backendMatch?.id) {
+        const createResponse = await request('/branch-students', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        })
+
+        return createResponse?.data ?? createResponse
+      }
+
+      backendPathStudentKey = String(backendMatch.id).trim()
+    } catch (error) {
+      if (error?.status !== 403) {
+        throw error
+      }
+    }
+
+    try {
+      const response = await request(`/branch-students/${encodeURIComponent(backendPathStudentKey)}`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
       })
@@ -229,16 +252,6 @@ async function syncBranchStudentToBackend(student) {
       }
 
       if (error?.status === 404) {
-        const backendMatch = await findBranchStudentByStudentId(studentId, payload.branchId || payload.branchCode || '')
-        if (backendMatch?.id && String(backendMatch.id).trim() !== pathStudentKey) {
-          const retryResponse = await request(`/branch-students/${encodeURIComponent(String(backendMatch.id).trim())}`, {
-            method: 'PATCH',
-            body: JSON.stringify(payload),
-          })
-
-          return retryResponse?.data ?? retryResponse
-        }
-
         const createResponse = await request('/branch-students', {
           method: 'POST',
           body: JSON.stringify(payload),
