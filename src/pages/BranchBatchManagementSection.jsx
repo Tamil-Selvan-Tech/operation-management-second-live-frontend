@@ -643,6 +643,7 @@ export function BranchBatchManagementSection({
   const [deleteGroupTarget, setDeleteGroupTarget] = useState(null)
   const [deleteRowTarget, setDeleteRowTarget] = useState(null)
   const [draft, setDraft] = useState(() => createInitialDraft(1, 1))
+  const [expandedBatchKey, setExpandedBatchKey] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [batchTablePage, setBatchTablePage] = useState(1)
   const [actionMenuOpenId, setActionMenuOpenId] = useState('')
@@ -1805,6 +1806,7 @@ export function BranchBatchManagementSection({
           <div className="batch-detail-list">
             <h4 className="batch-detail-list-title">Batch List</h4>
             {(Array.isArray(detailGroup.batches) ? detailGroup.batches : []).map((batch) => {
+              const batchKey = getBatchSeatMapKey(batch, detailGroup)
               const seatSummary = batchSeatSummaryMap.get(getBatchSeatMapKey(batch, detailGroup)) || getBatchSeatSummary({
                 ...batch,
                 batchGroupId: String(detailGroup?.batchGroupId || detailGroup?.id || '').trim(),
@@ -1813,17 +1815,42 @@ export function BranchBatchManagementSection({
                 facultyId: String(detailGroup?.facultyId || detailGroup?.branchFacultyId || '').trim(),
                 facultyName: String(detailGroup?.facultyName || '').trim(),
               }, branchStudents)
+              const batchStudents = getMatchingStudents(branchStudents, {
+                facultyId: detailGroup?.facultyId || detailGroup?.branchFacultyId || '',
+                facultyName: detailGroup?.facultyName || '',
+                courseId: detailGroup?.courseId || detailGroup?.branchCourseId || '',
+                courseName: detailGroup?.courseName || '',
+                batchGroupId: detailGroup?.batchGroupId || detailGroup?.id || '',
+                batchId: batch?.batchId || batch?.id || '',
+                batchName: batch?.batchName || '',
+                batchTiming: batch?.batchTiming || '',
+              })
+              const isExpanded = expandedBatchKey === batchKey
 
               return (
-                <article key={batch.batchId} className="batch-detail-card">
+                <article key={batch.batchId} className={`batch-detail-card ${isExpanded ? 'is-expanded' : ''}`.trim()}>
                   <div className="batch-detail-card-icon">
                     <UsersRound size={22} strokeWidth={2.1} aria-hidden="true" />
                   </div>
 
                   <div className="batch-detail-card-body">
                     <div className="batch-detail-card-head">
-                      <strong>{batch.batchName || batch.batchId}</strong>
-                      <span>{batch.batchId}</span>
+                      <div className="batch-detail-card-title">
+                        <strong>{batch.batchName || batch.batchId}</strong>
+                        <span>{batch.batchId}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`batch-detail-students-button ${isExpanded ? 'is-active' : ''}`.trim()}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setExpandedBatchKey(isExpanded ? '' : batchKey)
+                        }}
+                        aria-expanded={isExpanded}
+                      >
+                        <Eye size={15} strokeWidth={2.2} aria-hidden="true" />
+                        {batchStudents.length ? `View ${batchStudents.length} Student${batchStudents.length === 1 ? '' : 's'}` : 'View Students'}
+                      </button>
                     </div>
 
                     <div className="batch-detail-card-grid">
@@ -1838,9 +1865,10 @@ export function BranchBatchManagementSection({
                         <strong>
                           {seatSummary.usedSeats}/{seatSummary.totalSeats}
                         </strong>
-                        <span>
-                          {seatSummary.remainingSeats} left
-                        </span>
+                        <div className="batch-detail-seat-track" aria-hidden="true">
+                          <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
+                        </div>
+                        <span>{seatSummary.remainingSeats} left</span>
                       </div>
                       <div>
                         <span>Status</span>
@@ -1849,6 +1877,34 @@ export function BranchBatchManagementSection({
                         </strong>
                       </div>
                     </div>
+
+                    {isExpanded ? (
+                      <div className="batch-detail-students-panel">
+                        <div className="batch-detail-students-heading">
+                          <span className="batch-detail-students-kicker">Assigned learners</span>
+                          <strong>{batchStudents.length} student{batchStudents.length === 1 ? '' : 's'} in this batch</strong>
+                        </div>
+                        {batchStudents.length ? (
+                          <div className="batch-detail-students-list">
+                            {batchStudents.map((student, index) => (
+                              <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${batchKey}-${index}`}>
+                                <span className="batch-detail-student-number">{String(index + 1).padStart(2, '0')}</span>
+                                <div className="batch-detail-student-avatar" aria-hidden="true">
+                                  {String(student?.studentName || student?.name || 'S').trim().charAt(0).toUpperCase()}
+                                </div>
+                                <div className="batch-detail-student-copy">
+                                  <strong>{student?.studentName || student?.name || 'Unnamed student'}</strong>
+                                  <span>{student?.studentId || student?.id || 'Student ID unavailable'}</span>
+                                </div>
+                                <span className="batch-detail-student-progress">{Number(student?.courseProgress ?? student?.progress ?? 0) || 0}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="batch-detail-students-empty">No students assigned to this batch yet.</div>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               )

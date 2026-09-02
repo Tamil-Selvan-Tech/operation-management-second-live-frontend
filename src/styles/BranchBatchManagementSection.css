@@ -894,6 +894,14 @@
   align-items: center;
   padding: 14px 16px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.batch-detail-card:hover,
+.batch-detail-card.is-expanded {
+  border-color: #bfdbfe;
+  box-shadow: 0 16px 36px rgba(37, 99, 235, 0.1);
+  transform: translateY(-1px);
 }
 
 .batch-detail-card-icon {
@@ -921,6 +929,40 @@
   gap: 12px;
 }
 
+.batch-detail-card-title {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.batch-detail-students-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #2563eb;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.batch-detail-students-button:hover,
+.batch-detail-students-button:focus-visible,
+.batch-detail-students-button.is-active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  outline: none;
+  transform: translateY(-1px);
+}
+
 .batch-detail-card-head span {
   color: #2563eb;
   font-size: 0.84rem;
@@ -938,6 +980,137 @@
 .batch-detail-card-grid > div {
   display: grid;
   gap: 4px;
+}
+
+.batch-detail-seat-track {
+  width: min(130px, 100%);
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7effb;
+}
+
+.batch-detail-seat-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #60a5fa, #2563eb);
+  transition: width 420ms ease;
+}
+
+.batch-detail-students-panel {
+  display: grid;
+  gap: 10px;
+  padding-top: 13px;
+  border-top: 1px solid #e8eef7;
+  animation: batchStudentsReveal 220ms ease both;
+}
+
+.batch-detail-students-heading {
+  display: grid;
+  gap: 3px;
+}
+
+.batch-detail-students-kicker {
+  color: #2563eb;
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.batch-detail-students-list {
+  display: grid;
+  gap: 7px;
+}
+
+.batch-detail-student-row {
+  display: grid;
+  grid-template-columns: 28px 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #e6eef9;
+  border-radius: 12px;
+  background: #fbfdff;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.batch-detail-student-row:hover {
+  border-color: #bfdbfe;
+  background: #f4f8ff;
+  transform: translateX(2px);
+}
+
+.batch-detail-student-number {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.batch-detail-student-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 0.88rem;
+  font-weight: 900;
+}
+
+.batch-detail-student-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.batch-detail-student-copy strong,
+.batch-detail-student-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-detail-student-copy span {
+  color: #64748b;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.batch-detail-student-progress {
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.batch-detail-students-empty {
+  padding: 13px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #64748b;
+  background: #f8fafc;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+@keyframes batchStudentsReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .batch-detail-card-grid > div span {
@@ -977,6 +1150,24 @@
   .batch-detail-summary,
   .batch-detail-card-grid {
     grid-template-columns: 1fr;
+  }
+
+  .batch-detail-card-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .batch-detail-students-button {
+    width: 100%;
+  }
+
+  .batch-detail-student-row {
+    grid-template-columns: 24px 34px minmax(0, 1fr);
+  }
+
+  .batch-detail-student-progress {
+    grid-column: 3;
+    justify-self: start;
   }
 
   .batch-detail-modal {
