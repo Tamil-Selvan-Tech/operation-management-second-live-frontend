@@ -144,6 +144,8 @@ const STUDENT_FORM_STEP_THREE_FIELDS = [
   'courseId',
   'batchId',
   'batchTiming',
+  'classSchedule',
+  'courseStartDate',
   'courseAmount',
   'paymentPlanId',
 ]
@@ -388,6 +390,8 @@ function createInitialStudentForm(branchId) {
     batchName: '',
     batchTiming: '',
     batchSelectionKey: '',
+    classSchedule: '',
+    courseStartDate: getTodayValue(),
     facultyId: '',
     facultyName: '',
     facultyEmail: '',
@@ -435,6 +439,8 @@ function buildStudentFormFromRecord(student = {}) {
     batchName: student.batchName || student.batch?.batchName || student.batch || '',
     batchTiming: student.batchTiming || student.batch?.batchTiming || '',
     batchSelectionKey: '',
+    classSchedule: student.classSchedule || '',
+    courseStartDate: student.courseStartDate || '',
     facultyId: student.facultyId || student.course?.facultyId || '',
     facultyName: student.facultyName || student.course?.facultyName || '',
     facultyEmail: student.facultyEmail || student.course?.facultyEmail || '',
@@ -483,6 +489,8 @@ function validateStudentForm(form, students = []) {
   if (!form.courseId) errors.courseId = 'Course is required.'
   if (!safeTrim(form.batchId)) errors.batchId = 'Batch is required.'
   if (!safeTrim(form.batchTiming)) errors.batchTiming = 'Batch timing is required.'
+  if (!safeTrim(form.classSchedule)) errors.classSchedule = 'Class Schedule is required.'
+  if (!safeTrim(form.courseStartDate)) errors.courseStartDate = 'Course Start Date is required.'
   if (!safeTrim(form.courseAmount)) errors.courseAmount = 'Course amount is required.'
   if (!safeTrim(form.paymentPlanId)) errors.paymentPlanId = 'This field is required.'
 
@@ -5592,6 +5600,23 @@ const studentCourseOptions = useMemo(() => {
     }
   }, [isStudentFormOpen])
 
+  // Keep today's date available when opening a new student form.
+  useEffect(() => {
+    if (
+      !isStudentFormOpen ||
+      studentFormMode !== 'add' ||
+      studentForm.courseStartDate
+    ) {
+      return
+    }
+
+    setStudentForm((current) =>
+      current.courseStartDate
+        ? current
+        : { ...current, courseStartDate: getTodayValue() },
+    )
+  }, [isStudentFormOpen, studentFormMode, studentForm.courseStartDate])
+
   const branchPaymentRows = useMemo(
   () => branchStudents.map((stu) => ({
     student: stu,
@@ -6291,7 +6316,10 @@ useEffect(() => {
     setIsStudentSaving(false)
     setStudentFormStep(1)
     const nextStudentForm = await resolveStudentLocationForm(createInitialStudentForm(branchStudentScope))
-    setStudentForm(nextStudentForm)
+    setStudentForm({
+      ...nextStudentForm,
+      courseStartDate: nextStudentForm.courseStartDate || getTodayValue(),
+    })
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
   }
@@ -11302,6 +11330,24 @@ else {
       </div>
     </div>
 
+    {/* Class Schedule */}
+    <div className="student-details-row">
+      <div className="student-details-label">Class Schedule</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.classSchedule || '-'}
+      </div>
+    </div>
+
+    {/* Course Start Date */}
+    <div className="student-details-row">
+      <div className="student-details-label">Course Start Date</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.courseStartDate
+          ? formatStudentDate(viewStudentDrawer.courseStartDate)
+          : '-'}
+      </div>
+    </div>
+
     {/* Course */}
     <div className="student-details-row">
       <div className="student-details-label">Course</div>
@@ -12207,6 +12253,59 @@ else {
                 ? 'Select batch to auto-fill timing'
                 : 'Select course first'
             }
+          />
+        </Field>
+
+        <Field
+          label="Class Schedule"
+          required
+          error={
+            shouldShowStudentError('classSchedule')
+              ? studentFormValidationErrors.classSchedule
+              : ''
+          }
+        >
+          <select
+            value={studentForm.classSchedule || ''}
+            onChange={(e) =>
+              updateStudentField('classSchedule', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                classSchedule: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
+          >
+            <option value="">Select Class Schedule</option>
+            <option value="Weekday">Weekday</option>
+            <option value="Weekend">Weekend</option>
+          </select>
+        </Field>
+
+        <Field
+          label="Course Start Date"
+          required
+          error={
+            shouldShowStudentError('courseStartDate')
+              ? studentFormValidationErrors.courseStartDate
+              : ''
+          }
+        >
+          <input
+            type="date"
+            value={studentForm.courseStartDate || ''}
+            onChange={(e) =>
+              updateStudentField('courseStartDate', e.target.value)
+            }
+            onBlur={() =>
+              setStudentFormTouched((c) => ({
+                ...c,
+                courseStartDate: true,
+              }))
+            }
+            disabled={studentFormMode === 'view'}
           />
         </Field>
 
