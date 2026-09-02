@@ -877,9 +877,11 @@
 .batch-detail-list {
   display: grid;
   gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .batch-detail-list-title {
+  grid-column: 1 / -1;
   margin: 0 0 2px;
   color: #2563eb;
   font-size: 0.95rem;
@@ -889,10 +891,13 @@
 
 .batch-detail-card {
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  position: relative;
   gap: 16px;
-  align-items: center;
+  align-items: start;
   padding: 14px 16px;
+  width: 100%;
+  max-width: 520px;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
@@ -902,6 +907,20 @@
   border-color: #bfdbfe;
   box-shadow: 0 16px 36px rgba(37, 99, 235, 0.1);
   transform: translateY(-1px);
+}
+
+.batch-detail-card.is-expanded,
+.batch-detail-card.is-closing {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.batch-detail-card.is-expanded {
+  animation: batchFullCardFlipIn 300ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.batch-detail-card.is-expanded.is-closing {
+  animation: batchFullCardFlipOut 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 
 .batch-detail-card-icon {
@@ -919,20 +938,117 @@
 .batch-detail-card-body {
   min-width: 0;
   display: grid;
-  gap: 12px;
+  gap: 7px;
+  padding-top: 5px;
 }
 
 .batch-detail-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 12px;
 }
 
 .batch-detail-card-title {
   display: grid;
-  gap: 5px;
+  gap: 2px;
   min-width: 0;
+  padding-left: 15px;
+}
+
+.batch-detail-card-title span {
+  order: -1;
+}
+
+.batch-detail-card-title strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-detail-status-indicator {
+  position: absolute;
+  top: 24px;
+  left: 17px;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9);
+  cursor: default;
+}
+
+.batch-detail-status-indicator.is-active {
+  background: #22c55e;
+}
+
+.batch-detail-status-indicator.is-inactive {
+  background: #ef4444;
+}
+
+.batch-detail-status-indicator::after {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #111827;
+  color: #fff;
+  content: attr(data-status);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+  white-space: nowrap;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+}
+
+.batch-detail-status-indicator::before {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 3px);
+  z-index: 6;
+  border-width: 5px 5px 0;
+  border-style: solid;
+  border-color: #111827 transparent transparent;
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.batch-detail-status-indicator.is-active::after {
+  background: #ecfdf3;
+  color: #16a34a;
+  box-shadow: 0 10px 22px rgba(22, 163, 74, 0.16);
+}
+
+.batch-detail-status-indicator.is-active::before {
+  border-color: #ecfdf3 transparent transparent;
+}
+
+.batch-detail-status-indicator.is-inactive::after {
+  background: #fef2f2;
+  color: #dc2626;
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.16);
+}
+
+.batch-detail-status-indicator.is-inactive::before {
+  border-color: #fef2f2 transparent transparent;
+}
+
+.batch-detail-status-indicator:hover::before,
+.batch-detail-status-indicator:hover::after,
+.batch-detail-status-indicator:focus-visible::before,
+.batch-detail-status-indicator:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .batch-detail-students-button {
@@ -963,6 +1079,80 @@
   transform: translateY(-1px);
 }
 
+.batch-detail-card-head > .batch-detail-card-title {
+  flex: 1 1 auto;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.batch-detail-card-timing {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1;
+  gap: 3px;
+  justify-items: end;
+  text-align: right;
+}
+
+.batch-detail-card-timing span {
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.batch-detail-card-timing strong {
+  color: #0f172a;
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.batch-detail-card-head > .batch-detail-students-button {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.batch-detail-card-seats {
+  display: grid;
+  grid-column: 1;
+  grid-row: 2;
+  grid-template-columns: max-content max-content;
+  gap: 3px 3px;
+  justify-items: start;
+  justify-self: start;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  padding: 7px 10px 8px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%);
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.batch-detail-card-seats .batch-detail-seat-track {
+  grid-column: 1 / -1;
+  width: 110px;
+  height: 5px;
+  margin-top: 3px;
+}
+
+.batch-detail-card-seats strong {
+  color: #2563eb;
+  font-size: 0.8rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.batch-detail-card-seats span:last-child {
+  color: #16a34a;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
 .batch-detail-card-head span {
   color: #2563eb;
   font-size: 0.84rem;
@@ -972,7 +1162,7 @@
 
 .batch-detail-card-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(90px, 0.55fr) minmax(120px, 0.7fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(120px, 0.7fr);
   gap: 12px;
   align-items: start;
 }
@@ -1006,6 +1196,126 @@
   animation: batchStudentsReveal 220ms ease both;
 }
 
+.batch-detail-card.is-expanded .batch-detail-card-body {
+  min-height: 0;
+  position: relative;
+  gap: 4px;
+}
+
+.batch-detail-card.is-expanded .batch-detail-card-title,
+.batch-detail-card.is-expanded .batch-detail-card-timing,
+.batch-detail-card.is-expanded .batch-detail-card-seats,
+.batch-detail-card.is-expanded .batch-detail-card-grid {
+  display: none;
+}
+
+.batch-detail-card.is-expanded .batch-detail-card-head {
+  display: grid;
+  height: 34px;
+}
+
+.batch-detail-card.is-expanded .batch-detail-card-head > .batch-detail-students-button {
+  position: static;
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  z-index: 2;
+  width: auto;
+}
+
+.batch-detail-card.is-expanded .batch-detail-students-panel {
+  min-height: 0;
+  max-height: 190px;
+  margin-top: -34px;
+  overflow: hidden;
+  padding-top: 0;
+  border-top: 0;
+  animation: batchCardFlipIn 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  transform-origin: center;
+}
+
+.batch-detail-card.is-expanded.is-closing .batch-detail-students-panel {
+  animation: batchCardFlipOut 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.batch-detail-card.is-expanded .batch-detail-students-list {
+  min-height: 0;
+  max-height: 120px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #93c5fd transparent;
+}
+
+.batch-detail-card.is-expanded .batch-detail-students-heading {
+  min-height: 34px;
+  padding-right: 122px;
+  padding-left: 15px;
+  align-items: center;
+}
+
+.batch-detail-card.is-expanded > .batch-detail-status-indicator {
+  top: 29px;
+  left: 17px;
+}
+
+.batch-detail-card.is-expanded .batch-detail-students-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.batch-detail-card.is-expanded .batch-detail-students-list::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #93c5fd;
+}
+
+@keyframes batchCardFlipIn {
+  from {
+    opacity: 0;
+    transform: perspective(700px) rotateY(76deg) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: perspective(700px) rotateY(0) scale(1);
+  }
+}
+
+@keyframes batchCardFlipOut {
+  from {
+    opacity: 1;
+    transform: perspective(700px) rotateY(0) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: perspective(700px) rotateY(-76deg) scale(0.97);
+  }
+}
+
+@keyframes batchFullCardFlipIn {
+  from {
+    opacity: 0.7;
+    transform: perspective(900px) rotateY(-86deg) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: perspective(900px) rotateY(0) scale(1) translateY(-1px);
+  }
+}
+
+@keyframes batchFullCardFlipOut {
+  from {
+    opacity: 1;
+    transform: perspective(900px) rotateY(0) scale(1) translateY(-1px);
+  }
+
+  to {
+    opacity: 0.7;
+    transform: perspective(900px) rotateY(86deg) scale(0.96);
+  }
+}
+
 .batch-detail-students-heading {
   display: grid;
   gap: 3px;
@@ -1026,7 +1336,7 @@
 
 .batch-detail-student-row {
   display: grid;
-  grid-template-columns: 28px 34px minmax(0, 1fr) auto;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(150px, 0.7fr);
   align-items: center;
   gap: 9px;
   min-width: 0;
@@ -1063,9 +1373,28 @@
 }
 
 .batch-detail-student-copy {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
+}
+
+.batch-detail-student-copy::after {
+  width: 4px;
+  height: 4px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #cbd5e1;
+  content: '';
+  order: 1;
+}
+
+.batch-detail-student-copy span {
+  order: 0;
+}
+
+.batch-detail-student-copy strong {
+  order: 2;
 }
 
 .batch-detail-student-copy strong,
@@ -1082,12 +1411,40 @@
 }
 
 .batch-detail-student-progress {
-  padding: 5px 8px;
-  border-radius: 8px;
-  background: #eff6ff;
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.batch-detail-student-progress-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.batch-detail-student-progress-label strong {
   color: #2563eb;
   font-size: 0.76rem;
   font-weight: 900;
+}
+
+.batch-detail-student-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbeafe;
+}
+
+.batch-detail-student-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #60a5fa, #2563eb);
+  transition: width 350ms ease;
 }
 
 .batch-detail-students-empty {
@@ -1147,27 +1504,57 @@
 @media (max-width: 640px) {
   .batch-management-toolbar,
   .batch-management-form-grid,
+  .batch-detail-list,
   .batch-detail-summary,
   .batch-detail-card-grid {
     grid-template-columns: 1fr;
   }
 
   .batch-detail-card-head {
-    align-items: flex-start;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .batch-detail-students-button {
+    grid-column: 1;
+    grid-row: auto;
     width: 100%;
   }
 
+  .batch-detail-card.is-expanded .batch-detail-card-head > .batch-detail-students-button {
+    position: static;
+    width: 100%;
+  }
+
+  .batch-detail-card-timing {
+    grid-column: 1;
+    grid-row: auto;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .batch-detail-card-seats {
+    grid-column: 1;
+    grid-row: auto;
+    justify-items: start;
+  }
+
+  .batch-detail-card.is-expanded .batch-detail-students-panel {
+    margin-top: 0;
+  }
+
+  .batch-detail-card.is-expanded .batch-detail-students-heading {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
   .batch-detail-student-row {
-    grid-template-columns: 24px 34px minmax(0, 1fr);
+    grid-template-columns: 24px minmax(0, 1fr);
   }
 
   .batch-detail-student-progress {
-    grid-column: 3;
+    grid-column: 2;
     justify-self: start;
+    width: 100%;
   }
 
   .batch-detail-modal {
