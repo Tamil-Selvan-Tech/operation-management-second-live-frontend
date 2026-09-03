@@ -4561,6 +4561,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     })
   }
 
+  const startInlineSubmoduleAdd = (modelIndex) => {
+    const submoduleCount = savedCourseRows[modelIndex]?.submodels?.length || 0
+    setInlineSubmoduleEdit({
+      modelIndex,
+      submoduleIndex: submoduleCount,
+      value: '',
+      isNew: true,
+    })
+  }
+
   const cancelInlineSubmoduleEdit = () => {
     setInlineSubmoduleEdit(null)
   }
@@ -4577,9 +4587,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       const submodels = normalizeBranchCourseSubmodels(model.submodels, modelIndex)
       return {
         ...model,
-        submodels: submodels.map((submodule, index) => (
-          index === submoduleIndex ? { ...submodule, name: nextName } : submodule
-        )),
+        submodels: inlineSubmoduleEdit.isNew
+          ? [...submodels, createBranchCourseSubmodel(submodels.length + 1, nextName)]
+          : submodels.map((submodule, index) => (
+            index === submoduleIndex ? { ...submodule, name: nextName } : submodule
+          )),
       }
     })
 
@@ -9653,6 +9665,7 @@ else {
                             const selectedModel = savedCourseRows[Math.min(selectedSavedModelIndex, savedCourseRows.length - 1)] || savedCourseRows[0]
                             const selectedModelIndex = Math.max(0, savedCourseRows.indexOf(selectedModel))
                             const selectedSubmodels = Array.isArray(selectedModel?.submodels) ? selectedModel.submodels : []
+                            const isAddingInlineSubmodule = inlineSubmoduleEdit?.isNew && inlineSubmoduleEdit?.modelIndex === selectedModelIndex
 
                             return (
                               <section className="course-added-submodules-panel" aria-label="Submodules">
@@ -9704,8 +9717,36 @@ else {
                                         </>
                                       )}
                                     </div>
-                                  )) : <div className="course-added-submodules-empty">No submodules added yet.</div>}
+                                  )) : !isAddingInlineSubmodule ? <div className="course-added-submodules-empty">No submodules added yet.</div> : null}
+                                  {isAddingInlineSubmodule ? (
+                                    <div className="course-added-submodule-row course-added-submodule-row--new">
+                                      <span className="course-added-module-select-index">{selectedSubmodels.length + 1}</span>
+                                      <input
+                                        className="course-added-submodule-inline-input"
+                                        value={inlineSubmoduleEdit.value}
+                                        onChange={(event) => setInlineSubmoduleEdit((current) => ({ ...current, value: event.target.value }))}
+                                        onKeyDown={(event) => {
+                                          if (event.key === 'Enter') saveInlineSubmoduleEdit()
+                                          if (event.key === 'Escape') cancelInlineSubmoduleEdit()
+                                        }}
+                                        autoFocus
+                                        placeholder="Enter submodule name"
+                                        aria-label="New submodule name"
+                                      />
+                                      <button type="button" className="is-save" onClick={saveInlineSubmoduleEdit} aria-label="Save new submodule">
+                                        <Check size={16} strokeWidth={2.4} />
+                                      </button>
+                                      <button type="button" className="is-cancel" onClick={cancelInlineSubmoduleEdit} aria-label="Cancel new submodule">
+                                        <X size={16} strokeWidth={2.4} />
+                                      </button>
+                                    </div>
+                                  ) : null}
                                 </div>
+                                {!isAddingInlineSubmodule ? (
+                                  <button type="button" className="course-added-submodule-add-button course-added-submodule-add-button--below" onClick={() => startInlineSubmoduleAdd(selectedModelIndex)}>
+                                    + Add Submodule
+                                  </button>
+                                ) : null}
                               </section>
                             )
                           })()}
