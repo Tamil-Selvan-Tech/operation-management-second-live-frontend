@@ -29,8 +29,10 @@
   z-index: 1000;
 }
 
-.faculty-pagination {
-  display: flex;
+.branch-faculty-pagination {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
@@ -40,7 +42,15 @@
   box-sizing: border-box;
 }
 
-.faculty-pagination-pages {
+.branch-faculty-pagination .faculty-pagination-summary {
+  margin-right: auto;
+  color: #64748b;
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.branch-faculty-pagination .faculty-pagination-pages {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -48,8 +58,8 @@
   flex-wrap: wrap;
 }
 
-.faculty-pagination-button,
-.faculty-pagination-page {
+.branch-faculty-pagination .faculty-pagination-button,
+.branch-faculty-pagination .faculty-pagination-page {
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #334155;
@@ -60,7 +70,7 @@
   transition: all 0.15s ease;
 }
 
-.faculty-pagination-button {
+.branch-faculty-pagination .faculty-pagination-button {
   min-width: 90px;
   height: 38px;
   padding: 0 16px;
@@ -70,30 +80,30 @@
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18);
 }
 
-.faculty-pagination-button:hover:not(:disabled) {
+.branch-faculty-pagination .faculty-pagination-button:hover:not(:disabled) {
   background: #1d4ed8;
   border-color: #1d4ed8;
 }
 
-.faculty-pagination-page {
+.branch-faculty-pagination .faculty-pagination-page {
   width: 38px;
   height: 38px;
   padding: 0;
   background: #f8fafc;
 }
 
-.faculty-pagination-page:hover:not(.is-active) {
+.branch-faculty-pagination .faculty-pagination-page:hover:not(.is-active) {
   border-color: #94a3b8;
   background: #eef4ff;
 }
 
-.faculty-pagination-button:disabled {
+.branch-faculty-pagination .faculty-pagination-button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
   box-shadow: none;
 }
 
-.faculty-pagination-page.is-active {
+.branch-faculty-pagination .faculty-pagination-page.is-active {
   background: #2563eb;
   border-color: #2563eb;
   color: #ffffff;
