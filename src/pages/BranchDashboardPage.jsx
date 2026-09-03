@@ -10512,43 +10512,15 @@ else {
                     </section>
                   ) : (
                     <section className="branch-course-view-hierarchy" aria-label="Modules and submodules">
-                      {viewCourseModels.length ? (
-                        <div className="course-module-weightage-card branch-course-view-weightage-card">
-                          <div className="course-module-weightage-card-copy">
-                            <div className="course-module-weightage-card-icon" aria-hidden="true">
-                              <PieChart size={28} strokeWidth={2.2} />
-                            </div>
-                            <div>
-                              <strong>Module Weightage Summary</strong>
-                              <p>Total module weightage for this course is 100%.</p>
-                              <span>Module weightage is automatically distributed equally based on the total number of modules.</span>
-                            </div>
-                          </div>
-
-                          <div className="course-module-weightage-card-summary branch-course-view-weightage-summary">
-                            <span>Total Modules</span>
-                            <strong>{viewCourseModels.length}</strong>
-                            <p>Equal Distribution</p>
-                          </div>
-                        </div>
-                      ) : null}
-
                       <div className="branch-course-view-hierarchy-header">
                         <div>
-                          <p>Added Modules</p>
+                          <p>Modules &amp; Submodules</p>
                           <strong>{viewCourseModels.length} Total Modules</strong>
                         </div>
-                        <span>Click the arrow to expand a module</span>
                       </div>
 
                       {viewCourseModels.length ? (
                         <div className="branch-course-view-models">
-                          <div className="branch-course-view-model-table-header" role="row" aria-hidden="true">
-                            <span>Module</span>
-                            <span>Module Name</span>
-                            <span>Percentage</span>
-                            <span>Actions</span>
-                          </div>
                           {viewCourseModels.map((model, modelIndex) => {
                             const isExpanded = expandedViewCourseModuleIds.includes(model.id)
 
