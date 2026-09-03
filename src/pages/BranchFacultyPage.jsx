@@ -131,7 +131,13 @@ export function BranchFacultyPage() {
   const fetchFaculty = async () => {
     setIsFacultyLoading(true)
     try {
-      const res = await listBranchFaculty()
+      // Load the branch list in one request; the table owns the visible-page slicing.
+      const res = await listBranchFaculty({
+        page: 1,
+        limit: 100,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      })
       if (res?.data) {
         // Map backend representation to UI expectation
         const mapped = res.data.map((f) => ({
@@ -977,24 +983,25 @@ export function BranchFacultyPage() {
       </div>
     </div>
 
-    {totalPages > 1 && (
-      <div className="faculty-pagination">
+    {filteredFaculty.length > rowsPerPage ? (
+      <div className="branch-course-pagination" role="navigation" aria-label="Faculty pagination">
         <button
           type="button"
-          className="faculty-pagination-button"
+          className="branch-course-pagination-button"
           onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
           disabled={safeCurrentPage === 1}
         >
-          Previous
+          Prev
         </button>
 
-        <div className="faculty-pagination-pages">
+        <div className="branch-course-pagination-pages">
           {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
             <button
               key={page}
               type="button"
-              className={`faculty-pagination-page ${page === safeCurrentPage ? 'is-active' : ''}`}
+              className={`branch-course-pagination-page ${page === safeCurrentPage ? 'is-active' : ''}`}
               onClick={() => setCurrentPage(page)}
+              aria-current={page === safeCurrentPage ? 'page' : undefined}
             >
               {page}
             </button>
@@ -1003,14 +1010,14 @@ export function BranchFacultyPage() {
 
         <button
           type="button"
-          className="faculty-pagination-button"
+          className="branch-course-pagination-button"
           onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
           disabled={safeCurrentPage === totalPages}
         >
           Next
         </button>
       </div>
-    )}
+    ) : null}
 
     {/* Add / Edit modal using 2-column layout matching design specs screenshot */}
     {

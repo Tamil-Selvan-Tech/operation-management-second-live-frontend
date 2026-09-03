@@ -383,6 +383,41 @@ function getWorkEntrySubmoduleIds(entry = {}) {
   )
 }
 
+function getWorkBatchContext(source = {}) {
+  return {
+    batchId: normalizeWorkStudentId(source?.batchId || source?.batchEntryId),
+    batchGroupId: normalizeWorkStudentId(source?.batchGroupId),
+    batchName: normalizeWorkStudentId(source?.batchName || source?.batch),
+    batchTiming: normalizeWorkStudentId(source?.batchTiming || source?.batchTime || source?.timing),
+  }
+}
+
+function doesWorkEntryMatchBatch(entry = {}, source = {}) {
+  const entryBatch = getWorkBatchContext(entry)
+  const sourceBatch = getWorkBatchContext(source)
+  const entryHasBatch = Object.values(entryBatch).some(Boolean)
+  if (!entryHasBatch) return true
+
+  const sourceHasBatch = Object.values(sourceBatch).some(Boolean)
+  if (!sourceHasBatch) return false
+
+  const sameName = Boolean(entryBatch.batchName && sourceBatch.batchName && entryBatch.batchName === sourceBatch.batchName)
+  const sameTiming = Boolean(entryBatch.batchTiming && sourceBatch.batchTiming && entryBatch.batchTiming === sourceBatch.batchTiming)
+
+  // A group can contain multiple batches, so never use it to match when the
+  // individual batch IDs identify different rows.
+  if (entryBatch.batchId && sourceBatch.batchId) {
+    return entryBatch.batchId === sourceBatch.batchId || sameName || (sameTiming && !entryBatch.batchName && !sourceBatch.batchName)
+  }
+
+  if (sameName) {
+    return !entryBatch.batchTiming || !sourceBatch.batchTiming || sameTiming
+  }
+
+  if (sameTiming) return true
+  return Boolean(entryBatch.batchGroupId && sourceBatch.batchGroupId && entryBatch.batchGroupId === sourceBatch.batchGroupId)
+}
+
 function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
   if (!entry || !student) return false
 
@@ -391,15 +426,24 @@ function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
   const studentId = normalizeWorkStudentId(student.id || student.studentId || '')
   const studentCourseId = normalizeWorkStudentId(student.courseId || student.course?.id || '')
   const entryCourseId = normalizeWorkStudentId(entry.courseId || '')
+  const studentCourseName = normalizeWorkStudentId(
+    student.courseName || student.courseInterested || student.course?.name || '',
+  )
+  const entryCourseName = normalizeWorkStudentId(entry.courseName || '')
 
   const isTargetedStudent = applyToAllStudents || (studentId && entryStudentIds.includes(studentId))
   if (!isTargetedStudent) return false
 
-  if (entryCourseId && studentCourseId && entryCourseId !== studentCourseId) {
+  if (
+    entryCourseId &&
+    studentCourseId &&
+    entryCourseId !== studentCourseId &&
+    (!entryCourseName || !studentCourseName || entryCourseName !== studentCourseName)
+  ) {
     return false
   }
 
-  return true
+  return doesWorkEntryMatchBatch(entry, student)
 }
 
 function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, courseId = '') {
@@ -419,7 +463,7 @@ function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, course
   })
 }
 
-function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentity = {}, courseId = '', moduleId = '') {
+function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentity = {}, courseId = '', moduleId = '', batch = null) {
   const normalizedCourseId = normalizeWorkStudentId(courseId)
   const normalizedModuleId = normalizeWorkStudentId(moduleId)
   const facultyId = normalizeWorkStudentId(facultyIdentity?.facultyId || '')
@@ -435,7 +479,10 @@ function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentit
       (facultyId && entryFacultyId && entryFacultyId === facultyId) ||
       (facultyEmail && entryFacultyEmail && entryFacultyEmail === facultyEmail)
 
-    return matchesFaculty && entryCourseId === normalizedCourseId && entryModuleId === normalizedModuleId
+    return matchesFaculty &&
+      entryCourseId === normalizedCourseId &&
+      entryModuleId === normalizedModuleId &&
+      (!batch || doesWorkEntryMatchBatch(entry, batch))
   })
 
   return Array.from(
@@ -552,7 +599,7 @@ function getFacultyWorkProgressForEntry(entry = {}, course = {}, selectedSubmodu
   }
 }
 
-function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], facultyIdentity = {}) {
+function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], facultyIdentity = {}, batch = null) {
   const modules = getCourseModels(course)
   const normalizedCourseId = normalizeWorkStudentId(course?.id || course?.courseId || '')
   const facultyEntries = (Array.isArray(todayWorkEntries) ? todayWorkEntries : []).filter((entry) => {
@@ -566,7 +613,9 @@ function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], fa
       (facultyId && entryFacultyId && entryFacultyId === facultyId) ||
       (facultyEmail && entryFacultyEmail && entryFacultyEmail === facultyEmail)
 
-    return matchesFaculty && (!normalizedCourseId || entryCourseId === normalizedCourseId)
+    return matchesFaculty &&
+      (!normalizedCourseId || entryCourseId === normalizedCourseId) &&
+      (!batch || doesWorkEntryMatchBatch(entry, batch))
   })
 
   const moduleCompletionMap = new Map()
@@ -2203,11 +2252,13 @@ export function FacultyDashboardPage() {
         currentFacultyIdentity,
         todayWorkCourse?.id || '',
         todayWorkSelectedModule?.id || '',
+        selectedStudentsBatch,
       ),
     [
       currentFacultyIdentity.facultyEmail,
       currentFacultyIdentity.facultyId,
       facultyTodayWorkEntries,
+      selectedStudentsBatch,
       todayWorkCourse?.id,
       todayWorkSelectedModule?.id,
     ],
@@ -2259,7 +2310,12 @@ export function FacultyDashboardPage() {
 
   const openTodayWorkModal = () => {
     const activeTodayWorkCourse = todayWorkCourse || null
-    const nextSelection = getNextPendingTodayWorkSelection(activeTodayWorkCourse || {}, facultyTodayWorkEntries, currentFacultyIdentity)
+    const nextSelection = getNextPendingTodayWorkSelection(
+      activeTodayWorkCourse || {},
+      facultyTodayWorkEntries,
+      currentFacultyIdentity,
+      selectedStudentsBatch,
+    )
     const firstModule = nextSelection.module || todayWorkCourseModules[0] || null
     const firstModuleId = String(nextSelection.moduleId || firstModule?.id || '').trim()
 
@@ -2301,6 +2357,7 @@ export function FacultyDashboardPage() {
       currentFacultyIdentity,
       todayWorkCourse?.id || '',
       normalizedModuleId,
+      selectedStudentsBatch,
     )
     const pendingSubmoduleIds = nextSubmodules
       .map((submodule, index) =>
@@ -2382,7 +2439,7 @@ export function FacultyDashboardPage() {
     }
 
     const selectedStudents = todayWorkForm.applyToAllStudents
-      ? facultyScopedStudents
+      ? studentsFlowVisibleStudents
       : todayWorkSelectedStudents
 
     if (!todayWorkForm.applyToAllStudents && !selectedStudents.length) {
@@ -2427,6 +2484,10 @@ export function FacultyDashboardPage() {
         branchId: currentFacultyIdentity.branchId,
         courseId: String(todayWorkCourse.id || '').trim(),
         courseName: String(todayWorkCourse.name || todayWorkCourse.courseName || '').trim(),
+        batchId: String(selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || '').trim(),
+        batchGroupId: String(selectedStudentsBatch?.batchGroupId || '').trim(),
+        batchName: String(selectedStudentsBatch?.batchName || selectedStudentsBatch?.code || '').trim(),
+        batchTiming: String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || '').trim(),
         moduleId: String(todayWorkSelectedModule.id || '').trim(),
         moduleName: getCourseModuleName(todayWorkSelectedModule, 0),
         applyToAllStudents: Boolean(todayWorkForm.applyToAllStudents),
