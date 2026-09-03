@@ -8083,6 +8083,116 @@ body.branch-notification-menu-open .main-area {
   transform: translateX(4px);
 }
 
+.branch-notifications-filters {
+  display: grid;
+  grid-template-columns: minmax(240px, 380px) 190px 190px;
+  gap: 14px;
+  margin: 20px 0 24px;
+}
+
+.branch-notifications-search,
+.branch-notifications-select {
+  min-width: 0;
+  height: 50px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px solid #d5e2f2;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #475569;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+.branch-notifications-search:focus-within,
+.branch-notifications-select:focus-within {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.branch-notifications-search input,
+.branch-notifications-select select {
+  min-width: 0;
+  flex: 1 1 auto;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.branch-notifications-search input::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.branch-notifications-search input,
+.branch-notifications-search input:focus {
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.branch-notifications-select {
+  position: relative;
+}
+
+.branch-notifications-select select {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 4px;
+}
+
+.branch-notifications-select select,
+.branch-notifications-select select:focus {
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  outline: none;
+}
+
+.branch-notifications-select > svg:last-child {
+  flex: 0 0 auto;
+  color: #0f172a;
+  pointer-events: none;
+}
+
+.branch-notifications-status-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #16a34a;
+}
+
+@media (max-width: 900px) {
+  .branch-notifications-filters {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .branch-notifications-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .branch-notifications-filters {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .branch-notifications-search {
+    grid-column: auto;
+  }
+}
+
 /* List */
 
 .notification-list {

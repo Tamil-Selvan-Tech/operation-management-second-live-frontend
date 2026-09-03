@@ -2795,6 +2795,9 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [processingBranchNotificationId, setProcessingBranchNotificationId] = useState('')
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
+  const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
+  const [branchNotificationDateFilter, setBranchNotificationDateFilter] = useState('all')
+  const [branchNotificationStatusFilter, setBranchNotificationStatusFilter] = useState('all')
   const [facultyTodayWorkEntries, setFacultyTodayWorkEntries] = useState([])
   const branchCourseProgressBackfillSignatureRef = useRef('')
 
@@ -3730,8 +3733,59 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     [branchNotificationRecords, branchScope],
   )
   const branchNotificationSections = useMemo(
-    () => groupByDate(normalizedBranchNotifications),
-    [normalizedBranchNotifications],
+    () => {
+      const searchTerm = branchNotificationSearch.trim().toLowerCase()
+      const now = new Date()
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+      const startOfWeek = startOfToday - 6 * 24 * 60 * 60 * 1000
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+
+      const filteredNotifications = normalizedBranchNotifications.filter((item) => {
+        const notificationDate = new Date(item.createdAt).getTime()
+        const matchesSearch = !searchTerm || [
+          item.title,
+          item.message,
+          item.kind,
+          item.categoryLabel,
+          item.actionLabel,
+          item.facultyName,
+          item.facultyEmail,
+          item.courseName,
+          item.courseCode,
+          item.studentId,
+          item.studentName,
+          item.requestTitle,
+          item.requestReason,
+          item.requestDescription,
+          item.statusLabel,
+          item.summary,
+        ].some((value) => String(value || '').toLowerCase().includes(searchTerm))
+
+        const matchesDate =
+          branchNotificationDateFilter === 'all' ||
+          (Number.isFinite(notificationDate) && (
+            branchNotificationDateFilter === 'today'
+              ? notificationDate >= startOfToday
+              : branchNotificationDateFilter === 'week'
+                ? notificationDate >= startOfWeek
+                : notificationDate >= startOfMonth
+          ))
+
+        const matchesStatus =
+          branchNotificationStatusFilter === 'all' ||
+          (branchNotificationStatusFilter === 'unread' ? item.unread : !item.unread)
+
+        return matchesSearch && matchesDate && matchesStatus
+      })
+
+      return groupByDate(filteredNotifications)
+    },
+    [
+      branchNotificationDateFilter,
+      branchNotificationSearch,
+      branchNotificationStatusFilter,
+      normalizedBranchNotifications,
+    ],
   )
   const branchNotificationItems = normalizedBranchNotifications
   const branchUnreadNotificationCount = useMemo(
@@ -6945,6 +6999,48 @@ useEffect(() => {
                       </button>
                     </div>
                   </header>
+
+                  <div className="branch-notifications-filters" aria-label="Notification filters">
+                    <label className="branch-notifications-search">
+                      <Search size={22} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                      <input
+                        type="search"
+                        value={branchNotificationSearch}
+                        onChange={(event) => setBranchNotificationSearch(event.target.value)}
+                        placeholder="Search notifications"
+                        aria-label="Search notifications"
+                      />
+                    </label>
+
+                    <label className="branch-notifications-select">
+                      <CalendarDays size={19} strokeWidth={2.1} aria-hidden="true" focusable="false" />
+                      <select
+                        value={branchNotificationDateFilter}
+                        onChange={(event) => setBranchNotificationDateFilter(event.target.value)}
+                        aria-label="Filter notifications by date"
+                      >
+                        <option value="all">All dates</option>
+                        <option value="today">Today</option>
+                        <option value="week">This week</option>
+                        <option value="month">This month</option>
+                      </select>
+                      <ChevronDown size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                    </label>
+
+                    <label className="branch-notifications-select">
+                      <span className="branch-notifications-status-dot" aria-hidden="true" />
+                      <select
+                        value={branchNotificationStatusFilter}
+                        onChange={(event) => setBranchNotificationStatusFilter(event.target.value)}
+                        aria-label="Filter notifications by status"
+                      >
+                        <option value="all">All status</option>
+                        <option value="read">Read</option>
+                        <option value="unread">Unread</option>
+                      </select>
+                      <ChevronDown size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                    </label>
+                  </div>
 
                   <div className="notifications-feed">
                     {branchNotificationSections.length ? (
