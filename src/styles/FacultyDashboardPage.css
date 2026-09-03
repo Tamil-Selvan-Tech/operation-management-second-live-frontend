@@ -386,9 +386,16 @@ body.faculty-notification-menu-open .super-admin-content {
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table thead th {
   overflow: visible;
   text-overflow: clip;
+  background: #ffffff;
   white-space: normal;
   line-height: 1.25;
   vertical-align: top;
+}
+
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table tbody td,
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table tbody tr:nth-child(even) td,
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table tbody tr:hover td {
+  background: #ffffff;
 }
 
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table th:nth-child(1),
