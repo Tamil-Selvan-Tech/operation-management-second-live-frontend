@@ -2405,6 +2405,14 @@ function formatBranchCoursePercentage(value) {
   return `${rounded}%`
 }
 
+function getRoundedEqualModulePercentage(index, total) {
+  const count = Number(total) || 0
+  if (count <= 0) return 0
+
+  const basePercentage = Math.floor(100 / count)
+  return index === count - 1 ? 100 - (basePercentage * (count - 1)) : basePercentage
+}
+
 function formatBranchCourseDate(value) {
   const date = new Date(String(value || '').trim())
   if (Number.isNaN(date.getTime())) return '-'
@@ -2707,6 +2715,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
   const [courseModuleDeleteTarget, setCourseModuleDeleteTarget] = useState(null)
   const [courseSubmoduleDeleteTarget, setCourseSubmoduleDeleteTarget] = useState(null)
+  const [inlineSubmoduleEdit, setInlineSubmoduleEdit] = useState(null)
   const [viewCourse, setViewCourse] = useState(null)
   const [viewCourseTab, setViewCourseTab] = useState('basic')
   const [expandedViewCourseModuleIds, setExpandedViewCourseModuleIds] = useState([])
@@ -2714,7 +2723,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseDraftKey, setCourseDraftKey] = useState('')
   const [courseEditorStage, setCourseEditorStage] = useState('module')
   const [isSubmoduleDraftOpen, setIsSubmoduleDraftOpen] = useState(false)
-  const [expandedSavedCourseModuleIds, setExpandedSavedCourseModuleIds] = useState([])
   const [submoduleDraftRestoreIndex, setSubmoduleDraftRestoreIndex] = useState(0)
   const [submoduleDraftRestoreLength, setSubmoduleDraftRestoreLength] = useState(null)
   const activeSubmoduleInputRef = useRef(null)
@@ -4578,6 +4586,59 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     openCourseSubmodelDraft(modelIndex, submodelIndex)
   }
 
+  const startInlineSubmoduleEdit = (modelIndex, submoduleIndex) => {
+    const submodule = savedCourseRows[modelIndex]?.submodels?.[submoduleIndex]
+    if (!submodule) return
+
+    setInlineSubmoduleEdit({
+      modelIndex,
+      submoduleIndex,
+      value: submodule.name || '',
+    })
+  }
+
+  const startInlineSubmoduleAdd = (modelIndex) => {
+    const submoduleCount = savedCourseRows[modelIndex]?.submodels?.length || 0
+    setInlineSubmoduleEdit({
+      modelIndex,
+      submoduleIndex: submoduleCount,
+      value: '',
+      isNew: true,
+    })
+  }
+
+  const cancelInlineSubmoduleEdit = () => {
+    setInlineSubmoduleEdit(null)
+  }
+
+  const saveInlineSubmoduleEdit = () => {
+    if (!inlineSubmoduleEdit || !inlineSubmoduleEdit.value.trim()) return
+
+    const { modelIndex, submoduleIndex, value } = inlineSubmoduleEdit
+    const nextName = value.trim()
+
+    const updateModels = (models) => models.map((model, index) => {
+      if (index !== modelIndex) return model
+
+      const submodels = normalizeBranchCourseSubmodels(model.submodels, modelIndex)
+      return {
+        ...model,
+        submodels: inlineSubmoduleEdit.isNew
+          ? [...submodels, createBranchCourseSubmodel(submodels.length + 1, nextName)]
+          : submodels.map((submodule, index) => (
+            index === submoduleIndex ? { ...submodule, name: nextName } : submodule
+          )),
+      }
+    })
+
+    setAddCourseForm((current) => ({
+      ...current,
+      models: updateModels(normalizeBranchCourseModels(current.models)),
+    }))
+    setSavedCourseHierarchy((current) => updateModels(current))
+    setInlineSubmoduleEdit(null)
+  }
+
   const handleCourseSubmodelDelete = (modelIndex, submodelIndex) => {
     const model = savedCourseRows[modelIndex]
     const submodel = normalizeBranchCourseSubmodels(model?.submodels, modelIndex)[submodelIndex]
@@ -4656,6 +4717,15 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         }),
       }
     })
+    setSavedCourseHierarchy((current) => current.map((model, index) => {
+      if (index !== modelIndex) return model
+
+      return {
+        ...model,
+        submodels: normalizeBranchCourseSubmodels(model.submodels, modelIndex)
+          .filter((_, itemIndex) => itemIndex !== submodelIndex),
+      }
+    }))
   }
 
   const selectCourseModel = (modelIndex) => {
@@ -4670,7 +4740,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const removeSavedCourseModel = (modelIndex) => {
-    const removedModelId = savedCourseRows[modelIndex]?.id
     setAddCourseForm((current) => {
       const nextModels = Array.isArray(current.models) ? current.models.filter((_, index) => index !== modelIndex) : []
       return {
@@ -4687,9 +4756,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       return current
     })
 
-    if (removedModelId) {
-      setExpandedSavedCourseModuleIds((current) => current.filter((id) => id !== removedModelId))
-    }
   }
 
   const openCourseModuleDeleteConfirm = (modelIndex) => {
@@ -4912,14 +4978,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const toggleViewCourseModule = (moduleId) => {
     setExpandedViewCourseModuleIds((current) => (
-      current.includes(moduleId)
-        ? current.filter((id) => id !== moduleId)
-        : [...current, moduleId]
-    ))
-  }
-
-  const toggleSavedCourseModule = (moduleId) => {
-    setExpandedSavedCourseModuleIds((current) => (
       current.includes(moduleId)
         ? current.filter((id) => id !== moduleId)
         : [...current, moduleId]
@@ -7494,7 +7552,7 @@ else {
                     </div>
                   </div>
                   <div className="branch-course-table-shell branch-courses-table-shell">
-                    <table className="branch-course-table">
+                    <table className={`branch-course-table ${visibleBranchCourses.length ? '' : 'is-empty'}`.trim()}>
                       <thead>
                         <tr>
                           <th>S.No</th>
@@ -7509,7 +7567,6 @@ else {
                           <th>Final Fee</th>
 
                           <th>Faculty</th>
-                          <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -7528,6 +7585,7 @@ else {
                                 <td>{absoluteIndex}</td>
                                 <td>
                                   <div className="branch-course-code-cell">
+                                    <span className={`branch-course-status-dot ${normalizedStatus}`.trim()} aria-label={course.status || 'Active'} title={course.status || 'Active'} />
                                     <strong>{course.courseCode || '-'}</strong>
                                   </div>
                                 </td>
@@ -7573,11 +7631,6 @@ else {
                                     ) : (
                                       'Not Assigned'
                                     )}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
-                                    {course.status || 'Active'}
                                   </span>
                                 </td>
                                 <td onClick={(event) => event.stopPropagation()}>
@@ -7705,7 +7758,7 @@ else {
                           })
                         ) : (
                           <tr>
-                            <td colSpan="7" className="branch-course-empty-state">
+                            <td colSpan="6" className="branch-course-empty-state">
                               No courses saved yet. Use Add Course to create the first one.
                             </td>
                           </tr>
@@ -9174,7 +9227,11 @@ else {
                 <button
                   type="button"
                   className={`course-stepper-item ${addCourseStep === 2 ? 'is-active' : ''}`.trim()}
-                  onClick={() => setAddCourseStep(2)}
+                  onClick={() => {
+                    setAddCourseStep(2)
+                    setCourseEditorStage('closed')
+                    setIsSubmoduleDraftOpen(false)
+                  }}
                   disabled={Object.keys(addCourseValidationErrors.basic).length > 0}
                 >
                   <span className="course-stepper-icon" aria-hidden="true">
@@ -9583,31 +9640,6 @@ else {
 
                   {courseEditorStage === 'closed' ? (
                     <div className="course-added-modules">
-                      {(() => {
-                        const moduleWeightageSummary = getBranchCourseModuleWeightageSummary(savedCourseRows)
-
-                        return (
-                          <div className="course-module-weightage-card">
-                            <div className="course-module-weightage-card-copy">
-                              <div className="course-module-weightage-card-icon" aria-hidden="true">
-                                <PieChart size={28} strokeWidth={2.2} />
-                              </div>
-                              <div>
-                                <strong>Course Module Weightage</strong>
-                                <p>The total weightage of all modules in this course is 100%.</p>
-                                <span>Module percentages are automatically distributed equally.</span>
-                              </div>
-                            </div>
-
-                            <div className="course-module-weightage-card-summary">
-                              <span>Total Module Weightage</span>
-                              <strong>{formatBranchCoursePercentage(moduleWeightageSummary.totalWeightage)}</strong>
-                              <p>{moduleWeightageSummary.distributionLabel}</p>
-                            </div>
-                          </div>
-                        )
-                      })()}
-
                       <div className="course-added-modules-header">
                         <div>
                           <h5>Modules</h5>
@@ -9623,109 +9655,136 @@ else {
                       </div>
 
                       {savedCourseRows.length ? (
-                        <div className="course-added-modules-table">
-                          <div className="course-added-modules-table-header">
-                            <span>MODULE</span>
-                            <span>MODULE %</span>
-                            <span>SUBMODULES</span>
-                            <span>ACTIONS</span>
-                          </div>
+                        <div className="course-added-modules-workspace">
+                          <aside className="course-added-modules-panel" aria-label="Modules">
+                            <div className="course-added-modules-panel-heading">
+                              <strong>Modules ({savedCourseRows.length})</strong>
+                              <span>Total: 100%</span>
+                            </div>
+                            <div className="course-added-modules-list">
+                              {savedCourseRows.map((model, modelIndex) => {
+                                const submodels = Array.isArray(model.submodels) ? model.submodels : []
+                                const isSelected = modelIndex === selectedSavedModelIndex
 
-                          <div className="course-added-modules-table-body">
-                            {savedCourseRows.map((model, modelIndex) => {
-                              const submodels = Array.isArray(model.submodels) ? model.submodels : []
-                              const isExpanded = expandedSavedCourseModuleIds.includes(model.id)
-
-                              return (
-                                <article
-                                  key={model.id}
-                                  className={`course-added-modules-row ${modelIndex === selectedSavedModelIndex ? 'is-active' : ''}`}
-                                >
-                                  <div className="course-added-modules-row-main">
-                                    <div className="course-added-modules-row-module">
-                                      <span>Module {modelIndex + 1}</span>
-                                      <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
-                                    </div>
-
-                                    <div className="course-added-modules-row-percentage">
-                                      <span className="course-table-percentage">{formatBranchCoursePercentage(model.percentage)}</span>
-                                    </div>
-
-                                    <div className="course-added-modules-row-submodules">
-                                      <span className="course-table-percentage">{submodels.length} Submodules</span>
-                                    </div>
-
-                                    <div className="course-added-modules-row-actions">
-                                      <button
-                                        type="button"
-                                        className="course-added-module-card-toggle"
-                                        onClick={() => toggleSavedCourseModule(model.id)}
-                                        aria-expanded={isExpanded}
-                                        aria-label={`${isExpanded ? 'Collapse' : 'Expand'} module ${modelIndex + 1}`}
-                                      >
-                                        <ChevronDown
-                                          size={18}
-                                          strokeWidth={2.4}
-                                          className={isExpanded ? 'is-open' : ''}
-                                          aria-hidden="true"
-                                        />
+                                return (
+                                  <div key={model.id} className={`course-added-module-select ${isSelected ? 'is-active' : ''}`}>
+                                    <button type="button" className="course-added-module-select-main" onClick={() => setSelectedSavedModelIndex(modelIndex)}>
+                                      <span className="course-added-module-select-index">{modelIndex + 1}</span>
+                                      <span className="course-added-module-select-copy">
+                                        <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
+                                        <small>{submodels.length} submodules</small>
+                                      </span>
+                                      <span className="course-table-percentage">
+                                      {formatBranchCoursePercentage(getRoundedEqualModulePercentage(modelIndex, savedCourseRows.length))}
+                                      </span>
+                                    </button>
+                                    <div className="course-added-module-select-actions">
+                                      <button type="button" onClick={() => selectCourseModel(modelIndex)} aria-label={`Edit module ${modelIndex + 1}`}>
+                                        <Pencil size={15} strokeWidth={2.2} />
                                       </button>
-                                      <button
-                                        type="button"
-                                        className="course-added-module-card-edit"
-                                        onClick={() => selectCourseModel(modelIndex)}
-                                        aria-label={`Edit module ${modelIndex + 1}`}
-                                      >
-                                        <Pencil size={16} strokeWidth={2.2} />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="course-added-module-card-delete"
-                                        onClick={() => openCourseModuleDeleteConfirm(modelIndex)}
-                                        disabled={savedCourseRows.length === 1}
-                                        aria-label={`Delete module ${modelIndex + 1}`}
-                                      >
-                                        <Trash2 size={16} strokeWidth={2.2} />
+                                      <button type="button" className="is-danger" onClick={() => openCourseModuleDeleteConfirm(modelIndex)} disabled={savedCourseRows.length === 1} aria-label={`Delete module ${modelIndex + 1}`}>
+                                        <Trash2 size={15} strokeWidth={2.2} />
                                       </button>
                                     </div>
                                   </div>
+                                )
+                              })}
+                            </div>
+                            <div className="course-added-modules-total">
+                              <strong>Module Total</strong>
+                              <span className="course-table-percentage course-table-percentage--total">{formatBranchCoursePercentage(100)}</span>
+                            </div>
+                          </aside>
 
-                                  {isExpanded ? (
-                                    <div className="course-added-modules-row-details">
-                                      <span>Sub Modules</span>
-                                      <ul className="course-added-module-card-list">
-                                        {submodels.length ? submodels.map((submodel, submodelIndex) => (
-                                          <li key={submodel.id}>
-                                            <span className="course-added-module-card-list-index">{String(submodelIndex + 1).padStart(2, '0')}</span>
-                                            <strong>{submodel.name || `Submodule ${submodelIndex + 1}`}</strong>
-                                          </li>
-                                        )) : (
-                                          <li>No submodules yet</li>
-                                        )}
-                                      </ul>
-                                    </div>
-                                  ) : null}
-                                </article>
-                              )
-                            })}
+                          {(() => {
+                            const selectedModel = savedCourseRows[Math.min(selectedSavedModelIndex, savedCourseRows.length - 1)] || savedCourseRows[0]
+                            const selectedModelIndex = Math.max(0, savedCourseRows.indexOf(selectedModel))
+                            const selectedSubmodels = Array.isArray(selectedModel?.submodels) ? selectedModel.submodels : []
+                            const isAddingInlineSubmodule = inlineSubmoduleEdit?.isNew && inlineSubmoduleEdit?.modelIndex === selectedModelIndex
 
-                            <article className="course-added-modules-row course-added-modules-row-total" aria-label="Module total">
-                              <div className="course-added-modules-row-main course-added-modules-row-main--total">
-                                <div className="course-added-modules-row-total-label">
-                                  <strong>Module Total</strong>
-                                </div>
-
-                                <div className="course-added-modules-row-total-percentage">
-                                  <span className="course-table-percentage course-table-percentage--total">
-                                    {formatBranchCoursePercentage(100)}
+                            return (
+                              <section className="course-added-submodules-panel" aria-label="Submodules">
+                                <div className="course-added-submodules-heading">
+                                  <div>
+                                    <span>Module: {selectedModel?.name || `Module ${selectedModelIndex + 1}`}</span>
+                                    <strong>Submodules ({selectedSubmodels.length})</strong>
+                                  </div>
+                                  <span className="course-table-percentage">
+                                    {formatBranchCoursePercentage(getRoundedEqualModulePercentage(selectedModelIndex, savedCourseRows.length))}
                                   </span>
                                 </div>
-
-                                <div className="course-added-modules-row-total-submodules" />
-                                <div className="course-added-modules-row-total-actions" />
-                              </div>
-                            </article>
-                          </div>
+                                <div className="course-added-submodules-list">
+                                  {selectedSubmodels.length ? selectedSubmodels.map((submodel, submoduleIndex) => (
+                                    <div className="course-added-submodule-row" key={submodel.id}>
+                                      <span className="course-added-module-select-index">{submoduleIndex + 1}</span>
+                                      {inlineSubmoduleEdit?.modelIndex === selectedModelIndex && inlineSubmoduleEdit?.submoduleIndex === submoduleIndex ? (
+                                        <input
+                                          className="course-added-submodule-inline-input"
+                                          value={inlineSubmoduleEdit.value}
+                                          onChange={(event) => setInlineSubmoduleEdit((current) => ({ ...current, value: event.target.value }))}
+                                          onKeyDown={(event) => {
+                                            if (event.key === 'Enter') saveInlineSubmoduleEdit()
+                                            if (event.key === 'Escape') cancelInlineSubmoduleEdit()
+                                          }}
+                                          autoFocus
+                                          aria-label={`Edit submodule ${submoduleIndex + 1}`}
+                                        />
+                                      ) : (
+                                        <strong>{submodel.name || `Submodule ${submoduleIndex + 1}`}</strong>
+                                      )}
+                                      {inlineSubmoduleEdit?.modelIndex === selectedModelIndex && inlineSubmoduleEdit?.submoduleIndex === submoduleIndex ? (
+                                        <>
+                                          <button type="button" className="is-save" onClick={saveInlineSubmoduleEdit} aria-label="Save submodule name">
+                                            <Check size={16} strokeWidth={2.4} />
+                                          </button>
+                                          <button type="button" className="is-cancel" onClick={cancelInlineSubmoduleEdit} aria-label="Cancel submodule edit">
+                                            <X size={16} strokeWidth={2.4} />
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button type="button" onClick={() => startInlineSubmoduleEdit(selectedModelIndex, submoduleIndex)} aria-label={`Edit submodule ${submoduleIndex + 1}`}>
+                                            <Pencil size={16} strokeWidth={2.2} />
+                                          </button>
+                                          <button type="button" className="is-danger" onClick={() => handleCourseSubmodelDelete(selectedModelIndex, submoduleIndex)} aria-label={`Delete submodule ${submoduleIndex + 1}`}>
+                                            <Trash2 size={16} strokeWidth={2.2} />
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  )) : !isAddingInlineSubmodule ? <div className="course-added-submodules-empty">No submodules added yet.</div> : null}
+                                  {isAddingInlineSubmodule ? (
+                                    <div className="course-added-submodule-row course-added-submodule-row--new">
+                                      <span className="course-added-module-select-index">{selectedSubmodels.length + 1}</span>
+                                      <input
+                                        className="course-added-submodule-inline-input"
+                                        value={inlineSubmoduleEdit.value}
+                                        onChange={(event) => setInlineSubmoduleEdit((current) => ({ ...current, value: event.target.value }))}
+                                        onKeyDown={(event) => {
+                                          if (event.key === 'Enter') saveInlineSubmoduleEdit()
+                                          if (event.key === 'Escape') cancelInlineSubmoduleEdit()
+                                        }}
+                                        autoFocus
+                                        placeholder="Enter submodule name"
+                                        aria-label="New submodule name"
+                                      />
+                                      <button type="button" className="is-save" onClick={saveInlineSubmoduleEdit} aria-label="Save new submodule">
+                                        <Check size={16} strokeWidth={2.4} />
+                                      </button>
+                                      <button type="button" className="is-cancel" onClick={cancelInlineSubmoduleEdit} aria-label="Cancel new submodule">
+                                        <X size={16} strokeWidth={2.4} />
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </div>
+                                {!isAddingInlineSubmodule ? (
+                                  <button type="button" className="course-added-submodule-add-button course-added-submodule-add-button--below" onClick={() => startInlineSubmoduleAdd(selectedModelIndex)}>
+                                    + Add Submodule
+                                  </button>
+                                ) : null}
+                              </section>
+                            )
+                          })()}
                         </div>
                       ) : (
                         <div className="course-added-modules-empty">
@@ -10529,43 +10588,15 @@ else {
                     </section>
                   ) : (
                     <section className="branch-course-view-hierarchy" aria-label="Modules and submodules">
-                      {viewCourseModels.length ? (
-                        <div className="course-module-weightage-card branch-course-view-weightage-card">
-                          <div className="course-module-weightage-card-copy">
-                            <div className="course-module-weightage-card-icon" aria-hidden="true">
-                              <PieChart size={28} strokeWidth={2.2} />
-                            </div>
-                            <div>
-                              <strong>Module Weightage Summary</strong>
-                              <p>Total module weightage for this course is 100%.</p>
-                              <span>Module weightage is automatically distributed equally based on the total number of modules.</span>
-                            </div>
-                          </div>
-
-                          <div className="course-module-weightage-card-summary branch-course-view-weightage-summary">
-                            <span>Total Modules</span>
-                            <strong>{viewCourseModels.length}</strong>
-                            <p>Equal Distribution</p>
-                          </div>
-                        </div>
-                      ) : null}
-
                       <div className="branch-course-view-hierarchy-header">
                         <div>
-                          <p>Added Modules</p>
+                          <p>Modules &amp; Submodules</p>
                           <strong>{viewCourseModels.length} Total Modules</strong>
                         </div>
-                        <span>Click the arrow to expand a module</span>
                       </div>
 
                       {viewCourseModels.length ? (
                         <div className="branch-course-view-models">
-                          <div className="branch-course-view-model-table-header" role="row" aria-hidden="true">
-                            <span>Module</span>
-                            <span>Module Name</span>
-                            <span>Percentage</span>
-                            <span>Actions</span>
-                          </div>
                           {viewCourseModels.map((model, modelIndex) => {
                             const isExpanded = expandedViewCourseModuleIds.includes(model.id)
 
@@ -10581,7 +10612,7 @@ else {
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-percentage" role="cell">
-                                    <b>{formatBranchCoursePercentage(model.percentage)}</b>
+                                    <b>{formatBranchCoursePercentage(getRoundedEqualModulePercentage(modelIndex, viewCourseModels.length))}</b>
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-actions" role="cell">

@@ -715,6 +715,41 @@ function getCourseSubmoduleName(submodule = {}, index = 0) {
   ).trim()
 }
 
+function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [], backfillRecords = []) {
+  const batchId = String(batch?.batchId || batch?.id || '').trim().toLowerCase()
+  const batchGroupId = String(batch?.batchGroupId || '').trim().toLowerCase()
+  const batchName = normalizeCourseKey(batch?.batchName || batch?.code || '')
+  const batchTiming = normalizeCourseKey(batch?.timing || '')
+  const courseId = String(course?.id || course?.courseId || '').trim().toLowerCase()
+  const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
+
+  return dedupeStudentsByIdentity((Array.isArray(students) ? students : []).filter((student) => {
+    const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
+    const studentCourseId = String(context?.courseId || student?.courseId || '').trim().toLowerCase()
+    const studentCourseName = normalizeCourseKey(context?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '')
+    const studentBatchId = String(context?.batchId || student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+    const studentBatchGroupId = String(context?.batchGroupId || student?.batchGroupId || '').trim().toLowerCase()
+    const studentBatchName = normalizeCourseKey(context?.batchName || student?.batchName || student?.batch || '')
+    const studentBatchTiming = normalizeCourseKey(context?.batchTiming || student?.batchTiming || student?.batchTime || '')
+
+    const matchesCourse =
+      (!courseId || !studentCourseId || studentCourseId === courseId) &&
+      (!courseName || !studentCourseName || studentCourseName === courseName)
+    if (!matchesCourse) return false
+
+    if (batchId || batchGroupId) {
+      const matchesBatchIdentity = (
+        (batchId && (studentBatchId === batchId || studentBatchGroupId === batchId)) ||
+        (batchGroupId && (studentBatchId === batchGroupId || studentBatchGroupId === batchGroupId))
+      )
+
+      if (matchesBatchIdentity) return true
+    }
+
+    return (batchName && studentBatchName === batchName) || (batchTiming && studentBatchTiming === batchTiming)
+  }))
+}
+
 function getCourseFromSource(source = {}) {
   if (!source) return null
 
@@ -1119,9 +1154,9 @@ function SidebarUserAvatar() {
   )
 }
 
-function FacultyDashboardSection({ title, description, actions, children }) {
+function FacultyDashboardSection({ title, description, actions, className = '', children }) {
   return (
-    <section className="branch-dashboard-section">
+    <section className={`branch-dashboard-section ${className}`.trim()}>
       <div className="branch-dashboard-section-heading">
         <div className="branch-dashboard-section-heading-copy">
           <h2>{title}</h2>
@@ -1201,7 +1236,7 @@ export function FacultyDashboardPage() {
   const [selectedStudentsBatchId, setSelectedStudentsBatchId] = useState('')
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
-  const [courseModulePage, setCourseModulePage] = useState(1)
+  const [courseModuleLimit, setCourseModuleLimit] = useState(5)
   const [batchPage, setBatchPage] = useState(1)
   const [studentsPage, setStudentsPage] = useState(1)
   const [courseEditRequests, setCourseEditRequests] = useState([])
@@ -2141,6 +2176,46 @@ export function FacultyDashboardPage() {
     selectedStudentsCourse?.id,
   ])
 
+  const selectedCourseBatchProgress = useMemo(() => {
+    const progressByBatch = new Map()
+    if (!selectedStudentsCourse) return progressByBatch
+
+    selectedStudentsCourseBatches.forEach((batch) => {
+      const batchStudents = getFacultyBatchProgressStudents(
+        batch,
+        selectedStudentsCourse,
+        facultyScopedStudents,
+        facultyBackfillRecords,
+      )
+      const progressValues = batchStudents.map((student) => {
+        const studentKey = normalizeWorkStudentId(student?.id || student?.studentId || '')
+        const workEntry = todayWorkEntriesByStudent.get(studentKey) || null
+        if (!workEntry) return 0
+
+        const progressSummary = buildFacultyTodayWorkProgressSummary(
+          facultyTodayWorkEntries,
+          selectedStudentsCourse,
+          student,
+        )
+        return Number(progressSummary?.courseProgress) || 0
+      })
+      const averageProgress = progressValues.length
+        ? progressValues.reduce((total, value) => total + value, 0) / progressValues.length
+        : 0
+
+      progressByBatch.set(getFacultyFlowBatchKey(batch), Math.round(averageProgress))
+    })
+
+    return progressByBatch
+  }, [
+    facultyBackfillRecords,
+    facultyScopedStudents,
+    facultyTodayWorkEntries,
+    selectedStudentsCourse,
+    selectedStudentsCourseBatches,
+    todayWorkEntriesByStudent,
+  ])
+
   const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyScopedStudents
   const studentsFlowLevel = selectedStudentsBatch ? 3 : selectedStudentsCourse ? 2 : 1
   const todayWorkCourse = useMemo(() => {
@@ -2200,16 +2275,9 @@ export function FacultyDashboardPage() {
   }, [totalBatchPages])
 
   const selectedCourseModules = useMemo(() => getCourseModels(selectedCourse), [selectedCourse])
-  const courseModulesPerPage = 5
-  const totalCourseModulePages = Math.max(1, Math.ceil(selectedCourseModules.length / courseModulesPerPage))
-  const safeCourseModulePage = Math.min(Math.max(1, Number(courseModulePage) || 1), totalCourseModulePages)
-  const paginatedCourseModules = useMemo(
-    () =>
-      selectedCourseModules.slice(
-        (safeCourseModulePage - 1) * courseModulesPerPage,
-        safeCourseModulePage * courseModulesPerPage,
-      ),
-    [courseModulesPerPage, safeCourseModulePage, selectedCourseModules],
+  const visibleCourseModules = useMemo(
+    () => selectedCourseModules.slice(0, courseModuleLimit),
+    [courseModuleLimit, selectedCourseModules],
   )
   const courseEditModules = Array.isArray(courseEditDraft?.modules) ? courseEditDraft.modules : []
   const courseEditActiveModule =
@@ -2219,10 +2287,10 @@ export function FacultyDashboardPage() {
     : []
   const selectedCourseModuleKeys = useMemo(
     () =>
-      paginatedCourseModules.map((module, index) =>
+        visibleCourseModules.map((module, index) =>
         String(module?.id || `${selectedCourse?.id || 'course'}-module-${index}`).trim(),
       ),
-    [paginatedCourseModules, selectedCourse?.id],
+    [selectedCourse?.id, visibleCourseModules],
   )
   const isAllModulesExpanded =
     selectedCourseModuleKeys.length > 0 &&
@@ -3405,6 +3473,7 @@ const nextName = trimmedValue
               {activeSection === 'my-courses' ? (
                 <FacultyDashboardSection
                   title="Course"
+                  className="faculty-course-section"
                 >
                   {coursesLoading ? (
                     <div className="faculty-my-batches-loading-card">
@@ -3430,7 +3499,8 @@ const nextName = trimmedValue
                                 className={`faculty-course-switcher-pill ${isActive ? 'is-active' : ''}`.trim()}
                                 onClick={() => {
                                   setSelectedCourseId(String(course.id || '').trim())
-                                  setCourseModulePage(1)
+                                  setExpandedCourseModuleIds([])
+                                  setCourseModuleLimit(5)
                                 }}
                               >
                                 <span>{course.courseCode || 'Course'}</span>
@@ -3534,7 +3604,7 @@ const nextName = trimmedValue
                             </button>
                           </div>
 
-                          {paginatedCourseModules.length ? (
+                          {visibleCourseModules.length ? (
                             <div className="faculty-course-table-view">
                               <>
                               <div className="faculty-course-table-shell">
@@ -3547,12 +3617,12 @@ const nextName = trimmedValue
                                 </div>
 
                                 <div className="faculty-course-table-body">
-                                  {paginatedCourseModules.map((module, index) => {
-                                    const absoluteIndex = ((safeCourseModulePage - 1) * courseModulesPerPage) + index
+                                  {visibleCourseModules.map((module, index) => {
+                                    const absoluteIndex = index
                                     const moduleKey = String(module?.id || `${selectedCourse?.id || 'course'}-module-${absoluteIndex}`).trim()
                                     const isExpanded = expandedCourseModuleIds.includes(moduleKey)
-                                    const submodules = Array.isArray(module?.submodules) ? module.submodules : []
-                                    const moduleName = module?.name || module?.title || `Module ${index + 1}`
+                                    const submodules = getCourseSubmodules(module)
+                                    const moduleName = getCourseModuleName(module, absoluteIndex)
                                     const modulePercent = getModulePercentage(module, absoluteIndex, selectedCourseModules.length)
 
                                     return (
@@ -3580,15 +3650,17 @@ const nextName = trimmedValue
                                           aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${moduleName}`}
                                           aria-expanded={isExpanded}
                                         >
-                                          <ChevronDown size={18} strokeWidth={2.4} />
+                                          {isExpanded ? (
+                                            <ChevronUp size={18} strokeWidth={2.4} />
+                                          ) : (
+                                            <ChevronRight size={18} strokeWidth={2.4} />
+                                          )}
                                         </button>
 
-                                        {isExpanded ? (
-                                          <div className="faculty-course-table-subtable">
+                                        <div className="faculty-course-table-subtable" aria-hidden={!isExpanded}>
                                             <div className="faculty-course-table-subhead">
                                               <span>Submodule </span>
                                               <span>Submodule Name</span>
-                                              {/* <span>Progress</span> */}
                                             </div>
 
                                           {submodules.length ? submodules.map((submodule, subIndex) => (
@@ -3598,36 +3670,33 @@ const nextName = trimmedValue
                                                 </div>
                                                 <div className="faculty-course-table-cell faculty-course-table-subcell-name">
                                                   <i aria-hidden="true" />
-                                                  <strong>{submodule?.name || submodule?.title || `Submodule ${subIndex + 1}`}</strong>
+                                                  <strong>{getCourseSubmoduleName(submodule, subIndex)}</strong>
                                                 </div>
-                                                {/* <div className="faculty-course-table-cell faculty-course-table-subcell-progress">
-                                                  {getModulePercentage(submodule, subIndex, submodules.length)}
-                                                </div> */}
                                               </div>
                                             )) : (
                                               <div className="faculty-course-table-subempty">No submodules added</div>
                                             )}
                                           </div>
-                                        ) : null}
                                       </div>
                                     )
                                   })}
                                 </div>
                               </div>
-                              <div className="faculty-course-table-footer">
-                              <div className="faculty-course-table-summary">
-                                Showing {((safeCourseModulePage - 1) * courseModulesPerPage) + 1} to {Math.min(safeCourseModulePage * courseModulesPerPage, selectedCourseModules.length)} of {selectedCourseModules.length} modules
-                              </div>
-
-                              <PaginationBar
-                                currentPage={safeCourseModulePage}
-                                totalPages={totalCourseModulePages}
-                                onPageChange={setCourseModulePage}
-                                className="faculty-course-table-pagination"
-                                label="Course modules pagination"
-                                showSummary={false}
-                              />
-                            </div>
+                              {courseModuleLimit < selectedCourseModules.length ? (
+                                <div className="faculty-course-table-footer">
+                                  <span className="faculty-course-table-summary">
+                                    Showing {visibleCourseModules.length} of {selectedCourseModules.length} modules
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="faculty-course-more-sections"
+                                    onClick={() => setCourseModuleLimit(selectedCourseModules.length)}
+                                  >
+                                    {selectedCourseModules.length - courseModuleLimit} more sections
+                                    <ChevronDown size={16} strokeWidth={2.4} />
+                                  </button>
+                                </div>
+                              ) : null}
                               </>
                             </div>
                           ) : (
@@ -3735,7 +3804,22 @@ const nextName = trimmedValue
                             </thead>
                             <tbody>
                               {facultyCourseRows.map((course, index) => (
-                                <tr key={course.id || course.courseId || course.name || index}>
+                                <tr
+                                  key={course.id || course.courseId || course.name || index}
+                                  className="faculty-students-course-row-clickable"
+                                  tabIndex={0}
+                                  onClick={() => {
+                                    setSelectedStudentsCourseId(getFacultyFlowCourseKey(course))
+                                    setSelectedStudentsBatchId('')
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault()
+                                      setSelectedStudentsCourseId(getFacultyFlowCourseKey(course))
+                                      setSelectedStudentsBatchId('')
+                                    }
+                                  }}
+                                >
                                   <td>{index + 1}</td>
                                   <td><strong>{course.courseCode || course.id || '-'}</strong></td>
                                   <td>{course.name || course.courseName || '-'}</td>
@@ -3793,15 +3877,40 @@ const nextName = trimmedValue
                                 <th style={{ width: '72px' }}>S.No</th>
                                 <th>Batch Name</th>
                                 <th>Students</th>
+                                <th>Module Percentage</th>
                                 <th>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {selectedStudentsCourseBatches.map((batch, index) => (
-                                <tr key={getFacultyFlowBatchKey(batch) || batch.id || index}>
+                              {selectedStudentsCourseBatches.map((batch, index) => {
+                                const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
+
+                                return (
+                                <tr
+                                  key={getFacultyFlowBatchKey(batch) || batch.id || index}
+                                  className="faculty-students-flow-row-clickable"
+                                  tabIndex={0}
+                                  onClick={() => {
+                                    setSelectedStudentsBatchId(getFacultyFlowBatchKey(batch))
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault()
+                                      setSelectedStudentsBatchId(getFacultyFlowBatchKey(batch))
+                                    }
+                                  }}
+                                >
                                   <td>{index + 1}</td>
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
                                   <td>{batch.students}</td>
+                                  <td>
+                                    <div className="faculty-batch-progress-cell">
+                                      <div className="faculty-batch-progress-bar" aria-hidden="true">
+                                        <span style={{ width: `${batchProgress}%` }} />
+                                      </div>
+                                      <strong>{batchProgress}% Complete</strong>
+                                    </div>
+                                  </td>
                                   <td>
                                     <button
                                       type="button"
@@ -3814,7 +3923,8 @@ const nextName = trimmedValue
                                     </button>
                                   </td>
                                 </tr>
-                              ))}
+                                )
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -3857,7 +3967,7 @@ const nextName = trimmedValue
                               <th>Student Name</th>
                               <th>Email Address</th>
                               <th>Paid</th>
-                              <th>Module Progress</th>
+                              {/* <th>Module Progress</th> */}
                               <th>Course Progress</th>
                               <th>Actions</th>
                             </tr>
@@ -3892,13 +4002,24 @@ const nextName = trimmedValue
                                       moduleProgress: workProgressSummary.moduleProgress,
                                     }
                                   : null
-                                const workModuleProgressLabel = workProgressSummary
-                                  ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
-                                  : '-'
+                                // const workModuleProgressLabel = workProgressSummary
+                                //   ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
+                                //   : '-'
                                 const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
 
                                 return (
-                                  <tr key={student.id || student.studentId || `${studentName}-${index}`}>
+                                  <tr
+                                    key={student.id || student.studentId || `${studentName}-${index}`}
+                                    className="faculty-students-flow-row-clickable"
+                                    tabIndex={0}
+                                    onClick={() => openStudentViewDrawer(student)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault()
+                                        openStudentViewDrawer(student)
+                                      }
+                                    }}
+                                  >
                                     <td>{displayIndex}</td>
                                     <td><strong>{studentIdLabel}</strong></td>
                                     <td>
@@ -3931,25 +4052,7 @@ const nextName = trimmedValue
                                         </div>
                                       </div>
                                     </td>
-                                    <td>
-                                      {workEntry ? (
-                                        <div className="branch-student-paid-cell faculty-today-work-summary">
-                                          <div className="branch-student-paid-progress">
-                                            <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
-                                              <span
-                                                className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
-                                                style={{ width: `${workProgress?.moduleProgress || 0}%` }}
-                                              />
-                                            </div>
-                                            <span className="branch-student-paid-progress-label">
-                                              {workModuleProgressLabel}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <span className="faculty-today-work-empty-label">-</span>
-                                      )}
-                                    </td>
+                                    {/* Module Progress column temporarily hidden. */}
                                     <td>
                                       {workEntry ? (
                                         <div className="branch-student-paid-cell faculty-today-work-summary">

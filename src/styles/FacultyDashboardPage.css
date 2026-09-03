@@ -386,9 +386,16 @@ body.faculty-notification-menu-open .super-admin-content {
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table thead th {
   overflow: visible;
   text-overflow: clip;
+  background: #f3f4f6;
   white-space: normal;
   line-height: 1.25;
   vertical-align: top;
+}
+
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table tbody td,
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table tbody tr:nth-child(even) td,
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table tbody tr:hover td {
+  background: #ffffff;
 }
 
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table th:nth-child(1),
@@ -498,7 +505,39 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(4),
 .super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(4) {
-  width: 132px;
+  width: 230px;
+}
+
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(5),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(5) {
+  width: 150px;
+}
+
+.faculty-batch-progress-cell {
+  display: grid;
+  gap: 6px;
+  max-width: 190px;
+}
+
+.faculty-batch-progress-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbe5f1;
+}
+
+.faculty-batch-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  transition: width 260ms ease;
+}
+
+.faculty-batch-progress-cell strong {
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(2),
@@ -771,8 +810,8 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .faculty-course-hero {
   display: grid;
-  gap: 10px;
-  padding: 18px 24px 16px;
+  gap: 6px;
+  padding: 12px 24px 10px;
   border: 1px solid rgba(226, 232, 240, 1);
   border-radius: 28px;
   background: #ffffff;
@@ -825,7 +864,7 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-course-hero-header {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -842,7 +881,7 @@ body.faculty-notification-menu-open .super-admin-content {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 14px;
+  padding: 6px 12px;
   border-radius: 18px;
   font-size: 0.88rem;
   font-weight: 900;
@@ -852,8 +891,8 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .faculty-course-hero-status::before {
   content: '';
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border-radius: 999px;
   background: currentColor;
   box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.72);
@@ -868,7 +907,7 @@ body.faculty-notification-menu-open .super-admin-content {
   justify-self: start;
   margin: 0;
   color: #0f172a;
-  font-size: clamp(1.6rem, 1.1rem + 1.2vw, 2.1rem);
+  font-size: clamp(1.5rem, 1.1rem + 1.1vw, 2rem);
   line-height: 1;
   letter-spacing: -0.07em;
   text-transform: uppercase;
@@ -900,7 +939,7 @@ body.faculty-notification-menu-open .super-admin-content {
   align-items: center;
   gap: 12px;
   padding: 0 18px 0 12px;
-  min-height: 60px;
+  min-height: 52px;
   box-sizing: border-box;
 }
 
@@ -3167,15 +3206,33 @@ body.faculty-notification-menu-open .super-admin-content {
   grid-column: 1 / -1;
   margin-top: 14px;
   overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  border-width: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
   border: 1px solid rgba(219, 228, 240, 1);
   border-radius: 12px;
   background: #ffffff;
+  transition: max-height 280ms ease, opacity 220ms ease, transform 280ms ease, border-width 280ms ease;
+}
+
+.faculty-course-section > .branch-dashboard-section-heading {
+  transform: translateY(-10px);
+  margin-bottom: -10px;
+}
+
+.faculty-course-table-row.is-expanded .faculty-course-table-subtable {
+  max-height: 1200px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
 }
 
 .faculty-course-table-subhead,
 .faculty-course-table-subrow {
   display: grid;
-  grid-template-columns: 1fr minmax(0, 2fr) 120px;
+  grid-template-columns: 1fr minmax(0, 2fr);
   align-items: center;
 }
 
@@ -3241,6 +3298,28 @@ body.faculty-notification-menu-open .super-admin-content {
   white-space: nowrap;
 }
 
+.faculty-course-more-sections {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 12px;
+  background: #f8fbff;
+  color: #2563eb;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.faculty-course-more-sections:hover {
+  border-color: rgba(37, 99, 235, 0.36);
+  background: #eff6ff;
+  transform: translateY(-1px);
+}
+
 .faculty-course-table-pagination {
   margin: 0;
   justify-content: flex-end;
@@ -3253,6 +3332,22 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-course-table-empty-dash {
   color: #64748b;
   font-weight: 700;
+}
+
+.faculty-students-course-row-clickable,
+.faculty-students-flow-row-clickable {
+  cursor: pointer;
+}
+
+.faculty-students-course-row-clickable:hover,
+.faculty-students-flow-row-clickable:hover {
+  background: #f8fbff;
+}
+
+.faculty-students-course-row-clickable:focus-visible,
+.faculty-students-flow-row-clickable:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.2);
+  outline-offset: -3px;
 }
 
 @media (max-width: 1024px) {
@@ -3279,7 +3374,7 @@ body.faculty-notification-menu-open .super-admin-content {
 
   .faculty-course-table-subhead,
   .faculty-course-table-subrow {
-    min-width: 680px;
+    min-width: 560px;
   }
 
   .faculty-course-table-footer {
