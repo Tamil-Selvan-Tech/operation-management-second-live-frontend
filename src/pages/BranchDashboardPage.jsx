@@ -7539,7 +7539,6 @@ else {
                           <th>Final Fee</th>
 
                           <th>Faculty</th>
-                          <th>Status</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -7558,6 +7557,7 @@ else {
                                 <td>{absoluteIndex}</td>
                                 <td>
                                   <div className="branch-course-code-cell">
+                                    <span className={`branch-course-status-dot ${normalizedStatus}`.trim()} aria-label={course.status || 'Active'} title={course.status || 'Active'} />
                                     <strong>{course.courseCode || '-'}</strong>
                                   </div>
                                 </td>
@@ -7603,11 +7603,6 @@ else {
                                     ) : (
                                       'Not Assigned'
                                     )}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={`branch-course-status-pill ${normalizedStatus}`.trim()}>
-                                    {course.status || 'Active'}
                                   </span>
                                 </td>
                                 <td onClick={(event) => event.stopPropagation()}>
