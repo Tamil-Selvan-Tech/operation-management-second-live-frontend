@@ -2405,6 +2405,14 @@ function formatBranchCoursePercentage(value) {
   return `${rounded}%`
 }
 
+function getRoundedEqualModulePercentage(index, total) {
+  const count = Number(total) || 0
+  if (count <= 0) return 0
+
+  const basePercentage = Math.floor(100 / count)
+  return index === count - 1 ? 100 - (basePercentage * (count - 1)) : basePercentage
+}
+
 function formatBranchCourseDate(value) {
   const date = new Date(String(value || '').trim())
   if (Number.isNaN(date.getTime())) return '-'
@@ -9640,7 +9648,7 @@ else {
                                         <small>{submodels.length} submodules</small>
                                       </span>
                                       <span className="course-table-percentage">
-                                        {formatBranchCoursePercentage(model.percentage ?? (100 / savedCourseRows.length))}
+                                      {formatBranchCoursePercentage(getRoundedEqualModulePercentage(modelIndex, savedCourseRows.length))}
                                       </span>
                                     </button>
                                     <div className="course-added-module-select-actions">
@@ -9675,7 +9683,7 @@ else {
                                     <strong>Submodules ({selectedSubmodels.length})</strong>
                                   </div>
                                   <span className="course-table-percentage">
-                                    {formatBranchCoursePercentage(selectedModel?.percentage ?? (100 / savedCourseRows.length))}
+                                    {formatBranchCoursePercentage(getRoundedEqualModulePercentage(selectedModelIndex, savedCourseRows.length))}
                                   </span>
                                 </div>
                                 <div className="course-added-submodules-list">
@@ -10577,7 +10585,7 @@ else {
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-percentage" role="cell">
-                                    <b>{formatBranchCoursePercentage(model.percentage)}</b>
+                                    <b>{formatBranchCoursePercentage(getRoundedEqualModulePercentage(modelIndex, viewCourseModels.length))}</b>
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-actions" role="cell">
