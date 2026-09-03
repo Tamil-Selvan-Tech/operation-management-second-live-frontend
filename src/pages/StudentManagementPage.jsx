@@ -1597,7 +1597,6 @@ export function StudentManagementPage() {
 
   useEffect(() => {
     void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
-    void Promise.all([loadStudents(), loadCourseOptions(), loadFacultyOptions()])
   }, [])
 
   useEffect(() => {
