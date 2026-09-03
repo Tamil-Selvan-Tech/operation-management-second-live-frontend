@@ -9429,6 +9429,11 @@ body.branch-notification-menu-open .main-area {
   width: 100%;
 }
 
+.branch-courses-table-shell .branch-course-table.is-empty th,
+.branch-courses-table-shell .branch-course-table.is-empty td {
+  width: 16.6667%;
+}
+
 .branch-students-table-shell .branch-course-table th:nth-child(1),
 .branch-students-table-shell .branch-course-table td:nth-child(1) {
   width: 8%;

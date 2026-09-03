@@ -7524,7 +7524,7 @@ else {
                     </div>
                   </div>
                   <div className="branch-course-table-shell branch-courses-table-shell">
-                    <table className="branch-course-table">
+                    <table className={`branch-course-table ${visibleBranchCourses.length ? '' : 'is-empty'}`.trim()}>
                       <thead>
                         <tr>
                           <th>S.No</th>
@@ -7730,7 +7730,7 @@ else {
                           })
                         ) : (
                           <tr>
-                            <td colSpan="7" className="branch-course-empty-state">
+                            <td colSpan="6" className="branch-course-empty-state">
                               No courses saved yet. Use Add Course to create the first one.
                             </td>
                           </tr>
