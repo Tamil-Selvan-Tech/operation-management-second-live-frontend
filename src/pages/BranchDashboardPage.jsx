@@ -4627,6 +4627,15 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         }),
       }
     })
+    setSavedCourseHierarchy((current) => current.map((model, index) => {
+      if (index !== modelIndex) return model
+
+      return {
+        ...model,
+        submodels: normalizeBranchCourseSubmodels(model.submodels, modelIndex)
+          .filter((_, itemIndex) => itemIndex !== submodelIndex),
+      }
+    }))
   }
 
   const selectCourseModel = (modelIndex) => {
@@ -4641,7 +4650,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const removeSavedCourseModel = (modelIndex) => {
-    const removedModelId = savedCourseRows[modelIndex]?.id
     setAddCourseForm((current) => {
       const nextModels = Array.isArray(current.models) ? current.models.filter((_, index) => index !== modelIndex) : []
       return {
@@ -4658,9 +4666,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       return current
     })
 
-    if (removedModelId) {
-      setExpandedSavedCourseModuleIds((current) => current.filter((id) => id !== removedModelId))
-    }
   }
 
   const openCourseModuleDeleteConfirm = (modelIndex) => {
