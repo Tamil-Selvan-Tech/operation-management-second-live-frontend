@@ -7215,7 +7215,7 @@ else {
                 }
               }}
             >
-              <td><strong>{stu.studentId || '-'}</strong></td>
+              <td className="branch-student-id-cell"><strong>{stu.studentId || '-'}</strong></td>
               <td><strong className="branch-course-name">{stu.studentName || '-'}</strong></td>
               <td>
                 <span className="branch-student-course">

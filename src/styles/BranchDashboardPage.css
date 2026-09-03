@@ -671,6 +671,20 @@
 .branch-dashboard-table tbody tr:last-child td {
   border-bottom: 0;
 }
+
+.branch-students-table-shell .branch-student-id-cell {
+  white-space: nowrap;
+  width: 150px;
+  min-width: 150px;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.branch-students-table-shell .branch-course-table th:first-child {
+  width: 150px;
+  min-width: 150px;
+}
+
 .branch-course-table-shell {
   width: 100%;
   overflow-x: auto;
@@ -9541,7 +9555,8 @@ body.branch-notification-menu-open .main-area {
 
 .branch-students-table-shell .branch-course-table th:nth-child(1),
 .branch-students-table-shell .branch-course-table td:nth-child(1) {
-  width: 8%;
+  width: 16%;
+  min-width: 190px;
 }
 
 .branch-students-table-shell .branch-course-table th:nth-child(2),
