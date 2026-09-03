@@ -6658,7 +6658,7 @@ useEffect(() => {
               onClick={() => setIsNotificationMenuOpen((current) => !current)}
             >
               <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-              <b>{branchUnreadNotificationCount}</b>
+              {branchUnreadNotificationCount > 0 ? <b>{branchUnreadNotificationCount}</b> : null}
             </button>
 
             {isNotificationMenuOpen ? (

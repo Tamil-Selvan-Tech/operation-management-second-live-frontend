@@ -474,6 +474,18 @@ body.super-admin-notification-menu-open .super-admin-content {
   margin-right: 4px;
 }
 
+.super-admin-notification-menu .super-admin-notification-button {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .super-admin-notification-menu {
   margin-right: 4px;
 }
@@ -645,6 +657,17 @@ body.super-admin-notification-menu-open .super-admin-content {
 .super-admin-icon-button:hover,
 .super-admin-notification-button:hover {
   background: #f7f7f7;
+}
+
+.super-admin-notification-menu .super-admin-notification-button:hover,
+.super-admin-notification-menu .super-admin-notification-button:focus-visible {
+  background: transparent;
+  box-shadow: none;
+}
+
+.super-admin-notification-menu .super-admin-notification-button b {
+  top: -11px;
+  right: -8px;
 }
 
 .super-admin-notification-badge {

@@ -720,6 +720,39 @@ body.branch-notification-menu-open .main-area {
   overscroll-behavior: none;
 }
 
+.branch-dashboard-notification-button {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #334155;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.branch-dashboard-notification-button:hover,
+.branch-dashboard-notification-button:focus-visible {
+  background: transparent;
+  box-shadow: none;
+  color: #0f172a;
+}
+
+.branch-dashboard-notification-button svg {
+  width: 20px;
+  height: 20px;
+  filter: none;
+}
+
+.branch-dashboard-notification-button b {
+  top: -11px;
+  right: -8px;
+}
+
 /* Header */
 .branch-course-table thead th {
   padding: 16px 24px;

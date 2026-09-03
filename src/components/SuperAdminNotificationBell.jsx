@@ -264,7 +264,7 @@ const handleMarkAllAsRead = () => {
   return (
     <div ref={menuRef} className="notification-menu super-admin-notification-menu">
       <button
-        className="icon-chip notification-chip"
+        className="icon-chip notification-chip super-admin-notification-button"
         type="button"
         aria-label="Notifications"
         aria-haspopup="menu"
@@ -272,7 +272,7 @@ const handleMarkAllAsRead = () => {
         onClick={() => setIsOpen((current) => !current)}
       >
         <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
-        <b>{isLoading ? '...' : notificationCount}</b>
+        {!isLoading && notificationCount > 0 ? <b>{notificationCount}</b> : null}
       </button>
 
       {isOpen ? (
