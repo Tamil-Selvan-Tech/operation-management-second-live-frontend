@@ -27,6 +27,7 @@ import {
   UserRound,
   Users,
   Lock,
+  X,
 } from 'lucide-react'
 import {
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
@@ -108,6 +109,17 @@ function formatDisplayDate(value) {
     month: 'short',
     year: 'numeric',
   }).format(date)
+}
+
+function formatStudentDate(value) {
+  return formatDisplayDate(value)
+}
+
+function formatStudentAddress(value) {
+  const normalized = String(value || '').replace(/\s*,\s*/g, ', ')
+  return normalized
+    .replace(/Tamil Nadu/gi, 'Tamil\u00a0Nadu')
+    .replace(/,\s*(\d+)$/, ',\n$1')
 }
 
 function formatDisplayTime(value) {
@@ -205,6 +217,71 @@ function formatCourseHours(value) {
   if (!/^\d+(\.\d+)?$/.test(normalized)) return normalized
 
   return `${normalized} hour${normalized === '1' ? '' : 's'}`
+}
+
+function buildFacultyStudentViewRecord(student = {}, facultyRecords = []) {
+  const context = resolveFacultyBatchContextForStudent(student, facultyRecords)
+  const batchEntry = context?.batchEntry || {}
+
+  const courseName = String(
+    student?.courseInterested ||
+    student?.courseName ||
+    student?.course?.name ||
+    context?.courseName ||
+    batchEntry?.courseName ||
+    '',
+  ).trim()
+
+  const batchName = String(
+    student?.batchName ||
+    student?.batch ||
+    context?.batchName ||
+    batchEntry?.batchName ||
+    batchEntry?.batch ||
+    '',
+  ).trim()
+
+  const batchTiming = String(
+    student?.batchTiming ||
+    student?.batchTime ||
+    context?.batchTiming ||
+    batchEntry?.batchTiming ||
+    batchEntry?.timing ||
+    '',
+  ).trim()
+
+  const courseStartDate = String(
+    student?.courseStartDate ||
+    batchEntry?.courseStartDate ||
+    student?.admissionDate ||
+    '',
+  ).trim()
+
+  const classSchedule = String(
+    student?.classSchedule ||
+    batchEntry?.classSchedule ||
+    batchEntry?.schedule ||
+    batchTiming ||
+    '',
+  ).trim()
+
+  return {
+    ...student,
+    studentId: String(student?.studentId || student?.id || '').trim(),
+    studentName: String(student?.studentName || '').trim(),
+    emailAddress: String(student?.emailAddress || '').trim(),
+    mobileNumber: String(student?.mobileNumber || student?.phoneNumber || student?.phone || student?.studentPhone || '').trim(),
+    parentSpouseNumber: String(student?.parentSpouseNumber || '').trim(),
+    address: String(student?.address || student?.location || '').trim(),
+    qualification: String(student?.qualification || '').trim(),
+    designation: String(student?.designation || '').trim(),
+    courseName,
+    batchName,
+    batchTiming,
+    classSchedule,
+    courseStartDate,
+    facultyName: String(student?.facultyName || context?.facultyName || '').trim(),
+  }
 }
 
 function getStudentIdentityKey(student = {}) {
@@ -1122,6 +1199,7 @@ export function FacultyDashboardPage() {
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [selectedStudentsCourseId, setSelectedStudentsCourseId] = useState('')
   const [selectedStudentsBatchId, setSelectedStudentsBatchId] = useState('')
+  const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
   const [courseModulePage, setCourseModulePage] = useState(1)
   const [batchPage, setBatchPage] = useState(1)
@@ -2259,6 +2337,15 @@ export function FacultyDashboardPage() {
     setIsTodayWorkSaving(false)
     setIsTodayWorkConfirmOpen(false)
     setPendingTodayWorkSubmission(null)
+  }
+
+  const openStudentViewDrawer = (student) => {
+    if (!student) return
+    setViewStudentDrawer(buildFacultyStudentViewRecord(student, facultyBackfillRecords))
+  }
+
+  const closeStudentViewDrawer = () => {
+    setViewStudentDrawer(null)
   }
 
   const updateTodayWorkModule = (moduleId) => {
@@ -3772,6 +3859,7 @@ const nextName = trimmedValue
                               <th>Paid</th>
                               <th>Module Progress</th>
                               <th>Course Progress</th>
+                              <th>Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -3881,12 +3969,21 @@ const nextName = trimmedValue
                                         <span className="faculty-today-work-empty-label">-</span>
                                       )}
                                     </td>
+                                    <td>
+                                      <button
+                                        type="button"
+                                        className="faculty-students-flow-action-btn is-primary"
+                                        onClick={() => openStudentViewDrawer(student)}
+                                      >
+                                        View
+                                      </button>
+                                    </td>
                                   </tr>
                                 )
                               })
                             ) : (
                               <tr>
-                                <td className="faculty-students-empty-cell" colSpan={7}>
+                                <td className="faculty-students-empty-cell" colSpan={8}>
                                   <div className="faculty-my-batches-empty">
                                     <strong>No students found</strong>
                                     <p>Students selected with this batch will show up here once they are saved.</p>
@@ -3911,6 +4008,147 @@ const nextName = trimmedValue
                     </>
                   ) : null}
                 </FacultyDashboardSection>
+              ) : null}
+
+              {viewStudentDrawer ? (
+                <div className="student-drawer-backdrop">
+                  <aside
+                    className="student-drawer student-drawer-table-view"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="student-drawer-header student-drawer-table-header">
+                      <div className="student-drawer-table-header-copy">
+                        <p className="section-kicker">STUDENT DETAILS</p>
+                        <h3>{viewStudentDrawer.studentName || 'Student'}</h3>
+                        <span className="faculty-students-flow-context" style={{ marginTop: '2px' }}>
+                          {viewStudentDrawer.studentId || '-'}
+                        </span>
+                      </div>
+
+                      <div className="student-drawer-table-actions">
+                        <button
+                          type="button"
+                          className="student-drawer-close student-drawer-close-floating"
+                          onClick={closeStudentViewDrawer}
+                          aria-label="Close student details"
+                        >
+                          <X size={18} strokeWidth={2.2} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="student-drawer-table-shell">
+                      <div className="student-drawer-section-card">
+                        <div className="student-drawer-section-head">
+                          <div className="student-drawer-section-icon">
+                            <UserRound size={18} strokeWidth={2.1} />
+                          </div>
+                          <div>
+                            <h4>Basic Information</h4>
+                            <p>Identity and contact details for this student.</p>
+                          </div>
+                        </div>
+
+                        <div className="student-detail-grid">
+                          <div className="student-detail-item">
+                            <span>Student ID</span>
+                            <strong>{viewStudentDrawer.studentId || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Student Name</span>
+                            <strong>{viewStudentDrawer.studentName || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Email Address</span>
+                            <strong>{viewStudentDrawer.emailAddress || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Mobile Number</span>
+                            <strong>{viewStudentDrawer.mobileNumber || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Parent / Spouse Number</span>
+                            <strong>{viewStudentDrawer.parentSpouseNumber || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item student-detail-address">
+                            <span>Address</span>
+                            <strong>
+                              {viewStudentDrawer.address
+                                ? formatStudentAddress(viewStudentDrawer.address)
+                                : '-'}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="student-drawer-section-card">
+                        <div className="student-drawer-section-head">
+                          <div className="student-drawer-section-icon">
+                            <BookOpen size={18} strokeWidth={2.1} />
+                          </div>
+                          <div>
+                            <h4>Academic Details</h4>
+                            <p>Educational and role details captured on the student record.</p>
+                          </div>
+                        </div>
+
+                        <div className="student-detail-grid">
+                          <div className="student-detail-item">
+                            <span>Qualification</span>
+                            <strong>{viewStudentDrawer.qualification || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Designation</span>
+                            <strong>{viewStudentDrawer.designation || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Course Name</span>
+                            <strong>{viewStudentDrawer.courseName || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Faculty Name</span>
+                            <strong>{viewStudentDrawer.facultyName || '-'}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="student-drawer-section-card">
+                        <div className="student-drawer-section-head">
+                          <div className="student-drawer-section-icon">
+                            <CalendarDays size={18} strokeWidth={2.1} />
+                          </div>
+                          <div>
+                            <h4>Batch Schedule</h4>
+                            <p>Course timing and start information for the selected batch.</p>
+                          </div>
+                        </div>
+
+                        <div className="student-detail-grid">
+                          <div className="student-detail-item">
+                            <span>Batch Name</span>
+                            <strong>{viewStudentDrawer.batchName || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Batch Timing</span>
+                            <strong>{viewStudentDrawer.batchTiming || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Class Schedule</span>
+                            <strong>{viewStudentDrawer.classSchedule || '-'}</strong>
+                          </div>
+                          <div className="student-detail-item">
+                            <span>Course Start Date</span>
+                            <strong>
+                              {viewStudentDrawer.courseStartDate
+                                ? formatStudentDate(viewStudentDrawer.courseStartDate)
+                                : '-'}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </aside>
+                </div>
               ) : null}
 
               {activeSection === 'notifications' ? (
