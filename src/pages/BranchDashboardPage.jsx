@@ -9204,7 +9204,11 @@ else {
                 <button
                   type="button"
                   className={`course-stepper-item ${addCourseStep === 2 ? 'is-active' : ''}`.trim()}
-                  onClick={() => setAddCourseStep(2)}
+                  onClick={() => {
+                    setAddCourseStep(2)
+                    setCourseEditorStage('closed')
+                    setIsSubmoduleDraftOpen(false)
+                  }}
                   disabled={Object.keys(addCourseValidationErrors.basic).length > 0}
                 >
                   <span className="course-stepper-icon" aria-hidden="true">
