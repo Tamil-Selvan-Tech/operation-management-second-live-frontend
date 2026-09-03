@@ -2707,6 +2707,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
   const [courseModuleDeleteTarget, setCourseModuleDeleteTarget] = useState(null)
   const [courseSubmoduleDeleteTarget, setCourseSubmoduleDeleteTarget] = useState(null)
+  const [inlineSubmoduleEdit, setInlineSubmoduleEdit] = useState(null)
   const [viewCourse, setViewCourse] = useState(null)
   const [viewCourseTab, setViewCourseTab] = useState('basic')
   const [expandedViewCourseModuleIds, setExpandedViewCourseModuleIds] = useState([])
@@ -4547,6 +4548,47 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const handleCourseSubmodelEdit = (modelIndex, submodelIndex) => {
     openCourseSubmodelDraft(modelIndex, submodelIndex)
+  }
+
+  const startInlineSubmoduleEdit = (modelIndex, submoduleIndex) => {
+    const submodule = savedCourseRows[modelIndex]?.submodels?.[submoduleIndex]
+    if (!submodule) return
+
+    setInlineSubmoduleEdit({
+      modelIndex,
+      submoduleIndex,
+      value: submodule.name || '',
+    })
+  }
+
+  const cancelInlineSubmoduleEdit = () => {
+    setInlineSubmoduleEdit(null)
+  }
+
+  const saveInlineSubmoduleEdit = () => {
+    if (!inlineSubmoduleEdit || !inlineSubmoduleEdit.value.trim()) return
+
+    const { modelIndex, submoduleIndex, value } = inlineSubmoduleEdit
+    const nextName = value.trim()
+
+    const updateModels = (models) => models.map((model, index) => {
+      if (index !== modelIndex) return model
+
+      const submodels = normalizeBranchCourseSubmodels(model.submodels, modelIndex)
+      return {
+        ...model,
+        submodels: submodels.map((submodule, index) => (
+          index === submoduleIndex ? { ...submodule, name: nextName } : submodule
+        )),
+      }
+    })
+
+    setAddCourseForm((current) => ({
+      ...current,
+      models: updateModels(normalizeBranchCourseModels(current.models)),
+    }))
+    setSavedCourseHierarchy((current) => updateModels(current))
+    setInlineSubmoduleEdit(null)
   }
 
   const handleCourseSubmodelDelete = (modelIndex, submodelIndex) => {
@@ -9627,13 +9669,40 @@ else {
                                   {selectedSubmodels.length ? selectedSubmodels.map((submodel, submoduleIndex) => (
                                     <div className="course-added-submodule-row" key={submodel.id}>
                                       <span className="course-added-module-select-index">{submoduleIndex + 1}</span>
-                                      <strong>{submodel.name || `Submodule ${submoduleIndex + 1}`}</strong>
-                                      <button type="button" onClick={() => handleCourseSubmodelEdit(selectedModelIndex, submoduleIndex)} aria-label={`Edit submodule ${submoduleIndex + 1}`}>
-                                        <Pencil size={16} strokeWidth={2.2} />
-                                      </button>
-                                      <button type="button" className="is-danger" onClick={() => handleCourseSubmodelDelete(selectedModelIndex, submoduleIndex)} aria-label={`Delete submodule ${submoduleIndex + 1}`}>
-                                        <Trash2 size={16} strokeWidth={2.2} />
-                                      </button>
+                                      {inlineSubmoduleEdit?.modelIndex === selectedModelIndex && inlineSubmoduleEdit?.submoduleIndex === submoduleIndex ? (
+                                        <input
+                                          className="course-added-submodule-inline-input"
+                                          value={inlineSubmoduleEdit.value}
+                                          onChange={(event) => setInlineSubmoduleEdit((current) => ({ ...current, value: event.target.value }))}
+                                          onKeyDown={(event) => {
+                                            if (event.key === 'Enter') saveInlineSubmoduleEdit()
+                                            if (event.key === 'Escape') cancelInlineSubmoduleEdit()
+                                          }}
+                                          autoFocus
+                                          aria-label={`Edit submodule ${submoduleIndex + 1}`}
+                                        />
+                                      ) : (
+                                        <strong>{submodel.name || `Submodule ${submoduleIndex + 1}`}</strong>
+                                      )}
+                                      {inlineSubmoduleEdit?.modelIndex === selectedModelIndex && inlineSubmoduleEdit?.submoduleIndex === submoduleIndex ? (
+                                        <>
+                                          <button type="button" className="is-save" onClick={saveInlineSubmoduleEdit} aria-label="Save submodule name">
+                                            <Check size={16} strokeWidth={2.4} />
+                                          </button>
+                                          <button type="button" className="is-cancel" onClick={cancelInlineSubmoduleEdit} aria-label="Cancel submodule edit">
+                                            <X size={16} strokeWidth={2.4} />
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button type="button" onClick={() => startInlineSubmoduleEdit(selectedModelIndex, submoduleIndex)} aria-label={`Edit submodule ${submoduleIndex + 1}`}>
+                                            <Pencil size={16} strokeWidth={2.2} />
+                                          </button>
+                                          <button type="button" className="is-danger" onClick={() => handleCourseSubmodelDelete(selectedModelIndex, submoduleIndex)} aria-label={`Delete submodule ${submoduleIndex + 1}`}>
+                                            <Trash2 size={16} strokeWidth={2.2} />
+                                          </button>
+                                        </>
+                                      )}
                                     </div>
                                   )) : <div className="course-added-submodules-empty">No submodules added yet.</div>}
                                 </div>

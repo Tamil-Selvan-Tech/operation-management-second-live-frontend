@@ -5638,6 +5638,20 @@ body.branch-notification-menu-open .main-area {
   white-space: nowrap;
 }
 
+.course-added-submodule-inline-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid #bfd2fb;
+  border-radius: 6px;
+  outline: none;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08);
+  color: #334155;
+  font: inherit;
+  font-weight: 700;
+}
+
 .course-added-submodule-row > button {
   display: inline-flex;
   align-items: center;
@@ -5661,6 +5675,14 @@ body.branch-notification-menu-open .main-area {
 
 .course-added-submodule-row > button.is-danger {
   color: #ef4444;
+}
+
+.course-added-submodule-row > button.is-save {
+  color: #16a765;
+}
+
+.course-added-submodule-row > button.is-cancel {
+  color: #64748b;
 }
 
 .course-added-submodules-empty {
