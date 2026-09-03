@@ -2890,6 +2890,8 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const profileMenuRef = useRef(null)
   const notificationMenuRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
+  const branchNotificationsRequestRef = useRef(null)
+  const branchNotificationsRefreshTimerRef = useRef(null)
 
   const loadBranchCourses = useCallback(async (fallbackCourses = null) => {
     const result = await listBranchCourses({
@@ -3041,55 +3043,66 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 }, [])
 
   const loadBranchNotifications = useCallback(async () => {
-    try {
-      const response = await request('/notifications?limit=100&page=1', {
-        method: 'GET',
-      })
-
-      const responseData = Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response?.notifications)
-          ? response.notifications
-          : Array.isArray(response)
-            ? response
-            : []
-
-      const storedNotifications = loadNotifications()
-      const storedById = new Map(
-        storedNotifications.map((notification) => [String(notification.id || '').trim(), notification]),
-      )
-      const storedAcceptedByRequestId = new Map(
-        storedNotifications
-          .filter((notification) => String(notification.requestStatus || '').trim().toLowerCase() === 'accepted')
-          .map((notification) => [String(notification.requestId || '').trim(), notification]),
-      )
-      const mergedNotifications = mergeNotificationsWithStoredState(responseData).map((notification) => {
-        const storedNotification = storedById.get(String(notification.id || '').trim())
-        const storedAcceptedNotification = storedAcceptedByRequestId.get(String(notification.requestId || '').trim())
-        const storedNotificationStatus = String(storedNotification?.requestStatus || '').trim().toLowerCase()
-        const storedAcceptedStatus = String(storedAcceptedNotification?.requestStatus || '').trim().toLowerCase()
-
-        if (storedNotificationStatus === 'accepted') {
-          return { ...notification, ...storedNotification }
-        }
-
-        if (storedAcceptedStatus === 'accepted') {
-          return { ...notification, ...storedAcceptedNotification }
-        }
-
-        return notification
-      })
-      const mergedIds = new Set(mergedNotifications.map((notification) => String(notification.id || '').trim()))
-      const preservedNotifications = storedNotifications.filter((notification) => !mergedIds.has(String(notification.id || '').trim()))
-      const nextNotifications = [...mergedNotifications, ...preservedNotifications]
-
-      setBranchNotificationRecords(nextNotifications)
-      saveNotifications(nextNotifications, { emit: false })
-    } catch (error) {
-      console.error('Failed to load branch notifications:', error)
-      const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
-      setBranchNotificationRecords(fallbackNotifications)
+    if (branchNotificationsRequestRef.current) {
+      return branchNotificationsRequestRef.current
     }
+
+    const requestPromise = (async () => {
+      try {
+        const response = await request('/notifications?limit=100&page=1', {
+        method: 'GET',
+        })
+
+        const responseData = Array.isArray(response?.data)
+          ? response.data
+          : Array.isArray(response?.notifications)
+            ? response.notifications
+            : Array.isArray(response)
+              ? response
+              : []
+
+        const storedNotifications = loadNotifications()
+        const storedById = new Map(
+          storedNotifications.map((notification) => [String(notification.id || '').trim(), notification]),
+        )
+        const storedAcceptedByRequestId = new Map(
+          storedNotifications
+            .filter((notification) => String(notification.requestStatus || '').trim().toLowerCase() === 'accepted')
+            .map((notification) => [String(notification.requestId || '').trim(), notification]),
+        )
+        const mergedNotifications = mergeNotificationsWithStoredState(responseData).map((notification) => {
+          const storedNotification = storedById.get(String(notification.id || '').trim())
+          const storedAcceptedNotification = storedAcceptedByRequestId.get(String(notification.requestId || '').trim())
+          const storedNotificationStatus = String(storedNotification?.requestStatus || '').trim().toLowerCase()
+          const storedAcceptedStatus = String(storedAcceptedNotification?.requestStatus || '').trim().toLowerCase()
+
+          if (storedNotificationStatus === 'accepted') {
+            return { ...notification, ...storedNotification }
+          }
+
+          if (storedAcceptedStatus === 'accepted') {
+            return { ...notification, ...storedAcceptedNotification }
+          }
+
+          return notification
+        })
+        const mergedIds = new Set(mergedNotifications.map((notification) => String(notification.id || '').trim()))
+        const preservedNotifications = storedNotifications.filter((notification) => !mergedIds.has(String(notification.id || '').trim()))
+        const nextNotifications = [...mergedNotifications, ...preservedNotifications]
+
+        setBranchNotificationRecords(nextNotifications)
+        saveNotifications(nextNotifications, { emit: false })
+      } catch (error) {
+        console.error('Failed to load branch notifications:', error)
+        const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
+        setBranchNotificationRecords(fallbackNotifications)
+      } finally {
+        branchNotificationsRequestRef.current = null
+      }
+    })()
+
+    branchNotificationsRequestRef.current = requestPromise
+    return requestPromise
   }, [])
 
   const loadFacultyTodayWorkEntries = useCallback(async () => {
@@ -3366,15 +3379,26 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [loadBranchInstallmentPlanOptions])
 
   useEffect(() => {
+    const scheduleNotificationRefresh = () => {
+      if (branchNotificationsRefreshTimerRef.current) {
+        window.clearTimeout(branchNotificationsRefreshTimerRef.current)
+      }
+
+      branchNotificationsRefreshTimerRef.current = window.setTimeout(() => {
+        branchNotificationsRefreshTimerRef.current = null
+        void loadBranchNotifications()
+      }, 250)
+    }
+
     void loadBranchNotifications()
 
     const handleFocus = () => {
-      void loadBranchNotifications()
+      scheduleNotificationRefresh()
     }
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        void loadBranchNotifications()
+        scheduleNotificationRefresh()
       }
     }
 
@@ -3384,6 +3408,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     return () => {
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (branchNotificationsRefreshTimerRef.current) {
+        window.clearTimeout(branchNotificationsRefreshTimerRef.current)
+        branchNotificationsRefreshTimerRef.current = null
+      }
     }
   }, [loadBranchNotifications])
 
