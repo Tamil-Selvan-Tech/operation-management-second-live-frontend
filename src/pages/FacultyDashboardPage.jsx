@@ -1119,9 +1119,9 @@ function SidebarUserAvatar() {
   )
 }
 
-function FacultyDashboardSection({ title, description, actions, children }) {
+function FacultyDashboardSection({ title, description, actions, className = '', children }) {
   return (
-    <section className="branch-dashboard-section">
+    <section className={`branch-dashboard-section ${className}`.trim()}>
       <div className="branch-dashboard-section-heading">
         <div className="branch-dashboard-section-heading-copy">
           <h2>{title}</h2>
@@ -1201,7 +1201,7 @@ export function FacultyDashboardPage() {
   const [selectedStudentsBatchId, setSelectedStudentsBatchId] = useState('')
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
-  const [courseModulePage, setCourseModulePage] = useState(1)
+  const [courseModuleLimit, setCourseModuleLimit] = useState(5)
   const [batchPage, setBatchPage] = useState(1)
   const [studentsPage, setStudentsPage] = useState(1)
   const [courseEditRequests, setCourseEditRequests] = useState([])
@@ -2200,16 +2200,9 @@ export function FacultyDashboardPage() {
   }, [totalBatchPages])
 
   const selectedCourseModules = useMemo(() => getCourseModels(selectedCourse), [selectedCourse])
-  const courseModulesPerPage = 5
-  const totalCourseModulePages = Math.max(1, Math.ceil(selectedCourseModules.length / courseModulesPerPage))
-  const safeCourseModulePage = Math.min(Math.max(1, Number(courseModulePage) || 1), totalCourseModulePages)
-  const paginatedCourseModules = useMemo(
-    () =>
-      selectedCourseModules.slice(
-        (safeCourseModulePage - 1) * courseModulesPerPage,
-        safeCourseModulePage * courseModulesPerPage,
-      ),
-    [courseModulesPerPage, safeCourseModulePage, selectedCourseModules],
+  const visibleCourseModules = useMemo(
+    () => selectedCourseModules.slice(0, courseModuleLimit),
+    [courseModuleLimit, selectedCourseModules],
   )
   const courseEditModules = Array.isArray(courseEditDraft?.modules) ? courseEditDraft.modules : []
   const courseEditActiveModule =
@@ -2219,10 +2212,10 @@ export function FacultyDashboardPage() {
     : []
   const selectedCourseModuleKeys = useMemo(
     () =>
-      paginatedCourseModules.map((module, index) =>
+        visibleCourseModules.map((module, index) =>
         String(module?.id || `${selectedCourse?.id || 'course'}-module-${index}`).trim(),
       ),
-    [paginatedCourseModules, selectedCourse?.id],
+    [selectedCourse?.id, visibleCourseModules],
   )
   const isAllModulesExpanded =
     selectedCourseModuleKeys.length > 0 &&
@@ -3405,6 +3398,7 @@ const nextName = trimmedValue
               {activeSection === 'my-courses' ? (
                 <FacultyDashboardSection
                   title="Course"
+                  className="faculty-course-section"
                 >
                   {coursesLoading ? (
                     <div className="faculty-my-batches-loading-card">
@@ -3430,7 +3424,8 @@ const nextName = trimmedValue
                                 className={`faculty-course-switcher-pill ${isActive ? 'is-active' : ''}`.trim()}
                                 onClick={() => {
                                   setSelectedCourseId(String(course.id || '').trim())
-                                  setCourseModulePage(1)
+                                  setExpandedCourseModuleIds([])
+                                  setCourseModuleLimit(5)
                                 }}
                               >
                                 <span>{course.courseCode || 'Course'}</span>
@@ -3534,7 +3529,7 @@ const nextName = trimmedValue
                             </button>
                           </div>
 
-                          {paginatedCourseModules.length ? (
+                          {visibleCourseModules.length ? (
                             <div className="faculty-course-table-view">
                               <>
                               <div className="faculty-course-table-shell">
@@ -3547,12 +3542,12 @@ const nextName = trimmedValue
                                 </div>
 
                                 <div className="faculty-course-table-body">
-                                  {paginatedCourseModules.map((module, index) => {
-                                    const absoluteIndex = ((safeCourseModulePage - 1) * courseModulesPerPage) + index
+                                  {visibleCourseModules.map((module, index) => {
+                                    const absoluteIndex = index
                                     const moduleKey = String(module?.id || `${selectedCourse?.id || 'course'}-module-${absoluteIndex}`).trim()
                                     const isExpanded = expandedCourseModuleIds.includes(moduleKey)
-                                    const submodules = Array.isArray(module?.submodules) ? module.submodules : []
-                                    const moduleName = module?.name || module?.title || `Module ${index + 1}`
+                                    const submodules = getCourseSubmodules(module)
+                                    const moduleName = getCourseModuleName(module, absoluteIndex)
                                     const modulePercent = getModulePercentage(module, absoluteIndex, selectedCourseModules.length)
 
                                     return (
@@ -3580,15 +3575,17 @@ const nextName = trimmedValue
                                           aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${moduleName}`}
                                           aria-expanded={isExpanded}
                                         >
-                                          <ChevronDown size={18} strokeWidth={2.4} />
+                                          {isExpanded ? (
+                                            <ChevronUp size={18} strokeWidth={2.4} />
+                                          ) : (
+                                            <ChevronRight size={18} strokeWidth={2.4} />
+                                          )}
                                         </button>
 
-                                        {isExpanded ? (
-                                          <div className="faculty-course-table-subtable">
+                                        <div className="faculty-course-table-subtable" aria-hidden={!isExpanded}>
                                             <div className="faculty-course-table-subhead">
                                               <span>Submodule </span>
                                               <span>Submodule Name</span>
-                                              {/* <span>Progress</span> */}
                                             </div>
 
                                           {submodules.length ? submodules.map((submodule, subIndex) => (
@@ -3598,36 +3595,33 @@ const nextName = trimmedValue
                                                 </div>
                                                 <div className="faculty-course-table-cell faculty-course-table-subcell-name">
                                                   <i aria-hidden="true" />
-                                                  <strong>{submodule?.name || submodule?.title || `Submodule ${subIndex + 1}`}</strong>
+                                                  <strong>{getCourseSubmoduleName(submodule, subIndex)}</strong>
                                                 </div>
-                                                {/* <div className="faculty-course-table-cell faculty-course-table-subcell-progress">
-                                                  {getModulePercentage(submodule, subIndex, submodules.length)}
-                                                </div> */}
                                               </div>
                                             )) : (
                                               <div className="faculty-course-table-subempty">No submodules added</div>
                                             )}
                                           </div>
-                                        ) : null}
                                       </div>
                                     )
                                   })}
                                 </div>
                               </div>
-                              <div className="faculty-course-table-footer">
-                              <div className="faculty-course-table-summary">
-                                Showing {((safeCourseModulePage - 1) * courseModulesPerPage) + 1} to {Math.min(safeCourseModulePage * courseModulesPerPage, selectedCourseModules.length)} of {selectedCourseModules.length} modules
-                              </div>
-
-                              <PaginationBar
-                                currentPage={safeCourseModulePage}
-                                totalPages={totalCourseModulePages}
-                                onPageChange={setCourseModulePage}
-                                className="faculty-course-table-pagination"
-                                label="Course modules pagination"
-                                showSummary={false}
-                              />
-                            </div>
+                              {courseModuleLimit < selectedCourseModules.length ? (
+                                <div className="faculty-course-table-footer">
+                                  <span className="faculty-course-table-summary">
+                                    Showing {visibleCourseModules.length} of {selectedCourseModules.length} modules
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="faculty-course-more-sections"
+                                    onClick={() => setCourseModuleLimit(selectedCourseModules.length)}
+                                  >
+                                    {selectedCourseModules.length - courseModuleLimit} more sections
+                                    <ChevronDown size={16} strokeWidth={2.4} />
+                                  </button>
+                                </div>
+                              ) : null}
                               </>
                             </div>
                           ) : (
@@ -3735,7 +3729,22 @@ const nextName = trimmedValue
                             </thead>
                             <tbody>
                               {facultyCourseRows.map((course, index) => (
-                                <tr key={course.id || course.courseId || course.name || index}>
+                                <tr
+                                  key={course.id || course.courseId || course.name || index}
+                                  className="faculty-students-course-row-clickable"
+                                  tabIndex={0}
+                                  onClick={() => {
+                                    setSelectedStudentsCourseId(getFacultyFlowCourseKey(course))
+                                    setSelectedStudentsBatchId('')
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault()
+                                      setSelectedStudentsCourseId(getFacultyFlowCourseKey(course))
+                                      setSelectedStudentsBatchId('')
+                                    }
+                                  }}
+                                >
                                   <td>{index + 1}</td>
                                   <td><strong>{course.courseCode || course.id || '-'}</strong></td>
                                   <td>{course.name || course.courseName || '-'}</td>
@@ -3798,7 +3807,20 @@ const nextName = trimmedValue
                             </thead>
                             <tbody>
                               {selectedStudentsCourseBatches.map((batch, index) => (
-                                <tr key={getFacultyFlowBatchKey(batch) || batch.id || index}>
+                                <tr
+                                  key={getFacultyFlowBatchKey(batch) || batch.id || index}
+                                  className="faculty-students-flow-row-clickable"
+                                  tabIndex={0}
+                                  onClick={() => {
+                                    setSelectedStudentsBatchId(getFacultyFlowBatchKey(batch))
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault()
+                                      setSelectedStudentsBatchId(getFacultyFlowBatchKey(batch))
+                                    }
+                                  }}
+                                >
                                   <td>{index + 1}</td>
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
                                   <td>{batch.students}</td>
@@ -3898,7 +3920,18 @@ const nextName = trimmedValue
                                 const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
 
                                 return (
-                                  <tr key={student.id || student.studentId || `${studentName}-${index}`}>
+                                  <tr
+                                    key={student.id || student.studentId || `${studentName}-${index}`}
+                                    className="faculty-students-flow-row-clickable"
+                                    tabIndex={0}
+                                    onClick={() => openStudentViewDrawer(student)}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault()
+                                        openStudentViewDrawer(student)
+                                      }
+                                    }}
+                                  >
                                     <td>{displayIndex}</td>
                                     <td><strong>{studentIdLabel}</strong></td>
                                     <td>
