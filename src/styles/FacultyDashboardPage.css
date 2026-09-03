@@ -386,7 +386,7 @@ body.faculty-notification-menu-open .super-admin-content {
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table thead th {
   overflow: visible;
   text-overflow: clip;
-  background: #ffffff;
+  background: #f3f4f6;
   white-space: normal;
   line-height: 1.25;
   vertical-align: top;

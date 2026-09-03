@@ -3879,7 +3879,7 @@ const nextName = trimmedValue
                               <th>Student Name</th>
                               <th>Email Address</th>
                               <th>Paid</th>
-                              <th>Module Progress</th>
+                              {/* <th>Module Progress</th> */}
                               <th>Course Progress</th>
                               <th>Actions</th>
                             </tr>
@@ -3914,9 +3914,9 @@ const nextName = trimmedValue
                                       moduleProgress: workProgressSummary.moduleProgress,
                                     }
                                   : null
-                                const workModuleProgressLabel = workProgressSummary
-                                  ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
-                                  : '-'
+                                // const workModuleProgressLabel = workProgressSummary
+                                //   ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
+                                //   : '-'
                                 const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
 
                                 return (
@@ -3964,25 +3964,7 @@ const nextName = trimmedValue
                                         </div>
                                       </div>
                                     </td>
-                                    <td>
-                                      {workEntry ? (
-                                        <div className="branch-student-paid-cell faculty-today-work-summary">
-                                          <div className="branch-student-paid-progress">
-                                            <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
-                                              <span
-                                                className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
-                                                style={{ width: `${workProgress?.moduleProgress || 0}%` }}
-                                              />
-                                            </div>
-                                            <span className="branch-student-paid-progress-label">
-                                              {workModuleProgressLabel}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <span className="faculty-today-work-empty-label">-</span>
-                                      )}
-                                    </td>
+                                    {/* Module Progress column temporarily hidden. */}
                                     <td>
                                       {workEntry ? (
                                         <div className="branch-student-paid-cell faculty-today-work-summary">
