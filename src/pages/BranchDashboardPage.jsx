@@ -7574,6 +7574,7 @@ else {
                         {visibleBranchCourses.length ? (
                           visibleBranchCourses.map((course, index) => {
                             const normalizedStatus = String(course.status || 'Active').toLowerCase()
+                            const statusTone = normalizedStatus === 'active' ? 'is-active' : normalizedStatus === 'inactive' ? 'is-inactive' : ''
                             const absoluteIndex = (safeBranchCoursePage - 1) * BRANCH_COURSES_PER_PAGE + index + 1
 
                             return (
@@ -7585,7 +7586,17 @@ else {
                                 <td>{absoluteIndex}</td>
                                 <td>
                                   <div className="branch-course-code-cell">
-                                    <span className={`branch-course-status-dot ${normalizedStatus}`.trim()} aria-label={course.status || 'Active'} title={course.status || 'Active'} />
+                                    <span
+                                      className={`branch-course-status-badge ${statusTone}`.trim()}
+                                      aria-label={`Course status ${course.status || 'Active'}`}
+                                      role="img"
+                                      tabIndex="0"
+                                    >
+                                      <span className="branch-course-status-dot" aria-hidden="true" />
+                                      <span className={`branch-course-status-tooltip ${statusTone}`.trim()} role="tooltip">
+                                        {course.status || 'Active'}
+                                      </span>
+                                    </span>
                                     <strong>{course.courseCode || '-'}</strong>
                                   </div>
                                 </td>
