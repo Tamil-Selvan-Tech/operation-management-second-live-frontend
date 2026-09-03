@@ -505,7 +505,39 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(4),
 .super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(4) {
-  width: 132px;
+  width: 230px;
+}
+
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(5),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(5) {
+  width: 150px;
+}
+
+.faculty-batch-progress-cell {
+  display: grid;
+  gap: 6px;
+  max-width: 190px;
+}
+
+.faculty-batch-progress-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbe5f1;
+}
+
+.faculty-batch-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  transition: width 260ms ease;
+}
+
+.faculty-batch-progress-cell strong {
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(2),

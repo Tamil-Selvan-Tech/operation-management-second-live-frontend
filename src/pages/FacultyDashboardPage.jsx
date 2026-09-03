@@ -715,6 +715,41 @@ function getCourseSubmoduleName(submodule = {}, index = 0) {
   ).trim()
 }
 
+function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [], backfillRecords = []) {
+  const batchId = String(batch?.batchId || batch?.id || '').trim().toLowerCase()
+  const batchGroupId = String(batch?.batchGroupId || '').trim().toLowerCase()
+  const batchName = normalizeCourseKey(batch?.batchName || batch?.code || '')
+  const batchTiming = normalizeCourseKey(batch?.timing || '')
+  const courseId = String(course?.id || course?.courseId || '').trim().toLowerCase()
+  const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
+
+  return dedupeStudentsByIdentity((Array.isArray(students) ? students : []).filter((student) => {
+    const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
+    const studentCourseId = String(context?.courseId || student?.courseId || '').trim().toLowerCase()
+    const studentCourseName = normalizeCourseKey(context?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '')
+    const studentBatchId = String(context?.batchId || student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+    const studentBatchGroupId = String(context?.batchGroupId || student?.batchGroupId || '').trim().toLowerCase()
+    const studentBatchName = normalizeCourseKey(context?.batchName || student?.batchName || student?.batch || '')
+    const studentBatchTiming = normalizeCourseKey(context?.batchTiming || student?.batchTiming || student?.batchTime || '')
+
+    const matchesCourse =
+      (!courseId || !studentCourseId || studentCourseId === courseId) &&
+      (!courseName || !studentCourseName || studentCourseName === courseName)
+    if (!matchesCourse) return false
+
+    if (batchId || batchGroupId) {
+      const matchesBatchIdentity = (
+        (batchId && (studentBatchId === batchId || studentBatchGroupId === batchId)) ||
+        (batchGroupId && (studentBatchId === batchGroupId || studentBatchGroupId === batchGroupId))
+      )
+
+      if (matchesBatchIdentity) return true
+    }
+
+    return (batchName && studentBatchName === batchName) || (batchTiming && studentBatchTiming === batchTiming)
+  }))
+}
+
 function getCourseFromSource(source = {}) {
   if (!source) return null
 
@@ -2139,6 +2174,46 @@ export function FacultyDashboardPage() {
     selectedStudentsCourse?.name,
     selectedStudentsCourse?.courseName,
     selectedStudentsCourse?.id,
+  ])
+
+  const selectedCourseBatchProgress = useMemo(() => {
+    const progressByBatch = new Map()
+    if (!selectedStudentsCourse) return progressByBatch
+
+    selectedStudentsCourseBatches.forEach((batch) => {
+      const batchStudents = getFacultyBatchProgressStudents(
+        batch,
+        selectedStudentsCourse,
+        facultyScopedStudents,
+        facultyBackfillRecords,
+      )
+      const progressValues = batchStudents.map((student) => {
+        const studentKey = normalizeWorkStudentId(student?.id || student?.studentId || '')
+        const workEntry = todayWorkEntriesByStudent.get(studentKey) || null
+        if (!workEntry) return 0
+
+        const progressSummary = buildFacultyTodayWorkProgressSummary(
+          facultyTodayWorkEntries,
+          selectedStudentsCourse,
+          student,
+        )
+        return Number(progressSummary?.courseProgress) || 0
+      })
+      const averageProgress = progressValues.length
+        ? progressValues.reduce((total, value) => total + value, 0) / progressValues.length
+        : 0
+
+      progressByBatch.set(getFacultyFlowBatchKey(batch), Math.round(averageProgress))
+    })
+
+    return progressByBatch
+  }, [
+    facultyBackfillRecords,
+    facultyScopedStudents,
+    facultyTodayWorkEntries,
+    selectedStudentsCourse,
+    selectedStudentsCourseBatches,
+    todayWorkEntriesByStudent,
   ])
 
   const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyScopedStudents
@@ -3802,11 +3877,15 @@ const nextName = trimmedValue
                                 <th style={{ width: '72px' }}>S.No</th>
                                 <th>Batch Name</th>
                                 <th>Students</th>
+                                <th>Module Percentage</th>
                                 <th>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {selectedStudentsCourseBatches.map((batch, index) => (
+                              {selectedStudentsCourseBatches.map((batch, index) => {
+                                const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
+
+                                return (
                                 <tr
                                   key={getFacultyFlowBatchKey(batch) || batch.id || index}
                                   className="faculty-students-flow-row-clickable"
@@ -3825,6 +3904,14 @@ const nextName = trimmedValue
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
                                   <td>{batch.students}</td>
                                   <td>
+                                    <div className="faculty-batch-progress-cell">
+                                      <div className="faculty-batch-progress-bar" aria-hidden="true">
+                                        <span style={{ width: `${batchProgress}%` }} />
+                                      </div>
+                                      <strong>{batchProgress}% Complete</strong>
+                                    </div>
+                                  </td>
+                                  <td>
                                     <button
                                       type="button"
                                       className="faculty-students-flow-action-btn is-primary"
@@ -3836,7 +3923,8 @@ const nextName = trimmedValue
                                     </button>
                                   </td>
                                 </tr>
-                              ))}
+                                )
+                              })}
                             </tbody>
                           </table>
                         </div>
