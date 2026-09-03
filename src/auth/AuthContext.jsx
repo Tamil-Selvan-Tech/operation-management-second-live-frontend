@@ -45,10 +45,12 @@ export function AuthProvider({ children }) {
     }
 
     const signOut = async () => {
+      // Clear local access immediately so a slow logout request cannot keep the user on the dashboard.
+      setSession(null)
       try {
         await signOutSession()
-      } finally {
-        setSession(null)
+      } catch {
+        // Local logout is already complete; a failed server cleanup must not block navigation.
       }
     }
 
