@@ -9476,7 +9476,8 @@ body.branch-notification-menu-open .main-area {
 
 .branch-students-table-shell .branch-course-table th:nth-child(9),
 .branch-students-table-shell .branch-course-table td:nth-child(9) {
-  width: 5%;
+  width: 10%;
+  min-width: 120px;
 }
 
 .branch-students-table-shell .branch-course-table th:nth-child(10),
