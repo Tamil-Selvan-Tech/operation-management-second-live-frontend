@@ -395,27 +395,24 @@ function getWorkBatchContext(source = {}) {
 function doesWorkEntryMatchBatch(entry = {}, source = {}) {
   const entryBatch = getWorkBatchContext(entry)
   const sourceBatch = getWorkBatchContext(source)
-  const entryHasBatch = Object.values(entryBatch).some(Boolean)
-  if (!entryHasBatch) return true
+  const hasExplicitBatchIdentity = Boolean(
+    entryBatch.batchId ||
+    entryBatch.batchGroupId ||
+    sourceBatch.batchId ||
+    sourceBatch.batchGroupId,
+  )
 
-  const sourceHasBatch = Object.values(sourceBatch).some(Boolean)
-  if (!sourceHasBatch) return false
+  if (entryBatch.batchId && sourceBatch.batchId && entryBatch.batchId === sourceBatch.batchId) return true
+  if (entryBatch.batchId && sourceBatch.batchGroupId && entryBatch.batchId === sourceBatch.batchGroupId) return true
+  if (entryBatch.batchGroupId && sourceBatch.batchId && entryBatch.batchGroupId === sourceBatch.batchId) return true
+  if (entryBatch.batchGroupId && sourceBatch.batchGroupId && entryBatch.batchGroupId === sourceBatch.batchGroupId) return true
+
+  if (hasExplicitBatchIdentity) return false
 
   const sameName = Boolean(entryBatch.batchName && sourceBatch.batchName && entryBatch.batchName === sourceBatch.batchName)
   const sameTiming = Boolean(entryBatch.batchTiming && sourceBatch.batchTiming && entryBatch.batchTiming === sourceBatch.batchTiming)
 
-  // A group can contain multiple batches, so never use it to match when the
-  // individual batch IDs identify different rows.
-  if (entryBatch.batchId && sourceBatch.batchId) {
-    return entryBatch.batchId === sourceBatch.batchId || sameName || (sameTiming && !entryBatch.batchName && !sourceBatch.batchName)
-  }
-
-  if (sameName) {
-    return !entryBatch.batchTiming || !sourceBatch.batchTiming || sameTiming
-  }
-
-  if (sameTiming) return true
-  return Boolean(entryBatch.batchGroupId && sourceBatch.batchGroupId && entryBatch.batchGroupId === sourceBatch.batchGroupId)
+  return sameName || sameTiming
 }
 
 function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
@@ -737,13 +734,18 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
       (!courseName || !studentCourseName || studentCourseName === courseName)
     if (!matchesCourse) return false
 
-    if (batchId || batchGroupId) {
-      const matchesBatchIdentity = (
-        (batchId && (studentBatchId === batchId || studentBatchGroupId === batchId)) ||
-        (batchGroupId && (studentBatchId === batchGroupId || studentBatchGroupId === batchGroupId))
-      )
+    const matchesBatchIdentity = (
+      (batchId && (studentBatchId === batchId || studentBatchGroupId === batchId)) ||
+      (batchGroupId && (studentBatchId === batchGroupId || studentBatchGroupId === batchGroupId))
+    )
 
-      if (matchesBatchIdentity) return true
+    if (matchesBatchIdentity) return true
+
+    // Some older student records do not store the batch ID. Keep those
+    // records usable through the unique batch name/timing fallback, while
+    // never falling back when a different explicit batch ID is present.
+    if ((batchId || batchGroupId) && (studentBatchId || studentBatchGroupId)) {
+      return false
     }
 
     return (batchName && studentBatchName === batchName) || (batchTiming && studentBatchTiming === batchTiming)
@@ -2188,16 +2190,42 @@ export function FacultyDashboardPage() {
         facultyBackfillRecords,
       )
       const progressValues = batchStudents.map((student) => {
-        const studentKey = normalizeWorkStudentId(student?.id || student?.studentId || '')
-        const workEntry = todayWorkEntriesByStudent.get(studentKey) || null
-        if (!workEntry) return 0
+        const storedProgress = Number(
+          student?.courseProgress ??
+          student?.courseProgressPercentage ??
+          student?.progress ??
+          0,
+        )
+        const fallbackProgress = Number.isFinite(storedProgress)
+          ? Math.min(100, Math.max(0, storedProgress))
+          : 0
+
+        // Resolve work against the current batch row, not only the global
+        // student map. This keeps progress visible when old student records
+        // do not contain a batch ID.
+        const progressStudent = {
+          ...student,
+          batchId: batch?.batchId || batch?.id || student?.batchId || student?.batchEntryId || '',
+          batchGroupId: batch?.batchGroupId || student?.batchGroupId || '',
+          batchName: batch?.batchName || batch?.code || student?.batchName || student?.batch || '',
+          batchTiming: batch?.timing || batch?.batchTiming || student?.batchTiming || student?.batchTime || '',
+        }
+        const workEntry = getFacultyTodayWorkEntriesForStudent(
+          facultyTodayWorkEntries,
+          progressStudent,
+          selectedStudentsCourse?.id || selectedStudentsCourse?.courseId || '',
+        )[0] || null
+        if (!workEntry) return fallbackProgress
 
         const progressSummary = buildFacultyTodayWorkProgressSummary(
           facultyTodayWorkEntries,
           selectedStudentsCourse,
-          student,
+          progressStudent,
         )
-        return Number(progressSummary?.courseProgress) || 0
+        const calculatedProgress = Number(progressSummary?.courseProgress)
+        return Number.isFinite(calculatedProgress)
+          ? Math.min(100, Math.max(0, calculatedProgress))
+          : fallbackProgress
       })
       const averageProgress = progressValues.length
         ? progressValues.reduce((total, value) => total + value, 0) / progressValues.length
@@ -2213,7 +2241,6 @@ export function FacultyDashboardPage() {
     facultyTodayWorkEntries,
     selectedStudentsCourse,
     selectedStudentsCourseBatches,
-    todayWorkEntriesByStudent,
   ])
 
   const studentsFlowVisibleStudents = selectedStudentsBatch ? selectedBatchStudents : facultyScopedStudents
@@ -3877,13 +3904,13 @@ const nextName = trimmedValue
                                 <th style={{ width: '72px' }}>S.No</th>
                                 <th>Batch Name</th>
                                 <th>Students</th>
-                                <th>Module Percentage</th>
+                                {/* <th>Module Percentage</th> */}
                                 <th>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {selectedStudentsCourseBatches.map((batch, index) => {
-                                const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
+                                // const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
 
                                 return (
                                 <tr
@@ -3903,6 +3930,7 @@ const nextName = trimmedValue
                                   <td>{index + 1}</td>
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
                                   <td>{batch.students}</td>
+                                  {/*
                                   <td>
                                     <div className="faculty-batch-progress-cell">
                                       <div className="faculty-batch-progress-bar" aria-hidden="true">
@@ -3911,6 +3939,7 @@ const nextName = trimmedValue
                                       <strong>{batchProgress}% Complete</strong>
                                     </div>
                                   </td>
+                                  */}
                                   <td>
                                     <button
                                       type="button"
