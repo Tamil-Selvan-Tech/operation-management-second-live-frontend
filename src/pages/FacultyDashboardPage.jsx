@@ -62,7 +62,7 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import { BRANCH_STUDENTS_KEY, loadBranchStudents, saveBranchStudent } from '../lib/branchStudentStore'
+import { BRANCH_STUDENTS_KEY, loadBranchStudents } from '../lib/branchStudentStore'
 import {
   loadNotifications as loadStoredNotifications,
   addNotification,
@@ -407,6 +407,10 @@ function doesWorkEntryMatchBatch(entry = {}, source = {}) {
   if (entryBatch.batchGroupId && sourceBatch.batchId && entryBatch.batchGroupId === sourceBatch.batchId) return true
   if (entryBatch.batchGroupId && sourceBatch.batchGroupId && entryBatch.batchGroupId === sourceBatch.batchGroupId) return true
 
+  // Older work entries do not contain batch columns. Their studentIds are the
+  // batch scope, so do not reject them only because batch metadata is absent.
+  if (!entryBatch.batchId && !entryBatch.batchGroupId) return true
+
   if (hasExplicitBatchIdentity) return false
 
   const sameName = Boolean(entryBatch.batchName && sourceBatch.batchName && entryBatch.batchName === sourceBatch.batchName)
@@ -428,7 +432,11 @@ function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
   )
   const entryCourseName = normalizeWorkStudentId(entry.courseName || '')
 
-  const isTargetedStudent = applyToAllStudents || (studentId && entryStudentIds.includes(studentId))
+  // Even apply-to-all entries contain the exact students visible in the
+  // selected batch. Prefer those IDs to avoid crossing batches.
+  const isTargetedStudent = entryStudentIds.length
+    ? Boolean(studentId && entryStudentIds.includes(studentId))
+    : applyToAllStudents
   if (!isTargetedStudent) return false
 
   if (
@@ -460,11 +468,25 @@ function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, course
   })
 }
 
-function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentity = {}, courseId = '', moduleId = '', batch = null) {
+function getCompletedTodayWorkSubmoduleIdsForModule(
+  entries = [],
+  facultyIdentity = {},
+  courseId = '',
+  moduleId = '',
+  batch = null,
+  currentSubmodules = [],
+) {
   const normalizedCourseId = normalizeWorkStudentId(courseId)
   const normalizedModuleId = normalizeWorkStudentId(moduleId)
   const facultyId = normalizeWorkStudentId(facultyIdentity?.facultyId || '')
   const facultyEmail = normalizeWorkStudentId(facultyIdentity?.facultyEmail || '')
+  const validSubmoduleIds = new Set(
+    (Array.isArray(currentSubmodules) ? currentSubmodules : [])
+      .map((submodule, submoduleIndex) => normalizeWorkStudentId(
+        submodule?.id || submodule?.submoduleId || `submodule-${submoduleIndex}`,
+      ))
+      .filter(Boolean),
+  )
 
   const matchingEntries = (Array.isArray(entries) ? entries : []).filter((entry) => {
     const entryFacultyId = normalizeWorkStudentId(entry?.facultyId || entry?.facultyProfileId || entry?.facultyUserId || '')
@@ -484,7 +506,10 @@ function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentit
 
   return Array.from(
     new Set(
-      matchingEntries.flatMap((entry) => getWorkEntrySubmoduleIds(entry)),
+      matchingEntries
+        .flatMap((entry) => getWorkEntrySubmoduleIds(entry))
+        .map((submoduleId) => normalizeWorkStudentId(submoduleId))
+        .filter((submoduleId) => submoduleId && validSubmoduleIds.has(submoduleId)),
     ),
   )
 }
@@ -505,20 +530,35 @@ function buildFacultyTodayWorkProgressSummary(entries = [], course = {}, student
   )[0] || null
 
   const moduleCompletionMap = new Map()
+  const moduleSubmoduleIdMap = new Map()
   modules.forEach((module, moduleIndex) => {
     const moduleId = String(module?.id || `module-${moduleIndex}`).trim()
     if (!moduleId) return
     moduleCompletionMap.set(moduleId, new Set())
+    moduleSubmoduleIdMap.set(
+      moduleId,
+      new Set(
+        getCourseSubmodules(module)
+          .map((submodule, submoduleIndex) => String(
+            submodule?.id || submodule?.submoduleId || `submodule-${submoduleIndex}`,
+          ).trim())
+          .filter(Boolean),
+      ),
+    )
   })
 
   matchingEntries.forEach((entry) => {
     const entryModuleId = String(entry?.moduleId || '').trim()
     if (!entryModuleId) return
     const submoduleSet = moduleCompletionMap.get(entryModuleId)
+    const validSubmoduleIds = moduleSubmoduleIdMap.get(entryModuleId)
     if (!submoduleSet) return
 
     getWorkEntrySubmoduleIds(entry).forEach((submoduleId) => {
-      submoduleSet.add(submoduleId)
+      const normalizedSubmoduleId = String(submoduleId || '').trim()
+      if (normalizedSubmoduleId && validSubmoduleIds?.has(normalizedSubmoduleId)) {
+        submoduleSet.add(normalizedSubmoduleId)
+      }
     })
   })
 
@@ -2190,16 +2230,6 @@ export function FacultyDashboardPage() {
         facultyBackfillRecords,
       )
       const progressValues = batchStudents.map((student) => {
-        const storedProgress = Number(
-          student?.courseProgress ??
-          student?.courseProgressPercentage ??
-          student?.progress ??
-          0,
-        )
-        const fallbackProgress = Number.isFinite(storedProgress)
-          ? Math.min(100, Math.max(0, storedProgress))
-          : 0
-
         // Resolve work against the current batch row, not only the global
         // student map. This keeps progress visible when old student records
         // do not contain a batch ID.
@@ -2215,7 +2245,10 @@ export function FacultyDashboardPage() {
           progressStudent,
           selectedStudentsCourse?.id || selectedStudentsCourse?.courseId || '',
         )[0] || null
-        if (!workEntry) return fallbackProgress
+        // Today Work API is the source of truth for faculty progress. A stale
+        // value on the student record must not appear as completed work when
+        // no matching database entry exists for this batch and course.
+        if (!workEntry) return 0
 
         const progressSummary = buildFacultyTodayWorkProgressSummary(
           facultyTodayWorkEntries,
@@ -2225,7 +2258,7 @@ export function FacultyDashboardPage() {
         const calculatedProgress = Number(progressSummary?.courseProgress)
         return Number.isFinite(calculatedProgress)
           ? Math.min(100, Math.max(0, calculatedProgress))
-          : fallbackProgress
+          : 0
       })
       const averageProgress = progressValues.length
         ? progressValues.reduce((total, value) => total + value, 0) / progressValues.length
@@ -2348,6 +2381,7 @@ export function FacultyDashboardPage() {
         todayWorkCourse?.id || '',
         todayWorkSelectedModule?.id || '',
         selectedStudentsBatch,
+        todayWorkSelectedModuleSubmodules,
       ),
     [
       currentFacultyIdentity.facultyEmail,
@@ -2453,6 +2487,7 @@ export function FacultyDashboardPage() {
       todayWorkCourse?.id || '',
       normalizedModuleId,
       selectedStudentsBatch,
+      nextSubmodules,
     )
     const pendingSubmoduleIds = nextSubmodules
       .map((submodule, index) =>
@@ -2601,6 +2636,7 @@ export function FacultyDashboardPage() {
       })
 
       const nextWorkEntries = [...facultyTodayWorkEntries, savedEntry].filter(Boolean)
+      setTodayWorkEntries(nextWorkEntries)
       const progressUpdates = selectedStudents
         .map((student) => {
           const progressSummary = buildFacultyTodayWorkProgressSummary(nextWorkEntries, todayWorkCourse || {}, student)
@@ -2618,13 +2654,30 @@ export function FacultyDashboardPage() {
         .filter(Boolean)
 
       if (progressUpdates.length) {
-        await Promise.allSettled(progressUpdates.map((student) => saveBranchStudent(student)))
+        const progressByStudentKey = new Map()
+        progressUpdates.forEach((student) => {
+          const studentKey = String(student.id || student.studentId || '').trim()
+          if (studentKey) progressByStudentKey.set(studentKey, student.courseProgress)
+        })
+
+        setStudents((currentStudents) => currentStudents.map((student) => {
+          const keys = [student.id, student.studentId]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean)
+          const matchingProgress = keys
+            .map((key) => progressByStudentKey.get(key))
+            .find((value) => value !== undefined)
+
+          return matchingProgress === undefined
+            ? student
+            : { ...student, courseProgress: matchingProgress }
+        }))
       }
 
       closeTodayWorkModal()
     } catch (error) {
       console.error('Failed to save today work entry', error)
-      setTodayWorkError('Unable to save work right now.')
+      setTodayWorkError(error?.message || 'Unable to save work right now.')
     } finally {
       setIsTodayWorkSaving(false)
     }
@@ -4034,7 +4087,10 @@ const nextName = trimmedValue
                                 // const workModuleProgressLabel = workProgressSummary
                                 //   ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
                                 //   : '-'
-                                const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
+                                const workCourseProgress = Number.isFinite(Number(workProgress?.courseProgress))
+                                  ? Math.min(100, Math.max(0, Number(workProgress.courseProgress)))
+                                  : 0
+                                const workCourseProgressLabel = `${Math.round(workCourseProgress)}% Complete`
 
                                 return (
                                   <tr
@@ -4083,23 +4139,19 @@ const nextName = trimmedValue
                                     </td>
                                     {/* Module Progress column temporarily hidden. */}
                                     <td>
-                                      {workEntry ? (
-                                        <div className="branch-student-paid-cell faculty-today-work-summary">
-                                          <div className="branch-student-paid-progress">
-                                            <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
-                                              <span
-                                                className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
-                                                style={{ width: `${workProgress?.courseProgress || 0}%` }}
-                                              />
-                                            </div>
-                                            <span className="branch-student-paid-progress-label">
-                                              {workCourseProgressLabel}
-                                            </span>
+                                      <div className="branch-student-paid-cell faculty-today-work-summary">
+                                        <div className="branch-student-paid-progress">
+                                          <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
+                                            <span
+                                              className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
+                                              style={{ width: `${workCourseProgress}%` }}
+                                            />
                                           </div>
+                                          <span className="branch-student-paid-progress-label">
+                                            {workCourseProgressLabel}
+                                          </span>
                                         </div>
-                                      ) : (
-                                        <span className="faculty-today-work-empty-label">-</span>
-                                      )}
+                                      </div>
                                     </td>
                                     <td>
                                       <button
