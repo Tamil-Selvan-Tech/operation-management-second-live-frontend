@@ -650,6 +650,81 @@ function computeBranchStudentPaymentSummary(stu = {}) {
   }
 }
 
+function getDashboardInstallments(student = {}) {
+  if (Array.isArray(student.installmentSchedule) && student.installmentSchedule.length) {
+    return student.installmentSchedule
+  }
+
+  const legacyInstallments = [
+    ['firstInstallmentAmount', 'firstInstallmentDate', 'firstInstallmentStatus', 'firstInstallmentPaidAt'],
+    ['secondInstallmentAmount', 'secondDueDate', 'secondInstallmentStatus', 'secondInstallmentPaidAt'],
+    ['thirdInstallmentAmount', 'thirdDueDate', 'thirdInstallmentStatus', 'thirdInstallmentPaidAt'],
+    ['fourthInstallmentAmount', 'fourthDueDate', 'fourthInstallmentStatus', 'fourthInstallmentPaidAt'],
+  ]
+
+  return legacyInstallments.reduce((items, [amountKey, dateKey, statusKey, paidAtKey], index) => {
+    const amount = Number(student[amountKey] ?? 0)
+    const dueDate = student[dateKey] || ''
+    const status = String(student[statusKey] || '').trim().toLowerCase()
+    if (!amount && !dueDate && !status) return items
+
+    items.push({
+      installmentNumber: index + 1,
+      amount,
+      dueDate,
+      paidAmount: status === 'paid' ? amount : Number(student[`${amountKey}Paid`] ?? 0),
+      paymentDate: student[paidAtKey] || '',
+      status,
+    })
+    return items
+  }, [])
+}
+
+function getDashboardDateValue(value) {
+  if (!value) return ''
+  const dateText = String(value).trim()
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateText)) return dateText.slice(0, 10)
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return getLocalDateValue(date)
+}
+
+function isSuccessfulDashboardPayment(payment = {}) {
+  const status = String(
+    payment.status ?? payment.paymentStatus ?? payment.paymentState ?? payment.transactionStatus ?? '',
+  ).trim().toLowerCase()
+
+  if (!status) return Number(payment.amount || 0) > 0
+
+  return ['success', 'successful', 'paid', 'completed', 'complete', 'cleared', 'approved', 'settled'].includes(status)
+}
+
+function getDashboardPaymentMoment(value) {
+  const dateValue = getDashboardDateValue(value)
+  const today = getDashboardDateValue(new Date())
+  const yesterdayDate = new Date()
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+  const yesterday = getDashboardDateValue(yesterdayDate)
+  const time = value ? new Date(value).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''
+
+  if (dateValue === today) return `Today, ${time}`
+  if (dateValue === yesterday) return `Yesterday, ${time}`
+  return value ? `${new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}, ${time}` : 'Payment date unavailable'
+}
+
+function getDashboardDueMeta(value) {
+  const dueDate = getDashboardDateValue(value)
+  const today = getDashboardDateValue(new Date())
+  const tomorrowDate = new Date()
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrow = getDashboardDateValue(tomorrowDate)
+
+  if (dueDate < today) return { label: 'Overdue', tone: 'overdue' }
+  if (dueDate === today) return { label: 'Due Today', tone: 'today' }
+  if (dueDate === tomorrow) return { label: 'Due Tomorrow', tone: 'tomorrow' }
+  return { label: 'Due Soon', tone: 'soon' }
+}
+
 function getBranchStudentInstallmentProgress(stu = {}) {
   const installments = Array.isArray(stu.installmentSchedule)
     ? stu.installmentSchedule
@@ -2746,6 +2821,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   // ── Student state ──
   const [branchStudents, setBranchStudents] = useState([])
+  const [dashboardCourseFilter, setDashboardCourseFilter] = useState('all')
+  const [dashboardBatchFilter, setDashboardBatchFilter] = useState('all')
+  const [dashboardDateFrom, setDashboardDateFrom] = useState('')
+  const [dashboardDateTo, setDashboardDateTo] = useState('')
+  const [dashboardCourseDraft, setDashboardCourseDraft] = useState('all')
+  const [dashboardBatchDraft, setDashboardBatchDraft] = useState('all')
+  const [dashboardDateFromDraft, setDashboardDateFromDraft] = useState('')
+  const [dashboardDateToDraft, setDashboardDateToDraft] = useState('')
+  const [dashboardTrendMode, setDashboardTrendMode] = useState('daily')
   const [studentSearchTerm, setStudentSearchTerm] = useState('')
   const [studentPage, setStudentPage] = useState(1)
   const [isStudentFormOpen, setIsStudentFormOpen] = useState(false)
@@ -3839,18 +3923,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   )
   const branchNotificationTotalCount = branchNotificationItems.length
   const totalBranchStudents = branchStudents.length
-  const overviewStats = useMemo(
-    () => [
-      { label: 'Total Students', value: String(totalBranchStudents), note: 'Active learners this month' },
-      {
-        label: 'Total Courses',
-        value: String(branchCourseCards.length),
-        note: 'Published course catalog',
-      },
-    ],
-    [branchCourseCards.length, totalBranchStudents],
-  )
-
   const openResetPassword = () => {
     setIsProfileMenuOpen(false)
     navigate('/reset-password?branchReset=1')
@@ -5894,6 +5966,136 @@ const studentCourseOptions = useMemo(() => {
     return Array.from(records.values()).sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
   }, [branchStudents, storedPaymentHistoryRecords])
 
+  const dashboardFilterOptions = useMemo(() => ({
+    courses: [...new Map(branchStudents.map((student) => {
+      const id = String(student.courseId || student.courseName || student.courseInterested || '').trim()
+      return [id, { id, label: student.courseName || student.courseInterested || id }]
+    }).filter(([id]) => id)).values()],
+    batches: [...new Map(branchStudents.map((student) => {
+      const id = String(student.batchId || student.batchName || student.batch || '').trim()
+      return [id, { id, label: student.batchName || student.batch || id }]
+    }).filter(([id]) => id)).values()],
+  }), [branchStudents])
+
+  const dashboardData = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayValue = getDashboardDateValue(today)
+    const weekEnd = new Date(today)
+    weekEnd.setDate(weekEnd.getDate() + (7 - ((today.getDay() + 6) % 7) - 1))
+    const from = dashboardDateFrom || ''
+    const to = dashboardDateTo || ''
+    const inSelectedDateRange = (value) => {
+      const dateValue = getDashboardDateValue(value)
+      return (!from || (dateValue && dateValue >= from)) && (!to || (dateValue && dateValue <= to))
+    }
+    const matchesStudentFilters = (student) => {
+      const course = String(student.courseId || student.courseName || student.courseInterested || '').trim()
+      const batch = String(student.batchId || student.batchName || student.batch || '').trim()
+      const status = String(student.status || '').trim().toLowerCase()
+      const isCountableStudent = !['inactive', 'deleted', 'rejected', 'withdrawn'].includes(status)
+      return (dashboardCourseFilter === 'all' || course === dashboardCourseFilter) &&
+        (dashboardBatchFilter === 'all' || batch === dashboardBatchFilter) &&
+        isCountableStudent &&
+        inSelectedDateRange(student.admissionDate || student.createdAt)
+    }
+
+    const students = branchStudents.filter(matchesStudentFilters)
+    const studentIds = new Set(students.flatMap((student) => [student.id, student.studentId].map((id) => String(id || '').trim()).filter(Boolean)))
+    const payments = allPaymentHistoryRecords.filter((payment) => {
+      const paymentStudentId = String(payment.studentId || '').trim()
+      return isSuccessfulDashboardPayment(payment) &&
+        studentIds.has(paymentStudentId) &&
+        inSelectedDateRange(payment.dateRaw || payment.paymentDate)
+    })
+
+    const rows = students.map((student) => {
+      const installments = getDashboardInstallments(student)
+      const totalFee = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
+      const paidFromInstallments = installments.reduce((sum, installment) => sum + Number(installment.paidAmount ?? installment.amountPaid ?? 0), 0)
+      const paidAmount = installments.length ? paidFromInstallments : Number(student.paidAmount ?? student.totalPaid ?? student.amountPaid ?? 0)
+      return { student, installments, totalFee, paidAmount, outstanding: Math.max(totalFee - paidAmount, 0) }
+    })
+    const dueItems = rows.flatMap(({ student, installments }) => installments.map((installment) => ({
+      ...installment,
+      student,
+      amount: Number(installment.amount ?? installment.installmentAmount ?? 0),
+      paidAmount: Number(installment.paidAmount ?? installment.amountPaid ?? 0),
+      dueDate: installment.dueDate || installment.date || '',
+    }))).filter((item) => item.amount > item.paidAmount && item.dueDate)
+    const dueToday = dueItems.filter((item) => getDashboardDateValue(item.dueDate) === todayValue)
+    const dueThisWeek = dueItems.filter((item) => {
+      const value = getDashboardDateValue(item.dueDate)
+      return value >= todayValue && value <= getDashboardDateValue(weekEnd)
+    })
+    const dueSoon = dueThisWeek.filter((item) => getDashboardDateValue(item.dueDate) > todayValue)
+    const overdue = dueItems.filter((item) => getDashboardDateValue(item.dueDate) < todayValue)
+    const totalFee = rows.reduce((sum, row) => sum + row.totalFee, 0)
+    const totalCollected = rows.reduce((sum, row) => sum + row.paidAmount, 0)
+    const startOfWeek = (date) => {
+      const start = new Date(date)
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+      return start
+    }
+    const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1)
+    const addDays = (date, days) => {
+      const next = new Date(date)
+      next.setDate(next.getDate() + days)
+      return next
+    }
+    const periodMatchesPayment = (payment, start, end) => {
+      const paymentDate = getDashboardDateValue(payment.dateRaw || payment.paymentDate)
+      return paymentDate >= getDashboardDateValue(start) && paymentDate <= getDashboardDateValue(end)
+    }
+    let periods = []
+
+    if (dashboardTrendMode === 'weekly') {
+      const currentWeekStart = startOfWeek(today)
+      periods = Array.from({ length: 4 }, (_, index) => {
+        const start = addDays(currentWeekStart, -(3 - index) * 7)
+        const end = addDays(start, 6)
+        return { start, end, label: `Week ${index + 1}` }
+      })
+    } else if (dashboardTrendMode === 'monthly') {
+      const currentMonth = startOfMonth(today)
+      periods = Array.from({ length: 6 }, (_, index) => {
+        const start = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - (5 - index), 1)
+        const end = new Date(start.getFullYear(), start.getMonth() + 1, 0)
+        return { start, end, label: start.toLocaleDateString('en-IN', { month: 'short' }) }
+      })
+    } else {
+      periods = Array.from({ length: 7 }, (_, index) => {
+        const date = addDays(today, -(6 - index))
+        return { start: date, end: date, label: date.toLocaleDateString('en-IN', { weekday: 'short' }) }
+      })
+    }
+
+    const trend = periods.map(({ start, end, label }) => ({
+      label,
+      value: payments
+        .filter((payment) => periodMatchesPayment(payment, start, end))
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
+    }))
+    const trendMax = Math.max(...trend.map((item) => item.value), 0)
+
+    return {
+      students,
+      payments,
+      rows,
+      totalFee,
+      totalCollected,
+      outstanding: Math.max(totalFee - totalCollected, 0),
+      collectionPercentage: totalFee ? Math.min(100, (totalCollected / totalFee) * 100) : 0,
+      dueToday,
+      dueThisWeek,
+      dueSoon,
+      overdue,
+      trend,
+      trendMax,
+      statusValues: [totalCollected, Math.max(totalFee - totalCollected - overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0), 0), overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)],
+    }
+  }, [allPaymentHistoryRecords, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardTrendMode])
+
   const paymentModeFilterOptions = useMemo(() => {
     const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque', 'Installment']
     const uniqueModes = new Set(presetModes)
@@ -6968,7 +7170,7 @@ useEffect(() => {
                 <>
                   <div className="branch-dashboard-overview-intro">
                     <h1>Dashboard</h1>
-                    <p>Welcome back! Here&apos;s an overview of your operations and today&apos;s activities.</p>
+                    <p>{branchTitle} collection and fee overview</p>
                   </div>
 
                   {!embeddedMode && mustResetPassword ? (
@@ -6986,14 +7188,88 @@ useEffect(() => {
                   ) : null}
                 
 
-                  <div className="branch-dashboard-stats" data-layout="overview-payments-summary" style={{ marginBottom: '20px' }}>
-                    {overviewStats.map((stat) => (
-                      <article key={stat.label} className="branch-dashboard-stat-card">
-                        <span>{stat.label}</span>
-                        <strong>{stat.value}</strong>
-                        <small>{stat.note}</small>
-                      </article>
-                    ))}
+                  <div className="branch-dashboard-filter-bar">
+                    <label><span>Course</span><select value={dashboardCourseDraft} onChange={(event) => setDashboardCourseDraft(event.target.value)} aria-label="Filter by course">
+                      <option value="all">All Courses</option>
+                      {dashboardFilterOptions.courses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                    </select></label>
+                    <label><span>Batch</span><select value={dashboardBatchDraft} onChange={(event) => setDashboardBatchDraft(event.target.value)} aria-label="Filter by batch">
+                      <option value="all">All Batches</option>
+                      {dashboardFilterOptions.batches.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                    </select></label>
+                    <label><span>From</span><input type="date" value={dashboardDateFromDraft} onChange={(event) => setDashboardDateFromDraft(event.target.value)} /></label>
+                    <label><span>To</span><input type="date" value={dashboardDateToDraft} onChange={(event) => setDashboardDateToDraft(event.target.value)} /></label>
+                    <button type="button" className="dashboard-filter-apply" onClick={() => { setDashboardCourseFilter(dashboardCourseDraft); setDashboardBatchFilter(dashboardBatchDraft); setDashboardDateFrom(dashboardDateFromDraft); setDashboardDateTo(dashboardDateToDraft) }}>Apply</button>
+                    <button type="button" className="dashboard-filter-reset" onClick={() => { setDashboardCourseDraft('all'); setDashboardBatchDraft('all'); setDashboardDateFromDraft(''); setDashboardDateToDraft(''); setDashboardCourseFilter('all'); setDashboardBatchFilter('all'); setDashboardDateFrom(''); setDashboardDateTo('') }}>Reset</button>
+                  </div>
+
+                  <div className="branch-dashboard-stats branch-dashboard-finance-stats">
+                    {[
+                      ['Total Students', dashboardData.students.length, 'Active students'],
+                      ['Total Fee Value', formatBranchRupees(dashboardData.totalFee), 'Agreed fee value'],
+                      ['Total Collected', formatBranchRupees(dashboardData.totalCollected), 'Successful payments'],
+                      ['Outstanding', formatBranchRupees(dashboardData.outstanding), 'Payable balance'],
+                      ['Due Today', `${formatBranchRupees(dashboardData.dueToday.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueToday.length}`, 'Amount · installments'],
+                      ['Due This Week', `${formatBranchRupees(dashboardData.dueThisWeek.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueThisWeek.length}`, 'Amount · installments'],
+                      ['Overdue Amount', `${formatBranchRupees(dashboardData.overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.overdue.length}`, 'Amount · installments'],
+                      ['Collection %', `${formatBranchPercentage(dashboardData.collectionPercentage)}%`, 'Collected / total fee'],
+                    ].map(([label, value, note], index) => {
+                      const CardIcon = [Users, Wallet, IndianRupee, Wallet, CalendarDays, CalendarDays, Clock3, BadgePercent][index]
+                      return (
+                        <article key={label} className="branch-dashboard-stat-card">
+                          <div className="branch-dashboard-stat-card-head">
+                            <span className="branch-dashboard-stat-card-icon"><CardIcon size={14} strokeWidth={2.3} /></span>
+                            <span>{label}</span>
+                          </div>
+                          <strong>{value}</strong>
+                          <div className="branch-dashboard-stat-card-footer"><small>{note}</small></div>
+                        </article>
+                      )
+                    })}
+                  </div>
+
+                  {/* <div className="branch-dashboard-quick-links">
+                    <strong>Quick Links</strong>
+                    <button type="button" onClick={() => { setRecordPaymentStudent({}); goToBranchSection('payments') }}>Record Payment</button>
+                    <button type="button" onClick={() => goToBranchSection('payments')}>Due List</button>
+                    <button type="button" onClick={() => { setPaymentStatusFilter('overdue'); goToBranchSection('payments') }}>Overdue List</button>
+                    <button type="button" onClick={openAddStudentForm}>Add Student</button>
+                  </div> */}
+
+                  <div className="branch-dashboard-analytics-grid">
+                    <section className="branch-dashboard-analytics-card">
+                      <div className="branch-dashboard-analytics-heading"><div><span>Collection Trend</span><h2>Payment collections</h2></div><div className="dashboard-trend-switcher">{['daily', 'weekly', 'monthly'].map((mode) => <button key={mode} type="button" className={dashboardTrendMode === mode ? 'is-active' : ''} onClick={() => setDashboardTrendMode(mode)}>{mode}</button>)}</div></div>
+                      <div className="dashboard-trend-chart-shell">
+                        <div className="dashboard-trend-y-axis" aria-hidden="true"><span>{formatBranchRupees(dashboardData.trendMax)}</span><span>₹0</span></div>
+                        <div className="dashboard-trend-chart" aria-label={`${dashboardTrendMode} collection trend chart`}>
+                          {dashboardData.trend.map((item) => <div className="dashboard-trend-column" key={`${item.label}-${item.value}`} data-tooltip-label={item.label} data-tooltip-amount={formatBranchRupees(item.value)}><span style={{ height: `${dashboardData.trendMax ? Math.max(3, (item.value / dashboardData.trendMax) * 100) : 3}%` }} /><small>{item.label}</small></div>)}
+                        </div>
+                      </div>
+                    </section>
+                    <section className="branch-dashboard-analytics-card dashboard-fee-status-card">
+                      <div className="branch-dashboard-analytics-heading"><div><span>Fee Status</span><h2>Collection breakdown</h2></div></div>
+                      <div className="dashboard-donut-wrap"><div className="dashboard-donut" style={{ background: `conic-gradient(#16a34a 0 ${dashboardData.totalFee ? (dashboardData.statusValues[0] / dashboardData.totalFee) * 360 : 0}deg, #f59e0b 0 ${dashboardData.totalFee ? ((dashboardData.statusValues[0] + dashboardData.statusValues[1]) / dashboardData.totalFee) * 360 : 0}deg, #ef4444 0 360deg)` }}><div>{formatBranchPercentage(dashboardData.collectionPercentage)}<small>% collected</small></div></div><div className="dashboard-donut-legend"><span><i className="is-collected" />Collected <b>{formatBranchRupees(dashboardData.statusValues[0])}</b></span><span><i className="is-pending" />Outstanding <b>{formatBranchRupees(dashboardData.statusValues[1])}</b></span><span><i className="is-overdue" />Overdue <b>{formatBranchRupees(dashboardData.statusValues[2])}</b></span></div></div>
+                    </section>
+                  </div>
+
+                  <div className="branch-dashboard-dashboard-table-grid">
+                    <section className="branch-dashboard-analytics-card dashboard-list-card dashboard-reference-payment-card">
+                      <div className="branch-dashboard-analytics-heading"><div><span>Recent Payments</span><h2>Latest collections</h2></div><button type="button" onClick={() => goToBranchSection('payments')}>View all</button></div>
+                      <div className="dashboard-mini-table">
+                        {dashboardData.payments.slice(0, 5).map((payment, index) => <div className="dashboard-payment-row" key={`reference-${payment.id}`}><span className={`dashboard-row-avatar avatar-tone-${index % 4}`}>{String(payment.studentName || '?').trim().charAt(0).toUpperCase()}</span><div className="dashboard-row-copy"><strong>{payment.studentName}</strong><small>{payment.course} · {payment.payAgainst || 'Payment'}</small></div><div className="dashboard-row-amount"><b>{formatBranchRupees(payment.amount)}</b><small>{getDashboardPaymentMoment(payment.dateRaw || payment.paymentDate)}</small></div></div>)}
+                        {!dashboardData.payments.length ? <p className="dashboard-empty-state">No payments found for the selected filters.</p> : null}
+                      </div>
+                    </section>
+                    <section className="branch-dashboard-analytics-card dashboard-list-card dashboard-reference-due-card">
+                      <div className="branch-dashboard-analytics-heading"><div><span>Attention Needed</span><h2>Upcoming and overdue dues</h2></div><button type="button" onClick={() => goToBranchSection('students')}>Open list</button></div>
+                      <div className="dashboard-mini-table">
+                        {[...dashboardData.dueToday, ...dashboardData.dueSoon, ...dashboardData.overdue].sort((left, right) => getDashboardDateValue(left.dueDate).localeCompare(getDashboardDateValue(right.dueDate))).slice(0, 5).map((item) => { const dueMeta = getDashboardDueMeta(item.dueDate); return <div className="dashboard-due-row" key={`reference-${item.student.id}-${item.installmentNumber}-${item.dueDate}`}><div className="dashboard-row-copy"><strong>{item.student.studentName}</strong><small>{item.dueDate} · Installment {item.installmentNumber || '-'}</small></div><div className="dashboard-row-amount"><b>{formatBranchRupees(Math.max(item.amount - item.paidAmount, 0))}</b><span className={`dashboard-due-badge is-${dueMeta.tone}`}>{dueMeta.label}</span></div></div> })}
+                        {!dashboardData.dueToday.length && !dashboardData.dueSoon.length && !dashboardData.overdue.length ? <p className="dashboard-empty-state">No urgent dues found.</p> : null}
+                      </div>
+                      {/* {dashboardData.overdue.length ? <button type="button" className="dashboard-overdue-link" onClick={() => { setPaymentStatusFilter('overdue'); goToBranchSection('payments') }}>View all overdue <span>›</span></button> : null} */}
+                    </section>
+                    <section className="branch-dashboard-analytics-card"><div className="branch-dashboard-analytics-heading"><div><span>Recent Payments</span><h2>Latest collections</h2></div><button type="button" onClick={() => goToBranchSection('payments')}>View all</button></div><div className="dashboard-mini-table">{dashboardData.payments.slice(0, 5).map((payment) => <div className="dashboard-mini-row" key={payment.id}><div><strong>{payment.studentName}</strong><small>{payment.course} · {payment.payAgainst || 'Payment'}</small></div><b>{formatBranchRupees(payment.amount)}</b></div>)}{!dashboardData.payments.length ? <p className="dashboard-empty-state">No payments found for the selected filters.</p> : null}</div></section>
+                    <section className="branch-dashboard-analytics-card"><div className="branch-dashboard-analytics-heading"><div><span>Attention Needed</span><h2>Upcoming and overdue dues</h2></div><button type="button" onClick={() => goToBranchSection('students')}>Open list</button></div><div className="dashboard-mini-table">{[...dashboardData.overdue, ...dashboardData.dueToday].slice(0, 5).map((item) => <div className="dashboard-mini-row" key={`${item.student.id}-${item.installmentNumber}-${item.dueDate}`}><div><strong>{item.student.studentName}</strong><small>{item.dueDate} · Installment {item.installmentNumber || '-'}</small></div><b>{formatBranchRupees(Math.max(item.amount - item.paidAmount, 0))}</b></div>)}{!dashboardData.overdue.length && !dashboardData.dueToday.length ? <p className="dashboard-empty-state">No urgent dues found.</p> : null}</div></section>
                   </div>
 
                 </>
