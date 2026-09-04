@@ -608,7 +608,7 @@ function getFacultyWorkProgressForEntry(entry = {}, course = {}, selectedSubmodu
   }
 }
 
-function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], facultyIdentity = {}, batch = null) {
+function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], facultyIdentity = {}, batch = null, visibleStudents = []) {
   const modules = getCourseModels(course)
   const normalizedCourseId = normalizeWorkStudentId(course?.id || course?.courseId || '')
   const facultyEntries = (Array.isArray(todayWorkEntries) ? todayWorkEntries : []).filter((entry) => {
@@ -622,9 +622,18 @@ function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], fa
       (facultyId && entryFacultyId && entryFacultyId === facultyId) ||
       (facultyEmail && entryFacultyEmail && entryFacultyEmail === facultyEmail)
 
+    const entryStudentIds = getWorkStudentIds(entry)
+    const visibleStudentIds = new Set(
+      (Array.isArray(visibleStudents) ? visibleStudents : [])
+        .flatMap((student) => [student?.id, student?.studentId])
+        .map(normalizeWorkStudentId)
+        .filter(Boolean),
+    )
+    const matchesVisibleStudent = entryStudentIds.some((studentId) => visibleStudentIds.has(studentId))
+
     return matchesFaculty &&
       (!normalizedCourseId || entryCourseId === normalizedCourseId) &&
-      (!batch || doesWorkEntryMatchBatch(entry, batch))
+      ((!batch || doesWorkEntryMatchBatch(entry, batch)) || matchesVisibleStudent)
   })
 
   const moduleCompletionMap = new Map()
@@ -2404,6 +2413,7 @@ export function FacultyDashboardPage() {
       facultyTodayWorkEntries,
       currentFacultyIdentity,
       selectedStudentsBatch,
+      studentsFlowVisibleStudents,
     )
     const firstModule = nextSelection.module || todayWorkCourseModules[0] || null
     const firstModuleId = String(nextSelection.moduleId || firstModule?.id || '').trim()
