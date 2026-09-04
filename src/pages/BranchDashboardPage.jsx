@@ -2794,6 +2794,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [stuCityOptions, setStuCityOptions] = useState([])
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [processingBranchNotificationId, setProcessingBranchNotificationId] = useState('')
+  const [processingBranchNotificationAction, setProcessingBranchNotificationAction] = useState('')
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
   const [branchNotificationMonthFilter, setBranchNotificationMonthFilter] = useState(() => {
@@ -3952,6 +3953,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     if (processingBranchNotificationId === notificationId) return
 
     setProcessingBranchNotificationId(notificationId)
+    setProcessingBranchNotificationAction('accept')
     let requestId = ''
 
     try {
@@ -3992,6 +3994,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       console.error('Failed to accept course edit request:', error)
     } finally {
       setProcessingBranchNotificationId('')
+      setProcessingBranchNotificationAction('')
     }
   }
 
@@ -4000,6 +4003,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     if (processingBranchNotificationId === notificationId) return
 
     setProcessingBranchNotificationId(notificationId)
+    setProcessingBranchNotificationAction('reject')
     let requestId = ''
 
     try {
@@ -4039,6 +4043,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       console.error('Failed to reject course edit request:', error)
     } finally {
       setProcessingBranchNotificationId('')
+      setProcessingBranchNotificationAction('')
     }
   }
 
@@ -6803,6 +6808,7 @@ useEffect(() => {
                       const isRespondableCourseEditRequest =
                         isCourseEditRequest && requestStatus !== 'accepted' && requestStatus !== 'rejected'
                       const isProcessing = processingBranchNotificationId === String(item.id || item.requestId || '').trim()
+                      const processingAction = isProcessing ? processingBranchNotificationAction : ''
 
                       return (
                         <article
@@ -6836,7 +6842,7 @@ useEffect(() => {
                                     void rejectBranchCourseEditNotification(item)
                                   }}
                                 >
-                                  {isProcessing ? 'Rejecting...' : 'Reject'}
+                                  {processingAction === 'reject' ? 'Rejecting...' : 'Reject'}
                                 </button>
                                 <button
                                   type="button"
@@ -6850,7 +6856,7 @@ useEffect(() => {
                                     void acceptBranchCourseEditNotification(item)
                                   }}
                                 >
-                                  {isProcessing ? 'Accepting...' : 'Accept'}
+                                  {processingAction === 'accept' ? 'Accepting...' : 'Accept'}
                                 </button>
                               </>
                             ) : null}
