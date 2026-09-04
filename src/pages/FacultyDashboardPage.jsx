@@ -3904,13 +3904,13 @@ const nextName = trimmedValue
                                 <th style={{ width: '72px' }}>S.No</th>
                                 <th>Batch Name</th>
                                 <th>Students</th>
-                                <th>Module Percentage</th>
+                                {/* <th>Module Percentage</th> */}
                                 <th>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {selectedStudentsCourseBatches.map((batch, index) => {
-                                const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
+                                // const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
 
                                 return (
                                 <tr
@@ -3930,6 +3930,7 @@ const nextName = trimmedValue
                                   <td>{index + 1}</td>
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
                                   <td>{batch.students}</td>
+                                  {/*
                                   <td>
                                     <div className="faculty-batch-progress-cell">
                                       <div className="faculty-batch-progress-bar" aria-hidden="true">
@@ -3938,6 +3939,7 @@ const nextName = trimmedValue
                                       <strong>{batchProgress}% Complete</strong>
                                     </div>
                                   </td>
+                                  */}
                                   <td>
                                     <button
                                       type="button"
