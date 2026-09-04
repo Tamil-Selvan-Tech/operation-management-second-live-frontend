@@ -463,7 +463,7 @@ function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, course
   })
 }
 
-function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentity = {}, courseId = '', moduleId = '', batch = null) {
+function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentity = {}, courseId = '', moduleId = '', batch = null, visibleStudents = []) {
   const normalizedCourseId = normalizeWorkStudentId(courseId)
   const normalizedModuleId = normalizeWorkStudentId(moduleId)
   const facultyId = normalizeWorkStudentId(facultyIdentity?.facultyId || '')
@@ -479,10 +479,19 @@ function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentit
       (facultyId && entryFacultyId && entryFacultyId === facultyId) ||
       (facultyEmail && entryFacultyEmail && entryFacultyEmail === facultyEmail)
 
+    const entryStudentIds = getWorkStudentIds(entry)
+    const visibleStudentIds = new Set(
+      (Array.isArray(visibleStudents) ? visibleStudents : [])
+        .flatMap((student) => [student?.id, student?.studentId])
+        .map(normalizeWorkStudentId)
+        .filter(Boolean),
+    )
+    const matchesVisibleStudent = entryStudentIds.some((studentId) => visibleStudentIds.has(studentId))
+
     return matchesFaculty &&
       entryCourseId === normalizedCourseId &&
       entryModuleId === normalizedModuleId &&
-      (!batch || doesWorkEntryMatchBatch(entry, batch))
+      ((!batch || doesWorkEntryMatchBatch(entry, batch)) || matchesVisibleStudent)
   })
 
   return Array.from(
@@ -2331,12 +2340,14 @@ export function FacultyDashboardPage() {
         todayWorkCourse?.id || '',
         todayWorkSelectedModule?.id || '',
         selectedStudentsBatch,
+        studentsFlowVisibleStudents,
       ),
     [
       currentFacultyIdentity.facultyEmail,
       currentFacultyIdentity.facultyId,
       facultyTodayWorkEntries,
       selectedStudentsBatch,
+      studentsFlowVisibleStudents,
       todayWorkCourse?.id,
       todayWorkSelectedModule?.id,
     ],
@@ -2436,6 +2447,7 @@ export function FacultyDashboardPage() {
       todayWorkCourse?.id || '',
       normalizedModuleId,
       selectedStudentsBatch,
+      studentsFlowVisibleStudents,
     )
     const pendingSubmoduleIds = nextSubmodules
       .map((submodule, index) =>

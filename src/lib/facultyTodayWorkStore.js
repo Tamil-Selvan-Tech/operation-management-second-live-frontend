@@ -36,11 +36,8 @@ export async function listFacultyTodayWorkEntries() {
   return extractEntries(response)
 }
 
-export function getFacultyTodayWorkEntriesByFaculty(
-  _facultyIdentity = {},
-  entries = [],
-) {
-  const sourceEntries = Array.isArray(entries) ? entries : []
+export function getFacultyTodayWorkEntriesByFaculty(...args) {
+  const sourceEntries = Array.isArray(args[1]) ? args[1] : []
   // The API list is already restricted to the authenticated faculty. Returning
   // all entries also preserves records written with older faculty IDs.
   return sourceEntries
