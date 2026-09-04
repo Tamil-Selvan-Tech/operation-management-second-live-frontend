@@ -464,20 +464,12 @@ function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, course
 }
 
 function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentity = {}, courseId = '', moduleId = '', batch = null, visibleStudents = []) {
+  void facultyIdentity
   const normalizedCourseId = normalizeWorkStudentId(courseId)
   const normalizedModuleId = normalizeWorkStudentId(moduleId)
-  const facultyId = normalizeWorkStudentId(facultyIdentity?.facultyId || '')
-  const facultyEmail = normalizeWorkStudentId(facultyIdentity?.facultyEmail || '')
-
   const matchingEntries = (Array.isArray(entries) ? entries : []).filter((entry) => {
-    const entryFacultyId = normalizeWorkStudentId(entry?.facultyId || entry?.facultyProfileId || entry?.facultyUserId || '')
-    const entryFacultyEmail = normalizeWorkStudentId(entry?.facultyEmail || '')
     const entryCourseId = normalizeWorkStudentId(entry?.courseId || '')
     const entryModuleId = normalizeWorkStudentId(entry?.moduleId || '')
-
-    const matchesFaculty =
-      (facultyId && entryFacultyId && entryFacultyId === facultyId) ||
-      (facultyEmail && entryFacultyEmail && entryFacultyEmail === facultyEmail)
 
     const entryStudentIds = getWorkStudentIds(entry)
     const visibleStudentIds = new Set(
@@ -488,8 +480,7 @@ function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentit
     )
     const matchesVisibleStudent = entryStudentIds.some((studentId) => visibleStudentIds.has(studentId))
 
-    return matchesFaculty &&
-      entryCourseId === normalizedCourseId &&
+    return entryCourseId === normalizedCourseId &&
       entryModuleId === normalizedModuleId &&
       ((!batch || doesWorkEntryMatchBatch(entry, batch)) || matchesVisibleStudent)
   })
@@ -609,18 +600,11 @@ function getFacultyWorkProgressForEntry(entry = {}, course = {}, selectedSubmodu
 }
 
 function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], facultyIdentity = {}, batch = null, visibleStudents = []) {
+  void facultyIdentity
   const modules = getCourseModels(course)
   const normalizedCourseId = normalizeWorkStudentId(course?.id || course?.courseId || '')
   const facultyEntries = (Array.isArray(todayWorkEntries) ? todayWorkEntries : []).filter((entry) => {
-    const entryFacultyId = normalizeWorkStudentId(entry?.facultyId || entry?.facultyProfileId || entry?.facultyUserId || '')
-    const facultyId = normalizeWorkStudentId(facultyIdentity?.facultyId || '')
-    const facultyEmail = normalizeWorkStudentId(facultyIdentity?.facultyEmail || '')
-    const entryFacultyEmail = normalizeWorkStudentId(entry?.facultyEmail || '')
     const entryCourseId = normalizeWorkStudentId(entry?.courseId || '')
-
-    const matchesFaculty =
-      (facultyId && entryFacultyId && entryFacultyId === facultyId) ||
-      (facultyEmail && entryFacultyEmail && entryFacultyEmail === facultyEmail)
 
     const entryStudentIds = getWorkStudentIds(entry)
     const visibleStudentIds = new Set(
@@ -631,8 +615,7 @@ function getNextPendingTodayWorkSelection(course = {}, todayWorkEntries = [], fa
     )
     const matchesVisibleStudent = entryStudentIds.some((studentId) => visibleStudentIds.has(studentId))
 
-    return matchesFaculty &&
-      (!normalizedCourseId || entryCourseId === normalizedCourseId) &&
+    return (!normalizedCourseId || entryCourseId === normalizedCourseId) &&
       ((!batch || doesWorkEntryMatchBatch(entry, batch)) || matchesVisibleStudent)
   })
 
