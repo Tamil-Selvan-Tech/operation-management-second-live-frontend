@@ -2,7 +2,7 @@ import { request } from './apiClient'
 
 export async function getFacultyNotifications() {
   return request(
-    '/notifications?limit=20&page=1',
+    '/notifications?limit=100&page=1',
   )
 }
 
