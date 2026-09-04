@@ -8085,7 +8085,7 @@ body.branch-notification-menu-open .main-area {
 
 .branch-notifications-filters {
   display: grid;
-  grid-template-columns: minmax(240px, 380px) 190px 190px;
+  grid-template-columns: minmax(240px, 380px) 230px 190px;
   gap: 14px;
   margin: 20px 0 24px;
 }

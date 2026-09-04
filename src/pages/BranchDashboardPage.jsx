@@ -2796,7 +2796,10 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [processingBranchNotificationId, setProcessingBranchNotificationId] = useState('')
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
-  const [branchNotificationDateFilter, setBranchNotificationDateFilter] = useState('all')
+  const [branchNotificationMonthFilter, setBranchNotificationMonthFilter] = useState(() => {
+    const today = new Date()
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  })
   const [branchNotificationStatusFilter, setBranchNotificationStatusFilter] = useState('all')
   const [facultyTodayWorkEntries, setFacultyTodayWorkEntries] = useState([])
   const branchCourseProgressBackfillSignatureRef = useRef('')
@@ -3737,11 +3740,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       const searchTerm = branchNotificationSearch.trim().toLowerCase()
       const now = new Date()
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-      const startOfWeek = startOfToday - 6 * 24 * 60 * 60 * 1000
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
+      const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000
+      const daysSinceMonday = (now.getDay() + 6) % 7
+      const startOfWeek = startOfToday - daysSinceMonday * 24 * 60 * 60 * 1000
 
       const filteredNotifications = normalizedBranchNotifications.filter((item) => {
-        const notificationDate = new Date(item.createdAt).getTime()
+        const notificationDate = new Date(item.createdAt)
+        const notificationTimestamp = notificationDate.getTime()
+        const notificationMonth = Number.isNaN(notificationDate.getTime())
+          ? ''
+          : `${notificationDate.getFullYear()}-${String(notificationDate.getMonth() + 1).padStart(2, '0')}`
         const matchesSearch = !searchTerm || [
           item.title,
           item.message,
@@ -3761,32 +3769,55 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
           item.summary,
         ].some((value) => String(value || '').toLowerCase().includes(searchTerm))
 
-        const matchesDate =
-          branchNotificationDateFilter === 'all' ||
-          (Number.isFinite(notificationDate) && (
-            branchNotificationDateFilter === 'today'
-              ? notificationDate >= startOfToday
-              : branchNotificationDateFilter === 'week'
-                ? notificationDate >= startOfWeek
-                : notificationDate >= startOfMonth
-          ))
+        const matchesMonth =
+          branchNotificationMonthFilter === 'all' ||
+          (branchNotificationMonthFilter === 'today'
+            ? notificationTimestamp >= startOfToday
+            : branchNotificationMonthFilter === 'yesterday'
+              ? notificationTimestamp >= startOfYesterday && notificationTimestamp < startOfToday
+              : branchNotificationMonthFilter === 'week'
+                ? notificationTimestamp >= startOfWeek
+                : notificationMonth === branchNotificationMonthFilter)
 
         const matchesStatus =
           branchNotificationStatusFilter === 'all' ||
           (branchNotificationStatusFilter === 'unread' ? item.unread : !item.unread)
 
-        return matchesSearch && matchesDate && matchesStatus
+        return matchesSearch && matchesMonth && matchesStatus
       })
 
       return groupByDate(filteredNotifications)
     },
     [
-      branchNotificationDateFilter,
+      branchNotificationMonthFilter,
       branchNotificationSearch,
       branchNotificationStatusFilter,
       normalizedBranchNotifications,
     ],
   )
+  const branchNotificationMonthOptions = useMemo(() => {
+    const currentMonth = new Date()
+    const monthKeys = new Set([
+      `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`,
+      ...normalizedBranchNotifications.map((item) => {
+        const date = new Date(item.createdAt)
+        return Number.isNaN(date.getTime())
+          ? ''
+          : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      }),
+    ])
+
+    return [...monthKeys]
+      .filter(Boolean)
+      .sort((left, right) => right.localeCompare(left))
+      .map((monthKey) => {
+        const [year, month] = monthKey.split('-').map(Number)
+        return {
+          value: monthKey,
+          label: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)),
+        }
+      })
+  }, [normalizedBranchNotifications])
   const branchNotificationItems = normalizedBranchNotifications
   const branchUnreadNotificationCount = useMemo(
     () => normalizedBranchNotifications.filter((item) => item.unread && !item.dropdownViewed).length,
@@ -7015,14 +7046,17 @@ useEffect(() => {
                     <label className="branch-notifications-select">
                       <CalendarDays size={19} strokeWidth={2.1} aria-hidden="true" focusable="false" />
                       <select
-                        value={branchNotificationDateFilter}
-                        onChange={(event) => setBranchNotificationDateFilter(event.target.value)}
-                        aria-label="Filter notifications by date"
+                        value={branchNotificationMonthFilter}
+                        onChange={(event) => setBranchNotificationMonthFilter(event.target.value)}
+                        aria-label="Filter notifications by date or month"
                       >
                         <option value="all">All dates</option>
                         <option value="today">Today</option>
+                        <option value="yesterday">Yesterday</option>
                         <option value="week">This week</option>
-                        <option value="month">This month</option>
+                        {branchNotificationMonthOptions.map((month) => (
+                          <option key={month.value} value={month.value}>{month.label}</option>
+                        ))}
                       </select>
                       <ChevronDown size={18} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                     </label>
