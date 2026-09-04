@@ -169,12 +169,14 @@ function isWithinSelectedDateRange(createdAt, range) {
     return diffDays === 1
   }
 
-  if (range === '7d') {
-    return diffDays >= 0 && diffDays < 7
+  if (range === 'week') {
+    const daysSinceMonday = (startOfToday.getDay() + 6) % 7
+    return date.getTime() >= startOfToday.getTime() - daysSinceMonday * 86400000
   }
 
-  if (range === '30d') {
-    return diffDays >= 0 && diffDays < 30
+  if (/^\d{4}-\d{2}$/.test(range)) {
+    const [year, month] = range.split('-').map(Number)
+    return date.getFullYear() === year && date.getMonth() + 1 === month
   }
 
   return true
@@ -231,12 +233,27 @@ export function SuperAdminNotificationsPage() {
     () =>
       notifications.filter(
         (notification) =>
-          String(notification.kind || '').trim().toLowerCase() !== 'branch-faculty-login' &&
           !isBranchCourseEditNotification(notification) &&
           !isCourseAssignedNotification(notification),
       ),
     [notifications],
   )
+  const monthFilterOptions = useMemo(() => {
+    const currentMonth = new Date()
+    const monthKeys = new Set([
+      `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`,
+    ])
+
+    return [...monthKeys]
+      .sort((left, right) => right.localeCompare(left))
+      .map((monthKey) => {
+        const [year, month] = monthKey.split('-').map(Number)
+        return {
+          value: monthKey,
+          label: new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1)),
+        }
+      })
+  }, [visibleNotifications])
 
   const loadAllNotifications = async () => {
     try {
@@ -555,8 +572,10 @@ export function SuperAdminNotificationsPage() {
                       <option value="all">All dates</option>
                       <option value="today">Today</option>
                       <option value="yesterday">Yesterday</option>
-                      <option value="7d">Last 7 days</option>
-                      <option value="30d">Last 30 days</option>
+                      <option value="week">This week</option>
+                      {monthFilterOptions.map((month) => (
+                        <option key={month.value} value={month.value}>{month.label}</option>
+                      ))}
                     </select>
                     <span className="notifications-filter-chevron" aria-hidden="true">
                       <ChevronDown size={16} strokeWidth={2.2} />
