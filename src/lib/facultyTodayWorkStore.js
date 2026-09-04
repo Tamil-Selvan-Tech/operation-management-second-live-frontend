@@ -3,10 +3,6 @@ import { request } from '../services/apiClient'
 export const FACULTY_TODAY_WORK_SYNC_EVENT = 'cispro:faculty-today-work-changed'
 export const FACULTY_TODAY_WORK_SYNC_KEY = 'cispro:faculty-today-work-sync'
 
-function normalizeText(value = '') {
-  return String(value || '').trim().toLowerCase()
-}
-
 function dispatchChange() {
   if (typeof window !== 'undefined') {
     try {
@@ -41,24 +37,13 @@ export async function listFacultyTodayWorkEntries() {
 }
 
 export function getFacultyTodayWorkEntriesByFaculty(
-  { facultyId = '', facultyName = '', facultyEmail = '' } = {},
+  _facultyIdentity = {},
   entries = [],
 ) {
-  const normalizedFacultyId = normalizeText(facultyId)
-  const normalizedFacultyName = normalizeText(facultyName)
-  const normalizedFacultyEmail = normalizeText(facultyEmail)
-
-  return (Array.isArray(entries) ? entries : []).filter((entry) => {
-    const entryFacultyId = normalizeText(entry?.facultyId || entry?.facultyProfileId || entry?.facultyUserId)
-    const entryFacultyName = normalizeText(entry?.facultyName)
-    const entryFacultyEmail = normalizeText(entry?.facultyEmail)
-
-    return (
-      (normalizedFacultyId && entryFacultyId && entryFacultyId === normalizedFacultyId) ||
-      (normalizedFacultyEmail && entryFacultyEmail && entryFacultyEmail === normalizedFacultyEmail) ||
-      (normalizedFacultyName && entryFacultyName && entryFacultyName === normalizedFacultyName)
-    )
-  })
+  const sourceEntries = Array.isArray(entries) ? entries : []
+  // The API list is already restricted to the authenticated faculty. Returning
+  // all entries also preserves records written with older faculty IDs.
+  return sourceEntries
 }
 
 function normalizeId(value) {
@@ -110,7 +95,13 @@ export async function saveFacultyTodayWorkEntry(entry = {}) {
     body: JSON.stringify(payload),
   })
 
-  dispatchChange()
+  // Let the caller update its local state before other listeners start a
+  // refresh, avoiding a stale GET response overwriting the just-saved entry.
+  if (typeof window !== 'undefined') {
+    window.setTimeout(dispatchChange, 0)
+  } else {
+    dispatchChange()
+  }
 
   return response?.data || response?.entry || response || null
 }

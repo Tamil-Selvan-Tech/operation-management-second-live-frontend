@@ -62,7 +62,7 @@ import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import { BRANCH_STUDENTS_KEY, loadBranchStudents, saveBranchStudent } from '../lib/branchStudentStore'
+import { BRANCH_STUDENTS_KEY, loadBranchStudents } from '../lib/branchStudentStore'
 import {
   loadNotifications as loadStoredNotifications,
   addNotification,
@@ -1677,7 +1677,7 @@ export function FacultyDashboardPage() {
     const profile = facultyProfile || {}
     const branch = facultyDetails?.branch || {}
     return {
-      facultyId: String(profile.id || profile.facultyId || profile.facultyUserId || facultyDetails?.id || '').trim(),
+      facultyId: String(profile.facultyId || profile.id || profile.facultyUserId || facultyDetails?.id || '').trim(),
       facultyName: String(profile.facultyName || profile.name || facultyDetails?.name || '').trim(),
       facultyEmail: String(profile.facultyEmail || profile.email || facultyDetails?.email || '').trim(),
       branchId: String(profile.branchId || branch.id || facultyDetails?.branchId || facultyDetails?.branch?.id || '').trim(),
@@ -2554,7 +2554,7 @@ export function FacultyDashboardPage() {
     setTodayWorkError('')
 
     try {
-      const savedEntry = await saveFacultyTodayWorkEntry({
+      const workEntryPayload = {
         facultyId: currentFacultyIdentity.facultyId,
         facultyProfileId: currentFacultyIdentity.facultyId,
         facultyName: currentFacultyIdentity.facultyName,
@@ -2562,7 +2562,7 @@ export function FacultyDashboardPage() {
         branchId: currentFacultyIdentity.branchId,
         courseId: String(todayWorkCourse.id || '').trim(),
         courseName: String(todayWorkCourse.name || todayWorkCourse.courseName || '').trim(),
-        batchId: String(selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || '').trim(),
+        batchId: String(selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || selectedStudentsBatch?.id || '').trim(),
         batchGroupId: String(selectedStudentsBatch?.batchGroupId || '').trim(),
         batchName: String(selectedStudentsBatch?.batchName || selectedStudentsBatch?.code || '').trim(),
         batchTiming: String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || '').trim(),
@@ -2581,28 +2581,32 @@ export function FacultyDashboardPage() {
             name: getCourseSubmoduleName(submodule, 0),
           }
         }),
-      })
-
-      const nextWorkEntries = [...facultyTodayWorkEntries, savedEntry].filter(Boolean)
-      const progressUpdates = selectedStudents
-        .map((student) => {
-          const progressSummary = buildFacultyTodayWorkProgressSummary(nextWorkEntries, todayWorkCourse || {}, student)
-          const courseProgress = Number(progressSummary?.courseProgress)
-
-          if (!Number.isFinite(courseProgress)) {
-            return null
-          }
-
-          return {
-            ...student,
-            courseProgress: Math.min(100, Math.max(0, courseProgress)),
-          }
-        })
-        .filter(Boolean)
-
-      if (progressUpdates.length) {
-        await Promise.allSettled(progressUpdates.map((student) => saveBranchStudent(student)))
       }
+      const savedEntry = await saveFacultyTodayWorkEntry(workEntryPayload)
+
+      const progressByStudent = savedEntry?.progressByStudent
+      if (progressByStudent && typeof progressByStudent === 'object') {
+        setStudents((currentStudents) => currentStudents.map((student) => {
+          const studentKeys = [student?.id, student?.studentId]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean)
+          const progressKey = studentKeys.find((key) => Object.prototype.hasOwnProperty.call(progressByStudent, key))
+          return progressKey
+            ? { ...student, courseProgress: progressByStudent[progressKey] }
+            : student
+        }))
+      }
+
+      // Render the progress change immediately. The sync event also reloads
+      // the persisted entry, but that request can finish after the modal closes.
+      setTodayWorkEntries((currentEntries) => [
+        ...currentEntries,
+        {
+          ...workEntryPayload,
+          ...(savedEntry && typeof savedEntry === 'object' ? savedEntry : {}),
+          createdAt: savedEntry?.createdAt || new Date().toISOString(),
+        },
+      ])
 
       closeTodayWorkModal()
     } catch (error) {
@@ -4012,10 +4016,16 @@ const nextName = trimmedValue
                                       moduleProgress: workProgressSummary.moduleProgress,
                                     }
                                   : null
+                                const persistedCourseProgress = Number(student.courseProgress)
+                                const displayedCourseProgress = Number.isFinite(persistedCourseProgress) && persistedCourseProgress > 0
+                                  ? persistedCourseProgress
+                                  : workProgress?.courseProgress
                                 // const workModuleProgressLabel = workProgressSummary
                                 //   ? `${getCourseModuleName(workProgressSummary.moduleSummary?.module || workProgress?.module || {})} - ${Math.round(workProgress.moduleProgress)}% Complete`
                                 //   : '-'
-                                const workCourseProgressLabel = workProgress ? `${Math.round(workProgress.courseProgress)}% Complete` : '-'
+                                const workCourseProgressLabel = workEntry && Number.isFinite(displayedCourseProgress)
+                                  ? `${Math.round(displayedCourseProgress)}% Complete`
+                                  : '-'
 
                                 return (
                                   <tr
@@ -4070,7 +4080,7 @@ const nextName = trimmedValue
                                             <div className="branch-student-paid-progress-bar faculty-today-work-progress-bar" aria-hidden="true">
                                               <span
                                                 className="branch-student-paid-progress-fill faculty-today-work-progress-fill"
-                                                style={{ width: `${workProgress?.courseProgress || 0}%` }}
+                                                style={{ width: `${displayedCourseProgress || 0}%` }}
                                               />
                                             </div>
                                             <span className="branch-student-paid-progress-label">
