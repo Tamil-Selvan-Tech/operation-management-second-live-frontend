@@ -2904,16 +2904,24 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const branchNotificationsRequestRef = useRef(null)
   const branchNotificationsRefreshTimerRef = useRef(null)
 
-  const loadBranchCourses = useCallback(async (fallbackCourses = null) => {
+  const loadBranchCourses = useCallback(async (branchScopeId = '', fallbackCourses = null) => {
+    if (Array.isArray(branchScopeId) && fallbackCourses === null) {
+      fallbackCourses = branchScopeId
+      branchScopeId = ''
+    }
+
+    const scopeId = String(
+      branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '',
+    ).trim()
     const result = await listBranchCourses({
       page: 1,
       limit: 100,
       sortBy: 'createdAt',
       sortOrder: 'desc',
+      ...(scopeId ? { branchId: scopeId } : {}),
     })
 
-    const activeBranchId = branchProfile?.id || branchProfile?.branchId || ''
-    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [], activeBranchId)
+    const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [], scopeId)
     const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
     setBranchCourseCards((currentCourses) => {
       const currentCoursesById = new Map(
@@ -2963,9 +2971,14 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
     return result
   }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id])
 
-  const loadFacultyList = useCallback(async () => {
+  const loadFacultyList = useCallback(async (branchScopeId = '') => {
     try {
-      const res = await listBranchFaculty()
+      const scopeId = String(
+        branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '',
+      ).trim()
+      if (!scopeId) return null
+
+      const res = await listBranchFaculty({ branchId: scopeId })
       if (res?.data) {
         setBranchFacultyRecords(Array.isArray(res.data) ? res.data : [])
         const mapped = res.data.map((f) => ({
@@ -2980,7 +2993,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
     } catch (error) {
       console.error('Failed to fetch faculty list:', error)
     }
-  }, [])
+  }, [branchData?.branchId, branchData?.id, branchProfile?.branchId, branchProfile?.id])
 
 const branchInstallmentTemplatesRequestRef = useRef(null)
  const loadBranchInstallmentPlanOptions = useCallback(async () => {
@@ -3137,8 +3150,13 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     let isMounted = true
 
     if (embeddedMode && branchData) {
+      const scopeId = String(branchData?.id || branchData?.branchId || '').trim()
       setBranchProfile(branchData)
-      Promise.allSettled([loadBranchCourses(), loadFacultyList()]).then(([coursesResult]) => {
+      setImpersonateBranchId(scopeId || null)
+      Promise.allSettled([
+        loadBranchCourses(scopeId),
+        loadFacultyList(scopeId),
+      ]).then(([coursesResult]) => {
         if (!isMounted) return
         if (coursesResult.status === 'fulfilled' || coursesResult.value?.data) {
           setBranchCourseCards(
@@ -3154,27 +3172,30 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       return
     }
 
-    Promise.allSettled([getCurrentBranchProfile(), loadBranchCourses(), loadFacultyList()]).then(([branchResult, coursesResult]) => {
-      if (!isMounted) return
+    getCurrentBranchProfile().then(async (currentBranch) => {
+      const scopeId = String(currentBranch?.id || currentBranch?.branchId || '').trim()
+      setBranchProfile(currentBranch)
+      setImpersonateBranchId(scopeId || null)
 
-      if (branchResult.status === 'fulfilled') {
-        setBranchProfile(branchResult.value)
-      } else {
-        setBranchProfile(buildFallbackBranchProfile(user, session))
-      }
+      const [coursesResult] = await Promise.allSettled([
+        loadBranchCourses(scopeId),
+        loadFacultyList(scopeId),
+      ])
+      if (!isMounted) return
 
       if (coursesResult.status === 'fulfilled') {
         setBranchCourseCards(
           mergeBranchCoursesWithSnapshot(
             Array.isArray(coursesResult.value?.data) ? coursesResult.value.data : [],
-            branchResult.status === 'fulfilled'
-              ? (branchResult.value?.id || branchResult.value?.branchId || '')
-              : (branchProfile?.id || branchProfile?.branchId || ''),
+            scopeId,
           ),
         )
       } else {
         setBranchCourseCards([])
       }
+    }).catch(() => {
+      if (!isMounted) return
+      setBranchProfile(buildFallbackBranchProfile(user, session))
     })
 
     return () => {

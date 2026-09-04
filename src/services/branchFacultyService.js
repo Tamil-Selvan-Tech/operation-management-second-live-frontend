@@ -10,6 +10,7 @@ export async function listBranchFaculty(params = {}) {
   if (params.status && params.status !== 'All') searchParams.set('status', params.status)
   if (params.sortBy) searchParams.set('sortBy', params.sortBy)
   if (params.sortOrder) searchParams.set('sortOrder', params.sortOrder)
+  if (params.branchId) searchParams.set('branchId', params.branchId)
   
   return request(`/branch-faculty?${searchParams.toString()}`, {
     method: 'GET',

@@ -802,9 +802,11 @@ function findMatchedBatchEntryForStudent(student = {}, facultyRecord = {}) {
       const entryCourseName = normalizeText(entry?.courseName || '')
 
       let score = 0
-      if (studentBatchGroupId && entryBatchGroupId && studentBatchGroupId === entryBatchGroupId) score += 100
+      // A group can contain multiple rows. Prefer row details over the shared
+      // group id so students are not assigned to the first row accidentally.
+      if (studentBatchId && entryBatchId && studentBatchId === entryBatchId) score += 110
       if (studentBatchGroupId && entryBatchId && studentBatchGroupId === entryBatchId) score += 95
-      if (studentBatchId && entryBatchId && studentBatchId === entryBatchId) score += 95
+      if (studentBatchGroupId && entryBatchGroupId && studentBatchGroupId === entryBatchGroupId) score += 30
       if (studentBatchTiming && entryBatchTiming && studentBatchTiming === entryBatchTiming) score += 90
       if (studentBatchName && entryBatchName && studentBatchName === entryBatchName) score += 80
       else if (studentBatchToken && entryBatchToken && studentBatchToken === entryBatchToken) score += 60
@@ -857,12 +859,14 @@ export function resolveFacultyBatchContextForStudent(student = {}, facultyRecord
     batchEntry: matchedBatchEntry,
     facultyId: String(facultyRecord?.id || facultyRecord?._id || facultyRecord?.facultyId || student?.facultyId || '').trim(),
     facultyName: String(facultyRecord?.facultyName || student?.facultyName || '').trim(),
-    batchId: String(matchedBatchEntry?.id || student?.batchId || student?.batchEntryId || '').trim(),
-    batchGroupId: String(matchedBatchEntry?.batchGroupId || student?.batchGroupId || '').trim(),
-    batchName: String(matchedBatchEntry?.batchName || student?.batchName || student?.batch || '').trim(),
-    batchTiming: String(matchedBatchEntry?.batchTiming || student?.batchTiming || student?.batchTime || '').trim(),
-    courseId: String(matchedBatchEntry?.courseId || student?.courseId || '').trim(),
-    courseName: String(matchedBatchEntry?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '').trim(),
+    // Keep persisted student assignment values authoritative. Profile data is
+    // only a fallback for older records with missing assignment fields.
+    batchId: String(student?.batchId || student?.batchEntryId || matchedBatchEntry?.id || '').trim(),
+    batchGroupId: String(student?.batchGroupId || matchedBatchEntry?.batchGroupId || '').trim(),
+    batchName: String(student?.batchName || student?.batch || matchedBatchEntry?.batchName || matchedBatchEntry?.batch || '').trim(),
+    batchTiming: String(student?.batchTiming || student?.batchTime || matchedBatchEntry?.batchTiming || '').trim(),
+    courseId: String(student?.courseId || matchedBatchEntry?.courseId || '').trim(),
+    courseName: String(student?.courseInterested || student?.courseName || student?.course?.name || matchedBatchEntry?.courseName || '').trim(),
   }
 }
 

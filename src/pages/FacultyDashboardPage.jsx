@@ -2028,6 +2028,7 @@ export function FacultyDashboardPage() {
           courseId: String(entry?.courseId || '').trim(),
           course: String(entry?.courseName || entry?.course || '-').trim() || '-',
           batchId: String(entry?.batchId || entry?.batchEntryId || entry?.id || '').trim(),
+          batchGroupId: String(entry?.batchGroupId || entry?.groupId || '').trim(),
           batchName: String(entry?.batchName || entry?.batch || entry?.code || entry?.id || '').trim() || '-',
           code: String(entry?.batchCode || entry?.code || entry?.id || '-').trim() || '-',
           timing: String(entry?.batchTiming || entry?.timing || '-').trim() || '-',
@@ -2139,13 +2140,18 @@ export function FacultyDashboardPage() {
         return false
       }
 
-      if (selectedBatchId && (studentBatchId || studentBatchGroupId)) {
-        if (studentBatchId === selectedBatchId || studentBatchGroupId === selectedBatchId) return true
-      }
+      const directBatchMatch = Boolean(
+        selectedBatchId && studentBatchId && studentBatchId === selectedBatchId,
+      )
+      const groupBatchMatch = Boolean(
+        (selectedBatchId && studentBatchGroupId === selectedBatchId) ||
+        (selectedBatchGroupId && (
+          studentBatchId === selectedBatchGroupId ||
+          studentBatchGroupId === selectedBatchGroupId
+        )),
+      )
 
-      if (selectedBatchGroupId && (studentBatchId || studentBatchGroupId)) {
-        if (studentBatchId === selectedBatchGroupId || studentBatchGroupId === selectedBatchGroupId) return true
-      }
+      if (directBatchMatch) return true
 
       if (selectedBatchName) {
         const batchMatches =
@@ -2160,6 +2166,10 @@ export function FacultyDashboardPage() {
       if (selectedBatchTiming && studentBatchTiming) {
         if (studentBatchTiming === selectedBatchTiming) return true
       }
+
+      // Older student records store only the group id. If no readable row
+      // details exist, retain the group-level compatibility fallback.
+      if (groupBatchMatch && !selectedBatchName && !selectedBatchTiming) return true
 
       return false
     })

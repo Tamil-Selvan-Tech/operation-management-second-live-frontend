@@ -236,6 +236,9 @@ function buildSearchParams(query = {}) {
   const sortOrder = String(query.sortOrder ?? '').trim()
   if (sortOrder) params.set('sortOrder', sortOrder)
 
+  const branchId = String(query.branchId ?? '').trim()
+  if (branchId) params.set('branchId', branchId)
+
   return params
 }
 
