@@ -446,7 +446,7 @@ function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
   return doesWorkEntryMatchBatch(entry, student)
 }
 
-function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, courseId = '') {
+function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, courseId = '', batch = null) {
   const normalizedCourseId = normalizeWorkStudentId(courseId)
 
   return (Array.isArray(entries) ? entries : []).filter((entry) => {
@@ -456,6 +456,10 @@ function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, course
 
     const entryCourseId = normalizeWorkStudentId(entry.courseId || '')
     if (normalizedCourseId && entryCourseId && entryCourseId !== normalizedCourseId) {
+      return false
+    }
+
+    if (batch && !doesWorkEntryMatchBatch(entry, batch)) {
       return false
     }
 
@@ -492,14 +496,25 @@ function getCompletedTodayWorkSubmoduleIdsForModule(entries = [], facultyIdentit
   )
 }
 
-function buildFacultyTodayWorkProgressSummary(entries = [], course = {}, student = null) {
+function buildFacultyTodayWorkProgressSummary(entries = [], course = {}, student = null, batch = null) {
   const modules = getCourseModels(course)
   if (!modules.length) return null
 
   const normalizedCourseId = normalizeWorkStudentId(course?.id || course?.courseId || '')
   const matchingEntries = student
-    ? getFacultyTodayWorkEntriesForStudent(entries, student, normalizedCourseId)
-    : (Array.isArray(entries) ? entries : []).filter((entry) => normalizeWorkStudentId(entry.courseId || '') === normalizedCourseId)
+    ? getFacultyTodayWorkEntriesForStudent(entries, student, normalizedCourseId, batch)
+    : (Array.isArray(entries) ? entries : []).filter((entry) => {
+        const entryCourseId = normalizeWorkStudentId(entry.courseId || '')
+        if (normalizedCourseId && entryCourseId && entryCourseId !== normalizedCourseId) {
+          return false
+        }
+
+        if (batch && !doesWorkEntryMatchBatch(entry, batch)) {
+          return false
+        }
+
+        return true
+      })
 
   if (!matchingEntries.length) return null
 
@@ -2207,6 +2222,7 @@ export function FacultyDashboardPage() {
           facultyTodayWorkEntries,
           selectedStudentsCourse,
           student,
+          batch,
         )
         return Number(progressSummary?.courseProgress) || 0
       })
@@ -4006,7 +4022,7 @@ const nextName = trimmedValue
                                   ? courseCatalog.find((course) => String(course?.id || '').trim() === String(workEntry.courseId || '').trim()) || selectedCourse || null
                                   : null
                                 const workProgressSummary = workEntry
-                                  ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, workCourse || {}, student)
+                                  ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, workCourse || {}, student, selectedStudentsBatch)
                                   : null
                                 const workProgress = workProgressSummary
                                   ? {

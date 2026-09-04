@@ -56,6 +56,41 @@ function getCourseSubmodules(module = {}) {
         : []
 }
 
+function getWorkBatchContext(source = {}) {
+  return {
+    batchId: normalizeWorkStudentId(source?.batchId || source?.batchEntryId),
+    batchGroupId: normalizeWorkStudentId(source?.batchGroupId),
+    batchName: normalizeWorkStudentId(source?.batchName || source?.batch),
+    batchTiming: normalizeWorkStudentId(source?.batchTiming || source?.batchTime || source?.timing),
+  }
+}
+
+function doesWorkEntryMatchBatch(entry = {}, source = {}) {
+  const entryBatch = getWorkBatchContext(entry)
+  const sourceBatch = getWorkBatchContext(source)
+  const entryHasBatch = Object.values(entryBatch).some(Boolean)
+  if (!entryHasBatch) return true
+
+  const sourceHasBatch = Object.values(sourceBatch).some(Boolean)
+  if (!sourceHasBatch) return false
+
+  const sameName = Boolean(entryBatch.batchName && sourceBatch.batchName && entryBatch.batchName === sourceBatch.batchName)
+  const sameTiming = Boolean(entryBatch.batchTiming && sourceBatch.batchTiming && entryBatch.batchTiming === sourceBatch.batchTiming)
+
+  // A group can contain multiple batches, so never use it to match when the
+  // individual batch IDs identify different rows.
+  if (entryBatch.batchId && sourceBatch.batchId) {
+    return entryBatch.batchId === sourceBatch.batchId || sameName || (sameTiming && !entryBatch.batchName && !sourceBatch.batchName)
+  }
+
+  if (sameName) {
+    return !entryBatch.batchTiming || !sourceBatch.batchTiming || sameTiming
+  }
+
+  if (sameTiming) return true
+  return Boolean(entryBatch.batchGroupId && sourceBatch.batchGroupId && entryBatch.batchGroupId === sourceBatch.batchGroupId)
+}
+
 function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
   if (!entry || !student) return false
 
@@ -75,7 +110,7 @@ function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
   return true
 }
 
-function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, courseId = '') {
+function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, courseId = '', batch = null) {
   const normalizedCourseId = normalizeWorkStudentId(courseId)
 
   return (Array.isArray(entries) ? entries : []).filter((entry) => {
@@ -88,18 +123,33 @@ function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, course
       return false
     }
 
+    if (batch && !doesWorkEntryMatchBatch(entry, batch)) {
+      return false
+    }
+
     return true
   })
 }
 
-function buildFacultyTodayWorkProgressSummary(entries = [], course = {}, student = null) {
+function buildFacultyTodayWorkProgressSummary(entries = [], course = {}, student = null, batch = null) {
   const modules = getCourseModels(course)
   if (!modules.length) return null
 
   const normalizedCourseId = normalizeWorkStudentId(course?.id || course?.courseId || '')
   const matchingEntries = student
-    ? getFacultyTodayWorkEntriesForStudent(entries, student, normalizedCourseId)
-    : (Array.isArray(entries) ? entries : []).filter((entry) => normalizeWorkStudentId(entry.courseId || '') === normalizedCourseId)
+    ? getFacultyTodayWorkEntriesForStudent(entries, student, normalizedCourseId, batch)
+    : (Array.isArray(entries) ? entries : []).filter((entry) => {
+        const entryCourseId = normalizeWorkStudentId(entry.courseId || '')
+        if (normalizedCourseId && entryCourseId && entryCourseId !== normalizedCourseId) {
+          return false
+        }
+
+        if (batch && !doesWorkEntryMatchBatch(entry, batch)) {
+          return false
+        }
+
+        return true
+      })
 
   if (!matchingEntries.length) return null
 
