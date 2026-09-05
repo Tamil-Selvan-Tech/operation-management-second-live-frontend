@@ -16,8 +16,8 @@ import {
   Phone,
   Menu,
   X,
-  Search,
   Shield,
+  ChevronDown,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -256,6 +256,7 @@ export function SuperAdminDashboardPage() {
   const { signOut, user } = useAuth()
   const [activeSection, setActiveSection] = useState(() => getInitialSuperAdminSection(location.search))
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isBranchesExpanded, setIsBranchesExpanded] = useState(false)
   const [branches, setBranches] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
@@ -1206,19 +1207,56 @@ useEffect(() => {
 
             <div className="super-admin-sidebar-section">
               <span className="super-admin-sidebar-section-label">MANAGEMENT</span>
-              <button
-                type="button"
-                className={`super-admin-sidebar-item ${activeSection === 'branches' ? 'is-active' : ''}`.trim()}
-                onClick={() => {
-                  setActiveSection('branches')
-                  setIsMobileSidebarOpen(false)
-                }}
-              >
-                <span className="super-admin-sidebar-icon" aria-hidden="true">
-                  <Building2 size={18} strokeWidth={2.2} />
-                </span>
-                <span>Branches</span>
-              </button>
+              <div className="super-admin-sidebar-branch-nav">
+                <div className={`super-admin-sidebar-item ${activeSection === 'branches' ? 'is-active' : ''}`.trim()}>
+                  <button
+                    type="button"
+                    className="super-admin-sidebar-branch-link"
+                    onClick={() => {
+                      setActiveSection('branches')
+                      setIsMobileSidebarOpen(false)
+                    }}
+                  >
+                    <span className="super-admin-sidebar-icon" aria-hidden="true">
+                      <Building2 size={18} strokeWidth={2.2} />
+                    </span>
+                    <span>Branches</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="super-admin-sidebar-branch-toggle"
+                    aria-label={`${isBranchesExpanded ? 'Collapse' : 'Expand'} branches`}
+                    aria-expanded={isBranchesExpanded}
+                    onClick={() => setIsBranchesExpanded((current) => !current)}
+                  >
+                    <ChevronDown
+                      size={16}
+                      strokeWidth={2.3}
+                      className={isBranchesExpanded ? 'is-expanded' : ''}
+                      aria-hidden="true"
+                    />
+                  </button>
+                </div>
+
+                {isBranchesExpanded ? (
+                  <div className="super-admin-sidebar-branch-list" aria-label="Branches">
+                    {branches.filter((branch) => String(branch?.branchName || '').trim()).map((branch) => (
+                      <button
+                        type="button"
+                        className="super-admin-sidebar-branch-name"
+                        key={branch.id || branch.branchId || branch.branchName}
+                        onClick={() => openViewDashboardConfirm(branch)}
+                      >
+                        <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
+                        <span>{branch.branchName}</span>
+                      </button>
+                    ))}
+                    {!branches.some((branch) => String(branch?.branchName || '').trim()) ? (
+                      <span className="super-admin-sidebar-branch-empty">No branches available</span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </nav>
 

@@ -78,7 +78,7 @@ const applyReceiptPaymentToSchedule = (
   return result;
 };
 
-const buildModernPaymentReceiptHtml = ({
+export const buildModernPaymentReceiptHtml = ({
   logoUrl,
   instituteName,
   branchAddress,

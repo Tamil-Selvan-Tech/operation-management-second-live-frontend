@@ -268,30 +268,22 @@ function formatRangeLabel(startValue = '', startPeriod = '', endValue = '', endP
   return `${startLabel}${startLabel && endLabel ? ' - ' : ''}${endLabel}`.trim()
 }
 
-function isSameCourseFacultyGroup(group = {}, courseId = '', facultyId = '', facultyName = '') {
-  const targetCourseId = normalizeMatchKey(courseId)
+function isSameFacultyGroup(group = {}, facultyId = '', facultyName = '') {
   const targetFacultyId = normalizeMatchKey(facultyId)
   const targetFacultyName = normalizeMatchKey(facultyName)
-  const groupCourseId = normalizeMatchKey(group?.courseId || group?.branchCourseId || '')
   const groupFacultyId = normalizeMatchKey(group?.facultyId || group?.branchFacultyId || '')
-  const groupFacultyName = normalizeMatchKey(group?.facultyName || '')
-
-  if (!targetCourseId || !groupCourseId || targetCourseId !== groupCourseId) {
-    return false
-  }
+  const groupFacultyName = normalizeMatchKey(group?.facultyName || group?.branchFacultyName || '')
 
   const facultyIdMatches = Boolean(targetFacultyId && groupFacultyId && targetFacultyId === groupFacultyId)
   const facultyNameMatches = Boolean(targetFacultyName && groupFacultyName && targetFacultyName === groupFacultyName)
 
-  if (targetFacultyId && groupFacultyId) {
-    return facultyIdMatches
-  }
-
-  if (targetFacultyName && groupFacultyName) {
-    return facultyNameMatches
-  }
-
+  // IDs can differ between course mappings and the faculty master record, so
+  // a matching faculty name must also identify the same faculty.
   return Boolean(targetFacultyId || targetFacultyName) && (facultyIdMatches || facultyNameMatches)
+}
+
+function getBatchTimingClashMessage() {
+  return 'Time Clash! This faculty is already assigned to another batch during the selected time.'
 }
 
 function getBatchTimingRange(batch = {}) {
@@ -946,12 +938,12 @@ export function BranchBatchManagementSection({
   const editingGroupKey = normalizeText(editingGroup?.id || editingGroup?.batchGroupId || editingGroup?.batchId || '')
 
   const occupiedTimingRanges = useMemo(() => {
-    if (!draft.courseId || (!resolvedDraftFacultyId && !resolvedDraftFacultyName)) return []
+    if (!resolvedDraftFacultyId && !resolvedDraftFacultyName) return []
 
     return currentBranchBatchGroups.flatMap((group) => {
       const groupKey = normalizeText(group?.id || group?.batchGroupId || group?.batchId || '')
       if (editingGroupKey && groupKey === editingGroupKey) return []
-      if (!isSameCourseFacultyGroup(group, draft.courseId, resolvedDraftFacultyId, resolvedDraftFacultyName)) return []
+      if (!isSameFacultyGroup(group, resolvedDraftFacultyId, resolvedDraftFacultyName)) return []
 
       return (Array.isArray(group?.batches) ? group.batches : [])
         .map((batch) => {
@@ -960,7 +952,7 @@ export function BranchBatchManagementSection({
         })
         .filter(Boolean)
     })
-  }, [currentBranchBatchGroups, draft.courseId, editingGroupKey, resolvedDraftFacultyId, resolvedDraftFacultyName])
+  }, [currentBranchBatchGroups, editingGroupKey, resolvedDraftFacultyId, resolvedDraftFacultyName])
 
   const batchGroupStudentCountMap = useMemo(() => {
     const counts = new Map()
@@ -1348,15 +1340,14 @@ export function BranchBatchManagementSection({
           const conflict = existingConflict || draftConflict
 
           if (conflict) {
-            const facultyLabel = normalizeText(resolvedDraftFacultyName || selectedFacultyRecord?.name || 'this faculty')
-            nextErrors.rows[index].timing = `${rowTiming.label} is already assigned for ${facultyLabel}. Please select a different time slot or choose another faculty.`
+            nextErrors.rows[index].timing = getBatchTimingClashMessage()
           }
         })
 
         const hasTimingOverlap = nextErrors.rows.some((rowErrors) => Boolean(rowErrors.timing))
         if (hasTimingOverlap) {
           setFieldErrors(nextErrors)
-          setCreateError('One or more batch timings overlap for the selected faculty. Different faculty can reuse the same time slot.')
+          setCreateError(getBatchTimingClashMessage())
           return
         }
 
@@ -1431,9 +1422,9 @@ export function BranchBatchManagementSection({
     },
     [
       activeCourses,
-      availableFacultyOptions,
       batchGroups,
-      draft.batchGroupId,
+      branchId,
+      currentBranchBatchGroups,
       draft.courseId,
       draft.facultyId,
       draft.rows,

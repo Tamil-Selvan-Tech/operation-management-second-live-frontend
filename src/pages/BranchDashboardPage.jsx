@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom'
+import html2pdf from 'html2pdf.js'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getCountries, getStatesOfCountry, getCitiesOfState } from '@countrystatecity/countries-browser'
 import {
@@ -25,6 +26,9 @@ import {
   CalendarDays,
   Monitor,
   Clock3,
+  ArrowUpRight,
+  ArrowDownRight,
+  Download,
   IndianRupee,
   FileText,
   Tag,
@@ -92,6 +96,7 @@ import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
+import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
 import {
   groupByDate,
@@ -439,8 +444,8 @@ function buildStudentFormFromRecord(student = {}) {
     batchName: student.batchName || student.batch?.batchName || student.batch || '',
     batchTiming: student.batchTiming || student.batch?.batchTiming || '',
     batchSelectionKey: '',
-    classSchedule: student.classSchedule || '',
-    courseStartDate: student.courseStartDate || '',
+    classSchedule: student.classSchedule || student.schedule || student.batch?.classSchedule || student.batch?.schedule || '',
+    courseStartDate: student.courseStartDate || student.courseStart || student.startDate || student.batch?.courseStartDate || student.batch?.startDate || '',
     facultyId: student.facultyId || student.course?.facultyId || '',
     facultyName: student.facultyName || student.course?.facultyName || '',
     facultyEmail: student.facultyEmail || student.course?.facultyEmail || '',
@@ -648,6 +653,61 @@ function computeBranchStudentPaymentSummary(stu = {}) {
     nextDueDate,
     paymentStatus,
   }
+}
+
+function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) {
+  const paymentSummary = computeBranchStudentPaymentSummary(student)
+  const receiptNumber = payment.receiptNumber || payment.id || 'Receipt'
+  const amount = Number(payment.amount || payment.paidAmount || 0)
+  const html = buildModernPaymentReceiptHtml({
+    logoUrl: `${window.location.origin}/logo.png`,
+    instituteName: context.branchProfile?.branchName || 'CISPRO',
+    branchAddress: context.branchProfile?.branchAddress || context.branchLocation || '-',
+    branchPhone: context.branchProfile?.branchPhone || context.branchProfile?.phone || context.branchProfile?.mobileNumber || '-',
+    branchEmail: context.branchEmail || '-',
+    studentName: student.studentName || payment.studentName || 'Student',
+    studentId: student.studentId || payment.studentId || '-',
+    courseName: student.courseName || student.courseInterested || payment.course || '-',
+    batchName: student.batchName || student.batchId || '-',
+    studentPhone: student.mobileNumber || '-',
+    receiptNumber,
+    receiptDate: payment.date || formatStudentDate(payment.dateRaw),
+    paymentDate: payment.date || formatStudentDate(payment.dateRaw),
+    paymentFor: payment.payAgainst || 'Payment',
+    paymentMode: payment.paymentMode || payment.mode || '-',
+    transactionReference: payment.transactionReference || '-',
+    collectedBy: context.branchAdminDisplay || '-',
+    notes: payment.notes || '-',
+    totalCourseFee: paymentSummary.totalFee,
+    previouslyPaid: Math.max(paymentSummary.paidAmount - amount, 0),
+    currentPayment: amount,
+    totalPaid: paymentSummary.paidAmount,
+    balance: paymentSummary.pendingAmount,
+    amountInWords: '-',
+    installments: Array.isArray(student.installmentSchedule) ? student.installmentSchedule : [],
+    paymentAlreadyApplied: true,
+  })
+  const receiptElement = document.createElement('div')
+  receiptElement.innerHTML = html
+  receiptElement.style.position = 'fixed'
+  receiptElement.style.left = '12px'
+  receiptElement.style.top = '0'
+  receiptElement.style.width = '794px'
+  receiptElement.style.zIndex = '-1'
+  receiptElement.style.background = '#ffffff'
+  document.body.appendChild(receiptElement)
+
+  html2pdf()
+    .set({
+      margin: 0,
+      filename: `Payment_Receipt_${String(receiptNumber).replace(/[^a-z0-9_-]/gi, '-')}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'px', format: [800, 1150], orientation: 'portrait' },
+    })
+    .from(receiptElement.querySelector('.receipt-page'))
+    .save()
+    .finally(() => receiptElement.remove())
 }
 
 function getDashboardInstallments(student = {}) {
@@ -968,6 +1028,81 @@ function formatBranchPaymentMode(record = {}) {
   }
 
   return fallbackMode || '-'
+}
+
+function getBranchPaymentStatusTone(record = {}) {
+  const rawStatus = String(
+    record.status ||
+    record.paymentStatus ||
+    record.paymentState ||
+    record.transactionStatus ||
+    '',
+  ).trim().toLowerCase()
+
+  if (!rawStatus) {
+    return Number(record.amount || record.paidAmount || 0) > 0 ? 'paid' : 'pending'
+  }
+
+  if (/(paid|completed|successful|success|cleared|approved|settled)/.test(rawStatus)) {
+    return 'paid'
+  }
+
+  if (/(partial|partially)/.test(rawStatus)) {
+    return 'partial'
+  }
+
+  if (/overdue/.test(rawStatus)) {
+    return 'overdue'
+  }
+
+  if (/(due|pending|upcoming)/.test(rawStatus)) {
+    return 'pending'
+  }
+
+  return 'neutral'
+}
+
+function getBranchPaymentStatusLabel(record = {}) {
+  const rawStatus = String(
+    record.status ||
+    record.paymentStatus ||
+    record.paymentState ||
+    record.transactionStatus ||
+    '',
+  ).trim()
+
+  if (!rawStatus) {
+    return Number(record.amount || record.paidAmount || 0) > 0 ? 'Paid' : 'Pending'
+  }
+
+  const tone = getBranchPaymentStatusTone(record)
+  if (tone === 'partial') return 'Partially Paid'
+
+  return rawStatus
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function getBranchPaymentReceiptNumber(record = {}) {
+  return String(
+    record.receiptNumber ||
+    record.receiptNo ||
+    record.receipt ||
+    record.receiptId ||
+    record.id ||
+    '',
+  ).trim()
+}
+
+function getBranchPaymentTransactionReference(record = {}) {
+  return String(
+    record.transactionReference ||
+    record.transactionRef ||
+    record.referenceNumber ||
+    record.reference ||
+    record.txnReference ||
+    '',
+  ).trim()
 }
 
 function getBranchPaymentModePriority(record = {}) {
@@ -2890,12 +3025,6 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const branchCourseProgressBackfillSignatureRef = useRef('')
 
   useEffect(() => {
-  if (viewStudentDrawer) {
-    setStudentDetailsTab('basic')
-  }
-}, [viewStudentDrawer])
-
-  useEffect(() => {
     const handleOutsideClick = (e) => {
       const clickedInsideActions = e.target.closest('.branch-student-actions-cell')
       const clickedInsideMenu = studentActionMenuRef.current?.contains(e.target)
@@ -3747,10 +3876,27 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
+    setStudentDetailsTab('basic')
     setViewStudentDrawer({
       ...student,
       ...resolveStudentBatchDisplay(student, branchBatchGroups),
     })
+  }
+
+  const openStudentPaymentDetails = (student) => {
+    if (studentActionMenuCloseTimerRef.current) {
+      clearTimeout(studentActionMenuCloseTimerRef.current)
+    }
+
+    studentActionMenuHoverCountRef.current = 0
+    setStudentActionMenuId('')
+    setStudentActionMenuPosition({ top: 0, left: 0 })
+    setStudentDetailsTab('basic')
+    setViewStudentDrawer({
+      ...student,
+      ...resolveStudentBatchDisplay(student, branchBatchGroups),
+    })
+    setStudentDetailsTab('payment')
   }
 
   const openRecordPaymentConfirmation = (student) => {
@@ -6088,26 +6234,44 @@ const studentCourseOptions = useMemo(() => {
     weekEnd.setDate(weekEnd.getDate() + (7 - ((today.getDay() + 6) % 7) - 1))
     const from = dashboardDateFrom || ''
     const to = dashboardDateTo || ''
+    const normalizeFilterValue = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+    const matchesFilterValue = (values, selectedValue, selectedLabel = '') => {
+      if (selectedValue === 'all') return true
+      const selectedValues = [selectedValue, selectedLabel].map(normalizeFilterValue).filter(Boolean)
+      return values.some((value) => selectedValues.includes(normalizeFilterValue(value)))
+    }
     const inSelectedDateRange = (value) => {
       const dateValue = getDashboardDateValue(value)
       return (!from || (dateValue && dateValue >= from)) && (!to || (dateValue && dateValue <= to))
     }
-    const matchesStudentFilters = (student) => {
-      const course = String(student.courseId || student.courseName || student.courseInterested || '').trim()
-      const batch = String(student.batchId || student.batchName || student.batch || '').trim()
+    const selectedCourseOption = dashboardFilterOptions.courses.find((option) => option.id === dashboardCourseFilter)
+    const selectedBatchOption = dashboardFilterOptions.batches.find((option) => option.id === dashboardBatchFilter)
+    const matchesBaseStudentFilters = (student) => {
+      const courseValues = [student.courseId, student.courseName, student.courseInterested, student.course, student.course?.id, student.course?.name]
+      const batchValues = [student.batchId, student.batchName, student.batch, student.batchSelectionKey, student.batch?.id, student.batch?.name]
       const status = String(student.status || '').trim().toLowerCase()
       const isCountableStudent = !['inactive', 'deleted', 'rejected', 'withdrawn'].includes(status)
-      return (dashboardCourseFilter === 'all' || course === dashboardCourseFilter) &&
-        (dashboardBatchFilter === 'all' || batch === dashboardBatchFilter) &&
-        isCountableStudent &&
-        inSelectedDateRange(student.admissionDate || student.createdAt)
+      return matchesFilterValue(courseValues, dashboardCourseFilter, selectedCourseOption?.label) &&
+        matchesFilterValue(batchValues, dashboardBatchFilter, selectedBatchOption?.label) &&
+        isCountableStudent
     }
+    const matchesStudentFilters = (student) => matchesBaseStudentFilters(student) && inSelectedDateRange(student.admissionDate || student.createdAt)
 
     const students = branchStudents.filter(matchesStudentFilters)
     const studentIds = new Set(students.flatMap((student) => [student.id, student.studentId].map((id) => String(id || '').trim()).filter(Boolean)))
+    const currentBranchIds = new Set(
+      [branchStudentScope.id, branchStudentScope.branchId, branchStudentScope.branchCode]
+        .map((id) => String(id || '').trim())
+        .filter(Boolean),
+    )
     const payments = allPaymentHistoryRecords.filter((payment) => {
       const paymentStudentId = String(payment.studentId || '').trim()
+      const paymentBranchId = String(
+        payment.branchId || payment.branch_id || payment.centerId || payment.center_id || '',
+      ).trim()
+      const belongsToCurrentBranch = !paymentBranchId || currentBranchIds.has(paymentBranchId)
       return isSuccessfulDashboardPayment(payment) &&
+        belongsToCurrentBranch &&
         studentIds.has(paymentStudentId) &&
         inSelectedDateRange(payment.dateRaw || payment.paymentDate)
     })
@@ -6133,6 +6297,11 @@ const studentCourseOptions = useMemo(() => {
     })
     const dueSoon = dueThisWeek.filter((item) => getDashboardDateValue(item.dueDate) > todayValue)
     const overdue = dueItems.filter((item) => getDashboardDateValue(item.dueDate) < todayValue)
+    const currentMonthStudents = branchStudents.filter((student) => {
+      if (!matchesBaseStudentFilters(student)) return false
+      const addedDate = getDashboardDateValue(student.admissionDate || student.createdAt)
+      return addedDate.slice(0, 7) === todayValue.slice(0, 7)
+    }).length
     const totalFee = rows.reduce((sum, row) => sum + row.totalFee, 0)
     const totalCollected = rows.reduce((sum, row) => sum + row.paidAmount, 0)
     const startOfWeek = (date) => {
@@ -6183,6 +6352,7 @@ const studentCourseOptions = useMemo(() => {
 
     return {
       students,
+      currentMonthStudents,
       payments,
       rows,
       totalFee,
@@ -6197,7 +6367,7 @@ const studentCourseOptions = useMemo(() => {
       trendMax,
       statusValues: [totalCollected, Math.max(totalFee - totalCollected - overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0), 0), overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)],
     }
-  }, [allPaymentHistoryRecords, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardTrendMode])
+  }, [allPaymentHistoryRecords, branchStudentScope, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardFilterOptions, dashboardTrendMode])
 
   const paymentModeFilterOptions = useMemo(() => {
     const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque', 'Installment']
@@ -6212,6 +6382,17 @@ const studentCourseOptions = useMemo(() => {
 
     return ['all', ...Array.from(uniqueModes)]
   }, [allPaymentHistoryRecords])
+
+  const currentMonthAdmissions = dashboardData.currentMonthStudents
+  const nextMonthExpectedAdmissions = currentMonthAdmissions + 10
+  const nextMonthTargetAdmissions = 30
+  const averageStudentValue = currentMonthAdmissions > 0
+    ? dashboardData.totalFee / currentMonthAdmissions
+    : 0
+  const nextMonthExpectedValue = nextMonthExpectedAdmissions * averageStudentValue
+  const nextMonthTargetValue = nextMonthTargetAdmissions * averageStudentValue
+  const nextMonthLabel = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
+    .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 
   const filteredPaymentHistoryRecords = useMemo(() => {
     const q = paymentHistorySearch.trim().toLowerCase()
@@ -6345,6 +6526,223 @@ const branchStudentsForDisplay = useMemo(
     ),
   [branchCourseCards, branchFacultyRecords, branchStudents, facultyList],
 )
+
+  const selectedPaymentHistoryDetails = useMemo(() => {
+    if (!selectedPaymentHistory) return null
+
+    const selectedKeys = new Set(
+      [
+        selectedPaymentHistory.studentId,
+        selectedPaymentHistory.studentRecordId,
+        selectedPaymentHistory.branchStudentId,
+        selectedPaymentHistory.student?.studentId,
+        selectedPaymentHistory.student?.id,
+      ]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean),
+    )
+
+    const matchedStudent =
+      branchStudentsForDisplay.find((candidate) => {
+        const candidateKeys = getBranchStudentLookupKeys(candidate)
+        return candidateKeys.some((key) => selectedKeys.has(key))
+      }) ||
+      branchStudents.find((candidate) => {
+        const candidateKeys = getBranchStudentLookupKeys(candidate)
+        return candidateKeys.some((key) => selectedKeys.has(key))
+      }) ||
+      null
+
+    const resolvedStudent = matchedStudent
+      ? {
+          ...matchedStudent,
+          studentName: String(
+            matchedStudent.studentName || selectedPaymentHistory.studentName || '-',
+          ).trim(),
+          studentId: String(
+            matchedStudent.studentId || selectedPaymentHistory.studentId || '-',
+          ).trim(),
+          status: String(
+            matchedStudent.status ||
+            selectedPaymentHistory.studentStatus ||
+            selectedPaymentHistory.status ||
+            'Active',
+          ).trim(),
+          courseName: String(
+            matchedStudent.courseName ||
+            matchedStudent.courseInterested ||
+            selectedPaymentHistory.course ||
+            selectedPaymentHistory.courseName ||
+            matchedStudent.course?.name ||
+            '-',
+          ).trim(),
+          admissionDate: String(
+            matchedStudent.admissionDate ||
+            selectedPaymentHistory.admissionDate ||
+            selectedPaymentHistory.dateRaw ||
+            selectedPaymentHistory.paymentDate ||
+            '',
+          ).trim(),
+          batchName: String(
+            matchedStudent.batchName ||
+            matchedStudent.batch ||
+            selectedPaymentHistory.batchName ||
+            selectedPaymentHistory.batch ||
+            '-',
+          ).trim(),
+          facultyName: String(
+            matchedStudent.facultyName ||
+            matchedStudent.faculty ||
+            matchedStudent.course?.facultyName ||
+            selectedPaymentHistory.facultyName ||
+            selectedPaymentHistory.faculty ||
+            '-',
+          ).trim(),
+          courseDuration: String(
+            matchedStudent.courseDuration ||
+            matchedStudent.course?.duration ||
+            matchedStudent.course?.courseDuration ||
+            selectedPaymentHistory.courseDuration ||
+            selectedPaymentHistory.duration ||
+            '-',
+          ).trim(),
+          paymentMode: String(
+            matchedStudent.paymentMode ||
+            selectedPaymentHistory.paymentMode ||
+            selectedPaymentHistory.mode ||
+            'Installment',
+          ).trim(),
+          installmentSchedule: Array.isArray(matchedStudent.installmentSchedule)
+            ? matchedStudent.installmentSchedule
+            : [],
+        }
+      : {
+          studentName: String(selectedPaymentHistory.studentName || '-').trim(),
+          studentId: String(selectedPaymentHistory.studentId || '-').trim(),
+          status: String(selectedPaymentHistory.studentStatus || selectedPaymentHistory.status || 'Active').trim(),
+          courseName: String(selectedPaymentHistory.course || selectedPaymentHistory.courseName || '-').trim(),
+          admissionDate: String(selectedPaymentHistory.admissionDate || selectedPaymentHistory.dateRaw || selectedPaymentHistory.paymentDate || '').trim(),
+          batchName: String(selectedPaymentHistory.batchName || selectedPaymentHistory.batch || '-').trim(),
+          facultyName: String(selectedPaymentHistory.facultyName || selectedPaymentHistory.faculty || '-').trim(),
+          courseDuration: String(selectedPaymentHistory.courseDuration || selectedPaymentHistory.duration || '-').trim(),
+          paymentMode: String(selectedPaymentHistory.paymentMode || selectedPaymentHistory.mode || 'Installment').trim(),
+          installmentSchedule: [],
+        }
+
+    const paymentSummary = computeBranchStudentPaymentSummary(resolvedStudent)
+    const installmentSchedule = getDashboardInstallments(resolvedStudent)
+    const paymentHistoryRecords = (selectedKeys.size
+      ? allPaymentHistoryRecords.filter((record) => {
+          const recordKeys = [
+            record.studentId,
+            record.studentRecordId,
+            record.branchStudentId,
+          ]
+            .map((value) => String(value || '').trim().toLowerCase())
+            .filter(Boolean)
+
+          return recordKeys.some((key) => selectedKeys.has(key))
+        })
+      : [selectedPaymentHistory]
+    )
+      .slice()
+      .sort((left, right) => new Date(right.dateRaw || right.paymentDate || 0).getTime() - new Date(left.dateRaw || left.paymentDate || 0).getTime())
+
+    const installmentRows = installmentSchedule.length
+      ? installmentSchedule.map((installment, index) => {
+          const installmentNumber = Number(
+            installment.installmentNumber || installment.number || index + 1,
+          ) || index + 1
+          const paymentRecord = paymentHistoryRecords.find((record) => {
+            const recordInstallmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
+            return recordInstallmentNumber === installmentNumber
+          }) || null
+          const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
+          const paidAmount = Number(installment.paidAmount ?? installment.amountPaid ?? paymentRecord?.amount ?? 0)
+          const dueDate = installment.dueDate || installment.date || ''
+          const dueDateValue = dueDate ? new Date(dueDate) : null
+          const isPaid = paidAmount >= amount && amount > 0
+          const isOverdue = !isPaid && dueDateValue && !Number.isNaN(dueDateValue.getTime()) && dueDateValue < new Date()
+          const status = String(installment.status || '').trim() || (isPaid ? 'Paid' : isOverdue ? 'Due' : paidAmount > 0 ? 'Pending' : 'Pending')
+          return {
+            installmentNumber,
+            installmentLabel: `${installmentNumber}/${installmentSchedule.length}`,
+            amount,
+            paidAmount,
+            dueDate,
+            paymentMode: paidAmount > 0
+              ? paymentRecord
+                ? formatBranchPaymentMode(paymentRecord)
+                : String(installment.paymentMode || resolvedStudent.paymentMode || '-').trim()
+              : '-',
+            paidDate: paymentRecord ? formatBranchPaymentDate(paymentRecord.dateRaw || paymentRecord.paymentDate || paymentRecord.date) : formatBranchPaymentDate(installment.paymentDate || installment.paidAt || installment.paidDate || ''),
+            receiptNumber: paymentRecord ? getBranchPaymentReceiptNumber(paymentRecord) : String(installment.receiptNumber || installment.receiptNo || installment.receipt || '').trim(),
+            transactionReference: paymentRecord ? getBranchPaymentTransactionReference(paymentRecord) : String(installment.transactionReference || installment.transactionRef || '').trim(),
+            status: isPaid ? 'Paid' : isOverdue ? 'Due' : status,
+            statusTone: isPaid ? 'paid' : isOverdue ? 'overdue' : paidAmount > 0 ? 'partial' : 'pending',
+          }
+        })
+      : paymentHistoryRecords.map((record, index) => {
+          const installmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
+          const amount = Number(record.amount || 0)
+          const paidDate = formatBranchPaymentDate(record.dateRaw || record.paymentDate || record.date)
+          const statusTone = getBranchPaymentStatusTone(record)
+          return {
+            installmentNumber,
+            installmentLabel: installmentNumber ? `${installmentNumber}/-` : `Payment ${index + 1}`,
+            amount,
+            paidAmount: amount,
+            dueDate: record.dueDate || record.nextDueDate || '',
+            paymentMode: formatBranchPaymentMode(record),
+            paidDate,
+            receiptNumber: getBranchPaymentReceiptNumber(record),
+            transactionReference: getBranchPaymentTransactionReference(record),
+            status: getBranchPaymentStatusLabel(record),
+            statusTone,
+          }
+        })
+
+    const paymentHistoryRows = paymentHistoryRecords.map((record) => {
+      const installmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
+      return {
+        ...record,
+        installmentNumber,
+        installmentLabel: installmentNumber
+          ? `${installmentNumber}/${installmentSchedule.length || '-'}`
+          : '-',
+        paymentModeLabel: formatBranchPaymentMode(record),
+        paymentStatusLabel: getBranchPaymentStatusLabel(record),
+        paymentStatusTone: getBranchPaymentStatusTone(record),
+        receiptNumber: getBranchPaymentReceiptNumber(record),
+        transactionReference: getBranchPaymentTransactionReference(record),
+        paymentDateLabel: formatBranchPaymentDate(record.dateRaw || record.paymentDate || record.date),
+      }
+    })
+
+    const nextInstallmentRecord = paymentHistoryRecords.find((record) => {
+      const installmentNumber = getBranchPaymentHistoryInstallmentNumber(record)
+      return installmentNumber && paymentSummary.nextInstallment?.installmentNumber === installmentNumber
+    }) || null
+
+    return {
+      student: resolvedStudent,
+      paymentSummary,
+      installmentRows,
+      paymentHistoryRows,
+      nextInstallmentRecord,
+    }
+  }, [allPaymentHistoryRecords, branchStudents, branchStudentsForDisplay, selectedPaymentHistory])
+
+  const handleDownloadSelectedPaymentReceipt = useCallback((paymentRecord = selectedPaymentHistoryDetails?.paymentHistoryRows?.[0] || selectedPaymentHistory || null) => {
+    if (!paymentRecord || !selectedPaymentHistoryDetails?.student) return
+
+    downloadBranchStudentReceipt(paymentRecord, selectedPaymentHistoryDetails.student, {
+      branchProfile,
+      branchLocation,
+      branchEmail,
+      branchAdminDisplay,
+    })
+  }, [branchAdminDisplay, branchEmail, branchLocation, branchProfile, selectedPaymentHistory, selectedPaymentHistoryDetails])
 
 const branchTodayWorkEntriesByStudent = useMemo(() => {
   const sortedEntries = [...facultyTodayWorkEntries].sort(
@@ -6901,6 +7299,8 @@ useEffect(() => {
       batchId: selectedBatch?.batchId || String(studentForm.batchId || '').trim(),
       batchName: selectedBatch?.batchName || String(studentForm.batchName || '').trim(),
       batchTiming: selectedBatch?.batchTiming || String(studentForm.batchTiming || '').trim(),
+      classSchedule: String(studentForm.classSchedule || '').trim(),
+      courseStartDate: String(studentForm.courseStartDate || '').trim(),
       facultyId: selectedBatch?.facultyId || String(studentForm.facultyId || '').trim(),
       facultyName: selectedBatch?.facultyName || String(studentForm.facultyName || '').trim(),
       facultyEmail: selectedBatch?.facultyEmail || String(studentForm.facultyEmail || '').trim(),
@@ -6995,6 +7395,26 @@ useEffect(() => {
       setIsStudentDeleting(false)
     }
   }
+
+  const drawerPaymentSummary = viewStudentDrawer
+    ? computeBranchStudentPaymentSummary(viewStudentDrawer)
+    : null
+  const drawerPaymentHistory = viewStudentDrawer
+    ? allPaymentHistoryRecords.filter((record) =>
+        getBranchStudentLookupKeys(viewStudentDrawer).some((key) =>
+          getBranchStudentLookupKeys({ studentId: record.studentId }).includes(key),
+        ),
+      )
+    : []
+  const drawerPaymentProgress = Math.min(
+    100,
+    Math.max(
+      0,
+      drawerPaymentSummary?.totalFee
+        ? ((drawerPaymentSummary.paidAmount || 0) / drawerPaymentSummary.totalFee) * 100
+        : 0,
+    ),
+  )
 
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Branch navigation">
@@ -7302,36 +7722,146 @@ useEffect(() => {
                       <option value="all">All Batches</option>
                       {dashboardFilterOptions.batches.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                     </select></label>
-                    <label><span>From</span><input type="date" value={dashboardDateFromDraft} onChange={(event) => setDashboardDateFromDraft(event.target.value)} /></label>
-                    <label><span>To</span><input type="date" value={dashboardDateToDraft} onChange={(event) => setDashboardDateToDraft(event.target.value)} /></label>
                     <button type="button" className="dashboard-filter-apply" onClick={() => { setDashboardCourseFilter(dashboardCourseDraft); setDashboardBatchFilter(dashboardBatchDraft); setDashboardDateFrom(dashboardDateFromDraft); setDashboardDateTo(dashboardDateToDraft) }}>Apply</button>
                     <button type="button" className="dashboard-filter-reset" onClick={() => { setDashboardCourseDraft('all'); setDashboardBatchDraft('all'); setDashboardDateFromDraft(''); setDashboardDateToDraft(''); setDashboardCourseFilter('all'); setDashboardBatchFilter('all'); setDashboardDateFrom(''); setDashboardDateTo('') }}>Reset</button>
                   </div>
 
                   <div className="branch-dashboard-stats branch-dashboard-finance-stats">
                     {[
-                      ['Total Students', dashboardData.students.length, 'Active students'],
-                      ['Total Fee Value', formatBranchRupees(dashboardData.totalFee), 'Agreed fee value'],
-                      ['Total Collected', formatBranchRupees(dashboardData.totalCollected), 'Successful payments'],
-                      ['Outstanding', formatBranchRupees(dashboardData.outstanding), 'Payable balance'],
-                      ['Due Today', `${formatBranchRupees(dashboardData.dueToday.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueToday.length}`, 'Amount · installments'],
-                      ['Due This Week', `${formatBranchRupees(dashboardData.dueThisWeek.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueThisWeek.length}`, 'Amount · installments'],
-                      ['Overdue Amount', `${formatBranchRupees(dashboardData.overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.overdue.length}`, 'Amount · installments'],
-                      ['Collection %', `${formatBranchPercentage(dashboardData.collectionPercentage)}%`, 'Collected / total fee'],
-                    ].map(([label, value, note], index) => {
-                      const CardIcon = [Users, Wallet, IndianRupee, Wallet, CalendarDays, CalendarDays, Clock3, BadgePercent][index]
-                      return (
-                        <article key={label} className="branch-dashboard-stat-card">
-                          <div className="branch-dashboard-stat-card-head">
-                            <span className="branch-dashboard-stat-card-icon"><CardIcon size={14} strokeWidth={2.3} /></span>
-                            <span>{label}</span>
-                          </div>
+                      {
+                        label: 'This Month Admissions',
+                        value: dashboardData.currentMonthStudents,
+                        note: 'Students Joined',
+                        Icon: Users,
+                        TrailIcon: ArrowUpRight,
+                        tone: 'green',
+                        onClick: () => goToBranchSection('students'),
+                      },
+                      {
+                        label: 'Total Revenue',
+                        value: formatBranchRupees(dashboardData.totalFee),
+                        note: 'Across All Batches',
+                        Icon: IndianRupee,
+                        TrailIcon: ArrowUpRight,
+                        tone: 'amber',
+                        onClick: () => {
+                          setRecordPaymentStudent(null)
+                          setPaymentHistoryPage(1)
+                          setShowPaymentHistory(true)
+                          goToBranchSection('payments')
+                        },
+                      },
+                      {
+                        label: 'Total Collected',
+                        value: formatBranchRupees(dashboardData.totalCollected),
+                        note: 'Received Payments',
+                        Icon: Wallet,
+                        TrailIcon: ArrowDownRight,
+                        tone: 'red',
+                        onClick: () => {
+                          setRecordPaymentStudent(null)
+                          setPaymentHistoryPage(1)
+                          setShowPaymentHistory(true)
+                          goToBranchSection('payments')
+                        },
+                      },
+                      {
+                        label: 'Outstanding',
+                        value: formatBranchRupees(dashboardData.outstanding),
+                        note: 'Pending Balance',
+                        Icon: UserRound,
+                        TrailIcon: UserRound,
+                        tone: 'violet',
+                        onClick: () => {
+                          setRecordPaymentStudent(null)
+                          setPaymentHistoryPage(1)
+                          setShowPaymentHistory(true)
+                          goToBranchSection('payments')
+                        },
+                      },
+                      {
+                        label: 'Due Today',
+                        value: formatBranchRupees(dashboardData.dueToday.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
+                        note: `${new Set(dashboardData.dueToday.map((item) => String(item.student?.id || item.student?.studentId || item.student?.studentName || '').trim()).filter(Boolean)).size} Students`,
+                        Icon: FileText,
+                        TrailIcon: CalendarDays,
+                        tone: 'blue',
+                        onClick: () => goToBranchSection('students'),
+                      },
+                      {
+                        label: 'Due This Week',
+                        value: formatBranchRupees(dashboardData.dueThisWeek.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
+                        note: `${new Set(dashboardData.dueThisWeek.map((item) => String(item.student?.id || item.student?.studentId || item.student?.studentName || '').trim()).filter(Boolean)).size} Students`,
+                        Icon: Clock3,
+                        TrailIcon: ArrowUpRight,
+                        tone: 'sky',
+                        onClick: () => goToBranchSection('students'),
+                      },
+                      {
+                        label: 'Overdue Amount',
+                        value: formatBranchRupees(dashboardData.overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
+                        note: `${new Set(dashboardData.overdue.map((item) => String(item.student?.id || item.student?.studentId || item.student?.studentName || '').trim()).filter(Boolean)).size} Students`,
+                        Icon: CalendarDays,
+                        TrailIcon: ArrowDownRight,
+                        tone: 'rose',
+                        onClick: () => goToBranchSection('students'),
+                      },
+                      {
+                        label: 'Collection %',
+                        value: `${formatBranchPercentage(dashboardData.collectionPercentage)}%`,
+                        note: 'Collected / Total Due',
+                        Icon: BadgePercent,
+                        TrailIcon: PieChart,
+                        tone: 'green',
+                      },
+                    ].map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
+                      <article
+                        key={label}
+                        className={`branch-dashboard-stat-card tone-${tone}${onClick ? ' is-clickable' : ''}`}
+                        onClick={onClick}
+                        role={onClick ? 'button' : undefined}
+                        tabIndex={onClick ? 0 : undefined}
+                        onKeyDown={onClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick() } } : undefined}
+                      >
+                        <div className="branch-dashboard-stat-card-icon" aria-hidden="true">
+                          <Icon size={34} strokeWidth={2.2} />
+                        </div>
+                        <div className="branch-dashboard-stat-card-copy">
+                          <span>{label}</span>
                           <strong>{value}</strong>
                           <div className="branch-dashboard-stat-card-footer"><small>{note}</small></div>
-                        </article>
-                      )
-                    })}
+                        </div>
+                        <div className="branch-dashboard-stat-card-trail" aria-hidden="true">
+                          <TrailIcon size={20} strokeWidth={2.2} />
+                        </div>
+                      </article>
+                    ))}
                   </div>
+
+                  <section className="branch-dashboard-admission-target-card" aria-label="Next month admission target">
+                    <div className="branch-dashboard-admission-target-heading">
+                      <strong>Next Month Admission Target</strong>
+                      <span><CalendarDays size={14} strokeWidth={2.2} />{nextMonthLabel}</span>
+                    </div>
+                    <div className="branch-dashboard-admission-target-grid">
+                      <div className="branch-dashboard-admission-target-labels">
+                        <span><Users size={18} strokeWidth={2.1} />Admissions</span>
+                        <span><IndianRupee size={18} strokeWidth={2.1} />Value</span>
+                      </div>
+                      <div className="branch-dashboard-admission-target-column is-expected">
+                        <strong>Expected</strong>
+                        <b>{nextMonthExpectedAdmissions}</b>
+                        <small>Students</small>
+                        <b>{formatBranchRupees(Math.round(nextMonthExpectedValue))}</b>
+                      </div>
+                      <div className="branch-dashboard-admission-target-column is-target">
+                        <strong>Target</strong>
+                        <b>{nextMonthTargetAdmissions}</b>
+                        <small>Students</small>
+                        <b>{formatBranchRupees(Math.round(nextMonthTargetValue))}</b>
+                      </div>
+                    </div>
+                  </section>
 
                   {/* <div className="branch-dashboard-quick-links">
                     <strong>Quick Links</strong>
@@ -7353,7 +7883,7 @@ useEffect(() => {
                     </section>
                     <section className="branch-dashboard-analytics-card dashboard-fee-status-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Fee Status</span><h2>Collection breakdown</h2></div></div>
-                      <div className="dashboard-donut-wrap"><div className="dashboard-donut" style={{ background: `conic-gradient(#16a34a 0 ${dashboardData.totalFee ? (dashboardData.statusValues[0] / dashboardData.totalFee) * 360 : 0}deg, #f59e0b 0 ${dashboardData.totalFee ? ((dashboardData.statusValues[0] + dashboardData.statusValues[1]) / dashboardData.totalFee) * 360 : 0}deg, #ef4444 0 360deg)` }}><div>{formatBranchPercentage(dashboardData.collectionPercentage)}<small>% collected</small></div></div><div className="dashboard-donut-legend"><span><i className="is-collected" />Collected <b>{formatBranchRupees(dashboardData.statusValues[0])}</b></span><span><i className="is-pending" />Outstanding <b>{formatBranchRupees(dashboardData.statusValues[1])}</b></span><span><i className="is-overdue" />Overdue <b>{formatBranchRupees(dashboardData.statusValues[2])}</b></span></div></div>
+                      <div className="dashboard-donut-wrap"><div className="dashboard-donut" style={{ background: `conic-gradient(#16a34a 0 ${dashboardData.totalFee ? (dashboardData.statusValues[0] / dashboardData.totalFee) * 360 : 0}deg, #f59e0b 0 ${dashboardData.totalFee ? ((dashboardData.statusValues[0] + dashboardData.statusValues[1]) / dashboardData.totalFee) * 360 : 0}deg, #ef4444 0 360deg)` }}><div>{formatBranchPercentage(dashboardData.collectionPercentage)}<small>% collected</small></div></div><div className="dashboard-donut-legend"><span><i className="is-collected" />Collected <b>{formatBranchRupees(dashboardData.statusValues[0])}</b></span><span><i className="is-pending" />Outstanding <b>{formatBranchRupees(dashboardData.statusValues[1])}</b></span><span><i className="is-overdue" />Overdue <b>{formatBranchRupees(dashboardData.statusValues[2])}</b></span><span><i className="is-target" />Target <b>{formatBranchRupees(dashboardData.totalFee)}</b></span></div></div>
                     </section>
                   </div>
 
@@ -7910,6 +8440,15 @@ else {
                         <Eye size={15} />
                         <span>View</span>
                       </button>
+
+                      {/* <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => openStudentPaymentDetails(stu)}
+                      >
+                        <Eye size={15} />
+                        <span>View Payment Details</span>
+                      </button> */}
 
                       <button
                         type="button"
@@ -8607,7 +9146,15 @@ else {
             <tbody>
               {visiblePaymentHistoryRecords.length ? (
                 visiblePaymentHistoryRecords.map((record) => (
-                  <tr key={record.id}>
+                  <tr
+                    key={record.id}
+                    onClick={() => {
+                      setPaymentHistoryActionMenuId('')
+                      setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+                      setSelectedPaymentHistory(record)
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <td>
                       <strong>{record.studentId}</strong>
                     </td>
@@ -8625,7 +9172,7 @@ else {
                     <td>{formatBranchPaymentMode(record)}</td>
                     <td>{record.date}</td>
 
-                    <td>
+                    <td onClick={(event) => event.stopPropagation()}>
                       <div
                         className={`payment-history-actions-cell ${paymentHistoryActionMenuId === record.id ? 'menu-open' : ''}`.trim()}
                       >
@@ -8748,7 +9295,7 @@ else {
             PAYMENT DETAILS POPUP
         ===================================================== */}
 
-        {selectedPaymentHistory && (
+        {false ? (
 
           <div className="payment-popup-overlay">
 
@@ -8842,7 +9389,211 @@ else {
 
           </div>
 
-        )}
+        ) : null}
+
+        {selectedPaymentHistory && typeof document !== 'undefined' ? createPortal((
+          <div
+            className="payment-popup-overlay branch-payment-history-overlay"
+            role="presentation"
+          >
+            <div
+              className="payment-confirmation-popup branch-payment-history-popup"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="branch-payment-history-title"
+              style={{
+                maxWidth: '1120px',
+                width: 'min(1120px, 96vw)',
+                maxHeight: '92vh',
+                overflowY: 'auto',
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="receipt-popup-close"
+                onClick={() => setSelectedPaymentHistory(null)}
+                aria-label="Close payment details"
+              >
+                ×
+              </button>
+
+              <div className="branch-payment-history-header">
+                <div className="branch-payment-history-profile">
+                  <div className="branch-payment-history-avatar" aria-hidden="true">
+                    {(selectedPaymentHistoryDetails?.student?.studentName || selectedPaymentHistory?.studentName || '?')
+                      .trim()
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+                  <div className="branch-payment-history-title-copy">
+                    <p className="branch-payment-history-kicker">Payment History</p>
+                    <h3 id="branch-payment-history-title">
+                      {selectedPaymentHistoryDetails?.student?.studentName || selectedPaymentHistory.studentName}
+                    </h3>
+                    <p className="branch-payment-history-subtitle">
+                      {selectedPaymentHistoryDetails?.student?.studentId || selectedPaymentHistory.studentId || '-'}
+                      {' · '}
+                      {selectedPaymentHistoryDetails?.student?.courseName || selectedPaymentHistory.course || selectedPaymentHistory.courseName || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="branch-payment-history-header-actions">
+                  <span className={`branch-payment-status-badge is-${selectedPaymentHistoryDetails?.paymentSummary?.paymentStatus === 'Completed' ? 'paid' : selectedPaymentHistoryDetails?.paymentSummary?.paymentStatus === 'Overdue' ? 'overdue' : selectedPaymentHistoryDetails?.paymentSummary?.paymentStatus === 'Partially Paid' ? 'partial' : 'pending'}`}>
+                    {selectedPaymentHistoryDetails?.paymentSummary?.paymentStatus || getBranchPaymentStatusLabel(selectedPaymentHistory)}
+                  </span>
+                  <button
+                    type="button"
+                    className="branch-payment-history-download-btn"
+                    onClick={() => handleDownloadSelectedPaymentReceipt(selectedPaymentHistoryDetails?.paymentHistoryRows?.[0] || selectedPaymentHistory)}
+                  >
+                    <Download size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
+                    <span>Download Receipt</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="branch-payment-history-summary-grid">
+                <article className="branch-payment-history-hero-card">
+                  <span>Payment Summary</span>
+                  <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.totalFee || 0)}</strong>
+                  <small>Total fee</small>
+                </article>
+                <article className="branch-payment-history-hero-card is-success">
+                  <span>Paid Amount</span>
+                  <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.paidAmount || 0)}</strong>
+                  <small>Collected so far</small>
+                </article>
+                <article className="branch-payment-history-hero-card is-warning">
+                  <span>Balance</span>
+                  <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.pendingAmount || 0)}</strong>
+                  <small>Remaining amount</small>
+                </article>
+                <article className="branch-payment-history-hero-card is-success">
+                  <span>Payment Progress (%)</span>
+                  <strong>{formatBranchPercentage(selectedPaymentHistoryDetails?.paymentSummary?.totalFee ? (selectedPaymentHistoryDetails.paymentSummary.paidAmount / selectedPaymentHistoryDetails.paymentSummary.totalFee) * 100 : 0)}%</strong>
+                  <small>Collected against total fee</small>
+                </article>
+              </div>
+
+              <section className="branch-payment-history-section">
+                <div className="branch-payment-history-section-heading">
+                  <span>Installment Details</span>
+                  <p>Each installment shows the due date, payment mode, and status.</p>
+                </div>
+                <div className="branch-payment-history-table-shell">
+                  <table className="branch-payment-history-table">
+                    <thead>
+                      <tr>
+                        <th>Installment</th>
+                        <th>Amount</th>
+                        <th>Due Date</th>
+                        <th>Payment Mode</th>
+                        <th>Paid Date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPaymentHistoryDetails?.installmentRows?.length ? selectedPaymentHistoryDetails.installmentRows.map((installment) => (
+                        <tr key={`${installment.installmentNumber}-${installment.dueDate || installment.paidDate || installment.amount}`}>
+                          <td><strong>{installment.installmentLabel}</strong></td>
+                          <td>{formatBranchRupees(installment.amount || 0)}</td>
+                          <td>{formatBranchPaymentDate(installment.dueDate)}</td>
+                          <td>{installment.paymentMode || '-'}</td>
+                          <td>{installment.paidDate || '-'}</td>
+                          <td>
+                            <span className={`branch-payment-status-badge is-${installment.statusTone}`}>
+                              {installment.status || '-'}
+                            </span>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="6" className="branch-payment-history-empty-state">No installment details found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section className="branch-payment-history-section">
+                <div className="branch-payment-history-section-heading">
+                  <span>Payment History</span>
+                  <p>Download any receipt directly from the history rows.</p>
+                </div>
+                <div className="branch-payment-history-table-shell">
+                  <table className="branch-payment-history-table">
+                    <thead>
+                      <tr>
+                        <th>Payment Date</th>
+                        <th>Amount</th>
+                        <th>Payment Mode</th>
+                        <th>Installment Number</th>
+                        <th>Receipt Download</th>
+                        <th>Payment Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedPaymentHistoryDetails?.paymentHistoryRows?.length ? selectedPaymentHistoryDetails.paymentHistoryRows.map((record) => (
+                        <tr key={record.id}>
+                          <td>{record.paymentDateLabel || '-'}</td>
+                          <td><strong>{formatBranchRupees(record.amount || 0)}</strong></td>
+                          <td>{record.paymentModeLabel || '-'}</td>
+                          <td>{record.installmentNumber ? `${record.installmentNumber}/${selectedPaymentHistoryDetails.installmentRows?.length || '-'}` : '-'}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="branch-payment-history-download-link"
+                              onClick={() => handleDownloadSelectedPaymentReceipt(record)}
+                            >
+                              Download
+                            </button>
+                          </td>
+                          <td>
+                            <span className={`branch-payment-status-badge is-${record.paymentStatusTone}`}>
+                              {record.paymentStatusLabel || '-'}
+                            </span>
+                          </td>
+                        </tr>
+                      )) : (
+                        <tr>
+                          <td colSpan="6" className="branch-payment-history-empty-state">No payment history found.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section className="branch-payment-history-next-payment">
+                <div className="branch-payment-history-next-payment-copy">
+                  <span>Next Payment</span>
+                  <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.nextInstallmentAmount || 0)}</strong>
+                </div>
+                <div className="branch-payment-history-next-payment-copy">
+                  <span>Due Date</span>
+                  <strong>{formatBranchPaymentDate(selectedPaymentHistoryDetails?.paymentSummary?.nextDueDate)}</strong>
+                </div>
+                <div className="branch-payment-history-next-payment-copy">
+                  <span>Status</span>
+                  <strong>{selectedPaymentHistoryDetails?.paymentSummary?.paymentStatus || getBranchPaymentStatusLabel(selectedPaymentHistory)}</strong>
+                </div>
+              </section>
+
+              <div className="payment-popup-actions branch-payment-history-actions">
+                <button
+                  type="button"
+                  className="popup-cancel-btn"
+                  onClick={() => setSelectedPaymentHistory(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        ), document.body) : null}
 
         {ledgerStudent ? (typeof document !== 'undefined' ? createPortal((
           <div className="payment-popup-overlay">
@@ -11723,7 +12474,18 @@ else {
     Education Details
   </button>
 
-  {/* Course & Payment Details */}
+  {/* Course Details */}
+  <button
+    type="button"
+    className={`student-details-tab ${
+      studentDetailsTab === 'course' ? 'active' : ''
+    }`}
+    onClick={() => setStudentDetailsTab('course')}
+  >
+    Course Details
+  </button>
+
+  {/* Payment Details */}
   <button
     type="button"
     className={`student-details-tab ${
@@ -11731,7 +12493,7 @@ else {
     }`}
     onClick={() => setStudentDetailsTab('payment')}
   >
-    Course & Payment Details
+    Payment Details
   </button>
 
 </div>
@@ -11739,12 +12501,14 @@ else {
               {/* Details Table */}
               <div className="student-drawer-content">
 
-                <div className="student-details-table">
+                <div className={`student-details-table ${studentDetailsTab === 'payment' ? 'is-payment-details' : ''}`}>
 
-                  <div className="student-details-table-head">
-                    <div>DETAILS</div>
-                    <div>INFORMATION</div>
-                  </div>
+                  {studentDetailsTab !== 'payment' ? (
+                    <div className="student-details-table-head">
+                      <div>DETAILS</div>
+                      <div>INFORMATION</div>
+                    </div>
+                  ) : null}
                   
 {studentDetailsTab === 'basic' ? (
   <>
@@ -11892,7 +12656,7 @@ else {
       </div>
     </div>
   </>
-) : (
+) : studentDetailsTab === 'course' ? (
   <>
     {/* Batch */}
     <div className="student-details-row">
@@ -11961,6 +12725,38 @@ else {
         {viewStudentDrawer.paymentPlan || '-'}
       </div>
     </div>
+  </>
+) : ( <>
+
+    <div className="student-payment-summary-grid">
+      <article className="student-payment-summary-card">
+        <span>Total Fee</span>
+        <strong>{formatBranchRupees(drawerPaymentSummary?.totalFee || 0)}</strong>
+      </article>
+      <article className="student-payment-summary-card is-paid">
+        <span>Paid Amount</span>
+        <strong>{formatBranchRupees(drawerPaymentSummary?.paidAmount || 0)}</strong>
+      </article>
+      <article className="student-payment-summary-card is-balance">
+        <span>Balance</span>
+        <strong>{formatBranchRupees(drawerPaymentSummary?.pendingAmount || 0)}</strong>
+      </article>
+      <article className="student-payment-summary-card is-progress">
+        <span>Progress</span>
+        <strong>
+          {formatBranchPercentage(
+            drawerPaymentProgress,
+          )}%
+        </strong>
+        <div className="student-payment-progress-track">
+          <span
+            style={{
+              width: `${drawerPaymentProgress}%`,
+            }}
+          />
+        </div>
+      </article>
+    </div>
 
   {/* Installment Schedule */}
 {Array.isArray(viewStudentDrawer.installmentSchedule) &&
@@ -11980,15 +12776,27 @@ else {
               <th>Installment</th>
               <th>Amount</th>
               <th>Due Date</th>
+              <th>Payment Mode</th>
+              <th>Paid Date</th>
               <th>Status</th>
             </tr>
           </thead>
 
           <tbody>
-            {viewStudentDrawer.installmentSchedule.map((inst, index) => (
+            {viewStudentDrawer.installmentSchedule.map((inst, index) => {
+              const installmentNumber = Number(inst.installmentNumber || inst.number || index + 1)
+              const installmentPayment = drawerPaymentHistory.find((payment) => {
+                const paymentInstallmentNumber = Number(
+                  payment.installmentNumber || getBranchLedgerInstallmentNumber(payment.payAgainst),
+                )
+                return paymentInstallmentNumber === installmentNumber
+              })
+              const installmentStatus = installmentPayment ? 'Paid' : (inst.status || 'Pending')
+
+              return (
               <tr key={`view-inst-${index}`}>
                 <td>
-                  Installment {inst.installmentNumber}
+                  Installment {installmentNumber}
                 </td>
 
                 <td>
@@ -12001,23 +12809,83 @@ else {
                     : '-'}
                 </td>
 
+                <td>{installmentPayment?.paymentMode || installmentPayment?.mode || '-'}</td>
+
+                <td>
+                  {formatStudentDate(installmentPayment?.dateRaw || inst.paymentDate || inst.paidDate || inst.datePaid || inst.paidOn)}
+                </td>
+
                 <td>
                   <span
                     className={`status-badge status-${String(
-                      inst.status || 'pending'
+                      installmentStatus
                     ).toLowerCase()}`}
                   >
-                    {inst.status || 'Pending'}
+                    {installmentStatus}
                   </span>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>
 
     </div>
   )}
+
+    <div className="student-payment-history-section">
+      <div className="student-payment-history-heading">
+        <div>
+          <h4>Payment History</h4>
+          <span>All successful payments recorded for this student</span>
+        </div>
+      </div>
+      <div className="student-payment-table-wrapper">
+        <table className="student-payment-installment-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Payment Mode</th>
+              <th>Transaction Reference</th>
+              <th>Installment</th>
+              <th>Receipt</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {drawerPaymentHistory.length ? drawerPaymentHistory.map((payment) => (
+              <tr key={`drawer-payment-${payment.id}`}>
+                <td>{payment.date || formatStudentDate(payment.dateRaw)}</td>
+                <td><strong>{formatBranchRupees(payment.amount || 0)}</strong></td>
+                <td>{payment.paymentMode || payment.mode || '-'}</td>
+                <td>{payment.transactionReference || '-'}</td>
+                <td>{payment.installmentNumber ? `${payment.installmentNumber} / ${viewStudentDrawer.installmentSchedule?.length || '-'}` : payment.payAgainst || '-'}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="student-receipt-download-button"
+                      onClick={() => downloadBranchStudentReceipt(payment, viewStudentDrawer, {
+                        branchProfile,
+                        branchLocation,
+                        branchEmail,
+                        branchAdminDisplay,
+                      })}
+                  >
+                    <Download size={14} aria-hidden="true" />
+                    Download
+                  </button>
+                </td>
+                <td><span className="student-payment-history-status paid">Paid</span></td>
+              </tr>
+            )) : (
+              <tr><td colSpan="7" className="student-payment-history-empty">No payment history found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </>
 )}
                 </div>
