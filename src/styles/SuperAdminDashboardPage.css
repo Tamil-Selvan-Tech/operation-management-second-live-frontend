@@ -135,6 +135,106 @@
   color: #111827;
 }
 
+.super-admin-sidebar-branch-nav {
+  display: grid;
+  gap: 4px;
+}
+
+.super-admin-sidebar-branch-link {
+  display: grid;
+  grid-column: 1 / 3;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.super-admin-sidebar-branch-toggle {
+  display: grid;
+  grid-column: 3;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.super-admin-sidebar-branch-toggle:hover,
+.super-admin-sidebar-branch-toggle:focus-visible {
+  background: #eaf2ff;
+  color: #2563eb;
+  outline: none;
+}
+
+.super-admin-sidebar-branch-toggle svg {
+  transition: transform 160ms ease;
+}
+
+.super-admin-sidebar-branch-toggle svg.is-expanded {
+  transform: rotate(180deg);
+}
+
+.super-admin-sidebar-branch-list {
+  display: grid;
+  gap: 2px;
+  margin-left: 22px;
+  padding: 3px 0 2px 16px;
+  border-left: 1px solid #dbe4f0;
+}
+
+.super-admin-sidebar-branch-name {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  border: 0;
+  border-radius: 9px;
+  padding: 8px 8px;
+  background: transparent;
+  color: #475569;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.super-admin-sidebar-branch-name:hover,
+.super-admin-sidebar-branch-name:focus-visible {
+  background: #f1f6ff;
+  color: #1557b0;
+  outline: none;
+}
+
+.super-admin-sidebar-branch-name span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.super-admin-sidebar-branch-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #93c5fd;
+  flex: 0 0 auto;
+}
+
+.super-admin-sidebar-branch-empty {
+  padding: 8px;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
 .super-admin-sidebar-icon {
   display: grid;
   place-items: center;
