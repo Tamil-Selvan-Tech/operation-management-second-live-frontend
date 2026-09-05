@@ -341,10 +341,11 @@
   align-items: end;
   gap: 12px;
   margin: 18px 0 10px;
-  padding: 10px 12px;
-  border-color: #edf0f4;
-  border-radius: 11px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, .045);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .branch-dashboard-page .branch-dashboard-filter-bar label {
@@ -1829,33 +1830,33 @@ body.branch-notification-menu-open .main-area {
 
 /* Keep the dashboard summary row compact without changing its contents. */
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card {
-  height: 112px;
+  height: 104px;
   min-height: 0;
   align-self: start;
-  gap: 4px;
-  padding: 8px 12px 7px;
+  gap: 3px;
+  padding: 7px 11px 6px;
 }
 
 .branch-dashboard-page .branch-dashboard-finance-stats {
-  grid-auto-rows: 112px;
+  grid-auto-rows: 104px;
 }
 
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card:nth-child(2) strong,
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card:nth-child(3) strong,
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card:nth-child(4) strong {
-  margin: 9px 0 5px;
-  font-size: clamp(1.18rem, 2vw, 1.48rem);
+  margin: 7px 0 4px;
+  font-size: clamp(1.1rem, 1.9vw, 1.34rem);
 }
 
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card:nth-child(1) strong,
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card:nth-child(n+5) strong {
-  margin: 7px 0 4px;
-  font-size: clamp(1rem, 1.6vw, 1.18rem);
+  margin: 5px 0 3px;
+  font-size: clamp(.92rem, 1.5vw, 1.05rem);
 }
 
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer {
-  min-height: 18px;
-  padding-top: 4px;
+  min-height: 16px;
+  padding-top: 3px;
 }
 
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-footer small {

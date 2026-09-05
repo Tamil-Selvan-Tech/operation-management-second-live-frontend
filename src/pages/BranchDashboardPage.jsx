@@ -5966,16 +5966,81 @@ const studentCourseOptions = useMemo(() => {
     return Array.from(records.values()).sort((a, b) => new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0))
   }, [branchStudents, storedPaymentHistoryRecords])
 
-  const dashboardFilterOptions = useMemo(() => ({
-    courses: [...new Map(branchStudents.map((student) => {
-      const id = String(student.courseId || student.courseName || student.courseInterested || '').trim()
-      return [id, { id, label: student.courseName || student.courseInterested || id }]
-    }).filter(([id]) => id)).values()],
-    batches: [...new Map(branchStudents.map((student) => {
-      const id = String(student.batchId || student.batchName || student.batch || '').trim()
-      return [id, { id, label: student.batchName || student.batch || id }]
-    }).filter(([id]) => id)).values()],
-  }), [branchStudents])
+  const dashboardFilterOptions = useMemo(() => {
+    const coursesById = new Map()
+    const addCourse = (course = {}, fallbackId = '', fallbackLabel = '') => {
+      const id = String(course.id || course.courseId || fallbackId || '').trim()
+      const label = String(course.name || course.courseName || fallbackLabel || id).trim()
+      if (id && label && !coursesById.has(id)) coursesById.set(id, { id, label })
+    }
+
+    branchCourseCards.forEach((course) => addCourse(course))
+    branchStudents.forEach((student) => addCourse(student, student.courseName || student.courseInterested, student.courseName || student.courseInterested))
+
+    const batchesById = new Map()
+    const addBatch = (batch = {}, fallback = {}) => {
+      const id = String(batch.batchId || batch.id || fallback.batchId || fallback.batchName || '').trim()
+      const label = String(batch.batchName || batch.batch || fallback.batchName || id).trim()
+      if (id && label && !batchesById.has(id)) {
+        batchesById.set(id, {
+          id,
+          label,
+          courseId: String(batch.courseId || fallback.courseId || '').trim(),
+          courseName: String(batch.courseName || fallback.courseName || '').trim(),
+        })
+      }
+    }
+
+    branchBatchGroups.forEach((group) => {
+      const groupCourseId = String(group?.courseId || group?.branchCourseId || group?.course?.id || '').trim()
+      const batches = Array.isArray(group?.batches) ? group.batches : []
+      const groupCourseName = String(group?.courseName || group?.course?.name || '').trim()
+      batches.forEach((batch) => addBatch(batch, { courseId: groupCourseId, courseName: groupCourseName }))
+      if (!batches.length) addBatch(group, { courseId: groupCourseId, courseName: groupCourseName })
+    })
+    if (!branchBatchGroups.length) {
+      branchStudents.forEach((student) => addBatch(student, {
+        courseId: student.courseId || student.courseName || student.courseInterested,
+        batchId: student.batchId || student.batchName || student.batch,
+        batchName: student.batchName || student.batch,
+      }))
+    }
+
+    const selectedCourseId = String(dashboardCourseDraft || '').trim()
+    const selectedCourse = coursesById.get(selectedCourseId)
+    const selectedCourseName = String(selectedCourse?.label || '').trim().toLowerCase()
+    const selectedCourseIds = new Set(
+      [...coursesById.values()]
+        .filter((course) => String(course.label || '').trim().toLowerCase() === selectedCourseName)
+        .map((course) => course.id),
+    )
+    const uniqueCoursesByName = new Map()
+    coursesById.forEach((course) => {
+      const nameKey = String(course.label || '').trim().toLowerCase()
+      if (nameKey && !uniqueCoursesByName.has(nameKey)) uniqueCoursesByName.set(nameKey, course)
+    })
+    const uniqueBatchesByName = new Map()
+    const batches = [...batchesById.values()]
+      .filter((batch) => (
+        selectedCourseId === 'all' ||
+        (!batch.courseId && !batch.courseName) ||
+        selectedCourseIds.has(batch.courseId) ||
+        String(batch.courseName || '').trim().toLowerCase() === selectedCourseName ||
+        String(batch.courseId || '').trim().toLowerCase() === selectedCourseName
+      ))
+      .filter((batch) => {
+        const batchKey = String(batch.label || '').trim().toLowerCase()
+        if (!batchKey || uniqueBatchesByName.has(batchKey)) return false
+        uniqueBatchesByName.set(batchKey, batch)
+        return true
+      })
+      .sort((left, right) => left.label.localeCompare(right.label))
+
+    return {
+      courses: [...uniqueCoursesByName.values()].sort((left, right) => left.label.localeCompare(right.label)),
+      batches,
+    }
+  }, [branchBatchGroups, branchCourseCards, branchStudents, dashboardCourseDraft])
 
   const dashboardData = useMemo(() => {
     const today = new Date()
@@ -7189,7 +7254,7 @@ useEffect(() => {
                 
 
                   <div className="branch-dashboard-filter-bar">
-                    <label><span>Course</span><select value={dashboardCourseDraft} onChange={(event) => setDashboardCourseDraft(event.target.value)} aria-label="Filter by course">
+                    <label><span>Course</span><select value={dashboardCourseDraft} onChange={(event) => { setDashboardCourseDraft(event.target.value); setDashboardBatchDraft('all') }} aria-label="Filter by course">
                       <option value="all">All Courses</option>
                       {dashboardFilterOptions.courses.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                     </select></label>
