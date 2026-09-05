@@ -69,6 +69,8 @@ function normalizeStoredStudentRecord(record = {}) {
     batchId: String(record.batchId || record.batchEntryId || nestedBatch.batchId || nestedBatch.id || '').trim(),
     batchName: record.batchName || (typeof record.batch === 'string' ? record.batch : '') || nestedBatch.batchName || nestedBatch.name || '',
     batchTiming: record.batchTiming || record.batchTime || nestedBatch.batchTiming || nestedBatch.timing || '',
+    classSchedule: record.classSchedule || record.schedule || nestedBatch.classSchedule || nestedBatch.schedule || '',
+    courseStartDate: record.courseStartDate || record.courseStart || record.startDate || nestedBatch.courseStartDate || nestedBatch.startDate || '',
     courseProgress: record.courseProgress,
     courseCompletionPercentage: record.courseCompletionPercentage,
     progress: record.progress,

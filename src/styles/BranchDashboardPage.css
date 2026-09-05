@@ -8623,6 +8623,11 @@ body.branch-notification-menu-open .main-area {
   background: #ffffff;
 }
 
+.student-details-table.is-payment-details {
+  border: none;
+  border-radius: 0;
+}
+
 .student-details-table-head {
   display: grid;
   grid-template-columns: 40% 60%;
@@ -10089,7 +10094,7 @@ body.branch-notification-menu-open .main-area {
 /* Heading */
 .student-installment-schedule-title {
   width: 100%;
-  padding-left: 30px;
+  padding-left: 0;
     margin-bottom: 10px; 
   color: #64748b;
   font-size: 14px;

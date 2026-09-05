@@ -442,8 +442,8 @@ function buildStudentFormFromRecord(student = {}) {
     batchName: student.batchName || student.batch?.batchName || student.batch || '',
     batchTiming: student.batchTiming || student.batch?.batchTiming || '',
     batchSelectionKey: '',
-    classSchedule: student.classSchedule || '',
-    courseStartDate: student.courseStartDate || '',
+    classSchedule: student.classSchedule || student.schedule || student.batch?.classSchedule || student.batch?.schedule || '',
+    courseStartDate: student.courseStartDate || student.courseStart || student.startDate || student.batch?.courseStartDate || student.batch?.startDate || '',
     facultyId: student.facultyId || student.course?.facultyId || '',
     facultyName: student.facultyName || student.course?.facultyName || '',
     facultyEmail: student.facultyEmail || student.course?.facultyEmail || '',
@@ -7222,6 +7222,8 @@ useEffect(() => {
       batchId: selectedBatch?.batchId || String(studentForm.batchId || '').trim(),
       batchName: selectedBatch?.batchName || String(studentForm.batchName || '').trim(),
       batchTiming: selectedBatch?.batchTiming || String(studentForm.batchTiming || '').trim(),
+      classSchedule: String(studentForm.classSchedule || '').trim(),
+      courseStartDate: String(studentForm.courseStartDate || '').trim(),
       facultyId: selectedBatch?.facultyId || String(studentForm.facultyId || '').trim(),
       facultyName: selectedBatch?.facultyName || String(studentForm.facultyName || '').trim(),
       facultyEmail: selectedBatch?.facultyEmail || String(studentForm.facultyEmail || '').trim(),
@@ -12293,7 +12295,7 @@ else {
     }`}
     onClick={() => setStudentDetailsTab('course')}
   >
-    Course
+    Course Details
   </button>
 
   {/* Payment Details */}
@@ -12312,7 +12314,7 @@ else {
               {/* Details Table */}
               <div className="student-drawer-content">
 
-                <div className="student-details-table">
+                <div className={`student-details-table ${studentDetailsTab === 'payment' ? 'is-payment-details' : ''}`}>
 
                   {studentDetailsTab !== 'payment' ? (
                     <div className="student-details-table-head">
