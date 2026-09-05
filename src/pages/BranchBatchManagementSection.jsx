@@ -672,6 +672,8 @@ export function BranchBatchManagementSection({
   const [editingGroup, setEditingGroup] = useState(null)
   const [deleteGroupTarget, setDeleteGroupTarget] = useState(null)
   const [draft, setDraft] = useState(() => createInitialDraft(1, 1))
+  const [courseSearch, setCourseSearch] = useState('')
+  const [facultySearch, setFacultySearch] = useState('')
   const [expandedBatchKey, setExpandedBatchKey] = useState('')
   const [closingBatchKey, setClosingBatchKey] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -851,11 +853,15 @@ export function BranchBatchManagementSection({
     return source
       .map((faculty) => {
         const id = normalizeText(faculty?.id || faculty?.facultyId || faculty?.facultyUserId || faculty?.userId || '')
+        const facultyCode = normalizeText(
+          faculty?.facultyId || faculty?.code || faculty?.facultyCode || (id.match(/^FC[-_]?\d+$/i) ? id : ''),
+        )
         const name = getFacultyLabel(faculty)
         const status = normalizeStatus(faculty?.status || faculty?.recordStatus || 'Active')
 
         return {
           id,
+          facultyCode,
           name,
           status,
         }
@@ -889,6 +895,35 @@ export function BranchBatchManagementSection({
 
     return [...mappedOptions, ...remainingOptions]
   }, [activeFaculty, mappedFacultyIds])
+
+  const courseSearchResults = useMemo(() => {
+    const query = courseSearch.trim().toLowerCase()
+    if (!query || draft.courseId) return []
+    return activeCourses
+      .filter((course) => [course.id, course.code, course.name]
+        .some((value) => String(value || '').toLowerCase().includes(query)))
+      .slice(0, 8)
+  }, [activeCourses, courseSearch, draft.courseId])
+
+  const facultySearchResults = useMemo(() => {
+    const query = facultySearch.trim().toLowerCase()
+    if (!query || !draft.courseId || resolvedDraftFacultyId) return []
+
+    const isFacultyIdSearch = /^fc(?:[-_ ]?\d+)?$/i.test(query) || /^\d+$/.test(query)
+    const normalizedQueryId = query.replace(/^fc[-_ ]?/i, '').replace(/^0+(?=\d)/, '')
+
+    return availableFacultyOptions
+      .filter((faculty) => {
+        if (isFacultyIdSearch) {
+          const facultyCode = String(faculty.facultyCode || '').trim().toLowerCase()
+          const facultyCodeId = facultyCode.replace(/^fc[-_ ]?/i, '').replace(/^0+(?=\d)/, '')
+          return facultyCodeId === normalizedQueryId
+        }
+
+        return String(faculty.name || '').toLowerCase().includes(query)
+      })
+      .slice(0, 8)
+  }, [availableFacultyOptions, draft.courseId, facultySearch, resolvedDraftFacultyId])
 
   const selectedFacultyRecord = useMemo(
     () => availableFacultyOptions.find((faculty) => faculty.id === resolvedDraftFacultyId) || null,
@@ -973,6 +1008,8 @@ export function BranchBatchManagementSection({
     setSaveSuccessPopup(null)
     setDraft(createInitialDraft(nextBatchSequenceStart, groupSequenceStart, 1))
     setEditingGroup(null)
+    setCourseSearch('')
+    setFacultySearch('')
     setActionMenuOpenId('')
     setActionMenuPosition(null)
     setIsCreateOpen(true)
@@ -984,7 +1021,10 @@ export function BranchBatchManagementSection({
       setCreateError('')
       setFieldErrors({ courseId: '', facultyId: '', rows: [] })
       setEditingGroup(group)
-      setDraft(createDraftFromGroup(group, 1, nextGroupSequence, availableFacultyOptions))
+      const nextDraft = createDraftFromGroup(group, 1, nextGroupSequence, availableFacultyOptions)
+      setDraft(nextDraft)
+      setCourseSearch(String(group?.courseName || nextDraft.courseId || '').trim())
+      setFacultySearch(String(group?.facultyName || nextDraft.facultyName || '').trim())
       setIsCreateOpen(true)
       setActionMenuOpenId('')
       setActionMenuPosition(null)
@@ -1105,6 +1145,36 @@ export function BranchBatchManagementSection({
       }))
     }
   }, [availableFacultyOptions])
+
+  const handleCourseSearchChange = useCallback((value) => {
+    const nextValue = String(value || '')
+    setCourseSearch(nextValue)
+    setFacultySearch('')
+
+    if (!nextValue.trim() || draft.courseId) {
+      handleDraftChange('courseId', '')
+    }
+  }, [draft.courseId, handleDraftChange])
+
+  const selectCourseFromSearch = useCallback((course) => {
+    handleDraftChange('courseId', course.id)
+    setCourseSearch(course.name)
+    setFacultySearch('')
+  }, [handleDraftChange])
+
+  const handleFacultySearchChange = useCallback((value) => {
+    const nextValue = String(value || '')
+    setFacultySearch(nextValue)
+
+    if (!nextValue.trim() || resolvedDraftFacultyId) {
+      handleDraftChange('facultyId', '')
+    }
+  }, [handleDraftChange, resolvedDraftFacultyId])
+
+  const selectFacultyFromSearch = useCallback((faculty) => {
+    handleDraftChange('facultyId', faculty.id)
+    setFacultySearch(faculty.name)
+  }, [handleDraftChange])
 
   const handleRowChange = useCallback((index, field, value) => {
     setDraft((current) => ({
@@ -1439,32 +1509,64 @@ export function BranchBatchManagementSection({
             <div className="batch-management-form-grid">
               <label className="batch-management-field">
                 <span>Course Name *</span>
-                <select value={draft.courseId} onChange={(event) => handleDraftChange('courseId', event.target.value)}>
-                  <option value="">Select Course</option>
-                  {activeCourses.map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.name}
-                    </option>
-                  ))}
-                </select>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="search"
+                    value={courseSearch}
+                    onChange={(event) => handleCourseSearchChange(event.target.value)}
+                    onBlur={() => window.setTimeout(() => setFieldErrors((current) => ({ ...current, courseId: current.courseId })), 120)}
+                    placeholder={activeCourses.length ? 'Search by course ID or name' : 'No courses available'}
+                    disabled={!activeCourses.length}
+                    autoComplete="off"
+                  />
+                  {courseSearchResults.length ? (
+                    <div role="listbox" className="batch-search-results">
+                      {courseSearchResults.map((course) => (
+                        <button
+                          key={course.id}
+                          type="button"
+                          role="option"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectCourseFromSearch(course)}
+                        >
+                          <strong>{course.name}</strong>
+                          <small>{course.code || course.id}</small>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
                 {fieldErrors.courseId ? <small className="batch-management-field-error">{fieldErrors.courseId}</small> : null}
               </label>
 
               <label className="batch-management-field">
                 <span>Faculty Name *</span>
-                <select value={facultySelectionValue} onChange={(event) => handleDraftChange('facultyId', event.target.value)} disabled={!draft.courseId}>
-                  <option value="">{draft.courseId ? 'Select Faculty' : 'Select Course first'}</option>
-                  {showFacultyFallback ? (
-                    <option value={getFacultySelectionValue('', draft.facultyName)}>
-                      {draft.facultyName}
-                    </option>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="search"
+                    value={facultySearch}
+                    onChange={(event) => handleFacultySearchChange(event.target.value)}
+                    placeholder={draft.courseId ? 'Search by faculty ID or name' : 'Select course first'}
+                    disabled={!draft.courseId}
+                    autoComplete="off"
+                  />
+                  {facultySearchResults.length ? (
+                    <div role="listbox" className="batch-search-results">
+                      {facultySearchResults.map((faculty) => (
+                        <button
+                          key={faculty.id}
+                          type="button"
+                          role="option"
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => selectFacultyFromSearch(faculty)}
+                        >
+                          <strong>{faculty.name}</strong>
+                          <small>{faculty.facultyCode || faculty.id}</small>
+                        </button>
+                      ))}
+                    </div>
                   ) : null}
-                  {availableFacultyOptions.map((faculty) => (
-                    <option key={faculty.id} value={faculty.id}>
-                      {faculty.name}
-                    </option>
-                  ))}
-                </select>
+                </div>
                 {fieldErrors.facultyId ? <small className="batch-management-field-error">{fieldErrors.facultyId}</small> : null}
                 
               </label>
@@ -1826,7 +1928,7 @@ export function BranchBatchManagementSection({
                             window.setTimeout(() => {
                               setExpandedBatchKey('')
                               setClosingBatchKey('')
-                            }, 260)
+                            }, 320)
                             return
                           }
 
@@ -1835,8 +1937,8 @@ export function BranchBatchManagementSection({
                         }}
                         aria-expanded={isExpanded}
                       >
-                        <Eye size={15} strokeWidth={2.2} aria-hidden="true" />
-                        {isExpanded ? 'Hide Students' : (batchStudents.length ? `View ${batchStudents.length} Student${batchStudents.length === 1 ? '' : 's'}` : 'View Students')}
+                        <UsersRound size={15} strokeWidth={2.2} aria-hidden="true" />
+                        {isExpanded ? 'Hide Students' : 'View Students'}
                       </button>
                       <div className="batch-detail-card-seats">
                         <span>Seats:</span>
@@ -1888,6 +1990,148 @@ export function BranchBatchManagementSection({
         </section>
       </div>,
       document.body,
+    )
+  }
+
+  const renderBatchCard = (group) => {
+    const primaryBatch = group.displayBatch || (Array.isArray(group.batches) ? group.batches[0] : null) || {}
+    const batchKey = getBatchSeatMapKey(primaryBatch, group)
+    const batchStatusClass = String(normalizeStatus(primaryBatch.status || group.status || 'Active')).toLowerCase()
+    const isExpanded = expandedBatchKey === batchKey
+    const isClosing = closingBatchKey === batchKey
+    const seatSummary = batchSeatSummaryMap.get(batchKey) || getBatchSeatSummary({
+      ...primaryBatch,
+      batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
+      courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
+      courseName: String(group?.courseName || '').trim(),
+      facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
+      facultyName: String(group?.facultyName || '').trim(),
+    }, branchStudents)
+    const batchStudents = getMatchingStudents(branchStudents, {
+      facultyId: group?.facultyId || group?.branchFacultyId || '',
+      facultyName: group?.facultyName || '',
+      courseId: group?.courseId || group?.branchCourseId || '',
+      courseName: group?.courseName || '',
+      batchGroupId: group?.batchGroupId || group?.id || '',
+      batchId: primaryBatch?.batchId || primaryBatch?.id || '',
+      batchName: primaryBatch?.batchName || '',
+      batchTiming: primaryBatch?.batchTiming || '',
+    })
+    const groupKey = String(group.id || group.batchGroupId || group.batchId || primaryBatch.batchId || '')
+    const toggleStudents = () => {
+      if (isExpanded) {
+        setClosingBatchKey(batchKey)
+        window.setTimeout(() => {
+          setExpandedBatchKey('')
+          setClosingBatchKey('')
+        }, 320)
+        return
+      }
+
+      setClosingBatchKey('')
+      setExpandedBatchKey(batchKey)
+    }
+
+    return (
+      <article key={groupKey} className={`batch-detail-card batch-management-list-card ${isExpanded ? 'is-expanded' : ''} ${isClosing ? 'is-closing' : ''}`.trim()}>
+        <span
+          className={`batch-detail-status-indicator ${batchStatusClass === 'active' || batchStatusClass === 'open' ? 'is-active' : 'is-inactive'}`.trim()}
+          data-status={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
+          aria-label={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
+        />
+
+        <div className="batch-detail-card-body">
+          <div className="batch-detail-card-head">
+            <div className="batch-detail-card-title">
+              <span>{primaryBatch.batchId || group.batchId || '-'}</span>
+              <strong>{primaryBatch.batchName || primaryBatch.batchId || '-'}</strong>
+            </div>
+            <div className="batch-detail-card-timing">
+              <span>Timing</span>
+              <strong>{formatClockLabel(primaryBatch.startTime)} - {formatClockLabel(primaryBatch.endTime)}</strong>
+            </div>
+            <button
+              type="button"
+              className={`batch-detail-students-button ${isExpanded ? 'is-active' : ''}`.trim()}
+              onClick={(event) => {
+                event.stopPropagation()
+                toggleStudents()
+              }}
+              aria-expanded={isExpanded}
+            >
+                        <UsersRound size={15} strokeWidth={2.2} aria-hidden="true" />
+                        {isExpanded ? 'Hide Students' : 'View Students'}
+            </button>
+            <div className="batch-detail-card-seats">
+              <span>Seats:</span>
+              <strong>{seatSummary.usedSeats}</strong>
+              <div className="batch-detail-seat-track" aria-hidden="true">
+                <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
+              </div>
+              <span>{seatSummary.remainingSeats} left</span>
+            </div>
+          </div>
+
+          <div className="batch-management-card-meta">
+            <div>
+              <span>Course</span>
+              <strong>{group.courseName || '-'}</strong>
+            </div>
+            <div>
+              <span>Faculty</span>
+              <strong>{group.facultyName || '-'}</strong>
+            </div>
+          </div>
+
+          {isExpanded ? (
+            <div className="batch-detail-students-panel">
+              <div className="batch-detail-students-heading">
+                <span className="batch-detail-students-kicker">Assigned learners</span>
+                <strong>{batchStudents.length} student{batchStudents.length === 1 ? '' : 's'} in this batch</strong>
+              </div>
+              {batchStudents.length ? (
+                <div className="batch-detail-students-list">
+                  {batchStudents.map((student, index) => (
+                    <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${batchKey}-${index}`}>
+                      <span className="batch-detail-student-number">{String(index + 1).padStart(2, '0')}</span>
+                      <div className="batch-detail-student-copy">
+                        <span>{student?.studentId || student?.id || 'Student ID unavailable'}</span>
+                        <strong>{student?.studentName || student?.name || 'Unnamed student'}</strong>
+                      </div>
+                      <div className="batch-detail-student-progress">
+                        <div className="batch-detail-student-progress-label">
+                          <span>Course Progress</span>
+                          <strong>{Number(student?.courseProgress ?? student?.progress ?? 0) || 0}%</strong>
+                        </div>
+                        <div className="batch-detail-student-progress-track" aria-hidden="true">
+                          <span style={{ width: `${Math.min(Math.max(Number(student?.courseProgress ?? student?.progress ?? 0) || 0, 0), 100)}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="batch-detail-students-empty">No students assigned to this batch yet.</div>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="batch-management-card-actions" onClick={(event) => event.stopPropagation()}>
+          <button
+            type="button"
+            className="batch-management-actions-trigger"
+            aria-label={`Open actions for ${primaryBatch.batchName || group.batchId || 'batch'}`}
+            onClick={(event) => {
+              const actionId = String(group.id || group.batchGroupId || group.batchId || '')
+              if (actionMenuOpenId === actionId) closeActionMenu()
+              else openActionMenu(group, event.currentTarget)
+            }}
+          >
+            <MoreVertical size={16} strokeWidth={2.3} aria-hidden="true" />
+          </button>
+        </div>
+      </article>
     )
   }
 
@@ -1969,96 +2213,14 @@ export function BranchBatchManagementSection({
         </div>
       </form>
 
-      <div className="branch-dashboard-table-shell batch-management-table-shell">
-        <table className="branch-dashboard-table batch-management-table">
-          <thead>
-            <tr>
-              <th>Batch ID</th>
-              <th>Course Name</th>
-              <th>Faculty Name</th>
-              <th>Batch Name</th>
-              <th>Timing</th>
-              <th>Students</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paginatedGroups.length ? (
-              paginatedGroups.map((group) => {
-                const primaryBatch = group.displayBatch || (Array.isArray(group.batches) ? group.batches[0] : null) || {}
-                const rowKey = String(group.id || group.batchGroupId || group.batchId || primaryBatch.batchId || '')
-                const studentCount = batchGroupStudentCountMap.get(normalizeMatchKey(group.id || group.batchGroupId || group.batchId || '')) || 0
-
-                return (
-                <tr
-                  key={rowKey}
-                  className="batch-management-row-clickable"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setDetailGroup(group)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      setDetailGroup(group)
-                    }
-                  }}
-                >
-                  <td><strong>{group.batchId || group.batchGroupId || '-'}</strong></td>
-                  <td>{group.courseName || '-'}</td>
-                  <td>{group.facultyName || '-'}</td>
-                  <td>{primaryBatch.batchName || '-'}</td>
-                  <td>{primaryBatch.batchTiming || '-'}</td>
-                  <td>
-                    <strong>{studentCount}</strong>
-                  </td>
-                  <td>
-                    <span className={`batch-management-status-pill ${normalizeStatus(group.status).toLowerCase()}`.trim()}>
-                      {getBatchGroupStatus(group)}
-                    </span>
-                  </td>
-                  <td className="batch-management-actions-cell">
-                    <div className={`batch-management-actions ${actionMenuOpenId === String(group.id || group.batchGroupId || group.batchId || '') ? 'is-open' : ''}`.trim()}>
-                      <button
-                        type="button"
-                        className="batch-management-actions-trigger"
-                        aria-label={`Open actions for ${group.courseName || group.batchGroupId || group.batchId || 'batch'}`}
-                        aria-haspopup="menu"
-                        aria-expanded={actionMenuOpenId === String(group.id || group.batchGroupId || group.batchId || '')}
-                        onMouseEnter={(event) => {
-                          event.stopPropagation()
-                          openActionMenu(group, event.currentTarget)
-                        }}
-                        onMouseLeave={scheduleCloseActionMenu}
-                        onFocus={(event) => {
-                          openActionMenu(group, event.currentTarget)
-                        }}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          const actionId = String(group.id || group.batchGroupId || group.batchId || '')
-                          if (actionMenuOpenId === actionId) {
-                            closeActionMenu()
-                          } else {
-                            openActionMenu(group, event.currentTarget)
-                          }
-                        }}
-                      >
-                        <MoreVertical size={16} strokeWidth={2.3} aria-hidden="true" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                )
-              })
-            ) : (
-              <tr>
-                <td colSpan="8" className="branch-course-empty-state">
-                  {isLoading ? 'Loading batches...' : 'No batches created yet. Use Create Batch to add the first batch.'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="batch-management-card-grid">
+        {paginatedGroups.length ? (
+          paginatedGroups.map(renderBatchCard)
+        ) : (
+          <div className="branch-course-empty-state batch-management-card-empty">
+            {isLoading ? 'Loading batches...' : 'No batches created yet. Use Create Batch to add the first batch.'}
+          </div>
+        )}
       </div>
 
       <PaginationBar

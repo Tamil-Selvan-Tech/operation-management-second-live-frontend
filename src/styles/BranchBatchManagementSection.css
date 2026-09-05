@@ -2,6 +2,95 @@
   gap: 18px;
 }
 
+.batch-management-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.batch-management-list-card {
+  max-width: none;
+  min-width: 0;
+}
+
+.batch-management-list-card .batch-detail-card-timing {
+  grid-column: 1;
+  grid-row: 2;
+  justify-items: start;
+  text-align: left;
+  padding-right: 34px;
+}
+
+.batch-management-list-card .batch-detail-card-head > .batch-detail-students-button {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.batch-management-list-card .batch-detail-card-seats {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+}
+
+.batch-management-card-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid #eef2f7;
+}
+
+.batch-management-card-meta > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.batch-management-card-meta span {
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.batch-management-card-meta strong {
+  overflow: hidden;
+  color: #334155;
+  font-size: 0.83rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batch-management-list-card.is-expanded .batch-management-card-meta {
+  display: none;
+}
+
+.batch-management-card-actions {
+  position: absolute;
+  top: 8px;
+  right: -6px;
+  z-index: 3;
+}
+
+.batch-management-list-card .batch-management-actions-trigger,
+.batch-management-list-card .batch-management-actions-trigger:hover,
+.batch-management-list-card .batch-management-actions-trigger:focus-visible {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.batch-management-card-empty {
+  grid-column: 1 / -1;
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+}
+
 .batch-management-toolbar {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -516,6 +605,50 @@
   line-height: 1.35;
 }
 
+.batch-search-results {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid #dbe4f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 35, 70, 0.14);
+}
+
+.batch-search-results button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.batch-search-results button:hover,
+.batch-search-results button:focus-visible {
+  outline: none;
+  background: #eff6ff;
+}
+
+.batch-search-results button strong {
+  font-size: 0.9rem;
+}
+
+.batch-search-results button small {
+  color: #64748b;
+  font-size: 0.76rem;
+}
+
 .batch-management-field .batch-management-field-error,
 .batch-management-row .batch-management-field-error,
 .batch-management-row .batch-management-row-error {
@@ -920,7 +1053,7 @@
 }
 
 .batch-detail-card.is-expanded.is-closing {
-  animation: batchFullCardFlipOut 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: batchFullCardFlipOut 320ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .batch-detail-card-icon {
@@ -1235,7 +1368,7 @@
 }
 
 .batch-detail-card.is-expanded.is-closing .batch-detail-students-panel {
-  animation: batchCardFlipOut 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: batchCardFlipOut 320ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .batch-detail-card.is-expanded .batch-detail-students-list {
@@ -1502,6 +1635,10 @@
 }
 
 @media (max-width: 640px) {
+  .batch-management-card-grid {
+    grid-template-columns: 1fr;
+  }
+
   .batch-management-toolbar,
   .batch-management-form-grid,
   .batch-detail-list,
@@ -1581,6 +1718,20 @@
 
   .batch-detail-card {
     grid-template-columns: 1fr;
+  }
+
+  .batch-management-list-card .batch-detail-card-timing,
+  .batch-management-list-card .batch-detail-card-head > .batch-detail-students-button,
+  .batch-management-list-card .batch-detail-card-seats {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    text-align: left;
+  }
+
+  .batch-management-card-meta {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .batch-detail-card-icon {

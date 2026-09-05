@@ -2971,6 +2971,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
   const [studentFormStep, setStudentFormStep] = useState(1)
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
+  const [studentCourseSearch, setStudentCourseSearch] = useState('')
   const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [isStudentSetupRequiredOpen, setIsStudentSetupRequiredOpen] = useState(false)
@@ -5666,6 +5667,7 @@ const studentCourseOptions = useMemo(() => {
       return {
         id,
         name,
+        courseCode: String(course?.courseCode || '').trim(),
         amount: normalizeBranchStudentCourseAmount(course),
         assignedFaculty: normalizeBranchStudentCourseFacultyOptions(course),
 
@@ -5690,6 +5692,26 @@ const studentCourseOptions = useMemo(() => {
     () => String(selectedStudentCourse?.amount || studentForm.courseAmount || '').trim(),
     [selectedStudentCourse, studentForm.courseAmount],
   )
+  const studentCourseSearchResults = useMemo(() => {
+    const query = String(studentCourseSearch || '').trim().toLowerCase()
+    if (!query || studentFormMode === 'view') return []
+
+    const selectedCourseValues = [
+      selectedStudentCourse?.id,
+      selectedStudentCourse?.courseCode,
+      selectedStudentCourse?.name,
+    ]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean)
+
+    // Keep the picker closed after a course has been selected.
+    if (studentForm.courseId && selectedCourseValues.includes(query)) return []
+
+    return studentCourseOptions
+      .filter((course) => [course.id, course.courseCode, course.name]
+        .some((value) => String(value || '').trim().toLowerCase().includes(query)))
+      .slice(0, 8)
+  }, [selectedStudentCourse, studentCourseOptions, studentCourseSearch, studentForm.courseId, studentFormMode])
   const currentStudentSeatKeys = useMemo(() => (
     studentFormMode === 'edit'
       ? getStudentSeatKeys(studentForm)
@@ -5850,6 +5872,7 @@ const studentCourseOptions = useMemo(() => {
     const nextCourseId = String(courseId || '').trim()
 
     if (!nextCourseId) {
+      setStudentCourseSearch('')
       setStudentForm((current) => ({
         ...current,
         courseId: '',
@@ -5894,6 +5917,21 @@ const studentCourseOptions = useMemo(() => {
         paymentPlanId: '',
       }
     })
+    setStudentCourseSearch(String(nextCourse?.name || nextCourseId).trim())
+  }
+
+  const handleStudentCourseSearchChange = (value) => {
+    const nextValue = String(value || '')
+    setStudentCourseSearch(nextValue)
+
+    const normalizedValue = nextValue.trim().toLowerCase()
+    const selectedValues = [selectedStudentCourse?.id, selectedStudentCourse?.courseCode, selectedStudentCourse?.name]
+      .map((item) => String(item || '').trim().toLowerCase())
+      .filter(Boolean)
+
+    if (!normalizedValue || (studentForm.courseId && !selectedValues.includes(normalizedValue))) {
+      handleStudentCourseChange('')
+    }
   }
 
   const handleStudentBatchChange = (batchId) => {
@@ -7148,6 +7186,7 @@ useEffect(() => {
     }
 
     setStudentFormMode('add')
+    setStudentCourseSearch('')
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -7171,6 +7210,7 @@ useEffect(() => {
 
   const openViewStudentForm = async (stu) => {
     setStudentFormMode('view')
+    setStudentCourseSearch(String(stu?.courseName || stu?.courseId || '').trim())
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -7185,6 +7225,7 @@ useEffect(() => {
 
   const openEditStudentForm = async (stu) => {
     setStudentFormMode('edit')
+    setStudentCourseSearch(String(stu?.courseId || stu?.courseName || '').trim())
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -13552,36 +13593,65 @@ else {
               : ''
           }
         >
-          <select
-            value={studentForm.courseId}
-            onChange={(e) =>
-              handleStudentCourseChange(e.target.value)
-            }
-            onBlur={() =>
-              setStudentFormTouched((c) => ({
-                ...c,
-                courseId: true,
-              }))
-            }
-            disabled={
-              studentFormMode === 'view' ||
-              !studentCourseOptions.length
-            }
-          >
-            <option value="">Select Course</option>
-
-            {studentCourseOptions.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.name}
-              </option>
-            ))}
-
-            {!studentCourseOptions.length && (
-              <option value="" disabled>
-                No courses available
-              </option>
-            )}
-          </select>
+          <div style={{ position: 'relative' }}>
+            <input
+              type="search"
+              value={studentCourseSearch}
+              onChange={(e) => handleStudentCourseSearchChange(e.target.value)}
+              onBlur={() => {
+                window.setTimeout(() => {
+                  setStudentFormTouched((c) => ({ ...c, courseId: true }))
+                }, 120)
+              }}
+              placeholder={studentCourseOptions.length ? 'Search by course ID or name' : 'No courses available'}
+              disabled={studentFormMode === 'view' || !studentCourseOptions.length}
+              autoComplete="off"
+            />
+            {studentCourseSearchResults.length ? (
+              <div
+                role="listbox"
+                style={{
+                  position: 'absolute',
+                  zIndex: 20,
+                  top: 'calc(100% + 6px)',
+                  left: 0,
+                  right: 0,
+                  maxHeight: 220,
+                  overflowY: 'auto',
+                  background: '#fff',
+                  border: '1px solid #dbe5f2',
+                  borderRadius: 12,
+                  boxShadow: '0 12px 28px rgba(15, 35, 70, 0.14)',
+                  padding: 6,
+                }}
+              >
+                {studentCourseSearchResults.map((course) => (
+                  <button
+                    key={course.id}
+                    type="button"
+                    role="option"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => handleStudentCourseChange(course.id)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      width: '100%',
+                      border: 0,
+                      borderRadius: 8,
+                      background: 'transparent',
+                      padding: '9px 10px',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <strong>{course.name}</strong>
+                    <small>{course.courseCode || course.id}</small>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </Field>
 
         <Field
