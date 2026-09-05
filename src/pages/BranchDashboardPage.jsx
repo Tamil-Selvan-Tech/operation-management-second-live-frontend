@@ -12285,7 +12285,18 @@ else {
     Education Details
   </button>
 
-  {/* Course & Payment Details */}
+  {/* Course Details */}
+  <button
+    type="button"
+    className={`student-details-tab ${
+      studentDetailsTab === 'course' ? 'active' : ''
+    }`}
+    onClick={() => setStudentDetailsTab('course')}
+  >
+    Course
+  </button>
+
+  {/* Payment Details */}
   <button
     type="button"
     className={`student-details-tab ${
@@ -12293,7 +12304,7 @@ else {
     }`}
     onClick={() => setStudentDetailsTab('payment')}
   >
-    Course & Payment Details
+    Payment Details
   </button>
 
 </div>
@@ -12303,10 +12314,12 @@ else {
 
                 <div className="student-details-table">
 
-                  <div className="student-details-table-head">
-                    <div>DETAILS</div>
-                    <div>INFORMATION</div>
-                  </div>
+                  {studentDetailsTab !== 'payment' ? (
+                    <div className="student-details-table-head">
+                      <div>DETAILS</div>
+                      <div>INFORMATION</div>
+                    </div>
+                  ) : null}
                   
 {studentDetailsTab === 'basic' ? (
   <>
@@ -12454,7 +12467,7 @@ else {
       </div>
     </div>
   </>
-) : (
+) : studentDetailsTab === 'course' ? (
   <>
     {/* Batch */}
     <div className="student-details-row">
@@ -12523,6 +12536,8 @@ else {
         {viewStudentDrawer.paymentPlan || '-'}
       </div>
     </div>
+  </>
+) : ( <>
 
     <div className="student-payment-summary-grid">
       <article className="student-payment-summary-card">
@@ -12605,7 +12620,7 @@ else {
                     : '-'}
                 </td>
 
-                <td>{installmentPayment?.paymentMode || installmentPayment?.mode || inst.paymentMode || inst.mode || inst.paymentMethod || '-'}</td>
+                <td>{installmentPayment?.paymentMode || installmentPayment?.mode || '-'}</td>
 
                 <td>
                   {formatStudentDate(installmentPayment?.dateRaw || inst.paymentDate || inst.paidDate || inst.datePaid || inst.paidOn)}
