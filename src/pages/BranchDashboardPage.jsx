@@ -3873,6 +3873,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
+    setStudentDetailsTab('basic')
     setViewStudentDrawer({
       ...student,
       ...resolveStudentBatchDisplay(student, branchBatchGroups),
@@ -8179,18 +8180,6 @@ else {
                 >
                   <button
                     type="button"
-                    className="branch-student-payment-details-btn"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      openStudentPaymentDetails(stu)
-                    }}
-                    aria-label={`View payment details for ${stu.studentName || stu.studentId || 'student'}`}
-                  >
-                    <Eye size={15} aria-hidden="true" />
-                    <span>View Payment Details</span>
-                  </button>
-                  <button
-                    type="button"
                     className="branch-student-more-btn"
                     aria-label="Student actions"
                     aria-haspopup="menu"
@@ -8263,14 +8252,14 @@ else {
                         <span>View</span>
                       </button>
 
-                      <button
+                      {/* <button
                         type="button"
                         role="menuitem"
                         onClick={() => openStudentPaymentDetails(stu)}
                       >
                         <Eye size={15} />
                         <span>View Payment Details</span>
-                      </button>
+                      </button> */}
 
                       <button
                         type="button"
