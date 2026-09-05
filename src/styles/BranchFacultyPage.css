@@ -1,5 +1,13 @@
 /* BranchFacultyPage.css */
 
+.faculty-batch-count {
+  display: inline-flex;
+  min-width: 2ch;
+  justify-content: center;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
 /* Filter and Search Bar */
 
 /* =========================================

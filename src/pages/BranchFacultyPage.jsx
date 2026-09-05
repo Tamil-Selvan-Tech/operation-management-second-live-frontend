@@ -155,6 +155,7 @@ export function BranchFacultyPage() {
           courseId: f.courseId,
           courseName: f.branchCourse?.name || f.course?.name || '-',
           status: f.status,
+          batchCount: Number(f._count?.branchBatches || 0),
         }))
         setFacultyList(mapped)
       } else {
@@ -811,7 +812,7 @@ export function BranchFacultyPage() {
               <th>Name</th>
               <th>Phone</th>
               <th style={{ minWidth: '150px' }}>Assigned Course</th>
-              <th style={{ minWidth: '100px', textAlign: 'center' }}>Status</th>
+              <th style={{ minWidth: '100px', textAlign: 'center' }}>Batches</th>
               <th style={{ width: '60px', textAlign: 'center' }}>Actions</th>
             </tr>
           </thead>
@@ -825,18 +826,31 @@ export function BranchFacultyPage() {
             ) : paginatedFaculty.length > 0 ? (
               paginatedFaculty.map((faculty, index) => {
                 const normStatus = String(faculty.status || 'Active').toLowerCase()
+                const statusTone = normStatus === 'active' ? 'is-active' : 'is-inactive'
                 const rowNumber = (safeCurrentPage - 1) * rowsPerPage + index + 1
                 return (
                   <tr key={faculty.id} style={{ cursor: 'pointer' }} onClick={() => setViewFaculty(faculty)}>
                     <td>{rowNumber}</td>
                    <td>
-  <strong className="branch-course-name">
-    {faculty.facultyId || faculty.id}
-  </strong>
+                      <div className="branch-course-code-cell">
+                        <span
+                          className={`branch-course-status-badge ${statusTone}`.trim()}
+                          aria-label={`Faculty status ${faculty.status || 'Active'}`}
+                          role="img"
+                          tabIndex="0"
+                        >
+                          <span className="branch-course-status-dot" aria-hidden="true" />
+                          <span className={`branch-course-status-tooltip ${statusTone}`.trim()} role="tooltip">
+                            {faculty.status || 'Active'}
+                          </span>
+                        </span>
+                        <strong className="branch-course-name">
+                          {faculty.facultyId || faculty.id}
+                        </strong>
+                      </div>
 </td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {/* <span className="faculty-avatar">{String(faculty.name || '').charAt(0).toUpperCase()}</span> */}
                         <strong className="branch-course-name" style={{ maxWidth: '130px' }}>{faculty.name}</strong>
                       </div>
                     </td>
@@ -851,10 +865,10 @@ export function BranchFacultyPage() {
                     </td>
 
                     <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
-  <span className={`branch-course-status-pill ${normStatus}`}>
-    {faculty.status}
-  </span>
-</td>
+                      <strong className="faculty-batch-count">
+                        {Number(faculty.batchCount || 0)}
+                      </strong>
+                    </td>
                     <td style={{ textAlign: 'center', position: 'relative' }} onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
