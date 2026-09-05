@@ -346,9 +346,9 @@ export function getMatchingStudents(
     batchTiming = '',
   } = {},
 ) {
-  const normalizedFacultyId = String(facultyId || '').trim()
-  const normalizedBatchGroupId = String(batchGroupId || '').trim()
-  const normalizedBatchId = String(batchId || '').trim()
+  const normalizedFacultyId = String(facultyId || '').trim().toLowerCase()
+  const normalizedBatchGroupId = String(batchGroupId || '').trim().toLowerCase()
+  const normalizedBatchId = String(batchId || '').trim().toLowerCase()
   const normalizedFacultyName = normalizeText(facultyName)
   const normalizedCourseId = String(courseId || '').trim()
   const normalizedCourseName = normalizeText(courseName)
@@ -357,12 +357,12 @@ export function getMatchingStudents(
   const normalizedBatchTiming = normalizeText(batchTiming || '')
 
   return (Array.isArray(students) ? students : []).filter((student) => {
-    const studentCourseId = String(student?.courseId || '').trim()
+    const studentCourseId = String(student?.courseId || '').trim().toLowerCase()
     const studentCourseName = normalizeText(student?.courseInterested || student?.courseName || student?.course?.name || '')
-    const studentFacultyId = String(student?.facultyId || '').trim()
+    const studentFacultyId = String(student?.facultyId || '').trim().toLowerCase()
     const studentFacultyName = normalizeText(student?.facultyName || '')
-    const studentBatchGroupId = String(student?.batchGroupId || student?.batch?.batchGroupId || '').trim()
-    const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim()
+    const studentBatchGroupId = String(student?.batchGroupId || student?.batch?.batchGroupId || '').trim().toLowerCase()
+    const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
     const studentBatchName = normalizeText(student?.batchName || student?.batch || '')
     const studentBatchToken = normalizeBatchToken(student?.batchName || student?.batch || '')
     const studentBatchTiming = normalizeText(student?.batchTiming || student?.batchTime || '')
@@ -390,7 +390,14 @@ export function getMatchingStudents(
     // Older student records may not have the generated batch ID yet. In that
     // case the exact batch name/timing match above remains the compatibility fallback.
     if (normalizedBatchId) {
-      return studentBatchId === normalizedBatchId
+      // A batch ID is only valid within its assigned course and faculty.
+      // Returning before these checks caused students from another scope to
+      // appear in the batch detail panel.
+      return Boolean(
+        studentBatchId === normalizedBatchId &&
+        (!normalizedCourseId || studentCourseId === normalizedCourseId) &&
+        (!normalizedFacultyId || studentFacultyId === normalizedFacultyId),
+      )
     }
 
     if (normalizedBatchTiming && studentBatchTiming && studentBatchTiming !== normalizedBatchTiming) {

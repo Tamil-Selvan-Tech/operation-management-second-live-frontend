@@ -735,9 +735,12 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
 
   return dedupeStudentsByIdentity((Array.isArray(students) ? students : []).filter((student) => {
     const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
-    const studentCourseId = String(context?.courseId || student?.courseId || '').trim().toLowerCase()
-    const studentCourseName = normalizeCourseKey(context?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '')
-    const studentBatchId = String(context?.batchId || student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+    // Direct assignment fields on the student are authoritative. Profile
+    // context is only a legacy fallback and must not move a student to a
+    // different batch or course.
+    const studentCourseId = String(student?.courseId || context?.courseId || '').trim().toLowerCase()
+    const studentCourseName = normalizeCourseKey(student?.courseInterested || student?.courseName || student?.course?.name || context?.courseName || '')
+    const studentBatchId = String(student?.batchId || student?.batchEntryId || context?.batchId || '').trim().toLowerCase()
 
     const matchesCourse =
       (!courseId || !studentCourseId || studentCourseId === courseId) &&
@@ -1889,6 +1892,13 @@ export function FacultyDashboardPage() {
     const facultyNameValue = currentFacultyIdentity.facultyName
     const facultyEmailValue = currentFacultyIdentity.facultyEmail
     const summary = dashboardSummary || {}
+    const summaryBatchCounts = Array.isArray(summary?.batchCounts) ? summary.batchCounts : []
+    const summaryCountByBatch = new Map(
+      summaryBatchCounts.map((item) => [
+        String(item?.batchId || '').trim().toLowerCase(),
+        Number(item?.studentCount || 0),
+      ]),
+    )
     const getBatchStudentCount = (entry = {}) => {
       const normalizedBatchId = String(entry?.batchId || entry?.batchEntryId || entry?.id || '').trim().toLowerCase()
       const normalizedCourseId = String(entry?.courseId || '').trim().toLowerCase()
@@ -1914,6 +1924,10 @@ export function FacultyDashboardPage() {
 
         return false
       })
+
+      if (normalizedBatchId && summaryCountByBatch.has(normalizedBatchId)) {
+        return summaryCountByBatch.get(normalizedBatchId)
+      }
 
       return dedupeStudentsByIdentity(matchedStudents).length
     }
@@ -2087,14 +2101,13 @@ export function FacultyDashboardPage() {
 
     const matchedStudents = facultyScopedStudents.filter((student) => {
       const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
-      const studentFacultyId = String(context?.facultyId || student?.facultyId || '').trim().toLowerCase()
-      const studentFacultyName = normalizeCourseKey(context?.facultyName || student?.facultyName || '')
-      const studentCourseId = String(context?.courseId || student?.courseId || '').trim().toLowerCase()
-      const studentCourseName = normalizeCourseKey(context?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '')
-      const studentBatchId = String(context?.batchId || student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
-      const studentBatchName = normalizeCourseKey(context?.batchName || student?.batchName || student?.batch || '')
-      const studentBatchToken = studentBatchName.replace(/\s+/g, ' ')
-      const studentBatchTiming = normalizeCourseKey(context?.batchTiming || student?.batchTiming || student?.batchTime || '')
+      // Direct assignment fields are authoritative; legacy profile context
+      // must not override a student's actual batch or course.
+      const studentFacultyId = String(student?.facultyId || context?.facultyId || '').trim().toLowerCase()
+      const studentFacultyName = normalizeCourseKey(student?.facultyName || context?.facultyName || '')
+      const studentCourseId = String(student?.courseId || context?.courseId || '').trim().toLowerCase()
+      const studentCourseName = normalizeCourseKey(student?.courseInterested || student?.courseName || student?.course?.name || context?.courseName || '')
+      const studentBatchId = String(student?.batchId || student?.batchEntryId || context?.batchId || '').trim().toLowerCase()
 
       if (currentFacultyIdentity.facultyId && studentFacultyId && studentFacultyId !== String(currentFacultyIdentity.facultyId || '').trim().toLowerCase()) {
         return false
