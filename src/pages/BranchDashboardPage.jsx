@@ -6594,7 +6594,11 @@ const branchStudentsForDisplay = useMemo(
             amount,
             paidAmount,
             dueDate,
-            paymentMode: paymentRecord ? formatBranchPaymentMode(paymentRecord) : String(installment.paymentMode || resolvedStudent.paymentMode || '-').trim(),
+            paymentMode: paidAmount > 0
+              ? paymentRecord
+                ? formatBranchPaymentMode(paymentRecord)
+                : String(installment.paymentMode || resolvedStudent.paymentMode || '-').trim()
+              : '-',
             paidDate: paymentRecord ? formatBranchPaymentDate(paymentRecord.dateRaw || paymentRecord.paymentDate || paymentRecord.date) : formatBranchPaymentDate(installment.paymentDate || installment.paidAt || installment.paidDate || ''),
             receiptNumber: paymentRecord ? getBranchPaymentReceiptNumber(paymentRecord) : String(installment.receiptNumber || installment.receiptNo || installment.receipt || '').trim(),
             transactionReference: paymentRecord ? getBranchPaymentTransactionReference(paymentRecord) : String(installment.transactionReference || installment.transactionRef || '').trim(),
@@ -8964,7 +8968,15 @@ else {
             <tbody>
               {visiblePaymentHistoryRecords.length ? (
                 visiblePaymentHistoryRecords.map((record) => (
-                  <tr key={record.id}>
+                  <tr
+                    key={record.id}
+                    onClick={() => {
+                      setPaymentHistoryActionMenuId('')
+                      setPaymentHistoryActionMenuPosition({ top: 0, left: 0 })
+                      setSelectedPaymentHistory(record)
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <td>
                       <strong>{record.studentId}</strong>
                     </td>
@@ -8982,7 +8994,7 @@ else {
                     <td>{formatBranchPaymentMode(record)}</td>
                     <td>{record.date}</td>
 
-                    <td>
+                    <td onClick={(event) => event.stopPropagation()}>
                       <div
                         className={`payment-history-actions-cell ${paymentHistoryActionMenuId === record.id ? 'menu-open' : ''}`.trim()}
                       >
@@ -9205,7 +9217,6 @@ else {
           <div
             className="payment-popup-overlay branch-payment-history-overlay"
             role="presentation"
-            onClick={() => setSelectedPaymentHistory(null)}
           >
             <div
               className="payment-confirmation-popup branch-payment-history-popup"
@@ -9267,11 +9278,6 @@ else {
 
               <div className="branch-payment-history-summary-grid">
                 <article className="branch-payment-history-hero-card">
-                  <span>Student Details</span>
-                  <strong>{selectedPaymentHistoryDetails?.student?.studentName || selectedPaymentHistory.studentName}</strong>
-                  <small>{selectedPaymentHistoryDetails?.student?.courseName || selectedPaymentHistory.course || selectedPaymentHistory.courseName || '-'}</small>
-                </article>
-                <article className="branch-payment-history-hero-card">
                   <span>Payment Summary</span>
                   <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.totalFee || 0)}</strong>
                   <small>Total fee</small>
@@ -9286,50 +9292,12 @@ else {
                   <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.pendingAmount || 0)}</strong>
                   <small>Remaining amount</small>
                 </article>
+                <article className="branch-payment-history-hero-card is-success">
+                  <span>Payment Progress (%)</span>
+                  <strong>{formatBranchPercentage(selectedPaymentHistoryDetails?.paymentSummary?.totalFee ? (selectedPaymentHistoryDetails.paymentSummary.paidAmount / selectedPaymentHistoryDetails.paymentSummary.totalFee) * 100 : 0)}%</strong>
+                  <small>Collected against total fee</small>
+                </article>
               </div>
-
-              <section className="branch-payment-history-section">
-                <div className="branch-payment-history-section-heading">
-                  <span>Student Details</span>
-                  <p>Live branch profile values for the selected payment.</p>
-                </div>
-                <div className="branch-payment-history-detail-grid">
-                  {[
-                    ['Student Name', selectedPaymentHistoryDetails?.student?.studentName || selectedPaymentHistory.studentName || '-'],
-                    ['Student Status', selectedPaymentHistoryDetails?.student?.status || selectedPaymentHistory.studentStatus || selectedPaymentHistory.status || '-'],
-                    ['Course', selectedPaymentHistoryDetails?.student?.courseName || selectedPaymentHistory.course || selectedPaymentHistory.courseName || '-'],
-                    ['Student ID', selectedPaymentHistoryDetails?.student?.studentId || selectedPaymentHistory.studentId || '-'],
-                    ['Admission Date', formatBranchPaymentDate(selectedPaymentHistoryDetails?.student?.admissionDate || selectedPaymentHistory.admissionDate || selectedPaymentHistory.dateRaw || selectedPaymentHistory.paymentDate)],
-                    ['Batch', selectedPaymentHistoryDetails?.student?.batchName || selectedPaymentHistory.batchName || selectedPaymentHistory.batch || '-'],
-                    ['Faculty', selectedPaymentHistoryDetails?.student?.facultyName || selectedPaymentHistory.facultyName || selectedPaymentHistory.faculty || '-'],
-                  ].map(([label, value]) => (
-                    <div key={label} className="branch-payment-history-detail-chip">
-                      <span>{label}</span>
-                      <strong>{value || '-'}</strong>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="branch-payment-history-section">
-                <div className="branch-payment-history-section-heading">
-                  <span>Payment Summary</span>
-                  <p>Fee status based on the linked student record.</p>
-                </div>
-                <div className="branch-payment-history-summary-cards">
-                  {[
-                    ['Total Fee', formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.totalFee || 0)],
-                    ['Paid Amount', formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.paidAmount || 0)],
-                    ['Balance', formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.pendingAmount || 0)],
-                    ['Payment Progress (%)', `${formatBranchPercentage(selectedPaymentHistoryDetails?.paymentSummary?.totalFee ? (selectedPaymentHistoryDetails.paymentSummary.paidAmount / selectedPaymentHistoryDetails.paymentSummary.totalFee) * 100 : 0)}%`],
-                  ].map(([label, value]) => (
-                    <article key={label} className="branch-payment-history-summary-card">
-                      <span>{label}</span>
-                      <strong>{value}</strong>
-                    </article>
-                  ))}
-                </div>
-              </section>
 
               <section className="branch-payment-history-section">
                 <div className="branch-payment-history-section-heading">
@@ -9384,9 +9352,7 @@ else {
                         <th>Payment Date</th>
                         <th>Amount</th>
                         <th>Payment Mode</th>
-                        <th>Transaction Reference</th>
                         <th>Installment Number</th>
-                        <th>Receipt</th>
                         <th>Receipt Download</th>
                         <th>Payment Status</th>
                       </tr>
@@ -9397,9 +9363,7 @@ else {
                           <td>{record.paymentDateLabel || '-'}</td>
                           <td><strong>{formatBranchRupees(record.amount || 0)}</strong></td>
                           <td>{record.paymentModeLabel || '-'}</td>
-                          <td>{record.transactionReference || '-'}</td>
                           <td>{record.installmentNumber ? `${record.installmentNumber}/${selectedPaymentHistoryDetails.installmentRows?.length || '-'}` : '-'}</td>
-                          <td>{record.receiptNumber || '-'}</td>
                           <td>
                             <button
                               type="button"
@@ -9417,7 +9381,7 @@ else {
                         </tr>
                       )) : (
                         <tr>
-                          <td colSpan="8" className="branch-payment-history-empty-state">No payment history found.</td>
+                          <td colSpan="6" className="branch-payment-history-empty-state">No payment history found.</td>
                         </tr>
                       )}
                     </tbody>
@@ -9447,13 +9411,6 @@ else {
                   onClick={() => setSelectedPaymentHistory(null)}
                 >
                   Close
-                </button>
-                <button
-                  type="button"
-                  className="popup-confirm-btn"
-                  onClick={() => handleDownloadSelectedPaymentReceipt(selectedPaymentHistoryDetails?.paymentHistoryRows?.[0] || selectedPaymentHistory)}
-                >
-                  Download Receipt
                 </button>
               </div>
             </div>
