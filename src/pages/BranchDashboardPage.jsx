@@ -7218,7 +7218,6 @@ useEffect(() => {
       source: studentForm.source === 'Others' ? studentForm.sourceOther : studentForm.source,
       courseId: selectedCourse?.id || String(studentForm.courseId || '').trim(),
       courseName: selectedCourse?.name || String(studentForm.courseName || '').trim(),
-      batchGroupId: selectedBatch?.batchGroupId || String(studentForm.batchGroupId || '').trim(),
       batchId: selectedBatch?.batchId || String(studentForm.batchId || '').trim(),
       batchName: selectedBatch?.batchName || String(studentForm.batchName || '').trim(),
       batchTiming: selectedBatch?.batchTiming || String(studentForm.batchTiming || '').trim(),

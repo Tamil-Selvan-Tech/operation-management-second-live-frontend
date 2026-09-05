@@ -29,14 +29,16 @@ function normalizeBatchRow(row = {}) {
 }
 
 function normalizeBranchBatchGroup(group = {}) {
-  const batches = Array.isArray(group.batches || group.rows)
-    ? (group.batches || group.rows).map(normalizeBatchRow)
-    : []
+  const sourceBatches = Array.isArray(group.batches || group.rows)
+    ? (group.batches || group.rows)
+    : group.batchId || group.batchName
+      ? [group]
+      : []
+  const batches = sourceBatches.map(normalizeBatchRow)
 
   return {
-    id: normalizeText(group.id || group.batchGroupId || group.batchId),
+    id: normalizeText(group.id || group.batchId),
     batchId: normalizeText(group.batchId || batches[0]?.batchId),
-    batchGroupId: normalizeText(group.batchGroupId || group.id || group.batchId),
     branchId: normalizeText(group.branchId),
     branchCourseId: normalizeText(group.branchCourseId),
     branchFacultyId: normalizeText(group.branchFacultyId),

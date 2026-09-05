@@ -152,7 +152,7 @@ function getFacultyFlowCourseKey(course = {}) {
 
 function getFacultyFlowBatchKey(batch = {}) {
   return (
-    String(batch?.id || batch?.batchId || batch?.batchEntryId || '').trim() ||
+    String(batch?.batchId || batch?.batchEntryId || batch?.id || '').trim() ||
     normalizeCourseKey(batch?.code || batch?.batchCode || batch?.batchName || batch?.batch || '') ||
     normalizeCourseKey(batch?.timing || batch?.batchTiming || '')
   )
@@ -386,37 +386,13 @@ function getWorkEntrySubmoduleIds(entry = {}) {
 function getWorkBatchContext(source = {}) {
   return {
     batchId: normalizeWorkStudentId(source?.batchId || source?.batchEntryId),
-    batchGroupId: normalizeWorkStudentId(source?.batchGroupId),
-    batchName: normalizeWorkStudentId(source?.batchName || source?.batch),
-    batchTiming: normalizeWorkStudentId(source?.batchTiming || source?.batchTime || source?.timing),
   }
 }
 
 function doesWorkEntryMatchBatch(entry = {}, source = {}) {
   const entryBatch = getWorkBatchContext(entry)
   const sourceBatch = getWorkBatchContext(source)
-  const hasExplicitBatchIdentity = Boolean(
-    entryBatch.batchId ||
-    entryBatch.batchGroupId ||
-    sourceBatch.batchId ||
-    sourceBatch.batchGroupId,
-  )
-
-  if (entryBatch.batchId && sourceBatch.batchId && entryBatch.batchId === sourceBatch.batchId) return true
-  if (entryBatch.batchId && sourceBatch.batchGroupId && entryBatch.batchId === sourceBatch.batchGroupId) return true
-  if (entryBatch.batchGroupId && sourceBatch.batchId && entryBatch.batchGroupId === sourceBatch.batchId) return true
-  if (entryBatch.batchGroupId && sourceBatch.batchGroupId && entryBatch.batchGroupId === sourceBatch.batchGroupId) return true
-
-  // Older work entries do not contain batch columns. Their studentIds are the
-  // batch scope, so do not reject them only because batch metadata is absent.
-  if (!entryBatch.batchId && !entryBatch.batchGroupId) return true
-
-  if (hasExplicitBatchIdentity) return false
-
-  const sameName = Boolean(entryBatch.batchName && sourceBatch.batchName && entryBatch.batchName === sourceBatch.batchName)
-  const sameTiming = Boolean(entryBatch.batchTiming && sourceBatch.batchTiming && entryBatch.batchTiming === sourceBatch.batchTiming)
-
-  return sameName || sameTiming
+  return Boolean(entryBatch.batchId && sourceBatch.batchId && entryBatch.batchId === sourceBatch.batchId)
 }
 
 function isFacultyWorkEntryForStudent(entry = {}, student = {}) {
@@ -754,9 +730,6 @@ function getCourseSubmoduleName(submodule = {}, index = 0) {
 
 function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [], backfillRecords = []) {
   const batchId = String(batch?.batchId || batch?.id || '').trim().toLowerCase()
-  const batchGroupId = String(batch?.batchGroupId || '').trim().toLowerCase()
-  const batchName = normalizeCourseKey(batch?.batchName || batch?.code || '')
-  const batchTiming = normalizeCourseKey(batch?.timing || '')
   const courseId = String(course?.id || course?.courseId || '').trim().toLowerCase()
   const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
 
@@ -765,30 +738,13 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
     const studentCourseId = String(context?.courseId || student?.courseId || '').trim().toLowerCase()
     const studentCourseName = normalizeCourseKey(context?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '')
     const studentBatchId = String(context?.batchId || student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
-    const studentBatchGroupId = String(context?.batchGroupId || student?.batchGroupId || '').trim().toLowerCase()
-    const studentBatchName = normalizeCourseKey(context?.batchName || student?.batchName || student?.batch || '')
-    const studentBatchTiming = normalizeCourseKey(context?.batchTiming || student?.batchTiming || student?.batchTime || '')
 
     const matchesCourse =
       (!courseId || !studentCourseId || studentCourseId === courseId) &&
       (!courseName || !studentCourseName || studentCourseName === courseName)
     if (!matchesCourse) return false
 
-    const matchesBatchIdentity = (
-      (batchId && (studentBatchId === batchId || studentBatchGroupId === batchId)) ||
-      (batchGroupId && (studentBatchId === batchGroupId || studentBatchGroupId === batchGroupId))
-    )
-
-    if (matchesBatchIdentity) return true
-
-    // Some older student records do not store the batch ID. Keep those
-    // records usable through the unique batch name/timing fallback, while
-    // never falling back when a different explicit batch ID is present.
-    if ((batchId || batchGroupId) && (studentBatchId || studentBatchGroupId)) {
-      return false
-    }
-
-    return (batchName && studentBatchName === batchName) || (batchTiming && studentBatchTiming === batchTiming)
+    return Boolean(batchId && studentBatchId === batchId)
   }))
 }
 
@@ -1579,17 +1535,20 @@ export function FacultyDashboardPage() {
 
   const assignedCourseIds = useMemo(() => {
     const summary = dashboardSummary || {}
-    const sources = [
-      facultyProfile?.course?.id,
-      facultyProfile?.courseIds,
-      facultyProfile?.courseId,
-      facultyProfile?.courseAssignments,
-      facultyProfile?.batchEntries,
-      summary?.courseIds,
-      summary?.courseId,
-      summary?.courseAssignments,
-      summary?.batchEntries,
-    ]
+    const hasCurrentBranchAssignments = Array.isArray(summary?.batchEntries)
+    const sources = hasCurrentBranchAssignments
+      ? [summary?.courseIds, summary?.courseId, summary?.courseAssignments, summary?.batchEntries]
+      : [
+          facultyProfile?.course?.id,
+          facultyProfile?.courseIds,
+          facultyProfile?.courseId,
+          facultyProfile?.courseAssignments,
+          facultyProfile?.batchEntries,
+          summary?.courseIds,
+          summary?.courseId,
+          summary?.courseAssignments,
+          summary?.batchEntries,
+        ]
 
     const ids = []
 
@@ -1613,17 +1572,20 @@ export function FacultyDashboardPage() {
 
   const assignedCourseNames = useMemo(() => {
     const summary = dashboardSummary || {}
-    const sources = [
-      facultyProfile?.course?.name,
-      facultyProfile?.courseAssignments,
-      facultyProfile?.batchEntries,
-      summary?.courseAssignments,
-      summary?.batchEntries,
-      facultyProfile?.courseName,
-      summary?.faculty?.courseName,
-      summary?.faculty?.course?.name,
-      summary?.courseName,
-    ]
+    const hasCurrentBranchAssignments = Array.isArray(summary?.batchEntries)
+    const sources = hasCurrentBranchAssignments
+      ? [summary?.courseAssignments, summary?.batchEntries, summary?.faculty?.courseName, summary?.courseName]
+      : [
+          facultyProfile?.course?.name,
+          facultyProfile?.courseAssignments,
+          facultyProfile?.batchEntries,
+          summary?.courseAssignments,
+          summary?.batchEntries,
+          facultyProfile?.courseName,
+          summary?.faculty?.courseName,
+          summary?.faculty?.course?.name,
+          summary?.courseName,
+        ]
 
     const names = []
 
@@ -1928,57 +1890,26 @@ export function FacultyDashboardPage() {
     const facultyEmailValue = currentFacultyIdentity.facultyEmail
     const summary = dashboardSummary || {}
     const getBatchStudentCount = (entry = {}) => {
-      const normalizedBatchId = String(entry?.id || entry?.batchId || '').trim().toLowerCase()
-      const normalizedBatchGroupId = String(entry?.batchGroupId || '').trim().toLowerCase()
-      const normalizedBatchName = String(entry?.batchName || entry?.batch || entry?.code || '').trim().toLowerCase()
-      const normalizedBatchTiming = String(entry?.batchTiming || entry?.timing || '').trim().toLowerCase()
+      const normalizedBatchId = String(entry?.batchId || entry?.batchEntryId || entry?.id || '').trim().toLowerCase()
+      const normalizedCourseId = String(entry?.courseId || '').trim().toLowerCase()
+      const normalizedFacultyId = String(entry?.facultyId || facultyId || '').trim().toLowerCase()
 
       const matchedStudents = facultyScopedStudents.filter((student) => {
         const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
         const resolvedBatch = context?.batchEntry || null
 
         const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
-        const studentBatchGroupId = String(student?.batchGroupId || '').trim().toLowerCase()
-        const studentBatchName = String(student?.batchName || student?.batch || '').trim().toLowerCase()
-        const studentBatchTiming = String(student?.batchTiming || student?.batchTime || '').trim().toLowerCase()
-        const resolvedBatchId = String(resolvedBatch?.id || '').trim().toLowerCase()
-        const resolvedBatchGroupId = String(resolvedBatch?.batchGroupId || '').trim().toLowerCase()
-        const resolvedBatchName = String(resolvedBatch?.batchName || resolvedBatch?.batch || '').trim().toLowerCase()
-        const resolvedBatchTiming = String(resolvedBatch?.batchTiming || '').trim().toLowerCase()
+        const resolvedBatchId = String(resolvedBatch?.batchId || resolvedBatch?.batchEntryId || resolvedBatch?.id || '').trim().toLowerCase()
+        const studentCourseId = String(student?.courseId || context?.courseId || '').trim().toLowerCase()
+        const studentFacultyId = String(student?.facultyId || context?.facultyId || '').trim().toLowerCase()
 
         if (normalizedBatchId) {
           return (
-            (studentBatchId && studentBatchId === normalizedBatchId) ||
-            (resolvedBatchId && resolvedBatchId === normalizedBatchId) ||
-            (studentBatchGroupId && studentBatchGroupId === normalizedBatchId) ||
-            (resolvedBatchGroupId && resolvedBatchGroupId === normalizedBatchId)
+            ((studentBatchId && studentBatchId === normalizedBatchId) ||
+              (resolvedBatchId && resolvedBatchId === normalizedBatchId)) &&
+            (!normalizedCourseId || studentCourseId === normalizedCourseId) &&
+            (!normalizedFacultyId || studentFacultyId === normalizedFacultyId)
           )
-        }
-
-        if (normalizedBatchGroupId) {
-          return (
-            (studentBatchGroupId && studentBatchGroupId === normalizedBatchGroupId) ||
-            (resolvedBatchGroupId && resolvedBatchGroupId === normalizedBatchGroupId) ||
-            (resolvedBatchId && resolvedBatchId === normalizedBatchGroupId)
-          )
-        }
-
-        if (normalizedBatchName || normalizedBatchTiming) {
-          const batchNameMatches =
-            normalizedBatchName &&
-            (
-              studentBatchName === normalizedBatchName ||
-              resolvedBatchName === normalizedBatchName
-            )
-
-          const batchTimingMatches =
-            normalizedBatchTiming &&
-            (
-              studentBatchTiming === normalizedBatchTiming ||
-              resolvedBatchTiming === normalizedBatchTiming
-            )
-
-          return batchNameMatches || batchTimingMatches
         }
 
         return false
@@ -1992,10 +1923,11 @@ export function FacultyDashboardPage() {
         index,
       ]),
     )
-    const rawEntries = [
-      ...(Array.isArray(facultyProfile?.batchEntries) ? facultyProfile.batchEntries : []),
-      ...(Array.isArray(summary?.batchEntries) ? summary.batchEntries : []),
-    ]
+    const summaryEntries = Array.isArray(summary?.batchEntries) ? summary.batchEntries : []
+    const profileEntries = Array.isArray(facultyProfile?.batchEntries) ? facultyProfile.batchEntries : []
+    // Branch-assigned batches are authoritative. Do not merge stale legacy
+    // faculty-profile batches back into the current branch assignment list.
+    const rawEntries = summaryEntries.length ? summaryEntries : profileEntries
 
     const uniqueEntries = Array.from(
       rawEntries.reduce((map, entry) => {
@@ -2066,7 +1998,7 @@ export function FacultyDashboardPage() {
       })
       .map((entry) => {
         return {
-          id: String(entry?.id || `${entry?.courseId || 'course'}-${entry?.batchName || entry?.batch || 'batch'}`).trim(),
+          id: String(entry?.batchId || entry?.batchEntryId || entry?.id || `${entry?.courseId || 'course'}-${entry?.batchName || entry?.batch || 'batch'}`).trim(),
           courseId: String(entry?.courseId || '').trim(),
           course: String(entry?.courseName || entry?.course || '-').trim() || '-',
           batchId: String(entry?.batchId || entry?.batchEntryId || entry?.id || '').trim(),
@@ -2151,11 +2083,7 @@ export function FacultyDashboardPage() {
 
     const selectedCourseId = String(selectedStudentsBatch.courseId || selectedStudentsCourse?.id || '').trim().toLowerCase()
     const selectedCourseName = normalizeCourseKey(selectedStudentsCourse?.name || selectedStudentsCourse?.courseName || selectedStudentsBatch.course || '')
-    const selectedBatchName = normalizeCourseKey(selectedStudentsBatch.batchName || selectedStudentsBatch.code || '')
-    const selectedBatchToken = selectedBatchName.replace(/\s+/g, ' ')
-    const selectedBatchTiming = normalizeCourseKey(selectedStudentsBatch.timing || '')
     const selectedBatchId = String(selectedStudentsBatch.batchId || selectedStudentsBatch.id || '').trim().toLowerCase()
-    const selectedBatchGroupId = String(selectedStudentsBatch.batchGroupId || '').trim().toLowerCase()
 
     const matchedStudents = facultyScopedStudents.filter((student) => {
       const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
@@ -2164,7 +2092,6 @@ export function FacultyDashboardPage() {
       const studentCourseId = String(context?.courseId || student?.courseId || '').trim().toLowerCase()
       const studentCourseName = normalizeCourseKey(context?.courseName || student?.courseInterested || student?.courseName || student?.course?.name || '')
       const studentBatchId = String(context?.batchId || student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
-      const studentBatchGroupId = String(context?.batchGroupId || student?.batchGroupId || '').trim().toLowerCase()
       const studentBatchName = normalizeCourseKey(context?.batchName || student?.batchName || student?.batch || '')
       const studentBatchToken = studentBatchName.replace(/\s+/g, ' ')
       const studentBatchTiming = normalizeCourseKey(context?.batchTiming || student?.batchTiming || student?.batchTime || '')
@@ -2173,37 +2100,20 @@ export function FacultyDashboardPage() {
         return false
       }
 
-      if (selectedCourseId && studentCourseId && studentCourseId !== selectedCourseId) {
+      if (selectedCourseId && studentCourseId !== selectedCourseId) {
         return false
       }
 
-      if (selectedCourseName && studentCourseName && studentCourseName !== selectedCourseName) {
+      if (selectedCourseName && studentCourseName !== selectedCourseName) {
         return false
       }
 
-      if (selectedBatchId && (studentBatchId || studentBatchGroupId)) {
-        if (studentBatchId === selectedBatchId || studentBatchGroupId === selectedBatchId) return true
-      }
-
-      if (selectedBatchGroupId && (studentBatchId || studentBatchGroupId)) {
-        if (studentBatchId === selectedBatchGroupId || studentBatchGroupId === selectedBatchGroupId) return true
-      }
-
-      if (selectedBatchName) {
-        const batchMatches =
-          studentBatchName === selectedBatchName ||
-          studentBatchToken === selectedBatchToken ||
-          studentBatchToken === selectedBatchName ||
-          studentBatchName === selectedBatchToken
-
-        if (batchMatches) return true
-      }
-
-      if (selectedBatchTiming && studentBatchTiming) {
-        if (studentBatchTiming === selectedBatchTiming) return true
-      }
-
-      return false
+      return Boolean(
+        selectedBatchId &&
+        studentBatchId &&
+        studentBatchId === selectedBatchId &&
+        (!currentFacultyIdentity.facultyId || studentFacultyId === String(currentFacultyIdentity.facultyId).trim().toLowerCase()),
+      )
     })
 
     return dedupeStudentsByIdentity(matchedStudents)
@@ -2236,7 +2146,6 @@ export function FacultyDashboardPage() {
         const progressStudent = {
           ...student,
           batchId: batch?.batchId || batch?.id || student?.batchId || student?.batchEntryId || '',
-          batchGroupId: batch?.batchGroupId || student?.batchGroupId || '',
           batchName: batch?.batchName || batch?.code || student?.batchName || student?.batch || '',
           batchTiming: batch?.timing || batch?.batchTiming || student?.batchTiming || student?.batchTime || '',
         }
@@ -2615,7 +2524,6 @@ export function FacultyDashboardPage() {
         courseId: String(todayWorkCourse.id || '').trim(),
         courseName: String(todayWorkCourse.name || todayWorkCourse.courseName || '').trim(),
         batchId: String(selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || '').trim(),
-        batchGroupId: String(selectedStudentsBatch?.batchGroupId || '').trim(),
         batchName: String(selectedStudentsBatch?.batchName || selectedStudentsBatch?.code || '').trim(),
         batchTiming: String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || '').trim(),
         moduleId: String(todayWorkSelectedModule.id || '').trim(),
