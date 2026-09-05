@@ -26,6 +26,8 @@ import {
   CalendarDays,
   Monitor,
   Clock3,
+  ArrowUpRight,
+  ArrowDownRight,
   Download,
   IndianRupee,
   FileText,
@@ -7652,27 +7654,85 @@ useEffect(() => {
 
                   <div className="branch-dashboard-stats branch-dashboard-finance-stats">
                     {[
-                      ['Total Students', dashboardData.students.length, 'Active students'],
-                      ['Total Fee Value', formatBranchRupees(dashboardData.totalFee), 'Agreed fee value'],
-                      ['Total Collected', formatBranchRupees(dashboardData.totalCollected), 'Successful payments'],
-                      ['Outstanding', formatBranchRupees(dashboardData.outstanding), 'Payable balance'],
-                      ['Due Today', `${formatBranchRupees(dashboardData.dueToday.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueToday.length}`, 'Amount · installments'],
-                      ['Due This Week', `${formatBranchRupees(dashboardData.dueThisWeek.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueThisWeek.length}`, 'Amount · installments'],
-                      ['Overdue Amount', `${formatBranchRupees(dashboardData.overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.overdue.length}`, 'Amount · installments'],
-                      ['Collection %', `${formatBranchPercentage(dashboardData.collectionPercentage)}%`, 'Collected / total fee'],
-                    ].map(([label, value, note], index) => {
-                      const CardIcon = [Users, Wallet, IndianRupee, Wallet, CalendarDays, CalendarDays, Clock3, BadgePercent][index]
-                      return (
-                        <article key={label} className="branch-dashboard-stat-card">
-                          <div className="branch-dashboard-stat-card-head">
-                            <span className="branch-dashboard-stat-card-icon"><CardIcon size={14} strokeWidth={2.3} /></span>
-                            <span>{label}</span>
-                          </div>
+                      {
+                        label: 'Total Students',
+                        value: dashboardData.students.length,
+                        note: 'Active Students',
+                        Icon: Users,
+                        TrailIcon: ArrowUpRight,
+                        tone: 'green',
+                      },
+                      {
+                        label: 'Total Revenue',
+                        value: formatBranchRupees(dashboardData.totalFee),
+                        note: 'Across All Centers',
+                        Icon: IndianRupee,
+                        TrailIcon: ArrowUpRight,
+                        tone: 'amber',
+                      },
+                      {
+                        label: 'Total Collected',
+                        value: formatBranchRupees(dashboardData.totalCollected),
+                        note: 'Received Payments',
+                        Icon: Wallet,
+                        TrailIcon: ArrowDownRight,
+                        tone: 'red',
+                      },
+                      {
+                        label: 'Outstanding',
+                        value: formatBranchRupees(dashboardData.outstanding),
+                        note: 'Pending Balance',
+                        Icon: UserRound,
+                        TrailIcon: UserRound,
+                        tone: 'violet',
+                      },
+                      {
+                        label: 'Due Today',
+                        value: `${formatBranchRupees(dashboardData.dueToday.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueToday.length}`,
+                        note: 'Amount · Installments',
+                        Icon: FileText,
+                        TrailIcon: CalendarDays,
+                        tone: 'blue',
+                      },
+                      {
+                        label: 'Due This Week',
+                        value: `${formatBranchRupees(dashboardData.dueThisWeek.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueThisWeek.length}`,
+                        note: 'Amount · Installments',
+                        Icon: Clock3,
+                        TrailIcon: ArrowUpRight,
+                        tone: 'sky',
+                      },
+                      {
+                        label: 'Overdue Amount',
+                        value: `${formatBranchRupees(dashboardData.overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.overdue.length}`,
+                        note: 'Amount · Installments',
+                        Icon: CalendarDays,
+                        TrailIcon: ArrowDownRight,
+                        tone: 'rose',
+                      },
+                      {
+                        label: 'Collection %',
+                        value: `${formatBranchPercentage(dashboardData.collectionPercentage)}%`,
+                        note: 'Collected / Total Due',
+                        Icon: BadgePercent,
+                        TrailIcon: PieChart,
+                        tone: 'green',
+                      },
+                    ].map(({ label, value, note, Icon, TrailIcon, tone }) => (
+                      <article key={label} className={`branch-dashboard-stat-card tone-${tone}`}>
+                        <div className="branch-dashboard-stat-card-icon" aria-hidden="true">
+                          <Icon size={34} strokeWidth={2.2} />
+                        </div>
+                        <div className="branch-dashboard-stat-card-copy">
+                          <span>{label}</span>
                           <strong>{value}</strong>
                           <div className="branch-dashboard-stat-card-footer"><small>{note}</small></div>
-                        </article>
-                      )
-                    })}
+                        </div>
+                        <div className="branch-dashboard-stat-card-trail" aria-hidden="true">
+                          <TrailIcon size={20} strokeWidth={2.2} />
+                        </div>
+                      </article>
+                    ))}
                   </div>
 
                   {/* <div className="branch-dashboard-quick-links">
@@ -7695,7 +7755,7 @@ useEffect(() => {
                     </section>
                     <section className="branch-dashboard-analytics-card dashboard-fee-status-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Fee Status</span><h2>Collection breakdown</h2></div></div>
-                      <div className="dashboard-donut-wrap"><div className="dashboard-donut" style={{ background: `conic-gradient(#16a34a 0 ${dashboardData.totalFee ? (dashboardData.statusValues[0] / dashboardData.totalFee) * 360 : 0}deg, #f59e0b 0 ${dashboardData.totalFee ? ((dashboardData.statusValues[0] + dashboardData.statusValues[1]) / dashboardData.totalFee) * 360 : 0}deg, #ef4444 0 360deg)` }}><div>{formatBranchPercentage(dashboardData.collectionPercentage)}<small>% collected</small></div></div><div className="dashboard-donut-legend"><span><i className="is-collected" />Collected <b>{formatBranchRupees(dashboardData.statusValues[0])}</b></span><span><i className="is-pending" />Outstanding <b>{formatBranchRupees(dashboardData.statusValues[1])}</b></span><span><i className="is-overdue" />Overdue <b>{formatBranchRupees(dashboardData.statusValues[2])}</b></span></div></div>
+                      <div className="dashboard-donut-wrap"><div className="dashboard-donut" style={{ background: `conic-gradient(#16a34a 0 ${dashboardData.totalFee ? (dashboardData.statusValues[0] / dashboardData.totalFee) * 360 : 0}deg, #f59e0b 0 ${dashboardData.totalFee ? ((dashboardData.statusValues[0] + dashboardData.statusValues[1]) / dashboardData.totalFee) * 360 : 0}deg, #ef4444 0 360deg)` }}><div>{formatBranchPercentage(dashboardData.collectionPercentage)}<small>% collected</small></div></div><div className="dashboard-donut-legend"><span><i className="is-collected" />Collected <b>{formatBranchRupees(dashboardData.statusValues[0])}</b></span><span><i className="is-pending" />Outstanding <b>{formatBranchRupees(dashboardData.statusValues[1])}</b></span><span><i className="is-overdue" />Overdue <b>{formatBranchRupees(dashboardData.statusValues[2])}</b></span><span><i className="is-target" />Target <b>{formatBranchRupees(dashboardData.totalFee)}</b></span></div></div>
                     </section>
                   </div>
 
