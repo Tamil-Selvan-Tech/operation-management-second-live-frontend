@@ -6196,17 +6196,25 @@ const studentCourseOptions = useMemo(() => {
     weekEnd.setDate(weekEnd.getDate() + (7 - ((today.getDay() + 6) % 7) - 1))
     const from = dashboardDateFrom || ''
     const to = dashboardDateTo || ''
+    const normalizeFilterValue = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+    const matchesFilterValue = (values, selectedValue, selectedLabel = '') => {
+      if (selectedValue === 'all') return true
+      const selectedValues = [selectedValue, selectedLabel].map(normalizeFilterValue).filter(Boolean)
+      return values.some((value) => selectedValues.includes(normalizeFilterValue(value)))
+    }
     const inSelectedDateRange = (value) => {
       const dateValue = getDashboardDateValue(value)
       return (!from || (dateValue && dateValue >= from)) && (!to || (dateValue && dateValue <= to))
     }
+    const selectedCourseOption = dashboardFilterOptions.courses.find((option) => option.id === dashboardCourseFilter)
+    const selectedBatchOption = dashboardFilterOptions.batches.find((option) => option.id === dashboardBatchFilter)
     const matchesBaseStudentFilters = (student) => {
-      const course = String(student.courseId || student.courseName || student.courseInterested || '').trim()
-      const batch = String(student.batchId || student.batchName || student.batch || '').trim()
+      const courseValues = [student.courseId, student.courseName, student.courseInterested, student.course, student.course?.id, student.course?.name]
+      const batchValues = [student.batchId, student.batchName, student.batch, student.batchSelectionKey, student.batch?.id, student.batch?.name]
       const status = String(student.status || '').trim().toLowerCase()
       const isCountableStudent = !['inactive', 'deleted', 'rejected', 'withdrawn'].includes(status)
-      return (dashboardCourseFilter === 'all' || course === dashboardCourseFilter) &&
-        (dashboardBatchFilter === 'all' || batch === dashboardBatchFilter) &&
+      return matchesFilterValue(courseValues, dashboardCourseFilter, selectedCourseOption?.label) &&
+        matchesFilterValue(batchValues, dashboardBatchFilter, selectedBatchOption?.label) &&
         isCountableStudent
     }
     const matchesStudentFilters = (student) => matchesBaseStudentFilters(student) && inSelectedDateRange(student.admissionDate || student.createdAt)
@@ -6321,7 +6329,7 @@ const studentCourseOptions = useMemo(() => {
       trendMax,
       statusValues: [totalCollected, Math.max(totalFee - totalCollected - overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0), 0), overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)],
     }
-  }, [allPaymentHistoryRecords, branchStudentScope, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardTrendMode])
+  }, [allPaymentHistoryRecords, branchStudentScope, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardFilterOptions, dashboardTrendMode])
 
   const paymentModeFilterOptions = useMemo(() => {
     const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque', 'Installment']
