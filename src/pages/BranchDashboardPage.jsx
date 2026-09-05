@@ -6345,6 +6345,17 @@ const studentCourseOptions = useMemo(() => {
     return ['all', ...Array.from(uniqueModes)]
   }, [allPaymentHistoryRecords])
 
+  const currentMonthAdmissions = dashboardData.currentMonthStudents
+  const nextMonthExpectedAdmissions = currentMonthAdmissions + 10
+  const nextMonthTargetAdmissions = 30
+  const averageStudentValue = currentMonthAdmissions > 0
+    ? dashboardData.totalFee / currentMonthAdmissions
+    : 0
+  const nextMonthExpectedValue = nextMonthExpectedAdmissions * averageStudentValue
+  const nextMonthTargetValue = nextMonthTargetAdmissions * averageStudentValue
+  const nextMonthLabel = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1)
+    .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+
   const filteredPaymentHistoryRecords = useMemo(() => {
     const q = paymentHistorySearch.trim().toLowerCase()
     const todayStr = getTodayValue()
@@ -7785,6 +7796,31 @@ useEffect(() => {
                       </article>
                     ))}
                   </div>
+
+                  <section className="branch-dashboard-admission-target-card" aria-label="Next month admission target">
+                    <div className="branch-dashboard-admission-target-heading">
+                      <strong>Next Month Admission Target</strong>
+                      <span><CalendarDays size={14} strokeWidth={2.2} />{nextMonthLabel}</span>
+                    </div>
+                    <div className="branch-dashboard-admission-target-grid">
+                      <div className="branch-dashboard-admission-target-labels">
+                        <span><Users size={18} strokeWidth={2.1} />Admissions</span>
+                        <span><IndianRupee size={18} strokeWidth={2.1} />Value</span>
+                      </div>
+                      <div className="branch-dashboard-admission-target-column is-expected">
+                        <strong>Expected</strong>
+                        <b>{nextMonthExpectedAdmissions}</b>
+                        <small>Students</small>
+                        <b>{formatBranchRupees(Math.round(nextMonthExpectedValue))}</b>
+                      </div>
+                      <div className="branch-dashboard-admission-target-column is-target">
+                        <strong>Target</strong>
+                        <b>{nextMonthTargetAdmissions}</b>
+                        <small>Students</small>
+                        <b>{formatBranchRupees(Math.round(nextMonthTargetValue))}</b>
+                      </div>
+                    </div>
+                  </section>
 
                   {/* <div className="branch-dashboard-quick-links">
                     <strong>Quick Links</strong>
