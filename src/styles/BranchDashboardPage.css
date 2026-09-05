@@ -11278,12 +11278,23 @@ body.branch-notification-menu-open .main-area {
   gap: 16px;
 }
 
+.super-admin-page .branch-dashboard-filter-bar {
+  margin-top: -12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) 34px;
   align-items: center;
   gap: 14px;
-  min-height: 142px;
+  height: 140px;
+  min-height: 140px;
+  align-self: start;
   padding: 12px 14px;
   overflow: hidden;
   border: 1px solid #dbe5f0;
@@ -11314,11 +11325,14 @@ body.branch-notification-menu-open .main-area {
 
 .super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-copy span {
   display: block;
+  overflow: hidden;
   color: #50637f;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
+  text-overflow: ellipsis;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-copy strong {
@@ -11357,6 +11371,15 @@ body.branch-notification-menu-open .main-area {
   color: var(--tone-color, #2563eb);
   background: var(--tone-bg, #ecf3ff);
   transform: translateY(-3px);
+}
+
+.super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card.is-clickable {
+  cursor: pointer;
+}
+
+.super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card.is-clickable:hover {
+  border-color: #b9d5f4;
+  box-shadow: 0 15px 34px rgba(37, 99, 235, 0.1);
 }
 
 .super-admin-page .branch-dashboard-finance-stats .tone-green { --tone-color: #16a34a; --tone-bg: #eafaf0; }

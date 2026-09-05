@@ -6200,22 +6200,32 @@ const studentCourseOptions = useMemo(() => {
       const dateValue = getDashboardDateValue(value)
       return (!from || (dateValue && dateValue >= from)) && (!to || (dateValue && dateValue <= to))
     }
-    const matchesStudentFilters = (student) => {
+    const matchesBaseStudentFilters = (student) => {
       const course = String(student.courseId || student.courseName || student.courseInterested || '').trim()
       const batch = String(student.batchId || student.batchName || student.batch || '').trim()
       const status = String(student.status || '').trim().toLowerCase()
       const isCountableStudent = !['inactive', 'deleted', 'rejected', 'withdrawn'].includes(status)
       return (dashboardCourseFilter === 'all' || course === dashboardCourseFilter) &&
         (dashboardBatchFilter === 'all' || batch === dashboardBatchFilter) &&
-        isCountableStudent &&
-        inSelectedDateRange(student.admissionDate || student.createdAt)
+        isCountableStudent
     }
+    const matchesStudentFilters = (student) => matchesBaseStudentFilters(student) && inSelectedDateRange(student.admissionDate || student.createdAt)
 
     const students = branchStudents.filter(matchesStudentFilters)
     const studentIds = new Set(students.flatMap((student) => [student.id, student.studentId].map((id) => String(id || '').trim()).filter(Boolean)))
+    const currentBranchIds = new Set(
+      [branchStudentScope.id, branchStudentScope.branchId, branchStudentScope.branchCode]
+        .map((id) => String(id || '').trim())
+        .filter(Boolean),
+    )
     const payments = allPaymentHistoryRecords.filter((payment) => {
       const paymentStudentId = String(payment.studentId || '').trim()
+      const paymentBranchId = String(
+        payment.branchId || payment.branch_id || payment.centerId || payment.center_id || '',
+      ).trim()
+      const belongsToCurrentBranch = !paymentBranchId || currentBranchIds.has(paymentBranchId)
       return isSuccessfulDashboardPayment(payment) &&
+        belongsToCurrentBranch &&
         studentIds.has(paymentStudentId) &&
         inSelectedDateRange(payment.dateRaw || payment.paymentDate)
     })
@@ -6241,6 +6251,11 @@ const studentCourseOptions = useMemo(() => {
     })
     const dueSoon = dueThisWeek.filter((item) => getDashboardDateValue(item.dueDate) > todayValue)
     const overdue = dueItems.filter((item) => getDashboardDateValue(item.dueDate) < todayValue)
+    const currentMonthStudents = branchStudents.filter((student) => {
+      if (!matchesBaseStudentFilters(student)) return false
+      const addedDate = getDashboardDateValue(student.admissionDate || student.createdAt)
+      return addedDate.slice(0, 7) === todayValue.slice(0, 7)
+    }).length
     const totalFee = rows.reduce((sum, row) => sum + row.totalFee, 0)
     const totalCollected = rows.reduce((sum, row) => sum + row.paidAmount, 0)
     const startOfWeek = (date) => {
@@ -6291,6 +6306,7 @@ const studentCourseOptions = useMemo(() => {
 
     return {
       students,
+      currentMonthStudents,
       payments,
       rows,
       totalFee,
@@ -6305,7 +6321,7 @@ const studentCourseOptions = useMemo(() => {
       trendMax,
       statusValues: [totalCollected, Math.max(totalFee - totalCollected - overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0), 0), overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)],
     }
-  }, [allPaymentHistoryRecords, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardTrendMode])
+  }, [allPaymentHistoryRecords, branchStudentScope, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardTrendMode])
 
   const paymentModeFilterOptions = useMemo(() => {
     const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque', 'Installment']
@@ -7646,8 +7662,6 @@ useEffect(() => {
                       <option value="all">All Batches</option>
                       {dashboardFilterOptions.batches.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                     </select></label>
-                    <label><span>From</span><input type="date" value={dashboardDateFromDraft} onChange={(event) => setDashboardDateFromDraft(event.target.value)} /></label>
-                    <label><span>To</span><input type="date" value={dashboardDateToDraft} onChange={(event) => setDashboardDateToDraft(event.target.value)} /></label>
                     <button type="button" className="dashboard-filter-apply" onClick={() => { setDashboardCourseFilter(dashboardCourseDraft); setDashboardBatchFilter(dashboardBatchDraft); setDashboardDateFrom(dashboardDateFromDraft); setDashboardDateTo(dashboardDateToDraft) }}>Apply</button>
                     <button type="button" className="dashboard-filter-reset" onClick={() => { setDashboardCourseDraft('all'); setDashboardBatchDraft('all'); setDashboardDateFromDraft(''); setDashboardDateToDraft(''); setDashboardCourseFilter('all'); setDashboardBatchFilter('all'); setDashboardDateFrom(''); setDashboardDateTo('') }}>Reset</button>
                   </div>
@@ -7655,20 +7669,27 @@ useEffect(() => {
                   <div className="branch-dashboard-stats branch-dashboard-finance-stats">
                     {[
                       {
-                        label: 'Total Students',
-                        value: dashboardData.students.length,
-                        note: 'Active Students',
+                        label: 'This Month Admissions',
+                        value: dashboardData.currentMonthStudents,
+                        note: 'Students Joined',
                         Icon: Users,
                         TrailIcon: ArrowUpRight,
                         tone: 'green',
+                        onClick: () => goToBranchSection('students'),
                       },
                       {
                         label: 'Total Revenue',
                         value: formatBranchRupees(dashboardData.totalFee),
-                        note: 'Across All Centers',
+                        note: 'Across All Batches',
                         Icon: IndianRupee,
                         TrailIcon: ArrowUpRight,
                         tone: 'amber',
+                        onClick: () => {
+                          setRecordPaymentStudent(null)
+                          setPaymentHistoryPage(1)
+                          setShowPaymentHistory(true)
+                          goToBranchSection('payments')
+                        },
                       },
                       {
                         label: 'Total Collected',
@@ -7677,6 +7698,12 @@ useEffect(() => {
                         Icon: Wallet,
                         TrailIcon: ArrowDownRight,
                         tone: 'red',
+                        onClick: () => {
+                          setRecordPaymentStudent(null)
+                          setPaymentHistoryPage(1)
+                          setShowPaymentHistory(true)
+                          goToBranchSection('payments')
+                        },
                       },
                       {
                         label: 'Outstanding',
@@ -7685,30 +7712,39 @@ useEffect(() => {
                         Icon: UserRound,
                         TrailIcon: UserRound,
                         tone: 'violet',
+                        onClick: () => {
+                          setRecordPaymentStudent(null)
+                          setPaymentHistoryPage(1)
+                          setShowPaymentHistory(true)
+                          goToBranchSection('payments')
+                        },
                       },
                       {
                         label: 'Due Today',
-                        value: `${formatBranchRupees(dashboardData.dueToday.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueToday.length}`,
-                        note: 'Amount · Installments',
+                        value: formatBranchRupees(dashboardData.dueToday.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
+                        note: `${dashboardData.dueToday.length} Installments`,
                         Icon: FileText,
                         TrailIcon: CalendarDays,
                         tone: 'blue',
+                        onClick: () => goToBranchSection('students'),
                       },
                       {
                         label: 'Due This Week',
-                        value: `${formatBranchRupees(dashboardData.dueThisWeek.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.dueThisWeek.length}`,
-                        note: 'Amount · Installments',
+                        value: formatBranchRupees(dashboardData.dueThisWeek.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
+                        note: `${dashboardData.dueThisWeek.length} Installments`,
                         Icon: Clock3,
                         TrailIcon: ArrowUpRight,
                         tone: 'sky',
+                        onClick: () => goToBranchSection('students'),
                       },
                       {
                         label: 'Overdue Amount',
-                        value: `${formatBranchRupees(dashboardData.overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0))} · ${dashboardData.overdue.length}`,
-                        note: 'Amount · Installments',
+                        value: formatBranchRupees(dashboardData.overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
+                        note: `${dashboardData.overdue.length} Installments`,
                         Icon: CalendarDays,
                         TrailIcon: ArrowDownRight,
                         tone: 'rose',
+                        onClick: () => goToBranchSection('students'),
                       },
                       {
                         label: 'Collection %',
@@ -7718,8 +7754,15 @@ useEffect(() => {
                         TrailIcon: PieChart,
                         tone: 'green',
                       },
-                    ].map(({ label, value, note, Icon, TrailIcon, tone }) => (
-                      <article key={label} className={`branch-dashboard-stat-card tone-${tone}`}>
+                    ].map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
+                      <article
+                        key={label}
+                        className={`branch-dashboard-stat-card tone-${tone}${onClick ? ' is-clickable' : ''}`}
+                        onClick={onClick}
+                        role={onClick ? 'button' : undefined}
+                        tabIndex={onClick ? 0 : undefined}
+                        onKeyDown={onClick ? (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onClick() } } : undefined}
+                      >
                         <div className="branch-dashboard-stat-card-icon" aria-hidden="true">
                           <Icon size={34} strokeWidth={2.2} />
                         </div>
