@@ -91,12 +91,12 @@
   outline-offset: -2px;
 }
 
-.batch-management-table thead th:nth-child(5),
-.batch-management-table tbody td:nth-child(5) {
+.batch-management-table thead th:nth-child(6),
+.batch-management-table tbody td:nth-child(6) {
   text-align: center;
 }
 
-.batch-management-table tbody td:nth-child(5) strong {
+.batch-management-table tbody td:nth-child(6) strong {
   display: inline-flex;
   min-width: 2ch;
   justify-content: center;
@@ -485,7 +485,7 @@
 
 .batch-management-form-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-top: 6px;
 }
@@ -572,7 +572,7 @@
 .batch-management-details-grid-head,
 .batch-management-row {
   display: grid;
-  grid-template-columns: minmax(140px, 0.85fr) minmax(320px, 1.7fr) minmax(92px, 102px) minmax(92px, 112px) 44px;
+  grid-template-columns: minmax(140px, 0.85fr) minmax(320px, 1.7fr) minmax(92px, 102px) minmax(92px, 112px);
   gap: 12px;
   align-items: center;
 }
