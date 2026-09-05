@@ -1937,7 +1937,7 @@ export function BranchBatchManagementSection({
                             window.setTimeout(() => {
                               setExpandedBatchKey('')
                               setClosingBatchKey('')
-                            }, 260)
+                            }, 320)
                             return
                           }
 
@@ -1946,8 +1946,8 @@ export function BranchBatchManagementSection({
                         }}
                         aria-expanded={isExpanded}
                       >
-                        <Eye size={15} strokeWidth={2.2} aria-hidden="true" />
-                        {isExpanded ? 'Hide Students' : (batchStudents.length ? `View ${batchStudents.length} Student${batchStudents.length === 1 ? '' : 's'}` : 'View Students')}
+                        <UsersRound size={15} strokeWidth={2.2} aria-hidden="true" />
+                        {isExpanded ? 'Hide Students' : 'View Students'}
                       </button>
                       <div className="batch-detail-card-seats">
                         <span>Seats:</span>
@@ -2033,7 +2033,7 @@ export function BranchBatchManagementSection({
         window.setTimeout(() => {
           setExpandedBatchKey('')
           setClosingBatchKey('')
-        }, 260)
+        }, 320)
         return
       }
 
@@ -2068,8 +2068,8 @@ export function BranchBatchManagementSection({
               }}
               aria-expanded={isExpanded}
             >
-              <Eye size={15} strokeWidth={2.2} aria-hidden="true" />
-              {isExpanded ? 'Hide Students' : (batchStudents.length ? `View ${batchStudents.length} Student${batchStudents.length === 1 ? '' : 's'}` : 'View Students')}
+                        <UsersRound size={15} strokeWidth={2.2} aria-hidden="true" />
+                        {isExpanded ? 'Hide Students' : 'View Students'}
             </button>
             <div className="batch-detail-card-seats">
               <span>Seats:</span>

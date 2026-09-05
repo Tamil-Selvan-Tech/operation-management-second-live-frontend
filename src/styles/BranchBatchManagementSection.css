@@ -14,7 +14,23 @@
 }
 
 .batch-management-list-card .batch-detail-card-timing {
+  grid-column: 1;
+  grid-row: 2;
+  justify-items: start;
+  text-align: left;
   padding-right: 34px;
+}
+
+.batch-management-list-card .batch-detail-card-head > .batch-detail-students-button {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: start;
+}
+
+.batch-management-list-card .batch-detail-card-seats {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
 }
 
 .batch-management-card-meta {
@@ -55,8 +71,8 @@
 
 .batch-management-card-actions {
   position: absolute;
-  top: 10px;
-  right: 4px;
+  top: 8px;
+  right: -6px;
   z-index: 3;
 }
 
@@ -1037,7 +1053,7 @@
 }
 
 .batch-detail-card.is-expanded.is-closing {
-  animation: batchFullCardFlipOut 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: batchFullCardFlipOut 320ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .batch-detail-card-icon {
@@ -1352,7 +1368,7 @@
 }
 
 .batch-detail-card.is-expanded.is-closing .batch-detail-students-panel {
-  animation: batchCardFlipOut 260ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: batchCardFlipOut 320ms cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .batch-detail-card.is-expanded .batch-detail-students-list {
@@ -1702,6 +1718,15 @@
 
   .batch-detail-card {
     grid-template-columns: 1fr;
+  }
+
+  .batch-management-list-card .batch-detail-card-timing,
+  .batch-management-list-card .batch-detail-card-head > .batch-detail-students-button,
+  .batch-management-list-card .batch-detail-card-seats {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: start;
+    text-align: left;
   }
 
   .batch-management-card-meta {
