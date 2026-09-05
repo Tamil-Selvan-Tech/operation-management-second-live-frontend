@@ -175,41 +175,11 @@ function upsertLocalCacheEntry(entry = {}) {
 export async function listFacultyTodayWorkEntries() {
   const response = await request('/faculty-today-work')
   const remoteEntries = extractEntries(response).map((entry) => normalizeTodayWorkEntry(entry))
-  const cachedEntries = readLocalCache()
 
-  const mergedEntries = new Map()
-
-  ;[...remoteEntries, ...cachedEntries].forEach((entry) => {
-    const normalizedEntry = normalizeTodayWorkEntry(entry)
-    const key = getTodayWorkEntryKey(normalizedEntry)
-    if (!key) return
-
-    const existing = mergedEntries.get(key) || {}
-    mergedEntries.set(key, {
-      ...existing,
-      ...normalizedEntry,
-      batchId: normalizedEntry.batchId || existing.batchId || '',
-      batchEntryId: normalizedEntry.batchEntryId || existing.batchEntryId || '',
-      batchGroupId: normalizedEntry.batchGroupId || existing.batchGroupId || '',
-      batchName: normalizedEntry.batchName || existing.batchName || '',
-      batchTiming: normalizedEntry.batchTiming || existing.batchTiming || '',
-      selectedStudentIds: normalizedEntry.selectedStudentIds.length
-        ? normalizedEntry.selectedStudentIds
-        : existing.selectedStudentIds || [],
-      studentIds: normalizedEntry.studentIds.length
-        ? normalizedEntry.studentIds
-        : existing.studentIds || [],
-      selectedSubmoduleIds: normalizedEntry.selectedSubmoduleIds.length
-        ? normalizedEntry.selectedSubmoduleIds
-        : existing.selectedSubmoduleIds || [],
-      submoduleIds: normalizedEntry.submoduleIds.length
-        ? normalizedEntry.submoduleIds
-        : existing.submoduleIds || [],
-      submodules: normalizedEntry.submodules.length ? normalizedEntry.submodules : existing.submodules || [],
-    })
-  })
-
-  return Array.from(mergedEntries.values())
+  // The API is the source of truth. Do not resurrect deleted work entries
+  // from the browser cache after a successful database read.
+  writeLocalCache(remoteEntries)
+  return remoteEntries
 }
 
 export function getFacultyTodayWorkEntriesByFaculty(
