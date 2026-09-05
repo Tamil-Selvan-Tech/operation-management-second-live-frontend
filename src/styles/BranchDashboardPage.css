@@ -153,6 +153,7 @@
 .dashboard-donut-wrap { display: flex; align-items: center; justify-content: center; gap: 22px; min-height: 180px; }
 .dashboard-donut { display: grid; place-items: center; width: 142px; height: 142px; border-radius: 50%; }
 .dashboard-donut > div { display: grid; place-items: center; width: 91px; height: 91px; border-radius: 50%; color: #0f172a; background: #fff; font-size: 1.25rem; font-weight: 900; }
+.dashboard-donut > div strong { display: block; white-space: nowrap; }
 .dashboard-donut small { display: block; color: #64748b; font-size: .64rem; font-weight: 700; }
 .dashboard-donut-legend {
   display: grid;
@@ -11392,6 +11393,50 @@ body.branch-notification-menu-open .main-area {
 
   .super-admin-page .branch-dashboard-admission-target-labels {
     display: none;
+  }
+}
+
+/* Give the fee status panel room for its two-column legend at tablet-width dashboards. */
+@media (min-width: 1000px) and (max-width: 1200px) {
+  .super-admin-page .branch-dashboard-analytics-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(245px, 0.9fr);
+  }
+
+  .super-admin-page .dashboard-fee-status-card {
+    grid-column: auto;
+    min-height: 220px;
+  }
+
+  .super-admin-page .dashboard-fee-status-card .dashboard-donut-wrap {
+    justify-content: center;
+    gap: 10px;
+    min-height: 150px;
+  }
+
+  .super-admin-page .dashboard-fee-status-card .dashboard-donut {
+    width: 104px;
+    height: 104px;
+  }
+
+  .super-admin-page .dashboard-fee-status-card .dashboard-donut > div {
+    width: 68px;
+    height: 68px;
+    font-size: 0.95rem;
+  }
+
+  .super-admin-page .dashboard-fee-status-card .dashboard-donut-legend {
+    grid-template-columns: repeat(2, minmax(78px, 1fr));
+    gap: 7px 8px;
+    min-width: 0;
+    width: 165px;
+  }
+
+  .super-admin-page .dashboard-fee-status-card .dashboard-donut-legend span {
+    font-size: 0.6rem;
+  }
+
+  .super-admin-page .dashboard-fee-status-card .dashboard-donut-legend b {
+    font-size: 0.6rem;
   }
 }
 
