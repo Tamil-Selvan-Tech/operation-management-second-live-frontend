@@ -7795,6 +7795,31 @@ body.branch-notification-menu-open .main-area {
   background: rgba(37, 99, 235, 0.18);
 }
 
+.branch-student-payment-details-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.branch-student-payment-details-btn:hover,
+.branch-student-payment-details-btn:focus-visible {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  outline: none;
+}
+
 .branch-student-action-btn.edit {
   background: rgba(234, 179, 8, 0.10);
   color: #b45309;
@@ -9455,6 +9480,146 @@ body.branch-notification-menu-open .main-area {
 .student-payment-installment-total strong {
   font-size: 16px;
   color: #111827;
+}
+
+.student-payment-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  grid-column: 1 / -1;
+  margin: 16px 0;
+}
+
+.student-payment-summary-card {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f8fbff;
+}
+
+.student-payment-summary-card span,
+.student-payment-history-heading span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.student-payment-summary-card strong {
+  display: block;
+  margin-top: 5px;
+  color: #1e293b;
+  font-size: 16px;
+}
+
+.student-payment-summary-card.is-paid {
+  border-color: #ccebd8;
+  background: #f5fcf7;
+}
+
+.student-payment-summary-card.is-paid strong,
+.student-payment-history-status.paid {
+  color: #159447;
+}
+
+.student-payment-summary-card.is-balance {
+  border-color: #ffd5d5;
+  background: #fff8f8;
+}
+
+.student-payment-summary-card.is-balance strong {
+  color: #dc2626;
+}
+
+.student-payment-summary-card.is-progress {
+  border-color: #cdddf8;
+  background: #f5f8ff;
+}
+
+.student-payment-progress-track {
+  height: 6px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dbe4f0;
+}
+
+.student-payment-progress-track span {
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: #2563eb;
+}
+
+.student-payment-history-section {
+  grid-column: 1 / -1;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.student-payment-history-heading {
+  margin-bottom: 12px;
+}
+
+.student-payment-history-heading h4 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 15px;
+}
+
+.student-payment-history-status {
+  color: #159447;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.student-receipt-download-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.student-receipt-download-button:hover {
+  background: #dbeafe;
+}
+
+.student-payment-history-empty {
+  padding: 18px !important;
+  color: #64748b !important;
+  text-align: center !important;
+}
+
+.student-payment-history-section .student-payment-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.student-payment-history-section .student-payment-installment-table {
+  min-width: 780px;
+  table-layout: auto;
+}
+
+.student-payment-history-section .student-payment-installment-table th,
+.student-payment-history-section .student-payment-installment-table td {
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+@media (max-width: 640px) {
+  .student-payment-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .student-payment-installment-table-wrapper {

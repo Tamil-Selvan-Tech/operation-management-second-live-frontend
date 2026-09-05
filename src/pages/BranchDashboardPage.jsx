@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom'
+import html2pdf from 'html2pdf.js'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getCountries, getStatesOfCountry, getCitiesOfState } from '@countrystatecity/countries-browser'
 import {
@@ -25,6 +26,7 @@ import {
   CalendarDays,
   Monitor,
   Clock3,
+  Download,
   IndianRupee,
   FileText,
   Tag,
@@ -92,6 +94,7 @@ import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
+import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
 import {
   groupByDate,
@@ -648,6 +651,61 @@ function computeBranchStudentPaymentSummary(stu = {}) {
     nextDueDate,
     paymentStatus,
   }
+}
+
+function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) {
+  const paymentSummary = computeBranchStudentPaymentSummary(student)
+  const receiptNumber = payment.receiptNumber || payment.id || 'Receipt'
+  const amount = Number(payment.amount || payment.paidAmount || 0)
+  const html = buildModernPaymentReceiptHtml({
+    logoUrl: `${window.location.origin}/logo.png`,
+    instituteName: context.branchProfile?.branchName || 'CISPRO',
+    branchAddress: context.branchProfile?.branchAddress || context.branchLocation || '-',
+    branchPhone: context.branchProfile?.branchPhone || context.branchProfile?.phone || context.branchProfile?.mobileNumber || '-',
+    branchEmail: context.branchEmail || '-',
+    studentName: student.studentName || payment.studentName || 'Student',
+    studentId: student.studentId || payment.studentId || '-',
+    courseName: student.courseName || student.courseInterested || payment.course || '-',
+    batchName: student.batchName || student.batchId || '-',
+    studentPhone: student.mobileNumber || '-',
+    receiptNumber,
+    receiptDate: payment.date || formatStudentDate(payment.dateRaw),
+    paymentDate: payment.date || formatStudentDate(payment.dateRaw),
+    paymentFor: payment.payAgainst || 'Payment',
+    paymentMode: payment.paymentMode || payment.mode || '-',
+    transactionReference: payment.transactionReference || '-',
+    collectedBy: context.branchAdminDisplay || '-',
+    notes: payment.notes || '-',
+    totalCourseFee: paymentSummary.totalFee,
+    previouslyPaid: Math.max(paymentSummary.paidAmount - amount, 0),
+    currentPayment: amount,
+    totalPaid: paymentSummary.paidAmount,
+    balance: paymentSummary.pendingAmount,
+    amountInWords: '-',
+    installments: Array.isArray(student.installmentSchedule) ? student.installmentSchedule : [],
+    paymentAlreadyApplied: true,
+  })
+  const receiptElement = document.createElement('div')
+  receiptElement.innerHTML = html
+  receiptElement.style.position = 'fixed'
+  receiptElement.style.left = '12px'
+  receiptElement.style.top = '0'
+  receiptElement.style.width = '794px'
+  receiptElement.style.zIndex = '-1'
+  receiptElement.style.background = '#ffffff'
+  document.body.appendChild(receiptElement)
+
+  html2pdf()
+    .set({
+      margin: 0,
+      filename: `Payment_Receipt_${String(receiptNumber).replace(/[^a-z0-9_-]/gi, '-')}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'px', format: [800, 1150], orientation: 'portrait' },
+    })
+    .from(receiptElement.querySelector('.receipt-page'))
+    .save()
+    .finally(() => receiptElement.remove())
 }
 
 function getDashboardInstallments(student = {}) {
@@ -2889,12 +2947,6 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const branchCourseProgressBackfillSignatureRef = useRef('')
 
   useEffect(() => {
-  if (viewStudentDrawer) {
-    setStudentDetailsTab('basic')
-  }
-}, [viewStudentDrawer])
-
-  useEffect(() => {
     const handleOutsideClick = (e) => {
       const clickedInsideActions = e.target.closest('.branch-student-actions-cell')
       const clickedInsideMenu = studentActionMenuRef.current?.contains(e.target)
@@ -3750,6 +3802,22 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       ...student,
       ...resolveStudentBatchDisplay(student, branchBatchGroups),
     })
+  }
+
+  const openStudentPaymentDetails = (student) => {
+    if (studentActionMenuCloseTimerRef.current) {
+      clearTimeout(studentActionMenuCloseTimerRef.current)
+    }
+
+    studentActionMenuHoverCountRef.current = 0
+    setStudentActionMenuId('')
+    setStudentActionMenuPosition({ top: 0, left: 0 })
+    setStudentDetailsTab('basic')
+    setViewStudentDrawer({
+      ...student,
+      ...resolveStudentBatchDisplay(student, branchBatchGroups),
+    })
+    setStudentDetailsTab('payment')
   }
 
   const openRecordPaymentConfirmation = (student) => {
@@ -6956,6 +7024,26 @@ useEffect(() => {
     }
   }
 
+  const drawerPaymentSummary = viewStudentDrawer
+    ? computeBranchStudentPaymentSummary(viewStudentDrawer)
+    : null
+  const drawerPaymentHistory = viewStudentDrawer
+    ? allPaymentHistoryRecords.filter((record) =>
+        getBranchStudentLookupKeys(viewStudentDrawer).some((key) =>
+          getBranchStudentLookupKeys({ studentId: record.studentId }).includes(key),
+        ),
+      )
+    : []
+  const drawerPaymentProgress = Math.min(
+    100,
+    Math.max(
+      0,
+      drawerPaymentSummary?.totalFee
+        ? ((drawerPaymentSummary.paidAmount || 0) / drawerPaymentSummary.totalFee) * 100
+        : 0,
+    ),
+  )
+
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Branch navigation">
       <div className="super-admin-sidebar-brand">
@@ -7799,6 +7887,18 @@ else {
                 >
                   <button
                     type="button"
+                    className="branch-student-payment-details-btn"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      openStudentPaymentDetails(stu)
+                    }}
+                    aria-label={`View payment details for ${stu.studentName || stu.studentId || 'student'}`}
+                  >
+                    <Eye size={15} aria-hidden="true" />
+                    <span>View Payment Details</span>
+                  </button>
+                  <button
+                    type="button"
                     className="branch-student-more-btn"
                     aria-label="Student actions"
                     aria-haspopup="menu"
@@ -7869,6 +7969,15 @@ else {
                       >
                         <Eye size={15} />
                         <span>View</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => openStudentPaymentDetails(stu)}
+                      >
+                        <Eye size={15} />
+                        <span>View Payment Details</span>
                       </button>
 
                       <button
@@ -11922,6 +12031,36 @@ else {
       </div>
     </div>
 
+    <div className="student-payment-summary-grid">
+      <article className="student-payment-summary-card">
+        <span>Total Fee</span>
+        <strong>{formatBranchRupees(drawerPaymentSummary?.totalFee || 0)}</strong>
+      </article>
+      <article className="student-payment-summary-card is-paid">
+        <span>Paid Amount</span>
+        <strong>{formatBranchRupees(drawerPaymentSummary?.paidAmount || 0)}</strong>
+      </article>
+      <article className="student-payment-summary-card is-balance">
+        <span>Balance</span>
+        <strong>{formatBranchRupees(drawerPaymentSummary?.pendingAmount || 0)}</strong>
+      </article>
+      <article className="student-payment-summary-card is-progress">
+        <span>Progress</span>
+        <strong>
+          {formatBranchPercentage(
+            drawerPaymentProgress,
+          )}%
+        </strong>
+        <div className="student-payment-progress-track">
+          <span
+            style={{
+              width: `${drawerPaymentProgress}%`,
+            }}
+          />
+        </div>
+      </article>
+    </div>
+
   {/* Installment Schedule */}
 {Array.isArray(viewStudentDrawer.installmentSchedule) &&
   viewStudentDrawer.installmentSchedule.length > 0 && (
@@ -11940,15 +12079,27 @@ else {
               <th>Installment</th>
               <th>Amount</th>
               <th>Due Date</th>
+              <th>Payment Mode</th>
+              <th>Paid Date</th>
               <th>Status</th>
             </tr>
           </thead>
 
           <tbody>
-            {viewStudentDrawer.installmentSchedule.map((inst, index) => (
+            {viewStudentDrawer.installmentSchedule.map((inst, index) => {
+              const installmentNumber = Number(inst.installmentNumber || inst.number || index + 1)
+              const installmentPayment = drawerPaymentHistory.find((payment) => {
+                const paymentInstallmentNumber = Number(
+                  payment.installmentNumber || getBranchLedgerInstallmentNumber(payment.payAgainst),
+                )
+                return paymentInstallmentNumber === installmentNumber
+              })
+              const installmentStatus = installmentPayment ? 'Paid' : (inst.status || 'Pending')
+
+              return (
               <tr key={`view-inst-${index}`}>
                 <td>
-                  Installment {inst.installmentNumber}
+                  Installment {installmentNumber}
                 </td>
 
                 <td>
@@ -11961,23 +12112,83 @@ else {
                     : '-'}
                 </td>
 
+                <td>{installmentPayment?.paymentMode || installmentPayment?.mode || inst.paymentMode || inst.mode || inst.paymentMethod || '-'}</td>
+
+                <td>
+                  {formatStudentDate(installmentPayment?.dateRaw || inst.paymentDate || inst.paidDate || inst.datePaid || inst.paidOn)}
+                </td>
+
                 <td>
                   <span
                     className={`status-badge status-${String(
-                      inst.status || 'pending'
+                      installmentStatus
                     ).toLowerCase()}`}
                   >
-                    {inst.status || 'Pending'}
+                    {installmentStatus}
                   </span>
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>
 
     </div>
   )}
+
+    <div className="student-payment-history-section">
+      <div className="student-payment-history-heading">
+        <div>
+          <h4>Payment History</h4>
+          <span>All successful payments recorded for this student</span>
+        </div>
+      </div>
+      <div className="student-payment-table-wrapper">
+        <table className="student-payment-installment-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Payment Mode</th>
+              <th>Transaction Reference</th>
+              <th>Installment</th>
+              <th>Receipt</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {drawerPaymentHistory.length ? drawerPaymentHistory.map((payment) => (
+              <tr key={`drawer-payment-${payment.id}`}>
+                <td>{payment.date || formatStudentDate(payment.dateRaw)}</td>
+                <td><strong>{formatBranchRupees(payment.amount || 0)}</strong></td>
+                <td>{payment.paymentMode || payment.mode || '-'}</td>
+                <td>{payment.transactionReference || '-'}</td>
+                <td>{payment.installmentNumber ? `${payment.installmentNumber} / ${viewStudentDrawer.installmentSchedule?.length || '-'}` : payment.payAgainst || '-'}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="student-receipt-download-button"
+                      onClick={() => downloadBranchStudentReceipt(payment, viewStudentDrawer, {
+                        branchProfile,
+                        branchLocation,
+                        branchEmail,
+                        branchAdminDisplay,
+                      })}
+                  >
+                    <Download size={14} aria-hidden="true" />
+                    Download
+                  </button>
+                </td>
+                <td><span className="student-payment-history-status paid">Paid</span></td>
+              </tr>
+            )) : (
+              <tr><td colSpan="7" className="student-payment-history-empty">No payment history found.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
   </>
 )}
                 </div>
