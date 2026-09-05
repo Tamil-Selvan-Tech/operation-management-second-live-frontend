@@ -7741,7 +7741,7 @@ useEffect(() => {
                       {
                         label: 'Due Today',
                         value: formatBranchRupees(dashboardData.dueToday.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
-                        note: `${dashboardData.dueToday.length} Installments`,
+                        note: `${new Set(dashboardData.dueToday.map((item) => String(item.student?.id || item.student?.studentId || item.student?.studentName || '').trim()).filter(Boolean)).size} Students`,
                         Icon: FileText,
                         TrailIcon: CalendarDays,
                         tone: 'blue',
@@ -7750,7 +7750,7 @@ useEffect(() => {
                       {
                         label: 'Due This Week',
                         value: formatBranchRupees(dashboardData.dueThisWeek.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
-                        note: `${dashboardData.dueThisWeek.length} Installments`,
+                        note: `${new Set(dashboardData.dueThisWeek.map((item) => String(item.student?.id || item.student?.studentId || item.student?.studentName || '').trim()).filter(Boolean)).size} Students`,
                         Icon: Clock3,
                         TrailIcon: ArrowUpRight,
                         tone: 'sky',
@@ -7759,7 +7759,7 @@ useEffect(() => {
                       {
                         label: 'Overdue Amount',
                         value: formatBranchRupees(dashboardData.overdue.reduce((sum, item) => sum + Math.max(item.amount - item.paidAmount, 0), 0)),
-                        note: `${dashboardData.overdue.length} Installments`,
+                        note: `${new Set(dashboardData.overdue.map((item) => String(item.student?.id || item.student?.studentId || item.student?.studentName || '').trim()).filter(Boolean)).size} Students`,
                         Icon: CalendarDays,
                         TrailIcon: ArrowDownRight,
                         tone: 'rose',
