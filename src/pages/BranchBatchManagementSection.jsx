@@ -1291,7 +1291,6 @@ export function BranchBatchManagementSection({
         }
 
         const payload = {
-          batchGroupId: draft.batchGroupId,
           courseId: selectedCourseRecord?.id || '',
           facultyId: selectedFacultyRecord?.id || existingGroup?.facultyId || resolvedFacultyId || '',
           rows: cleanedRows.map((row) => ({
@@ -1313,8 +1312,7 @@ export function BranchBatchManagementSection({
         const normalizedSavedGroup = {
           ...existingGroup,
           ...savedGroup,
-          id: String(savedGroup?.id || existingGroup?.id || existingGroup?.batchGroupId || draft.batchGroupId || '').trim(),
-          batchGroupId: String(savedGroup?.batchGroupId || existingGroup?.batchGroupId || draft.batchGroupId || '').trim(),
+          id: String(savedGroup?.id || existingGroup?.id || cleanedRows[0]?.batchId || '').trim(),
           batchId: String(savedGroup?.batchId || existingGroup?.batchId || cleanedRows[0]?.batchId || '').trim(),
           branchId: String(savedGroup?.branchId || existingGroup?.branchId || branchId || '').trim(),
           courseId: String(payload.courseId || existingGroup?.courseId || '').trim(),

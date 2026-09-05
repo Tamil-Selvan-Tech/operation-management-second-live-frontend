@@ -1891,24 +1891,24 @@ export function FacultyDashboardPage() {
     const summary = dashboardSummary || {}
     const getBatchStudentCount = (entry = {}) => {
       const normalizedBatchId = String(entry?.batchId || entry?.batchEntryId || entry?.id || '').trim().toLowerCase()
-      const normalizedBatchName = String(entry?.batchName || entry?.batch || entry?.code || '').trim().toLowerCase()
-      const normalizedBatchTiming = String(entry?.batchTiming || entry?.timing || '').trim().toLowerCase()
+      const normalizedCourseId = String(entry?.courseId || '').trim().toLowerCase()
+      const normalizedFacultyId = String(entry?.facultyId || facultyId || '').trim().toLowerCase()
 
       const matchedStudents = facultyScopedStudents.filter((student) => {
         const context = resolveFacultyBatchContextForStudent(student, facultyBackfillRecords)
         const resolvedBatch = context?.batchEntry || null
 
         const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
-        const studentBatchName = String(student?.batchName || student?.batch || '').trim().toLowerCase()
-        const studentBatchTiming = String(student?.batchTiming || student?.batchTime || '').trim().toLowerCase()
         const resolvedBatchId = String(resolvedBatch?.batchId || resolvedBatch?.batchEntryId || resolvedBatch?.id || '').trim().toLowerCase()
-        const resolvedBatchName = String(resolvedBatch?.batchName || resolvedBatch?.batch || '').trim().toLowerCase()
-        const resolvedBatchTiming = String(resolvedBatch?.batchTiming || '').trim().toLowerCase()
+        const studentCourseId = String(student?.courseId || context?.courseId || '').trim().toLowerCase()
+        const studentFacultyId = String(student?.facultyId || context?.facultyId || '').trim().toLowerCase()
 
         if (normalizedBatchId) {
           return (
-            (studentBatchId && studentBatchId === normalizedBatchId) ||
-            (resolvedBatchId && resolvedBatchId === normalizedBatchId)
+            ((studentBatchId && studentBatchId === normalizedBatchId) ||
+              (resolvedBatchId && resolvedBatchId === normalizedBatchId)) &&
+            (!normalizedCourseId || studentCourseId === normalizedCourseId) &&
+            (!normalizedFacultyId || studentFacultyId === normalizedFacultyId)
           )
         }
 
@@ -2100,19 +2100,20 @@ export function FacultyDashboardPage() {
         return false
       }
 
-      if (selectedCourseId && studentCourseId && studentCourseId !== selectedCourseId) {
+      if (selectedCourseId && studentCourseId !== selectedCourseId) {
         return false
       }
 
-      if (selectedCourseName && studentCourseName && studentCourseName !== selectedCourseName) {
+      if (selectedCourseName && studentCourseName !== selectedCourseName) {
         return false
       }
 
-      if (selectedBatchId && studentBatchId) {
-        if (studentBatchId === selectedBatchId) return true
-      }
-
-      return false
+      return Boolean(
+        selectedBatchId &&
+        studentBatchId &&
+        studentBatchId === selectedBatchId &&
+        (!currentFacultyIdentity.facultyId || studentFacultyId === String(currentFacultyIdentity.facultyId).trim().toLowerCase()),
+      )
     })
 
     return dedupeStudentsByIdentity(matchedStudents)
