@@ -68,13 +68,19 @@ export function saveBranchCourseSnapshot(records) {
     if (!storage) return
 
     const normalized = normalizeBranchCourseList(Array.isArray(records) ? records : [])
+    const previousRaw = storage.getItem(BRANCH_COURSE_SNAPSHOT_KEY) || ''
+
     if (!normalized.length) {
+      if (!previousRaw) return
       storage.removeItem(BRANCH_COURSE_SNAPSHOT_KEY)
       emitBranchCourseSnapshotChange()
       return
     }
 
-    storage.setItem(BRANCH_COURSE_SNAPSHOT_KEY, JSON.stringify(normalized))
+    const nextRaw = JSON.stringify(normalized)
+    if (nextRaw === previousRaw) return
+
+    storage.setItem(BRANCH_COURSE_SNAPSHOT_KEY, nextRaw)
     emitBranchCourseSnapshotChange()
   } catch {
     // Ignore storage failures so dashboard rendering still works.
