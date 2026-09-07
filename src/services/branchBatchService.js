@@ -21,6 +21,7 @@ function normalizeBatchRow(row = {}) {
     endPeriod: normalizeText(row.endPeriod || 'AM').toUpperCase() || 'AM',
     batchTiming: normalizeText(row.batchTiming),
     totalSeats: Number(row.totalSeats || 0),
+    offlineSeats: Number(row.offlineSeats || 0),
     status: normalizeStatus(row.status || 'Active'),
     sequenceNo: Number(row.sequenceNo || 0),
     createdAt: row.createdAt || '',

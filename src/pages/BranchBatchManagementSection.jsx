@@ -391,6 +391,7 @@ function createBatchRow(batchId = '') {
     endTime: '11:00',
     endPeriod: 'AM',
     totalSeats: '',
+    offlineSeats: '',
     status: 'Active',
   }
 }
@@ -472,6 +473,7 @@ function createDraftFromGroup(group = {}, sequenceStart = 1, groupSequence = 1, 
           endTime: endParts.time,
           endPeriod: endParts.period,
           totalSeats: normalizeText(batch.totalSeats || ''),
+          offlineSeats: normalizeText(batch.offlineSeats || '0'),
           status: normalizeStatus(batch.status || 'Active'),
         }
       })
@@ -521,6 +523,7 @@ function getPrimaryBatchForGroup(group = {}) {
     batchName: normalizeText(primaryBatch?.batchName || group?.batchName || ''),
     batchTiming: normalizeText(primaryBatch?.batchTiming || group?.batchTiming || ''),
     totalSeats: Number(primaryBatch?.totalSeats || group?.totalSeats || 0) || 0,
+    offlineSeats: Number(primaryBatch?.offlineSeats ?? group?.offlineSeats ?? 0) || 0,
     status: normalizeStatus(primaryBatch?.status || group?.status || 'Active'),
   }
 }
@@ -542,6 +545,7 @@ function buildSingleBatchDisplayGroup(group = {}) {
     batchName: primaryBatch.batchName || group?.batchName || '',
     batchTiming: primaryBatch.batchTiming || group?.batchTiming || '',
     totalSeats: primaryBatch.totalSeats || group?.totalSeats || 0,
+    offlineSeats: primaryBatch.offlineSeats || group?.offlineSeats || 0,
     status: primaryBatch.status || group?.status || 'Active',
     batches: batchId ? [primaryBatch] : [],
     batchCount: 1,
@@ -1198,6 +1202,7 @@ export function BranchBatchManagementSection({
           ...(field === 'batchName' ? { batchName: '' } : {}),
           ...(field === 'startTime' || field === 'endTime' || field === 'startPeriod' || field === 'endPeriod' ? { timing: '' } : {}),
           ...(field === 'totalSeats' ? { totalSeats: '' } : {}),
+          ...(field === 'offlineSeats' ? { offlineSeats: '' } : {}),
           ...(field === 'status' ? { status: '' } : {}),
         }
       }),
@@ -1252,6 +1257,7 @@ export function BranchBatchManagementSection({
           batchName: '',
           timing: '',
           totalSeats: '',
+          offlineSeats: '',
           status: '',
         })),
       }
@@ -1266,6 +1272,10 @@ export function BranchBatchManagementSection({
         if (!normalizeText(row.batchName)) nextErrors.rows[index].batchName = 'This field is required'
         if (!normalizeText(row.startTime) || !normalizeText(row.endTime)) nextErrors.rows[index].timing = 'This field is required'
         if (!toNumber(row.totalSeats)) nextErrors.rows[index].totalSeats = 'This field is required'
+        if (!normalizeText(row.offlineSeats)) nextErrors.rows[index].offlineSeats = 'This field is required'
+        if (normalizeText(row.offlineSeats) && toNumber(row.offlineSeats) > toNumber(row.totalSeats)) {
+          nextErrors.rows[index].offlineSeats = 'Offline seats cannot exceed total seats'
+        }
         if (!normalizeText(row.status)) nextErrors.rows[index].status = 'This field is required'
       })
 
@@ -1273,7 +1283,7 @@ export function BranchBatchManagementSection({
         Boolean(nextErrors.courseId) ||
         Boolean(nextErrors.facultyId) ||
         nextErrors.rows.some((rowErrors) =>
-          Boolean(rowErrors.batchName || rowErrors.timing || rowErrors.totalSeats || rowErrors.status),
+          Boolean(rowErrors.batchName || rowErrors.timing || rowErrors.totalSeats || rowErrors.offlineSeats || rowErrors.status),
         )
 
       if (hasFieldErrors) {
@@ -1300,10 +1310,14 @@ export function BranchBatchManagementSection({
           const startPeriod = normalizeText(row.startPeriod || 'AM').toUpperCase()
           const endPeriod = normalizeText(row.endPeriod || 'AM').toUpperCase()
           const totalSeats = toNumber(row.totalSeats)
+          const offlineSeats = toNumber(row.offlineSeats)
           const status = normalizeStatus(row.status || 'Active')
 
-          if (!batchName || !startTime || !endTime || !totalSeats) {
+          if (!batchName || !startTime || !endTime || !totalSeats || !normalizeText(row.offlineSeats)) {
             throw new Error(`Please complete batch row ${index + 1}.`)
+          }
+          if (offlineSeats > totalSeats) {
+            throw new Error(`Offline seats cannot exceed total seats in row ${index + 1}.`)
           }
 
           return {
@@ -1318,6 +1332,7 @@ export function BranchBatchManagementSection({
               endTime: formatClockLabel(`${endTime} ${endPeriod}`),
             }),
             totalSeats,
+            offlineSeats,
             status,
           }
         })
@@ -1362,6 +1377,7 @@ export function BranchBatchManagementSection({
             endTime: row.endTime,
             endPeriod: row.endPeriod,
             totalSeats: row.totalSeats,
+            offlineSeats: row.offlineSeats,
             status: row.status,
           })),
         }
@@ -1491,6 +1507,7 @@ export function BranchBatchManagementSection({
           role="dialog"
           aria-modal="true"
           aria-labelledby="batch-create-title"
+          noValidate
           onClick={(event) => event.stopPropagation()}
           onSubmit={handleSaveBatches}
         >
@@ -1585,6 +1602,7 @@ export function BranchBatchManagementSection({
                   <span>Batch Name</span>
                   <span>Batch Timing</span>
                   <span>Total Seats</span>
+                  <span>Offline Seats</span>
                   <span>Status</span>
                 </div>
 
@@ -1728,6 +1746,22 @@ export function BranchBatchManagementSection({
                             />
                             {fieldErrors.rows[index]?.totalSeats ? (
                               <small className="batch-management-field-error">{fieldErrors.rows[index].totalSeats}</small>
+                            ) : null}
+                          </div>
+
+                          <div className="batch-management-row-seats-wrap">
+                            <div className="batch-management-time-title">Offline Seats</div>
+                            <input
+                              className="batch-management-row-seats"
+                              type="number"
+                              min="0"
+                              required
+                              placeholder="0"
+                              value={row.offlineSeats}
+                              onChange={(event) => handleRowChange(index, 'offlineSeats', event.target.value)}
+                            />
+                            {fieldErrors.rows[index]?.offlineSeats ? (
+                              <small className="batch-management-field-error">{fieldErrors.rows[index].offlineSeats}</small>
                             ) : null}
                           </div>
 
@@ -1947,6 +1981,7 @@ export function BranchBatchManagementSection({
                           <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
                         </div>
                         <span>{seatSummary.remainingSeats} left</span>
+                        <span className="batch-detail-offline-seats">Offline Seats: {Number(batch.offlineSeats) || 0}</span>
                       </div>
                     </div>
 

@@ -25,6 +25,8 @@
   grid-column: 2;
   grid-row: 1;
   justify-self: start;
+  position: relative;
+  left: -24px;
 }
 
 .batch-management-list-card .batch-detail-card-seats {
@@ -71,7 +73,7 @@
 
 .batch-management-card-actions {
   position: absolute;
-  top: 8px;
+  top: 16px;
   right: -6px;
   z-index: 3;
 }
@@ -705,7 +707,7 @@
 .batch-management-details-grid-head,
 .batch-management-row {
   display: grid;
-  grid-template-columns: minmax(140px, 0.85fr) minmax(320px, 1.7fr) minmax(92px, 102px) minmax(92px, 112px);
+  grid-template-columns: minmax(140px, 0.85fr) minmax(320px, 1.7fr) minmax(80px, 92px) minmax(80px, 92px) minmax(92px, 112px);
   gap: 12px;
   align-items: center;
 }
@@ -725,13 +727,14 @@
   border: 1px solid #e5edf7;
   border-radius: 16px;
   background: #fff;
+  align-items: start;
 }
 
 .batch-management-row-name {
   display: grid;
   gap: 6px;
   min-width: 0;
-  max-width: 280px;
+  max-width: 220px;
 }
 
 .batch-management-row-name small {
@@ -751,6 +754,7 @@
 .batch-management-row-status-wrap {
   display: grid;
   gap: 6px;
+  min-width: 0;
 }
 
 .batch-management-row-status-wrap {
@@ -772,12 +776,14 @@
 
 .batch-management-row input,
 .batch-management-row select {
+  min-width: 0;
   min-height: 44px;
   height: 44px;
   box-sizing: border-box;
 }
 
 .batch-management-row-seats {
+  width: 100%;
   padding: 0 12px;
   border-radius: 10px;
 }
@@ -808,6 +814,10 @@
   display: grid;
   gap: 6px;
   align-items: start;
+}
+
+.batch-management-row-timing > .batch-management-time-group:first-child {
+  transform: translateX(-8px);
 }
 
 .batch-management-time-title {
@@ -1286,6 +1296,13 @@
   font-weight: 900;
 }
 
+.batch-detail-card-seats .batch-detail-offline-seats {
+  grid-column: 1 / -1;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
 .batch-detail-card-head span {
   color: #2563eb;
   font-size: 0.84rem;
@@ -1727,6 +1744,10 @@
     grid-row: auto;
     justify-self: start;
     text-align: left;
+  }
+
+  .batch-management-list-card .batch-detail-card-head > .batch-detail-students-button {
+    left: 0;
   }
 
   .batch-management-card-meta {

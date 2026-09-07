@@ -152,6 +152,7 @@ const STUDENT_FORM_STEP_THREE_FIELDS = [
   'classSchedule',
   'courseStartDate',
   'courseAmount',
+  'courseMode',
   'paymentPlanId',
 ]
 const STUDENT_FORM_STEP_FIELDS = {
@@ -402,6 +403,7 @@ function createInitialStudentForm(branchId) {
     facultyEmail: '',
     facultyPhone: '',
     courseAmount: '',
+    courseMode: '',
     paymentPlanId: '',
     paymentPlan: '',
     paymentMode: '',
@@ -451,6 +453,7 @@ function buildStudentFormFromRecord(student = {}) {
     facultyEmail: student.facultyEmail || student.course?.facultyEmail || '',
     facultyPhone: student.facultyPhone || student.course?.facultyPhone || '',
     courseAmount: String(student.courseAmount || student.totalAmount || student.afterDiscount || '').trim(),
+    courseMode: student.courseMode || student.course?.courseMode || '',
     paymentMode: student.paymentMode || 'Installment',
     paymentPlanId: student.paymentPlanId || student.paymentPlan || '',
     paymentPlan: student.paymentPlan || '',
@@ -497,6 +500,7 @@ function validateStudentForm(form, students = []) {
   if (!safeTrim(form.classSchedule)) errors.classSchedule = 'Class Schedule is required.'
   if (!safeTrim(form.courseStartDate)) errors.courseStartDate = 'Course Start Date is required.'
   if (!safeTrim(form.courseAmount)) errors.courseAmount = 'Course amount is required.'
+  if (!safeTrim(form.courseMode)) errors.courseMode = 'Course mode is required.'
   if (!safeTrim(form.paymentPlanId)) errors.paymentPlanId = 'This field is required.'
 
   const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
@@ -2972,6 +2976,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentFormStep, setStudentFormStep] = useState(1)
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
   const [studentCourseSearch, setStudentCourseSearch] = useState('')
+  const [studentCourseSearchFocused, setStudentCourseSearchFocused] = useState(false)
   const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [isStudentSetupRequiredOpen, setIsStudentSetupRequiredOpen] = useState(false)
@@ -5692,9 +5697,22 @@ const studentCourseOptions = useMemo(() => {
     () => String(selectedStudentCourse?.amount || studentForm.courseAmount || '').trim(),
     [selectedStudentCourse, studentForm.courseAmount],
   )
+
+  useEffect(() => {
+    if (!isStudentFormOpen || !studentForm.courseId || !selectedStudentCourse?.name) return
+
+    const selectedCourseId = String(studentForm.courseId).trim().toLowerCase()
+    setStudentCourseSearch((current) => {
+      const currentValue = String(current || '').trim().toLowerCase()
+      return !currentValue || currentValue === selectedCourseId
+        ? String(selectedStudentCourse.name).trim()
+        : current
+    })
+  }, [isStudentFormOpen, selectedStudentCourse, studentForm.courseId])
+
   const studentCourseSearchResults = useMemo(() => {
     const query = String(studentCourseSearch || '').trim().toLowerCase()
-    if (!query || studentFormMode === 'view') return []
+    if (studentFormMode === 'view' || !studentCourseSearchFocused) return []
 
     const selectedCourseValues = [
       selectedStudentCourse?.id,
@@ -5707,11 +5725,10 @@ const studentCourseOptions = useMemo(() => {
     // Keep the picker closed after a course has been selected.
     if (studentForm.courseId && selectedCourseValues.includes(query)) return []
 
-    return studentCourseOptions
-      .filter((course) => [course.id, course.courseCode, course.name]
-        .some((value) => String(value || '').trim().toLowerCase().includes(query)))
+    return (query ? studentCourseOptions.filter((course) => [course.id, course.courseCode, course.name]
+      .some((value) => String(value || '').trim().toLowerCase().includes(query))) : studentCourseOptions)
       .slice(0, 8)
-  }, [selectedStudentCourse, studentCourseOptions, studentCourseSearch, studentForm.courseId, studentFormMode])
+  }, [selectedStudentCourse, studentCourseOptions, studentCourseSearch, studentCourseSearchFocused, studentForm.courseId, studentFormMode])
   const currentStudentSeatKeys = useMemo(() => (
     studentFormMode === 'edit'
       ? getStudentSeatKeys(studentForm)
@@ -7187,6 +7204,7 @@ useEffect(() => {
 
     setStudentFormMode('add')
     setStudentCourseSearch('')
+    setStudentCourseSearchFocused(false)
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -7211,6 +7229,7 @@ useEffect(() => {
   const openViewStudentForm = async (stu) => {
     setStudentFormMode('view')
     setStudentCourseSearch(String(stu?.courseName || stu?.courseId || '').trim())
+    setStudentCourseSearchFocused(false)
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -7225,7 +7244,8 @@ useEffect(() => {
 
   const openEditStudentForm = async (stu) => {
     setStudentFormMode('edit')
-    setStudentCourseSearch(String(stu?.courseId || stu?.courseName || '').trim())
+    setStudentCourseSearch(String(stu?.courseName || stu?.course?.name || stu?.courseId || '').trim())
+    setStudentCourseSearchFocused(false)
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -7311,6 +7331,7 @@ useEffect(() => {
       registrationFees: String(selectedCourse?.registrationFees ?? '').trim(),
       discount: String(selectedCourse?.discount ?? '').trim(),
       afterDiscount: resolvedCourseAmount,
+      courseMode: String(studentForm.courseMode || '').trim(),
       paymentMode: studentForm.paymentMode || 'Installment',
       courseProgress: 0,
       progress: 0,
@@ -12700,6 +12721,14 @@ else {
       </div>
     </div>
 
+    {/* Course Mode */}
+    <div className="student-details-row">
+      <div className="student-details-label">Course Mode</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.courseMode || '-'}
+      </div>
+    </div>
+
     {/* Faculty */}
     <div className="student-details-row">
       <div className="student-details-label">Faculty</div>
@@ -13598,8 +13627,10 @@ else {
               type="search"
               value={studentCourseSearch}
               onChange={(e) => handleStudentCourseSearchChange(e.target.value)}
+              onFocus={() => setStudentCourseSearchFocused(true)}
               onBlur={() => {
                 window.setTimeout(() => {
+                  setStudentCourseSearchFocused(false)
                   setStudentFormTouched((c) => ({ ...c, courseId: true }))
                 }, 120)
               }}
@@ -13806,6 +13837,26 @@ else {
             }
           />
         </Field>
+
+       <Field
+         label="Course Mode"
+         required
+         error={
+           shouldShowStudentError('courseMode')
+             ? studentFormValidationErrors.courseMode
+             : ''
+         }
+       >
+         <select
+           value={studentForm.courseMode || ''}
+           onChange={(e) => updateStudentField('courseMode', e.target.value)}
+           disabled={studentFormMode === 'view'}
+         >
+           <option value="">Select Course Mode</option>
+           <option value="Offline">Offline</option>
+           <option value="Online">Online</option>
+         </select>
+       </Field>
 
        <Field
          label="Payment Plan"

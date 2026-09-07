@@ -95,6 +95,7 @@ function normalizeBatchRow(row = {}, index = 0) {
   const startTime = normalizeTimingValue(row.startTime || row.fromTime || '')
   const endTime = normalizeTimingValue(row.endTime || row.toTime || '')
   const totalSeats = normalizeSeatsValue(row.totalSeats || row.seatCount || row.seats || 0)
+  const offlineSeats = normalizeSeatsValue(row.offlineSeats || row.offlineSeatCount || 0)
   const batchId = String(row.batchId || row.id || '').trim() || `BAT-${String(index + 1).padStart(3, '0')}`
   const batchName = String(row.batchName || row.name || '').trim()
 
@@ -107,6 +108,7 @@ function normalizeBatchRow(row = {}, index = 0) {
     endTime,
     batchTiming: String(row.batchTiming || `${startTime}${startTime && endTime ? ' - ' : ''}${endTime}`).trim(),
     totalSeats,
+    offlineSeats,
     status: normalizeStatus(row.status || 'Active'),
     warning: String(row.warning || '').trim(),
   }
