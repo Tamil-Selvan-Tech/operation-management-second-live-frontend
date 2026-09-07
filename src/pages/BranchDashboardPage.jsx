@@ -3153,7 +3153,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const branchNotificationsRequestRef = useRef(null)
   const branchNotificationsRefreshTimerRef = useRef(null)
 
-  const loadBranchCourses = useCallback(async (fallbackCourses = null) => {
+  const loadBranchCourses = useCallback(async (fallbackCourses = null, branchScopeId = '') => {
     const result = await listBranchCourses({
       page: 1,
       limit: 100,
@@ -3161,7 +3161,9 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       sortOrder: 'desc',
     })
 
-    const activeBranchId = branchProfile?.id || branchProfile?.branchId || ''
+    const activeBranchId = String(
+      branchScopeId || branchData?.id || branchData?.branchId || '',
+    ).trim()
     const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [], activeBranchId)
     saveBranchCourseSnapshot(nextCourses)
     const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
@@ -3197,7 +3199,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       })
     })
     return result
-  }, [branchProfile?.branchId, branchProfile?.id])
+  }, [branchData?.branchId, branchData?.id])
 
   const loadBranchBatches = useCallback(async (branchScopeId = '') => {
     const scopeId = String(branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '').trim()
@@ -5468,7 +5470,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         : [normalizedCourse, ...branchCourseCards]
 
       setBranchCourseCards(nextCards)
-      await loadBranchCourses(nextCards)
       setBranchCoursePage(1)
       setCourseSaveSuccess({
         title: editingTargetId ? 'Course updated' : 'Course created',
