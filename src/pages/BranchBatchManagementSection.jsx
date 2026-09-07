@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
-  Eye,
   MoreVertical,
   Pencil,
   Plus,
@@ -693,8 +692,6 @@ export function BranchBatchManagementSection({
   const [draft, setDraft] = useState(() => createInitialDraft(1, 1))
   const [courseSearch, setCourseSearch] = useState('')
   const [facultySearch, setFacultySearch] = useState('')
-  const [expandedBatchKey, setExpandedBatchKey] = useState('')
-  const [closingBatchKey, setClosingBatchKey] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [batchTablePage, setBatchTablePage] = useState(1)
   const [actionMenuOpenId, setActionMenuOpenId] = useState('')
@@ -804,8 +801,8 @@ export function BranchBatchManagementSection({
     }
 
     const rect = button.getBoundingClientRect()
-    const menuWidth = 170
-    const menuHeight = 132
+    const menuWidth = 180
+    const menuHeight = 176
     const gap = 8
     const padding = 8
 
@@ -1064,6 +1061,13 @@ export function BranchBatchManagementSection({
     setDetailGroup(null)
   }, [])
 
+  const toggleGroupStudents = useCallback(
+    (group) => {
+      setDetailGroup(group)
+    },
+    [],
+  )
+
   const renderActionMenu = () => {
     if (!actionMenuOpenId || !actionMenuPosition || typeof document === 'undefined') return null
 
@@ -1086,7 +1090,7 @@ export function BranchBatchManagementSection({
           position: 'fixed',
           top: `${actionMenuPosition.top}px`,
           left: `${actionMenuPosition.left}px`,
-          width: '170px',
+          width: '180px',
           zIndex: 1600,
         }}
       >
@@ -1099,24 +1103,23 @@ export function BranchBatchManagementSection({
             type="button"
             role="menuitem"
             onClick={() => {
-              setDetailGroup(activeGroup)
-              setActionMenuOpenId('')
-              setActionMenuPosition(null)
-            }}
-          >
-            <Eye size={14} strokeWidth={2.2} aria-hidden="true" />
-            View
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
               openEditModal(activeGroup)
               setActionMenuPosition(null)
             }}
           >
             <Pencil size={14} strokeWidth={2.2} aria-hidden="true" />
             Edit
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              toggleGroupStudents(activeGroup)
+              closeActionMenu()
+            }}
+          >
+            <UsersRound size={14} strokeWidth={2.2} aria-hidden="true" />
+            View Students
           </button>
           <button
             type="button"
@@ -1880,12 +1883,23 @@ export function BranchBatchManagementSection({
 
   const renderDetailModal = () => {
     if (!detailGroup || typeof document === 'undefined') return null
-    const detailBatches = Array.isArray(detailGroup.batches) && detailGroup.batches.length ? [detailGroup.batches[0]] : []
+    const detailBatch = getPrimaryBatchForGroup(detailGroup)
+    const detailBatchKey = getBatchSeatMapKey(detailBatch, detailGroup)
+    const detailStudents = getMatchingStudents(branchStudents, {
+      facultyId: detailGroup?.facultyId || detailGroup?.branchFacultyId || '',
+      facultyName: detailGroup?.facultyName || '',
+      courseId: detailGroup?.courseId || detailGroup?.branchCourseId || '',
+      courseName: detailGroup?.courseName || '',
+      batchGroupId: detailGroup?.batchGroupId || detailGroup?.id || '',
+      batchId: detailBatch?.batchId || detailBatch?.id || '',
+      batchName: detailBatch?.batchName || '',
+      batchTiming: detailBatch?.batchTiming || '',
+    })
     const detailStatus = normalizeStatus(detailGroup.status || 'Active')
     const detailStatusClass = String(detailStatus).toLowerCase()
 
     return createPortal(
-      <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation" onClick={closeDetailModal}>
+      <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation">
         <section
           className="course-modal panel-card batch-detail-modal"
           role="dialog"
@@ -1921,121 +1935,35 @@ export function BranchBatchManagementSection({
             </div>
           </div>
 
-          <div className="batch-detail-list">
-            <h4 className="batch-detail-list-title">Batch Details</h4>
-            {detailBatches.map((batch) => {
-              const batchKey = getBatchSeatMapKey(batch, detailGroup)
-              const batchStatusClass = String(normalizeStatus(batch.status || detailGroup.status)).toLowerCase()
-              const seatSummary = batchSeatSummaryMap.get(getBatchSeatMapKey(batch, detailGroup)) || getBatchSeatSummary({
-                ...batch,
-                batchGroupId: String(detailGroup?.batchGroupId || detailGroup?.id || '').trim(),
-                courseId: String(detailGroup?.courseId || detailGroup?.branchCourseId || '').trim(),
-                courseName: String(detailGroup?.courseName || '').trim(),
-                facultyId: String(detailGroup?.facultyId || detailGroup?.branchFacultyId || '').trim(),
-                facultyName: String(detailGroup?.facultyName || '').trim(),
-              }, branchStudents)
-              const batchStudents = getMatchingStudents(branchStudents, {
-                facultyId: detailGroup?.facultyId || detailGroup?.branchFacultyId || '',
-                facultyName: detailGroup?.facultyName || '',
-                courseId: detailGroup?.courseId || detailGroup?.branchCourseId || '',
-                courseName: detailGroup?.courseName || '',
-                batchGroupId: detailGroup?.batchGroupId || detailGroup?.id || '',
-                batchId: batch?.batchId || batch?.id || '',
-                batchName: batch?.batchName || '',
-                batchTiming: batch?.batchTiming || '',
-              })
-              const isExpanded = expandedBatchKey === batchKey
-              const isClosing = closingBatchKey === batchKey
-
-              return (
-                <article key={batch.batchId} className={`batch-detail-card ${isExpanded ? 'is-expanded' : ''} ${isClosing ? 'is-closing' : ''}`.trim()}>
-                  <span
-                    className={`batch-detail-status-indicator ${batchStatusClass === 'active' || batchStatusClass === 'open' ? 'is-active' : 'is-inactive'}`.trim()}
-                    data-status={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
-                    aria-label={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
-                  />
-
-                  <div className="batch-detail-card-body">
-                    <div className="batch-detail-card-head">
-                      <div className="batch-detail-card-title">
-                        <span>{batch.batchId}</span>
-                        <strong>{batch.batchName || batch.batchId}</strong>
+          <div className={`batch-detail-list batch-students-modal-list ${detailStudents.length === 1 ? 'has-single-student' : ''}`.trim()}>
+            <h4 className="batch-detail-list-title">Assigned Learners</h4>
+            <strong className="batch-students-modal-count">
+              {detailStudents.length} student{detailStudents.length === 1 ? '' : 's'} in this batch
+            </strong>
+            {detailStudents.length ? (
+              <div className="batch-detail-students-list">
+                {detailStudents.map((student, index) => (
+                  <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${detailBatchKey}-${index}`}>
+                    <span className="batch-detail-student-number">{String(index + 1).padStart(2, '0')}</span>
+                    <div className="batch-detail-student-copy">
+                      <span>{student?.studentId || student?.id || 'Student ID unavailable'}</span>
+                      <strong>{student?.studentName || student?.name || 'Unnamed student'}</strong>
+                    </div>
+                    <div className="batch-detail-student-progress">
+                      <div className="batch-detail-student-progress-label">
+                        <span>Course Progress</span>
+                        <strong>{Number(student?.courseProgress ?? student?.progress ?? 0) || 0}%</strong>
                       </div>
-                      <div className="batch-detail-card-timing">
-                        <span>Timing</span>
-                        <strong>
-                          {formatClockLabel(batch.startTime)} - {formatClockLabel(batch.endTime)}
-                        </strong>
-                      </div>
-                      <button
-                        type="button"
-                        className={`batch-detail-students-button ${isExpanded ? 'is-active' : ''}`.trim()}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          if (isExpanded) {
-                            setClosingBatchKey(batchKey)
-                            window.setTimeout(() => {
-                              setExpandedBatchKey('')
-                              setClosingBatchKey('')
-                            }, 320)
-                            return
-                          }
-
-                          setClosingBatchKey('')
-                          setExpandedBatchKey(batchKey)
-                        }}
-                        aria-expanded={isExpanded}
-                      >
-                        <UsersRound size={15} strokeWidth={2.2} aria-hidden="true" />
-                        {isExpanded ? 'Hide Students' : 'View Students'}
-                      </button>
-                      <div className="batch-detail-card-seats">
-                        <span>Seats:</span>
-                        <strong>{seatSummary.usedSeats}</strong>
-                        <div className="batch-detail-seat-track" aria-hidden="true">
-                          <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
-                        </div>
-                        <span>{seatSummary.remainingSeats} left</span>
-                        <span className="batch-detail-offline-seats">Offline seats available: {seatSummary.availableOfflineSeats}</span>
+                      <div className="batch-detail-student-progress-track" aria-hidden="true">
+                        <span style={{ width: `${Math.min(Math.max(Number(student?.courseProgress ?? student?.progress ?? 0) || 0, 0), 100)}%` }} />
                       </div>
                     </div>
-
-                    {isExpanded ? (
-                      <div className="batch-detail-students-panel">
-                        <div className="batch-detail-students-heading">
-                          <span className="batch-detail-students-kicker">Assigned learners</span>
-                          <strong>{batchStudents.length} student{batchStudents.length === 1 ? '' : 's'} in this batch</strong>
-                        </div>
-                        {batchStudents.length ? (
-                          <div className="batch-detail-students-list">
-                            {batchStudents.map((student, index) => (
-                              <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${batchKey}-${index}`}>
-                                <span className="batch-detail-student-number">{String(index + 1).padStart(2, '0')}</span>
-                                <div className="batch-detail-student-copy">
-                                  <span>{student?.studentId || student?.id || 'Student ID unavailable'}</span>
-                                  <strong>{student?.studentName || student?.name || 'Unnamed student'}</strong>
-                                </div>
-                                <div className="batch-detail-student-progress">
-                                  <div className="batch-detail-student-progress-label">
-                                    <span>Course Progress</span>
-                                    <strong>{Number(student?.courseProgress ?? student?.progress ?? 0) || 0}%</strong>
-                                  </div>
-                                  <div className="batch-detail-student-progress-track" aria-hidden="true">
-                                    <span style={{ width: `${Math.min(Math.max(Number(student?.courseProgress ?? student?.progress ?? 0) || 0, 0), 100)}%` }} />
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="batch-detail-students-empty">No students assigned to this batch yet.</div>
-                        )}
-                      </div>
-                    ) : null}
                   </div>
-                </article>
-              )
-            })}
+                ))}
+              </div>
+            ) : (
+              <div className="batch-detail-students-empty">No students assigned to this batch yet.</div>
+            )}
           </div>
         </section>
       </div>,
@@ -2043,12 +1971,10 @@ export function BranchBatchManagementSection({
     )
   }
 
-  const renderBatchCard = (group) => {
+  const renderBatchRow = (group) => {
     const primaryBatch = group.displayBatch || (Array.isArray(group.batches) ? group.batches[0] : null) || {}
     const batchKey = getBatchSeatMapKey(primaryBatch, group)
     const batchStatusClass = String(normalizeStatus(primaryBatch.status || group.status || 'Active')).toLowerCase()
-    const isExpanded = expandedBatchKey === batchKey
-    const isClosing = closingBatchKey === batchKey
     const seatSummary = batchSeatSummaryMap.get(batchKey) || getBatchSeatSummary({
       ...primaryBatch,
       batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
@@ -2068,121 +1994,68 @@ export function BranchBatchManagementSection({
       batchTiming: primaryBatch?.batchTiming || '',
     })
     const groupKey = String(group.id || group.batchGroupId || group.batchId || primaryBatch.batchId || '')
-    const toggleStudents = () => {
-      if (isExpanded) {
-        setClosingBatchKey(batchKey)
-        window.setTimeout(() => {
-          setExpandedBatchKey('')
-          setClosingBatchKey('')
-        }, 320)
-        return
-      }
-
-      setClosingBatchKey('')
-      setExpandedBatchKey(batchKey)
-    }
+    const statusLabel = isInactiveBatchGroup(group) ? 'Inactive' : 'Active'
 
     return (
-      <article key={groupKey} className={`batch-detail-card batch-management-list-card ${isExpanded ? 'is-expanded' : ''} ${isClosing ? 'is-closing' : ''}`.trim()}>
-        <span
-          className={`batch-detail-status-indicator ${batchStatusClass === 'active' || batchStatusClass === 'open' ? 'is-active' : 'is-inactive'}`.trim()}
-          data-status={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
-          aria-label={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
-        />
-
-        <div className="batch-detail-card-body">
-          <div className="batch-detail-card-head">
-            <div className="batch-detail-card-title">
-              <span>{primaryBatch.batchId || group.batchId || '-'}</span>
-              <strong>{primaryBatch.batchName || primaryBatch.batchId || '-'}</strong>
-            </div>
-            <div className="batch-detail-card-timing">
-              <span>Timing</span>
-              <strong>{formatClockLabel(primaryBatch.startTime)} - {formatClockLabel(primaryBatch.endTime)}</strong>
-            </div>
-            <button
-              type="button"
-              className={`batch-detail-students-button ${isExpanded ? 'is-active' : ''}`.trim()}
-              onClick={(event) => {
-                event.stopPropagation()
-                toggleStudents()
-              }}
-              aria-expanded={isExpanded}
-            >
-                        <UsersRound size={15} strokeWidth={2.2} aria-hidden="true" />
-                        {isExpanded ? 'Hide Students' : 'View Students'}
-            </button>
-            <div className="batch-detail-card-seats">
-              <span>Seats:</span>
-              <strong>{seatSummary.usedSeats}</strong>
-              <div className="batch-detail-seat-track" aria-hidden="true">
-                <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
+      <Fragment key={groupKey}>
+        <tr
+          className="batch-management-table-row"
+        >
+          <td className="batch-management-table-cell batch-management-table-batch">
+            <div className="batch-management-table-batch-copy">
+              <span
+                className={`batch-management-status-dot ${batchStatusClass === 'active' || batchStatusClass === 'open' ? 'is-active' : 'is-inactive'}`.trim()}
+                data-status={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
+                aria-label={batchStatusClass === 'active' || batchStatusClass === 'open' ? 'Active' : 'Inactive'}
+              />
+              <div>
+                <strong>{primaryBatch.batchId || group.batchId || '-'}</strong>
+                <span>{primaryBatch.batchName || primaryBatch.batchId || '-'}</span>
               </div>
-              <span>{seatSummary.remainingSeats} left</span>
-              <span className="batch-detail-offline-seats">Offline seats available: {seatSummary.availableOfflineSeats}</span>
             </div>
-          </div>
-
-          <div className="batch-management-card-meta">
-            <div>
-              <span>Course</span>
-              <strong>{group.courseName || '-'}</strong>
+          </td>
+          <td className="batch-management-table-cell batch-management-table-course">
+            <strong>{group.courseName || '-'}</strong>
+          </td>
+          <td className="batch-management-table-cell batch-management-table-faculty">
+            <strong>{group.facultyName || '-'}</strong>
+          </td>
+          <td className="batch-management-table-cell batch-management-table-schedule">
+            <strong>{formatClockLabel(primaryBatch.startTime)} - {formatClockLabel(primaryBatch.endTime)}</strong>
+            <span>Timing</span>
+          </td>
+          <td className="batch-management-table-cell batch-management-table-seats">
+            <strong>{seatSummary.usedSeats}/{seatSummary.totalSeats || 0}</strong>
+            <div className="batch-management-table-track" aria-hidden="true">
+              <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
             </div>
-            <div>
-              <span>Faculty</span>
-              <strong>{group.facultyName || '-'}</strong>
+            <span>{seatSummary.remainingSeats} left</span>
+            <small>Offline seats: {seatSummary.availableOfflineSeats}</small>
+          </td>
+          <td className="batch-management-table-cell batch-management-table-students">
+            <strong>{batchStudents.length}</strong>
+          </td>
+          <td className="batch-management-table-cell batch-management-table-status">
+            <span className={`batch-management-status-pill ${statusLabel.toLowerCase()}`}>{statusLabel}</span>
+          </td>
+          <td className="batch-management-table-cell batch-management-actions-cell">
+            <div className="batch-management-actions" onClick={(event) => event.stopPropagation()}>
+              <button
+                type="button"
+                className="batch-management-actions-trigger"
+                aria-label={`Open actions for ${primaryBatch.batchName || group.batchId || 'batch'}`}
+                onClick={(event) => {
+                  const actionId = String(group.id || group.batchGroupId || group.batchId || '')
+                  if (actionMenuOpenId === actionId) closeActionMenu()
+                  else openActionMenu(group, event.currentTarget)
+                }}
+              >
+                <MoreVertical size={16} strokeWidth={2.3} aria-hidden="true" />
+              </button>
             </div>
-          </div>
-
-          {isExpanded ? (
-            <div className="batch-detail-students-panel">
-              <div className="batch-detail-students-heading">
-                <span className="batch-detail-students-kicker">Assigned learners</span>
-                <strong>{batchStudents.length} student{batchStudents.length === 1 ? '' : 's'} in this batch</strong>
-              </div>
-              {batchStudents.length ? (
-                <div className="batch-detail-students-list">
-                  {batchStudents.map((student, index) => (
-                    <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${batchKey}-${index}`}>
-                      <span className="batch-detail-student-number">{String(index + 1).padStart(2, '0')}</span>
-                      <div className="batch-detail-student-copy">
-                        <span>{student?.studentId || student?.id || 'Student ID unavailable'}</span>
-                        <strong>{student?.studentName || student?.name || 'Unnamed student'}</strong>
-                      </div>
-                      <div className="batch-detail-student-progress">
-                        <div className="batch-detail-student-progress-label">
-                          <span>Course Progress</span>
-                          <strong>{Number(student?.courseProgress ?? student?.progress ?? 0) || 0}%</strong>
-                        </div>
-                        <div className="batch-detail-student-progress-track" aria-hidden="true">
-                          <span style={{ width: `${Math.min(Math.max(Number(student?.courseProgress ?? student?.progress ?? 0) || 0, 0), 100)}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="batch-detail-students-empty">No students assigned to this batch yet.</div>
-              )}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="batch-management-card-actions" onClick={(event) => event.stopPropagation()}>
-          <button
-            type="button"
-            className="batch-management-actions-trigger"
-            aria-label={`Open actions for ${primaryBatch.batchName || group.batchId || 'batch'}`}
-            onClick={(event) => {
-              const actionId = String(group.id || group.batchGroupId || group.batchId || '')
-              if (actionMenuOpenId === actionId) closeActionMenu()
-              else openActionMenu(group, event.currentTarget)
-            }}
-          >
-            <MoreVertical size={16} strokeWidth={2.3} aria-hidden="true" />
-          </button>
-        </div>
-      </article>
+          </td>
+        </tr>
+      </Fragment>
     )
   }
 
@@ -2251,7 +2124,7 @@ export function BranchBatchManagementSection({
           <input
             type="search"
             className="batch-management-search"
-            placeholder="Search installment plan"
+            placeholder="Search batch"
             value={searchTerm}
             onChange={(event) => {
               setSearchTerm(event.target.value)
@@ -2264,14 +2137,34 @@ export function BranchBatchManagementSection({
         </div>
       </form>
 
-      <div className="batch-management-card-grid">
-        {paginatedGroups.length ? (
-          paginatedGroups.map(renderBatchCard)
-        ) : (
-          <div className="branch-course-empty-state batch-management-card-empty">
-            {isLoading ? 'Loading batches...' : 'No batches created yet. Use Create Batch to add the first batch.'}
-          </div>
-        )}
+      <div className="batch-management-table-shell">
+        <div className="batch-management-table-wrap">
+          <table className="batch-management-table" aria-label="Batch management table">
+            <thead>
+              <tr className="batch-management-table-head">
+                <th>Batch</th>
+                <th>Course</th>
+                <th>Faculty</th>
+                <th>Timing</th>
+                <th>Seats</th>
+                <th>Students</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paginatedGroups.length ? (
+                paginatedGroups.map(renderBatchRow)
+              ) : (
+                <tr>
+                  <td colSpan={8} className="batch-management-empty-cell">
+                    {isLoading ? 'Loading batches...' : 'No batches created yet. Use Create Batch to add the first batch.'}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <PaginationBar
