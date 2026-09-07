@@ -7893,7 +7893,7 @@ useEffect(() => {
                   </div> */}
 
                   <div className="branch-dashboard-analytics-grid">
-                    <section className="branch-dashboard-analytics-card">
+                    <section className="branch-dashboard-analytics-card dashboard-collection-trend-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Collection Trend</span><h2>Payment collections</h2></div><div className="dashboard-trend-switcher">{['daily', 'weekly', 'monthly'].map((mode) => <button key={mode} type="button" className={dashboardTrendMode === mode ? 'is-active' : ''} onClick={() => setDashboardTrendMode(mode)}>{mode}</button>)}</div></div>
                       <div className="dashboard-trend-chart-shell">
                         <div className="dashboard-trend-y-axis" aria-hidden="true"><span>{formatBranchRupees(dashboardData.trendMax)}</span><span>₹0</span></div>
@@ -7919,7 +7919,7 @@ useEffect(() => {
                     <section className="branch-dashboard-analytics-card dashboard-list-card dashboard-reference-due-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Attention Needed</span><h2>Upcoming and overdue dues</h2></div><button type="button" onClick={() => goToBranchSection('students')}>Open list</button></div>
                       <div className="dashboard-mini-table">
-                        {[...dashboardData.dueToday, ...dashboardData.dueSoon, ...dashboardData.overdue].sort((left, right) => getDashboardDateValue(left.dueDate).localeCompare(getDashboardDateValue(right.dueDate))).slice(0, 5).map((item) => { const dueMeta = getDashboardDueMeta(item.dueDate); return <div className="dashboard-due-row" key={`reference-${item.student.id}-${item.installmentNumber}-${item.dueDate}`}><div className="dashboard-row-copy"><strong>{item.student.studentName}</strong><small>{item.dueDate} · Installment {item.installmentNumber || '-'}</small></div><div className="dashboard-row-amount"><b>{formatBranchRupees(Math.max(item.amount - item.paidAmount, 0))}</b><span className={`dashboard-due-badge is-${dueMeta.tone}`}>{dueMeta.label}</span></div></div> })}
+                        {[...dashboardData.dueToday, ...dashboardData.dueSoon, ...dashboardData.overdue].slice(0, 5).map((item) => { const dueMeta = getDashboardDueMeta(item.dueDate); return <div className="dashboard-due-row" key={`reference-${item.student.id}-${item.installmentNumber}-${item.dueDate}`}><div className="dashboard-row-copy"><strong>{item.student.studentName}</strong><small>{item.dueDate} · Installment {item.installmentNumber || '-'}</small></div><div className="dashboard-row-amount"><b>{formatBranchRupees(Math.max(item.amount - item.paidAmount, 0))}</b><span className={`dashboard-due-badge is-${dueMeta.tone}`}>{dueMeta.label}</span></div></div> })}
                         {!dashboardData.dueToday.length && !dashboardData.dueSoon.length && !dashboardData.overdue.length ? <p className="dashboard-empty-state">No urgent dues found.</p> : null}
                       </div>
                       {/* {dashboardData.overdue.length ? <button type="button" className="dashboard-overdue-link" onClick={() => { setPaymentStatusFilter('overdue'); goToBranchSection('payments') }}>View all overdue <span>›</span></button> : null} */}
