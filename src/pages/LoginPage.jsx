@@ -109,7 +109,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
         </div>
 
         <form className="form login-form" onSubmit={onSubmit}>
-          <FormField label="Email">
+          <FormField label="Student ID or Email">
             <div className="field-with-icon">
               <span className="field-icon" aria-hidden="true">
                 <EmailIcon />
@@ -121,15 +121,15 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
   onChange={(event) =>
     setForm((current) => ({ ...current, email: event.target.value }))
   }
-  type="email"
-  autoComplete="email"
-  
-  inputMode="email"
+  type="text"
+  autoComplete="username"
+
+  inputMode="text"
   autoCapitalize="none"
   autoCorrect="off"
   spellCheck={false}
   name="email"
-  placeholder="Enter your email"
+  placeholder="Enter Student ID or Email"
 />
             </div>
             {fieldErrors.email ? (

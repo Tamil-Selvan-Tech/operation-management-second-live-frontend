@@ -72,7 +72,7 @@
 .branch-dashboard-analytics-grid,
 .branch-dashboard-dashboard-table-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(300px, .9fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-top: 16px;
 }
@@ -84,6 +84,10 @@
   border-radius: 18px;
   background: #fff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, .04);
+}
+
+.dashboard-collection-trend-card {
+  width: 100%;
 }
 
 .branch-dashboard-analytics-heading {
@@ -182,6 +186,10 @@
   .branch-dashboard-finance-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .branch-dashboard-analytics-grid,
   .branch-dashboard-dashboard-table-grid { grid-template-columns: 1fr; }
+
+  .dashboard-collection-trend-card {
+    width: 100%;
+  }
 }
 
 @media (max-width: 620px) {
@@ -11399,7 +11407,7 @@ body.branch-notification-menu-open .main-area {
 /* Give the fee status panel room for its two-column legend at tablet-width dashboards. */
 @media (min-width: 1000px) and (max-width: 1200px) {
   .super-admin-page .branch-dashboard-analytics-grid {
-    grid-template-columns: minmax(0, 1.35fr) minmax(245px, 0.9fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .super-admin-page .dashboard-fee-status-card {

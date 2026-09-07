@@ -147,7 +147,7 @@ function LoginScreen() {
     setFieldErrors({ email: '', password: '' })
 
     const nextFieldErrors = {
-      email: form.email.trim() ? '' : 'Email is required',
+      email: form.email.trim() ? '' : 'Student ID or Email is required',
       password: form.password.trim() ? '' : 'Password is required',
     }
 
