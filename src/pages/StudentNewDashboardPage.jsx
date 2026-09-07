@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   UserRound,
   BookOpen,
+  CalendarCheck,
   CalendarDays,
   CreditCard,
   LogOut,
