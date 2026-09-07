@@ -37,7 +37,7 @@ import {
   PieChart,
   UserRound,
   Search,
-  UserPlus, Pencil, Trash2,
+  Pencil, Trash2,
   Building2,
   Check,
   X,
@@ -6479,7 +6479,13 @@ const todaysPaymentAmount = useMemo(() => {
 
 const filteredBranchPaymentRows = useMemo(() => {
   const q = paymentSearchTerm.trim().toLowerCase()
-  const todayStr = getTodayValue()
+  const weekStartDate = new Date()
+  weekStartDate.setHours(0, 0, 0, 0)
+  weekStartDate.setDate(weekStartDate.getDate() - ((weekStartDate.getDay() + 6) % 7))
+  const weekStartStr = getDashboardDateValue(weekStartDate)
+  const weekEndDate = new Date(weekStartDate)
+  weekEndDate.setDate(weekEndDate.getDate() + 7)
+  const weekEndStr = getDashboardDateValue(weekEndDate)
 
   return branchPaymentRows.filter(({ student, summary }) => {
     const matchesSearch =
@@ -6493,9 +6499,9 @@ const filteredBranchPaymentRows = useMemo(() => {
       summary.paymentStatus.toLowerCase().replace(/\s+/g, '-') === paymentStatusFilter ||
       (paymentStatusFilter === 'paid' && summary.paymentStatus === 'Completed')
 
-    const installments = Array.isArray(student.installmentSchedule) ? student.installmentSchedule : []
+    const installments = getDashboardInstallments(student)
 
-    const paidToday = installments.some((inst) => {
+    const paidThisWeek = installments.some((inst) => {
       const paidAmount = Number(inst.paidAmount ?? inst.amountPaid ?? 0)
       if (paidAmount <= 0) return false
 
@@ -6505,11 +6511,11 @@ const filteredBranchPaymentRows = useMemo(() => {
 
       if (!paymentDateRaw) return false
 
-      const paymentDateStr = new Date(paymentDateRaw).toISOString().slice(0, 10)
-      return paymentDateStr === todayStr
+      const paymentDateStr = getDashboardDateValue(paymentDateRaw)
+      return paymentDateStr >= weekStartStr && paymentDateStr < weekEndStr
     })
 
-    return matchesSearch && matchesStatus && paidToday
+    return matchesSearch && matchesStatus && paidThisWeek
   })
 }, [branchPaymentRows, paymentSearchTerm, paymentStatusFilter])
 const totalPaymentPages = Math.max(1, Math.ceil(filteredBranchPaymentRows.length / BRANCH_PAYMENTS_PER_PAGE))
@@ -8786,20 +8792,6 @@ else {
                                           >
                                             <Eye size={16} />
                                             <span>View</span>
-                                          </button>
-
-                                          <button
-                                            type="button"
-                                            className="branch-course-actions-menu-item"
-                                            onClick={() => {
-                                              openAssignFacultyModal(course);
-                                              setOpenCourseActionMenuId('');
-                                              setCourseActionMenuPosition({ top: 0, left: 0 });
-                                            }}
-                                            role="menuitem"
-                                          >
-                                            <UserPlus size={16} />
-                                            <span>Assign</span>
                                           </button>
 
                                           <button
