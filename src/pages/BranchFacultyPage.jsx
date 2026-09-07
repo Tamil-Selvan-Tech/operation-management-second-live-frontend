@@ -22,7 +22,15 @@ import {
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
 
-export function BranchFacultyPage() {
+function getBranchEntityPrefix(branchCode, entityPrefix) {
+  const compact = String(branchCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const withoutNumber = compact.replace(/\d{3}$/, '')
+  const branchPrefix = withoutNumber.startsWith('CIS') ? withoutNumber : `CIS${withoutNumber}`
+  return `${branchPrefix}${entityPrefix}`
+}
+
+export function BranchFacultyPage({ branchCode = '' }) {
+  const facultyIdPrefix = getBranchEntityPrefix(branchCode, 'FC')
   const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [isFacultyLoading, setIsFacultyLoading] = useState(true)
@@ -238,11 +246,10 @@ export function BranchFacultyPage() {
     let maxNum = 0
     list.forEach((f) => {
       const parts = (f.id || '').split('-')
-      if (parts.length === 2 && parts[0] === FACULTY_ID_PREFIX.replace('-', '')) {
-        const num = parseInt(parts[1], 10)
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num
-        }
+      const match = String(f.id || '').match(/(\d{3})$/)
+      if (match) {
+        const num = parseInt(match[1], 10)
+        if (!isNaN(num) && num > maxNum) maxNum = num
       }
     })
     const nextNum = maxNum + 1
@@ -297,7 +304,7 @@ export function BranchFacultyPage() {
       return 'Faculty ID must be exactly 3 numbers.'
     }
 
-    const fullId = `${FACULTY_ID_PREFIX}${digits}`
+    const fullId = `${facultyIdPrefix}${digits}`
 
     const isDuplicate = allFaculty.some(
       (f) => f.id === fullId && f.id !== currentId
@@ -564,8 +571,8 @@ export function BranchFacultyPage() {
   // Open modal for Editing an existing Faculty
   const openEditModal = (faculty, e) => {
     if (e) e.stopPropagation()
-    const parts = faculty.id.split('-')
-    const digits = parts.length === 2 ? parts[1] : ''
+    const digitsMatch = String(faculty.id || '').match(/(\d{3})$/)
+    const digits = digitsMatch ? digitsMatch[1] : ''
 
     const countryObj = countryOptions.find((c) => c.name === faculty.country)
     const cCode = countryObj ? countryObj.iso2 : ''
@@ -645,7 +652,7 @@ export function BranchFacultyPage() {
 
     if (hasErrors) return
 
-    const fullId = `${FACULTY_ID_PREFIX}${modalForm.idDigits}`
+    const fullId = `${facultyIdPrefix}${modalForm.idDigits}`
 
     const payload = {
       facultyId: fullId,
@@ -1070,7 +1077,7 @@ export function BranchFacultyPage() {
                   </span>
                   <div className="faculty-id-input-container">
                     <span className="faculty-id-prefix-badge">
-                      {FACULTY_ID_PREFIX}
+                      {facultyIdPrefix}
                     </span>
                     <input
                       type="text"
