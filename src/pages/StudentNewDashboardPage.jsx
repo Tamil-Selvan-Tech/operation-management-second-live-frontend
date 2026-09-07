@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../auth/useAuth'
 import {
   LayoutDashboard,
   UserRound,
@@ -56,6 +57,7 @@ function getAttendance(student) {
 
 export function StudentNewDashboardPage() {
  const navigate = useNavigate()
+ const { session } = useAuth()
  const [activeSection, setActiveSection] = useState('dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
@@ -393,6 +395,18 @@ const handleLogoutConfirm = () => {
               CONTENT
           ───────────────────────────────────────── */}
           <main className="student-new-content">
+
+            {session?.user?.mustResetPassword ? (
+              <section className="student-new-password-notice" role="status">
+                <div>
+                  <strong>Password reset pending</strong>
+                  <p>You are using a temporary password. Reset it to keep your student account secure.</p>
+                </div>
+                <button type="button" onClick={() => navigate('/forgot-password')}>
+                  Reset Password
+                </button>
+              </section>
+            ) : null}
 
             {!isLoading && !loadError && activeSection === 'dashboard' ? (
               <div className="student-new-dashboard">

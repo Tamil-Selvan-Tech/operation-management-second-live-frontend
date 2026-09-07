@@ -237,11 +237,17 @@ export async function getCurrentStudentProfile() {
     return studentProfileInflight.get(cacheKey)
   }
 
-  const pending = request('/students/me').then((response) => {
-    const result = normalizeStudent(unwrapData(response))
-    setCachedResult(studentProfileCache, cacheKey, result)
-    return result
-  })
+  const pending = request('/branch-students/me')
+    .catch((error) => {
+      const status = Number(error?.status || error?.statusCode || error?.body?.statusCode)
+      if (status !== 403 && status !== 404) throw error
+      return request('/students/me')
+    })
+    .then((response) => {
+      const result = normalizeStudent(unwrapData(response))
+      setCachedResult(studentProfileCache, cacheKey, result)
+      return result
+    })
 
   studentProfileInflight.set(cacheKey, pending)
 

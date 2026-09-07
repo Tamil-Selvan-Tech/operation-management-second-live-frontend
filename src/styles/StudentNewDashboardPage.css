@@ -1062,3 +1062,44 @@
   }
 }
 
+.student-new-password-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.student-new-password-notice strong {
+  display: block;
+  font-size: 15px;
+}
+
+.student-new-password-notice p {
+  margin: 4px 0 0;
+  color: #475569;
+  font-size: 13px;
+}
+
+.student-new-password-notice button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 9px;
+  padding: 10px 16px;
+  background: #2563eb;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .student-new-password-notice {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
