@@ -122,6 +122,12 @@ import '../styles/BranchDashboardPage.css'
 
 const BRANCH_STUDENTS_PER_PAGE = 5
 const STUDENT_ID_PREFIX = 'STU-'
+
+function getBranchEntityPrefix(branchCode, entityPrefix) {
+  const compact = String(branchCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const branchPrefix = compact.replace(/\d{3}$/, '')
+  return branchPrefix ? `${branchPrefix.startsWith('CIS') ? branchPrefix : `CIS${branchPrefix}`}${entityPrefix}` : `${entityPrefix}-`
+}
 const STUDENT_FORM_STEP_ONE_FIELDS = [
   'studentIdSuffix',
   'studentName',
@@ -10401,7 +10407,7 @@ else {
               ) : null}
 
               {activeSection === 'faculty' ? (
-                <BranchFacultyPage />
+                <BranchFacultyPage branchCode={branchProfile?.branchId || branchData?.branchId || ''} />
               ) : null}
             </div>
           </main>
@@ -13116,7 +13122,7 @@ else {
         >
           <div className="student-id-input-group">
             <span className="student-id-prefix" aria-hidden="true">
-              {STUDENT_ID_PREFIX}
+              {getBranchEntityPrefix(branchProfile?.branchId || branchData?.branchId, 'STU')}
             </span>
 
             <input
