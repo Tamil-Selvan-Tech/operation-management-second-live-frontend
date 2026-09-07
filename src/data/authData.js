@@ -69,7 +69,7 @@ export const dashboardPathByRole = {
   'branch-admin': '/branch-dashboard',
   hr: '/dashboard/hr',
   faculty: '/dashboard/faculty/my-batches',
-  student: '/dashboard/student',
+  student: '/student-new-dashboard',
 }
 
 export const courseAccessRoles = ['business-owner', 'operation-manager', 'branch-admin']

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   UserRound,
@@ -12,11 +13,113 @@ import {
 } from 'lucide-react'
 
 import '../styles/StudentNewDashboardPage.css'
+import {
+  loadBranchStudents,
+  refreshBranchStudents,
+} from '../lib/branchStudentStore'
+import { getCurrentStudentProfile } from '../services/studentService'
+
+function readStudentSession() {
+  if (typeof window === 'undefined') return null
+
+  try {
+    return JSON.parse(window.sessionStorage.getItem('cispro.student-session') || 'null')
+  } catch {
+    return null
+  }
+}
+
+function matchesStudentSession(student, session) {
+  const identifiers = [session?.studentId, session?.emailAddress, session?.email]
+    .map((value) => String(value || '').trim().toLowerCase())
+    .filter(Boolean)
+
+  return identifiers.includes(String(student?.studentId || '').trim().toLowerCase()) ||
+    identifiers.includes(String(student?.emailAddress || student?.email || '').trim().toLowerCase())
+}
+
+function getPaymentStatus(student) {
+  const explicitStatus = String(student?.paymentStatus || student?.feeStatus || '').trim()
+  if (explicitStatus) return explicitStatus
+
+  const total = Number(student?.afterDiscount ?? student?.totalAmount ?? 0)
+  const paid = Number(student?.paidAmount ?? student?.amountPaid ?? 0)
+  if (total > 0 && paid >= total) return 'Paid'
+  if (paid > 0) return 'Partially paid'
+  return 'Pending'
+}
+
+function getAttendance(student) {
+  const value = student?.attendancePercentage ?? student?.attendance ?? student?.attendancePercent
+  return value === undefined || value === null || value === '' ? 'Not available' : `${value}%`
+}
 
 export function StudentNewDashboardPage() {
+ const navigate = useNavigate()
  const [activeSection, setActiveSection] = useState('dashboard')
-const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
-const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+ const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+ const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+ const [studentSession] = useState(() => readStudentSession())
+ const [student, setStudent] = useState(null)
+ const [isLoading, setIsLoading] = useState(true)
+ const [loadError, setLoadError] = useState('')
+
+ useEffect(() => {
+   let isMounted = true
+   const session = readStudentSession()
+
+   const loadStudent = async () => {
+     if (!session) {
+       try {
+         const currentProfile = await getCurrentStudentProfile()
+         if (isMounted) setStudent(currentProfile)
+       } catch (error) {
+         if (isMounted) setLoadError(error?.message || 'Student session not found. Please sign in again.')
+       } finally {
+         if (isMounted) setIsLoading(false)
+       }
+       return
+     }
+
+     const scope = session.branchId || session.branchCode || ''
+     const localStudent = loadBranchStudents(scope).find((record) => matchesStudentSession(record, session))
+     if (localStudent && isMounted) setStudent(localStudent)
+
+     try {
+       const records = await refreshBranchStudents(scope)
+       const latestStudent = records.find((record) => matchesStudentSession(record, session))
+       if (isMounted) {
+         setStudent(latestStudent || localStudent || null)
+         if (!latestStudent && !localStudent) setLoadError('Your student record could not be found.')
+       }
+     } catch (error) {
+       if (isMounted) {
+         setStudent(localStudent || null)
+         if (!localStudent) setLoadError(error?.message || 'Unable to load your student details.')
+       }
+     } finally {
+       if (isMounted) setIsLoading(false)
+     }
+   }
+
+   void loadStudent()
+   return () => { isMounted = false }
+ }, [])
+
+ const courseName = student?.courseName || student?.courseInterested || student?.course?.name || 'Not assigned'
+ const attendance = getAttendance(student)
+ const paymentStatus = getPaymentStatus(student)
+ const displayName = student?.studentName || studentSession?.studentName || 'Student'
+ const detailItems = useMemo(() => [
+   ['Student ID', student?.studentId],
+   ['Email', student?.emailAddress || student?.email],
+   ['Mobile', student?.mobileNumber],
+   ['Parent / Guardian', student?.parentSpouseNumber],
+   ['Qualification', student?.qualification],
+   ['Passed out year', student?.passedOutYear],
+   ['Branch', student?.branchCode || student?.branchId],
+   ['Admission date', student?.admissionDate],
+ ], [student])
 
   const handleMenuClick = (section) => {
     setActiveSection(section)
@@ -33,14 +136,12 @@ const handleLogoutCancel = () => {
 
 const handleLogoutConfirm = () => {
   setIsLogoutModalOpen(false)
-
-  // Actual logout logic
-  console.log('Student logout confirmed')
-
-  // Example:
-  // localStorage.removeItem('token')
-  // localStorage.removeItem('user')
-  // navigate('/login')
+  try {
+    window.sessionStorage.removeItem('cispro.student-session')
+  } catch {
+    // Ignore storage errors and continue to the login page.
+  }
+  navigate('/login', { replace: true })
 }
 
   return (
@@ -279,7 +380,7 @@ const handleLogoutConfirm = () => {
                 </span>
 
                 <div className="student-new-profile-copy">
-                  <strong>Student Profile</strong>
+                  <strong>{displayName}</strong>
                   <span>Student</span>
                 </div>
 
@@ -293,7 +394,7 @@ const handleLogoutConfirm = () => {
           ───────────────────────────────────────── */}
           <main className="student-new-content">
 
-            {activeSection === 'dashboard' ? (
+            {!isLoading && !loadError && activeSection === 'dashboard' ? (
               <div className="student-new-dashboard">
 
                 {/* Dashboard Intro */}
@@ -308,7 +409,7 @@ const handleLogoutConfirm = () => {
                     </h1>
 
                     <p>
-                      Welcome, Student. Here&apos;s an overview of your
+                      Welcome, {displayName}. Here&apos;s an overview of your
                       learning activities.
                     </p>
                   </div>
@@ -339,7 +440,7 @@ const handleLogoutConfirm = () => {
                       </span>
 
                       <strong className="student-new-stat-value">
-                        React JS
+                        {courseName}
                       </strong>
 
                       <span className="student-new-stat-note">
@@ -368,7 +469,7 @@ const handleLogoutConfirm = () => {
                       </span>
 
                       <strong className="student-new-stat-value">
-                        85%
+                        {attendance}
                       </strong>
 
                       <span className="student-new-stat-note">
@@ -397,7 +498,7 @@ const handleLogoutConfirm = () => {
                       </span>
 
                       <strong className="student-new-stat-value">
-                        Paid
+                        {paymentStatus}
                       </strong>
 
                       <span className="student-new-stat-note">
@@ -437,11 +538,11 @@ const handleLogoutConfirm = () => {
 
                       <div className="student-new-recent-copy">
                         <strong>
-                          React JS Course
+                        {courseName}
                         </strong>
 
                         <span>
-                          Your current course is active.
+                          {student?.batchName || student?.batch || 'Your assigned course details.'}
                         </span>
                       </div>
 
@@ -466,12 +567,12 @@ const handleLogoutConfirm = () => {
                         </strong>
 
                         <span>
-                          Your current attendance is 85%.
+                          Your current attendance is {attendance}.
                         </span>
                       </div>
 
                       <span className="student-new-recent-status">
-                        85%
+                        {attendance}
                       </span>
 
                     </div>
@@ -491,12 +592,12 @@ const handleLogoutConfirm = () => {
                         </strong>
 
                         <span>
-                          Your latest payment information.
+                          Payment status: {paymentStatus}.
                         </span>
                       </div>
 
                       <span className="student-new-recent-status">
-                        Paid
+                        {paymentStatus}
                       </span>
 
                     </div>
@@ -508,7 +609,22 @@ const handleLogoutConfirm = () => {
               </div>
             ) : null}
 
-            {activeSection === 'profile' ? (
+            {isLoading ? (
+              <section className="student-new-placeholder-page">
+                <p className="student-new-dashboard-kicker">STUDENT</p>
+                <h1>Loading your details...</h1>
+              </section>
+            ) : null}
+
+            {!isLoading && loadError ? (
+              <section className="student-new-placeholder-page">
+                <p className="student-new-dashboard-kicker">STUDENT</p>
+                <h1>Student details unavailable</h1>
+                <p>{loadError}</p>
+              </section>
+            ) : null}
+
+            {!isLoading && !loadError && activeSection === 'profile' ? (
               <section className="student-new-placeholder-page">
                 <p className="student-new-dashboard-kicker">
                   STUDENT
@@ -516,13 +632,18 @@ const handleLogoutConfirm = () => {
 
                 <h1>My Profile</h1>
 
-                <p>
-                  Student profile information will appear here.
-                </p>
+                <div className="student-new-detail-grid">
+                  {detailItems.map(([label, value]) => (
+                    <div className="student-new-detail-item" key={label}>
+                      <span>{label}</span>
+                      <strong>{value || '-'}</strong>
+                    </div>
+                  ))}
+                </div>
               </section>
             ) : null}
 
-            {activeSection === 'course' ? (
+            {!isLoading && !loadError && activeSection === 'course' ? (
               <section className="student-new-placeholder-page">
                 <p className="student-new-dashboard-kicker">
                   STUDENT
@@ -530,13 +651,17 @@ const handleLogoutConfirm = () => {
 
                 <h1>My Course</h1>
 
-                <p>
-                  Course information will appear here.
-                </p>
+                <div className="student-new-detail-grid">
+                  <div className="student-new-detail-item"><span>Course</span><strong>{courseName}</strong></div>
+                  <div className="student-new-detail-item"><span>Faculty</span><strong>{student?.facultyName || '-'}</strong></div>
+                  <div className="student-new-detail-item"><span>Batch</span><strong>{student?.batchName || student?.batch || '-'}</strong></div>
+                  <div className="student-new-detail-item"><span>Batch timing</span><strong>{student?.batchTiming || '-'}</strong></div>
+                  <div className="student-new-detail-item"><span>Course progress</span><strong>{student?.courseProgress ?? student?.courseCompletionPercentage ?? '-'}{student?.courseProgress || student?.courseCompletionPercentage ? '%' : ''}</strong></div>
+                </div>
               </section>
             ) : null}
 
-            {activeSection === 'attendance' ? (
+            {!isLoading && !loadError && activeSection === 'attendance' ? (
               <section className="student-new-placeholder-page">
                 <p className="student-new-dashboard-kicker">
                   STUDENT
@@ -544,13 +669,15 @@ const handleLogoutConfirm = () => {
 
                 <h1>Attendance</h1>
 
-                <p>
-                  Attendance information will appear here.
-                </p>
+                <div className="student-new-detail-grid">
+                  <div className="student-new-detail-item"><span>Overall attendance</span><strong>{attendance}</strong></div>
+                  <div className="student-new-detail-item"><span>Course</span><strong>{courseName}</strong></div>
+                  <div className="student-new-detail-item"><span>Current status</span><strong>{student?.currentStatus || student?.status || '-'}</strong></div>
+                </div>
               </section>
             ) : null}
 
-            {activeSection === 'payments' ? (
+            {!isLoading && !loadError && activeSection === 'payments' ? (
               <section className="student-new-placeholder-page">
                 <p className="student-new-dashboard-kicker">
                   STUDENT
@@ -558,9 +685,15 @@ const handleLogoutConfirm = () => {
 
                 <h1>Payments</h1>
 
-                <p>
-                  Payment information will appear here.
-                </p>
+                <div className="student-new-detail-grid">
+                  <div className="student-new-detail-item"><span>Payment status</span><strong>{paymentStatus}</strong></div>
+                  <div className="student-new-detail-item"><span>Payment mode</span><strong>{student?.paymentMode || '-'}</strong></div>
+                  <div className="student-new-detail-item"><span>Total fee</span><strong>{student?.afterDiscount || student?.totalAmount || '-'}</strong></div>
+                  <div className="student-new-detail-item"><span>Registration fee</span><strong>{student?.registrationFees || '-'}</strong></div>
+                  <div className="student-new-detail-item"><span>First installment</span><strong>{student?.firstInstallmentAmount || student?.installment1 || '-'}</strong></div>
+                  <div className="student-new-detail-item"><span>Second installment</span><strong>{student?.secondInstallmentAmount || student?.installment2 || '-'}</strong></div>
+                  <div className="student-new-detail-item"><span>Third installment</span><strong>{student?.thirdInstallmentAmount || student?.installment3 || '-'}</strong></div>
+                </div>
               </section>
             ) : null}
 
