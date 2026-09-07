@@ -104,30 +104,8 @@ function pickFirstNonEmpty(...values) {
   return ''
 }
 
-const BRANCH_ID_PREFIX = 'BR-'
 const DEFAULT_BRANCH_COUNTRY_NAME = 'India'
 const DEFAULT_BRANCH_STATE_NAME = 'Tamil Nadu'
-
-function formatBranchIdNumber(value) {
-  return String(value || '').padStart(3, '0')
-}
-
-function getNextBranchId(existingBranches = []) {
-  const highestBranchNumber = (Array.isArray(existingBranches) ? existingBranches : []).reduce((highest, branch) => {
-    const match = String(branch?.branchId || '')
-      .trim()
-      .match(/^BR-(\d+)$/i)
-
-    if (!match) return highest
-
-    const branchNumber = Number(match[1])
-    if (!Number.isFinite(branchNumber)) return highest
-
-    return Math.max(highest, branchNumber)
-  }, 0)
-
-  return `${BRANCH_ID_PREFIX}${formatBranchIdNumber(highestBranchNumber + 1)}`
-}
 
 function getDefaultBranchCountry(countryOptions = []) {
   return (Array.isArray(countryOptions) ? countryOptions : []).find((item) => {
@@ -151,7 +129,7 @@ function validateBranchField(field, value) {
   switch (field) {
     case 'branchId':
       if (!text) return 'Branch ID is required'
-      if (!/^BR-\d{3}$/.test(text)) return 'Branch ID must follow BR-001 format'
+      if (!/^(?:CIS)?[A-Z]{2,12}\d{3}$/.test(text)) return 'Enter a branch code such as SAI001'
       return ''
     case 'branchName':
       if (!text) return 'Branch name is required'
@@ -763,7 +741,7 @@ useEffect(() => {
     setActionError('')
     const defaultCountry = getDefaultBranchCountry(countryOptions)
     setForm({
-      branchId: getNextBranchId(branches),
+      branchId: '',
       branchName: '',
       branchAdminName: '',
       branchEmail: '',
@@ -1022,7 +1000,7 @@ useEffect(() => {
   const handleAddBranch = async (event) => {
     event.preventDefault()
 
-    const branchId = editingBranchId !== null ? String(form.branchId || '').trim() : getNextBranchId(branches)
+    const branchId = String(form.branchId || '').trim().toUpperCase()
     const nextForm = {
       ...form,
       branchId,
@@ -1916,11 +1894,10 @@ useEffect(() => {
                 <span>Branch ID</span>
                 <input
                   type="text"
-                  value={editingBranchId !== null ? form.branchId : getNextBranchId(branches)}
-                  placeholder="Auto-generated"
-                  readOnly
-                  aria-readonly="true"
-                  tabIndex={-1}
+                  value={form.branchId}
+                  onChange={(event) => setForm((current) => ({ ...current, branchId: event.target.value.toUpperCase() }))}
+                  placeholder="SAI001"
+                  maxLength={16}
                 />
                 {branchErrors.branchId ? <small className="branch-field-error">{branchErrors.branchId}</small> : null}
               </label>
