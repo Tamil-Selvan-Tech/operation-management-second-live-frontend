@@ -2995,6 +2995,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
   const [studentCourseSearch, setStudentCourseSearch] = useState('')
   const [studentCourseSearchFocused, setStudentCourseSearchFocused] = useState(false)
+  const [isStudentBatchDropdownOpen, setIsStudentBatchDropdownOpen] = useState(false)
+  const studentBatchDropdownRef = useRef(null)
   const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
   const studentEditDueDatesRef = useRef(null)
   const [studentFormTouched, setStudentFormTouched] = useState({})
@@ -5602,6 +5604,29 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [isPaymentPlanDropdownOpen])
 
   useEffect(() => {
+    if (!isStudentBatchDropdownOpen) return undefined
+
+    const onPointerDown = (event) => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (studentBatchDropdownRef.current?.contains(target)) return
+      setIsStudentBatchDropdownOpen(false)
+    }
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setIsStudentBatchDropdownOpen(false)
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isStudentBatchDropdownOpen])
+
+  useEffect(() => {
     if (!viewCourse) return undefined
 
     const previousOverflow = document.body.style.overflow
@@ -5816,7 +5841,7 @@ const studentCourseOptions = useMemo(() => {
               // Keep the batch selectable when only its offline quota is full;
               // the student may still use the same batch in Online mode.
               isSelectable: seatSummary.availableSeats > 0,
-              label: `${baseLabel} - ${batchTiming || 'No timing'} (${seatLabel}; Offline seats available: ${seatSummary.availableOfflineSeats})`,
+              label: `${baseLabel} - ${batchTiming || 'No timing'}\n(${seatLabel}; Offline seats available: ${seatSummary.availableOfflineSeats})`,
             }
           })
           .filter(Boolean)
@@ -13768,46 +13793,56 @@ else {
               : ''
           }
         >
-          <select
-            value={selectedStudentBatchOption?.selectionKey || studentForm.batchSelectionKey || ''}
-            onChange={(e) =>
-              handleStudentBatchChange(e.target.value)
-            }
-            onBlur={() =>
-              setStudentFormTouched((c) => ({
-                ...c,
-                batchId: true,
-              }))
-            }
-            disabled={
-              studentFormMode === 'view' ||
-              !studentForm.courseId ||
-              !hasSelectableStudentBatchOption
-            }
+          <div
+            ref={studentBatchDropdownRef}
+            className={`student-batch-dropdown ${isStudentBatchDropdownOpen ? 'is-open' : ''}`.trim()}
           >
-            <option value="">
-              {studentForm.courseId
-                ? (hasSelectableStudentBatchOption ? 'Select Batch' : 'No seats available')
-                : 'Select Course first'}
-            </option>
+            <button
+              type="button"
+              className="student-batch-dropdown-trigger"
+              onClick={() => setIsStudentBatchDropdownOpen((current) => !current)}
+              onBlur={() => setStudentFormTouched((c) => ({ ...c, batchId: true }))}
+              disabled={studentFormMode === 'view' || !studentForm.courseId || !hasSelectableStudentBatchOption}
+              aria-expanded={isStudentBatchDropdownOpen}
+              aria-haspopup="listbox"
+            >
+              <span>
+                {selectedStudentBatchOption
+                  ? [selectedStudentBatchOption.batchName, selectedStudentBatchOption.batchTiming]
+                    .filter(Boolean)
+                    .join(' - ')
+                  : (
+                  studentForm.courseId
+                    ? (hasSelectableStudentBatchOption ? 'Select Batch' : 'No seats available')
+                    : 'Select Course first'
+                  )}
+              </span>
+              <ChevronDown size={18} strokeWidth={2.2} aria-hidden="true" />
+            </button>
 
-            {selectedStudentCourseBatchOptions.map((batch) => (
-              <option
-                key={batch.selectionKey}
-                value={batch.selectionKey}
-                disabled={!batch.isSelectable}
-              >
-                {batch.label}
-              </option>
-            ))}
-
-            {studentForm.courseId &&
-              !selectedStudentCourseBatchOptions.length && (
-                <option value="" disabled>
-                  No batches available for this course
-                </option>
-              )}
-          </select>
+            {isStudentBatchDropdownOpen ? (
+              <div className="student-batch-dropdown-menu" role="listbox" aria-label="Select batch">
+                <button type="button" role="option" aria-selected={!selectedStudentBatchOption} disabled>
+                  Select Batch
+                </button>
+                {selectedStudentCourseBatchOptions.map((batch) => (
+                  <button
+                    key={batch.selectionKey}
+                    type="button"
+                    role="option"
+                    aria-selected={selectedStudentBatchOption?.selectionKey === batch.selectionKey}
+                    disabled={!batch.isSelectable}
+                    onClick={() => {
+                      handleStudentBatchChange(batch.selectionKey)
+                      setIsStudentBatchDropdownOpen(false)
+                    }}
+                  >
+                    {batch.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
           {selectedStudentBatchOption ? (
             <small className={`student-batch-seat-note ${(
               String(studentForm.courseMode || '').trim().toLowerCase() === 'offline'
