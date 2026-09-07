@@ -5,7 +5,7 @@ import {
   LayoutDashboard,
   UserRound,
   BookOpen,
-  CalendarCheck,
+  CalendarDays,
   CreditCard,
   LogOut,
   Menu,
@@ -19,6 +19,10 @@ import {
   refreshBranchStudents,
 } from '../lib/branchStudentStore'
 import { getCurrentStudentProfile } from '../services/studentService'
+import { listBranchCourses } from '../services/branchCourseService'
+import { mergeBranchCoursesWithSnapshot } from '../lib/branchCourseSnapshot'
+import { loadCourseRecords } from '../data/courseRecords'
+import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -39,6 +43,40 @@ function matchesStudentSession(student, session) {
     identifiers.includes(String(student?.emailAddress || student?.email || '').trim().toLowerCase())
 }
 
+function findStudentCourse(student, courses = []) {
+  const studentCourseId = String(student?.courseId || student?.course?.id || '').trim()
+  const studentCourseCode = String(student?.courseCode || student?.course?.courseCode || student?.course?.code || '').trim().toLowerCase()
+  const studentCourseName = String(
+    student?.courseName || student?.courseInterested || student?.course?.name || '',
+  ).trim().toLowerCase()
+
+  const normalizedCourses = Array.isArray(courses) ? courses : []
+
+  if (studentCourseId) {
+    const matchedCourseById = normalizedCourses.find((course) => String(course?.id || course?.branchCourseId || course?.courseId || course?.dbId || '').trim() === studentCourseId)
+    if (matchedCourseById) return matchedCourseById
+  }
+
+  if (studentCourseCode) {
+    const matchedCourseByCode = normalizedCourses.find((course) => String(course?.courseCode || course?.code || '').trim().toLowerCase() === studentCourseCode)
+    if (matchedCourseByCode) return matchedCourseByCode
+  }
+
+  if (studentCourseName) {
+    const matchedCourseByName = normalizedCourses.find((course) => {
+      const courseName = String(course?.name || course?.courseName || course?.title || '').trim().toLowerCase()
+      return courseName && courseName === studentCourseName
+    })
+    if (matchedCourseByName) return matchedCourseByName
+  }
+
+  return null
+}
+
+function getCourseMasterDuration(course = {}) {
+  return course?.duration ?? course?.durationMonths ?? course?.courseDuration ?? ''
+}
+
 function getPaymentStatus(student) {
   const explicitStatus = String(student?.paymentStatus || student?.feeStatus || '').trim()
   if (explicitStatus) return explicitStatus
@@ -57,7 +95,7 @@ function getAttendance(student) {
 
 export function StudentNewDashboardPage() {
  const navigate = useNavigate()
- const { session } = useAuth()
+ const { session, signOut } = useAuth()
  const [activeSection, setActiveSection] = useState('dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
@@ -70,11 +108,75 @@ export function StudentNewDashboardPage() {
    let isMounted = true
    const session = readStudentSession()
 
+   const attachCourseMasterData = async (studentRecord) => {
+     if (!studentRecord) return studentRecord
+
+     try {
+       const result = await listBranchCourses({
+         page: 1,
+         limit: 100,
+         sortBy: 'createdAt',
+         sortOrder: 'desc',
+       })
+       let branchCourses = mergeBranchCoursesWithSnapshot(result?.data || [])
+       const courseCatalog = [
+         ...branchCourses,
+         ...loadCourseRecords(),
+       ]
+       let course = findStudentCourse(studentRecord, courseCatalog)
+
+       if (!course) {
+         const search = String(
+           studentRecord?.courseName || studentRecord?.courseInterested || studentRecord?.course?.name ||
+           studentRecord?.courseCode || studentRecord?.course?.courseCode || '',
+         ).trim()
+
+         if (search) {
+           const searchedResult = await listBranchCourses({
+             page: 1,
+             limit: 100,
+             search,
+           })
+           branchCourses = mergeBranchCoursesWithSnapshot(searchedResult?.data || [])
+           course = findStudentCourse(studentRecord, [
+             ...branchCourses,
+             ...loadCourseRecords(),
+           ])
+         }
+       }
+       if (!course) {
+         const nestedDuration = getCourseMasterDuration(studentRecord?.course)
+         return nestedDuration
+           ? { ...studentRecord, courseMasterDuration: nestedDuration }
+           : studentRecord
+       }
+
+       const courseMasterDuration = getCourseMasterDuration(course)
+
+       return {
+         ...studentRecord,
+         course: {
+           ...(studentRecord.course && typeof studentRecord.course === 'object' ? studentRecord.course : {}),
+           ...course,
+         },
+         courseId: course.id || course.branchCourseId || course.courseId || course.dbId || studentRecord.courseId,
+         courseCode: course.courseCode || studentRecord.courseCode,
+         courseName: course.name || studentRecord.courseName || studentRecord.courseInterested,
+         courseDuration: courseMasterDuration || studentRecord.courseDuration || studentRecord.duration,
+         courseMasterDuration: courseMasterDuration || studentRecord.courseMasterDuration || studentRecord.courseDuration || studentRecord.duration,
+         courseSchedule: course.schedule || course.courseSchedule || studentRecord.courseSchedule || studentRecord.classSchedule,
+       }
+     } catch {
+       return studentRecord
+     }
+   }
+
    const loadStudent = async () => {
      if (!session) {
        try {
          const currentProfile = await getCurrentStudentProfile()
-         if (isMounted) setStudent(currentProfile)
+         const hydratedProfile = await attachCourseMasterData(currentProfile)
+         if (isMounted) setStudent(hydratedProfile)
        } catch (error) {
          if (isMounted) setLoadError(error?.message || 'Student session not found. Please sign in again.')
        } finally {
@@ -85,18 +187,18 @@ export function StudentNewDashboardPage() {
 
      const scope = session.branchId || session.branchCode || ''
      const localStudent = loadBranchStudents(scope).find((record) => matchesStudentSession(record, session))
-     if (localStudent && isMounted) setStudent(localStudent)
 
      try {
        const records = await refreshBranchStudents(scope)
        const latestStudent = records.find((record) => matchesStudentSession(record, session))
+       const hydratedStudent = await attachCourseMasterData(latestStudent || localStudent)
        if (isMounted) {
-         setStudent(latestStudent || localStudent || null)
+         setStudent(hydratedStudent || null)
          if (!latestStudent && !localStudent) setLoadError('Your student record could not be found.')
        }
-     } catch (error) {
+      } catch (error) {
        if (isMounted) {
-         setStudent(localStudent || null)
+         setStudent(localStudent ? { ...localStudent, courseMasterDuration: localStudent.course?.duration || localStudent.courseDuration || localStudent.duration || '' } : null)
          if (!localStudent) setLoadError(error?.message || 'Unable to load your student details.')
        }
      } finally {
@@ -136,13 +238,14 @@ const handleLogoutCancel = () => {
   setIsLogoutModalOpen(false)
 }
 
-const handleLogoutConfirm = () => {
+const handleLogoutConfirm = async () => {
   setIsLogoutModalOpen(false)
   try {
     window.sessionStorage.removeItem('cispro.student-session')
   } catch {
     // Ignore storage errors and continue to the login page.
   }
+  await signOut()
   navigate('/login', { replace: true })
 }
 
@@ -264,18 +367,18 @@ const handleLogoutConfirm = () => {
               <button
                 type="button"
                 className={`student-new-sidebar-item ${
-                  activeSection === 'attendance' ? 'is-active' : ''
+                  activeSection === 'calendar' ? 'is-active' : ''
                 }`.trim()}
-                onClick={() => handleMenuClick('attendance')}
+                onClick={() => handleMenuClick('calendar')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true">
-                  <CalendarCheck
+                  <CalendarDays
                     size={18}
                     strokeWidth={2.2}
                   />
                 </span>
 
-                <span>Attendance</span>
+                <span>Calendar</span>
               </button>
 
               <button
@@ -709,6 +812,10 @@ const handleLogoutConfirm = () => {
                   <div className="student-new-detail-item"><span>Third installment</span><strong>{student?.thirdInstallmentAmount || student?.installment3 || '-'}</strong></div>
                 </div>
               </section>
+            ) : null}
+
+            {!isLoading && !loadError && activeSection === 'calendar' ? (
+              <StudentCalendarPanel student={student} />
             ) : null}
 
           </main>

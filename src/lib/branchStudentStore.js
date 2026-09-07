@@ -71,7 +71,10 @@ function normalizeStoredStudentRecord(record = {}) {
     batchName: record.batchName || (typeof record.batch === 'string' ? record.batch : '') || nestedBatch.batchName || nestedBatch.name || '',
     batchTiming: record.batchTiming || record.batchTime || nestedBatch.batchTiming || nestedBatch.timing || '',
     classSchedule: record.classSchedule || record.schedule || nestedBatch.classSchedule || nestedBatch.schedule || '',
+    courseSchedule: record.courseSchedule || record.classSchedule || record.schedule || nestedBatch.courseSchedule || nestedBatch.classSchedule || nestedBatch.schedule || '',
     courseStartDate: record.courseStartDate || record.courseStart || record.startDate || nestedBatch.courseStartDate || nestedBatch.startDate || '',
+    courseDuration: record.courseDuration || record.duration || nestedCourse.duration || nestedCourse.courseDuration || '',
+    courseEndDate: record.courseEndDate || '',
     courseProgress: record.courseProgress,
     courseCompletionPercentage: record.courseCompletionPercentage,
     progress: record.progress,
@@ -110,6 +113,14 @@ function mergePreservedStudentFields(incoming = {}, existing = {}) {
 
   if (!String(nextRecord.batchTiming || nextRecord.batchTime || '').trim() && String(existing.batchTiming || existing.batchTime || '').trim()) {
     nextRecord.batchTiming = String(existing.batchTiming || existing.batchTime || '').trim()
+  }
+
+  if (!String(nextRecord.courseDuration || nextRecord.duration || '').trim() && String(existing.courseDuration || existing.duration || '').trim()) {
+    nextRecord.courseDuration = String(existing.courseDuration || existing.duration || '').trim()
+  }
+
+  if (!String(nextRecord.courseSchedule || nextRecord.classSchedule || nextRecord.schedule || '').trim() && String(existing.courseSchedule || existing.classSchedule || existing.schedule || '').trim()) {
+    nextRecord.courseSchedule = String(existing.courseSchedule || existing.classSchedule || existing.schedule || '').trim()
   }
 
   if (!String(nextRecord.facultyId || '').trim() && String(existing.facultyId || '').trim()) {
@@ -482,6 +493,8 @@ export async function saveBranchStudent(student) {
     _recordId: resolvedRecordId,
     studentId: resolvedStudentId,
     branchCode: nextStudent.branchCode || nextStudent.branchId || '',
+    courseDuration: nextStudent.courseDuration || nextStudent.duration || '',
+    courseSchedule: nextStudent.courseSchedule || nextStudent.classSchedule || nextStudent.schedule || '',
     _fromBackend: true,
     _isExistingRecord: true,
   })

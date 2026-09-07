@@ -210,7 +210,12 @@ export function normalizeBranchCourse(course) {
 }
 
 export function normalizeBranchCourseList(courses) {
-  return Array.isArray(courses) ? courses.map(normalizeBranchCourse).filter(Boolean) : []
+  if (Array.isArray(courses)) return courses.map(normalizeBranchCourse).filter(Boolean)
+  if (Array.isArray(courses?.data)) return normalizeBranchCourseList(courses.data)
+  if (Array.isArray(courses?.items)) return normalizeBranchCourseList(courses.items)
+  if (Array.isArray(courses?.results)) return normalizeBranchCourseList(courses.results)
+  if (courses?.data && typeof courses.data === 'object') return normalizeBranchCourseList(courses.data)
+  return []
 }
 
 function buildSearchParams(query = {}) {

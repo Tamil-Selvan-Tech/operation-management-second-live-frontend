@@ -351,6 +351,9 @@ function buildProfileFromRecord(record = {}, fallbackProfile = null) {
   const batchTiming = record.batchTiming || base.courseDetails.batchTiming
   const email = record.emailAddress || record.email || base.basicDetails.email
   const studentId = record.studentId || base.studentId
+  const courseDuration = record.courseDuration || record.duration || record.course?.duration || base.courseDetails.duration
+  const courseSchedule = record.courseSchedule || record.classSchedule || record.schedule || base.batch.batchDays
+  const courseEndDate = record.courseEndDate || base.courseDetails.expectedEndDate
 
   return normalizeProfile({
     ...base,
@@ -409,13 +412,15 @@ function buildProfileFromRecord(record = {}, fallbackProfile = null) {
       courseName,
       courseCode: record.courseCode || base.courseDetails.courseCode,
       courseMode: record.courseMode || base.courseDetails.courseMode,
-      duration: record.duration || base.courseDetails.duration,
+      duration: courseDuration,
+      courseDuration,
+      courseSchedule,
       totalHours: toFiniteNumber(record.totalHours, base.courseDetails.totalHours),
       facultyName,
       batchName,
       batchTiming,
       courseStartDate: record.courseStartDate || record.admissionDate || base.courseDetails.courseStartDate,
-      expectedEndDate: record.expectedEndDate || base.courseDetails.expectedEndDate,
+      expectedEndDate: courseEndDate,
       courseProgress: toFiniteNumber(record.courseProgress, base.courseDetails.courseProgress),
     },
     payments: {

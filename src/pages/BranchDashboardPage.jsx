@@ -3155,6 +3155,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
 
     const activeBranchId = branchProfile?.id || branchProfile?.branchId || ''
     const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [], activeBranchId)
+    saveBranchCourseSnapshot(nextCourses)
     const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
     setBranchCourseCards((currentCourses) => {
       const currentCoursesById = new Map(
@@ -7406,6 +7407,8 @@ useEffect(() => {
       batchTiming: selectedBatch?.batchTiming || String(studentForm.batchTiming || '').trim(),
       classSchedule: String(studentForm.classSchedule || '').trim(),
       courseStartDate: String(studentForm.courseStartDate || '').trim(),
+      courseDuration: String(selectedCourse?.duration || studentForm.courseDuration || studentForm.duration || '').trim(),
+      courseSchedule: String(studentForm.classSchedule || '').trim(),
       facultyId: selectedBatch?.facultyId || String(studentForm.facultyId || '').trim(),
       facultyName: selectedBatch?.facultyName || String(studentForm.facultyName || '').trim(),
       facultyEmail: selectedBatch?.facultyEmail || String(studentForm.facultyEmail || '').trim(),
