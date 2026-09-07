@@ -29,6 +29,7 @@ export const API_BASE_URL =
 
 let accessToken = null
 let refreshToken = null
+let refreshInFlight = null
 let sessionExpiredHandler = null
 let sessionExpiredNotified = false
 export let impersonateBranchId = null
@@ -63,6 +64,7 @@ export function setAuthTokens(nextAccessToken, nextRefreshToken = null) {
 export function clearAuthTokens() {
   accessToken = null
   refreshToken = null
+  refreshInFlight = null
   sessionExpiredNotified = false
 }
 
@@ -99,6 +101,39 @@ function notifySessionExpiredOnce() {
   sessionExpiredHandler?.()
 }
 
+function isAccessTokenExpiringSoon(token, windowSeconds = 30) {
+  if (!token) return false
+
+  try {
+    const encodedPayload = token.split('.')[1]
+    if (!encodedPayload) return false
+    const payload = JSON.parse(atob(encodedPayload.replace(/-/g, '+').replace(/_/g, '/')))
+    return Number(payload.exp || 0) * 1000 <= Date.now() + windowSeconds * 1000
+  } catch {
+    return false
+  }
+}
+
+function persistRefreshedTokens(nextAccessToken, nextRefreshToken) {
+  if (typeof window === 'undefined' || !window.sessionStorage) return
+
+  try {
+    const session = JSON.parse(window.sessionStorage.getItem(STORAGE_KEY) || 'null')
+    if (!session) return
+
+    window.sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        ...session,
+        token: nextAccessToken,
+        refreshToken: nextRefreshToken,
+      }),
+    )
+  } catch {
+    // Memory tokens are still usable when session storage is unavailable.
+  }
+}
+
 async function request(path, options = {}, retryCount = 0) {
   const { skipAuth, headers: optionHeaders, body, ...fetchOptions } = options
   const headers = new Headers(optionHeaders || {})
@@ -111,6 +146,15 @@ async function request(path, options = {}, retryCount = 0) {
 
   if (skipAuth !== true) {
     hydrateAuthTokensFromSessionStorage()
+  }
+
+  if (
+    skipAuth !== true &&
+    refreshToken &&
+    isAccessTokenExpiringSoon(accessToken) &&
+    retryCount === 0
+  ) {
+    await refreshAccessToken()
   }
 
   if (skipAuth !== true && accessToken) {
@@ -209,6 +253,17 @@ export async function getMe() {
 }
 
 export async function refreshAccessToken() {
+  if (refreshInFlight) return refreshInFlight
+
+  refreshInFlight = refreshAccessTokenInternal()
+  try {
+    return await refreshInFlight
+  } finally {
+    refreshInFlight = null
+  }
+}
+
+async function refreshAccessTokenInternal() {
   hydrateAuthTokensFromSessionStorage()
   const headers = {
     'Content-Type': 'application/json',
@@ -242,7 +297,9 @@ export async function refreshAccessToken() {
 
     const data = await safeParseJson(response)
     if (data?.accessToken) {
-      setAuthTokens(data.accessToken, data.refreshToken || refreshToken)
+      const nextRefreshToken = data.refreshToken || refreshToken
+      setAuthTokens(data.accessToken, nextRefreshToken)
+      persistRefreshedTokens(data.accessToken, nextRefreshToken)
     }
 
     return data

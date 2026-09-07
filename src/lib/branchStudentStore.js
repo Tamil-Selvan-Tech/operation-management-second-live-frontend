@@ -63,6 +63,7 @@ function normalizeStoredStudentRecord(record = {}) {
     studentId: String(record.studentId || '').trim(),
     courseId: String(record.courseId || nestedCourse.id || '').trim(),
     courseName: record.courseName || record.courseInterested || nestedCourse.name || '',
+    courseMode: record.courseMode || nestedCourse.courseMode || '',
     facultyId: String(record.facultyId || nestedFaculty.id || nestedFaculty.facultyId || '').trim(),
     facultyName: record.facultyName || nestedFaculty.name || nestedFaculty.facultyName || '',
     batchGroupId: String(record.batchGroupId || nestedBatch.batchGroupId || '').trim(),

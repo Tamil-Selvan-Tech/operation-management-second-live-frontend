@@ -351,14 +351,32 @@ function getBatchSeatSummary(batch = {}, students = [], excludedStudentKeys = []
   })
 
   const totalSeats = Math.max(Number(batch?.totalSeats || 0) || 0, 0)
+  const offlineSeats = Math.max(Number(batch?.offlineSeats || 0) || 0, 0)
   const usedSeats = uniqueStudents.size
   const availableSeats = Math.max(totalSeats - usedSeats, 0)
+  const offlineStudentKeys = new Set()
+
+  matchingStudents.forEach((student) => {
+    if (String(student?.courseMode || '').trim().toLowerCase() !== 'offline') return
+    const studentKey = getBatchStudentIdentityKey(student)
+    if (studentKey) offlineStudentKeys.add(studentKey)
+  })
+
+  const usedOfflineSeats = offlineStudentKeys.size
+  const availableOfflineSeats = Math.min(
+    Math.max(offlineSeats - usedOfflineSeats, 0),
+    availableSeats,
+  )
 
   return {
     totalSeats,
     usedSeats,
     availableSeats,
+    offlineSeats,
+    usedOfflineSeats,
+    availableOfflineSeats,
     isFull: availableSeats <= 0,
+    isOfflineFull: availableOfflineSeats <= 0,
   }
 }
 
@@ -2978,6 +2996,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentCourseSearch, setStudentCourseSearch] = useState('')
   const [studentCourseSearchFocused, setStudentCourseSearchFocused] = useState(false)
   const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
+  const studentEditDueDatesRef = useRef(null)
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [isStudentSetupRequiredOpen, setIsStudentSetupRequiredOpen] = useState(false)
   const [studentDeleteTarget, setStudentDeleteTarget] = useState(null)
@@ -5761,6 +5780,7 @@ const studentCourseOptions = useMemo(() => {
               batchTiming,
               batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
               totalSeats: batch?.totalSeats || 0,
+              offlineSeats: batch?.offlineSeats || 0,
               courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
               courseName: String(group?.courseName || '').trim(),
               facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
@@ -5785,17 +5805,23 @@ const studentCourseOptions = useMemo(() => {
               facultyEmail: String(group?.facultyEmail || '').trim(),
               facultyPhone: String(group?.facultyPhone || '').trim(),
               totalSeats: seatSummary.totalSeats,
+              offlineSeats: batch?.offlineSeats || 0,
               usedSeats: seatSummary.usedSeats,
               availableSeats: seatSummary.availableSeats,
+              offlineSeatsAvailable: seatSummary.availableOfflineSeats,
+              usedOfflineSeats: seatSummary.usedOfflineSeats,
               isFull: seatSummary.isFull,
+              isOfflineFull: seatSummary.isOfflineFull,
+              // Keep the batch selectable when only its offline quota is full;
+              // the student may still use the same batch in Online mode.
               isSelectable: seatSummary.availableSeats > 0,
-              label: `${baseLabel} - ${batchTiming || 'No timing'} (${seatLabel})`,
+              label: `${baseLabel} - ${batchTiming || 'No timing'} (${seatLabel}; Offline seats available: ${seatSummary.availableOfflineSeats})`,
             }
           })
           .filter(Boolean)
       })
       .sort((left, right) => String(left.batchId || left.batchName || '').localeCompare(String(right.batchId || right.batchName || '')))
-  }, [branchBatchGroups, branchStudents, currentStudentSeatKeys, studentForm.courseId, studentFormMode])
+  }, [branchBatchGroups, branchStudents, currentStudentSeatKeys, studentForm.courseId, studentForm.courseMode, studentFormMode])
 
   const selectedStudentBatchOption = useMemo(
     () => selectedStudentCourseBatchOptions.find((batch) => {
@@ -5882,8 +5908,34 @@ const studentCourseOptions = useMemo(() => {
       return
     }
 
-    setStudentInstallmentDueDates(buildInstallmentDueDates(studentInstallmentCount))
-  }, [studentInstallmentCount])
+    const editSnapshot = studentEditDueDatesRef.current
+    if (
+      studentFormMode === 'edit' &&
+      editSnapshot?.recordId === String(studentForm.recordId || '').trim()
+    ) {
+      if (editSnapshot.admissionDate === studentForm.admissionDate) {
+        setStudentInstallmentDueDates(
+          editSnapshot.dueDates.length
+            ? editSnapshot.dueDates
+            : buildInstallmentDueDates(studentInstallmentCount, studentForm.admissionDate),
+        )
+        return
+      }
+
+      studentEditDueDatesRef.current = {
+        ...editSnapshot,
+        admissionDate: studentForm.admissionDate,
+      }
+      setStudentInstallmentDueDates(
+        buildInstallmentDueDates(studentInstallmentCount, studentForm.admissionDate),
+      )
+      return
+    }
+
+    setStudentInstallmentDueDates(
+      buildInstallmentDueDates(studentInstallmentCount, studentForm.admissionDate || getTodayValue()),
+    )
+  }, [studentForm.admissionDate, studentForm.recordId, studentFormMode, studentInstallmentCount])
 
   const handleStudentCourseChange = (courseId) => {
     const nextCourseId = String(courseId || '').trim()
@@ -7072,11 +7124,14 @@ useEffect(() => {
   const studentFormValidationErrors = useMemo(
     () => {
       const nextErrors = validateStudentForm(studentForm, branchStudents)
+      const isOfflineMode = String(studentForm.courseMode || '').trim().toLowerCase() === 'offline'
+      const isOfflineBatchFull = Boolean(isOfflineMode && selectedStudentBatchOption?.isOfflineFull)
 
       if (
         studentForm.courseId &&
         selectedStudentCourseBatchOptions.length &&
-        !hasSelectableStudentBatchOption
+        !hasSelectableStudentBatchOption &&
+        !isOfflineBatchFull
       ) {
         nextErrors.batchId = 'No seats available for this course.'
       }
@@ -7089,6 +7144,13 @@ useEffect(() => {
         !(studentFormMode === 'edit' && currentStudentSeatKeys.length)
       ) {
         nextErrors.batchId = 'No seats available for this batch.'
+      }
+
+      if (
+        isOfflineBatchFull &&
+        !(studentFormMode === 'edit' && currentStudentSeatKeys.length)
+      ) {
+        nextErrors.courseMode = 'No offline seats available in the selected batch.'
       }
 
       return nextErrors
@@ -7203,6 +7265,7 @@ useEffect(() => {
     }
 
     setStudentFormMode('add')
+    studentEditDueDatesRef.current = null
     setStudentCourseSearch('')
     setStudentCourseSearchFocused(false)
     setStudentFormError('')
@@ -7228,6 +7291,7 @@ useEffect(() => {
 
   const openViewStudentForm = async (stu) => {
     setStudentFormMode('view')
+    studentEditDueDatesRef.current = null
     setStudentCourseSearch(String(stu?.courseName || stu?.courseId || '').trim())
     setStudentCourseSearchFocused(false)
     setStudentFormError('')
@@ -7253,6 +7317,17 @@ useEffect(() => {
       ...buildStudentFormFromRecord(stu),
       ...resolveStudentBatchDisplay(stu, branchBatchGroups),
     })
+    const savedDueDates = (Array.isArray(nextStudentForm.installmentSchedule)
+      ? nextStudentForm.installmentSchedule
+      : [])
+      .map((installment) => String(installment?.dueDate || installment?.date || '').trim())
+
+    studentEditDueDatesRef.current = {
+      recordId: String(nextStudentForm.recordId || '').trim(),
+      admissionDate: nextStudentForm.admissionDate || '',
+      dueDates: savedDueDates,
+    }
+    setStudentInstallmentDueDates(savedDueDates)
     setStudentForm(nextStudentForm)
     setStudentFormTouched({})
     setIsStudentFormOpen(true)
@@ -7290,7 +7365,11 @@ useEffect(() => {
     const selectedBatch = selectedStudentBatchOption
     const resolvedCourseAmount = String(selectedCourse?.amount || studentForm.courseAmount || '').trim()
 
-    if (selectedBatch && selectedBatch.isFull && !(studentFormMode === 'edit' && currentStudentSeatKeys.length)) {
+    if (
+      selectedBatch &&
+      selectedBatch.isFull &&
+      !(studentFormMode === 'edit' && currentStudentSeatKeys.length)
+    ) {
       setStudentFormError('No seats available for the selected batch.')
       return
     }
@@ -13735,10 +13814,18 @@ else {
               )}
           </select>
           {selectedStudentBatchOption ? (
-            <small className={`student-batch-seat-note ${selectedStudentBatchOption.isFull ? 'is-full' : ''}`.trim()}>
-              {selectedStudentBatchOption.isFull
-                ? 'No seats available for this batch.'
-                : `${selectedStudentBatchOption.availableSeats} seat${selectedStudentBatchOption.availableSeats === 1 ? '' : 's'} left out of ${selectedStudentBatchOption.totalSeats}`}
+            <small className={`student-batch-seat-note ${(
+              String(studentForm.courseMode || '').trim().toLowerCase() === 'offline'
+                ? selectedStudentBatchOption.isOfflineFull
+                : selectedStudentBatchOption.isFull
+            ) ? 'is-full' : ''}`.trim()}>
+              {String(studentForm.courseMode || '').trim().toLowerCase() === 'offline'
+                ? (selectedStudentBatchOption.isOfflineFull
+                  ? 'No offline seats available in this batch. Please select another batch.'
+                  : `${selectedStudentBatchOption.offlineSeatsAvailable} offline seat${selectedStudentBatchOption.offlineSeatsAvailable === 1 ? '' : 's'} left out of ${selectedStudentBatchOption.offlineSeats}`)
+                : (selectedStudentBatchOption.isFull
+                  ? 'No seats available for this batch.'
+                  : `${selectedStudentBatchOption.availableSeats} seat${selectedStudentBatchOption.availableSeats === 1 ? '' : 's'} left out of ${selectedStudentBatchOption.totalSeats}`)}
             </small>
           ) : null}
         </Field>
@@ -13849,7 +13936,13 @@ else {
        >
          <select
            value={studentForm.courseMode || ''}
-           onChange={(e) => updateStudentField('courseMode', e.target.value)}
+           onChange={(e) => {
+             updateStudentField('courseMode', e.target.value)
+             setStudentFormTouched((current) => ({
+               ...current,
+               courseMode: true,
+             }))
+           }}
            disabled={studentFormMode === 'view'}
          >
            <option value="">Select Course Mode</option>

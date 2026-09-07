@@ -75,13 +75,28 @@ function getBatchSeatSummary(batch = {}, students = []) {
   })
 
   const totalSeats = Math.max(Number(batch?.totalSeats || 0) || 0, 0)
+  const offlineSeats = Math.max(Number(batch?.offlineSeats || 0) || 0, 0)
   const usedSeats = uniqueStudents.size
   const remainingSeats = Math.max(totalSeats - usedSeats, 0)
+  const offlineStudentKeys = new Set()
+  matchingStudents.forEach((student) => {
+    if (String(student?.courseMode || '').trim().toLowerCase() !== 'offline') return
+    const studentKey = getStudentIdentityKey(student)
+    if (studentKey) offlineStudentKeys.add(studentKey)
+  })
+  const usedOfflineSeats = offlineStudentKeys.size
+  const availableOfflineSeats = Math.min(
+    Math.max(offlineSeats - usedOfflineSeats, 0),
+    remainingSeats,
+  )
 
   return {
     totalSeats,
     usedSeats,
     remainingSeats,
+    offlineSeats,
+    usedOfflineSeats,
+    availableOfflineSeats,
   }
 }
 
@@ -1981,7 +1996,7 @@ export function BranchBatchManagementSection({
                           <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
                         </div>
                         <span>{seatSummary.remainingSeats} left</span>
-                        <span className="batch-detail-offline-seats">Offline Seats: {Number(batch.offlineSeats) || 0}</span>
+                        <span className="batch-detail-offline-seats">Offline seats available: {seatSummary.availableOfflineSeats}</span>
                       </div>
                     </div>
 
@@ -2104,6 +2119,7 @@ export function BranchBatchManagementSection({
                 <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
               </div>
               <span>{seatSummary.remainingSeats} left</span>
+              <span className="batch-detail-offline-seats">Offline seats available: {seatSummary.availableOfflineSeats}</span>
             </div>
           </div>
 
