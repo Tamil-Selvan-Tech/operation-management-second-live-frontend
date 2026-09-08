@@ -136,6 +136,9 @@ export function getCourseStartDate(student = {}) {
 }
 
 export function getCourseEndDate(student = {}, startDate = null, durationMonths = null) {
+  const savedEndDate = parseCalendarDate(student?.courseEndDate)
+  if (savedEndDate) return savedEndDate
+
   const safeStart = startDate || getCourseStartDate(student)
   if (!safeStart) return null
 
@@ -167,6 +170,7 @@ function buildAttendanceMap(student = {}) {
     student?.attendanceByDate,
     student?.calendarAttendance,
     student?.dailyAttendance,
+    student?.calendarEvents,
   ]
 
   const entries = new Map()
@@ -230,7 +234,7 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       status = 'No Class'
       tone = 'no-class'
     } else if (holiday) {
-      status = 'General Holiday'
+      status = holiday.type === 'Leave' ? 'Leave' : 'General Holiday'
       tone = 'holiday'
     } else if (attendance === 'Present' || attendance === 'Absent') {
       status = attendance
@@ -319,6 +323,16 @@ export function buildStudentCourseCalendar(student = {}) {
   const rangeEnd = startOfCalendarMonth(endDate)
   const holidays = getGovernmentHolidaysForRange(startDate, endDate, student?.governmentHolidays || student?.holidayList || [])
   const holidayMap = new Map(holidays.map((item) => [item.date, item]))
+  ;(Array.isArray(student?.calendarEvents) ? student.calendarEvents : []).forEach((event) => {
+    const eventDate = toCalendarDateKey(event?.date)
+    const eventStatus = String(event?.status || '').trim().toLowerCase()
+    if (!eventDate || !['government holiday', 'leave'].includes(eventStatus)) return
+    holidayMap.set(eventDate, {
+      date: eventDate,
+      name: event.reason || (eventStatus === 'leave' ? 'Branch leave' : 'Government holiday'),
+      type: eventStatus === 'leave' ? 'Leave' : 'Holiday',
+    })
+  })
   const attendanceMap = buildAttendanceMap(student)
   const months = []
   const summary = {

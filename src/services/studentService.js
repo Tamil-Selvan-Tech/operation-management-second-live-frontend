@@ -262,6 +262,18 @@ export async function getCurrentStudentProfile() {
   }
 }
 
+export async function getCurrentBranchStudentCalendar(query = {}) {
+  const params = new URLSearchParams()
+  const from = String(query?.from || '').trim()
+  const to = String(query?.to || '').trim()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+
+  const suffix = params.toString() ? `?${params.toString()}` : ''
+  const response = await request(`/branch-students/me/calendar${suffix}`)
+  return unwrapData(response)
+}
+
 export async function createStudent(payload) {
   const response = await request('/students', {
     method: 'POST',
