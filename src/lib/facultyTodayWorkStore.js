@@ -130,6 +130,16 @@ function normalizeTodayWorkEntry(entry = {}, fallback = {}) {
     selectedSubmoduleIds,
     submoduleIds: selectedSubmoduleIds,
     submodules: Array.isArray(source.submodules) ? source.submodules : [],
+    submoduleStatuses: (source.submoduleStatuses || source.subModuleStatuses || source.progressStatuses) && typeof (source.submoduleStatuses || source.subModuleStatuses || source.progressStatuses) === 'object'
+      ? (source.submoduleStatuses || source.subModuleStatuses || source.progressStatuses)
+      : {},
+    submoduleProgress: Array.isArray(source.submoduleProgress)
+      ? source.submoduleProgress
+      : Array.isArray(source.progressByStudent)
+        ? source.progressByStudent
+        : [],
+    progressPercentage: Number(source.progressPercentage || source.progress || 0) || 0,
+    submoduleStatus: String(source.submoduleStatus || source.subModuleStatus || '').trim(),
     workDate: String(source.workDate || '').trim(),
     createdAt: source.createdAt || '',
     updatedAt: source.updatedAt || '',
