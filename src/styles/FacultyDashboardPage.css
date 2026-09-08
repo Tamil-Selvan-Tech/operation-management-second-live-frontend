@@ -1510,6 +1510,12 @@ body.faculty-notification-menu-open .super-admin-content {
   background: #eff6ff;
 }
 
+.faculty-today-work-submodule-status-options button:disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .faculty-today-work-status-radio {
   width: 14px;
   height: 14px;
@@ -1570,6 +1576,18 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-students-table-shell th:nth-child(5),
 .faculty-students-table-shell td:nth-child(5) {
   text-align: center;
+}
+
+.faculty-student-progress-table th:nth-child(5),
+.faculty-student-progress-table td:nth-child(5) {
+  text-align: left;
+  padding-left: 8px;
+  padding-right: 44px;
+}
+
+.faculty-student-progress-table th:nth-child(6),
+.faculty-student-progress-table td:nth-child(6) {
+  padding-left: 44px;
 }
 
 .faculty-batch-attendance-count {
