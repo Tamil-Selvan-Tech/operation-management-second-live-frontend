@@ -1384,6 +1384,63 @@ body.faculty-notification-menu-open .super-admin-content {
   cursor: not-allowed;
 }
 
+.faculty-today-work-attendance-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(100%, 300px);
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  color: #64748b;
+  background: #ffffff;
+}
+
+.faculty-today-work-attendance-search:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.faculty-today-work-attendance-search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  appearance: none;
+  color: #1e293b;
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.faculty-today-work-attendance-search input::placeholder {
+  color: #94a3b8;
+}
+
+.faculty-today-work-attendance-mark-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #10b981;
+  border-radius: 6px;
+  color: #047857;
+  background: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.faculty-today-work-attendance-mark-all input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #059669;
+}
+
 .faculty-today-work-submodule-list,
 .faculty-today-work-student-list {
   display: grid;
@@ -1541,6 +1598,65 @@ body.faculty-notification-menu-open .super-admin-content {
   transform: none;
   border-color: rgba(16, 185, 129, 0.18);
   box-shadow: none;
+}
+
+.faculty-today-work-attendance-list {
+  gap: 8px;
+  max-height: 280px;
+}
+
+.faculty-today-work-student-item.faculty-today-work-attendance-item {
+  min-height: 54px;
+  padding: 8px 12px;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.faculty-today-work-student-item.faculty-today-work-attendance-item:hover {
+  transform: none;
+  border-color: #dbe4f0;
+  box-shadow: none;
+}
+
+.faculty-today-work-attendance-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.faculty-today-work-attendance-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 98px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  color: #64748b;
+  background: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.faculty-today-work-attendance-button--present.is-active {
+  border-color: #10b981;
+  color: #166534;
+  background: #ecfdf5;
+}
+
+.faculty-today-work-attendance-button--absent.is-active {
+  border-color: #ef4444;
+  color: #991b1b;
+  background: #fff1f2;
+}
+
+.faculty-today-work-attendance-button:not(.is-active):hover {
+  border-color: #94a3b8;
+  color: #334155;
+  background: #f8fafc;
 }
 
 .faculty-today-work-submodule-item input,

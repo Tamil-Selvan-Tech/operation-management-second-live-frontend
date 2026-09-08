@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Bell,
   BookOpen,
+  Check,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
@@ -1482,6 +1483,7 @@ export function FacultyDashboardPage() {
   const [isTodayWorkMissedExpanded, setIsTodayWorkMissedExpanded] = useState(true)
   const [pendingTodayWorkSubmission, setPendingTodayWorkSubmission] = useState(null)
   const [attendanceSavedPrompt, setAttendanceSavedPrompt] = useState(null)
+  const [todayWorkAttendanceSearch, setTodayWorkAttendanceSearch] = useState('')
   const [courseEditError, setCourseEditError] = useState('')
   const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
   const [isCourseEditSaving, setIsCourseEditSaving] = useState(false)
@@ -2746,6 +2748,7 @@ export function FacultyDashboardPage() {
     setTodayWorkError('')
     setIsTodayWorkModalOpen(true)
     setAttendanceSavedPrompt(null)
+    setTodayWorkAttendanceSearch('')
   }
 
   const closeTodayWorkModal = () => {
@@ -2755,6 +2758,7 @@ export function FacultyDashboardPage() {
     setIsTodayWorkConfirmOpen(false)
     setPendingTodayWorkSubmission(null)
     setAttendanceSavedPrompt(null)
+    setTodayWorkAttendanceSearch('')
   }
 
   const openStudentViewDrawer = (student) => {
@@ -2948,6 +2952,26 @@ export function FacultyDashboardPage() {
       selectedStudentIds,
       attendanceByStudent,
     }))
+  }
+
+  const toggleMarkAllTodayWorkStudents = () => {
+    const allPresent = studentsFlowVisibleStudents.length > 0 && studentsFlowVisibleStudents.every((student) => (
+      todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)] === 'PRESENT'
+    ))
+
+    if (allPresent) {
+      const visibleStudentIds = new Set(studentsFlowVisibleStudents.map(getTodayWorkStudentId))
+      setTodayWorkForm((current) => ({
+        ...current,
+        selectedStudentIds: current.selectedStudentIds.filter((studentId) => !visibleStudentIds.has(studentId)),
+        attendanceByStudent: Object.fromEntries(
+          Object.entries(current.attendanceByStudent || {}).filter(([studentId]) => !visibleStudentIds.has(studentId)),
+        ),
+      }))
+      return
+    }
+
+    markAllTodayWorkStudentsPresent()
   }
 
   const performAttendanceOnlySave = async () => {
@@ -4111,6 +4135,20 @@ const nextName = trimmedValue
       </div>
     </header>
   )
+
+  const normalizedAttendanceSearch = todayWorkAttendanceSearch.trim().toLowerCase()
+  const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
+    if (!normalizedAttendanceSearch) return true
+    return [student?.studentName, student?.studentId, student?.emailAddress]
+      .map((value) => String(value || '').toLowerCase())
+      .some((value) => value.includes(normalizedAttendanceSearch))
+  })
+  const markedAttendanceCount = studentsFlowVisibleStudents.filter((student) => (
+    ['PRESENT', 'ABSENT'].includes(todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)] || '')
+  )).length
+  const allTodayWorkStudentsPresent = studentsFlowVisibleStudents.length > 0 && studentsFlowVisibleStudents.every((student) => (
+    todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)] === 'PRESENT'
+  ))
 
   return (
     <section className="super-admin-page">
@@ -5498,48 +5536,69 @@ const nextName = trimmedValue
                 <div className="faculty-today-work-panel-heading">
                   <div>
                     <h4>{todayWorkMode === 'attendance' ? 'Student Attendance' : 'Select Students'}</h4>
-                    <p>{todayWorkMode === 'attendance' ? 'Mark each student Present or Absent for today.' : 'Choose students whose submodule progress should be updated.'}</p>
+                    {todayWorkMode === 'attendance' ? null : (
+                      <p>Choose students whose submodule progress should be updated.</p>
+                    )}
                   </div>
                   {todayWorkMode === 'attendance' ? (
-                    <button
-                      type="button"
-                      className="faculty-today-work-link"
-                      onClick={markAllTodayWorkStudentsPresent}
-                      disabled={!studentsFlowVisibleStudents.length}
+                    <label
+                      className="faculty-today-work-attendance-mark-all"
+                      aria-label="Mark all students present"
                     >
-                      Mark All Present
-                    </button>
+                      <input
+                        type="checkbox"
+                        checked={allTodayWorkStudentsPresent}
+                        onChange={toggleMarkAllTodayWorkStudents}
+                        disabled={!studentsFlowVisibleStudents.length}
+                      />
+                      <span>Mark All Present</span>
+                    </label>
                   ) : null}
                 </div>
 
-                <div className="faculty-today-work-student-list">
-                  {studentsFlowVisibleStudents.map((student, index) => {
+                {todayWorkMode === 'attendance' ? (
+                  <label className="faculty-today-work-attendance-search">
+                    <Search size={16} aria-hidden="true" />
+                    <input
+                      type="search"
+                      value={todayWorkAttendanceSearch}
+                      onChange={(event) => setTodayWorkAttendanceSearch(event.target.value)}
+                      placeholder="Search student..."
+                      aria-label="Search students"
+                    />
+                  </label>
+                ) : null}
+
+                <div className={`faculty-today-work-student-list${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-list' : ''}`}>
+                  {(todayWorkMode === 'attendance' ? visibleAttendanceStudents : studentsFlowVisibleStudents).map((student, index) => {
                     const studentId = getTodayWorkStudentId(student)
                     const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
                     const status = todayWorkForm.attendanceByStudent?.[studentId] || ''
                     const checked = todayWorkForm.selectedStudentIds.includes(studentId)
 
                     return (
-                      <div key={studentId || `${studentName}-${index}`} className={`faculty-today-work-student-item${checked ? ' is-selected' : ''}`.trim()} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: '12px' }}>
+                      <div key={studentId || `${studentName}-${index}`} className={`faculty-today-work-student-item${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-item' : ''}${checked ? ' is-selected' : ''}`.trim()} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: '12px' }}>
                         <div className="faculty-avatar">{getInitials(studentName)}</div>
                         <div className="faculty-today-work-student-copy">
                           <strong>{studentName}</strong>
                           <span>{student?.studentId || student?.emailAddress || '-'}</span>
                         </div>
                         {todayWorkMode === 'attendance' ? (
-                          <div style={{ display: 'flex', gap: '8px' }}>
+                          <div className="faculty-today-work-attendance-buttons">
                             <button
                               type="button"
+                              className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--present${status === 'PRESENT' ? ' is-active' : ''}`}
                               onClick={() => setTodayWorkAttendance(studentId, 'PRESENT')}
-                              style={{ border: 0, borderRadius: '10px', padding: '8px 12px', cursor: 'pointer', background: status === 'PRESENT' ? '#dcfce7' : '#f1f5f9', color: status === 'PRESENT' ? '#166534' : '#64748b', fontWeight: 800 }}
                             >
+                              <Check size={14} strokeWidth={2.5} aria-hidden="true" />
                               Present
                             </button>
                             <button
                               type="button"
+                              className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--absent${status === 'ABSENT' ? ' is-active' : ''}`}
                               onClick={() => setTodayWorkAttendance(studentId, 'ABSENT')}
-                              style={{ border: 0, borderRadius: '10px', padding: '8px 12px', cursor: 'pointer', background: status === 'ABSENT' ? '#fee2e2' : '#f1f5f9', color: status === 'ABSENT' ? '#991b1b' : '#64748b', fontWeight: 800 }}
                             >
+                              <X size={14} strokeWidth={2.5} aria-hidden="true" />
                               Absent
                             </button>
                           </div>
@@ -5561,7 +5620,11 @@ const nextName = trimmedValue
                   Cancel
                 </button>
                 <button type="submit" className="faculty-today-work-save" disabled={isTodayWorkSaving}>
-                  {isTodayWorkSaving ? 'Saving...' : todayWorkMode === 'attendance' ? 'Save Attendance' : 'Save Progress'}
+                  {isTodayWorkSaving
+                    ? 'Saving...'
+                    : todayWorkMode === 'attendance'
+                      ? `Save Attendance (${markedAttendanceCount} / ${studentsFlowVisibleStudents.length} marked)`
+                      : 'Save Progress'}
                 </button>
               </div>
             </form>
