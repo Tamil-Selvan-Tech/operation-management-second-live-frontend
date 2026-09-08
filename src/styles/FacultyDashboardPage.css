@@ -1403,6 +1403,28 @@ body.faculty-notification-menu-open .super-admin-content {
   gap: 8px;
 }
 
+.faculty-today-work-missed-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 1px solid rgba(180, 83, 9, 0.2);
+  border-radius: 8px;
+  color: #b45309;
+  background: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.faculty-today-work-missed-toggle:hover {
+  color: #92400e;
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
 .faculty-today-work-missed-item {
   display: grid;
   grid-template-columns: minmax(110px, 0.7fr) minmax(0, 2fr) auto;
@@ -1427,10 +1449,31 @@ body.faculty-notification-menu-open .super-admin-content {
 }
 
 .faculty-today-work-missed-item em {
+  display: inline-flex;
+  justify-content: center;
+  min-width: 108px;
+  padding: 6px 10px;
+  border-radius: 999px;
   color: #b45309;
+  background: #fef3c7;
   font-style: normal;
   font-weight: 800;
   text-transform: capitalize;
+}
+
+.faculty-today-work-missed-item em.faculty-today-work-status-in-progress {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.faculty-today-work-missed-item em.faculty-today-work-status-completed {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.faculty-today-work-missed-item em.faculty-today-work-status-not-started {
+  color: #64748b;
+  background: #f1f5f9;
 }
 
 .faculty-today-work-submodule-list {

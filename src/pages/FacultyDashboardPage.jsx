@@ -1461,6 +1461,7 @@ export function FacultyDashboardPage() {
   const [todayWorkError, setTodayWorkError] = useState('')
   const [isTodayWorkSaving, setIsTodayWorkSaving] = useState(false)
   const [isTodayWorkConfirmOpen, setIsTodayWorkConfirmOpen] = useState(false)
+  const [isTodayWorkMissedExpanded, setIsTodayWorkMissedExpanded] = useState(true)
   const [pendingTodayWorkSubmission, setPendingTodayWorkSubmission] = useState(null)
   const [courseEditError, setCourseEditError] = useState('')
   const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
@@ -2576,13 +2577,17 @@ export function FacultyDashboardPage() {
           const submoduleId = String(
             submodule?.id || submodule?.submoduleId || `${moduleId}-submodule-${submoduleIndex}`,
           ).trim()
-          const status = persisted[studentId]?.[submoduleId] || ''
+          const status = persisted[studentId]?.[submoduleId]
+            || todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId]
+            || todayWorkForm.submoduleStatusById?.[submoduleId]
+            || ''
           if (!status || status === 'Completed') return []
           return [{
             key: `${studentId}-${moduleId}-${submoduleId}`,
             studentId,
             studentName: String(student?.studentName || student?.name || 'Student').trim(),
             moduleId,
+            submoduleId,
             moduleName: getTodayWorkModuleLabel(module, moduleIndex),
             submoduleName: getCourseSubmoduleName(submodule, submoduleIndex),
             status,
@@ -2590,7 +2595,17 @@ export function FacultyDashboardPage() {
         })
       })
     })
-  }, [currentFacultyIdentity, facultyTodayWorkEntries, selectedStudentsBatch, studentsFlowVisibleStudents, todayWorkCourse?.id, todayWorkCourseModules, todayWorkSelectedStudents])
+  }, [
+    currentFacultyIdentity,
+    facultyTodayWorkEntries,
+    selectedStudentsBatch,
+    studentsFlowVisibleStudents,
+    todayWorkCourse?.id,
+    todayWorkCourseModules,
+    todayWorkForm.submoduleStatusById,
+    todayWorkForm.submoduleStatuses,
+    todayWorkSelectedStudents,
+  ])
 
   const selectTodayWorkMissedItem = (item) => {
     if (!item?.studentId || !item?.moduleId || !item?.submoduleId) return
@@ -5203,21 +5218,38 @@ const nextName = trimmedValue
                       <h4>Pending / Missed Work</h4>
                       <p>These sub-modules were not completed by the student and can be completed separately.</p>
                     </div>
+                    <button
+                      type="button"
+                      className="faculty-today-work-missed-toggle"
+                      aria-label={isTodayWorkMissedExpanded ? 'Collapse pending work' : 'Expand pending work'}
+                      aria-expanded={isTodayWorkMissedExpanded}
+                      onClick={() => setIsTodayWorkMissedExpanded((expanded) => !expanded)}
+                    >
+                      {isTodayWorkMissedExpanded ? <ChevronDown size={20} strokeWidth={2.4} /> : <ChevronRight size={20} strokeWidth={2.4} />}
+                    </button>
                   </div>
-                  <div className="faculty-today-work-missed-list">
-                    {todayWorkMissedItems.map((item) => (
-                      <button
-                        type="button"
-                        key={item.key}
-                        className="faculty-today-work-missed-item"
-                        onClick={() => selectTodayWorkMissedItem(item)}
-                      >
-                        <strong>{item.studentName}</strong>
-                        <span>{item.moduleName} · {item.submoduleName}</span>
-                        <em>{item.status}</em>
-                      </button>
-                    ))}
-                  </div>
+                  {isTodayWorkMissedExpanded ? (
+                    <div className="faculty-today-work-missed-list">
+                      {todayWorkMissedItems.map((item) => (
+                        <button
+                          type="button"
+                          key={item.key}
+                          className="faculty-today-work-missed-item"
+                          onClick={() => selectTodayWorkMissedItem(item)}
+                        >
+                          <strong>{item.studentName}</strong>
+                          <span>{item.moduleName} · {item.submoduleName}</span>
+                          <em className={`faculty-today-work-status faculty-today-work-status-${String(item.status || 'Not Completed')
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, '-')
+                            .replace(/^-|-$/g, '')}`}
+                          >
+                            {item.status || 'Not Completed'}
+                          </em>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
