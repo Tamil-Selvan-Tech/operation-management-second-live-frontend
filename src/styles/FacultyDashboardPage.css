@@ -1536,11 +1536,20 @@ body.faculty-notification-menu-open .super-admin-content {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 78px;
+  gap: 8px;
+  min-width: 94px;
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 0.76rem;
   font-weight: 800;
+}
+
+.faculty-student-attendance-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .faculty-student-attendance-pill--present {
@@ -1556,6 +1565,30 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-student-attendance-pill--unmarked {
   color: #64748b;
   background: #f1f5f9;
+}
+
+.faculty-students-table-shell th:nth-child(5),
+.faculty-students-table-shell td:nth-child(5) {
+  text-align: center;
+}
+
+.faculty-batch-attendance-count {
+  display: inline-flex;
+  min-width: 34px;
+  justify-content: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-weight: 800;
+}
+
+.faculty-batch-attendance-count--present {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.faculty-batch-attendance-count--absent {
+  color: #991b1b;
+  background: #fee2e2;
 }
 
 .faculty-today-work-empty {

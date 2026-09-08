@@ -405,7 +405,13 @@ function extractStudentAttendanceStatuses(payload = {}) {
 
 function normalizeSubmoduleProgressStatus(value = '') {
   const status = String(value || '').trim().toLowerCase()
-  return status === 'completed' ? 'Completed' : status === 'in progress' || status === 'in-progress' ? 'In Progress' : ''
+  return status === 'completed'
+    ? 'Completed'
+    : status === 'not completed' || status === 'not-completed'
+      ? 'Not Completed'
+      : status === 'in progress' || status === 'in-progress'
+        ? 'In Progress'
+        : ''
 }
 
 function getWorkEntrySubmoduleStatus(entry = {}, submoduleId = '', studentId = '') {
@@ -422,7 +428,8 @@ function getWorkEntrySubmoduleStatus(entry = {}, submoduleId = '', studentId = '
     const rowStudentId = normalizeWorkStudentId(row?.studentId || row?.student || '')
     return rowSubmoduleId === normalizedSubmoduleId && (!normalizedStudentId || !rowStudentId || rowStudentId === normalizedStudentId)
   })
-  const progressStatus = normalizeSubmoduleProgressStatus(progressMatch?.status || progressMatch?.submoduleStatus || progressMatch?.progressStatus)
+  const progressStatus = normalizeSubmoduleProgressStatus(progressMatch?.completionStatus)
+    || normalizeSubmoduleProgressStatus(progressMatch?.status || progressMatch?.submoduleStatus || progressMatch?.progressStatus)
   if (progressStatus) return progressStatus
 
   const configuredStatuses = entry?.submoduleStatuses
@@ -2219,7 +2226,7 @@ export function FacultyDashboardPage() {
   }, [selectedStudentsBatchId, selectedStudentsCourseBatches])
 
   useEffect(() => {
-    if (!selectedStudentsBatch || !currentFacultyIdentity.facultyId) {
+    if (!selectedStudentsCourse || !currentFacultyIdentity.facultyId) {
       setStudentAttendanceStatuses({})
       return undefined
     }
@@ -2243,7 +2250,7 @@ export function FacultyDashboardPage() {
     return () => {
       active = false
     }
-  }, [currentFacultyIdentity.facultyId, selectedStudentsBatch, selectedStudentsCourse?.courseId, selectedStudentsCourse?.id])
+  }, [currentFacultyIdentity.facultyId, selectedStudentsBatch, selectedStudentsCourse, selectedStudentsCourse?.courseId, selectedStudentsCourse?.id])
 
   const selectedBatchStudents = useMemo(() => {
     if (!selectedStudentsBatch) return []
@@ -4167,6 +4174,7 @@ const nextName = trimmedValue
                       <thead>
                         <tr>
                           <th style={{ width: '60px' }}>S.No</th>
+                          <th>Batch Name</th>
                           <th>Course Name</th>
                           <th>Timings</th>
                           <th>Total Students</th>
@@ -4178,6 +4186,7 @@ const nextName = trimmedValue
                           paginatedFacultyBatchRows.map((batch, index) => (
                             <tr key={batch.id || batch.code || `${batch.course}-${index}`}>
                               <td>{(safeBatchPage - 1) * batchesPerPage + index + 1}</td>
+                              <td><strong className="text-slate-800">{batch.batchName || batch.code || '-'}</strong></td>
                               <td><strong className="text-slate-800">{batch.course}</strong></td>
                               <td>{batch.timing}</td>
                               <td>{batch.students} students</td>
@@ -4190,7 +4199,7 @@ const nextName = trimmedValue
                           ))
                         ) : (
                           <tr>
-                            <td colSpan={5}>
+                            <td colSpan={6}>
                               <div className="faculty-my-batches-empty" style={{ padding: '20px 0' }}>
                                 <strong>No batches mapped yet</strong>
                                 <p>When the branch assigns students to your faculty, the matching batches will appear here automatically.</p>
@@ -4318,6 +4327,8 @@ const nextName = trimmedValue
                                 <th style={{ width: '72px' }}>S.No</th>
                                 <th>Batch Name</th>
                                 <th>Students</th>
+                                <th>Present</th>
+                                <th>Absent</th>
                                 {/* <th>Module Percentage</th> */}
                                 <th>Actions</th>
                               </tr>
@@ -4325,6 +4336,18 @@ const nextName = trimmedValue
                             <tbody>
                               {selectedStudentsCourseBatches.map((batch, index) => {
                                 // const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
+                                const batchStudents = getFacultyBatchProgressStudents(
+                                  batch,
+                                  selectedStudentsCourse,
+                                  facultyScopedStudents,
+                                  facultyBackfillRecords,
+                                )
+                                const batchAttendanceCounts = batchStudents.reduce((counts, student) => {
+                                  const status = studentAttendanceStatuses[normalizeWorkStudentId(student?.id || student?.studentId)]
+                                  if (status === 'PRESENT') counts.present += 1
+                                  if (status === 'ABSENT') counts.absent += 1
+                                  return counts
+                                }, { present: 0, absent: 0 })
 
                                 return (
                                 <tr
@@ -4344,6 +4367,8 @@ const nextName = trimmedValue
                                   <td>{index + 1}</td>
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
                                   <td>{batch.students}</td>
+                                  <td><span className="faculty-batch-attendance-count faculty-batch-attendance-count--present">{batchAttendanceCounts.present}</span></td>
+                                  <td><span className="faculty-batch-attendance-count faculty-batch-attendance-count--absent">{batchAttendanceCounts.absent}</span></td>
                                   {/*
                                   <td>
                                     <div className="faculty-batch-progress-cell">
@@ -4487,10 +4512,14 @@ const nextName = trimmedValue
                                     <td>
                                       {studentAttendanceStatuses[studentKey] ? (
                                         <span className={`faculty-student-attendance-pill faculty-student-attendance-pill--${studentAttendanceStatuses[studentKey].toLowerCase()}`}>
+                                          <span className="faculty-student-attendance-dot" aria-hidden="true" />
                                           {studentAttendanceStatuses[studentKey] === 'PRESENT' ? 'Present' : 'Absent'}
                                         </span>
                                       ) : (
-                                        <span className="faculty-student-attendance-pill faculty-student-attendance-pill--unmarked">Unmarked</span>
+                                        <span className="faculty-student-attendance-pill faculty-student-attendance-pill--unmarked">
+                                          <span className="faculty-student-attendance-dot" aria-hidden="true" />
+                                          Unmarked
+                                        </span>
                                       )}
                                     </td>
                                     <td>
