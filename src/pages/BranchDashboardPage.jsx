@@ -438,10 +438,13 @@ function createInitialStudentForm(branchId) {
 }
 
 function buildStudentFormFromRecord(student = {}) {
+  const storedStudentId = String(student.studentId || '').trim()
+  const studentIdSuffixMatch = storedStudentId.match(/(\d+)$/)
+
   return {
-    studentId: student.studentId || '',
-    studentIdSuffix: String(student.studentId || '').replace(/^STU-/i, ''),
-    originalStudentId: String(student.studentId || '').trim(),
+    studentId: storedStudentId,
+    studentIdSuffix: studentIdSuffixMatch?.[1] || storedStudentId.replace(/^STU-/i, ''),
+    originalStudentId: storedStudentId,
     recordId: String(student.id || student._id || student.recordId || '').trim(),
     studentName: student.studentName || '',
     emailAddress: student.emailAddress || '',
@@ -3153,7 +3156,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const branchNotificationsRequestRef = useRef(null)
   const branchNotificationsRefreshTimerRef = useRef(null)
 
-  const loadBranchCourses = useCallback(async (fallbackCourses = null) => {
+  const loadBranchCourses = useCallback(async (fallbackCourses = null, branchScopeId = '') => {
     const result = await listBranchCourses({
       page: 1,
       limit: 100,
@@ -3161,7 +3164,9 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       sortOrder: 'desc',
     })
 
-    const activeBranchId = branchProfile?.id || branchProfile?.branchId || ''
+    const activeBranchId = String(
+      branchScopeId || branchData?.id || branchData?.branchId || '',
+    ).trim()
     const nextCourses = mergeBranchCoursesWithSnapshot(Array.isArray(result?.data) ? result.data : [], activeBranchId)
     saveBranchCourseSnapshot(nextCourses)
     const sourceCourses = Array.isArray(fallbackCourses) ? fallbackCourses : null
@@ -3197,10 +3202,13 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
       })
     })
     return result
-  }, [branchProfile?.branchId, branchProfile?.id])
+  }, [branchData?.branchId, branchData?.id])
 
   const loadBranchBatches = useCallback(async (branchScopeId = '') => {
     const scopeId = String(branchScopeId || branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '').trim()
+    if (scopeId) {
+      setImpersonateBranchId(scopeId)
+    }
     const result = await listBranchBatches({
       page: 1,
       limit: 100,
@@ -3387,6 +3395,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     let isMounted = true
 
     if (embeddedMode && branchData) {
+      // Set the impersonation context before any embedded branch request starts.
+      const embeddedBranchId = branchData.id || branchData.branchId || null
+      setImpersonateBranchId(embeddedBranchId)
       setBranchProfile(branchData)
       Promise.allSettled([loadBranchCourses(), loadFacultyList()]).then(([coursesResult]) => {
         if (!isMounted) return
@@ -5468,7 +5479,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         : [normalizedCourse, ...branchCourseCards]
 
       setBranchCourseCards(nextCards)
-      await loadBranchCourses(nextCards)
       setBranchCoursePage(1)
       setCourseSaveSuccess({
         title: editingTargetId ? 'Course updated' : 'Course created',
@@ -7398,7 +7408,9 @@ useEffect(() => {
     if (Object.keys(studentFormValidationErrors).length > 0) return
 
     const originalStudentId = String(studentForm.originalStudentId || studentForm.studentId || '').trim()
-    const resolvedStudentId = buildStudentIdFromSuffix(studentForm.studentIdSuffix)
+    const resolvedStudentId = studentFormMode === 'edit'
+      ? originalStudentId
+      : buildStudentIdFromSuffix(studentForm.studentIdSuffix)
     const selectedCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null
     const selectedBatch = selectedStudentBatchOption
     const resolvedCourseAmount = String(selectedCourse?.amount || studentForm.courseAmount || '').trim()
@@ -13134,7 +13146,7 @@ else {
                 handleStudentIdSuffixChange(e.target.value)
               }
               onBlur={handleStudentIdSuffixBlur}
-              disabled={studentFormMode === 'view'}
+              disabled={studentFormMode !== 'add'}
             />
           </div>
         </Field>

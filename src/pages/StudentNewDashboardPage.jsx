@@ -19,7 +19,7 @@ import {
   loadBranchStudents,
   refreshBranchStudents,
 } from '../lib/branchStudentStore'
-import { getCurrentStudentProfile } from '../services/studentService'
+import { getCurrentBranchStudentCalendar, getCurrentStudentProfile } from '../services/studentService'
 import { listBranchCourses } from '../services/branchCourseService'
 import { mergeBranchCoursesWithSnapshot } from '../lib/branchCourseSnapshot'
 import { loadCourseRecords } from '../data/courseRecords'
@@ -172,12 +172,29 @@ export function StudentNewDashboardPage() {
      }
    }
 
+   const attachCalendarData = async (studentRecord) => {
+     if (!studentRecord) return studentRecord
+
+     try {
+       const calendar = await getCurrentBranchStudentCalendar()
+       return {
+         ...studentRecord,
+         courseEndDate: calendar?.endDate || studentRecord.courseEndDate || '',
+         totalWorkingDays: calendar?.totalWorkingDays || studentRecord.totalWorkingDays || '',
+         calendarEvents: Array.isArray(calendar?.events) ? calendar.events : [],
+       }
+     } catch {
+       return studentRecord
+     }
+   }
+
    const loadStudent = async () => {
      if (!session) {
        try {
          const currentProfile = await getCurrentStudentProfile()
          const hydratedProfile = await attachCourseMasterData(currentProfile)
-         if (isMounted) setStudent(hydratedProfile)
+         const calendarProfile = await attachCalendarData(hydratedProfile)
+         if (isMounted) setStudent(calendarProfile)
        } catch (error) {
          if (isMounted) setLoadError(error?.message || 'Student session not found. Please sign in again.')
        } finally {
@@ -193,8 +210,9 @@ export function StudentNewDashboardPage() {
        const records = await refreshBranchStudents(scope)
        const latestStudent = records.find((record) => matchesStudentSession(record, session))
        const hydratedStudent = await attachCourseMasterData(latestStudent || localStudent)
+       const calendarStudent = await attachCalendarData(hydratedStudent)
        if (isMounted) {
-         setStudent(hydratedStudent || null)
+         setStudent(calendarStudent || null)
          if (!latestStudent && !localStudent) setLoadError('Your student record could not be found.')
        }
       } catch (error) {

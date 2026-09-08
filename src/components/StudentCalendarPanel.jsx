@@ -9,6 +9,7 @@ function getStatusTone(status) {
   const normalized = String(status || '').trim().toLowerCase()
   if (normalized === 'course day') return 'tone-course-day'
   if (normalized === 'holiday' || normalized === 'government holiday') return 'tone-holiday'
+  if (normalized === 'leave') return 'tone-holiday'
   if (normalized === 'present') return 'tone-present'
   if (normalized === 'absent') return 'tone-absent'
   return 'tone-no-class'
