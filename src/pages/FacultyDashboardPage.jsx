@@ -425,27 +425,12 @@ function normalizeSubmoduleProgressStatus(value = '') {
 function getWorkEntrySubmoduleStatus(entry = {}, submoduleId = '', studentId = '') {
   const normalizedSubmoduleId = normalizeWorkStudentId(submoduleId)
   const normalizedStudentId = normalizeWorkStudentId(studentId)
-  const progressRows = [
-    ...(Array.isArray(entry?.submoduleProgress) ? entry.submoduleProgress : []),
-    ...(Array.isArray(entry?.progressByStudent) ? entry.progressByStudent : []),
-    ...(Array.isArray(entry?.studentProgress) ? entry.studentProgress : []),
-  ]
-
-  const progressMatch = progressRows.find((row) => {
-    const rowSubmoduleId = normalizeWorkStudentId(row?.submoduleId || row?.id)
-    const rowStudentId = normalizeWorkStudentId(row?.studentId || row?.student || '')
-    return rowSubmoduleId === normalizedSubmoduleId && (!normalizedStudentId || !rowStudentId || rowStudentId === normalizedStudentId)
-  })
-  const progressStatus = normalizeSubmoduleProgressStatus(progressMatch?.completionStatus)
-    || normalizeSubmoduleProgressStatus(progressMatch?.status || progressMatch?.submoduleStatus || progressMatch?.progressStatus)
-  if (progressStatus) return progressStatus
-
   const configuredStatuses = entry?.submoduleStatuses
   if (configuredStatuses && typeof configuredStatuses === 'object') {
     const studentStatuses = configuredStatuses[studentId] || configuredStatuses[normalizedStudentId]
     const hasStudentStatusMap = Object.values(configuredStatuses).some((value) => value && typeof value === 'object')
-    // When statuses are student-specific, a student missing from the map was not
-    // part of that work submission and must not inherit another student's status.
+    // A student-specific record is authoritative. Do not inherit progress from
+    // another student's row or from the shared submodule status.
     if (hasStudentStatusMap && normalizedStudentId && (!studentStatuses || typeof studentStatuses !== 'object')) return ''
 
     const configuredStatus = typeof studentStatuses === 'object'
@@ -455,6 +440,25 @@ function getWorkEntrySubmoduleStatus(entry = {}, submoduleId = '', studentId = '
     if (hasStudentStatusMap && normalizedStudentId) return normalizedStatus
     if (normalizedStatus) return normalizedStatus
   }
+
+  const progressRows = [
+    ...(Array.isArray(entry?.submoduleProgress) ? entry.submoduleProgress : []),
+    ...(Array.isArray(entry?.progressByStudent) ? entry.progressByStudent : []),
+    ...(Array.isArray(entry?.studentProgress) ? entry.studentProgress : []),
+  ]
+
+  const progressMatch = progressRows.find((row) => {
+    const rowSubmoduleId = normalizeWorkStudentId(row?.submoduleId || row?.id)
+    const rowStudentId = normalizeWorkStudentId(row?.studentId || row?.student || '')
+    // Never apply a progress row without a student id to a specific student.
+    // Completion must be tracked by the exact student + submodule pair.
+    return rowSubmoduleId === normalizedSubmoduleId
+      && (!normalizedStudentId ? true : rowStudentId === normalizedStudentId)
+  })
+  const progressStatus = normalizeSubmoduleProgressStatus(progressMatch?.completionStatus)
+    || normalizeSubmoduleProgressStatus(progressMatch?.status || progressMatch?.submoduleStatus || progressMatch?.progressStatus)
+  if (progressStatus) return progressStatus
+  if (normalizedStudentId && progressRows.length) return ''
 
   const submodule = (Array.isArray(entry?.submodules) ? entry.submodules : []).find((item) =>
     normalizeWorkStudentId(item?.id || item?.submoduleId) === normalizedSubmoduleId,
@@ -2823,11 +2827,21 @@ export function FacultyDashboardPage() {
     setTodayWorkForm((current) => {
       const currentIds = Array.isArray(current.selectedStudentIds) ? current.selectedStudentIds : []
       const hasStudent = currentIds.includes(normalizedStudentId)
+      const isFirstSelectedStudent = !hasStudent && currentIds.length === 0
+      const nextSubmoduleIds = isFirstSelectedStudent
+        ? (current.submoduleIds || []).filter((submoduleId) => {
+            const status = normalizeSubmoduleProgressStatus(
+              current.submoduleStatuses?.[normalizedStudentId]?.[submoduleId],
+            )
+            return status === 'Completed' || status === 'In Progress'
+          })
+        : current.submoduleIds
       return {
         ...current,
         selectedStudentIds: hasStudent
           ? currentIds.filter((id) => id !== normalizedStudentId)
           : [...currentIds, normalizedStudentId],
+        submoduleIds: nextSubmoduleIds,
       }
     })
   }
@@ -5195,11 +5209,15 @@ const nextName = trimmedValue
                           <div
                             key={submoduleId || subIndex}
                             className={`faculty-today-work-submodule-item${checked ? ' is-selected' : ''}`.trim()}
+                            onClick={() => {
+                              if (!submoduleLocked) toggleTodayWorkSubmodule(submoduleId)
+                            }}
                           >
                             <input
                               type="checkbox"
                               checked={checked}
                               disabled={submoduleLocked}
+                              onClick={(event) => event.stopPropagation()}
                               onChange={() => toggleTodayWorkSubmodule(submoduleId)}
                             />
                             <span className="faculty-today-work-submodule-check" aria-hidden="true">
