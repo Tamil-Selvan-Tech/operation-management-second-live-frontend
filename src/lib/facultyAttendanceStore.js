@@ -233,7 +233,7 @@ export function parseBatchStartTime(batchTiming = '') {
   const normalized = String(batchTiming || '').trim()
   if (!normalized) return null
 
-  const [startSegment] = normalized.split('-').map((part) => String(part || '').trim())
+  const [startSegment] = normalized.split(/\s*(?:-|to)\s*/i).map((part) => String(part || '').trim())
   return parseTimeSegment(startSegment)
 }
 
@@ -245,7 +245,7 @@ export function parseBatchEndTime(batchTiming = '') {
   const normalized = String(batchTiming || '').trim()
   if (!normalized) return null
 
-  const [, endSegment] = normalized.split('-').map((part) => String(part || '').trim())
+  const [, endSegment] = normalized.split(/\s*(?:-|to)\s*/i).map((part) => String(part || '').trim())
   return parseTimeSegment(endSegment)
 }
 

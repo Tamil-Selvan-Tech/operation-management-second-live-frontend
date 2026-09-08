@@ -1441,6 +1441,17 @@ body.faculty-notification-menu-open .super-admin-content {
   accent-color: #059669;
 }
 
+.faculty-today-work-attendance-window-note {
+  margin: 5px 0 0;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.faculty-today-work-attendance-window-note.is-locked {
+  color: #b45309;
+  font-weight: 700;
+}
+
 .faculty-today-work-submodule-list,
 .faculty-today-work-student-list {
   display: grid;
@@ -1657,6 +1668,12 @@ body.faculty-notification-menu-open .super-admin-content {
   border-color: #94a3b8;
   color: #334155;
   background: #f8fafc;
+}
+
+.faculty-today-work-attendance-button:disabled,
+.faculty-today-work-attendance-mark-all:has(input:disabled) {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 .faculty-today-work-submodule-item input,

@@ -2922,6 +2922,14 @@ export function FacultyDashboardPage() {
     const normalizedStudentId = String(studentId || '').trim()
     if (!normalizedStudentId) return
 
+    const attendanceWindow = resolveBatchAttendanceWindow(
+      String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+    )
+    if (!attendanceWindow.isEditable) {
+      setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
+      return
+    }
+
     setTodayWorkForm((current) => ({
       ...current,
       selectedStudentIds: current.selectedStudentIds.includes(normalizedStudentId)
@@ -2935,6 +2943,11 @@ export function FacultyDashboardPage() {
   }
 
   const markAllTodayWorkStudentsPresent = () => {
+    const attendanceWindow = resolveBatchAttendanceWindow(
+      String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+    )
+    if (!attendanceWindow.isEditable) return
+
     const selectedStudents = studentsFlowVisibleStudents
     const attendanceByStudent = {}
     const selectedStudentIds = []
@@ -2955,6 +2968,11 @@ export function FacultyDashboardPage() {
   }
 
   const toggleMarkAllTodayWorkStudents = () => {
+    const attendanceWindow = resolveBatchAttendanceWindow(
+      String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+    )
+    if (!attendanceWindow.isEditable) return
+
     const allPresent = studentsFlowVisibleStudents.length > 0 && studentsFlowVisibleStudents.every((student) => (
       todayWorkForm.attendanceByStudent?.[getTodayWorkStudentId(student)] === 'PRESENT'
     ))
@@ -2975,6 +2993,14 @@ export function FacultyDashboardPage() {
   }
 
   const performAttendanceOnlySave = async () => {
+    const attendanceWindow = resolveBatchAttendanceWindow(
+      String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+    )
+    if (!attendanceWindow.isEditable) {
+      setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
+      return
+    }
+
     const selectedStudents = todayWorkForm.applyToAllStudents
       ? studentsFlowVisibleStudents
       : todayWorkSelectedStudents
@@ -4137,6 +4163,10 @@ const nextName = trimmedValue
   )
 
   const normalizedAttendanceSearch = todayWorkAttendanceSearch.trim().toLowerCase()
+  const todayWorkAttendanceWindow = resolveBatchAttendanceWindow(
+    String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+  )
+  const attendanceWindowLocked = todayWorkMode === 'attendance' && !todayWorkAttendanceWindow.isEditable
   const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
     if (!normalizedAttendanceSearch) return true
     return [student?.studentName, student?.studentId, student?.emailAddress]
@@ -5536,7 +5566,11 @@ const nextName = trimmedValue
                 <div className="faculty-today-work-panel-heading">
                   <div>
                     <h4>{todayWorkMode === 'attendance' ? 'Student Attendance' : 'Select Students'}</h4>
-                    {todayWorkMode === 'attendance' ? null : (
+                    {todayWorkMode === 'attendance' ? (
+                      <p className={attendanceWindowLocked ? 'faculty-today-work-attendance-window-note is-locked' : 'faculty-today-work-attendance-window-note'}>
+                        {todayWorkAttendanceWindow.reason || 'Attendance timing is not configured for this batch.'}
+                      </p>
+                    ) : (
                       <p>Choose students whose submodule progress should be updated.</p>
                     )}
                   </div>
@@ -5549,7 +5583,7 @@ const nextName = trimmedValue
                         type="checkbox"
                         checked={allTodayWorkStudentsPresent}
                         onChange={toggleMarkAllTodayWorkStudents}
-                        disabled={!studentsFlowVisibleStudents.length}
+                        disabled={!studentsFlowVisibleStudents.length || attendanceWindowLocked}
                       />
                       <span>Mark All Present</span>
                     </label>
@@ -5589,6 +5623,7 @@ const nextName = trimmedValue
                               type="button"
                               className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--present${status === 'PRESENT' ? ' is-active' : ''}`}
                               onClick={() => setTodayWorkAttendance(studentId, 'PRESENT')}
+                              disabled={attendanceWindowLocked}
                             >
                               <Check size={14} strokeWidth={2.5} aria-hidden="true" />
                               Present
@@ -5597,6 +5632,7 @@ const nextName = trimmedValue
                               type="button"
                               className={`faculty-today-work-attendance-button faculty-today-work-attendance-button--absent${status === 'ABSENT' ? ' is-active' : ''}`}
                               onClick={() => setTodayWorkAttendance(studentId, 'ABSENT')}
+                              disabled={attendanceWindowLocked}
                             >
                               <X size={14} strokeWidth={2.5} aria-hidden="true" />
                               Absent
@@ -5619,7 +5655,7 @@ const nextName = trimmedValue
                 <button type="button" className="faculty-today-work-cancel" onClick={closeTodayWorkModal}>
                   Cancel
                 </button>
-                <button type="submit" className="faculty-today-work-save" disabled={isTodayWorkSaving}>
+                <button type="submit" className="faculty-today-work-save" disabled={isTodayWorkSaving || attendanceWindowLocked}>
                   {isTodayWorkSaving
                     ? 'Saving...'
                     : todayWorkMode === 'attendance'
