@@ -31,6 +31,7 @@ import {
   X,
 } from 'lucide-react'
 import {
+  FACULTY_ATTENDANCE_SYNC_EVENT,
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
   getAttendanceDateKey,
   loadFacultyBatchAttendanceState,
@@ -3062,6 +3063,9 @@ export function FacultyDashboardPage() {
         ...extractStudentAttendanceStatuses(response),
         ...Object.fromEntries(students.map((student) => [normalizeWorkStudentId(student.studentId), student.status])),
       }))
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent(FACULTY_ATTENDANCE_SYNC_EVENT))
+      }
       if (attendanceSavedPendingItems.length) {
         setAttendanceSavedPrompt({
           studentNames: Array.from(new Set(attendanceSavedPendingItems.map((item) => item.studentName))),

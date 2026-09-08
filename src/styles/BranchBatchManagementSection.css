@@ -695,8 +695,8 @@
 }
 
 .batch-detail-modal {
-  width: min(760px, calc(100vw - 32px));
-  padding: 18px 22px 22px;
+  width: min(980px, calc(100vw - 32px));
+  padding: 24px 30px 30px;
   border-radius: 22px;
   background: linear-gradient(180deg, #ffffff 0%, #fbfffd 100%);
 }
@@ -730,8 +730,9 @@
 }
 
 .batch-students-modal-list > .batch-detail-students-list {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 4px;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 8px;
 }
 
 .batch-students-modal-list.has-single-student {
@@ -750,8 +751,10 @@
 }
 
 .batch-students-modal-list .batch-detail-student-row {
-  grid-template-columns: 24px minmax(0, 1fr) minmax(112px, 0.7fr);
-  gap: 7px;
+  grid-template-columns: 34px minmax(260px, 1fr) 100px minmax(220px, 0.7fr);
+  gap: 14px;
+  min-height: 76px;
+  padding: 14px 16px;
   overflow: hidden;
 }
 
@@ -1772,11 +1775,11 @@
 
 .batch-detail-student-row {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) minmax(150px, 0.7fr);
+  grid-template-columns: 34px minmax(260px, 1fr) 100px minmax(220px, 0.7fr);
   align-items: center;
-  gap: 9px;
+  gap: 14px;
   min-width: 0;
-  padding: 9px 10px;
+  padding: 14px 16px;
   border: 1px solid #e6eef9;
   border-radius: 12px;
   background: #fbfdff;
@@ -1793,6 +1796,33 @@
   color: #94a3b8;
   font-size: 0.72rem;
   font-weight: 900;
+}
+
+.batch-detail-student-attendance {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 78px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.batch-detail-student-attendance.present {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.batch-detail-student-attendance.absent {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.batch-detail-student-attendance.unmarked {
+  color: #64748b;
+  background: #f1f5f9;
 }
 
 .batch-detail-student-avatar {
@@ -1842,7 +1872,7 @@
 
 .batch-detail-student-copy span {
   color: #64748b;
-  font-size: 0.78rem;
+  font-size: 0.84rem;
   font-weight: 700;
 }
 
@@ -1858,18 +1888,18 @@
   justify-content: space-between;
   gap: 8px;
   color: #64748b;
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   font-weight: 800;
 }
 
 .batch-detail-student-progress-label strong {
   color: #2563eb;
-  font-size: 0.76rem;
+  font-size: 0.84rem;
   font-weight: 900;
 }
 
 .batch-detail-student-progress-track {
-  height: 6px;
+  height: 8px;
   overflow: hidden;
   border-radius: 999px;
   background: #dbeafe;
@@ -2028,8 +2058,13 @@
     grid-template-columns: 24px minmax(0, 1fr);
   }
 
+  .batch-students-modal-list .batch-detail-student-attendance,
   .batch-students-modal-list .batch-detail-student-progress {
     grid-column: 2;
+  }
+
+  .batch-students-modal-list .batch-detail-student-progress {
+    grid-row: auto;
   }
 
   .batch-detail-hero {

@@ -20,7 +20,9 @@ import {
   loadBranchBatchGroups,
   saveBranchBatchGroups,
 } from '../lib/branchBatchStore'
+import { FACULTY_ATTENDANCE_SYNC_EVENT, getAttendanceDateKey } from '../lib/facultyAttendanceStore'
 import { getMatchingStudents } from '../lib/facultyFlow'
+import { getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
 import '../styles/BranchBatchManagementSection.css'
 
 function normalizeText(value = '') {
@@ -35,6 +37,28 @@ function normalizeStatus(value = '') {
     return lower.charAt(0).toUpperCase() + lower.slice(1)
   }
   return text
+}
+
+function extractAttendanceStatuses(payload = {}) {
+  const source = payload?.data ?? payload
+  const rows = [
+    ...(Array.isArray(source) ? source : []),
+    ...(Array.isArray(source?.students) ? source.students : []),
+    ...(Array.isArray(source?.attendance) ? source.attendance : []),
+    ...(Array.isArray(source?.attendanceRecords) ? source.attendanceRecords : []),
+  ]
+  const statuses = {}
+
+  rows.forEach((row) => {
+    const studentId = normalizeMatchKey(
+      row?.studentId || row?.studentCode || row?.id || row?.student?.studentId || row?.student?.studentCode || row?.student?.id,
+    )
+    const rawStatus = String(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status || '').trim().toUpperCase()
+    if (!studentId || !['PRESENT', 'ABSENT'].includes(rawStatus)) return
+    statuses[studentId] = rawStatus
+  })
+
+  return statuses
 }
 
 function normalizeId(value = '') {
@@ -687,6 +711,7 @@ export function BranchBatchManagementSection({
     rows: [],
   })
   const [detailGroup, setDetailGroup] = useState(null)
+  const [detailAttendanceStatuses, setDetailAttendanceStatuses] = useState({})
   const [editingGroup, setEditingGroup] = useState(null)
   const [deleteGroupTarget, setDeleteGroupTarget] = useState(null)
   const [draft, setDraft] = useState(() => createInitialDraft(1, 1))
@@ -1059,14 +1084,45 @@ export function BranchBatchManagementSection({
 
   const closeDetailModal = useCallback(() => {
     setDetailGroup(null)
+    setDetailAttendanceStatuses({})
+  }, [])
+
+  const loadDetailAttendance = useCallback(async (group) => {
+    const detailBatch = getPrimaryBatchForGroup(group)
+    try {
+      const overview = await getCurrentFacultyAttendanceOverview({
+        date: getAttendanceDateKey(),
+        facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
+        courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
+        batchId: String(detailBatch?.batchId || detailBatch?.id || '').trim(),
+      })
+      setDetailAttendanceStatuses(extractAttendanceStatuses(overview))
+    } catch {
+      setDetailAttendanceStatuses({})
+    }
   }, [])
 
   const toggleGroupStudents = useCallback(
     (group) => {
       setDetailGroup(group)
+      setDetailAttendanceStatuses({})
+      void loadDetailAttendance(group)
     },
-    [],
+    [loadDetailAttendance],
   )
+
+  useEffect(() => {
+    if (!detailGroup || typeof window === 'undefined') return undefined
+    const refreshAttendance = () => {
+      void loadDetailAttendance(detailGroup)
+    }
+    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, refreshAttendance)
+    window.addEventListener('storage', refreshAttendance)
+    return () => {
+      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, refreshAttendance)
+      window.removeEventListener('storage', refreshAttendance)
+    }
+  }, [detailGroup, loadDetailAttendance])
 
   const renderActionMenu = () => {
     if (!actionMenuOpenId || !actionMenuPosition || typeof document === 'undefined') return null
@@ -1942,13 +1998,19 @@ export function BranchBatchManagementSection({
             </strong>
             {detailStudents.length ? (
               <div className="batch-detail-students-list">
-                {detailStudents.map((student, index) => (
-                  <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${detailBatchKey}-${index}`}>
+                {detailStudents.map((student, index) => {
+                  const attendanceKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || '')
+                  const attendanceStatus = detailAttendanceStatuses[attendanceKey] || 'UNMARKED'
+                  return (
+                    <div className="batch-detail-student-row" key={getStudentIdentityKey(student) || `${detailBatchKey}-${index}`}>
                     <span className="batch-detail-student-number">{String(index + 1).padStart(2, '0')}</span>
                     <div className="batch-detail-student-copy">
                       <span>{student?.studentId || student?.id || 'Student ID unavailable'}</span>
                       <strong>{student?.studentName || student?.name || 'Unnamed student'}</strong>
                     </div>
+                    <span className={`batch-detail-student-attendance ${attendanceStatus.toLowerCase()}`}>
+                      {attendanceStatus === 'PRESENT' ? 'Present' : attendanceStatus === 'ABSENT' ? 'Absent' : 'Unmarked'}
+                    </span>
                     <div className="batch-detail-student-progress">
                       <div className="batch-detail-student-progress-label">
                         <span>Course Progress</span>
@@ -1958,8 +2020,9 @@ export function BranchBatchManagementSection({
                         <span style={{ width: `${Math.min(Math.max(Number(student?.courseProgress ?? student?.progress ?? 0) || 0, 0), 100)}%` }} />
                       </div>
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <div className="batch-detail-students-empty">No students assigned to this batch yet.</div>
