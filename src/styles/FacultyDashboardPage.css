@@ -1476,6 +1476,36 @@ body.faculty-notification-menu-open .super-admin-content {
   background: #f1f5f9;
 }
 
+.faculty-today-work-attendance-prompt-icon {
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.faculty-today-work-attendance-prompt-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 0.88rem;
+  text-align: left;
+}
+
+.faculty-today-work-attendance-prompt-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  width: 100%;
+}
+
+.faculty-today-work-attendance-complete-button {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #bbf7d0;
+}
+
 .faculty-today-work-submodule-list {
   padding-left: 2px;
 }
@@ -1689,14 +1719,31 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .faculty-student-progress-table th:nth-child(5),
 .faculty-student-progress-table td:nth-child(5) {
+  width: 130px;
+  min-width: 130px;
+  box-sizing: border-box;
   text-align: left;
-  padding-left: 8px;
-  padding-right: 44px;
+  padding-left: 0;
+  padding-right: 18px;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 .faculty-student-progress-table th:nth-child(6),
 .faculty-student-progress-table td:nth-child(6) {
-  padding-left: 44px;
+  padding-left: 28px;
+}
+
+.faculty-student-progress-table .faculty-student-attendance-pill {
+  display: inline;
+  min-width: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.faculty-student-progress-table .faculty-student-attendance-dot {
+  display: none;
 }
 
 .faculty-batch-attendance-count {

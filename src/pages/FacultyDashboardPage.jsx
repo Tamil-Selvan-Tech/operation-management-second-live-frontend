@@ -1463,6 +1463,7 @@ export function FacultyDashboardPage() {
   const [isTodayWorkConfirmOpen, setIsTodayWorkConfirmOpen] = useState(false)
   const [isTodayWorkMissedExpanded, setIsTodayWorkMissedExpanded] = useState(true)
   const [pendingTodayWorkSubmission, setPendingTodayWorkSubmission] = useState(null)
+  const [attendanceSavedPrompt, setAttendanceSavedPrompt] = useState(null)
   const [courseEditError, setCourseEditError] = useState('')
   const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
   const [isCourseEditSaving, setIsCourseEditSaving] = useState(false)
@@ -2726,6 +2727,7 @@ export function FacultyDashboardPage() {
     })
     setTodayWorkError('')
     setIsTodayWorkModalOpen(true)
+    setAttendanceSavedPrompt(null)
   }
 
   const closeTodayWorkModal = () => {
@@ -2734,6 +2736,7 @@ export function FacultyDashboardPage() {
     setIsTodayWorkSaving(false)
     setIsTodayWorkConfirmOpen(false)
     setPendingTodayWorkSubmission(null)
+    setAttendanceSavedPrompt(null)
   }
 
   const openStudentViewDrawer = (student) => {
@@ -2949,6 +2952,19 @@ export function FacultyDashboardPage() {
       return
     }
 
+    const presentStudentIds = new Set(
+      students
+        .filter((student) => (
+          student.status === 'PRESENT'
+          && getStudentAttendanceStatus(
+            studentAttendanceStatuses,
+            selectedStudents.find((item) => getTodayWorkStudentId(item) === student.studentId),
+          ) === 'ABSENT'
+        ))
+        .map((student) => student.studentId),
+    )
+    const attendanceSavedPendingItems = todayWorkMissedItems.filter((item) => presentStudentIds.has(item.studentId))
+
     setIsTodayWorkSaving(true)
     setTodayWorkError('')
     try {
@@ -2978,6 +2994,13 @@ export function FacultyDashboardPage() {
         ...extractStudentAttendanceStatuses(response),
         ...Object.fromEntries(students.map((student) => [normalizeWorkStudentId(student.studentId), student.status])),
       }))
+      if (attendanceSavedPendingItems.length) {
+        setAttendanceSavedPrompt({
+          studentNames: Array.from(new Set(attendanceSavedPendingItems.map((item) => item.studentName))),
+          items: attendanceSavedPendingItems,
+        })
+        return
+      }
       closeTodayWorkModal()
     } catch (error) {
       console.error('Failed to save attendance', error)
@@ -5499,6 +5522,47 @@ const nextName = trimmedValue
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {attendanceSavedPrompt ? (
+        <div className="faculty-today-work-confirm-backdrop branch-modal-backdrop" role="presentation">
+          <div
+            className="faculty-today-work-confirm-modal faculty-today-work-attendance-prompt"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faculty-today-work-attendance-prompt-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="faculty-course-request-success-icon faculty-today-work-attendance-prompt-icon" aria-hidden="true">
+              <CheckCircle2 size={30} strokeWidth={2.4} />
+            </div>
+
+            <div className="faculty-course-request-success-copy">
+              <p className="faculty-course-request-success-kicker">Attendance Saved</p>
+              <h3 id="faculty-today-work-attendance-prompt-title">
+                {attendanceSavedPrompt.studentNames.join(', ')}
+              </h3>
+              <p>These pending or missed sub-modules are still available to complete.</p>
+              <div className="faculty-today-work-attendance-prompt-list">
+                {attendanceSavedPrompt.items.map((item) => (
+                  <span key={item.key}>
+                    {item.studentName}: {item.moduleName} · {item.submoduleName}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="faculty-course-request-success-actions faculty-today-work-attendance-prompt-actions">
+              <button
+                type="button"
+                className="faculty-course-request-success-button faculty-today-work-attendance-complete-button"
+                onClick={closeTodayWorkModal}
+              >
+                OK
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
