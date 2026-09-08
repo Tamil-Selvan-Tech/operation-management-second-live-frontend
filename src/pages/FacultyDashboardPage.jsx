@@ -484,6 +484,15 @@ function getWorkEntrySubmoduleStatus(entry = {}, submoduleId = '', studentId = '
     : ''
 }
 
+function getWorkEntryStudentAttendanceStatus(entry = {}, studentId = '') {
+  const normalizedStudentId = normalizeWorkStudentId(studentId)
+  const result = (Array.isArray(entry?.studentResults) ? entry.studentResults : []).find((item) => (
+    normalizeWorkStudentId(item?.studentId || item?.id || '') === normalizedStudentId
+  ))
+  const status = String(result?.attendanceStatus || result?.status || '').trim().toUpperCase()
+  return ['PRESENT', 'ABSENT'].includes(status) ? status : ''
+}
+
 function getPersistedTodayWorkSubmoduleStatuses(
   entries = [],
   facultyIdentity = {},
@@ -519,10 +528,18 @@ function getPersistedTodayWorkSubmoduleStatuses(
       .sort((left, right) => new Date(right?.updatedAt || right?.createdAt || 0).getTime() - new Date(left?.updatedAt || left?.createdAt || 0).getTime())
 
     submoduleIds.forEach((submoduleId) => {
-      const status = matchingEntries
+      const entryStatuses = matchingEntries
         .filter((entry) => getWorkEntrySubmoduleIds(entry).some((id) => normalizeWorkStudentId(id) === normalizeWorkStudentId(submoduleId)))
-        .map((entry) => getWorkEntrySubmoduleStatus(entry, submoduleId, studentId))
-        .find(Boolean) || ''
+        .map((entry) => getWorkEntryStudentAttendanceStatus(entry, studentId) === 'ABSENT'
+          ? 'Not Completed'
+          : getWorkEntrySubmoduleStatus(entry, submoduleId, studentId))
+        .filter(Boolean)
+      // A later attendance update can record a missed item, but it must not
+      // downgrade a sub-module that was already completed earlier.
+      const status = entryStatuses.find((value) => value === 'Completed')
+        || entryStatuses.find((value) => value === 'In Progress')
+        || entryStatuses[0]
+        || ''
       if (status) {
         statuses[studentId] = { ...(statuses[studentId] || {}), [submoduleId]: status }
       }
@@ -682,6 +699,7 @@ function buildFacultyTodayWorkProgressSummary(entries = [], course = {}, student
   })
 
   matchingEntries.forEach((entry) => {
+    if (getWorkEntryStudentAttendanceStatus(entry, student?.id || student?.studentId || '') === 'ABSENT') return
     const entryModuleId = String(entry?.moduleId || '').trim()
     if (!entryModuleId) return
     const submoduleSet = moduleCompletionMap.get(entryModuleId)
@@ -3051,10 +3069,12 @@ export function FacultyDashboardPage() {
 
     const unselectedSubmoduleStatus = selectedStudents.some((student) => {
       const studentId = getTodayWorkStudentId(student)
-      return selectedSubmoduleIds.some((submoduleId) => (
-        !todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId]
-        && !todayWorkForm.submoduleStatusById?.[submoduleId]
-      ))
+      return selectedSubmoduleIds.some((submoduleId) => {
+        const status = todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId]
+          || todayWorkForm.submoduleStatusById?.[submoduleId]
+          || ''
+        return !['In Progress', 'Completed'].includes(normalizeSubmoduleProgressStatus(status))
+      })
     })
 
     if (unselectedSubmoduleStatus) {
@@ -3111,6 +3131,15 @@ export function FacultyDashboardPage() {
           .map((student) => student.studentId),
       )
       const presentStudents = selectedStudents.filter((student) => presentStudentIds.has(getTodayWorkStudentId(student)))
+      const persistedStatusesForSave = getPersistedTodayWorkSubmoduleStatuses(
+        facultyTodayWorkEntries,
+        currentFacultyIdentity,
+        todayWorkCourse?.id || '',
+        todayWorkSelectedModule?.id || '',
+        selectedStudentsBatch,
+        selectedStudents,
+        getCourseSubmodules(todayWorkSelectedModule),
+      )
       const submoduleStatuses = Object.fromEntries(selectedStudents.map((student) => {
         const studentId = getTodayWorkStudentId(student)
         const attendanceStatus = attendanceStudents.find((item) => item.studentId === studentId)?.status
@@ -3118,9 +3147,23 @@ export function FacultyDashboardPage() {
           || todayWorkForm.submoduleStatusById?.[selectedSubmoduleIds[0]]
         return [studentId, Object.fromEntries(selectedSubmoduleIds.map((submoduleId) => [
           submoduleId,
-          attendanceStatus === 'ABSENT'
-            ? 'Not Completed'
-            : todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId] || todayWorkForm.submoduleStatusById?.[submoduleId] || selectedStatus || '',
+          (() => {
+            const persistedStatus = persistedStatusesForSave?.[studentId]?.[submoduleId] || ''
+            const selectedStudentStatus = todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId]
+            const existingStatus = selectedStudentStatus
+              || todayWorkForm.submoduleStatusById?.[submoduleId]
+              || selectedStatus
+
+            // A later absent attendance update must not undo a sub-module
+            // that this student already completed in an earlier save.
+            if (attendanceStatus === 'ABSENT') {
+              return normalizeSubmoduleProgressStatus(persistedStatus) === 'Completed'
+                ? 'Completed'
+                : 'Not Completed'
+            }
+
+            return existingStatus || ''
+          })(),
         ]))]
       }))
       const submoduleProgress = selectedStudents.flatMap((student) => {
