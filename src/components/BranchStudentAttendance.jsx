@@ -43,7 +43,7 @@ export function BranchStudentAttendance({ branchId }) {
   }, [branchId])
   const hasData = data && data.date === attendanceToday() && String(data.branchId) === String(branchId)
   return <section className="branch-attendance" aria-label="Branch student attendance" aria-busy={loading}>
-    <div className="branch-attendance-heading"><div className="attendance-title"><span className="attendance-title-icon"><CalendarDays size={22} /></span><div><h2>Attendance</h2><p>Track and manage student attendance</p></div></div></div>
+    <div className="branch-attendance-heading"><div className="attendance-title"><span className="attendance-title-icon"><CalendarDays size={22} /></span><div><h2>Attendance</h2></div></div></div>
     {error ? <p role="alert" className="branch-attendance-error">{error}</p> : null}
     {!hasData && !error ? <p role="status">Loading attendance from the server…</p> : null}
     {hasData ? <BranchAttendanceChart data={data} /> : null}

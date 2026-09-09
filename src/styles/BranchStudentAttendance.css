@@ -5,11 +5,11 @@
 .attendance-title-icon, .attendance-total-icon { display: grid; place-items: center; flex-shrink: 0; background: linear-gradient(135deg, #15b967, #08a05d); color: #fff; }
 .attendance-title-icon { width: 44px; height: 44px; border-radius: 10px; }
 .attendance-mode-tabs { display: flex; justify-content: flex-end; gap: 6px; margin: 0; }
-.attendance-visual { margin-top: 20px; }
-.attendance-chart-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.attendance-visual { margin-top: 12px; }
+.attendance-chart-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .branch-attendance .attendance-mode-tabs button { display: inline-flex; justify-content: center; align-items: center; min-height: 38px; padding: 8px 11px; font-size: 14px; line-height: 20px; font-weight: 700; border: 0; background: #f7f8fa; color: #64748b; border-radius: 9px; }
 .branch-attendance .attendance-mode-tabs button.is-active { background: #2563eb; color: #fff; }
-.attendance-chart-card { padding: 16px; border: 1px solid #e2eaf4; border-radius: 12px; box-shadow: 0 2px 5px #172b4d05; }
+.attendance-chart-card { padding: 12px 16px; border: 1px solid #e2eaf4; border-radius: 12px; box-shadow: 0 2px 5px #172b4d05; }
 .attendance-chart-heading { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
 .attendance-chart-heading h3 { font-size: 23px; color: #102442; }
 .attendance-chart-heading p { margin: 6px 0; }
@@ -17,7 +17,7 @@
 .attendance-chart-legend span { display: flex; align-items: center; gap: 9px; }
 .attendance-chart-legend i { width: 13px; height: 13px; border-radius: 50%; background: #10ac66; }
 .attendance-chart-legend span:last-child i { background: #1686f8; }
-.attendance-chart-scroll { overflow-x: auto; margin: 10px 0; }
+.attendance-chart-scroll { overflow-x: auto; margin: 6px 0 0; }
 .attendance-chart-scroll svg { display: block; width: 100%; min-width: 650px; }
 .attendance-chart-scroll text { fill: #3a5476; font-size: 13px; font-family: inherit; }
 .attendance-chart-scroll .attendance-bar-value { fill: #203b60; font-weight: 600; }

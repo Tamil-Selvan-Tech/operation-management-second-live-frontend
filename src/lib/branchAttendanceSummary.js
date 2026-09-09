@@ -3,7 +3,7 @@ export function attendanceToday() {
 }
 
 export function attendancePercentage(count) {
-  return count.marked ? `${((count.present / count.marked) * 100).toFixed(1)}%` : '—'
+  return count.marked ? `${Number(((count.present / count.marked) * 100).toFixed(1))}%` : '—'
 }
 
 export function buildAttendanceChart(data, mode = 'daily') {
@@ -29,7 +29,7 @@ export function buildAttendanceChart(data, mode = 'daily') {
       upcoming: key(start) > data.date,
       label: mode === 'monthly' ? start.toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : mode === 'weekly' ? `Week ${index + 1}` : shortDate(start),
       detail: mode === 'daily' ? start.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }) : mode === 'weekly' ? `${shortDate(start)} – ${shortDate(finish)}` : '',
-      present: 0, absent: 0, marked: 0,
+      present: 0, absent: 0, marked: 0, recordedDates: new Set(),
     }
   })
   for (const student of data.students) {
@@ -39,9 +39,13 @@ export function buildAttendanceChart(data, mode = 'daily') {
       if (!bucket) continue
       bucket[record.status === 'PRESENT' ? 'present' : 'absent'] += 1
       bucket.marked += 1
+      bucket.recordedDates.add(record.attendanceDate)
     }
   }
-  return buckets
+  return buckets.map(({ recordedDates, ...bucket }) => ({
+    ...bucket,
+    totalStudentDays: data.students.length * recordedDates.size,
+  }))
 }
 
 export function summarizeBranchAttendance(data) {
