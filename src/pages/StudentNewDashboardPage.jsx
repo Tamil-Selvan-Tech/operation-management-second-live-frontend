@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   CircleUserRound,
+  Bell,
 } from 'lucide-react'
 
 import '../styles/StudentNewDashboardPage.css'
@@ -354,6 +355,15 @@ const handleLogoutConfirm = async () => {
                 </span>
 
                 <span>Payments</span>
+              </button>
+
+              <button
+                type="button"
+                className={`student-new-sidebar-item ${activeSection === 'notifications' ? 'is-active' : ''}`.trim()}
+                onClick={() => navigate('/student-new-dashboard/notifications')}
+              >
+                <span className="student-new-sidebar-icon" aria-hidden="true"><Bell size={18} strokeWidth={2.2} /></span>
+                <span>Notifications</span>
               </button>
             </div>
           </nav>

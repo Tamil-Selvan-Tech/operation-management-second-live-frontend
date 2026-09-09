@@ -53,6 +53,7 @@ const StudentManagementPage = lazyNamed(
   'StudentManagementPage',
 )
 const NotificationsPage = lazyNamed(() => import('../pages/NotificationsPage'), 'NotificationsPage')
+const StudentNotificationsPage = lazyNamed(() => import('../pages/StudentNotificationsPage'), 'StudentNotificationsPage')
 const ResetPasswordPage = lazyNamed(() => import('../pages/ResetPasswordPage'), 'ResetPasswordPage')
 const SessionExpiredPage = lazyNamed(() => import('../pages/SessionExpiredPage'), 'SessionExpiredPage')
 const UnauthorizedPage = lazyNamed(() => import('../pages/UnauthorizedPage'), 'UnauthorizedPage')
@@ -352,6 +353,10 @@ export function AppRouter() {
   <Route
     path="/student-new-dashboard"
     element={<StudentNewDashboardPage />}
+  />
+  <Route
+    path="/student-new-dashboard/notifications"
+    element={<StudentNotificationsPage />}
   />
 </Route>
           <Route

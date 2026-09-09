@@ -109,11 +109,6 @@ export function StudentCalendarPanel({ student }) {
       <h1 className="student-new-calendar-page-title">Course Calendar</h1>
 
       <div className="student-new-calendar-summary-grid">
-        {student?.scheduleSummary ? <>
-          <CalendarSummaryCard icon={CheckCircle2} label="Completed Hours" value={student.scheduleSummary.completedHours ?? 0} note="Recorded present class hours" tone="tone-present" />
-          <CalendarSummaryCard icon={Clock3} label="Pending Hours" value={student.scheduleSummary.pendingHours ?? 0} note="Required hours still to complete" />
-          <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={student.scheduleSummary.replacementHours ?? 0} note={`${student.scheduleSummary.cancelledHours ?? 0} hours affected by Institute Leave`} tone="tone-holiday" />
-        </> : null}
         <CalendarSummaryCard
           icon={CalendarDays}
           label="Course Name"
@@ -129,6 +124,13 @@ export function StudentCalendarPanel({ student }) {
           tone="tone-start"
         />
         <CalendarSummaryCard
+          icon={CheckCircle2}
+          label="Course End Date"
+          value={formatCalendarDate(calendar.endDate)}
+          note={formatCalendarLongDate(calendar.endDate)}
+          tone="tone-end"
+        />
+        <CalendarSummaryCard
           icon={Sparkles}
           label="Total Hours"
           value={calendar.totalHours
@@ -137,22 +139,11 @@ export function StudentCalendarPanel({ student }) {
           note={`${calendar.courseMode || 'Online'} · ${calendar.hoursPerDay || '-'} hr/day`}
           tone="tone-course-day"
         />
-        <CalendarSummaryCard
-          icon={Timer}
-          label="Teaching Days"
-          value={calendar.requiredTeachingDays
-            ? `${calendar.requiredTeachingDays} day${Number(calendar.requiredTeachingDays) === 1 ? '' : 's'}`
-            : 'Not available'}
-          note={`Schedule: ${calendar.schedule}`}
-          tone="tone-course-day"
-        />
-        <CalendarSummaryCard
-          icon={CheckCircle2}
-          label="Course End Date"
-          value={formatCalendarDate(calendar.endDate)}
-          note={formatCalendarLongDate(calendar.endDate)}
-          tone="tone-end"
-        />
+        {student?.scheduleSummary ? <>
+          <CalendarSummaryCard icon={CheckCircle2} label="Completed Hours" value={student.scheduleSummary.completedHours ?? 0} note="Recorded present class hours" tone="tone-present" />
+          <CalendarSummaryCard icon={Clock3} label="Pending Hours" value={student.scheduleSummary.pendingHours ?? 0} note="Required hours still to complete" />
+          <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={student.scheduleSummary.replacementHours ?? 0} note={`${student.scheduleSummary.cancelledHours ?? 0} hours affected by Institute Leave`} tone="tone-holiday" />
+        </> : null}
         <CalendarSummaryCard
           icon={Clock3}
           label="Calendar Duration"

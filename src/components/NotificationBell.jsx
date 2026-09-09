@@ -130,16 +130,16 @@ export function NotificationBell() {
             })}
           </div>
 
-          {!isStudent ? <button
+          <button
             className="notification-dropdown-footer"
             type="button"
             onClick={() => {
               setIsOpen(false)
-              navigate('/notifications')
+              navigate(isStudent ? '/student-new-dashboard/notifications' : '/notifications')
             }}
           >
             View all notifications
-          </button> : null}
+          </button>
         </div>
       ) : null}
     </div>
