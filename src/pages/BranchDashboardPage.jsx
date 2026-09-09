@@ -93,6 +93,7 @@ import {
   normalizeWorkStudentId,
 } from '../lib/facultyProgress'
 import { BranchFacultyPage } from './BranchFacultyPage'
+import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
@@ -7989,6 +7990,8 @@ useEffect(() => {
                       </article>
                     ))}
                   </div>
+
+                  <BranchStudentAttendance key={branchId} branchId={branchId} />
 
                   <section className="branch-dashboard-admission-target-card" aria-label="Next month admission target">
                     <div className="branch-dashboard-admission-target-heading">

@@ -1,0 +1,57 @@
+.branch-attendance { margin: 24px 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: #172b4d; }
+.attendance-title { display: flex; gap: 20px; align-items: center; }
+.attendance-title h2 { font-size: 30px; color: #102442; }
+.attendance-title p { margin: 0; }
+.attendance-title-icon, .attendance-total-icon { display: grid; place-items: center; flex-shrink: 0; background: linear-gradient(135deg, #15b967, #08a05d); color: #fff; }
+.attendance-title-icon { width: 44px; height: 44px; border-radius: 10px; }
+.attendance-mode-tabs { display: flex; justify-content: flex-end; gap: 6px; margin: 0; }
+.attendance-visual { margin-top: 20px; }
+.attendance-chart-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.branch-attendance .attendance-mode-tabs button { display: inline-flex; justify-content: center; align-items: center; min-height: 38px; padding: 8px 11px; font-size: 14px; line-height: 20px; font-weight: 700; border: 0; background: #f7f8fa; color: #64748b; border-radius: 9px; }
+.branch-attendance .attendance-mode-tabs button.is-active { background: #2563eb; color: #fff; }
+.attendance-chart-card { padding: 16px; border: 1px solid #e2eaf4; border-radius: 12px; box-shadow: 0 2px 5px #172b4d05; }
+.attendance-chart-heading { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; }
+.attendance-chart-heading h3 { font-size: 23px; color: #102442; }
+.attendance-chart-heading p { margin: 6px 0; }
+.attendance-chart-legend { display: flex; gap: 24px; padding-top: 9px; }
+.attendance-chart-legend span { display: flex; align-items: center; gap: 9px; }
+.attendance-chart-legend i { width: 13px; height: 13px; border-radius: 50%; background: #10ac66; }
+.attendance-chart-legend span:last-child i { background: #1686f8; }
+.attendance-chart-scroll { overflow-x: auto; margin: 10px 0; }
+.attendance-chart-scroll svg { display: block; width: 100%; min-width: 650px; }
+.attendance-chart-scroll text { fill: #3a5476; font-size: 13px; font-family: inherit; }
+.attendance-chart-scroll .attendance-bar-value { fill: #203b60; font-weight: 600; }
+.attendance-chart-scroll .attendance-no-records { fill: #65758c; font-size: 11px; }
+.attendance-chart-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border-top: 1px solid #e9eef5; padding-top: 16px; }
+.attendance-chart-totals article { display: flex; align-items: center; gap: 20px; background: #f0faf6; padding: 18px; border-radius: 12px; }
+.attendance-chart-totals article.absent { background: #f1f7ff; }
+.attendance-total-icon { width: 54px; height: 54px; border-radius: 50%; }
+.absent .attendance-total-icon { background: linear-gradient(135deg, #2399ff, #0676ed); }
+.attendance-chart-totals p { margin: 6px 0 0; font-size: 20px; }
+.attendance-chart-totals strong { font-size: 27px; color: #102442; }
+.attendance-chart-totals b { margin-left: auto; color: #08a35b; font-size: 27px; white-space: nowrap; }
+.attendance-chart-totals .absent b { color: #0c7ef5; }
+@media (max-width: 1100px) { .attendance-chart-totals { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .attendance-chart-card { padding: 12px; } .attendance-chart-heading { flex-direction: column; gap: 8px; } .attendance-chart-totals article { gap: 10px; padding: 12px; } .attendance-chart-totals b { font-size: 22px; } .attendance-title h2 { font-size: 25px; } }
+.branch-attendance-heading, .branch-attendance-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.branch-attendance h2, .branch-attendance h3 { margin: 0 0 10px; }
+.branch-attendance p, .branch-attendance small { color: #526179; }
+.branch-attendance-controls label { display: grid; gap: 6px; font-size: 13px; }
+.branch-attendance input, .branch-attendance select, .branch-attendance button { padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #172b4d; font: inherit; }
+.branch-attendance button { cursor: pointer; }
+.branch-attendance button:disabled { opacity: .5; cursor: default; }
+.branch-attendance-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 20px 0; }
+.branch-attendance-cards article { display: grid; gap: 8px; padding: 18px; border-radius: 12px; background: #f1f6ff; }
+.branch-attendance-cards strong { font-size: 30px; color: #2455a6; }
+.branch-attendance-note { font-size: 13px; line-height: 1.6; }
+.branch-attendance-table { overflow-x: auto; margin: 16px 0 24px; }
+.branch-attendance table { width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap; }
+.branch-attendance th, .branch-attendance td { padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+.branch-attendance th { background: #f8fafc; }
+.branch-attendance td small { display: block; margin-top: 5px; }
+.branch-attendance-status { padding: 4px 8px; border-radius: 6px; background: #f1f5f9; }
+.branch-attendance-status.present { color: #166534; background: #dcfce7; }
+.branch-attendance-status.absent, .branch-attendance .branch-attendance-error { color: #991b1b; background: #fee2e2; }
+.branch-attendance-pagination { display: flex; gap: 12px; justify-content: flex-end; align-items: center; }
+@media (max-width: 1000px) { .branch-attendance-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .branch-attendance-cards { grid-template-columns: 1fr; } .branch-attendance-controls, .branch-attendance-controls label { width: 100%; } .branch-attendance input, .branch-attendance select { min-width: 0; max-width: 100%; } }

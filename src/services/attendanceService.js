@@ -5,42 +5,6 @@ function unwrapData(response) {
   return response.data ?? response
 }
 
-function buildFallbackBatchAttendanceResponse(payload = {}) {
-  const students = Array.isArray(payload?.students)
-    ? payload.students.map((student) => {
-        const status = String(student?.status || '').trim().toUpperCase()
-        const attendanceStatus = status === 'PRESENT' ? 'Present' : status === 'ABSENT' ? 'Absent' : 'Unmarked'
-
-        return {
-          ...student,
-          studentId: String(student?.studentId || '').trim(),
-          attendanceStatus,
-          attendanceStatusLabel: attendanceStatus,
-        }
-      })
-    : []
-
-  const batchName = String(payload?.batchName || '').trim()
-  const courseId = String(payload?.courseId || '').trim()
-
-  return {
-    date: String(payload?.date || '').trim(),
-    facultyId: String(payload?.facultyId || '').trim(),
-    courseId,
-    batchName,
-    submissionMode: String(payload?.submissionMode || '').trim(),
-    submittedAt: String(payload?.submittedAt || '').trim(),
-    students,
-    batches: [
-      {
-        courseId,
-        batchName,
-        students,
-      },
-    ],
-  }
-}
-
 function buildFallbackFacultySessionResponse(payload = {}, includeLogout = false) {
   const loginAt = String(payload?.loginAt || new Date().toISOString()).trim()
   const logoutAt = includeLogout ? String(payload?.logoutAt || new Date().toISOString()).trim() : ''
@@ -116,21 +80,21 @@ export async function getCurrentFacultyAttendanceOverview(dateOrOptions = '') {
 }
 
 export async function markFacultyStudentAttendance(payload = {}) {
-  try {
-    const response = await request('/attendance/faculty/mark', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    })
+  const response = await request('/attendance/faculty/mark', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 
-    return unwrapData(response)
-  } catch (error) {
-    const errorMessage = String(error?.body?.message || error?.message || '').toLowerCase()
-    if (errorMessage.includes('upsert')) {
-      return buildFallbackBatchAttendanceResponse(payload)
-    }
+  return unwrapData(response)
+}
 
-    throw error
+export async function getBranchAttendanceOverview(date) {
+  const response = await request(`/attendance/branch/overview?${new URLSearchParams({ date })}`)
+  const data = unwrapData(response)
+  if (!Array.isArray(data?.students) || !data?.branchId || data.date !== date) {
+    throw new Error('Invalid attendance response. Please refresh or contact support.')
   }
+  return data
 }
 
 export async function recordFacultyAttendanceLogin(payload = {}) {
