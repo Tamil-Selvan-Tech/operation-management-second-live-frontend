@@ -8,6 +8,7 @@
 .student-notifications-sidebar-nav button:hover, .student-notifications-sidebar-nav button.is-active { background: #edf3ff; color: #2857d6; }
 .student-notifications-sidebar-profile { margin: auto 18px 22px; padding: 16px; border: 1px solid #e0e7f1; border-radius: 14px; display: grid; gap: 5px; color: #53627b; }
 .student-notifications-sidebar-profile span { font-size: 11px; color: #3157d5; font-weight: 800; letter-spacing: .08em; }
+.student-notifications-layout .student-new-sidebar-footer { margin-bottom: 40px; }
 .student-notifications-page { min-height: 100vh; margin-left: 258px; padding: 42px clamp(24px, 7vw, 110px); background: #f8fafc; color: #12213d; }
 .student-notifications-topbar { display: flex; align-items: center; justify-content: space-between; min-height: 68px; margin: -42px clamp(-110px, -7vw, -24px) 40px; padding: 0 clamp(24px, 7vw, 110px); border-bottom: 1px solid #e1e7f0; background: #fff; }
 .student-notifications-topbar h2 { margin: 0; font-size: 23px; }
@@ -15,7 +16,7 @@
 .student-notifications-topbar-profile > div { display: grid; gap: 2px; }
 .student-notifications-topbar-profile small { color: #718098; }
 .student-notifications-avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; color: #5f6f88; background: #edf1f7; }
-.student-notifications-header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; max-width: 1280px; margin: 0 auto 34px; }
+.student-notifications-header { display: flex; justify-content: space-between; gap: 24px; align-items: flex-start; max-width: 1280px; margin: 16px auto 34px; }
 .student-notifications-eyebrow { margin: 0 0 8px; color: #3157d5; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .student-notifications-header h1 { margin: 0 0 12px; font-size: clamp(30px, 4vw, 48px); }
 .student-notifications-header p { margin: 0; color: #60708b; font-size: 17px; }
@@ -24,8 +25,8 @@
 .student-notifications-actions button { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 700; }
 .student-notifications-actions button:disabled { opacity: .5; cursor: not-allowed; }
 .student-notifications-filters { display: flex; gap: 14px; max-width: 1280px; margin: 0 auto 28px; }
-.student-notifications-filters label { display: flex; align-items: center; gap: 10px; flex: 1; padding: 0 18px; border: 1px solid #dce4f0; border-radius: 24px; background: white; color: #60708b; }
-.student-notifications-filters label input { min-width: 0; width: 100%; border: 0; outline: 0; padding-left: 0; }
+.student-notifications-filters label { position: relative; display: flex; align-items: center; flex: 0 1 360px; max-width: 360px; min-width: 0; padding: 0; border: 0; border-radius: 0; background: transparent; color: #60708b; }
+.student-notifications-filters label input { min-width: 0; width: 100%; padding-left: 18px; outline: 0; }
 .student-notifications-list { display: grid; gap: 14px; max-width: 1280px; margin: auto; }
 .student-notification-card { display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: start; padding: 22px; border: 1px solid #e0e7f1; border-radius: 16px; background: white; box-shadow: 0 8px 24px #1d37630b; }
 .student-notification-card.is-unread { border-color: #9db5ff; background: #f5f8ff; }
@@ -38,3 +39,5 @@
 .student-notifications-empty, .student-notifications-error { padding: 28px; border-radius: 14px; background: white; color: #60708b; }
 .student-notifications-error { color: #a62032; background: #fff1f2; }
 @media (max-width: 820px) { .student-notifications-sidebar { width: 78px; } .student-notifications-sidebar-brand img { width: 56px; } .student-notifications-sidebar-label, .student-notifications-sidebar-nav button { font-size: 0; justify-content: center; } .student-notifications-sidebar-nav button svg { width: 20px; height: 20px; } .student-notifications-sidebar-profile { margin: auto 10px 16px; padding: 10px; text-align: center; } .student-notifications-sidebar-profile strong { display: none; } .student-notifications-page { margin-left: 78px; padding: 28px 16px; } .student-notifications-topbar { margin: -28px -16px 28px; padding: 0 16px; } .student-notifications-topbar h2 { font-size: 18px; } .student-notifications-topbar-profile > div { display: none; } .student-notifications-header { flex-direction: column; } .student-notifications-filters { flex-direction: column; } .student-notification-card { grid-template-columns: auto 1fr; } .student-notification-unread { grid-column: 2; } .student-notification-title { flex-direction: column; gap: 6px; } }
+@media (max-width: 768px) { .student-notifications-page { margin-left: 0; } .student-notifications-topbar { margin-left: -16px; margin-right: -16px; } }
+@media (max-width: 820px) { .student-notifications-filters label { flex: 1 1 auto; max-width: none; } }

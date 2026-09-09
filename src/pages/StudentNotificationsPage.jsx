@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Bell, BookOpen, CalendarDays, CheckCheck, CircleAlert, CircleUserRound, CreditCard, LayoutDashboard, Search, UserRound } from 'lucide-react'
+import { ArrowLeft, Bell, BookOpen, CalendarDays, CheckCheck, CircleAlert, CircleUserRound, CreditCard, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { request } from '../services/apiClient'
 import { NotificationBell } from '../components/NotificationBell'
+import '../styles/StudentNewDashboardPage.css'
 import '../styles/StudentNotificationsPage.css'
 
 function unwrap(response) {
@@ -12,14 +13,20 @@ function unwrap(response) {
 
 export function StudentNotificationsPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [items, setItems] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
-  const [month, setMonth] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const handleLogout = async () => {
+    try { window.sessionStorage.removeItem('cispro.student-session') } catch { /* Ignore storage errors. */ }
+    await signOut()
+    navigate('/login', { replace: true })
+  }
 
   const load = useCallback(async () => {
     try {
@@ -49,11 +56,9 @@ export function StudentNotificationsPage() {
 
   const visibleItems = useMemo(() => items.filter((item) => {
     const text = `${item.title || ''} ${item.message || ''}`.toLowerCase()
-    const createdMonth = String(item.createdAt || '').slice(0, 7)
     return (!query || text.includes(query.toLowerCase()))
       && (filter === 'all' || (filter === 'unread' ? !item.read : item.read))
-      && (!month || createdMonth === month)
-  }), [filter, items, month, query])
+  }), [filter, items, query])
 
   const markAllRead = async () => {
     try {
@@ -66,30 +71,39 @@ export function StudentNotificationsPage() {
   }
 
   return <div className="student-notifications-layout">
-    <aside className="student-notifications-sidebar" aria-label="Student navigation">
-      <div className="student-notifications-sidebar-brand"><img src="/logo1.png" alt="CISPRO logo" /></div>
-      <nav className="student-notifications-sidebar-nav">
-        <span className="student-notifications-sidebar-label">MAIN</span>
-        <button type="button" onClick={() => navigate('/student-new-dashboard')}><LayoutDashboard size={18} /> Dashboard</button>
-        <span className="student-notifications-sidebar-label">STUDENT</span>
-        <button type="button" onClick={() => navigate('/student-new-dashboard')}><UserRound size={18} /> My Profile</button>
-        <button type="button" onClick={() => navigate('/student-new-dashboard')}><BookOpen size={18} /> My Course</button>
-        <button type="button" onClick={() => navigate('/student-new-dashboard')}><CalendarDays size={18} /> Calendar</button>
-        <button type="button" onClick={() => navigate('/student-new-dashboard')}><CreditCard size={18} /> Payments</button>
-        <button type="button" className="is-active" aria-current="page"><Bell size={18} /> Notifications</button>
+    {isMobileSidebarOpen ? <button type="button" className="student-new-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)} /> : null}
+    <aside className={`student-new-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()} aria-label="Student navigation">
+      <div className="student-new-sidebar-brand">
+        <img className="student-new-sidebar-brand-logo" src="/logo1.png" alt="CISPRO logo" />
+        <button type="button" className="student-new-sidebar-close" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)}><X size={18} strokeWidth={2.6} /></button>
+      </div>
+      <nav className="student-new-sidebar-nav">
+        <div className="student-new-sidebar-section">
+          <span className="student-new-sidebar-section-label">MAIN</span>
+          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><LayoutDashboard size={18} strokeWidth={2.2} /></span><span>Dashboard</span></button>
+        </div>
+        <div className="student-new-sidebar-section">
+          <span className="student-new-sidebar-section-label">STUDENT</span>
+          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><UserRound size={18} strokeWidth={2.2} /></span><span>My Profile</span></button>
+          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><BookOpen size={18} strokeWidth={2.2} /></span><span>My Course</span></button>
+          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CalendarDays size={18} strokeWidth={2.2} /></span><span>Calendar</span></button>
+          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CreditCard size={18} strokeWidth={2.2} /></span><span>Payments</span></button>
+          <button type="button" className="student-new-sidebar-item is-active" aria-current="page"><span className="student-new-sidebar-icon"><Bell size={18} strokeWidth={2.2} /></span><span>Notifications</span></button>
+        </div>
       </nav>
-      <div className="student-notifications-sidebar-profile"><span>STUDENT</span><strong>Student Profile</strong></div>
+      <div className="student-new-sidebar-footer"><div className="student-new-sidebar-profile-card"><span className="student-new-sidebar-user-avatar"><CircleUserRound size={28} strokeWidth={1.9} /><span className="student-new-sidebar-user-status" /></span><div className="student-new-sidebar-profile-copy"><strong>Student</strong><span>Student Profile</span></div><button type="button" className="student-new-sidebar-logout-button" aria-label="Logout" onClick={handleLogout}><LogOut size={21} strokeWidth={2.15} /></button></div></div>
     </aside>
     <main className="student-notifications-page">
       <header className="student-notifications-topbar">
+        <button type="button" className="student-new-sidebar-toggle" aria-label="Open navigation menu" aria-expanded={isMobileSidebarOpen} onClick={() => setIsMobileSidebarOpen(true)}><Menu size={20} strokeWidth={2.4} /></button>
         <h2>Student Dashboard</h2>
         <div className="student-notifications-topbar-profile"><NotificationBell /><span className="student-notifications-avatar"><CircleUserRound size={28} /></span><div><strong>{user?.fullName || user?.name || 'Student'}</strong><small>Student</small></div></div>
       </header>
     <header className="student-notifications-header">
-      <div><p className="student-notifications-eyebrow">Student Dashboard</p><h1>Notifications</h1><p>You have <strong>{items.length}</strong> notifications{unreadCount ? <> and <strong>{unreadCount}</strong> unread items</> : null}.</p></div>
+      <div><h1>Notifications</h1><p>You have <strong>{items.length}</strong> notifications{unreadCount ? <> and <strong>{unreadCount}</strong> unread items</> : null}.</p></div>
       <div className="student-notifications-actions"><button type="button" onClick={() => navigate('/student-new-dashboard')}><ArrowLeft size={16} /> Back to dashboard</button><button type="button" onClick={markAllRead} disabled={!unreadCount}><CheckCheck size={16} /> Mark all as read</button></div>
     </header>
-    <div className="student-notifications-filters"><label><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notifications" aria-label="Search notifications" /></label><input type="month" value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Filter by month" /><select value={filter} onChange={(event) => setFilter(event.target.value)} aria-label="Filter notification status"><option value="all">All status</option><option value="unread">Unread only</option><option value="read">Read only</option></select></div>
+    <div className="student-notifications-filters"><label><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search notifications" aria-label="Search notifications" /></label><select value={filter} onChange={(event) => setFilter(event.target.value)} aria-label="Filter notification status"><option value="all">All status</option><option value="unread">Unread only</option><option value="read">Read only</option></select></div>
     {error ? <p className="student-notifications-error" role="alert">{error}</p> : null}
     <section className="student-notifications-list" aria-label="All notifications">
       {loading ? <p className="student-notifications-empty">Loading notifications…</p> : null}

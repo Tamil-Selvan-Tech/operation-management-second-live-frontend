@@ -16,7 +16,7 @@ export function NotificationBell() {
   const [error, setError] = useState('')
   const isStudent = String(role).toUpperCase() === 'STUDENT'
   const notificationItems = isStudent ? remoteItems : getNotificationItems(role)
-  const visibleItems = notificationItems.slice(0, isStudent ? 20 : 2)
+  const visibleItems = notificationItems.slice(0, isStudent ? 3 : 2)
   const unreadCount = isStudent ? remoteCount : getUnreadNotificationCount(role)
 
   useEffect(() => {

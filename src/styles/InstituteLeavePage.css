@@ -28,7 +28,8 @@
 .institute-action-menu { position: relative; display: inline-flex; }
 .institute-action-menu-trigger { display: grid; place-items: center; width: 38px; height: 38px; padding: 0 !important; border-radius: 9px !important; color: #52627d; }
 .institute-action-menu-trigger:hover, .institute-action-menu-trigger:focus-visible { color: #3157d5; border-color: #b8c9f4; background: #f4f7ff; outline: none; }
-.institute-action-menu-dropdown { position: absolute; z-index: 20; top: calc(100% + 5px); right: 0; min-width: 128px; padding: 5px; display: grid; gap: 2px; background: white; border: 1px solid #dfe5ef; border-radius: 10px; box-shadow: 0 12px 28px rgb(21 37 72 / 16%); }
+.institute-action-menu-dropdown { position: absolute; z-index: 20; right: 0; bottom: calc(100% + 5px); min-width: 128px; padding: 5px; display: grid; gap: 2px; background: white; border: 1px solid #dfe5ef; border-radius: 10px; box-shadow: 0 12px 28px rgb(21 37 72 / 16%); }
+.institute-action-menu.opens-down .institute-action-menu-dropdown { top: calc(100% + 5px); bottom: auto; }
 .institute-action-menu-dropdown button { width: 100%; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: #17213b; text-align: left; cursor: pointer; }
 .institute-action-menu-dropdown button:hover, .institute-action-menu-dropdown button:focus-visible { background: #f1f5ff; color: #3157d5; outline: none; }
 .institute-pagination { display: flex; justify-content: space-between; align-items: center; color: #68738a; font-size: 14px; }
@@ -39,6 +40,9 @@
 .institute-table-scroll caption { text-align: left; padding: 18px; font-weight: 700; }
 .institute-table-scroll th, .institute-table-scroll td { padding: 14px 18px; border-bottom: 1px solid #edf0f5; }
 .institute-table-scroll th { background: #f7f9fc; }
+.institute-leave-row-clickable { cursor: pointer; }
+.institute-leave-row-clickable:hover { background: #f8faff; }
+.institute-leave-row-clickable:focus-visible { outline: 2px solid #8eabef; outline-offset: -2px; }
 .institute-dialog { position: fixed; inset: 50% auto auto 50%; transform: translate(-50%, -50%); width: min(680px, 90vw); max-height: 85vh; margin: 0; border: 0; border-radius: 16px; padding: 24px; color: inherit; }
 .institute-dialog.is-confirmation { width: min(520px, calc(100vw - 32px)); }
 .institute-dialog::backdrop { background: #111b3c80; }
