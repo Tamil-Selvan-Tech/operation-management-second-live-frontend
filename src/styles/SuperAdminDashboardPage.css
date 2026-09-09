@@ -135,6 +135,63 @@
   color: #111827;
 }
 
+.super-admin-sidebar-group {
+  display: grid;
+  gap: 2px;
+}
+
+.super-admin-sidebar-item > svg {
+  color: #64748b;
+  transition: transform 160ms ease, color 160ms ease;
+}
+
+.super-admin-sidebar-item.is-active > svg {
+  color: #2563eb;
+}
+
+.super-admin-sidebar-item > svg.is-expanded {
+  transform: rotate(180deg);
+}
+
+.super-admin-sidebar-submenu {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 3px 22px;
+  padding: 2px 0 2px 16px;
+  border-left: 1px solid #dbe4f0;
+}
+
+.super-admin-sidebar-subitem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 34px;
+  border: 0;
+  border-radius: 9px;
+  padding: 6px 8px;
+  background: transparent;
+  color: #475569;
+  text-align: left;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.super-admin-sidebar-subitem:hover,
+.super-admin-sidebar-subitem:focus-visible,
+.super-admin-sidebar-subitem.is-active {
+  background: #f1f6ff;
+  color: #1557b0;
+  outline: none;
+}
+
+.super-admin-sidebar-subitem-icon {
+  display: grid;
+  place-items: center;
+  color: currentColor;
+}
+
 .super-admin-sidebar-branch-nav {
   display: grid;
   gap: 4px;

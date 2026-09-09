@@ -2899,6 +2899,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
   const activeSection = getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+  const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
+    courses: activeSection === 'installments',
+    faculty: activeSection === 'batches',
+    students: activeSection === 'payments',
+  }))
+
+  useEffect(() => {
+    const parentByChild = { installments: 'courses', batches: 'faculty', payments: 'students' }
+    const parent = parentByChild[activeSection]
+    if (!parent) return
+    setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
+  }, [activeSection])
+
   const goToBranchSection = useCallback(
     (section = 'dashboard', options = {}) => {
       const nextSection = String(section || '').trim().toLowerCase() || 'dashboard'
@@ -7580,38 +7593,52 @@ useEffect(() => {
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'courses', label: 'Courses', icon: BookOpen },
-          { id: 'installments', label: 'Installments', icon: Wallet },
-          { id: 'faculty', label: 'Faculty', icon: UserRound },
-          { id: 'students', label: 'Students', icon: Users },
-          { id: 'batches', label: 'Batches', icon: Layers3 },
+          { id: 'courses', label: 'Courses', icon: BookOpen, child: { id: 'installments', label: 'Installments', icon: Wallet } },
+          { id: 'faculty', label: 'Faculty', icon: UserRound, child: { id: 'batches', label: 'Batches', icon: Layers3 } },
+          { id: 'students', label: 'Students', icon: Users, child: { id: 'payments', label: 'Payments', icon: Wallet } },
           { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
-          { id: 'payments', label: 'Payments', icon: Wallet },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
           const Icon = item.icon
-          const isActive = activeSection === item.id
+          const child = item.child
+          const ChildIcon = child?.icon
+          const isChildActive = child && activeSection === child.id
+          const isActive = activeSection === item.id || isChildActive
+          const isExpanded = Boolean(expandedSidebarGroups[item.id])
 
           return (
-            <button
-              key={item.id}
-              type="button"
-              className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
-              onClick={() => {
-                if (item.id === 'notifications') {
-                  goToBranchSection('notifications')
-                  return
-                }
-
-                goToBranchSection(item.id)
-              }}
-            >
-              <span className="super-admin-sidebar-icon" aria-hidden="true">
-                <Icon size={18} strokeWidth={2.15} />
-              </span>
-              <span>{item.label}</span>
-            </button>
+            <div key={item.id} className="super-admin-sidebar-group">
+              <button
+                type="button"
+                className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
+                onClick={() => {
+                  if (child) setExpandedSidebarGroups((current) => ({ ...current, [item.id]: !current[item.id] }))
+                  goToBranchSection(item.id)
+                }}
+                aria-expanded={child ? isExpanded : undefined}
+              >
+                <span className="super-admin-sidebar-icon" aria-hidden="true">
+                  <Icon size={18} strokeWidth={2.15} />
+                </span>
+                <span>{item.label}</span>
+                {child ? (
+                  <ChevronDown className={isExpanded ? 'is-expanded' : ''} size={16} strokeWidth={2.2} aria-hidden="true" />
+                ) : null}
+              </button>
+              {child && isExpanded ? (
+                <div className="super-admin-sidebar-submenu">
+                  <button
+                    type="button"
+                    className={`super-admin-sidebar-subitem ${isChildActive ? 'is-active' : ''}`.trim()}
+                    onClick={() => goToBranchSection(child.id)}
+                  >
+                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
+                    <span>{child.label}</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
           )
         })}
       </nav>
