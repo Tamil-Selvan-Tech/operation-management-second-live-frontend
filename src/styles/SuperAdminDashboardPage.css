@@ -545,6 +545,15 @@ body.super-admin-notification-menu-open .super-admin-content {
   box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
 }
 
+.super-admin-stat-card[role='button'] {
+  cursor: pointer;
+}
+
+.super-admin-stat-card[role='button']:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 3px;
+}
+
 .super-admin-stat-icon {
   display: grid;
   place-items: center;

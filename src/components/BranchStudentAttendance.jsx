@@ -20,7 +20,7 @@ export function BranchStudentAttendance({ branchId }) {
       pending = true
       setLoading(true)
       try {
-        const result = await getBranchAttendanceOverview(attendanceToday())
+        const result = await getBranchAttendanceOverview(attendanceToday(), branchId)
         if (String(result.branchId) !== String(branchId)) throw new Error('Attendance branch does not match the current dashboard.')
         if (active) { setData(result); setError('') }
       } catch (err) {
