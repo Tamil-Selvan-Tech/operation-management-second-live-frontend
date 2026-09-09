@@ -25,6 +25,12 @@
 .leave-stat-watermark { position: absolute; right: 14px; color: currentColor; opacity: .16; }
 .tone-red .leave-stat-watermark { color: #ef5555; }.tone-blue .leave-stat-watermark { color: #4381e8; }.tone-green .leave-stat-watermark { color: #19b77a; }.tone-purple .leave-stat-watermark { color: #805ce5; }
 .institute-leave-filters, .institute-row-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.institute-action-menu { position: relative; display: inline-flex; }
+.institute-action-menu-trigger { display: grid; place-items: center; width: 38px; height: 38px; padding: 0 !important; border-radius: 9px !important; color: #52627d; }
+.institute-action-menu-trigger:hover, .institute-action-menu-trigger:focus-visible { color: #3157d5; border-color: #b8c9f4; background: #f4f7ff; outline: none; }
+.institute-action-menu-dropdown { position: absolute; z-index: 20; top: calc(100% + 5px); right: 0; min-width: 128px; padding: 5px; display: grid; gap: 2px; background: white; border: 1px solid #dfe5ef; border-radius: 10px; box-shadow: 0 12px 28px rgb(21 37 72 / 16%); }
+.institute-action-menu-dropdown button { width: 100%; padding: 8px 10px; border: 0; border-radius: 7px; background: transparent; color: #17213b; text-align: left; cursor: pointer; }
+.institute-action-menu-dropdown button:hover, .institute-action-menu-dropdown button:focus-visible { background: #f1f5ff; color: #3157d5; outline: none; }
 .institute-pagination { display: flex; justify-content: space-between; align-items: center; color: #68738a; font-size: 14px; }
 .institute-pagination > div { display: flex; gap: 8px; }
 .institute-leave-page input, .institute-leave-page select, .institute-dialog textarea, .institute-dialog input { border: 1px solid #dfe5ef; border-radius: 8px; padding: 11px; font: inherit; }
