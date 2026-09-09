@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, CircleX, Flag, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, Clock3, Flag, Sparkles, Timer } from 'lucide-react'
 
 import { buildStudentCourseCalendar, formatCalendarDate, formatCalendarLongDate } from '../lib/studentCalendar'
 
@@ -125,9 +125,18 @@ export function StudentCalendarPanel({ student }) {
         />
         <CalendarSummaryCard
           icon={Sparkles}
-          label="Course Duration"
-          value={calendar.durationMonths
-            ? `${calendar.durationMonths} month${calendar.durationMonths === 1 ? '' : 's'}`
+          label="Total Hours"
+          value={calendar.totalHours
+            ? `${calendar.totalHours} hour${Number(calendar.totalHours) === 1 ? '' : 's'}`
+            : 'Not available'}
+          note={`${calendar.courseMode || 'Online'} · ${calendar.hoursPerDay || '-'} hr/day`}
+          tone="tone-course-day"
+        />
+        <CalendarSummaryCard
+          icon={Timer}
+          label="Teaching Days"
+          value={calendar.requiredTeachingDays
+            ? `${calendar.requiredTeachingDays} day${Number(calendar.requiredTeachingDays) === 1 ? '' : 's'}`
             : 'Not available'}
           note={`Schedule: ${calendar.schedule}`}
           tone="tone-course-day"
@@ -140,10 +149,12 @@ export function StudentCalendarPanel({ student }) {
           tone="tone-end"
         />
         <CalendarSummaryCard
-          icon={CircleX}
-          label="General Holidays"
-          value={String(calendar.summary.holidays)}
-          note="Holiday dates inside course range"
+          icon={Clock3}
+          label="Calendar Duration"
+          value={calendar.calendarDurationDays
+            ? `${calendar.calendarDurationDays} day${Number(calendar.calendarDurationDays) === 1 ? '' : 's'}`
+            : 'Not available'}
+          note={`${calendar.summary.holidays} holidays / leaves`}
           tone="tone-holiday"
         />
       </div>

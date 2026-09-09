@@ -75,6 +75,32 @@ function getFirstNumber(value) {
   return match ? Number(match[1]) : null
 }
 
+function getPositiveNumber(...values) {
+  for (const value of values) {
+    const directNumber = Number(value)
+    if (Number.isFinite(directNumber) && directNumber > 0) return directNumber
+
+    const parsedNumber = getFirstNumber(value)
+    if (Number.isFinite(parsedNumber) && parsedNumber > 0) return parsedNumber
+  }
+
+  return 0
+}
+
+export function getCourseTotalHours(student = {}) {
+  return getPositiveNumber(
+    student?.totalHours,
+    student?.courseHours,
+    student?.hours,
+    student?.course?.totalHours,
+    student?.course?.hours,
+  )
+}
+
+export function getCourseHoursPerDay(student = {}) {
+  return getPositiveNumber(student?.hoursPerDay)
+}
+
 export function getCourseDurationMonths(student = {}) {
   const possibleValues = [
     student?.courseMasterDuration,
@@ -205,7 +231,20 @@ function buildAttendanceMap(student = {}) {
   return entries
 }
 
-function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holidayMap, attendanceMap) {
+function buildServerEventMap(student = {}) {
+  const events = Array.isArray(student?.calendarEvents) ? student.calendarEvents : []
+  const entries = new Map()
+
+  events.forEach((event) => {
+    const key = toCalendarDateKey(event?.date || event?.attendanceDate || event?.day)
+    if (!key) return
+    entries.set(key, event)
+  })
+
+  return entries
+}
+
+function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holidayMap, attendanceMap, serverEventMap) {
   const firstDate = startOfCalendarMonth(monthDate)
   const lastDate = endOfCalendarMonth(monthDate)
   const cells = []
@@ -220,10 +259,12 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
     const isWithinRange = cursor >= rangeStart && cursor <= rangeEnd
     const holiday = holidayMap.get(dateKey) || null
     const attendance = attendanceMap.get(dateKey) || ''
+    const serverEvent = serverEventMap.get(dateKey) || null
     const dayOfWeek = cursor.getDay()
-    const isCourseDay = isWithinRange
+    const localCourseDay = isWithinRange
       ? (schedule === 'Weekend' ? WEEKEND_DAYS.has(dayOfWeek) : WEEKDAY_DAYS.has(dayOfWeek))
       : false
+    const isCourseDay = serverEvent ? Boolean(serverEvent.isCourseDay) : localCourseDay
     const isStartDate = dateKey === toCalendarDateKey(rangeStart)
     const isEndDate = dateKey === toCalendarDateKey(rangeEnd)
 
@@ -233,6 +274,9 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
     if (!isWithinRange) {
       status = 'No Class'
       tone = 'no-class'
+    } else if (serverEvent?.status) {
+      status = serverEvent.status
+      tone = getStatusToneKey(status)
     } else if (holiday) {
       status = holiday.type === 'Leave' ? 'Leave' : 'General Holiday'
       tone = 'holiday'
@@ -256,6 +300,7 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       isEndDate,
       holidayName: holiday?.name || '',
       attendanceStatus: attendance,
+      classHours: Number(serverEvent?.classHours || 0),
       status,
       tone,
       markers: [
@@ -269,10 +314,24 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
   return cells
 }
 
+function getStatusToneKey(status) {
+  const normalized = String(status || '').trim().toLowerCase()
+  if (normalized === 'present') return 'present'
+  if (normalized === 'absent') return 'absent'
+  if (normalized === 'leave' || normalized === 'holiday' || normalized === 'government holiday') return 'holiday'
+  if (normalized === 'course day') return 'course-day'
+  return 'no-class'
+}
+
 export function buildStudentCourseCalendar(student = {}) {
   const startDate = getCourseStartDate(student)
   const durationMonths = getCourseDurationMonths(student)
   const schedule = getCourseSchedule(student)
+  const totalHours = getCourseTotalHours(student)
+  const hoursPerDay = getCourseHoursPerDay(student)
+  const requiredTeachingDays = getPositiveNumber(student?.requiredTeachingDays, student?.totalWorkingDays)
+  const actualTeachingDays = getPositiveNumber(student?.actualTeachingDays, student?.calculatedWorkingDays)
+  const calendarDurationDays = getPositiveNumber(student?.calendarDurationDays)
 
   if (!startDate) {
     return {
@@ -282,6 +341,11 @@ export function buildStudentCourseCalendar(student = {}) {
       endDate: null,
       durationMonths,
       schedule,
+      totalHours,
+      hoursPerDay,
+      requiredTeachingDays,
+      actualTeachingDays,
+      calendarDurationDays,
       monthIndex: 0,
       months: [],
       summary: {
@@ -305,6 +369,11 @@ export function buildStudentCourseCalendar(student = {}) {
       endDate: null,
       durationMonths,
       schedule,
+      totalHours,
+      hoursPerDay,
+      requiredTeachingDays,
+      actualTeachingDays,
+      calendarDurationDays,
       monthIndex: 0,
       months: [],
       summary: {
@@ -334,6 +403,7 @@ export function buildStudentCourseCalendar(student = {}) {
     })
   })
   const attendanceMap = buildAttendanceMap(student)
+  const serverEventMap = buildServerEventMap(student)
   const months = []
   const summary = {
     courseDays: 0,
@@ -345,11 +415,11 @@ export function buildStudentCourseCalendar(student = {}) {
   }
 
   for (let cursor = new Date(rangeStart); cursor <= rangeEnd; cursor = addCalendarMonths(cursor, 1)) {
-    const monthDays = buildCalendarMonthDays(cursor, startDate, endDate, schedule, holidayMap, attendanceMap)
+    const monthDays = buildCalendarMonthDays(cursor, startDate, endDate, schedule, holidayMap, attendanceMap, serverEventMap)
     monthDays.forEach((day) => {
       if (day.isPlaceholder || !day.isWithinRange) return
 
-      if (day.status === 'Course Day') summary.courseDays += 1
+      if (day.isCourseDay) summary.courseDays += 1
       if (day.status === 'No Class') summary.noClassDays += 1
       // Count every holiday in the course range. Scheduled holidays are also
       // removed from the Course Day total by the status precedence above.
@@ -376,6 +446,12 @@ export function buildStudentCourseCalendar(student = {}) {
     endDate,
     durationMonths,
     schedule,
+    courseMode: student?.courseMode || student?.course?.mode || '',
+    totalHours,
+    hoursPerDay,
+    requiredTeachingDays,
+    actualTeachingDays,
+    calendarDurationDays,
     monthIndex: 0,
     months,
     summary,
