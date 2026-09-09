@@ -1,5 +1,6 @@
 ﻿import { useState, useMemo, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { FacultySchedulePanel } from '../components/FacultySchedulePanel'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -4477,6 +4478,7 @@ const nextName = trimmedValue
 
               {activeSection === 'my-batches' ? (
                 <FacultyDashboardSection title="My Batches" description="Overview of active learning batches under your instruction.">
+                  <FacultySchedulePanel />
                   <div className="branch-dashboard-table-shell">
                     <table className="branch-dashboard-table">
                       <thead>

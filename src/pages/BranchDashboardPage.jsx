@@ -95,6 +95,7 @@ import {
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
+import { InstituteLeavePage } from './InstituteLeavePage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
@@ -1627,6 +1628,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   const section = String(params.get('section') || '').trim().toLowerCase()
 
   if (section === 'notifications') return 'notifications'
+  if (section === 'institute-leave') return 'institute-leave'
   if (section === 'students') return 'students'
   if (section === 'courses') return 'courses'
   if (section === 'installments') return 'installments'
@@ -7583,6 +7585,7 @@ useEffect(() => {
           { id: 'faculty', label: 'Faculty', icon: UserRound },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'batches', label: 'Batches', icon: Layers3 },
+          { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
           { id: 'payments', label: 'Payments', icon: Wallet },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
@@ -8065,6 +8068,7 @@ useEffect(() => {
                 </>
               ) : null}
 
+              {activeSection === 'institute-leave' ? <InstituteLeavePage /> : null}
               {activeSection === 'notifications' ? (
                 <section className="notifications-page branch-notifications-page">
                   <header className="notifications-page-header">

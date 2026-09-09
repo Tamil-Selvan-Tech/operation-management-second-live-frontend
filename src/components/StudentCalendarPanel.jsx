@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, Clock3, Flag, Sparkles, Timer } from 'lucide-react'
 
 import { buildStudentCourseCalendar, formatCalendarDate, formatCalendarLongDate } from '../lib/studentCalendar'
@@ -8,6 +8,9 @@ const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 function getStatusTone(status) {
   const normalized = String(status || '').trim().toLowerCase()
   if (normalized === 'course day') return 'tone-course-day'
+  if (normalized === 'class' || normalized === 'scheduled') return 'tone-course-day'
+  if (normalized === 'completed') return 'tone-present'
+  if (normalized === 'institute leave') return 'tone-holiday'
   if (normalized === 'holiday' || normalized === 'government holiday') return 'tone-holiday'
   if (normalized === 'leave') return 'tone-holiday'
   if (normalized === 'present') return 'tone-present'
@@ -82,11 +85,8 @@ function CalendarDayCell({ day }) {
 
 export function StudentCalendarPanel({ student }) {
   const calendar = useMemo(() => buildStudentCourseCalendar(student || {}), [student])
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState(0)
-
-  useEffect(() => {
-    setSelectedMonthIndex(getInitialMonthIndex(calendar))
-  }, [calendar])
+  const [chosenMonthIndex, setSelectedMonthIndex] = useState(null)
+  const selectedMonthIndex = chosenMonthIndex === null ? getInitialMonthIndex(calendar) : Math.min(chosenMonthIndex, calendar.months.length - 1)
 
   const selectedMonth = calendar.months[selectedMonthIndex] || calendar.months[0] || null
   const canGoBack = selectedMonthIndex > 0
@@ -109,6 +109,11 @@ export function StudentCalendarPanel({ student }) {
       <h1 className="student-new-calendar-page-title">Course Calendar</h1>
 
       <div className="student-new-calendar-summary-grid">
+        {student?.scheduleSummary ? <>
+          <CalendarSummaryCard icon={CheckCircle2} label="Completed Hours" value={student.scheduleSummary.completedHours ?? 0} note="Recorded present class hours" tone="tone-present" />
+          <CalendarSummaryCard icon={Clock3} label="Pending Hours" value={student.scheduleSummary.pendingHours ?? 0} note="Required hours still to complete" />
+          <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={student.scheduleSummary.replacementHours ?? 0} note={`${student.scheduleSummary.cancelledHours ?? 0} hours affected by Institute Leave`} tone="tone-holiday" />
+        </> : null}
         <CalendarSummaryCard
           icon={CalendarDays}
           label="Course Name"
@@ -175,7 +180,7 @@ export function StudentCalendarPanel({ student }) {
             <button
               type="button"
               className="student-new-calendar-nav-button"
-              onClick={() => setSelectedMonthIndex((current) => Math.max(0, current - 1))}
+              onClick={() => setSelectedMonthIndex(Math.max(0, selectedMonthIndex - 1))}
               disabled={!canGoBack}
               aria-label="Previous month"
             >
@@ -192,7 +197,7 @@ export function StudentCalendarPanel({ student }) {
             <button
               type="button"
               className="student-new-calendar-nav-button"
-              onClick={() => setSelectedMonthIndex((current) => Math.min(calendar.months.length - 1, current + 1))}
+              onClick={() => setSelectedMonthIndex(Math.min(calendar.months.length - 1, selectedMonthIndex + 1))}
               disabled={!canGoNext}
               aria-label="Next month"
             >
@@ -220,6 +225,7 @@ export function StudentCalendarPanel({ student }) {
           <span className="student-new-calendar-legend-item tone-course-day">Course Day</span>
           <span className="student-new-calendar-legend-item tone-no-class">No Class</span>
           <span className="student-new-calendar-legend-item tone-holiday">General Holiday</span>
+          <span className="student-new-calendar-legend-item tone-holiday">Institute Leave · Attendance Not Applicable</span>
           <span className="student-new-calendar-legend-item tone-present">Present</span>
           <span className="student-new-calendar-legend-item tone-absent">Absent</span>
           <span className="student-new-calendar-legend-item tone-start">Course Start Date</span>

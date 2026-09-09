@@ -21,6 +21,7 @@ import {
 } from '../lib/branchStudentStore'
 import { getCurrentBranchStudentCalendar, getCurrentStudentProfile } from '../services/studentService'
 import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
+import { NotificationBell } from '../components/NotificationBell'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -110,6 +111,7 @@ export function StudentNewDashboardPage() {
          calendarDurationDays: calendar?.calendarDurationDays || studentRecord.calendarDurationDays || '',
          courseMode: calendar?.courseMode || calendar?.course?.mode || studentRecord.courseMode || '',
          calendarEvents: Array.isArray(calendar?.events) ? calendar.events : [],
+         scheduleSummary: calendar,
        }
      } catch {
        return studentRecord
@@ -154,7 +156,16 @@ export function StudentNewDashboardPage() {
    }
 
    void loadStudent()
-   return () => { isMounted = false }
+   const refreshCalendar = async () => {
+     try {
+       const calendar = await getCurrentBranchStudentCalendar()
+       if (isMounted) setStudent(current => current ? { ...current, courseEndDate: calendar.endDate, calendarEvents: calendar.events, scheduleSummary: calendar, hoursPerDay: calendar.hoursPerDay, totalHours: calendar.totalHours } : current)
+     } catch (error) { if (isMounted) setLoadError(error.message || 'Unable to refresh calendar') }
+   }
+   const timer = setInterval(refreshCalendar, 30000)
+   window.addEventListener('focus', refreshCalendar)
+   window.addEventListener('institute-leave-updated', refreshCalendar)
+   return () => { isMounted = false; clearInterval(timer); window.removeEventListener('focus', refreshCalendar); window.removeEventListener('institute-leave-updated', refreshCalendar) }
  }, [])
 
  const courseName = student?.courseName || student?.courseInterested || student?.course?.name || 'Not assigned'
@@ -418,6 +429,7 @@ const handleLogoutConfirm = async () => {
             </div>
 
             <div className="student-new-topbar-right">
+              <NotificationBell />
 
               <div className="student-new-profile">
 
