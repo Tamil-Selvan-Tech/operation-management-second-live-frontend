@@ -3,14 +3,15 @@ export function attendanceToday() {
 }
 
 export function attendancePercentage(count) {
-  return count.marked ? `${Number(((count.present / count.marked) * 100).toFixed(1))}%` : '—'
+  return count.marked ? `${Number(((count.present / count.marked) * 100).toFixed(2))}%` : '—'
 }
 
 export function buildAttendanceChart(data, mode = 'daily') {
   const end = new Date(`${data.date}T00:00:00Z`)
   const key = (value) => value.toISOString().slice(0, 10)
   const shortDate = (value) => value.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' })
-  const buckets = Array.from({ length: mode === 'daily' ? 7 : mode === 'weekly' ? 4 : 6 }, (_, index) => {
+  const daysInCurrentMonth = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate()
+  const buckets = Array.from({ length: mode === 'daily' ? 7 : mode === 'weekly' ? Math.ceil(daysInCurrentMonth / 7) : 6 }, (_, index) => {
     const start = new Date(end)
     let finish
     if (mode === 'monthly') {
@@ -19,7 +20,7 @@ export function buildAttendanceChart(data, mode = 'daily') {
       finish = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0))
     } else if (mode === 'weekly') {
       start.setUTCDate(index * 7 + 1)
-      finish = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + (index === 3 ? 1 : 0), index === 3 ? 0 : (index + 1) * 7))
+      finish = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), Math.min((index + 1) * 7, daysInCurrentMonth)))
     } else {
       start.setUTCDate(start.getUTCDate() - start.getUTCDay() + index)
       finish = new Date(start)
@@ -28,8 +29,9 @@ export function buildAttendanceChart(data, mode = 'daily') {
       from: key(start), to: key(finish),
       upcoming: key(start) > data.date,
       label: mode === 'monthly' ? start.toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' }) : mode === 'weekly' ? `Week ${index + 1}` : shortDate(start),
-      detail: mode === 'daily' ? start.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }) : mode === 'weekly' ? `${shortDate(start)} – ${shortDate(finish)}` : '',
-      present: 0, absent: 0, marked: 0, recordedDates: new Set(),
+      detail: mode === 'daily' ? start.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }) : '',
+      present: 0, absent: 0, marked: 0,
+      totalStudentDays: data.students.length * (mode === 'daily' ? 1 : mode === 'weekly' ? 7 : finish.getUTCDate()),
     }
   })
   for (const student of data.students) {
@@ -39,12 +41,11 @@ export function buildAttendanceChart(data, mode = 'daily') {
       if (!bucket) continue
       bucket[record.status === 'PRESENT' ? 'present' : 'absent'] += 1
       bucket.marked += 1
-      bucket.recordedDates.add(record.attendanceDate)
     }
   }
-  return buckets.map(({ recordedDates, ...bucket }) => ({
+  return buckets.map((bucket) => ({
     ...bucket,
-    totalStudentDays: data.students.length * recordedDates.size,
+    unmarked: bucket.totalStudentDays - bucket.present - bucket.absent,
   }))
 }
 

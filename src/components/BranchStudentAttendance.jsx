@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { BranchAttendanceChart } from './BranchAttendanceChart'
+import { BranchAttendanceInsights } from './BranchAttendanceInsights'
 import { getBranchAttendanceOverview } from '../services/attendanceService'
 import { FACULTY_ATTENDANCE_SYNC_EVENT } from '../lib/facultyAttendanceStore'
 import { attendanceToday } from '../lib/branchAttendanceSummary'
@@ -46,6 +47,6 @@ export function BranchStudentAttendance({ branchId }) {
     <div className="branch-attendance-heading"><div className="attendance-title"><span className="attendance-title-icon"><CalendarDays size={22} /></span><div><h2>Attendance</h2></div></div></div>
     {error ? <p role="alert" className="branch-attendance-error">{error}</p> : null}
     {!hasData && !error ? <p role="status">Loading attendance from the server…</p> : null}
-    {hasData ? <BranchAttendanceChart data={data} /> : null}
+    {hasData ? <div className="attendance-dashboard-layout"><BranchAttendanceChart data={data} /><BranchAttendanceInsights data={data} /></div> : null}
   </section>
 }

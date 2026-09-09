@@ -19,7 +19,7 @@ test('uses weighted marked days, ignores future/unmarked records and keeps all s
   assert.equal(result.batches.length, 2)
   assert.equal(attendancePercentage(result.totals.daily), '50%')
   assert.equal(attendancePercentage(result.totals.weekly), '75%')
-  assert.equal(attendancePercentage(result.totals.monthly), '66.7%')
+  assert.equal(attendancePercentage(result.totals.monthly), '66.67%')
   assert.equal(attendancePercentage(result.students[2].daily), '—')
 })
 
@@ -48,7 +48,7 @@ test('chart groups real counts across week, month and year boundaries', () => {
   assert.equal(daily[6].upcoming, true)
   assert.equal(daily[6].marked, 0)
   const weekly = buildAttendanceChart(data, 'weekly')
-  assert.equal(weekly.length, 4)
+  assert.equal(weekly.length, 5)
   assert.equal(weekly[0].from, '2026-01-01')
   assert.equal(weekly[0].to, '2026-01-07')
   assert.equal(weekly[0].present, 1)
@@ -82,17 +82,17 @@ test('monthly chart always shows August through January and excludes future atte
   }
 })
 
-test('four weekly buckets cover every day of short, leap and long months exactly once', () => {
+test('seven-day weekly buckets cover every month date exactly once', () => {
   for (const date of ['2026-02-28', '2028-02-29', '2026-09-30', '2026-01-31']) {
     const days = Number(date.slice(-2))
     const records = Array.from({ length: days }, (_, index) => ({ attendanceDate: `${date.slice(0, 8)}${String(index + 1).padStart(2, '0')}`, status: 'PRESENT' }))
     const buckets = buildAttendanceChart({ date, students: [{ records }] }, 'weekly')
-    assert.deepEqual(buckets.map((item) => item.marked), [7, 7, 7, days - 21])
-    assert.equal(buckets[3].to, date)
+    assert.deepEqual(buckets.map((item) => item.marked), days === 28 ? [7, 7, 7, 7] : [7, 7, 7, 7, days - 28])
+    assert.equal(buckets[buckets.length - 1].to, date)
   }
 })
 
-test('percentages include all 12 students and average across recorded dates', () => {
+test('percentages use the full weekly or monthly base, including unmarked dates', () => {
   const students = Array.from({ length: 12 }, (_, index) => ({ records: [
     ...(index < 11 ? [{ attendanceDate: '2026-09-08', status: 'PRESENT' }] : []),
     ...(index < 4 ? [{ attendanceDate: '2026-09-09', status: index < 3 ? 'PRESENT' : 'ABSENT' }] : []),
@@ -101,10 +101,31 @@ test('percentages include all 12 students and average across recorded dates', ()
   const daily = buildAttendanceChart(data, 'daily').find(item => item.from === data.date)
   assert.equal(daily.totalStudentDays, 12)
   assert.equal(attendancePercentage({ present: daily.present, marked: daily.totalStudentDays }), '25%')
-  assert.equal(attendancePercentage({ present: daily.absent, marked: daily.totalStudentDays }), '8.3%')
+  assert.equal(attendancePercentage({ present: daily.absent, marked: daily.totalStudentDays }), '8.33%')
   for (const mode of ['weekly', 'monthly']) {
     const bucket = buildAttendanceChart(data, mode).find(item => item.marked)
-    assert.equal(bucket.totalStudentDays, 24)
-    assert.equal(attendancePercentage({ present: bucket.present, marked: bucket.totalStudentDays }), '58.3%')
+    assert.equal(bucket.totalStudentDays, mode === 'weekly' ? 84 : 360)
+    assert.equal(attendancePercentage({ present: bucket.present, marked: bucket.totalStudentDays }), mode === 'weekly' ? '16.67%' : '3.89%')
+    assert.equal(bucket.unmarked, mode === 'weekly' ? 69 : 345)
+    assert.equal(attendancePercentage({ present: bucket.absent, marked: bucket.totalStudentDays }), mode === 'weekly' ? '1.19%' : '0.28%')
+    assert.equal(attendancePercentage({ present: bucket.unmarked, marked: bucket.totalStudentDays }), mode === 'weekly' ? '82.14%' : '95.83%')
   }
+})
+
+test('unmarked days retain the full base and percentages never exceed 100', () => {
+  for (const date of ['2026-09-30', '2028-02-29', '2026-02-28', '2026-01-31']) {
+    const days = Number(date.slice(-2))
+    const students = [{ records: Array.from({ length: days }, (_, index) => ({ attendanceDate: `${date.slice(0, 8)}${String(index + 1).padStart(2, '0')}`, status: 'PRESENT' })) }]
+    for (const mode of ['daily', 'weekly', 'monthly']) {
+      for (const bucket of buildAttendanceChart({ date, students }, mode)) {
+        assert.equal(bucket.present + bucket.absent + bucket.unmarked, bucket.totalStudentDays)
+        assert.ok(bucket.present <= bucket.totalStudentDays)
+        assert.ok(bucket.unmarked >= 0)
+      }
+    }
+  }
+  const blank = buildAttendanceChart({ date: '2026-09-09', students: [{ records: [] }] }, 'monthly')[1]
+  assert.equal(blank.totalStudentDays, 30)
+  assert.equal(blank.unmarked, 30)
+  assert.equal(attendancePercentage({ present: blank.unmarked, marked: blank.totalStudentDays }), '100%')
 })
