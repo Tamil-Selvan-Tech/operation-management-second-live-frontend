@@ -20,9 +20,6 @@ import {
   refreshBranchStudents,
 } from '../lib/branchStudentStore'
 import { getCurrentBranchStudentCalendar, getCurrentStudentProfile } from '../services/studentService'
-import { listBranchCourses } from '../services/branchCourseService'
-import { mergeBranchCoursesWithSnapshot } from '../lib/branchCourseSnapshot'
-import { loadCourseRecords } from '../data/courseRecords'
 import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
 
 function readStudentSession() {
@@ -44,38 +41,12 @@ function matchesStudentSession(student, session) {
     identifiers.includes(String(student?.emailAddress || student?.email || '').trim().toLowerCase())
 }
 
-function findStudentCourse(student, courses = []) {
-  const studentCourseId = String(student?.courseId || student?.course?.id || '').trim()
-  const studentCourseCode = String(student?.courseCode || student?.course?.courseCode || student?.course?.code || '').trim().toLowerCase()
-  const studentCourseName = String(
-    student?.courseName || student?.courseInterested || student?.course?.name || '',
-  ).trim().toLowerCase()
-
-  const normalizedCourses = Array.isArray(courses) ? courses : []
-
-  if (studentCourseId) {
-    const matchedCourseById = normalizedCourses.find((course) => String(course?.id || course?.branchCourseId || course?.courseId || course?.dbId || '').trim() === studentCourseId)
-    if (matchedCourseById) return matchedCourseById
-  }
-
-  if (studentCourseCode) {
-    const matchedCourseByCode = normalizedCourses.find((course) => String(course?.courseCode || course?.code || '').trim().toLowerCase() === studentCourseCode)
-    if (matchedCourseByCode) return matchedCourseByCode
-  }
-
-  if (studentCourseName) {
-    const matchedCourseByName = normalizedCourses.find((course) => {
-      const courseName = String(course?.name || course?.courseName || course?.title || '').trim().toLowerCase()
-      return courseName && courseName === studentCourseName
-    })
-    if (matchedCourseByName) return matchedCourseByName
-  }
-
-  return null
-}
-
 function getCourseMasterDuration(course = {}) {
   return course?.duration ?? course?.durationMonths ?? course?.courseDuration ?? ''
+}
+
+function getCourseMasterHours(course = {}) {
+  return course?.hours ?? course?.totalHours ?? course?.courseHours ?? ''
 }
 
 function getPaymentStatus(student) {
@@ -109,66 +80,17 @@ export function StudentNewDashboardPage() {
    let isMounted = true
    const session = readStudentSession()
 
-   const attachCourseMasterData = async (studentRecord) => {
+   const attachCourseMasterData = (studentRecord) => {
      if (!studentRecord) return studentRecord
 
-     try {
-       const result = await listBranchCourses({
-         page: 1,
-         limit: 100,
-         sortBy: 'createdAt',
-         sortOrder: 'desc',
-       })
-       let branchCourses = mergeBranchCoursesWithSnapshot(result?.data || [])
-       const courseCatalog = [
-         ...branchCourses,
-         ...loadCourseRecords(),
-       ]
-       let course = findStudentCourse(studentRecord, courseCatalog)
+     const courseMasterDuration = getCourseMasterDuration(studentRecord?.course)
+     const courseMasterHours = getCourseMasterHours(studentRecord?.course)
 
-       if (!course) {
-         const search = String(
-           studentRecord?.courseName || studentRecord?.courseInterested || studentRecord?.course?.name ||
-           studentRecord?.courseCode || studentRecord?.course?.courseCode || '',
-         ).trim()
-
-         if (search) {
-           const searchedResult = await listBranchCourses({
-             page: 1,
-             limit: 100,
-             search,
-           })
-           branchCourses = mergeBranchCoursesWithSnapshot(searchedResult?.data || [])
-           course = findStudentCourse(studentRecord, [
-             ...branchCourses,
-             ...loadCourseRecords(),
-           ])
-         }
-       }
-       if (!course) {
-         const nestedDuration = getCourseMasterDuration(studentRecord?.course)
-         return nestedDuration
-           ? { ...studentRecord, courseMasterDuration: nestedDuration }
-           : studentRecord
-       }
-
-       const courseMasterDuration = getCourseMasterDuration(course)
-
-       return {
-         ...studentRecord,
-         course: {
-           ...(studentRecord.course && typeof studentRecord.course === 'object' ? studentRecord.course : {}),
-           ...course,
-         },
-         courseId: course.id || course.branchCourseId || course.courseId || course.dbId || studentRecord.courseId,
-         courseCode: course.courseCode || studentRecord.courseCode,
-         courseName: course.name || studentRecord.courseName || studentRecord.courseInterested,
-         courseDuration: courseMasterDuration || studentRecord.courseDuration || studentRecord.duration,
-         courseMasterDuration: courseMasterDuration || studentRecord.courseMasterDuration || studentRecord.courseDuration || studentRecord.duration,
-         courseSchedule: course.schedule || course.courseSchedule || studentRecord.courseSchedule || studentRecord.classSchedule,
-       }
-     } catch {
-       return studentRecord
+     return {
+       ...studentRecord,
+       courseDuration: courseMasterDuration || studentRecord.courseDuration || studentRecord.duration,
+       courseMasterDuration: courseMasterDuration || studentRecord.courseMasterDuration || studentRecord.courseDuration || studentRecord.duration,
+       totalHours: courseMasterHours || studentRecord.totalHours || studentRecord.courseHours,
      }
    }
 
@@ -181,6 +103,12 @@ export function StudentNewDashboardPage() {
          ...studentRecord,
          courseEndDate: calendar?.endDate || studentRecord.courseEndDate || '',
          totalWorkingDays: calendar?.totalWorkingDays || studentRecord.totalWorkingDays || '',
+         totalHours: calendar?.totalHours || calendar?.course?.totalHours || studentRecord.totalHours || '',
+         hoursPerDay: calendar?.hoursPerDay || studentRecord.hoursPerDay || '',
+         requiredTeachingDays: calendar?.requiredTeachingDays || studentRecord.requiredTeachingDays || '',
+         actualTeachingDays: calendar?.actualTeachingDays || studentRecord.actualTeachingDays || '',
+         calendarDurationDays: calendar?.calendarDurationDays || studentRecord.calendarDurationDays || '',
+         courseMode: calendar?.courseMode || calendar?.course?.mode || studentRecord.courseMode || '',
          calendarEvents: Array.isArray(calendar?.events) ? calendar.events : [],
        }
      } catch {
@@ -192,7 +120,7 @@ export function StudentNewDashboardPage() {
      if (!session) {
        try {
          const currentProfile = await getCurrentStudentProfile()
-         const hydratedProfile = await attachCourseMasterData(currentProfile)
+         const hydratedProfile = attachCourseMasterData(currentProfile)
          const calendarProfile = await attachCalendarData(hydratedProfile)
          if (isMounted) setStudent(calendarProfile)
        } catch (error) {
@@ -209,7 +137,7 @@ export function StudentNewDashboardPage() {
      try {
        const records = await refreshBranchStudents(scope)
        const latestStudent = records.find((record) => matchesStudentSession(record, session))
-       const hydratedStudent = await attachCourseMasterData(latestStudent || localStudent)
+       const hydratedStudent = attachCourseMasterData(latestStudent || localStudent)
        const calendarStudent = await attachCalendarData(hydratedStudent)
        if (isMounted) {
          setStudent(calendarStudent || null)
