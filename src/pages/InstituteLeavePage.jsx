@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { CalendarDays, Plus, X } from 'lucide-react'
+import { BarChart3, CalendarCheck2, CalendarClock, CalendarDays, Plus, UsersRound, X } from 'lucide-react'
 import { request } from '../services/apiClient'
 import '../styles/InstituteLeavePage.css'
 
@@ -74,7 +74,7 @@ export function InstituteLeavePage() {
       setForm(null); setCancel(null)
       const successText = cancel ? 'Institute Leave cancelled. Schedules restored.' : 'Institute Leave saved successfully. Calendars and notifications updated.'
       setMessage(successText)
-      if (!cancel) setSuccessPopup(successText)
+      setSuccessPopup(successText)
       window.dispatchEvent(new Event('institute-leave-updated'))
       await load()
     } catch (err) { setError(err.message || 'Unable to save Institute Leave') }
@@ -97,11 +97,16 @@ export function InstituteLeavePage() {
     return groups
   }, {})) : []
   return <section className="institute-leave-page">
-    <header className="institute-leave-header"><div><p className="section-kicker">Management</p><h2>Institute Leave</h2><p>Declare leave and review affected classes.</p></div>
+    <header className="institute-leave-header"><div className="institute-leave-heading"><span className="institute-heading-icon"><CalendarDays size={34} /></span><div><p className="section-kicker">Management</p><h2>Institute Leave</h2><p>Manage institute-wide leaves and schedule changes</p></div></div>
       <button className="institute-primary" onClick={() => { setError(''); setFieldErrors({}); setForm({ leaveDate: formDate(data?.today), reason: '' }) }} disabled={!data}><Plus size={18} /> Declare Leave</button></header>
     {error && !open ? <p role="alert" className="institute-error">{error}</p> : null}
     {message ? <p role="status" className="institute-success">{message}</p> : null}
-    <div className="institute-leave-stats">{[['Today’s Leave', 'today'], ['Upcoming Leave', 'upcoming'], ['This Month', 'thisMonth'], ['Affected Classes', 'affectedClasses']].map(([label, key]) => <article key={key}><CalendarDays size={22} /><strong>{data?.summary?.[key] ?? '—'}</strong><span>{label}</span></article>)}</div>
+    <div className="institute-leave-stats">{[
+      { label: "Today's Leave", key: 'today', icon: CalendarCheck2, tone: 'red', note: 'Leave declared today' },
+      { label: 'Upcoming Leave', key: 'upcoming', icon: CalendarClock, tone: 'blue', note: 'Next scheduled leave' },
+      { label: 'This Month', key: 'thisMonth', icon: BarChart3, tone: 'green', note: 'Leave days' },
+      { label: 'Affected Classes', key: 'affectedClasses', icon: UsersRound, tone: 'purple', note: 'Classes affected' },
+    ].map(({ label, key, icon: Icon, tone, note }) => <article key={key} className={`leave-stat-card tone-${tone}`}><span className="leave-stat-icon"><Icon size={27} /></span><div className="leave-stat-copy"><span>{label}</span><strong>{data?.summary?.[key] ?? '—'}</strong><small>{note}</small></div><Icon className="leave-stat-watermark" size={58} /></article>)}</div>
     <div className="institute-leave-filters"><input aria-label="Search leave history" placeholder="Search date or reason" value={search} onChange={e => { setSearch(e.target.value); setLeavePage(1) }} /><select aria-label="Leave status" value={status} onChange={e => { setStatus(e.target.value); setLeavePage(1) }}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Cancelled</option></select></div>
     <div className="institute-table-scroll"><table><caption>Leave history</caption><thead><tr><th>S.No</th><th>Date</th><th>Reason</th><th>Status</th><th>Affected classes</th><th>Actions</th></tr></thead><tbody>
       {visibleLeaves.map((leave, index) => <tr key={leave.id}><td>{(leavePage - 1) * leavePageSize + index + 1}</td><td>{formatLeaveDate(leave.leaveDate)}</td><td>{leave.reason}</td><td>{leave.status === 'ACTIVE' ? 'Active' : 'Cancelled'}</td><td>{leave.affectedClassCount}</td><td><div className="institute-row-actions"><button onClick={() => view(leave)}>View</button>{leave.status === 'ACTIVE' ? <><button type="button" onClick={() => { setError(''); setForm(leave) }}>Edit</button><button type="button" onClick={() => { setError(''); setCancel(leave) }}>Cancel</button></> : null}</div></td></tr>)}
