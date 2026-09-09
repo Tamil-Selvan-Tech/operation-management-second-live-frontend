@@ -4,16 +4,39 @@ import { request } from '../services/apiClient'
 import '../styles/InstituteLeavePage.css'
 
 const unwrap = response => response?.data ?? response
+
+function formatClassTime(value) {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return value || '-'
+  const hour = Number(match[1])
+  return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`
+}
+
+function formatDeclaredAt(value, timeZone = 'Asia/Kolkata') {
+  if (!value) return '-'
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true, timeZone,
+  }).format(new Date(value))
+}
+
+function formatLeaveDate(value) {
+  const date = new Date(`${String(value || '').slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return value || '-'
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
 export function InstituteLeavePage() {
   const [data, setData] = useState(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [leavePage, setLeavePage] = useState(1)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
   const [form, setForm] = useState(null)
   const [detail, setDetail] = useState(null)
   const [cancel, setCancel] = useState(null)
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [successPopup, setSuccessPopup] = useState('')
   const dialog = useRef(null)
   const load = useCallback(async () => {
     try {
@@ -35,6 +58,13 @@ export function InstituteLeavePage() {
   const close = () => { if (!busy) { setForm(null); setDetail(null); setCancel(null) } }
   async function save(event) {
     event.preventDefault()
+    if (form) {
+      const nextErrors = {}
+      if (!form.leaveDate) nextErrors.leaveDate = 'This field is required'
+      if (!String(form.reason || '').trim()) nextErrors.reason = 'This field is required'
+      setFieldErrors(nextErrors)
+      if (Object.keys(nextErrors).length) return
+    }
     setBusy(true); setError(''); setMessage('')
     try {
       await request(`/institute-leaves${cancel ? `/${cancel.id}` : form?.id ? `/${form.id}` : ''}`, {
@@ -42,7 +72,9 @@ export function InstituteLeavePage() {
         ...(cancel ? {} : { body: JSON.stringify({ leaveDate: form.leaveDate, reason: form.reason }) }),
       })
       setForm(null); setCancel(null)
-      setMessage(cancel ? 'Institute Leave cancelled. Schedules restored.' : 'Institute Leave saved. Calendars and affected-user notifications updated.')
+      const successText = cancel ? 'Institute Leave cancelled. Schedules restored.' : 'Institute Leave saved successfully. Calendars and notifications updated.'
+      setMessage(successText)
+      if (!cancel) setSuccessPopup(successText)
       window.dispatchEvent(new Event('institute-leave-updated'))
       await load()
     } catch (err) { setError(err.message || 'Unable to save Institute Leave') }
@@ -54,23 +86,41 @@ export function InstituteLeavePage() {
     catch (err) { setError(err.message) }
   }
   const leaves = (data?.leaves || []).filter(l => (!status || l.status === status) && `${l.leaveDate} ${l.reason}`.toLowerCase().includes(search.toLowerCase()))
+  const leavePageSize = 5
+  const leavePageCount = Math.max(1, Math.ceil(leaves.length / leavePageSize))
+  const visibleLeaves = leaves.slice((leavePage - 1) * leavePageSize, leavePage * leavePageSize)
+  const affectedBatches = detail ? Object.values((detail.affectedClasses || []).reduce((groups, item) => {
+    const key = `${item.batchRecordId || item.batchId || item.batchName || 'batch'}:${item.startTime || ''}:${item.endTime || ''}`
+    const current = groups[key] || { ...item, affectedStudents: 0 }
+    current.affectedStudents += 1
+    groups[key] = current
+    return groups
+  }, {})) : []
   return <section className="institute-leave-page">
     <header className="institute-leave-header"><div><p className="section-kicker">Management</p><h2>Institute Leave</h2><p>Declare leave and review affected classes.</p></div>
-      <button className="institute-primary" onClick={() => { setError(''); setForm({ leaveDate: '', reason: '' }) }} disabled={!data}><Plus size={18} /> Declare Leave</button></header>
+      <button className="institute-primary" onClick={() => { setError(''); setFieldErrors({}); setForm({ leaveDate: formDate(data?.today), reason: '' }) }} disabled={!data}><Plus size={18} /> Declare Leave</button></header>
     {error && !open ? <p role="alert" className="institute-error">{error}</p> : null}
     {message ? <p role="status" className="institute-success">{message}</p> : null}
     <div className="institute-leave-stats">{[['Today’s Leave', 'today'], ['Upcoming Leave', 'upcoming'], ['This Month', 'thisMonth'], ['Affected Classes', 'affectedClasses']].map(([label, key]) => <article key={key}><CalendarDays size={22} /><strong>{data?.summary?.[key] ?? '—'}</strong><span>{label}</span></article>)}</div>
-    <div className="institute-leave-filters"><input aria-label="Search leave history" placeholder="Search date or reason" value={search} onChange={e => setSearch(e.target.value)} /><select aria-label="Leave status" value={status} onChange={e => setStatus(e.target.value)}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Cancelled</option></select></div>
-    <div className="institute-table-scroll"><table><caption>Leave history</caption><thead><tr><th>Date</th><th>Reason</th><th>Status</th><th>Affected classes</th><th>Actions</th></tr></thead><tbody>
-      {leaves.map(leave => <tr key={leave.id}><td>{leave.leaveDate}</td><td>{leave.reason}</td><td>{leave.status === 'ACTIVE' ? 'Active' : 'Cancelled'}</td><td>{leave.affectedClassCount}</td><td><div className="institute-row-actions"><button onClick={() => view(leave)}>View</button>{leave.canEdit ? <><button onClick={() => { setError(''); setForm(leave) }}>Edit</button><button onClick={() => { setError(''); setCancel(leave) }}>Cancel</button></> : null}</div></td></tr>)}
-      {!leaves.length ? <tr><td colSpan="5">{data ? 'No leaves found.' : 'Loading leave history…'}</td></tr> : null}
+    <div className="institute-leave-filters"><input aria-label="Search leave history" placeholder="Search date or reason" value={search} onChange={e => { setSearch(e.target.value); setLeavePage(1) }} /><select aria-label="Leave status" value={status} onChange={e => { setStatus(e.target.value); setLeavePage(1) }}><option value="">All statuses</option><option value="ACTIVE">Active</option><option value="INACTIVE">Cancelled</option></select></div>
+    <div className="institute-table-scroll"><table><caption>Leave history</caption><thead><tr><th>S.No</th><th>Date</th><th>Reason</th><th>Status</th><th>Affected classes</th><th>Actions</th></tr></thead><tbody>
+      {visibleLeaves.map((leave, index) => <tr key={leave.id}><td>{(leavePage - 1) * leavePageSize + index + 1}</td><td>{formatLeaveDate(leave.leaveDate)}</td><td>{leave.reason}</td><td>{leave.status === 'ACTIVE' ? 'Active' : 'Cancelled'}</td><td>{leave.affectedClassCount}</td><td><div className="institute-row-actions"><button onClick={() => view(leave)}>View</button>{leave.status === 'ACTIVE' ? <><button type="button" onClick={() => { setError(''); setForm(leave) }}>Edit</button><button type="button" onClick={() => { setError(''); setCancel(leave) }}>Cancel</button></> : null}</div></td></tr>)}
+      {!leaves.length ? <tr><td colSpan="6">{data ? 'No leaves found.' : 'Loading leave history…'}</td></tr> : null}
     </tbody></table></div>
-    <dialog ref={dialog} className="institute-dialog" onCancel={event => { event.preventDefault(); close() }}>
+    {leaves.length > leavePageSize ? <div className="institute-pagination"><span>Page {Math.min(leavePage, leavePageCount)} of {leavePageCount}</span><div><button type="button" disabled={leavePage === 1} onClick={() => setLeavePage(page => Math.max(1, page - 1))}>Previous</button><button type="button" disabled={leavePage >= leavePageCount} onClick={() => setLeavePage(page => Math.min(leavePageCount, page + 1))}>Next</button></div></div> : null}
+    <dialog ref={dialog} className={`institute-dialog ${cancel ? 'is-confirmation' : ''}`.trim()} onCancel={event => { event.preventDefault(); close() }}>
       <div className="institute-leave-header"><h3>{detail ? 'Leave details' : cancel ? 'Cancel Institute Leave' : form?.id ? 'Edit Institute Leave' : 'Declare Leave'}</h3><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div>
       {error ? <p role="alert" className="institute-error">{error}</p> : null}
-      {form ? <form onSubmit={save}><label>Leave Date *<input type="date" required min={data?.today} value={form.leaveDate} onChange={e => setForm({ ...form, leaveDate: e.target.value })} /></label><label>Reason *<textarea required maxLength={1000} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></label><button className="institute-primary" disabled={busy}>{busy ? 'Saving…' : 'Save Leave'}</button></form> : null}
-      {cancel ? <form onSubmit={save}><p>Cancel leave on {cancel.leaveDate} and restore the affected future classes?</p><p>{cancel.reason}</p><button className="institute-primary" disabled={busy}>{busy ? 'Cancelling…' : 'Confirm cancellation'}</button></form> : null}
-      {detail ? <div><p><strong>{detail.leaveDate}</strong> · {detail.status === 'ACTIVE' ? 'Active' : 'Cancelled'}</p><p>{detail.reason}</p><p>{detail.affectedClassCount} classes · {detail.affectedStudentCount} students · {detail.affectedFacultyCount} faculty</p><p>Declared: {new Date(detail.declaredAt).toLocaleString(undefined, { timeZone: data?.timezone })} ({data?.timezone})</p><div className="institute-table-scroll"><table><thead><tr><th>Student</th><th>Batch</th><th>Time</th><th>Hours</th></tr></thead><tbody>{(detail.affectedClasses || []).map((item, index) => <tr key={`${item.studentId}-${index}`}><td>{item.studentName}</td><td>{item.batchName}</td><td>{item.startTime}–{item.endTime}</td><td>{item.scheduledHours}</td></tr>)}</tbody></table></div>{!detail.affectedClassCount ? <p>No scheduled classes affected.</p> : null}</div> : null}
+      {form ? <form onSubmit={save} noValidate><label>Leave Date *<input type="date" min={form.id ? undefined : data?.today} value={form.leaveDate} onChange={e => { setForm({ ...form, leaveDate: e.target.value }); setFieldErrors(current => ({ ...current, leaveDate: '' })) }} />{fieldErrors.leaveDate ? <small className="institute-field-error">{fieldErrors.leaveDate}</small> : null}</label><label>Reason *<textarea maxLength={1000} value={form.reason} onChange={e => { setForm({ ...form, reason: e.target.value }); setFieldErrors(current => ({ ...current, reason: '' })) }} />{fieldErrors.reason ? <small className="institute-field-error">{fieldErrors.reason}</small> : null}</label><button className="institute-primary" disabled={busy}>{busy ? 'Saving…' : 'Save Leave'}</button></form> : null}
+      {cancel ? <form onSubmit={save}><p className="institute-confirm-question">Are you sure you want to cancel this leave?</p><p>Leave date: <strong>{formatLeaveDate(cancel.leaveDate)}</strong></p><p>This will restore the affected future classes and recalculate schedules.</p><div className="institute-confirm-actions"><button type="button" onClick={close} disabled={busy}>Keep Leave</button><button className="institute-primary" disabled={busy}>{busy ? 'Cancelling…' : 'Confirm Cancel'}</button></div></form> : null}
+      {detail ? <div><p><strong>{formatLeaveDate(detail.leaveDate)}</strong> · {detail.status === 'ACTIVE' ? 'Active' : 'Cancelled'}</p><p>{detail.reason}</p><p>{detail.affectedClassCount} classes · {detail.affectedStudentCount} students · {detail.affectedFacultyCount} faculty</p><p>Declared: {formatDeclaredAt(detail.declaredAt, data?.timezone)}</p><div className="institute-table-scroll"><table><thead><tr><th>Affected Batch</th><th>Class Time</th><th>Students</th><th>Hours</th></tr></thead><tbody>{affectedBatches.map((item, index) => <tr key={`${item.batchRecordId || item.batchName}-${item.startTime}-${index}`}><td><strong>{item.batchName || item.batchId || 'Batch'}</strong></td><td>{formatClassTime(item.startTime)} – {formatClassTime(item.endTime)}</td><td>{item.affectedStudents}</td><td>{item.scheduledHours}</td></tr>)}</tbody></table></div>{!detail.affectedClassCount ? <p>No scheduled batches affected.</p> : null}</div> : null}
     </dialog>
+    {successPopup ? <div className="institute-success-popup" role="alertdialog" aria-modal="true"><div><strong>Success</strong><p>{successPopup}</p><button type="button" className="institute-primary" onClick={() => setSuccessPopup('')}>OK</button></div></div> : null}
   </section>
+}
+
+function formDate(value) {
+  if (value) return value
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
