@@ -319,9 +319,6 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
         isStartDate ? 'Course Start Date' : '',
         isEndDate ? 'Course End Date' : '',
         serverEvent?.isReplacement ? 'Replacement Class' : '',
-        serverEvent?.code === 'INSTITUTE_LEAVE' || String(serverEvent?.status || '').trim().toLowerCase() === 'institute leave'
-          ? 'Institute Leave · Attendance Not Applicable'
-          : '',
       ].filter(Boolean),
       isHoliday: Boolean(holiday),
     })

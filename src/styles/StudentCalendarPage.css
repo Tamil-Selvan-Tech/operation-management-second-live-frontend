@@ -9,7 +9,7 @@
    in StudentCalendarPanel; these rules only change the visual treatment. */
 .student-calendar-external-page { max-width: none; }
 .student-calendar-external-page .student-new-calendar-page-title { display: none; }
-.student-calendar-external-page .student-new-calendar-summary-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.student-calendar-external-page .student-new-calendar-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
 .student-calendar-external-page .student-calendar-summary-card { min-width: 0; min-height: 86px; padding: 12px; gap: 8px; }
 .student-calendar-external-page .student-calendar-summary-icon { width: 30px; min-width: 30px; height: 30px; }
 .student-calendar-external-page .student-calendar-summary-copy span { font-size: 9px; }
@@ -33,8 +33,10 @@
 .student-calendar-external-page .student-new-calendar-legend-item.tone-present::before { background: #2fc28a; }
 .student-calendar-external-page .student-new-calendar-legend-item.tone-absent::before { background: #f05b63; }
 .student-calendar-external-page .student-new-calendar-legend-item.tone-holiday::before { background: #a855f7; }
-.student-calendar-external-page .student-new-calendar-legend-item.tone-start::before { background: #a855f7; }
-.student-calendar-external-page .student-new-calendar-legend-item.tone-end::before { background: #2fc28a; }
+.student-calendar-external-page .student-new-calendar-legend-item.tone-general-holiday::before { background: #a855f7; }
+.student-calendar-external-page .student-new-calendar-legend-item.tone-institute-leave::before { background: #f97316; }
+.student-calendar-external-page .student-new-calendar-legend-item.tone-start::before { background: #6366f1; }
+.student-calendar-external-page .student-new-calendar-legend-item.tone-end::before { background: #16a34a; }
 .student-calendar-external-page .student-new-calendar-grid { gap: 8px; padding-top: 14px; }
 .student-calendar-external-page .student-new-calendar-weekday { color: #29477e; font-size: .75rem; }
 .student-calendar-external-page .student-calendar-day { position: relative; height: 116px; min-height: 116px; align-self: start; justify-content: flex-start; gap: 0; padding: 10px; border: 1px solid #dbeafe; border-radius: 11px; background: #fff; box-shadow: none; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
@@ -55,8 +57,12 @@
 .student-calendar-external-page .student-calendar-day--external.tone-holiday::after { background: #a855f7; }
 .student-calendar-external-page .student-calendar-day--external.tone-holiday .student-calendar-day-pill { background: #f3e8ff; color: #7c3aed; }
 .student-calendar-external-page .student-calendar-day--external.tone-holiday .student-calendar-day-note { color: #7c3aed; }
-.student-calendar-external-page .student-calendar-day--external.is-start-date::after { background: #a855f7; }
-.student-calendar-external-page .student-calendar-day--external.is-end-date::after { background: #2fc28a; }
+.student-calendar-external-page .student-calendar-day--external.status-general-holiday::after { background: #a855f7; }
+.student-calendar-external-page .student-calendar-day--external.status-institute-leave::after { background: #f97316; }
+.student-calendar-external-page .student-calendar-day--external.status-institute-leave .student-calendar-day-pill { background: #ffedd5; color: #c2410c; }
+.student-calendar-external-page .student-calendar-day--external.status-institute-leave .student-calendar-day-note { color: #c2410c; }
+.student-calendar-external-page .student-calendar-day--external.status-course-start::after { background: #6366f1; }
+.student-calendar-external-page .student-calendar-day--external.status-course-end::after { background: #16a34a; }
 .student-calendar-hover-tooltip { pointer-events: none; position: absolute; left: 50%; bottom: calc(100% + 10px); z-index: 30; width: 235px; padding: 13px 14px; border-radius: 10px; background: #172d55; color: #fff; box-shadow: 0 12px 26px rgba(15, 23, 42, .24); opacity: 0; visibility: hidden; transform: translate(-50%, 5px); transition: opacity .15s ease, transform .15s ease, visibility .15s ease; }
 .student-calendar-day:hover .student-calendar-hover-tooltip { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
 .student-calendar-hover-tooltip strong { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: .75rem; }

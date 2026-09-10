@@ -10,12 +10,21 @@ function getStatusTone(status) {
   if (normalized === 'course day') return 'tone-course-day'
   if (normalized === 'class' || normalized === 'scheduled') return 'tone-course-day'
   if (normalized === 'completed') return 'tone-present'
-  if (normalized === 'institute leave' || normalized === 'institute_leave') return 'tone-holiday'
+  if (normalized === 'institute leave' || normalized === 'institute_leave' || normalized.startsWith('institute leave')) return 'tone-holiday'
   if (normalized === 'holiday' || normalized === 'general holiday' || normalized === 'government holiday') return 'tone-holiday'
   if (normalized === 'leave') return 'tone-holiday'
   if (normalized === 'present') return 'tone-present'
   if (normalized === 'absent') return 'tone-absent'
   return 'tone-no-class'
+}
+
+function getCalendarStatusClass(day = {}) {
+  const normalized = String(day.status || '').trim().toLowerCase()
+  if (normalized === 'general holiday' || normalized === 'government holiday' || normalized === 'holiday') return 'status-general-holiday'
+  if (normalized === 'institute leave' || normalized === 'institute_leave' || normalized.startsWith('institute leave') || normalized === 'leave') return 'status-institute-leave'
+  if (day.isStartDate) return 'status-course-start'
+  if (day.isEndDate) return 'status-course-end'
+  return ''
 }
 
 function getInitialMonthIndex(calendar) {
@@ -72,7 +81,7 @@ function CalendarDayCell({ day, externalUi = false }) {
       ? 'Institute Leave'
       : day.status
   return (
-    <article title={externalUi ? undefined : detailLines || day.status} className={`student-calendar-day ${externalUi ? 'student-calendar-day--external' : ''} ${getStatusTone(day.status)} ${day.isStartDate ? 'is-start-date' : ''} ${day.isEndDate ? 'is-end-date' : ''}`.trim()}>
+    <article title={externalUi ? undefined : detailLines || day.status} className={`student-calendar-day ${externalUi ? 'student-calendar-day--external' : ''} ${getStatusTone(day.status)} ${getCalendarStatusClass(day)} ${day.isStartDate ? 'is-start-date' : ''} ${day.isEndDate ? 'is-end-date' : ''}`.trim()}>
       <div className="student-calendar-day-head">
         <span className="student-calendar-day-number">{day.dayNumber}</span>
         <span className="student-calendar-day-weekday">{day.weekday}</span>
@@ -287,8 +296,8 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
           <span className="student-new-calendar-legend-item tone-no-class">No Class</span>
           <span className="student-new-calendar-legend-item tone-present">Present</span>
           <span className="student-new-calendar-legend-item tone-absent">Absent</span>
-          <span className="student-new-calendar-legend-item tone-holiday">General Holiday</span>
-          <span className="student-new-calendar-legend-item tone-holiday">Institute Leave · Attendance Not Applicable</span>
+          <span className="student-new-calendar-legend-item tone-holiday tone-general-holiday">General Holiday</span>
+          <span className="student-new-calendar-legend-item tone-holiday tone-institute-leave">Institute Leave · Attendance Not Applicable</span>
           <span className="student-new-calendar-legend-item tone-start">Course Start Date</span>
           <span className="student-new-calendar-legend-item tone-end">Course End Date</span>
         </div>
