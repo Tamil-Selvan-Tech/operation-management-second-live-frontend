@@ -75,11 +75,22 @@ function CalendarDayCell({ day, externalUi = false }) {
     day.holidayName ? `Reason: ${day.holidayName}` : '',
   ].filter(Boolean).join(' | ')
 
+  const normalizedStatus = String(day.status || '').trim().toLowerCase()
   const displayStatus = day.status === 'Course Day'
     ? 'Scheduled'
-    : String(day.status || '').trim().toLowerCase() === 'institute_leave'
-      ? 'Institute Leave'
+    : (normalizedStatus === 'institute_leave' || normalizedStatus.startsWith('institute leave'))
+      ? 'Class Cancel'
+      : normalizedStatus === 'completed'
+        ? 'Present'
       : day.status
+  const showAttendanceNote = day.attendanceStatus && String(day.attendanceStatus).trim().toLowerCase() !== String(displayStatus || '').trim().toLowerCase()
+  const fallbackNote = showAttendanceNote
+    ? day.attendanceStatus
+    : ['present', 'absent', 'completed'].includes(normalizedStatus)
+      ? ''
+      : day.isCourseDay
+        ? 'Scheduled class day'
+        : 'No class scheduled'
   return (
     <article title={externalUi ? undefined : detailLines || day.status} className={`student-calendar-day ${externalUi ? 'student-calendar-day--external' : ''} ${getStatusTone(day.status)} ${getCalendarStatusClass(day)} ${day.isStartDate ? 'is-start-date' : ''} ${day.isEndDate ? 'is-end-date' : ''}`.trim()}>
       <div className="student-calendar-day-head">
@@ -101,7 +112,7 @@ function CalendarDayCell({ day, externalUi = false }) {
           </div>
         ) : null}
         {!day.holidayName && !day.markers?.length ? (
-          <span className="student-calendar-day-note">{day.attendanceStatus ? day.attendanceStatus : day.isCourseDay ? 'Scheduled class day' : 'No class scheduled'}</span>
+          fallbackNote ? <span className="student-calendar-day-note">{fallbackNote}</span> : null
         ) : null}
       </div>
 
@@ -162,12 +173,13 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
   const attendanceSummary = sourceSummary.attendanceSummary || sourceSummary.attendance || sourceSummary.summary || {}
   const calendarDurationDays = calendar.calendarDurationDays || sourceSummary.calendarDurationDays || 0
   const calendarHolidayCount = calendar.summary.holidays || sourceSummary.summary?.holidays || 0
-  const presentCount = sourceSummary.presentDays ?? sourceSummary.present ?? attendanceSummary.presentDays ?? attendanceSummary.present ?? calendar.summary.presentDays
-  const absentCount = sourceSummary.absentDays ?? sourceSummary.absent ?? attendanceSummary.absentDays ?? attendanceSummary.absent ?? calendar.summary.absentDays
+  const presentCount = calendar.summary.presentDays || sourceSummary.presentDays || sourceSummary.present || attendanceSummary.presentDays || attendanceSummary.present || 0
+  const absentCount = calendar.summary.absentDays || sourceSummary.absentDays || sourceSummary.absent || attendanceSummary.absentDays || attendanceSummary.absent || 0
   const [chosenMonthIndex, setSelectedMonthIndex] = useState(null)
   const selectedMonthIndex = chosenMonthIndex === null ? getInitialMonthIndex(calendar) : Math.min(chosenMonthIndex, calendar.months.length - 1)
 
   const selectedMonth = calendar.months[selectedMonthIndex] || calendar.months[0] || null
+  const selectedMonthScheduledDays = selectedMonth?.days?.filter((day) => day.isCourseDay).length || 0
   const canGoBack = selectedMonthIndex > 0
   const canGoNext = selectedMonthIndex < calendar.months.length - 1
 
@@ -221,7 +233,7 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
         {student?.scheduleSummary || externalUi ? <>
           <CalendarSummaryCard icon={CheckCircle2} label="Completed Hours" value={externalUi ? hoursSummary.completed : student?.scheduleSummary?.completedHours ?? '-'} note="Recorded present class hours" tone="tone-present" />
           <CalendarSummaryCard icon={Clock3} label="Pending Hours" value={externalUi ? hoursSummary.pending : student?.scheduleSummary?.pendingHours ?? '-'} note="Required hours still to complete" />
-          {student?.scheduleSummary || externalUi ? <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={sourceSummary.replacementHours ?? '-'} note={`${sourceSummary.cancelledHours ?? 0} hours affected by Institute Leave`} tone="tone-holiday" /> : null}
+          {student?.scheduleSummary || externalUi ? <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={sourceSummary.replacementHours ?? '-'} note={`${sourceSummary.cancelledHours ?? 0} hours affected by Class Cancel`} tone="tone-holiday" /> : null}
         </> : null}
         <CalendarSummaryCard
           icon={Clock3}
@@ -297,7 +309,7 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
           <span className="student-new-calendar-legend-item tone-present">Present</span>
           <span className="student-new-calendar-legend-item tone-absent">Absent</span>
           <span className="student-new-calendar-legend-item tone-holiday tone-general-holiday">General Holiday</span>
-          <span className="student-new-calendar-legend-item tone-holiday tone-institute-leave">Institute Leave · Attendance Not Applicable</span>
+          <span className="student-new-calendar-legend-item tone-holiday tone-institute-leave">Class Cancel</span>
           <span className="student-new-calendar-legend-item tone-start">Course Start Date</span>
           <span className="student-new-calendar-legend-item tone-end">Course End Date</span>
         </div>
@@ -317,11 +329,11 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
         <div className="student-new-calendar-footer">
           <div className="student-new-calendar-footer-stat">
             <strong>{calendar.summary.courseDays}</strong>
-            <span>Course days</span>
+            <span>Total scheduled class days</span>
           </div>
           <div className="student-new-calendar-footer-stat">
-            <strong>{calendar.summary.noClassDays}</strong>
-            <span>No class days</span>
+            <strong>{selectedMonthScheduledDays}</strong>
+            <span>This month scheduled class days</span>
           </div>
           <div className="student-new-calendar-footer-stat">
             <strong>{presentCount}</strong>

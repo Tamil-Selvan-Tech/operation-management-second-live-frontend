@@ -439,9 +439,10 @@ export function buildStudentCourseCalendar(student = {}) {
       if (day.status === 'No Class') summary.noClassDays += 1
       // Count every holiday in the course range. Scheduled holidays are also
       // removed from the Course Day total by the status precedence above.
-      if (day.status === 'Present' || day.status === 'Absent') {
+      const attendanceStatus = day.attendanceStatus || (day.status === 'Completed' ? 'Present' : day.status)
+      if (attendanceStatus === 'Present' || attendanceStatus === 'Absent') {
         summary.attendanceDays += 1
-        summary[`${day.status.toLowerCase()}Days`] += 1
+        summary[`${attendanceStatus.toLowerCase()}Days`] += 1
       }
     })
 
