@@ -1397,6 +1397,8 @@ export function BranchBatchManagementSection({
         saveBranchBatchGroups(nextLocalGroups)
 
         const latestGroups = await refreshBatchGroups()
+        window.dispatchEvent(new Event('cispro:branch-batch-groups-changed'))
+        if (existingGroup) window.dispatchEvent(new Event('cispro:branch-students-changed'))
         setIsCreateOpen(false)
         setEditingGroup(null)
         setFieldErrors({ courseId: '', facultyId: '', rows: [] })

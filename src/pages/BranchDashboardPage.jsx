@@ -6130,6 +6130,19 @@ const studentCourseOptions = useMemo(() => {
     }
   }, [reloadBranchStudents])
 
+  useEffect(() => {
+    if (!isStudentFormOpen || studentFormMode === 'add') return
+    const currentId = String(studentForm.recordId || studentForm.studentId || '').trim().toLowerCase()
+    if (!currentId) return
+    const updatedStudent = branchStudents.find((student) => [student.id, student.studentId].some((value) => String(value || '').trim().toLowerCase() === currentId))
+    if (!updatedStudent) return
+    setStudentForm((current) => ({
+      ...current,
+      courseStartDate: updatedStudent.courseStartDate || current.courseStartDate,
+      courseEndDate: updatedStudent.courseEndDate || current.courseEndDate,
+    }))
+  }, [branchStudents, isStudentFormOpen, studentForm.recordId, studentForm.studentId, studentFormMode])
+
   // Load country options for student form
   useEffect(() => {
     let cancelled = false
