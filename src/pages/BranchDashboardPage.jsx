@@ -97,6 +97,7 @@ import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
+import { StudentCalendarPage } from './StudentCalendarPage'
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../components/payments/RecordPayment.css'
@@ -1622,6 +1623,7 @@ function normalizeBranchStudentCourseFacultyOptions(course = {}) {
 }
 
 function getBranchDashboardSectionFromPath(pathname = '', search = '') {
+  if (/\/branch-dashboard\/students\/[^/]+\/calendar\/?$/.test(pathname)) return 'student-calendar'
   if (pathname.endsWith('/notifications')) return 'notifications'
 
   const params = new URLSearchParams(search)
@@ -2899,6 +2901,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
   const activeSection = getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+  const studentCalendarId = location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || ''
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: activeSection === 'installments',
     faculty: activeSection === 'batches',
@@ -7874,6 +7877,14 @@ useEffect(() => {
 
           <main className="super-admin-content">
             <div className="branch-dashboard-content">
+              {activeSection === 'student-calendar' ? (
+                <StudentCalendarPage
+                  studentId={decodeURIComponent(studentCalendarId)}
+                  student={branchStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase()))}
+                  backPath="/branch-dashboard?section=students"
+                  onBack={() => navigate('/branch-dashboard?section=students')}
+                />
+              ) : null}
               {activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
@@ -8611,6 +8622,19 @@ else {
                       }}
                       onClick={(event) => event.stopPropagation()}
                     >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setStudentActionMenuId('')
+                          setStudentActionMenuPosition({ top: 0, left: 0 })
+                          navigate(`/branch-dashboard/students/${encodeURIComponent(stu.studentId || stu.id || '')}/calendar`)
+                        }}
+                      >
+                        <CalendarDays size={15} />
+                        <span>View Calendar</span>
+                      </button>
+
                       <button
                         type="button"
                         role="menuitem"

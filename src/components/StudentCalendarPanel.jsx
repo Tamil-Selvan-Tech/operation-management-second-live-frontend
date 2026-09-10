@@ -55,8 +55,19 @@ function CalendarDayCell({ day }) {
     return <div className="student-calendar-day is-placeholder" aria-hidden="true" />
   }
 
+  const detailLines = [
+    day.dateKey ? `Date: ${day.dateKey}` : '',
+    day.attendanceStatus ? `Attendance: ${day.attendanceStatus}` : '',
+    day.details?.classTime ? `Class Time: ${day.details.classTime}` : '',
+    day.details?.extendedTime ? `Extended: ${day.details.extendedTime}` : '',
+    day.details?.actualEndTime ? `Actual End Time: ${day.details.actualEndTime}` : '',
+    day.details?.totalClassDuration ? `Duration: ${day.details.totalClassDuration}` : '',
+    day.details?.submodule ? `Submodule: ${day.details.submodule}` : '',
+    day.holidayName ? `Reason: ${day.holidayName}` : '',
+  ].filter(Boolean).join(' | ')
+
   return (
-    <article className={`student-calendar-day ${getStatusTone(day.status)} ${day.isStartDate ? 'is-start-date' : ''} ${day.isEndDate ? 'is-end-date' : ''}`.trim()}>
+    <article title={detailLines || day.status} className={`student-calendar-day ${getStatusTone(day.status)} ${day.isStartDate ? 'is-start-date' : ''} ${day.isEndDate ? 'is-end-date' : ''}`.trim()}>
       <div className="student-calendar-day-head">
         <span className="student-calendar-day-number">{day.dayNumber}</span>
         <span className="student-calendar-day-weekday">{day.weekday}</span>

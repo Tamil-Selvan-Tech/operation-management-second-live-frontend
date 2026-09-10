@@ -279,6 +279,36 @@ export async function getCurrentBranchStudentCalendar(query = {}) {
   return unwrapData(response)
 }
 
+export async function getStudentCalendar(studentId, query = {}) {
+  const id = String(studentId || '').trim()
+  if (!id) throw new Error('Student ID is required')
+
+  const params = new URLSearchParams()
+  const from = String(query?.from || '').trim()
+  const to = String(query?.to || '').trim()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  const suffix = params.toString() ? `?${params.toString()}` : ''
+
+  const endpoints = [
+    `/branch-students/${encodeURIComponent(id)}/calendar${suffix}`,
+    `/students/${encodeURIComponent(id)}/calendar${suffix}`,
+  ]
+
+  let lastError = null
+  for (const endpoint of endpoints) {
+    try {
+      return unwrapData(await request(endpoint))
+    } catch (error) {
+      lastError = error
+      const status = Number(error?.status || error?.statusCode || error?.body?.statusCode)
+      if (![400, 404, 405].includes(status)) throw error
+    }
+  }
+
+  throw lastError || new Error('Student calendar is unavailable')
+}
+
 export async function createStudent(payload) {
   const response = await request('/students', {
     method: 'POST',

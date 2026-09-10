@@ -24,6 +24,7 @@ import {
 import { getCurrentBranchStudentCalendar, getCurrentStudentProfile } from '../services/studentService'
 import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
 import { NotificationBell } from '../components/NotificationBell'
+import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -92,6 +93,7 @@ export function StudentNewDashboardPage() {
 
      return {
        ...studentRecord,
+       attendanceByDate: { ...(studentRecord.attendanceByDate || {}), ...getStudentCalendarAttendance(studentRecord) },
        courseDuration: courseMasterDuration || studentRecord.courseDuration || studentRecord.duration,
        courseMasterDuration: courseMasterDuration || studentRecord.courseMasterDuration || studentRecord.courseDuration || studentRecord.duration,
        totalHours: courseMasterHours || studentRecord.totalHours || studentRecord.courseHours,
@@ -150,7 +152,11 @@ export function StudentNewDashboardPage() {
        }
       } catch (error) {
        if (isMounted) {
-         setStudent(localStudent ? { ...localStudent, courseMasterDuration: localStudent.course?.duration || localStudent.courseDuration || localStudent.duration || '' } : null)
+         setStudent(localStudent ? {
+           ...localStudent,
+           attendanceByDate: { ...(localStudent.attendanceByDate || {}), ...getStudentCalendarAttendance(localStudent) },
+           courseMasterDuration: localStudent.course?.duration || localStudent.courseDuration || localStudent.duration || '',
+         } : null)
          if (!localStudent) setLoadError(error?.message || 'Unable to load your student details.')
        }
      } finally {
@@ -168,7 +174,9 @@ export function StudentNewDashboardPage() {
    const timer = setInterval(refreshCalendar, 30000)
    window.addEventListener('focus', refreshCalendar)
    window.addEventListener('institute-leave-updated', refreshCalendar)
-   return () => { isMounted = false; clearInterval(timer); window.removeEventListener('focus', refreshCalendar); window.removeEventListener('institute-leave-updated', refreshCalendar) }
+   const refreshSharedAttendance = () => setStudent(current => current ? { ...current, attendanceByDate: { ...(current.attendanceByDate || {}), ...getStudentCalendarAttendance(current) } } : current)
+   window.addEventListener('cispro:student-calendar-attendance-changed', refreshSharedAttendance)
+   return () => { isMounted = false; clearInterval(timer); window.removeEventListener('focus', refreshCalendar); window.removeEventListener('institute-leave-updated', refreshCalendar); window.removeEventListener('cispro:student-calendar-attendance-changed', refreshSharedAttendance) }
  }, [])
 
  const courseName = student?.courseName || student?.courseInterested || student?.course?.name || 'Not assigned'

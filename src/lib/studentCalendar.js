@@ -301,6 +301,18 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       holidayName: serverEvent?.reason || holiday?.name || '',
       attendanceStatus: attendance,
       classHours: Number(serverEvent?.classHours || 0),
+      details: serverEvent ? {
+        classTime: serverEvent.classTime || serverEvent.time || serverEvent.schedule || '',
+        originalClassTime: serverEvent.originalClassTime || serverEvent.classTime || serverEvent.time || '',
+        extendedTime: serverEvent.extendedTime || serverEvent.extension || '',
+        actualEndTime: serverEvent.actualEndTime || serverEvent.endTime || '',
+        totalClassDuration: serverEvent.totalClassDuration || serverEvent.duration || serverEvent.classHours || '',
+        submodule: serverEvent.submodule || serverEvent.submoduleName || '',
+        attendance: serverEvent.attendanceStatus || serverEvent.attendance || attendance,
+        course: serverEvent.courseName || '',
+        batch: serverEvent.batchName || '',
+        faculty: serverEvent.facultyName || '',
+      } : null,
       status,
       tone,
       markers: [

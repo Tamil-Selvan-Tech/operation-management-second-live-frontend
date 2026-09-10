@@ -343,6 +343,7 @@ export function AppRouter() {
 
           <Route element={<BranchProtectedRoute />}>
             <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
+            <Route path="/branch-dashboard/students/:studentId/calendar" element={<BranchDashboardPage />} />
             <Route path="/branch-dashboard/notifications" element={<BranchNotificationsPage />} />
           </Route>
       <Route
@@ -365,6 +366,7 @@ export function AppRouter() {
             }
           >
             <Route path="/dashboard/faculty/my-batches" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/my-batches/students/:studentId/calendar" element={<FacultyMyBatchesPage />} />
           </Route>
 
           <Route

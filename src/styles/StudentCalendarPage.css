@@ -1,0 +1,6 @@
+.student-calendar-page { display: grid; gap: 18px; }
+.student-calendar-back-button { justify-self: start; display: inline-flex; align-items: center; gap: 8px; border: 0; background: transparent; color: #2563eb; font-weight: 800; cursor: pointer; padding: 4px 0; }
+.student-calendar-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.student-calendar-page-header h1 { margin: 0; color: #0f172a; font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.student-calendar-page-error { margin: 0; color: #b91c1c; font-weight: 700; }
+@media (max-width: 650px) { .student-calendar-page-header { flex-direction: column; } }

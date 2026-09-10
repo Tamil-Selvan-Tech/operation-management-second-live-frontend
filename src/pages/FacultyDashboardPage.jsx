@@ -1,5 +1,5 @@
 ﻿import { useState, useMemo, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -62,6 +62,7 @@ import {
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
+import { StudentCalendarPage } from './StudentCalendarPage'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
 import { BRANCH_STUDENTS_KEY, loadBranchStudents } from '../lib/branchStudentStore'
@@ -80,6 +81,7 @@ import {
 } from '../lib/facultyTodayWorkStore'
 import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
 import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
+import { saveStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -1379,7 +1381,10 @@ function FacultyDashboardSection({ title, description, actions, className = '', 
 
 export function FacultyDashboardPage() {
   const { user, signOut } = useAuth()
+  const location = useLocation()
   const navigate = useNavigate()
+  const studentCalendarId = location.pathname.match(/\/dashboard\/faculty\/my-batches\/students\/([^/]+)\/calendar\/?$/)?.[1] || ''
+  const isStudentCalendarRoute = Boolean(studentCalendarId)
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState('dashboard')
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
@@ -3063,6 +3068,7 @@ export function FacultyDashboardPage() {
         ...extractStudentAttendanceStatuses(response),
         ...Object.fromEntries(students.map((student) => [normalizeWorkStudentId(student.studentId), student.status])),
       }))
+      saveStudentCalendarAttendance(getAttendanceDateKey(), students)
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(FACULTY_ATTENDANCE_SYNC_EVENT))
       }
@@ -4532,7 +4538,19 @@ const nextName = trimmedValue
                 </FacultyDashboardSection>
               ) : null}
 
-              {activeSection === 'students' ? (
+              {isStudentCalendarRoute ? (
+                <StudentCalendarPage
+                  studentId={decodeURIComponent(studentCalendarId)}
+                  student={facultyScopedStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase()))}
+                  backPath="/dashboard/faculty/my-batches"
+                  onBack={() => {
+                    setActiveSection('students')
+                    navigate('/dashboard/faculty/my-batches')
+                  }}
+                />
+              ) : null}
+
+              {activeSection === 'students' && !isStudentCalendarRoute ? (
                 <FacultyDashboardSection
                   title={facultyViewLabel}
                   actions={studentsFlowLevel === 3 ? (
@@ -4886,9 +4904,12 @@ const nextName = trimmedValue
                                       <button
                                         type="button"
                                         className="faculty-students-flow-action-btn is-primary"
-                                        onClick={() => openStudentViewDrawer(student)}
+                                        onClick={(event) => {
+                                          event.stopPropagation()
+                                          navigate(`/dashboard/faculty/my-batches/students/${encodeURIComponent(student.studentId || student.id || '')}/calendar`)
+                                        }}
                                       >
-                                        View
+                                        View Calendar
                                       </button>
                                     </td>
                                   </tr>
