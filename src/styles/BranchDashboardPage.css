@@ -10633,6 +10633,8 @@ body.branch-notification-menu-open .main-area {
 }
 
 .batch-availability-overview { margin-top: 20px; padding: 20px 24px 16px; border: 1px solid #dbe7f5; border-radius: 20px; background: linear-gradient(135deg, #fff 0%, #fbfdff 100%); box-shadow: 0 14px 34px rgba(37, 99, 235, .08); }
+.branch-dashboard-content > .branch-attendance { order: 18; }
+.branch-dashboard-content > .batch-availability-overview { order: 19; }
 .batch-availability-heading { justify-content: flex-start; align-items: center; gap: 16px; margin-bottom: 18px; }
 .batch-availability-heading-icon { flex: 0 0 auto; padding: 10px; width: 46px; height: 46px; color: #2563eb; border-radius: 12px; background: #eaf2ff; }
 .batch-availability-heading span { font-size: 1rem; letter-spacing: .11em; }

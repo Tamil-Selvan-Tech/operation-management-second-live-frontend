@@ -8098,6 +8098,7 @@ useEffect(() => {
                     ))}
                   </div>
 
+                  <BranchStudentAttendance key={branchId} branchId={branchId} />
                   <section className="branch-dashboard-analytics-card batch-availability-overview" aria-label="Batch Availability Overview">
                     <div className="branch-dashboard-analytics-heading batch-availability-heading">
                       <CalendarClock className="batch-availability-heading-icon" size={46} strokeWidth={1.8} aria-hidden="true" />
@@ -8185,8 +8186,6 @@ useEffect(() => {
                       {/* {dashboardData.overdue.length ? <button type="button" className="dashboard-overdue-link" onClick={() => { setPaymentStatusFilter('overdue'); goToBranchSection('payments') }}>View all overdue <span>›</span></button> : null} */}
                     </section>
                   </div>
-                  <BranchStudentAttendance key={branchId} branchId={branchId} />
-
                 </>
               ) : null}
 
