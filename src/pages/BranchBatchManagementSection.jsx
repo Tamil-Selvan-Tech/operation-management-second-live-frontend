@@ -22,6 +22,7 @@ import {
 } from '../lib/branchBatchStore'
 import { FACULTY_ATTENDANCE_SYNC_EVENT, getAttendanceDateKey } from '../lib/facultyAttendanceStore'
 import { getMatchingStudents } from '../lib/facultyFlow'
+import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
 import { calculateBatchCourseEndDate } from '../lib/batchAllocation'
 import '../styles/BranchBatchManagementSection.css'
@@ -968,18 +969,45 @@ export function BranchBatchManagementSection({
 
   const loadDetailAttendance = useCallback(async (group) => {
     const detailBatch = getPrimaryBatchForGroup(group)
+    const detailStudents = getMatchingStudents(branchStudents, {
+      facultyId: group?.facultyId || group?.branchFacultyId || '',
+      facultyName: group?.facultyName || '',
+      courseId: group?.courseId || group?.branchCourseId || '',
+      courseName: group?.courseName || '',
+      batchGroupId: group?.batchGroupId || group?.id || '',
+      batchId: detailBatch?.batchId || detailBatch?.id || '',
+      batchName: detailBatch?.batchName || '',
+      batchTiming: detailBatch?.batchTiming || '',
+    })
+    const localStatuses = {}
+    const todayKey = getAttendanceDateKey()
+
+    detailStudents.forEach((student) => {
+      const studentKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || '')
+      const localStatus = String(getStudentCalendarAttendance(student)?.[todayKey] || '').trim().toUpperCase()
+      if (studentKey && ['PRESENT', 'ABSENT'].includes(localStatus)) {
+        localStatuses[studentKey] = localStatus
+      }
+    })
+
+    setDetailAttendanceStatuses(localStatuses)
+
     try {
       const overview = await getCurrentFacultyAttendanceOverview({
-        date: getAttendanceDateKey(),
+        date: todayKey,
         facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
         courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
         batchId: String(detailBatch?.batchId || detailBatch?.id || '').trim(),
       })
-      setDetailAttendanceStatuses(extractAttendanceStatuses(overview))
+      setDetailAttendanceStatuses((current) => ({
+        ...current,
+        ...extractAttendanceStatuses(overview),
+      }))
     } catch {
-      setDetailAttendanceStatuses({})
+      // The faculty dashboard also persists today's marks locally. Keep those
+      // marks visible when the branch overview endpoint is unavailable.
     }
-  }, [])
+  }, [branchStudents])
 
   const toggleGroupStudents = useCallback(
     (group) => {
