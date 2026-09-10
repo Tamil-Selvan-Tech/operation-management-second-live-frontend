@@ -24,7 +24,7 @@ import { FACULTY_ATTENDANCE_SYNC_EVENT, getAttendanceDateKey } from '../lib/facu
 import { getMatchingStudents } from '../lib/facultyFlow'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
-import { calculateBatchCourseEndDate } from '../lib/batchAllocation'
+import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import '../styles/BranchBatchManagementSection.css'
 
 function normalizeText(value = '') {
@@ -1967,6 +1967,7 @@ export function BranchBatchManagementSection({
       usedSeats: batchStudents.length,
       remainingSeats: Math.max(batchTotalSeats - batchStudents.length, 0),
     }
+    const batchAvailability = getBatchAvailability(primaryBatch.courseEndDate || group.courseEndDate)
     const groupKey = String(group.id || group.batchGroupId || group.batchId || primaryBatch.batchId || '')
     const statusLabel = isInactiveBatchGroup(group) ? 'Inactive' : 'Active'
 
@@ -2008,6 +2009,9 @@ export function BranchBatchManagementSection({
           </td>
           <td className="batch-management-table-cell batch-management-table-students">
             <strong>{batchStudents.length}</strong>
+          </td>
+          <td className="batch-management-table-cell batch-management-table-availability">
+            <span className={`batch-management-availability-badge tone-${batchAvailability.tone}`}>{batchAvailability.label}</span>
           </td>
           <td className="batch-management-table-cell batch-management-table-status">
             <span className={`batch-management-status-pill ${statusLabel.toLowerCase()}`}>{statusLabel}</span>
@@ -2122,6 +2126,7 @@ export function BranchBatchManagementSection({
                 <th>Timing</th>
                 <th>Seats</th>
                 <th>Students</th>
+                <th>Batch Availability</th>
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -2131,7 +2136,7 @@ export function BranchBatchManagementSection({
                 paginatedGroups.map(renderBatchRow)
               ) : (
                 <tr>
-                  <td colSpan={8} className="batch-management-empty-cell">
+                  <td colSpan={9} className="batch-management-empty-cell">
                     {isLoading ? 'Loading batches...' : 'No batches created yet. Use Create Batch to add the first batch.'}
                   </td>
                 </tr>

@@ -1087,6 +1087,23 @@
   margin-top: 4px;
 }
 
+.batch-management-availability-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.batch-management-availability-badge.tone-today { color: #b91c1c; background: #fee2e2; }
+.batch-management-availability-badge.tone-soon { color: #c2410c; background: #ffedd5; }
+.batch-management-availability-badge.tone-available { color: #1d4ed8; background: #dbeafe; }
+.batch-management-availability-badge.tone-completed { color: #475569; background: #e2e8f0; }
+.batch-management-availability-badge.tone-neutral { color: #64748b; background: #f1f5f9; }
+
 .sr-only {
   position: absolute;
   width: 1px;

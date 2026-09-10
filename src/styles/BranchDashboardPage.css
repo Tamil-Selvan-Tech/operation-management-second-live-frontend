@@ -10632,6 +10632,53 @@ body.branch-notification-menu-open .main-area {
   min-width: 1100px !important;
 }
 
+.batch-availability-overview { margin-top: 20px; padding: 20px 24px 16px; border: 1px solid #dbe7f5; border-radius: 20px; background: linear-gradient(135deg, #fff 0%, #fbfdff 100%); box-shadow: 0 14px 34px rgba(37, 99, 235, .08); }
+.batch-availability-heading { justify-content: flex-start; align-items: center; gap: 16px; margin-bottom: 18px; }
+.batch-availability-heading-icon { flex: 0 0 auto; padding: 10px; width: 46px; height: 46px; color: #2563eb; border-radius: 12px; background: #eaf2ff; }
+.batch-availability-heading span { font-size: 1rem; letter-spacing: .11em; }
+.batch-availability-heading h2 { margin-top: 4px; font-size: 1.35rem; font-weight: 500; color: #64748b; }
+.batch-availability-chart { display: grid; gap: 14px; padding: 0; }
+.batch-availability-chart-row { display: grid; grid-template-columns: minmax(190px, 0.9fr) minmax(220px, 2fr) 90px minmax(160px, 0.8fr); gap: 20px; align-items: center; min-height: 72px; padding: 12px 22px 12px 28px; border: 1px solid #dbe7f5; border-left: 6px solid #f97316; border-radius: 12px; background: #fff; }
+.batch-availability-chart-label { display: grid; gap: 3px; min-width: 0; }
+.batch-availability-chart-label strong { font-size: 1.2rem; color: #173466; }
+.batch-availability-chart-label small { font-size: .85rem; }
+.batch-availability-chart-label strong, .batch-availability-chart-label small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.batch-availability-chart-label small { color: #64748b; }
+.batch-availability-chart-track { height: 14px; overflow: hidden; border-radius: 999px; background: #e2eaf5; }
+.batch-availability-chart-track span { display: block; height: 100%; border-radius: inherit; }
+.batch-availability-chart-track span.tone-today { background: #ef4444; }
+.batch-availability-chart-track span.tone-soon { background: #f97316; }
+.batch-availability-chart-track span.tone-available { background: #2563eb; }
+.batch-availability-value { font-size: 1.1rem; text-align: right; white-space: nowrap; }
+.batch-availability-value.tone-today { color: #b91c1c; }
+.batch-availability-value.tone-soon { color: #c2410c; }
+.batch-availability-value.tone-available { color: #1d4ed8; }
+.batch-availability-status { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 0 14px; border-radius: 999px; font-size: .9rem; font-weight: 700; white-space: nowrap; }
+.batch-availability-status i { width: 11px; height: 11px; border-radius: 50%; background: currentColor; }
+.batch-availability-status.tone-today { color: #dc2626; background: #fee2e2; }
+.batch-availability-status.tone-soon { color: #ea8b0c; background: #fff1d6; }
+.batch-availability-status.tone-available { color: #2563eb; background: #dbeafe; }
+@media (max-width: 800px) {
+  .batch-availability-overview { padding: 28px 18px; }
+  .batch-availability-heading { gap: 14px; margin-bottom: 28px; }
+  .batch-availability-heading-icon { width: 54px; height: 54px; padding: 12px; }
+  .batch-availability-heading h2 { font-size: 1.1rem; }
+  .batch-availability-chart-row { grid-template-columns: minmax(120px, 1fr) 70px; }
+  .batch-availability-chart-track { grid-column: 1 / -1; grid-row: 2; }
+  .batch-availability-value { grid-column: 2; grid-row: 1; }
+  .batch-availability-status { grid-column: 1 / -1; justify-self: start; }
+}
+.batch-availability-guide { display: flex; align-items: center; gap: 30px; margin-top: 20px; padding-top: 14px; border-top: 2px solid #e5edf8; color: #64748b; }
+.batch-availability-guide > strong { display: inline-flex; align-items: center; gap: 12px; padding-right: 38px; border-right: 1px solid #dbe7f5; font-size: 1.2rem; white-space: nowrap; }
+.batch-availability-guide > span { display: grid; grid-template-columns: 20px auto; column-gap: 12px; align-items: center; }
+.batch-availability-guide > span i { grid-row: span 2; width: 16px; height: 16px; border-radius: 50%; }
+.batch-availability-guide > span i.tone-today { background: #ef4444; }
+.batch-availability-guide > span i.tone-soon { background: #f97316; }
+.batch-availability-guide > span i.tone-available { background: #3b82f6; }
+.batch-availability-guide b { color: #173466; font-size: 1.1rem; }
+.batch-availability-guide small { grid-column: 2; font-size: .95rem; }
+@media (max-width: 800px) { .batch-availability-guide { flex-wrap: wrap; gap: 18px; margin-top: 32px; } .batch-availability-guide > strong { width: 100%; border: 0; padding: 0; } }
+
 .payment-history-page .branch-course-table th:first-child,
 .payment-history-page .branch-course-table td:first-child {
   width: 170px;

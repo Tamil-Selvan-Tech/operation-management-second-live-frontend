@@ -39,3 +39,15 @@ export function calculateBatchCourseEndDate(startDate, weekType, mode, durationH
   }
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
 }
+
+export function getBatchAvailability(endDate, today = new Date()) {
+  const end = Date.parse(`${String(endDate || '').slice(0, 10)}T00:00:00Z`)
+  const current = Date.parse(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}T00:00:00Z`)
+  if (!Number.isFinite(end) || !Number.isFinite(current)) return { remainingDays: null, label: 'Not Available', tone: 'neutral' }
+  const remainingDays = Math.round((end - current) / 86400000)
+  if (remainingDays < 0) return { remainingDays, label: 'Completed', tone: 'completed' }
+  if (remainingDays === 0) return { remainingDays, label: 'Ends Today', tone: 'today' }
+  if (remainingDays <= 3) return { remainingDays, label: 'Ending Soon', tone: 'soon' }
+  if (remainingDays === 4) return { remainingDays, label: 'Available', tone: 'available' }
+  return { remainingDays, label: 'Not Available', tone: 'neutral' }
+}

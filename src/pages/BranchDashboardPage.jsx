@@ -42,6 +42,7 @@ import {
   Check,
   X,
   Wallet,
+  CalendarClock,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -97,7 +98,7 @@ import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
-import { calculateBatchCourseEndDate } from '../lib/batchAllocation'
+import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
@@ -6555,6 +6556,26 @@ const studentCourseOptions = useMemo(() => {
   }, [allPaymentHistoryRecords])
 
   const currentMonthAdmissions = dashboardData.currentMonthStudents
+  const batchAvailability = useMemo(() => {
+    const records = []
+    branchBatchGroups.forEach((group) => {
+      const batches = Array.isArray(group?.batches) && group.batches.length ? group.batches : [group]
+      batches.forEach((batch, index) => {
+        const endDate = batch?.courseEndDate || group?.courseEndDate || ''
+        if (!endDate) return
+        const availability = getBatchAvailability(endDate)
+        records.push({
+          ...availability,
+          batchId: batch?.batchId || batch?.id || group?.batchId || `batch-${index}`,
+          batchName: batch?.batchName || group?.batchName || '',
+          courseName: batch?.courseName || group?.courseName || '',
+          courseEndDate: endDate,
+        })
+      })
+    })
+    return records
+  }, [branchBatchGroups])
+  const availableBatchRecords = batchAvailability.filter((batch) => batch.remainingDays >= 0 && batch.remainingDays <= 4)
   const nextMonthExpectedAdmissions = currentMonthAdmissions + 10
   const nextMonthTargetAdmissions = 30
   const averageStudentValue = currentMonthAdmissions > 0
@@ -7968,6 +7989,15 @@ useEffect(() => {
                         onClick: () => goToBranchSection('students'),
                       },
                       {
+                        label: 'Batch Availability',
+                        value: availableBatchRecords.length,
+                        note: 'Batches ending within 4 days',
+                        Icon: CalendarClock,
+                        TrailIcon: ArrowUpRight,
+                        tone: 'sky',
+                        onClick: () => goToBranchSection('batches'),
+                      },
+                      {
                         label: 'Total Revenue',
                         value: formatBranchRupees(dashboardData.totalFee),
                         note: 'Across All Batches',
@@ -8067,6 +8097,27 @@ useEffect(() => {
                       </article>
                     ))}
                   </div>
+
+                  <section className="branch-dashboard-analytics-card batch-availability-overview" aria-label="Batch Availability Overview">
+                    <div className="branch-dashboard-analytics-heading batch-availability-heading">
+                      <CalendarClock className="batch-availability-heading-icon" size={46} strokeWidth={1.8} aria-hidden="true" />
+                      <div><span>Batch Availability Overview</span><h2>Batches ending within the next 4 days</h2></div>
+                    </div>
+                    {availableBatchRecords.length ? <div className="batch-availability-chart">
+                      {availableBatchRecords.map((batch) => <div className="batch-availability-chart-row" key={`${batch.batchId}-${batch.courseEndDate}`}>
+                        <div className="batch-availability-chart-label"><strong>{batch.courseName || 'Course'}</strong><small>({batch.batchId})</small></div>
+                        <div className="batch-availability-chart-track"><span className={`tone-${batch.tone}`} style={{ width: `${batch.remainingDays === 0 ? 4 : Math.max(8, (batch.remainingDays / 4) * 100)}%` }} /></div>
+                        <strong className={`batch-availability-value tone-${batch.tone}`}>{batch.remainingDays} {batch.remainingDays === 1 ? 'day' : 'days'}</strong>
+                        <span className={`batch-availability-status tone-${batch.tone}`}><i aria-hidden="true" />{batch.label}</span>
+                      </div>)}
+                    </div> : <p className="dashboard-empty-state">No batches ending within the next 4 days</p>}
+                    <div className="batch-availability-guide" aria-label="Batch availability status guide">
+                      <strong>💡 <span>Status Guide</span></strong>
+                      <span><i className="tone-today" /> <b>0 days</b><small>Ends today</small></span>
+                      <span><i className="tone-soon" /> <b>1-3 days</b><small>Ending soon</small></span>
+                      <span><i className="tone-available" /> <b>4 days</b><small>Later</small></span>
+                    </div>
+                  </section>
 
                   <section className="branch-dashboard-admission-target-card" aria-label="Next month admission target">
                     <div className="branch-dashboard-admission-target-heading">
