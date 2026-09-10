@@ -3040,7 +3040,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 const [paymentSearchTerm, setPaymentSearchTerm] = useState('')
 const [paymentStatusFilter, setPaymentStatusFilter] = useState('all')
 const [paymentPage, setPaymentPage] = useState(1)
-const BRANCH_PAYMENTS_PER_PAGE = 10
+const BRANCH_PAYMENTS_PER_PAGE = 5
 const [paymentHistoryPage, setPaymentHistoryPage] = useState(1)
 const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
@@ -8709,19 +8709,6 @@ else {
                         onClick={() => {
                           setStudentActionMenuId('')
                           setStudentActionMenuPosition({ top: 0, left: 0 })
-                          navigate(`/branch-dashboard/students/${encodeURIComponent(stu.studentId || stu.id || '')}/calendar`)
-                        }}
-                      >
-                        <CalendarDays size={15} />
-                        <span>View Calendar</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setStudentActionMenuId('')
-                          setStudentActionMenuPosition({ top: 0, left: 0 })
                           openStudentViewDrawer(stu)
                         }}
                       >
@@ -10272,7 +10259,7 @@ else {
           STUDENT PAYMENT SUMMARY TABLE
       ===================================================== */}
 
-      <div className="branch-course-table-shell">
+      <div className="branch-course-table-shell branch-payment-table-shell">
 
         <table className="branch-course-table">
 
@@ -12700,17 +12687,31 @@ else {
                     {viewStudentDrawer.currentStatus || 'Student'}
                   </span>
 
-                  <button
-                    type="button"
-                    className="student-drawer-edit-btn"
-                    onClick={() => {
-                      const student = viewStudentDrawer
-                      setViewStudentDrawer(null)
-                      openEditStudentForm(student)
-                    }}
-                  >
-                    Edit Student
-                  </button>
+                  <div className="student-drawer-header-action-buttons">
+                    <button
+                      type="button"
+                      className="student-drawer-calendar-btn"
+                      onClick={() => {
+                        setViewStudentDrawer(null)
+                        navigate(`/branch-dashboard/students/${encodeURIComponent(viewStudentDrawer.studentId || viewStudentDrawer.id || '')}/calendar`)
+                      }}
+                    >
+                      <CalendarDays size={16} strokeWidth={2.2} aria-hidden="true" />
+                      View Calendar
+                    </button>
+
+                    <button
+                      type="button"
+                      className="student-drawer-edit-btn"
+                      onClick={() => {
+                        const student = viewStudentDrawer
+                        setViewStudentDrawer(null)
+                        openEditStudentForm(student)
+                      }}
+                    >
+                      Edit Student
+                    </button>
+                  </div>
 
                   <button
                     type="button"

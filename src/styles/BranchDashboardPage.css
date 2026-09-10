@@ -8574,6 +8574,42 @@ body.branch-notification-menu-open .main-area {
   white-space: nowrap;
 }
 
+.student-drawer-header-action-buttons {
+  position: absolute;
+  top: 52px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.student-drawer-header-action-buttons .student-drawer-edit-btn {
+  position: static;
+}
+
+.student-drawer-calendar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 42px;
+  padding: 0 14px;
+  border: 1px solid #2864e6;
+  border-radius: 11px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.student-drawer-calendar-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
 .student-drawer-status {
   display: inline-flex;
   align-items: center;
@@ -10700,6 +10736,18 @@ body.branch-notification-menu-open .main-area {
   text-align: left;
   color: #334155;
   font-weight: 700;
+}
+
+.branch-payment-table-shell .branch-course-table th:first-child,
+.branch-payment-table-shell .branch-course-table td:first-child {
+  width: 190px;
+  min-width: 190px;
+  white-space: nowrap;
+}
+
+.branch-payment-table-shell .branch-course-table td:first-child {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .payment-history-page .branch-course-actions-cell {
