@@ -104,6 +104,10 @@ function createEmptyForm() {
     facultyId: '',
     batchId: '',
     courseId: '',
+    weekType: '',
+    mode: '',
+    courseStartDate: '',
+    courseEndDate: '',
     studentName: '',
     mobileNumber: '',
     emailAddress: '',
@@ -410,6 +414,10 @@ function mapCourseToForm(current, course) {
       facultyId: '',
       batchId: '',
       courseId: '',
+      weekType: '',
+      mode: '',
+      courseStartDate: '',
+      courseEndDate: '',
       courseInterested: '',
       actualFees: '',
       registrationFees: '',
@@ -436,6 +444,10 @@ function mapCourseToForm(current, course) {
     facultyId: '',
     batchId: '',
     courseId: course.id,
+    weekType: '',
+    mode: '',
+    courseStartDate: '',
+    courseEndDate: '',
     courseInterested: course.name,
     facultyName: '',
     batch: '',
@@ -522,6 +534,8 @@ function validateForm(form, course = null) {
   if (!form.source) errors.source = 'Please select a source.'
 
   if (!form.courseId) errors.courseInterested = 'Please select a course.'
+  if (!form.weekType) errors.weekType = 'Please select Weekday or Weekend.'
+  if (!form.mode) errors.mode = 'Please select Online or Offline.'
   if (!form.facultyName.trim()) errors.facultyName = 'Faculty name is required.'
   if (!form.batch.trim()) errors.batch = 'Batch is required.'
   if (!form.actualFees && form.courseId) errors.actualFees = 'Course fee details are missing.'
@@ -555,6 +569,8 @@ function validateStep(form, stepIndex, course = null) {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
     1: [
       'courseInterested',
+      'weekType',
+      'mode',
       'facultyName',
       'batch',
       'qualification',
@@ -581,7 +597,7 @@ function validateStep(form, stepIndex, course = null) {
 function getStepIndexForField(fieldName) {
   const stepFields = {
     0: ['studentName', 'mobileNumber', 'emailAddress', 'parentSpouseNumber', 'location'],
-    1: ['courseInterested', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
+    1: ['courseInterested', 'weekType', 'mode', 'facultyName', 'batch', 'qualification', 'passedOutYear', 'currentStatus', 'designation', 'source'],
     2: [
       'actualFees',
       'registrationFees',
@@ -1207,11 +1223,21 @@ export function StudentManagementPage() {
 
     return findFacultyForForm(facultyOptions, form)
   }, [facultyOptions, form, selectedCourseFacultyOptions])
+  const allBatchEntries = useMemo(
+    () => (Array.isArray(facultyOptions) ? facultyOptions : []).flatMap((faculty) =>
+      (Array.isArray(faculty?.batchEntries) ? faculty.batchEntries : []).map((entry) => ({
+        ...entry,
+        facultyId: entry?.facultyId || faculty?.id || '',
+        facultyName: entry?.facultyName || faculty?.facultyName || faculty?.name || '',
+      })),
+    ),
+    [facultyOptions],
+  )
   const selectedFormBatchEntry = useMemo(() => {
     const normalizedBatchId = String(form.batchId || '').trim().toLowerCase()
     const normalizedCourseId = String(form.courseId || '').trim()
     const normalizedBatchName = String(form.batch || '').trim().toLowerCase()
-    const batchEntries = Array.isArray(selectedFaculty?.batchEntries) ? selectedFaculty.batchEntries : []
+    const batchEntries = allBatchEntries
 
     return (
       batchEntries.find((entry) => String(entry?.id || '').trim().toLowerCase() === normalizedBatchId) ||
@@ -1222,7 +1248,7 @@ export function StudentManagementPage() {
       ) ||
       null
     )
-  }, [form.batch, form.batchId, form.courseId, selectedFaculty])
+  }, [allBatchEntries, form.batch, form.batchId, form.courseId])
   const facultySelectOptions = useMemo(() => {
     const nextOptions = selectedCourseFacultyOptions.map((faculty) => ({
       value: faculty.facultyName,
@@ -1241,11 +1267,14 @@ export function StudentManagementPage() {
   }, [form.facultyName, selectedCourseFacultyOptions])
   const batchSelectOptions = useMemo(() => {
     const normalizedCourseId = String(form.courseId || '').trim()
-    const batches = Array.isArray(selectedFaculty?.batchEntries) ? selectedFaculty.batchEntries : []
+    const batches = allBatchEntries
     const nextOptions = batches
       .filter((entry) => {
         if (!normalizedCourseId) return true
-        return String(entry?.courseId || '').trim() === normalizedCourseId
+        return String(entry?.courseId || '').trim() === normalizedCourseId &&
+          String(entry?.weekType || '').toUpperCase() === String(form.weekType || '').toUpperCase() &&
+          String(entry?.mode || '').toUpperCase() === String(form.mode || '').toUpperCase() &&
+          String(entry?.status || 'ACTIVE').toUpperCase() === 'ACTIVE'
       })
       .map((entry) => {
         const value = String(entry?.batchName || '').trim()
@@ -1267,7 +1296,7 @@ export function StudentManagementPage() {
     }
 
     return nextOptions
-  }, [form.batch, form.courseId, selectedFaculty])
+  }, [allBatchEntries, form.batch, form.courseId, form.mode, form.weekType])
   const errors = useMemo(() => {
     const nextErrors = validateForm(form, selectedCourse)
     const duplicateStudent = findDuplicateStudent(form, students, editingStudentId)
@@ -2056,7 +2085,7 @@ export function StudentManagementPage() {
             ...applyInstallmentValues(),
           }
           : {}),
-      [name]: value,
+      ...(name === 'weekType' || name === 'mode' ? { [name]: value, batch: '', batchId: '', courseStartDate: '', courseEndDate: '' } : { [name]: value }),
     }))
     setServerFieldErrors((current) => {
       if (!current[name]) return current
@@ -2085,21 +2114,27 @@ export function StudentManagementPage() {
       facultyId: faculty?.id || '',
       batch: '',
       batchId: '',
+      courseStartDate: '',
+      courseEndDate: '',
     }))
   }
 
   const applyBatchDetails = (batch) => {
-    const matchedBatch = Array.isArray(selectedFaculty?.batchEntries)
-      ? selectedFaculty.batchEntries.find(
+    const matchedBatch = allBatchEntries.find(
         (entry) =>
           String(entry?.batchName || '').trim() === String(batch || '').trim() &&
-          String(entry?.courseId || '').trim() === String(form.courseId || '').trim(),
-      )
-      : null
+          String(entry?.courseId || '').trim() === String(form.courseId || '').trim() &&
+          String(entry?.weekType || '').toUpperCase() === String(form.weekType || '').toUpperCase() &&
+          String(entry?.mode || '').toUpperCase() === String(form.mode || '').toUpperCase(),
+      ) || null
     setForm((current) => ({
       ...current,
       batch,
       batchId: matchedBatch?.id || '',
+      facultyId: matchedBatch?.facultyId || current.facultyId,
+      facultyName: matchedBatch?.facultyName || current.facultyName,
+      courseStartDate: matchedBatch?.courseStartDate || '',
+      courseEndDate: matchedBatch?.courseEndDate || '',
     }))
   }
 
@@ -2186,6 +2221,8 @@ export function StudentManagementPage() {
       facultyId: form.facultyId || selectedFaculty?.id || existingStudent?.facultyId || '',
       batchName: form.batch || '',
       batchId: form.batchId || selectedFormBatchEntry?.id || existingStudent?.batchId || '',
+      weekType: form.weekType || selectedFormBatchEntry?.weekType || '',
+      mode: form.mode || selectedFormBatchEntry?.mode || '',
       status: form.status || existingStudent?.status || 'Active',
     }
 
@@ -2992,6 +3029,17 @@ export function StudentManagementPage() {
                       </select>
                     </Field>
 
+                    <Field label="Week Type" required error={shouldShowError('weekType') ? errors.weekType : ''}>
+                      <select value={form.weekType} onChange={(event) => updateField('weekType', event.target.value)} onBlur={() => markTouched('weekType')} disabled={!form.courseId}>
+                        <option value="">Select week type</option><option value="WEEKDAY">Weekday</option><option value="WEEKEND">Weekend</option>
+                      </select>
+                    </Field>
+                    <Field label="Mode" required error={shouldShowError('mode') ? errors.mode : ''}>
+                      <select value={form.mode} onChange={(event) => updateField('mode', event.target.value)} onBlur={() => markTouched('mode')} disabled={!form.courseId}>
+                        <option value="">Select mode</option><option value="OFFLINE">Offline</option><option value="ONLINE">Online</option>
+                      </select>
+                    </Field>
+
                     <Field label="Select Faculty Name" required icon={<FieldIcon kind="faculty" />} error={shouldShowError('facultyName') ? errors.facultyName : ''}>
                       <select
                         value={form.facultyName}
@@ -3044,6 +3092,13 @@ export function StudentManagementPage() {
                           </option>
                         ) : null}
                       </select>
+                    </Field>
+
+                    <Field label="Course Start Date">
+                      <input type="date" value={form.courseStartDate || ''} readOnly />
+                    </Field>
+                    <Field label="Course End Date">
+                      <input type="date" value={form.courseEndDate || ''} readOnly />
                     </Field>
 
                     <Field label="Enter Qualification" required icon={<FieldIcon kind="user" />} error={shouldShowError('qualification') ? errors.qualification : ''}>

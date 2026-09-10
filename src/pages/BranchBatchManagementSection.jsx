@@ -23,6 +23,7 @@ import {
 import { FACULTY_ATTENDANCE_SYNC_EVENT, getAttendanceDateKey } from '../lib/facultyAttendanceStore'
 import { getMatchingStudents } from '../lib/facultyFlow'
 import { getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
+import { calculateBatchCourseEndDate } from '../lib/batchAllocation'
 import '../styles/BranchBatchManagementSection.css'
 
 function normalizeText(value = '') {
@@ -98,28 +99,13 @@ function getBatchSeatSummary(batch = {}, students = []) {
   })
 
   const totalSeats = Math.max(Number(batch?.totalSeats || 0) || 0, 0)
-  const offlineSeats = Math.max(Number(batch?.offlineSeats || 0) || 0, 0)
   const usedSeats = uniqueStudents.size
   const remainingSeats = Math.max(totalSeats - usedSeats, 0)
-  const offlineStudentKeys = new Set()
-  matchingStudents.forEach((student) => {
-    if (String(student?.courseMode || '').trim().toLowerCase() !== 'offline') return
-    const studentKey = getStudentIdentityKey(student)
-    if (studentKey) offlineStudentKeys.add(studentKey)
-  })
-  const usedOfflineSeats = offlineStudentKeys.size
-  const availableOfflineSeats = Math.min(
-    Math.max(offlineSeats - usedOfflineSeats, 0),
-    remainingSeats,
-  )
 
   return {
     totalSeats,
     usedSeats,
     remainingSeats,
-    offlineSeats,
-    usedOfflineSeats,
-    availableOfflineSeats,
   }
 }
 
@@ -403,14 +389,6 @@ function resolveFacultyNameForGroup(group = {}, facultyOptions = []) {
   return getFacultyLabel(matchedFaculty)
 }
 
-function getFacultySelectionValue(facultyId = '', facultyName = '') {
-  const normalizedFacultyId = normalizeText(facultyId)
-  if (normalizedFacultyId) return normalizedFacultyId
-
-  const normalizedFacultyName = normalizeText(facultyName)
-  return normalizedFacultyName ? `faculty-name:${normalizeMatchKey(normalizedFacultyName)}` : ''
-}
-
 function isFacultyNameFallbackValue(value = '') {
   return String(value || '').trim().startsWith('faculty-name:')
 }
@@ -429,7 +407,6 @@ function createBatchRow(batchId = '') {
     endTime: '11:00',
     endPeriod: 'AM',
     totalSeats: '',
-    offlineSeats: '',
     status: 'Active',
   }
 }
@@ -491,6 +468,10 @@ function createInitialDraft(sequenceStart, groupSequence = 1, count = 1) {
     courseId: '',
     facultyId: '',
     facultyName: '',
+    weekType: '',
+    mode: '',
+    courseStartDate: '',
+    courseEndDate: '',
     rows,
     nextSequence: sequenceStart + rowCount,
   }
@@ -511,7 +492,10 @@ function createDraftFromGroup(group = {}, sequenceStart = 1, groupSequence = 1, 
           endTime: endParts.time,
           endPeriod: endParts.period,
           totalSeats: normalizeText(batch.totalSeats || ''),
-          offlineSeats: normalizeText(batch.offlineSeats || '0'),
+          weekType: normalizeText(batch.weekType || group.weekType).toUpperCase(),
+          mode: normalizeText(batch.mode || group.mode).toUpperCase(),
+          courseStartDate: normalizeText(batch.courseStartDate || group.courseStartDate),
+          courseEndDate: normalizeText(batch.courseEndDate || group.courseEndDate),
           status: normalizeStatus(batch.status || 'Active'),
         }
       })
@@ -522,6 +506,10 @@ function createDraftFromGroup(group = {}, sequenceStart = 1, groupSequence = 1, 
     courseId: normalizeText(group.courseId || ''),
     facultyId: resolveFacultyIdForGroup(group, facultyOptions),
     facultyName: resolveFacultyNameForGroup(group, facultyOptions),
+    weekType: normalizeText(group.weekType || rows[0]?.weekType).toUpperCase(),
+    mode: normalizeText(group.mode || rows[0]?.mode).toUpperCase(),
+    courseStartDate: normalizeText(group.courseStartDate || rows[0]?.courseStartDate),
+    courseEndDate: normalizeText(group.courseEndDate || rows[0]?.courseEndDate),
     rows,
     nextSequence: Math.max(sequenceStart, getNextBatchSequenceNumber([group])),
   }
@@ -561,7 +549,6 @@ function getPrimaryBatchForGroup(group = {}) {
     batchName: normalizeText(primaryBatch?.batchName || group?.batchName || ''),
     batchTiming: normalizeText(primaryBatch?.batchTiming || group?.batchTiming || ''),
     totalSeats: Number(primaryBatch?.totalSeats || group?.totalSeats || 0) || 0,
-    offlineSeats: Number(primaryBatch?.offlineSeats ?? group?.offlineSeats ?? 0) || 0,
     status: normalizeStatus(primaryBatch?.status || group?.status || 'Active'),
   }
 }
@@ -583,114 +570,11 @@ function buildSingleBatchDisplayGroup(group = {}) {
     batchName: primaryBatch.batchName || group?.batchName || '',
     batchTiming: primaryBatch.batchTiming || group?.batchTiming || '',
     totalSeats: primaryBatch.totalSeats || group?.totalSeats || 0,
-    offlineSeats: primaryBatch.offlineSeats || group?.offlineSeats || 0,
     status: primaryBatch.status || group?.status || 'Active',
     batches: batchId ? [primaryBatch] : [],
     batchCount: 1,
     displayBatch: primaryBatch,
   }
-}
-
-function buildBatchGroupStudentMatcher(group = {}) {
-  const batches = Array.isArray(group?.batches) ? group.batches : []
-
-  const matcher = {
-    batchGroupId: normalizeMatchKey(group?.batchGroupId || group?.id || ''),
-    courseId: normalizeMatchKey(group?.courseId || group?.branchCourseId || ''),
-    facultyId: normalizeMatchKey(group?.facultyId || group?.branchFacultyId || ''),
-    facultyName: normalizeMatchKey(group?.facultyName || ''),
-    batchIds: new Set(),
-    batchNames: new Set(),
-    batchTimings: new Set(),
-  }
-
-  batches.forEach((batch) => {
-    const batchId = normalizeMatchKey(batch?.batchId || batch?.id || '')
-    const batchName = normalizeMatchKey(batch?.batchName || '')
-    const batchTiming = normalizeMatchKey(batch?.batchTiming || `${batch?.startTime || ''}${batch?.endTime ? ` - ${batch?.endTime}` : ''}`.trim())
-
-    if (batchId) matcher.batchIds.add(batchId)
-    if (batchName) matcher.batchNames.add(batchName)
-    if (batchTiming) matcher.batchTimings.add(batchTiming)
-  })
-
-  return matcher
-}
-
-function isStudentInBatchGroup(student = {}, matcher = {}) {
-  const studentCourseId = normalizeMatchKey(student?.courseId || student?.course?.id || '')
-  const studentFacultyId = normalizeMatchKey(student?.facultyId || student?.course?.facultyId || '')
-  const studentFacultyName = normalizeMatchKey(student?.facultyName || student?.course?.facultyName || '')
-  const studentBatchGroupId = normalizeMatchKey(student?.batchGroupId || student?.batch?.batchGroupId || '')
-  const studentBatchId = normalizeMatchKey(student?.batchId || student?.batchEntryId || student?.batch?.batchId || '')
-  const studentBatchName = normalizeMatchKey(student?.batchName || student?.batch || student?.batch?.batchName || '')
-  const studentBatchTiming = normalizeMatchKey(student?.batchTiming || student?.batchTime || student?.batch?.batchTiming || '')
-
-  if (matcher.courseId && studentCourseId && matcher.courseId !== studentCourseId) {
-    return false
-  }
-
-  if (matcher.facultyId || matcher.facultyName) {
-    const hasStudentFaculty = Boolean(studentFacultyId || studentFacultyName)
-    if (hasStudentFaculty) {
-      const facultyMatches = [
-        matcher.facultyId && studentFacultyId && matcher.facultyId === studentFacultyId,
-        matcher.facultyName && studentFacultyName && matcher.facultyName === studentFacultyName,
-      ].some(Boolean)
-
-      if (!facultyMatches) {
-        return false
-      }
-    }
-  }
-
-  if (matcher.batchGroupId && studentBatchGroupId && matcher.batchGroupId === studentBatchGroupId) {
-    return true
-  }
-
-  if (studentBatchId && matcher.batchIds.has(studentBatchId)) {
-    return true
-  }
-
-  if (studentBatchName && matcher.batchNames.has(studentBatchName)) {
-    return true
-  }
-
-  if (studentBatchTiming && matcher.batchTimings.has(studentBatchTiming)) {
-    return true
-  }
-
-  return Boolean(
-    matcher.batchGroupId &&
-    studentCourseId &&
-    matcher.courseId === studentCourseId &&
-    (!matcher.facultyId || matcher.facultyId === studentFacultyId || matcher.facultyName === studentFacultyName) &&
-    !studentBatchId &&
-    !studentBatchName &&
-    !studentBatchTiming,
-  )
-}
-
-function getBatchGroupStudentCount(group = {}, students = []) {
-  if (!Array.isArray(students) || !students.length) return 0
-
-  const matcher = buildBatchGroupStudentMatcher(group)
-  const uniqueStudents = new Set()
-
-  students.forEach((student) => {
-    if (!student || !isStudentInBatchGroup(student, matcher)) return
-
-    const studentKey = normalizeMatchKey(student?.studentId || student?.id || student?._id || student?.recordId || '')
-    uniqueStudents.add(studentKey || JSON.stringify({
-      courseId: student?.courseId || student?.course?.id || '',
-      batchGroupId: student?.batchGroupId || student?.batch?.batchGroupId || '',
-      batchId: student?.batchId || student?.batchEntryId || student?.batch?.batchId || '',
-      batchName: student?.batchName || student?.batch || student?.batch?.batchName || '',
-      facultyId: student?.facultyId || student?.course?.facultyId || '',
-    }))
-  })
-
-  return uniqueStudents.size
 }
 
 export function BranchBatchManagementSection({
@@ -884,6 +768,8 @@ export function BranchBatchManagementSection({
         name: getCourseLabel(course),
         assignedFaculty: Array.isArray(course?.assignedFaculty) ? course.assignedFaculty : [],
         code: normalizeText(course?.courseCode || ''),
+        hours: course?.hours ?? '',
+        duration: course?.duration ?? '',
       }))
       .filter((course) => course.id && course.name)
   }, [branchCourses])
@@ -994,19 +880,6 @@ export function BranchBatchManagementSection({
         .filter(Boolean)
     })
   }, [currentBranchBatchGroups, editingGroupKey, resolvedDraftFacultyId, resolvedDraftFacultyName])
-
-  const batchGroupStudentCountMap = useMemo(() => {
-    const counts = new Map()
-
-    currentBranchBatchGroups.forEach((group) => {
-      const key = normalizeMatchKey(group?.id || group?.batchGroupId || group?.batchId || '')
-      if (!key) return
-
-      counts.set(key, getBatchGroupStudentCount(group, branchStudents))
-    })
-
-    return counts
-  }, [branchStudents, currentBranchBatchGroups])
 
   const batchSeatSummaryMap = useMemo(() => {
     const counts = new Map()
@@ -1199,7 +1072,10 @@ export function BranchBatchManagementSection({
     setDraft((current) => ({
       ...current,
       [field]: value,
-      ...(field === 'courseId' ? { facultyId: '', facultyName: '' } : {}),
+      ...(field === 'courseId' ? { facultyId: '', facultyName: '', weekType: '', mode: '', courseStartDate: '', courseEndDate: '' } : {}),
+      ...(['weekType', 'mode', 'courseStartDate'].includes(field)
+        ? { courseEndDate: calculateBatchCourseEndDate(field === 'courseStartDate' ? value : current.courseStartDate, field === 'weekType' ? value : current.weekType, field === 'mode' ? value : current.mode, selectedCourse?.hours || selectedCourse?.duration) }
+        : {}),
       ...(field === 'facultyId'
         ? {
             facultyName:
@@ -1222,7 +1098,7 @@ export function BranchBatchManagementSection({
         facultyId: '',
       }))
     }
-  }, [availableFacultyOptions])
+  }, [availableFacultyOptions, selectedCourse])
 
   const handleCourseSearchChange = useCallback((value) => {
     const nextValue = String(value || '')
@@ -1276,7 +1152,6 @@ export function BranchBatchManagementSection({
           ...(field === 'batchName' ? { batchName: '' } : {}),
           ...(field === 'startTime' || field === 'endTime' || field === 'startPeriod' || field === 'endPeriod' ? { timing: '' } : {}),
           ...(field === 'totalSeats' ? { totalSeats: '' } : {}),
-          ...(field === 'offlineSeats' ? { offlineSeats: '' } : {}),
           ...(field === 'status' ? { status: '' } : {}),
         }
       }),
@@ -1327,11 +1202,13 @@ export function BranchBatchManagementSection({
       const nextErrors = {
         courseId: draft.courseId ? '' : 'This field is required',
         facultyId: draft.facultyId ? '' : 'This field is required',
+        weekType: draft.weekType ? '' : 'This field is required',
+        mode: draft.mode ? '' : 'This field is required',
+        courseStartDate: draft.courseStartDate ? '' : 'This field is required',
         rows: draft.rows.map(() => ({
           batchName: '',
           timing: '',
           totalSeats: '',
-          offlineSeats: '',
           status: '',
         })),
       }
@@ -1346,18 +1223,15 @@ export function BranchBatchManagementSection({
         if (!normalizeText(row.batchName)) nextErrors.rows[index].batchName = 'This field is required'
         if (!normalizeText(row.startTime) || !normalizeText(row.endTime)) nextErrors.rows[index].timing = 'This field is required'
         if (!toNumber(row.totalSeats)) nextErrors.rows[index].totalSeats = 'This field is required'
-        if (!normalizeText(row.offlineSeats)) nextErrors.rows[index].offlineSeats = 'This field is required'
-        if (normalizeText(row.offlineSeats) && toNumber(row.offlineSeats) > toNumber(row.totalSeats)) {
-          nextErrors.rows[index].offlineSeats = 'Offline seats cannot exceed total seats'
-        }
         if (!normalizeText(row.status)) nextErrors.rows[index].status = 'This field is required'
       })
 
       const hasFieldErrors =
         Boolean(nextErrors.courseId) ||
         Boolean(nextErrors.facultyId) ||
+        Boolean(nextErrors.weekType || nextErrors.mode || nextErrors.courseStartDate) ||
         nextErrors.rows.some((rowErrors) =>
-          Boolean(rowErrors.batchName || rowErrors.timing || rowErrors.totalSeats || rowErrors.offlineSeats || rowErrors.status),
+          Boolean(rowErrors.batchName || rowErrors.timing || rowErrors.totalSeats || rowErrors.status),
         )
 
       if (hasFieldErrors) {
@@ -1384,14 +1258,10 @@ export function BranchBatchManagementSection({
           const startPeriod = normalizeText(row.startPeriod || 'AM').toUpperCase()
           const endPeriod = normalizeText(row.endPeriod || 'AM').toUpperCase()
           const totalSeats = toNumber(row.totalSeats)
-          const offlineSeats = toNumber(row.offlineSeats)
           const status = normalizeStatus(row.status || 'Active')
 
-          if (!batchName || !startTime || !endTime || !totalSeats || !normalizeText(row.offlineSeats)) {
+          if (!batchName || !startTime || !endTime || !totalSeats) {
             throw new Error(`Please complete batch row ${index + 1}.`)
-          }
-          if (offlineSeats > totalSeats) {
-            throw new Error(`Offline seats cannot exceed total seats in row ${index + 1}.`)
           }
 
           return {
@@ -1406,7 +1276,6 @@ export function BranchBatchManagementSection({
               endTime: formatClockLabel(`${endTime} ${endPeriod}`),
             }),
             totalSeats,
-            offlineSeats,
             status,
           }
         })
@@ -1443,6 +1312,10 @@ export function BranchBatchManagementSection({
         const payload = {
           courseId: selectedCourseRecord?.id || '',
           facultyId: selectedFacultyRecord?.id || existingGroup?.facultyId || resolvedFacultyId || '',
+          weekType: draft.weekType,
+          mode: draft.mode,
+          courseStartDate: draft.courseStartDate,
+          courseEndDate: draft.courseEndDate,
           rows: cleanedRows.map((row) => ({
             batchId: row.batchId,
             batchName: row.batchName,
@@ -1451,7 +1324,6 @@ export function BranchBatchManagementSection({
             endTime: row.endTime,
             endPeriod: row.endPeriod,
             totalSeats: row.totalSeats,
-            offlineSeats: row.offlineSeats,
             status: row.status,
           })),
         }
@@ -1517,6 +1389,10 @@ export function BranchBatchManagementSection({
       currentBranchBatchGroups,
       draft.courseId,
       draft.facultyId,
+      draft.weekType,
+      draft.mode,
+      draft.courseStartDate,
+      draft.courseEndDate,
       draft.rows,
       editingGroup,
       occupiedTimingRanges,
@@ -1569,10 +1445,6 @@ export function BranchBatchManagementSection({
   const renderCreateModal = () => {
     if (!isCreateOpen || typeof document === 'undefined') return null
     const isEditingBatch = Boolean(editingGroup)
-    const facultyOptionById = availableFacultyOptions.find((faculty) => normalizeText(faculty.id) === normalizeText(draft.facultyId)) || null
-    const facultyOptionByName = availableFacultyOptions.find((faculty) => normalizeMatchKey(faculty.name) === normalizeMatchKey(draft.facultyName)) || null
-    const facultySelectionValue = facultyOptionById?.id || facultyOptionByName?.id || getFacultySelectionValue('', draft.facultyName)
-    const showFacultyFallback = Boolean(draft.facultyName && !facultyOptionById && !facultyOptionByName)
 
     return createPortal(
       <div className="branch-modal-backdrop batch-modal-backdrop" role="presentation">
@@ -1663,6 +1535,13 @@ export function BranchBatchManagementSection({
               </label>
             </div>
 
+            <div className="batch-management-form-grid">
+              <label className="batch-management-field"><span>Week Type *</span><select value={draft.weekType} onChange={(event) => handleDraftChange('weekType', event.target.value)}><option value="">Select week type</option><option value="WEEKDAY">Weekday</option><option value="WEEKEND">Weekend</option></select>{fieldErrors.weekType ? <small className="batch-management-field-error">{fieldErrors.weekType}</small> : null}</label>
+              <label className="batch-management-field"><span>Mode *</span><select value={draft.mode} onChange={(event) => handleDraftChange('mode', event.target.value)}><option value="">Select mode</option><option value="OFFLINE">Offline</option><option value="ONLINE">Online</option></select>{fieldErrors.mode ? <small className="batch-management-field-error">{fieldErrors.mode}</small> : null}</label>
+              <label className="batch-management-field"><span>Course Start Date *</span><input type="date" value={draft.courseStartDate} onChange={(event) => handleDraftChange('courseStartDate', event.target.value)} />{fieldErrors.courseStartDate ? <small className="batch-management-field-error">{fieldErrors.courseStartDate}</small> : null}</label>
+              <label className="batch-management-field"><span>Course End Date</span><input type="date" value={draft.courseEndDate} readOnly /></label>
+            </div>
+
             <div className="batch-management-details">
               <div className="batch-management-details-head">
                 <div>
@@ -1676,7 +1555,6 @@ export function BranchBatchManagementSection({
                   <span>Batch Name</span>
                   <span>Batch Timing</span>
                   <span>Total Seats</span>
-                  <span>Offline Seats</span>
                   <span>Status</span>
                 </div>
 
@@ -1820,22 +1698,6 @@ export function BranchBatchManagementSection({
                             />
                             {fieldErrors.rows[index]?.totalSeats ? (
                               <small className="batch-management-field-error">{fieldErrors.rows[index].totalSeats}</small>
-                            ) : null}
-                          </div>
-
-                          <div className="batch-management-row-seats-wrap">
-                            <div className="batch-management-time-title">Offline Seats</div>
-                            <input
-                              className="batch-management-row-seats"
-                              type="number"
-                              min="0"
-                              required
-                              placeholder="0"
-                              value={row.offlineSeats}
-                              onChange={(event) => handleRowChange(index, 'offlineSeats', event.target.value)}
-                            />
-                            {fieldErrors.rows[index]?.offlineSeats ? (
-                              <small className="batch-management-field-error">{fieldErrors.rows[index].offlineSeats}</small>
                             ) : null}
                           </div>
 
@@ -2038,7 +1900,7 @@ export function BranchBatchManagementSection({
     const primaryBatch = group.displayBatch || (Array.isArray(group.batches) ? group.batches[0] : null) || {}
     const batchKey = getBatchSeatMapKey(primaryBatch, group)
     const batchStatusClass = String(normalizeStatus(primaryBatch.status || group.status || 'Active')).toLowerCase()
-    const seatSummary = batchSeatSummaryMap.get(batchKey) || getBatchSeatSummary({
+    const calculatedSeatSummary = batchSeatSummaryMap.get(batchKey) || getBatchSeatSummary({
       ...primaryBatch,
       batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
       courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
@@ -2046,6 +1908,14 @@ export function BranchBatchManagementSection({
       facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
       facultyName: String(group?.facultyName || '').trim(),
     }, branchStudents)
+    // Capacity belongs to this batch record; never inherit the total from a
+    // stale/colliding summary entry.
+    const batchTotalSeats = Math.max(Number(primaryBatch?.totalSeats || 0) || 0, 0)
+    const seatSummary = {
+      ...calculatedSeatSummary,
+      totalSeats: batchTotalSeats,
+      remainingSeats: Math.max(batchTotalSeats - calculatedSeatSummary.usedSeats, 0),
+    }
     const batchStudents = getMatchingStudents(branchStudents, {
       facultyId: group?.facultyId || group?.branchFacultyId || '',
       facultyName: group?.facultyName || '',
@@ -2093,7 +1963,7 @@ export function BranchBatchManagementSection({
               <span style={{ width: `${seatSummary.totalSeats ? Math.min((seatSummary.usedSeats / seatSummary.totalSeats) * 100, 100) : 0}%` }} />
             </div>
             <span>{seatSummary.remainingSeats} left</span>
-            <small>Offline seats: {seatSummary.availableOfflineSeats}</small>
+            <small>{primaryBatch.weekType === 'WEEKEND' ? 'Weekend' : 'Weekday'} · {primaryBatch.mode === 'ONLINE' ? 'Online' : 'Offline'}</small>
           </td>
           <td className="batch-management-table-cell batch-management-table-students">
             <strong>{batchStudents.length}</strong>

@@ -360,32 +360,14 @@ function getBatchSeatSummary(batch = {}, students = [], excludedStudentKeys = []
   })
 
   const totalSeats = Math.max(Number(batch?.totalSeats || 0) || 0, 0)
-  const offlineSeats = Math.max(Number(batch?.offlineSeats || 0) || 0, 0)
   const usedSeats = uniqueStudents.size
   const availableSeats = Math.max(totalSeats - usedSeats, 0)
-  const offlineStudentKeys = new Set()
-
-  matchingStudents.forEach((student) => {
-    if (String(student?.courseMode || '').trim().toLowerCase() !== 'offline') return
-    const studentKey = getBatchStudentIdentityKey(student)
-    if (studentKey) offlineStudentKeys.add(studentKey)
-  })
-
-  const usedOfflineSeats = offlineStudentKeys.size
-  const availableOfflineSeats = Math.min(
-    Math.max(offlineSeats - usedOfflineSeats, 0),
-    availableSeats,
-  )
 
   return {
     totalSeats,
     usedSeats,
     availableSeats,
-    offlineSeats,
-    usedOfflineSeats,
-    availableOfflineSeats,
     isFull: availableSeats <= 0,
-    isOfflineFull: availableOfflineSeats <= 0,
   }
 }
 
@@ -478,6 +460,7 @@ function buildStudentFormFromRecord(student = {}) {
     batchSelectionKey: '',
     classSchedule: student.classSchedule || student.schedule || student.batch?.classSchedule || student.batch?.schedule || '',
     courseStartDate: student.courseStartDate || student.courseStart || student.startDate || student.batch?.courseStartDate || student.batch?.startDate || '',
+    courseEndDate: student.courseEndDate || student.courseEnd || student.endDate || student.batch?.courseEndDate || student.batch?.endDate || '',
     facultyId: student.facultyId || student.course?.facultyId || '',
     facultyName: student.facultyName || student.course?.facultyName || '',
     facultyEmail: student.facultyEmail || student.course?.facultyEmail || '',
@@ -1973,9 +1956,9 @@ function BranchNotificationGroup({
   )
 }
 
-function Field({ label, hint, error, children, required = false }) {
+function Field({ label, hint, error, children, required = false, className = '' }) {
   return (
-    <label className="course-field">
+    <label className={`course-field ${className}`.trim()}>
       <div className="course-field-label">
         {label}
         {required ? <b>*</b> : null}
@@ -5817,6 +5800,8 @@ const studentCourseOptions = useMemo(() => {
   const selectedStudentCourseBatchOptions = useMemo(() => {
     const courseId = String(studentForm.courseId || '').trim()
     if (!courseId) return []
+    const selectedSchedule = String(studentForm.classSchedule || '').trim().toUpperCase()
+    const selectedMode = String(studentForm.courseMode || '').trim().toUpperCase()
 
     return branchBatchGroups
       .filter((group) => String(group?.courseId || group?.branchCourseId || '').trim() === courseId)
@@ -5827,6 +5812,9 @@ const studentCourseOptions = useMemo(() => {
             const batchId = String(batch?.batchId || batch?.id || '').trim()
             const batchName = String(batch?.batchName || '').trim()
             if (!batchId && !batchName) return null
+            if (selectedSchedule && String(batch?.weekType || '').trim().toUpperCase() !== (selectedSchedule === 'WEEKDAY' ? 'WEEKDAY' : selectedSchedule === 'WEEKEND' ? 'WEEKEND' : selectedSchedule)) return null
+            if (selectedMode && String(batch?.mode || '').trim().toUpperCase() !== selectedMode) return null
+            if (String(batch?.status || group?.status || 'ACTIVE').trim().toUpperCase() !== 'ACTIVE') return null
 
             const batchSourceId = String(batch?.id || '').trim()
             const selectionKey = [
@@ -5841,7 +5829,6 @@ const studentCourseOptions = useMemo(() => {
               batchTiming,
               batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
               totalSeats: batch?.totalSeats || 0,
-              offlineSeats: batch?.offlineSeats || 0,
               courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
               courseName: String(group?.courseName || '').trim(),
               facultyId: String(group?.facultyId || group?.branchFacultyId || '').trim(),
@@ -5866,23 +5853,21 @@ const studentCourseOptions = useMemo(() => {
               facultyEmail: String(group?.facultyEmail || '').trim(),
               facultyPhone: String(group?.facultyPhone || '').trim(),
               totalSeats: seatSummary.totalSeats,
-              offlineSeats: batch?.offlineSeats || 0,
               usedSeats: seatSummary.usedSeats,
               availableSeats: seatSummary.availableSeats,
-              offlineSeatsAvailable: seatSummary.availableOfflineSeats,
-              usedOfflineSeats: seatSummary.usedOfflineSeats,
               isFull: seatSummary.isFull,
-              isOfflineFull: seatSummary.isOfflineFull,
-              // Keep the batch selectable when only its offline quota is full;
-              // the student may still use the same batch in Online mode.
               isSelectable: seatSummary.availableSeats > 0,
-              label: `${baseLabel} - ${batchTiming || 'No timing'}\n(${seatLabel}; Offline seats available: ${seatSummary.availableOfflineSeats})`,
+              courseStartDate: batch?.courseStartDate || '',
+              courseEndDate: batch?.courseEndDate || '',
+              weekType: batch?.weekType || '',
+              mode: batch?.mode || '',
+              label: `${baseLabel} - ${batchTiming || 'No timing'} (${seatLabel})`,
             }
           })
           .filter(Boolean)
       })
       .sort((left, right) => String(left.batchId || left.batchName || '').localeCompare(String(right.batchId || right.batchName || '')))
-  }, [branchBatchGroups, branchStudents, currentStudentSeatKeys, studentForm.courseId, studentForm.courseMode, studentFormMode])
+  }, [branchBatchGroups, branchStudents, currentStudentSeatKeys, studentForm.classSchedule, studentForm.courseId, studentForm.courseMode, studentFormMode])
 
   const selectedStudentBatchOption = useMemo(
     () => selectedStudentCourseBatchOptions.find((batch) => {
@@ -6012,6 +5997,10 @@ const studentCourseOptions = useMemo(() => {
         batchName: '',
         batchTiming: '',
         batchSelectionKey: '',
+        classSchedule: '',
+        courseStartDate: '',
+        courseEndDate: '',
+        courseMode: '',
         facultyId: '',
         facultyName: '',
         facultyEmail: '',
@@ -6038,6 +6027,10 @@ const studentCourseOptions = useMemo(() => {
         batchName: '',
         batchTiming: '',
         batchSelectionKey: '',
+        classSchedule: '',
+        courseStartDate: '',
+        courseEndDate: '',
+        courseMode: '',
         facultyId: '',
         facultyName: '',
         facultyEmail: '',
@@ -6077,6 +6070,10 @@ const studentCourseOptions = useMemo(() => {
       batchId: nextBatch?.batchId || '',
       batchName: nextBatch?.batchName || '',
       batchTiming: nextBatch?.batchTiming || '',
+      classSchedule: nextBatch?.weekType === 'WEEKEND' ? 'Weekend' : nextBatch?.weekType === 'WEEKDAY' ? 'Weekday' : current.classSchedule,
+      courseMode: nextBatch?.mode === 'ONLINE' ? 'Online' : nextBatch?.mode === 'OFFLINE' ? 'Offline' : current.courseMode,
+      courseStartDate: nextBatch?.courseStartDate || current.courseStartDate,
+      courseEndDate: nextBatch?.courseEndDate || current.courseEndDate,
       facultyId: nextBatch?.facultyId || '',
       facultyName: nextBatch?.facultyName || '',
       facultyEmail: nextBatch?.facultyEmail || '',
@@ -7191,14 +7188,10 @@ useEffect(() => {
   const studentFormValidationErrors = useMemo(
     () => {
       const nextErrors = validateStudentForm(studentForm, branchStudents)
-      const isOfflineMode = String(studentForm.courseMode || '').trim().toLowerCase() === 'offline'
-      const isOfflineBatchFull = Boolean(isOfflineMode && selectedStudentBatchOption?.isOfflineFull)
-
       if (
         studentForm.courseId &&
         selectedStudentCourseBatchOptions.length &&
-        !hasSelectableStudentBatchOption &&
-        !isOfflineBatchFull
+        !hasSelectableStudentBatchOption
       ) {
         nextErrors.batchId = 'No seats available for this course.'
       }
@@ -7211,13 +7204,6 @@ useEffect(() => {
         !(studentFormMode === 'edit' && currentStudentSeatKeys.length)
       ) {
         nextErrors.batchId = 'No seats available for this batch.'
-      }
-
-      if (
-        isOfflineBatchFull &&
-        !(studentFormMode === 'edit' && currentStudentSeatKeys.length)
-      ) {
-        nextErrors.courseMode = 'No offline seats available in the selected batch.'
       }
 
       return nextErrors
@@ -7258,6 +7244,9 @@ useEffect(() => {
   const updateStudentField = (field, value) => {
     setStudentForm((c) => ({
       ...c,
+      ...(field === 'classSchedule' || field === 'courseMode'
+        ? { batchGroupId: '', batchId: '', batchName: '', batchTiming: '', batchSelectionKey: '', courseStartDate: '', courseEndDate: '' }
+        : {}),
       [field]: field === 'studentIdSuffix' ? normalizeStudentIdSuffix(value) : value,
     }))
   }
@@ -7469,6 +7458,8 @@ useEffect(() => {
       batchTiming: selectedBatch?.batchTiming || String(studentForm.batchTiming || '').trim(),
       classSchedule: String(studentForm.classSchedule || '').trim(),
       courseStartDate: String(studentForm.courseStartDate || '').trim(),
+      courseEndDate: String(studentForm.courseEndDate || selectedBatch?.courseEndDate || '').trim(),
+      weekType: String(selectedBatch?.weekType || studentForm.classSchedule || '').trim().toUpperCase(),
       courseDuration: String(selectedCourse?.duration || studentForm.courseDuration || studentForm.duration || '').trim(),
       courseSchedule: String(studentForm.classSchedule || '').trim(),
       facultyId: selectedBatch?.facultyId || String(studentForm.facultyId || '').trim(),
@@ -7482,6 +7473,7 @@ useEffect(() => {
       discount: String(selectedCourse?.discount ?? '').trim(),
       afterDiscount: resolvedCourseAmount,
       courseMode: String(studentForm.courseMode || '').trim(),
+      mode: String(selectedBatch?.mode || studentForm.courseMode || '').trim().toUpperCase(),
       paymentMode: studentForm.paymentMode || 'Installment',
       courseProgress: 0,
       progress: 0,
@@ -13787,6 +13779,7 @@ else {
 
         <Field
           label="Select Course"
+          className="student-course-step-course"
           required
           error={
             shouldShowStudentError('courseId')
@@ -13859,6 +13852,7 @@ else {
 
         <Field
           label="Select Batch"
+          className="student-course-step-batch"
           required
           error={
             shouldShowStudentError('batchId')
@@ -13875,7 +13869,7 @@ else {
               className="student-batch-dropdown-trigger"
               onClick={() => setIsStudentBatchDropdownOpen((current) => !current)}
               onBlur={() => setStudentFormTouched((c) => ({ ...c, batchId: true }))}
-              disabled={studentFormMode === 'view' || !studentForm.courseId || !hasSelectableStudentBatchOption}
+              disabled={studentFormMode === 'view' || !studentForm.courseId || !studentForm.classSchedule || !studentForm.courseMode || !hasSelectableStudentBatchOption}
               aria-expanded={isStudentBatchDropdownOpen}
               aria-haspopup="listbox"
             >
@@ -13886,7 +13880,9 @@ else {
                     .join(' - ')
                   : (
                   studentForm.courseId
-                    ? (hasSelectableStudentBatchOption ? 'Select Batch' : 'No seats available')
+                    ? (!studentForm.classSchedule || !studentForm.courseMode
+                      ? 'Select Class Schedule and Course Mode'
+                      : (hasSelectableStudentBatchOption ? 'Select Batch' : 'No matching batches'))
                     : 'Select Course first'
                   )}
               </span>
@@ -13918,23 +13914,18 @@ else {
           </div>
           {selectedStudentBatchOption ? (
             <small className={`student-batch-seat-note ${(
-              String(studentForm.courseMode || '').trim().toLowerCase() === 'offline'
-                ? selectedStudentBatchOption.isOfflineFull
-                : selectedStudentBatchOption.isFull
+              selectedStudentBatchOption.isFull
             ) ? 'is-full' : ''}`.trim()}>
-              {String(studentForm.courseMode || '').trim().toLowerCase() === 'offline'
-                ? (selectedStudentBatchOption.isOfflineFull
-                  ? 'No offline seats available in this batch. Please select another batch.'
-                  : `${selectedStudentBatchOption.offlineSeatsAvailable} offline seat${selectedStudentBatchOption.offlineSeatsAvailable === 1 ? '' : 's'} left out of ${selectedStudentBatchOption.offlineSeats}`)
-                : (selectedStudentBatchOption.isFull
-                  ? 'No seats available for this batch.'
-                  : `${selectedStudentBatchOption.availableSeats} seat${selectedStudentBatchOption.availableSeats === 1 ? '' : 's'} left out of ${selectedStudentBatchOption.totalSeats}`)}
+              {selectedStudentBatchOption.isFull
+                ? 'No seats available for this batch.'
+                : `${selectedStudentBatchOption.availableSeats} seat${selectedStudentBatchOption.availableSeats === 1 ? '' : 's'} left out of ${selectedStudentBatchOption.totalSeats}`}
             </small>
           ) : null}
         </Field>
 
         <Field
           label="Batch Timing"
+          className="student-course-step-timing"
           required
           error={
             shouldShowStudentError('batchTiming')
@@ -13956,6 +13947,7 @@ else {
 
         <Field
           label="Class Schedule"
+          className="student-course-step-schedule"
           required
           error={
             shouldShowStudentError('classSchedule')
@@ -13984,6 +13976,7 @@ else {
 
         <Field
           label="Course Start Date"
+          className="student-course-step-start-date"
           required
           error={
             shouldShowStudentError('courseStartDate')
@@ -14008,7 +14001,15 @@ else {
         </Field>
 
         <Field
+          label="Course End Date"
+          className="student-course-step-end-date"
+        >
+          <input type="date" value={studentForm.courseEndDate || ''} readOnly placeholder="Select batch first" />
+        </Field>
+
+        <Field
           label="Total Course Amount"
+          className="student-course-step-amount"
           required
           error={
             shouldShowStudentError('courseAmount')
@@ -14030,6 +14031,7 @@ else {
 
        <Field
          label="Course Mode"
+         className="student-course-step-mode"
          required
          error={
            shouldShowStudentError('courseMode')
@@ -14056,6 +14058,7 @@ else {
 
        <Field
          label="Payment Plan"
+         className="student-course-step-payment"
          required
          error={
            shouldShowStudentError('paymentPlanId')

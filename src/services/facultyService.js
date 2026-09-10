@@ -172,6 +172,11 @@ export function normalizeFacultyRecord(record, fallback = {}) {
     batchTiming: entry.batchTiming || '',
     courseId: entry.courseId || '',
     courseName: entry.courseName || getStoredBatchCourseLabel(entry.batchName || '') || '',
+    weekType: String(entry.weekType || '').toUpperCase(),
+    mode: String(entry.mode || '').toUpperCase(),
+    courseStartDate: entry.courseStartDate || entry.startDate || '',
+    courseEndDate: entry.courseEndDate || entry.endDate || '',
+    status: String(entry.status || 'ACTIVE').toUpperCase(),
     sequenceNo: Number(entry.sequenceNo || getBatchSequenceNoFromName(entry.batchName || '') || 1) || 1,
   }))
   const sourceCourseAssignments = Array.isArray(record.courseAssignments) && record.courseAssignments.length

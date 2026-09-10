@@ -27370,3 +27370,12 @@ canvas {
   }
 }
 
+.student-form-grid-tight .student-course-step-course { order: 1; }
+.student-form-grid-tight .student-course-step-schedule { order: 2; }
+.student-form-grid-tight .student-course-step-mode { order: 3; }
+.student-form-grid-tight .student-course-step-batch { order: 4; }
+.student-form-grid-tight .student-course-step-timing { order: 5; }
+.student-form-grid-tight .student-course-step-start-date { order: 6; }
+.student-form-grid-tight .student-course-step-end-date { order: 7; }
+.student-form-grid-tight .student-course-step-amount { order: 8; }
+.student-form-grid-tight .student-course-step-payment { order: 9; }
