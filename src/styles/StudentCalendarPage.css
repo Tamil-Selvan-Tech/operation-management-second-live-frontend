@@ -9,7 +9,7 @@
    in StudentCalendarPanel; these rules only change the visual treatment. */
 .student-calendar-external-page { max-width: none; }
 .student-calendar-external-page .student-new-calendar-page-title { display: none; }
-.student-calendar-external-page .student-new-calendar-summary-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.student-calendar-external-page .student-new-calendar-summary-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
 .student-calendar-external-page .student-calendar-summary-card { min-width: 0; min-height: 86px; padding: 12px; gap: 8px; }
 .student-calendar-external-page .student-calendar-summary-icon { width: 30px; min-width: 30px; height: 30px; }
 .student-calendar-external-page .student-calendar-summary-copy span { font-size: 9px; }

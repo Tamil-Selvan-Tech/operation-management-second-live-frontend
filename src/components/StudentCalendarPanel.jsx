@@ -10,7 +10,7 @@ function getStatusTone(status) {
   if (normalized === 'course day') return 'tone-course-day'
   if (normalized === 'class' || normalized === 'scheduled') return 'tone-course-day'
   if (normalized === 'completed') return 'tone-present'
-  if (normalized === 'institute leave') return 'tone-holiday'
+  if (normalized === 'institute leave' || normalized === 'institute_leave') return 'tone-holiday'
   if (normalized === 'holiday' || normalized === 'general holiday' || normalized === 'government holiday') return 'tone-holiday'
   if (normalized === 'leave') return 'tone-holiday'
   if (normalized === 'present') return 'tone-present'
@@ -50,7 +50,7 @@ function CalendarSummaryCard({ icon: Icon, label, value, note, tone = 'tone-no-c
   )
 }
 
-function CalendarDayCell({ day, student, externalUi = false }) {
+function CalendarDayCell({ day, externalUi = false }) {
   if (day.isPlaceholder) {
     return <div className="student-calendar-day is-placeholder" aria-hidden="true" />
   }
@@ -66,7 +66,11 @@ function CalendarDayCell({ day, student, externalUi = false }) {
     day.holidayName ? `Reason: ${day.holidayName}` : '',
   ].filter(Boolean).join(' | ')
 
-  const displayStatus = day.status === 'Course Day' ? 'Scheduled' : day.status
+  const displayStatus = day.status === 'Course Day'
+    ? 'Scheduled'
+    : String(day.status || '').trim().toLowerCase() === 'institute_leave'
+      ? 'Institute Leave'
+      : day.status
   return (
     <article title={externalUi ? undefined : detailLines || day.status} className={`student-calendar-day ${externalUi ? 'student-calendar-day--external' : ''} ${getStatusTone(day.status)} ${day.isStartDate ? 'is-start-date' : ''} ${day.isEndDate ? 'is-end-date' : ''}`.trim()}>
       <div className="student-calendar-day-head">
@@ -111,6 +115,7 @@ function getHoursPerDayLabel(calendar, student = {}) {
 }
 
 function getCalendarHoursSummary(calendar, student = {}) {
+  const sourceSummary = student?.scheduleSummary || {}
   const totalHours = Number(calendar?.totalHours || student?.totalHours || student?.course?.totalHours || student?.course?.hours)
   const explicitHoursPerDay = Number(calendar?.hoursPerDay || student?.hoursPerDay || student?.course?.hoursPerDay)
   const teachingDays = Number(calendar?.requiredTeachingDays || calendar?.actualTeachingDays || calendar?.summary?.courseDays)
@@ -119,11 +124,11 @@ function getCalendarHoursSummary(calendar, student = {}) {
     : Number.isFinite(totalHours) && totalHours > 0 && Number.isFinite(teachingDays) && teachingDays > 0
       ? totalHours / teachingDays
       : 0
-  const explicitCompleted = Number(calendar?.completedHours ?? student?.completedHours)
+  const explicitCompleted = Number(calendar?.completedHours ?? sourceSummary.completedHours ?? student?.completedHours)
   const completedHours = Number.isFinite(explicitCompleted) && explicitCompleted >= 0
     ? explicitCompleted
     : Math.max(0, Number(calendar?.summary?.presentDays || 0) * hoursPerDay)
-  const explicitPending = Number(calendar?.pendingHours ?? student?.pendingHours)
+  const explicitPending = Number(calendar?.pendingHours ?? sourceSummary.pendingHours ?? student?.pendingHours)
   const pendingHours = Number.isFinite(explicitPending) && explicitPending >= 0
     ? explicitPending
     : Number.isFinite(totalHours) && totalHours >= 0
@@ -144,6 +149,12 @@ function getCalendarHoursSummary(calendar, student = {}) {
 export function StudentCalendarPanel({ student, externalUi = false }) {
   const calendar = useMemo(() => buildStudentCourseCalendar(student || {}), [student])
   const hoursSummary = useMemo(() => getCalendarHoursSummary(calendar, student), [calendar, student])
+  const sourceSummary = student?.scheduleSummary || {}
+  const attendanceSummary = sourceSummary.attendanceSummary || sourceSummary.attendance || sourceSummary.summary || {}
+  const calendarDurationDays = calendar.calendarDurationDays || sourceSummary.calendarDurationDays || 0
+  const calendarHolidayCount = calendar.summary.holidays || sourceSummary.summary?.holidays || 0
+  const presentCount = sourceSummary.presentDays ?? sourceSummary.present ?? attendanceSummary.presentDays ?? attendanceSummary.present ?? calendar.summary.presentDays
+  const absentCount = sourceSummary.absentDays ?? sourceSummary.absent ?? attendanceSummary.absentDays ?? attendanceSummary.absent ?? calendar.summary.absentDays
   const [chosenMonthIndex, setSelectedMonthIndex] = useState(null)
   const selectedMonthIndex = chosenMonthIndex === null ? getInitialMonthIndex(calendar) : Math.min(chosenMonthIndex, calendar.months.length - 1)
 
@@ -201,19 +212,17 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
         {student?.scheduleSummary || externalUi ? <>
           <CalendarSummaryCard icon={CheckCircle2} label="Completed Hours" value={externalUi ? hoursSummary.completed : student?.scheduleSummary?.completedHours ?? '-'} note="Recorded present class hours" tone="tone-present" />
           <CalendarSummaryCard icon={Clock3} label="Pending Hours" value={externalUi ? hoursSummary.pending : student?.scheduleSummary?.pendingHours ?? '-'} note="Required hours still to complete" />
-          {student?.scheduleSummary ? <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={student.scheduleSummary.replacementHours ?? 0} note={`${student.scheduleSummary.cancelledHours ?? 0} hours affected by Institute Leave`} tone="tone-holiday" /> : null}
+          {student?.scheduleSummary || externalUi ? <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={sourceSummary.replacementHours ?? '-'} note={`${sourceSummary.cancelledHours ?? 0} hours affected by Institute Leave`} tone="tone-holiday" /> : null}
         </> : null}
-        {!externalUi ? (
-          <CalendarSummaryCard
-            icon={Clock3}
-            label="Calendar Duration"
-            value={calendar.calendarDurationDays
-              ? `${calendar.calendarDurationDays} day${Number(calendar.calendarDurationDays) === 1 ? '' : 's'}`
-              : 'Not available'}
-            note={`${calendar.summary.holidays} holidays / leaves`}
-            tone="tone-holiday"
-          />
-        ) : null}
+        <CalendarSummaryCard
+          icon={Clock3}
+          label="Calendar Duration"
+          value={calendarDurationDays
+            ? `${calendarDurationDays} day${Number(calendarDurationDays) === 1 ? '' : 's'}`
+            : 'Not available'}
+          note={`${calendarHolidayCount} holidays / leaves`}
+          tone="tone-holiday"
+        />
       </div>
 
       <div className="student-new-calendar-panel">
@@ -292,7 +301,7 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
           ))}
 
           {selectedMonth?.days?.map((day) => (
-            <CalendarDayCell key={day.key} day={day} student={student} externalUi={externalUi} />
+            <CalendarDayCell key={day.key} day={day} externalUi={externalUi} />
           )) || null}
         </div>
 
@@ -306,11 +315,11 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
             <span>No class days</span>
           </div>
           <div className="student-new-calendar-footer-stat">
-            <strong>{calendar.summary.presentDays}</strong>
+            <strong>{presentCount}</strong>
             <span>Present</span>
           </div>
           <div className="student-new-calendar-footer-stat">
-            <strong>{calendar.summary.absentDays}</strong>
+            <strong>{absentCount}</strong>
             <span>Absent</span>
           </div>
         </div>

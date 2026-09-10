@@ -319,7 +319,9 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
         isStartDate ? 'Course Start Date' : '',
         isEndDate ? 'Course End Date' : '',
         serverEvent?.isReplacement ? 'Replacement Class' : '',
-        serverEvent?.code === 'INSTITUTE_LEAVE' ? 'Attendance: Not Applicable' : '',
+        serverEvent?.code === 'INSTITUTE_LEAVE' || String(serverEvent?.status || '').trim().toLowerCase() === 'institute leave'
+          ? 'Institute Leave · Attendance Not Applicable'
+          : '',
       ].filter(Boolean),
       isHoliday: Boolean(holiday),
     })
@@ -333,7 +335,7 @@ function getStatusToneKey(status) {
   if (normalized === 'present') return 'present'
   if (normalized === 'completed') return 'present'
   if (normalized === 'class' || normalized === 'scheduled') return 'course-day'
-  if (normalized === 'institute leave') return 'holiday'
+  if (normalized === 'institute leave' || normalized === 'institute_leave') return 'holiday'
   if (normalized === 'absent') return 'absent'
   if (normalized === 'leave' || normalized === 'holiday' || normalized === 'government holiday') return 'holiday'
   if (normalized === 'course day') return 'course-day'

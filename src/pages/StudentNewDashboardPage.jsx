@@ -25,6 +25,8 @@ import { getCurrentBranchStudentCalendar, getCurrentStudentProfile } from '../se
 import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
 import { NotificationBell } from '../components/NotificationBell'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
+import { saveStudentCalendarSummary } from '../lib/studentCalendarSummary'
+import { buildStudentCourseCalendar } from '../lib/studentCalendar'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -105,6 +107,28 @@ export function StudentNewDashboardPage() {
 
      try {
        const calendar = await getCurrentBranchStudentCalendar()
+       const calendarStudent = {
+         ...studentRecord,
+         courseEndDate: calendar?.endDate || studentRecord.courseEndDate || '',
+         totalHours: calendar?.totalHours || calendar?.course?.totalHours || studentRecord.totalHours || '',
+         hoursPerDay: calendar?.hoursPerDay || studentRecord.hoursPerDay || '',
+         requiredTeachingDays: calendar?.requiredTeachingDays || studentRecord.requiredTeachingDays || '',
+         actualTeachingDays: calendar?.actualTeachingDays || studentRecord.actualTeachingDays || '',
+         calendarDurationDays: calendar?.calendarDurationDays || studentRecord.calendarDurationDays || '',
+         courseMode: calendar?.courseMode || calendar?.course?.mode || studentRecord.courseMode || '',
+         calendarEvents: Array.isArray(calendar?.events) ? calendar.events : [],
+         scheduleSummary: calendar,
+       }
+       const calculatedCalendar = buildStudentCourseCalendar(calendarStudent)
+       saveStudentCalendarSummary(studentRecord, {
+         ...calendar,
+         presentDays: calculatedCalendar.summary.presentDays,
+         absentDays: calculatedCalendar.summary.absentDays,
+         courseDays: calculatedCalendar.summary.courseDays,
+         noClassDays: calculatedCalendar.summary.noClassDays,
+         calendarDurationDays: calendar?.calendarDurationDays || calculatedCalendar.calendarDurationDays,
+         events: Array.isArray(calendar?.events) ? calendar.events : [],
+       })
        return {
          ...studentRecord,
          courseEndDate: calendar?.endDate || studentRecord.courseEndDate || '',
@@ -168,7 +192,21 @@ export function StudentNewDashboardPage() {
    const refreshCalendar = async () => {
      try {
        const calendar = await getCurrentBranchStudentCalendar()
-       if (isMounted) setStudent(current => current ? { ...current, courseEndDate: calendar.endDate, calendarEvents: calendar.events, scheduleSummary: calendar, hoursPerDay: calendar.hoursPerDay, totalHours: calendar.totalHours } : current)
+       if (isMounted) setStudent(current => {
+         if (!current) return current
+         const refreshedStudent = { ...current, courseEndDate: calendar.endDate, calendarEvents: calendar.events, scheduleSummary: calendar, hoursPerDay: calendar.hoursPerDay, totalHours: calendar.totalHours }
+         const calculatedCalendar = buildStudentCourseCalendar(refreshedStudent)
+         saveStudentCalendarSummary(current, {
+           ...calendar,
+           presentDays: calculatedCalendar.summary.presentDays,
+           absentDays: calculatedCalendar.summary.absentDays,
+           courseDays: calculatedCalendar.summary.courseDays,
+           noClassDays: calculatedCalendar.summary.noClassDays,
+           calendarDurationDays: calendar?.calendarDurationDays || calculatedCalendar.calendarDurationDays,
+           events: Array.isArray(calendar?.events) ? calendar.events : [],
+         })
+         return refreshedStudent
+       })
      } catch (error) { if (isMounted) setLoadError(error.message || 'Unable to refresh calendar') }
    }
    const timer = setInterval(refreshCalendar, 30000)
