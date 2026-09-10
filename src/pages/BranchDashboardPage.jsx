@@ -97,6 +97,7 @@ import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
+import { calculateBatchCourseEndDate } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
 import RecordPayment from '../components/payments/RecordPayment'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
@@ -3044,6 +3045,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
   const [studentFormError, setStudentFormError] = useState('')
+  const [instituteLeaves, setInstituteLeaves] = useState([])
   const [isStudentSaving, setIsStudentSaving] = useState(false)
   const [isStudentDeleting, setIsStudentDeleting] = useState(false)
   const [stuCountryOptions, setStuCountryOptions] = useState([])
@@ -5888,10 +5890,39 @@ const studentCourseOptions = useMemo(() => {
     }) || null,
     [selectedStudentCourseBatchOptions, studentForm.batchId, studentForm.batchName, studentForm.batchSelectionKey, studentForm.batchTiming],
   )
+
+  useEffect(() => {
+    if (!isStudentFormOpen || studentFormMode === 'view') return undefined
+    let active = true
+    request('/institute-leaves').then((response) => {
+      if (!active) return
+      setInstituteLeaves(response?.data?.leaves || response?.leaves || [])
+    }).catch(() => { if (active) setInstituteLeaves([]) })
+    return () => { active = false }
+  }, [isStudentFormOpen, studentFormMode])
+
+  useEffect(() => {
+    if (!isStudentFormOpen || studentFormMode === 'view' || !selectedStudentBatchOption) return
+    const nextEndDate = calculateBatchCourseEndDate(
+      studentForm.courseStartDate,
+      String(selectedStudentBatchOption.weekType || studentForm.classSchedule || '').trim().toUpperCase(),
+      String(selectedStudentBatchOption.mode || studentForm.courseMode || '').trim().toUpperCase(),
+      selectedStudentCourse?.hours || selectedStudentCourse?.duration,
+      selectedStudentBatchOption,
+      instituteLeaves,
+    )
+    if (nextEndDate && nextEndDate !== studentForm.courseEndDate) {
+      setStudentForm((current) => ({ ...current, courseEndDate: nextEndDate }))
+    }
+  }, [instituteLeaves, isStudentFormOpen, selectedStudentBatchOption, selectedStudentCourse, studentForm.classSchedule, studentForm.courseEndDate, studentForm.courseMode, studentForm.courseStartDate, studentFormMode])
+
   const hasSelectableStudentBatchOption = useMemo(
     () => selectedStudentCourseBatchOptions.some((batch) => batch.isSelectable),
     [selectedStudentCourseBatchOptions],
   )
+  const batchAlreadyStartedMessage = studentFormMode === 'add' && selectedStudentBatchOption?.courseStartDate && getTodayValue() > selectedStudentBatchOption.courseStartDate
+    ? 'This batch has already started.'
+    : ''
 
   const hasStudentCreationSetup = useMemo(() => {
     const hasAnyCourse = studentCourseOptions.length > 0
@@ -14184,6 +14215,12 @@ else {
   )}
 
 </div>
+
+              {batchAlreadyStartedMessage ? (
+                <div className="course-validation-note" role="status">
+                  <span>{batchAlreadyStartedMessage}</span>
+                </div>
+              ) : null}
 
               {studentFormError ? (
                 <div className="course-validation-note course-validation-error" style={{ color: '#dc2626' }}>
