@@ -10632,15 +10632,16 @@ body.branch-notification-menu-open .main-area {
   min-width: 1100px !important;
 }
 
-.batch-availability-overview { margin-top: 20px; padding: 20px 24px 16px; border: 1px solid #dbe7f5; border-radius: 20px; background: linear-gradient(135deg, #fff 0%, #fbfdff 100%); box-shadow: 0 14px 34px rgba(37, 99, 235, .08); }
+.batch-availability-overview { width: 62%; max-width: 850px; justify-self: start; margin-top: 20px; padding: 20px 24px 16px; border: 1px solid #dbe7f5; border-radius: 20px; background: linear-gradient(135deg, #fff 0%, #fbfdff 100%); box-shadow: 0 14px 34px rgba(37, 99, 235, .08); }
 .branch-dashboard-content > .branch-attendance { order: 18; }
 .branch-dashboard-content > .batch-availability-overview { order: 19; }
 .batch-availability-heading { justify-content: flex-start; align-items: center; gap: 16px; margin-bottom: 18px; }
+.batch-availability-heading > div { min-width: 0; }
 .batch-availability-heading-icon { flex: 0 0 auto; padding: 10px; width: 46px; height: 46px; color: #2563eb; border-radius: 12px; background: #eaf2ff; }
 .batch-availability-heading span { font-size: 1rem; letter-spacing: .11em; }
 .batch-availability-heading h2 { margin-top: 4px; font-size: 1.35rem; font-weight: 500; color: #64748b; }
 .batch-availability-chart { display: grid; gap: 14px; padding: 0; }
-.batch-availability-chart-row { display: grid; grid-template-columns: minmax(190px, 0.9fr) minmax(220px, 2fr) 90px minmax(160px, 0.8fr); gap: 20px; align-items: center; min-height: 72px; padding: 12px 22px 12px 28px; border: 1px solid #dbe7f5; border-left: 6px solid #f97316; border-radius: 12px; background: #fff; }
+.batch-availability-chart-row { display: grid; grid-template-columns: minmax(110px, .9fr) minmax(90px, 2fr) auto minmax(125px, .8fr); gap: 16px; align-items: center; min-width: 0; min-height: 72px; padding: 12px 18px 12px 24px; border: 1px solid #dbe7f5; border-left: 6px solid #f97316; border-radius: 12px; background: #fff; }
 .batch-availability-chart-label { display: grid; gap: 3px; min-width: 0; }
 .batch-availability-chart-label strong { font-size: 1.2rem; color: #173466; }
 .batch-availability-chart-label small { font-size: .85rem; }
@@ -10661,7 +10662,7 @@ body.branch-notification-menu-open .main-area {
 .batch-availability-status.tone-soon { color: #ea8b0c; background: #fff1d6; }
 .batch-availability-status.tone-available { color: #2563eb; background: #dbeafe; }
 @media (max-width: 800px) {
-  .batch-availability-overview { padding: 28px 18px; }
+  .batch-availability-overview { width: 100%; padding: 28px 18px; }
   .batch-availability-heading { gap: 14px; margin-bottom: 28px; }
   .batch-availability-heading-icon { width: 54px; height: 54px; padding: 12px; }
   .batch-availability-heading h2 { font-size: 1.1rem; }
