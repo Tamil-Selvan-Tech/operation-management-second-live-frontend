@@ -88,7 +88,7 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
       </header>
 
       {error ? <p className="student-calendar-page-error">{error}</p> : null}
-      <StudentCalendarPanel student={student} />
+      <StudentCalendarPanel student={student} externalUi />
     </section>
   )
 }
