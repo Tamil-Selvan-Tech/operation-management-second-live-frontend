@@ -1751,7 +1751,25 @@ useEffect(() => {
                 </div>
 
                 <div className="super-admin-stats-grid" aria-label="Dashboard branch summary">
-                  <article className="super-admin-stat-card">
+                  <article
+                    className="super-admin-stat-card"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setActiveSection('branches')
+                      setStatusFilter('All')
+                      setCurrentPage(1)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setActiveSection('branches')
+                        setStatusFilter('All')
+                        setCurrentPage(1)
+                      }
+                    }}
+                    aria-label="View all branches"
+                  >
                     <span className="super-admin-stat-icon" aria-hidden="true">
                       <Building2 size={20} strokeWidth={2.1} />
                     </span>
@@ -1762,7 +1780,25 @@ useEffect(() => {
                     </div>
                   </article>
 
-                  <article className="super-admin-stat-card">
+                  <article
+                    className="super-admin-stat-card"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      setActiveSection('branches')
+                      setStatusFilter('Active')
+                      setCurrentPage(1)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setActiveSection('branches')
+                        setStatusFilter('Active')
+                        setCurrentPage(1)
+                      }
+                    }}
+                    aria-label="View active branches"
+                  >
                     <span className="super-admin-stat-icon is-success" aria-hidden="true">
                       <CheckCircle2 size={20} strokeWidth={2.1} />
                     </span>

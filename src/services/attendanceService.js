@@ -88,8 +88,10 @@ export async function markFacultyStudentAttendance(payload = {}) {
   return unwrapData(response)
 }
 
-export async function getBranchAttendanceOverview(date) {
-  const response = await request(`/attendance/branch/overview?${new URLSearchParams({ date })}`)
+export async function getBranchAttendanceOverview(date, branchId = '') {
+  const params = new URLSearchParams({ date })
+  if (branchId) params.set('branchId', branchId)
+  const response = await request(`/attendance/branch/overview?${params}`)
   const data = unwrapData(response)
   if (!Array.isArray(data?.students) || !data?.branchId || data.date !== date) {
     throw new Error('Invalid attendance response. Please refresh or contact support.')

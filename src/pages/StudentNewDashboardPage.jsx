@@ -13,6 +13,7 @@ import {
   X,
   CircleUserRound,
   Bell,
+  ChevronDown,
 } from 'lucide-react'
 
 import '../styles/StudentNewDashboardPage.css'
@@ -73,6 +74,7 @@ export function StudentNewDashboardPage() {
  const [activeSection, setActiveSection] = useState('dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+ const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
  const [studentSession] = useState(() => readStudentSession())
  const [student, setStudent] = useState(null)
  const [isLoading, setIsLoading] = useState(true)
@@ -190,6 +192,7 @@ export function StudentNewDashboardPage() {
   }
 
 const handleLogout = () => {
+  setIsProfileMenuOpen(false)
   setIsLogoutModalOpen(true)
 }
 
@@ -442,22 +445,31 @@ const handleLogoutConfirm = async () => {
               <NotificationBell />
 
               <div className="student-new-profile">
-
-                <span
-                  className="student-new-profile-avatar"
-                  aria-hidden="true"
+                <button
+                  type="button"
+                  className="student-new-profile-trigger"
+                  onClick={() => setIsProfileMenuOpen((current) => !current)}
+                  aria-haspopup="menu"
+                  aria-expanded={isProfileMenuOpen}
                 >
-                  <CircleUserRound
-                    size={30}
-                    strokeWidth={1.9}
-                  />
-                </span>
+                  <span className="student-new-profile-avatar" aria-hidden="true">
+                    <CircleUserRound size={30} strokeWidth={1.9} />
+                  </span>
+                  <span className="student-new-profile-copy">
+                    <strong>{displayName}</strong>
+                    <span>Student</span>
+                  </span>
+                  <ChevronDown className="student-new-profile-chevron" size={17} strokeWidth={2.2} />
+                </button>
 
-                <div className="student-new-profile-copy">
-                  <strong>{displayName}</strong>
-                  <span>Student</span>
-                </div>
-
+                {isProfileMenuOpen ? (
+                  <div className="student-new-profile-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={handleLogout}>
+                      <LogOut size={16} strokeWidth={2.2} />
+                      Logout
+                    </button>
+                  </div>
+                ) : null}
               </div>
 
             </div>
