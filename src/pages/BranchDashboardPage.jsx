@@ -9685,7 +9685,7 @@ else {
 
               <div className="branch-payment-history-summary-grid">
                 <article className="branch-payment-history-hero-card">
-                  <span>Payment Summary</span>
+                  <span>Payment amount</span>
                   <strong>{formatBranchRupees(selectedPaymentHistoryDetails?.paymentSummary?.totalFee || 0)}</strong>
                   <small>Total fee</small>
                 </article>

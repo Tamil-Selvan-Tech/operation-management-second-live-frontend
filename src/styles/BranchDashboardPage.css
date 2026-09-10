@@ -10632,6 +10632,13 @@ body.branch-notification-menu-open .main-area {
   min-width: 1100px !important;
 }
 
+.payment-history-page .branch-course-table th:first-child,
+.payment-history-page .branch-course-table td:first-child {
+  width: 170px;
+  min-width: 170px;
+  white-space: nowrap;
+}
+
 .payment-history-page .branch-course-table th:last-child,
 .payment-history-page .branch-course-table td:last-child {
   width: 180px;
