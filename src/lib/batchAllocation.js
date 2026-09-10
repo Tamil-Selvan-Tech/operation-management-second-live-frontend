@@ -7,7 +7,8 @@ export function calculateBatchCourseEndDate(startDate, weekType, mode, durationH
   if (!startDate || !VALID_WEEK_DAYS[weekType] || !['OFFLINE', 'ONLINE'].includes(mode)) return ''
   const duration = Number(durationHours)
   if (!Number.isFinite(duration) || duration <= 0) return ''
-  const requiredDays = Math.max(1, Math.ceil(duration / (mode === 'OFFLINE' ? 2 : 1)))
+  const dailyHours = mode === 'ONLINE' ? 1 : weekType === 'WEEKEND' ? 3 : 2
+  const requiredDays = Math.max(1, Math.ceil(duration / dailyHours))
   const date = new Date(`${startDate}T00:00:00`)
   if (Number.isNaN(date.getTime())) return ''
   let counted = 0
