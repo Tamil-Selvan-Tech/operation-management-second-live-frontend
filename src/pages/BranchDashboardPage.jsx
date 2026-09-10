@@ -8021,8 +8021,6 @@ useEffect(() => {
                     ))}
                   </div>
 
-                  <BranchStudentAttendance key={branchId} branchId={branchId} />
-
                   <section className="branch-dashboard-admission-target-card" aria-label="Next month admission target">
                     <div className="branch-dashboard-admission-target-heading">
                       <strong>Next Month Admission Target</strong>
@@ -8088,9 +8086,8 @@ useEffect(() => {
                       </div>
                       {/* {dashboardData.overdue.length ? <button type="button" className="dashboard-overdue-link" onClick={() => { setPaymentStatusFilter('overdue'); goToBranchSection('payments') }}>View all overdue <span>›</span></button> : null} */}
                     </section>
-                    <section className="branch-dashboard-analytics-card"><div className="branch-dashboard-analytics-heading"><div><span>Recent Payments</span><h2>Latest collections</h2></div><button type="button" onClick={() => goToBranchSection('payments')}>View all</button></div><div className="dashboard-mini-table">{dashboardData.payments.slice(0, 5).map((payment) => <div className="dashboard-mini-row" key={payment.id}><div><strong>{payment.studentName}</strong><small>{payment.course} · {payment.payAgainst || 'Payment'}</small></div><b>{formatBranchRupees(payment.amount)}</b></div>)}{!dashboardData.payments.length ? <p className="dashboard-empty-state">No payments found for the selected filters.</p> : null}</div></section>
-                    <section className="branch-dashboard-analytics-card"><div className="branch-dashboard-analytics-heading"><div><span>Attention Needed</span><h2>Upcoming and overdue dues</h2></div><button type="button" onClick={() => goToBranchSection('students')}>Open list</button></div><div className="dashboard-mini-table">{[...dashboardData.overdue, ...dashboardData.dueToday].slice(0, 5).map((item) => <div className="dashboard-mini-row" key={`${item.student.id}-${item.installmentNumber}-${item.dueDate}`}><div><strong>{item.student.studentName}</strong><small>{item.dueDate} · Installment {item.installmentNumber || '-'}</small></div><b>{formatBranchRupees(Math.max(item.amount - item.paidAmount, 0))}</b></div>)}{!dashboardData.overdue.length && !dashboardData.dueToday.length ? <p className="dashboard-empty-state">No urgent dues found.</p> : null}</div></section>
                   </div>
+                  <BranchStudentAttendance key={branchId} branchId={branchId} />
 
                 </>
               ) : null}
