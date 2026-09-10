@@ -1900,7 +1900,7 @@ export function BranchBatchManagementSection({
     const primaryBatch = group.displayBatch || (Array.isArray(group.batches) ? group.batches[0] : null) || {}
     const batchKey = getBatchSeatMapKey(primaryBatch, group)
     const batchStatusClass = String(normalizeStatus(primaryBatch.status || group.status || 'Active')).toLowerCase()
-    const calculatedSeatSummary = batchSeatSummaryMap.get(batchKey) || getBatchSeatSummary({
+    const rawSeatSummary = batchSeatSummaryMap.get(batchKey) || getBatchSeatSummary({
       ...primaryBatch,
       batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
       courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
@@ -1911,10 +1911,10 @@ export function BranchBatchManagementSection({
     // Capacity belongs to this batch record; never inherit the total from a
     // stale/colliding summary entry.
     const batchTotalSeats = Math.max(Number(primaryBatch?.totalSeats || 0) || 0, 0)
-    const seatSummary = {
-      ...calculatedSeatSummary,
+    const baseSeatSummary = {
+      ...rawSeatSummary,
       totalSeats: batchTotalSeats,
-      remainingSeats: Math.max(batchTotalSeats - calculatedSeatSummary.usedSeats, 0),
+      remainingSeats: Math.max(batchTotalSeats - rawSeatSummary.usedSeats, 0),
     }
     const batchStudents = getMatchingStudents(branchStudents, {
       facultyId: group?.facultyId || group?.branchFacultyId || '',
@@ -1926,6 +1926,11 @@ export function BranchBatchManagementSection({
       batchName: primaryBatch?.batchName || '',
       batchTiming: primaryBatch?.batchTiming || '',
     })
+    const seatSummary = {
+      ...baseSeatSummary,
+      usedSeats: batchStudents.length,
+      remainingSeats: Math.max(batchTotalSeats - batchStudents.length, 0),
+    }
     const groupKey = String(group.id || group.batchGroupId || group.batchId || primaryBatch.batchId || '')
     const statusLabel = isInactiveBatchGroup(group) ? 'Inactive' : 'Active'
 
