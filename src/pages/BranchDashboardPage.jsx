@@ -48,6 +48,7 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { Button } from '../components/Button'
 import { request, setImpersonateBranchId } from '../services/apiClient'
+import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import { getBranchStudentLedger } from '../services/branchLedgerService'
@@ -3327,13 +3328,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         method: 'GET',
         })
 
-        const responseData = Array.isArray(response?.data)
-          ? response.data
-          : Array.isArray(response?.notifications)
-            ? response.notifications
-            : Array.isArray(response)
-              ? response
-              : []
+        const { data: responseData } = unwrapNotifications(response)
 
         const storedNotifications = loadNotifications()
         const storedById = new Map(

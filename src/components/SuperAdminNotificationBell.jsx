@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 
 import { request } from '../services/apiClient'
+import { unwrapNotifications } from '../services/notificationService'
 import {
   markNotificationsAsRead,
   loadNotifications,
@@ -87,7 +88,7 @@ export function SuperAdminNotificationBell({
       const response = await request('/notifications?limit=20&page=1', {
         method: 'GET',
       })
-      const data = Array.isArray(response?.data) ? response.data : []
+      const { data } = unwrapNotifications(response)
       const mergedNotifications = mergeNotificationsWithStoredState(data)
 
       const storedViewedIds = JSON.parse(

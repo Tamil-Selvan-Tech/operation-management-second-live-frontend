@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { SearchBar } from '../components/SearchBar'
 import { request } from '../services/apiClient'
+import { unwrapNotifications } from '../services/notificationService'
 import {
   loadNotifications,
   markNotificationsAsRead,
@@ -261,13 +262,7 @@ export function SuperAdminNotificationsPage() {
         method: 'GET',
       })
 
-      const data = Array.isArray(response?.data)
-        ? response.data
-        : Array.isArray(response?.notifications)
-          ? response.notifications
-          : Array.isArray(response)
-            ? response
-            : []
+      const { data } = unwrapNotifications(response)
 
       const mergedNotifications = mergeNotificationsWithStoredState(data.map(normalizeNotificationItem))
       saveNotifications(mergedNotifications, { emit: false })

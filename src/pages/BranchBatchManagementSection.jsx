@@ -1975,6 +1975,16 @@ export function BranchBatchManagementSection({
       <Fragment key={groupKey}>
         <tr
           className="batch-management-table-row"
+          tabIndex={0}
+          role="button"
+          aria-label={`View students for ${primaryBatch.batchName || group.batchId || 'batch'}`}
+          onClick={() => toggleGroupStudents(group)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              toggleGroupStudents(group)
+            }
+          }}
         >
           <td className="batch-management-table-cell batch-management-table-batch">
             <div className="batch-management-table-batch-copy">

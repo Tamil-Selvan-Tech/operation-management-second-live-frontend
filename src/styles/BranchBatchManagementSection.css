@@ -48,6 +48,7 @@
 .batch-management-table-row {
   background: #fff;
   transition: background 160ms ease, box-shadow 160ms ease;
+  cursor: pointer;
 }
 
 .batch-management-table-row:hover {
@@ -226,6 +227,7 @@
 
 .batch-management-pagination {
   margin-top: 4px;
+  justify-content: flex-end;
 }
 
 .batch-management-list-card {

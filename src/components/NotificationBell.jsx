@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { getNotificationItems, getUnreadNotificationCount } from '../data/notificationsData'
 import { request } from '../services/apiClient'
+import { unwrapNotifications } from '../services/notificationService'
 
 export function NotificationBell() {
   const { role } = useAuth()
@@ -25,7 +26,7 @@ export function NotificationBell() {
     const load = async () => {
       try {
         const response = await request('/notifications?limit=20&page=1')
-        const body = response?.data?.data ? response.data : response
+        const body = unwrapNotifications(response)
         if (active) {
           setRemoteItems((body.data || []).map(item => ({ ...item, icon: Bell, time: new Date(item.createdAt).toLocaleString(), featured: !item.read })))
           setRemoteCount(body.meta?.unreadCount ?? 0); setError('')

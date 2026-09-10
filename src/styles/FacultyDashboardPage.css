@@ -373,7 +373,7 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table {
   width: 100%;
-  min-width: 1146px;
+  min-width: 1320px;
   table-layout: fixed;
 }
 
@@ -405,7 +405,14 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table th:nth-child(2),
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table td:nth-child(2) {
-  width: 12%;
+  width: 180px;
+  min-width: 180px;
+  white-space: nowrap;
+}
+
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table td:nth-child(2) {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table th:nth-child(3),
@@ -435,8 +442,23 @@ body.faculty-notification-menu-open .super-admin-content {
 
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table th:nth-child(8),
 .super-admin-page .faculty-students-table-shell .branch-dashboard-table td:nth-child(8) {
-  width: 100px;
+  width: 170px;
+  min-width: 170px;
   text-align: center;
+}
+
+.super-admin-page .faculty-students-table-shell .branch-dashboard-table td:nth-child(8) {
+  overflow: visible;
+  padding-right: 20px;
+}
+
+.super-admin-page .faculty-students-table-shell .faculty-students-flow-action-btn {
+  width: 150px;
+  min-width: 150px;
+  box-sizing: border-box;
+  padding-right: 10px;
+  padding-left: 10px;
+  white-space: nowrap;
 }
 
 .super-admin-page .faculty-students-courses-shell .branch-dashboard-table {
