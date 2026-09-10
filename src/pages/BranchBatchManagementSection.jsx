@@ -667,6 +667,12 @@ export function BranchBatchManagementSection({
   }, [branchId, refreshBatchGroups])
 
   useEffect(() => {
+    const handleInstituteLeaveUpdated = () => { void refreshBatchGroups() }
+    window.addEventListener('institute-leave-updated', handleInstituteLeaveUpdated)
+    return () => window.removeEventListener('institute-leave-updated', handleInstituteLeaveUpdated)
+  }, [refreshBatchGroups])
+
+  useEffect(() => {
     if (!actionMenuOpenId) return undefined
 
     const handleDocumentPointerDown = (event) => {
