@@ -12,7 +12,12 @@ export function BranchStudentAttendance({ branchId }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   useEffect(() => {
-    if (!branchId) return undefined
+    if (!branchId) {
+      setLoading(false)
+      setData(null)
+      setError('Branch context is not available yet.')
+      return undefined
+    }
     let active = true
     let pending = false
     async function load() {
