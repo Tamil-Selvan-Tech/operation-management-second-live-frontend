@@ -10668,9 +10668,26 @@ body.branch-notification-menu-open .main-area {
   min-width: 1100px !important;
 }
 
-.batch-availability-overview { width: 62%; max-width: 850px; justify-self: start; margin-top: 20px; padding: 20px 24px 16px; border: 1px solid #dbe7f5; border-radius: 20px; background: linear-gradient(135deg, #fff 0%, #fbfdff 100%); box-shadow: 0 14px 34px rgba(37, 99, 235, .08); }
+.branch-dashboard-feature-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; margin-top: 20px; }
+.batch-availability-overview { width: 100%; max-width: none; margin-top: 0; padding: 20px 24px 16px; border: 1px solid #dbe7f5; border-radius: 20px; background: linear-gradient(135deg, #fff 0%, #fbfdff 100%); box-shadow: 0 14px 34px rgba(37, 99, 235, .08); }
+.trending-courses-overview { display: flex; min-width: 0; flex-direction: column; padding: 20px; border-color: #dbe7f5; background: linear-gradient(135deg, #fff 0%, #fbfdff 100%); }
+.trending-courses-heading { align-items: center; justify-content: flex-start; margin-bottom: 16px; }
+.trending-courses-heading-icon { flex: 0 0 auto; padding: 6px; color: #ea580c; border-radius: 10px; background: #ffedd5; }
+.trending-courses-heading h2 { color: #64748b; font-size: .86rem; font-weight: 500; line-height: 1.35; }
+.trending-courses-list { display: grid; gap: 10px; }
+.trending-course-card { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-width: 0; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.trending-course-card.rank-1 { border-color: #fdba74; background: #fffaf5; }
+.trending-course-rank { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; color: #2563eb; background: #dbeafe; font-size: .78rem; font-weight: 800; }
+.trending-course-card.rank-1 .trending-course-rank { color: #c2410c; background: #ffedd5; }
+.trending-course-copy { display: grid; gap: 5px; min-width: 0; }
+.trending-course-copy strong { overflow: hidden; color: #173466; font-size: .9rem; text-overflow: ellipsis; white-space: nowrap; }
+.trending-course-copy span { color: #64748b; font-size: .72rem; }
+.trending-course-copy b { color: #334155; }
+.trending-course-copy i { display: inline-block; width: 3px; height: 3px; margin: 0 6px 2px; border-radius: 50%; background: #94a3b8; }
+.trending-course-indicator { color: #16a34a; }
 .branch-dashboard-content > .branch-attendance { order: 18; }
 .branch-dashboard-content > .batch-availability-overview { order: 19; }
+.branch-dashboard-content > .branch-dashboard-feature-grid { order: 99; }
 .batch-availability-heading { justify-content: flex-start; align-items: center; gap: 16px; margin-bottom: 18px; }
 .batch-availability-heading > div { min-width: 0; }
 .batch-availability-heading-icon { flex: 0 0 auto; padding: 10px; width: 46px; height: 46px; color: #2563eb; border-radius: 12px; background: #eaf2ff; }
@@ -10698,6 +10715,7 @@ body.branch-notification-menu-open .main-area {
 .batch-availability-status.tone-soon { color: #ea8b0c; background: #fff1d6; }
 .batch-availability-status.tone-available { color: #2563eb; background: #dbeafe; }
 @media (max-width: 800px) {
+  .branch-dashboard-feature-grid { grid-template-columns: 1fr; }
   .batch-availability-overview { width: 100%; padding: 28px 18px; }
   .batch-availability-heading { gap: 14px; margin-bottom: 28px; }
   .batch-availability-heading-icon { width: 54px; height: 54px; padding: 12px; }

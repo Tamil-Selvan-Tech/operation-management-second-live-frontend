@@ -43,6 +43,7 @@ import {
   X,
   Wallet,
   CalendarClock,
+  Flame,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -6583,6 +6584,26 @@ const studentCourseOptions = useMemo(() => {
     }
   }, [allPaymentHistoryRecords, branchStudentScope, branchStudents, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardDateTo, dashboardFilterOptions, dashboardTrendMode])
 
+  const trendingCourses = useMemo(() => {
+    const courseMap = new Map()
+    branchStudents.forEach((student) => {
+      const status = String(student.status || student.currentStatus || '').trim().toLowerCase()
+      if (['inactive', 'deleted', 'cancelled', 'canceled', 'discontinued', 'rejected', 'withdrawn'].includes(status)) return
+      const courseName = String(student.courseName || student.courseInterested || student.course?.name || '').trim()
+      if (!courseName) return
+      const courseId = String(student.courseId || student.course?.id || courseName).trim()
+      const key = courseId.toLowerCase()
+      const current = courseMap.get(key) || { courseId, courseName, totalStudents: 0, totalAdmissions: 0 }
+      current.totalStudents += 1
+      if (student.admissionDate || student.createdAt) current.totalAdmissions += 1
+      courseMap.set(key, current)
+    })
+    return Array.from(courseMap.values())
+      .sort((left, right) => right.totalStudents - left.totalStudents || right.totalAdmissions - left.totalAdmissions || left.courseName.localeCompare(right.courseName))
+      .slice(0, 3)
+      .map((course, index) => ({ ...course, rank: index + 1 }))
+  }, [branchStudents])
+
   const paymentModeFilterOptions = useMemo(() => {
     const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque', 'Installment']
     const uniqueModes = new Set(presetModes)
@@ -8149,6 +8170,7 @@ useEffect(() => {
                   </div>
 
                   <BranchStudentAttendance key={branchId} branchId={branchId} />
+                  <div className="branch-dashboard-feature-grid">
                   <section className="branch-dashboard-analytics-card batch-availability-overview" aria-label="Batch Availability Overview">
                     <div className="branch-dashboard-analytics-heading batch-availability-heading">
                       <CalendarClock className="batch-availability-heading-icon" size={46} strokeWidth={1.8} aria-hidden="true" />
@@ -8169,6 +8191,21 @@ useEffect(() => {
                       <span><i className="tone-available" /> <b>4 days</b><small>Later</small></span>
                     </div>
                   </section>
+
+                  <section className="branch-dashboard-analytics-card trending-courses-overview" aria-label="Trending Courses">
+                    <div className="branch-dashboard-analytics-heading trending-courses-heading">
+                      <Flame className="trending-courses-heading-icon" size={28} strokeWidth={2.2} aria-hidden="true" />
+                      <div><span>Trending Courses</span><h2>Top 3 courses based on student admissions</h2></div>
+                    </div>
+                    {trendingCourses.length ? <div className="trending-courses-list">
+                      {trendingCourses.map((course) => <article className={`trending-course-card rank-${course.rank}`} key={course.courseId}>
+                        <span className="trending-course-rank">#{course.rank}</span>
+                        <div className="trending-course-copy"><strong>{course.courseName}</strong><span><b>{course.totalStudents}</b> Students <i /> <b>{course.totalAdmissions}</b> Admissions</span></div>
+                        <ArrowUpRight className="trending-course-indicator" size={18} strokeWidth={2.4} aria-label="Trending up" />
+                      </article>)}
+                    </div> : <p className="dashboard-empty-state">No trending courses available yet.</p>}
+                  </section>
+                  </div>
 
                   <section className="branch-dashboard-admission-target-card" aria-label="Next month admission target">
                     <div className="branch-dashboard-admission-target-heading">
