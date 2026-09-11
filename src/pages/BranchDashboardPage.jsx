@@ -8201,7 +8201,7 @@ useEffect(() => {
                     {trendingCourses.length ? <div className="trending-courses-list">
                       {trendingCourses.map((course) => <article className={`trending-course-card rank-${course.rank}`} key={course.courseId}>
                         <span className="trending-course-rank">#{course.rank}</span>
-                        <div className="trending-course-copy"><strong>{course.courseName}</strong><span><b>{course.totalStudents}</b> Students <i /> <b>{course.totalAdmissions}</b> Admissions</span></div>
+                        <div className="trending-course-copy"><strong>{course.courseName}</strong><span><b>{course.totalAdmissions}</b> Admissions</span></div>
                         <ArrowUpRight className="trending-course-indicator" size={18} strokeWidth={2.4} aria-label="Trending up" />
                       </article>)}
                     </div> : <p className="dashboard-empty-state">No trending courses available yet.</p>}
