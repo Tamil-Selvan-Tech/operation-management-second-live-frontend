@@ -4116,8 +4116,8 @@ body.super-admin-sidebar-open {
 .sa-overall-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .sa-overall-scope, .sa-overall-refresh { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid #dfe7f2; border-radius: 8px; background: #fff; color: #52627a; font-size: 12px; font-weight: 600; }
 .sa-overall-refresh { cursor: pointer; color: #1554b5; }
-.sa-overall-customize { display: inline-flex; align-items: center; gap: 7px; padding: 9px 12px; border: 1px solid #cfe0f7; border-radius: 8px; background: #eff6ff; color: #1554b5; font-size: 12px; font-weight: 700; cursor: pointer; }
-.sa-overall-customize:hover { background: #e4f0ff; border-color: #b6d1f3; }
+.sa-overall-customize { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; gap: 9px; padding: 0 17px; border: 1px solid #0f766e; border-radius: 12px; background: linear-gradient(135deg, #0f766e 0%, #0e7490 100%); color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; box-shadow: 0 8px 18px rgba(13, 148, 136, .2); transition: border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .2s ease; }
+.sa-overall-customize:hover { border-color: #115e59; background: linear-gradient(135deg, #115e59 0%, #155e75 100%); box-shadow: 0 12px 24px rgba(13, 148, 136, .28); transform: translateY(-2px); }
 .sa-overall-refresh:disabled { opacity: .6; cursor: wait; }
 .is-spinning { animation: sa-spin .9s linear infinite; }
 @keyframes sa-spin { to { transform: rotate(360deg); } }
@@ -4237,6 +4237,44 @@ body.super-admin-sidebar-open {
 .sa-customize-reset { border: 1px solid #dfe7f2; background: #fff; color: #64748b; }
 .sa-customize-done { border: 1px solid #1554b5; background: #1554b5; color: #fff; }
 @media (max-width: 620px) { .sa-overall-actions { width: 100%; justify-content: flex-start; } .sa-overall-scope, .sa-overall-customize, .sa-overall-refresh { flex: 1; justify-content: center; } }
+
+/* Reference-style card picker for both dashboard customizers. */
+.sa-customize-modal { width: min(1080px, calc(100vw - 48px)); height: min(690px, calc(100vh - 48px)); max-height: none; border-radius: 20px; }
+.sa-customize-header { padding: 26px 34px 18px; }
+.sa-customize-header h2 { font-size: 21px; font-weight: 750; }
+.sa-customize-header p { font-size: 13px; }
+.sa-customize-list { display: block; max-height: none; overflow-y: auto; padding: 16px 34px 24px; }
+.sa-customize-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.sa-customize-search { position: relative; display: flex; align-items: center; flex: 0 1 450px; max-width: 450px; gap: 10px; min-height: 44px; padding: 0; border: 0; border-radius: 0; color: #6b7c93; background: transparent; }
+.sa-customize-search > svg { position: absolute; z-index: 1; left: 14px; pointer-events: none; }
+.sa-customize-search:focus-within { border: 0; box-shadow: none; }
+.sa-customize-search input { width: 100%; min-height: 44px; padding: 0 15px 0 46px !important; border: 1px solid #dce5f1 !important; border-radius: 10px; outline: 0 !important; box-shadow: none !important; color: #1e293b; font: inherit; font-size: 13px; background: #fff; }
+.sa-customize-search input:focus { border-color: #60a5fa !important; box-shadow: 0 0 0 3px #dbeafe !important; }
+.sa-customize-select-all-control { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 17px; border: 1px solid #bfdbfe; border-radius: 10px; color: #2563eb; background: #eff6ff; font-size: 13px; font-weight: 750; cursor: pointer; white-space: nowrap; }
+.sa-customize-select-all-control input { width: 18px; height: 18px; accent-color: #2563eb; cursor: pointer; }
+.sa-customize-selected-count { padding: 12px 17px; border-radius: 999px; color: #2563eb; background: #edf5ff; font-size: 12px; font-weight: 750; white-space: nowrap; }
+.sa-customize-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sa-customize-item { position: relative; display: flex; align-items: flex-start; gap: 9px; min-height: 82px; padding: 11px 11px; border: 1px solid #dce5f1; border-radius: 10px; background: #fff; cursor: grab; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+.sa-customize-item:hover, .sa-customize-item.is-selected { border-color: #62a1ff; background: linear-gradient(135deg, #f2f7ff 0%, #fff 100%); box-shadow: 0 3px 10px rgba(37, 99, 235, .07); }
+.sa-customize-item.is-hidden { opacity: .78; }
+.sa-customize-drag { flex: 0 0 auto; margin-top: 7px; color: #8fa1b8; }
+.sa-customize-item-icon { display: grid; place-items: center; flex: 0 0 34px; width: 34px; height: 34px; border-radius: 10px; }
+.sa-customize-item-icon.blue { background: #dbeafe; color: #2563eb; }
+.sa-customize-item-icon.green { background: #dff7eb; color: #12966a; }
+.sa-customize-item-icon.orange { background: #fff0d8; color: #ed8a00; }
+.sa-customize-item-icon.purple { background: #eee5ff; color: #7548d8; }
+.sa-customize-item-icon.red { background: #ffe2e5; color: #e34858; }
+.sa-customize-item-copy { flex: 1; min-width: 0; padding-top: 2px; }
+.sa-customize-item-copy strong { display: block; overflow: hidden; color: #263853; font-size: 12px; font-weight: 750; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.sa-customize-item-copy small { display: block; margin-top: 4px; color: #71839d; font-size: 10px; line-height: 1.35; }
+.sa-customize-item > input { position: absolute; top: 14px; right: 11px; width: 17px; height: 17px; opacity: 0; cursor: pointer; }
+.sa-customize-check { display: grid; place-items: center; flex: 0 0 18px; width: 18px; height: 18px; margin-top: 1px; border: 1px solid #b9c7d8; border-radius: 5px; color: #fff; background: #fff; pointer-events: none; }
+.sa-customize-item.is-selected .sa-customize-check { border-color: #2563eb; background: #2563eb; }
+.sa-customize-footer { padding: 16px 34px 20px; }
+.sa-customize-reset, .sa-customize-done { min-height: 40px; padding: 9px 16px; }
+.sa-customize-done { background: #2563eb; border-color: #2563eb; }
+@media (max-width: 900px) { .sa-customize-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .sa-customize-modal { width: calc(100vw - 24px); height: calc(100vh - 24px); border-radius: 16px; } .sa-customize-header, .sa-customize-list, .sa-customize-footer { padding-left: 16px; padding-right: 16px; } .sa-customize-toolbar { flex-wrap: wrap; } .sa-customize-search { flex-basis: 100%; max-width: none; } .sa-customize-card-grid { grid-template-columns: 1fr; } }
 
 /* Admission Overview redesign */
 .sa-admission-heading-actions { display: flex; align-items: center; gap: 9px; }

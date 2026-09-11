@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ChevronLeft,
   LayoutDashboard,
+  LayoutGrid,
   Layers3,
   LogOut,
   MoreVertical,
@@ -8013,7 +8014,7 @@ useEffect(() => {
                       <h1>Dashboard</h1>
                       {(!embeddedMode && role === 'branch-admin') || embeddedMode ? (
                         <button type="button" className="branch-dashboard-customize-button" onClick={() => setIsWidgetCustomizerOpen(true)}>
-                          <LayoutDashboard size={16} strokeWidth={2.4} />
+                          <LayoutGrid size={17} strokeWidth={2.4} />
                           <span>Customize Dashboard</span>
                         </button>
                       ) : null}
@@ -14515,13 +14516,10 @@ else {
           <div className="branch-modal-backdrop" role="presentation">
             <div className="dashboard-widget-customize-modal" role="dialog" aria-modal="true" aria-labelledby="customize-dashboard-title" onClick={(event) => event.stopPropagation()}>
               <div className="dashboard-widget-customize-header">
-                <div className="dashboard-widget-customize-heading">
-                  <span className="dashboard-widget-customize-icon"><LayoutDashboard size={20} /></span>
-                  <div><span className="dashboard-widget-customize-kicker">BRANCH ADMIN</span><h2 id="customize-dashboard-title">Customize Dashboard</h2></div>
-                </div>
+                <div className="dashboard-widget-customize-heading"><h2 id="customize-dashboard-title">Customize Dashboard</h2></div>
                 <button type="button" className="branch-modal-close" aria-label="Close dashboard customization" onClick={() => setIsWidgetCustomizerOpen(false)}><X size={22} strokeWidth={2} /></button>
               </div>
-              <p className="dashboard-widget-customize-description">Choose the cards you want to display on your Branch Admin dashboard.</p>
+              <p className="dashboard-widget-customize-description">Choose the cards you want to display and arrange their order.</p>
               <div className="dashboard-widget-customize-layout">
                 <section className="dashboard-widget-customize-main">
                   <div className="dashboard-widget-customize-toolbar"><label className="dashboard-widget-search"><Search size={17} /><input type="search" value={widgetSearchQuery} onChange={(event) => setWidgetSearchQuery(event.target.value)} placeholder="Search widgets..." aria-label="Search dashboard widgets" /></label><label className="dashboard-widget-select-all-control"><input type="checkbox" checked={areAllDashboardWidgetsVisible} onChange={(event) => setAllDashboardWidgetsVisible(event.target.checked)} disabled={!dashboardWidgets.length} /><span>Select all</span></label><span className="dashboard-widget-selected-count" aria-disabled="true">{visibleDashboardWidgetCount} selected</span></div>
