@@ -1503,6 +1503,8 @@ export function FacultyDashboardPage() {
   const [isTodayWorkMissedExpanded, setIsTodayWorkMissedExpanded] = useState(true)
   const [pendingTodayWorkSubmission, setPendingTodayWorkSubmission] = useState(null)
   const [attendanceSavedPrompt, setAttendanceSavedPrompt] = useState(null)
+  const [attendanceWarningPopup, setAttendanceWarningPopup] = useState(null)
+  const attendanceWarningLevelRef = useRef(0)
   const [todayWorkAttendanceSearch, setTodayWorkAttendanceSearch] = useState('')
   const [attendanceClock, setAttendanceClock] = useState(() => new Date())
   const [courseEditError, setCourseEditError] = useState('')
@@ -1512,11 +1514,11 @@ export function FacultyDashboardPage() {
   const [coursesError, setCoursesError] = useState('')
 
   useEffect(() => {
-    if (!isTodayWorkModalOpen || todayWorkMode !== 'attendance') return undefined
+    if (!selectedStudentsBatchId) return undefined
 
     const intervalId = window.setInterval(() => setAttendanceClock(new Date()), 1000)
     return () => window.clearInterval(intervalId)
-  }, [isTodayWorkModalOpen, todayWorkMode, selectedStudentsBatchId])
+  }, [selectedStudentsBatchId])
 
 
 
@@ -4204,6 +4206,23 @@ const nextName = trimmedValue
     attendanceClock,
   )
   const attendanceWindowLocked = todayWorkMode === 'attendance' && !todayWorkAttendanceWindow.isEditable
+
+  useEffect(() => {
+    if (!selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder) {
+      if (!todayWorkAttendanceWindow.isReminder) attendanceWarningLevelRef.current = 0
+      setAttendanceWarningPopup(null)
+      return
+    }
+
+    if (attendanceWarningLevelRef.current !== todayWorkAttendanceWindow.warningMinutes) {
+      attendanceWarningLevelRef.current = todayWorkAttendanceWindow.warningMinutes
+      setAttendanceWarningPopup({
+        minutes: todayWorkAttendanceWindow.warningMinutes,
+        message: todayWorkAttendanceWindow.reason,
+      })
+    }
+  }, [selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
+
   const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
     if (!normalizedAttendanceSearch) return true
     return [student?.studentName, student?.studentId, student?.emailAddress]
@@ -5619,13 +5638,15 @@ const nextName = trimmedValue
                   <div>
                     <h4>{todayWorkMode === 'attendance' ? 'Student Attendance' : 'Select Students'}</h4>
                     {todayWorkMode === 'attendance' ? (
-                      <p
-                        className={`faculty-today-work-attendance-window-note${attendanceWindowLocked ? ' is-locked' : ''}${todayWorkAttendanceWindow.isReminder ? ' is-warning' : ''}`.trim()}
-                        role="status"
-                        aria-live="polite"
-                      >
-                        {todayWorkAttendanceWindow.reason || 'Attendance timing is not configured for this batch.'}
-                      </p>
+                      todayWorkAttendanceWindow.isReminder ? null : (
+                        <p
+                          className={attendanceWindowLocked ? 'faculty-today-work-attendance-window-note is-locked' : 'faculty-today-work-attendance-window-note'}
+                          role="status"
+                          aria-live="polite"
+                        >
+                          {todayWorkAttendanceWindow.reason || 'Attendance timing is not configured for this batch.'}
+                        </p>
+                      )
                     ) : (
                       <p>Choose students whose submodule progress should be updated.</p>
                     )}
@@ -5720,6 +5741,43 @@ const nextName = trimmedValue
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {attendanceWarningPopup ? (
+        <div className="faculty-attendance-warning-backdrop" role="presentation">
+          <div
+            className="faculty-attendance-warning-popup"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="faculty-attendance-warning-title"
+          >
+            <div className="faculty-attendance-warning-popup-icon" aria-hidden="true">
+              <AlertTriangle size={22} strokeWidth={2.4} />
+            </div>
+            <div className="faculty-attendance-warning-popup-copy">
+              <strong id="faculty-attendance-warning-title">Attendance Warning</strong>
+              <span>{attendanceWarningPopup.message}</span>
+            </div>
+            <button
+              type="button"
+              className="faculty-attendance-warning-popup-action"
+              onClick={() => {
+                setAttendanceWarningPopup(null)
+                openTodayWorkModal('attendance')
+              }}
+            >
+              Mark Attendance
+            </button>
+            <button
+              type="button"
+              className="faculty-attendance-warning-popup-close"
+              aria-label="Dismiss attendance warning"
+              onClick={() => setAttendanceWarningPopup(null)}
+            >
+              <X size={18} strokeWidth={2.4} />
+            </button>
           </div>
         </div>
       ) : null}

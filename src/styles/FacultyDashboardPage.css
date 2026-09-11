@@ -1479,6 +1479,94 @@ body.faculty-notification-menu-open .super-admin-content {
   font-weight: 700;
 }
 
+.faculty-attendance-warning-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.faculty-attendance-warning-popup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(520px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid #f2c46d;
+  border-radius: 14px;
+  background: #fffaf0;
+  box-shadow: 0 16px 36px rgba(90, 61, 12, 0.2);
+  color: #7c4a03;
+}
+
+.faculty-attendance-warning-popup-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff0c7;
+  color: #c47a00;
+}
+
+.faculty-attendance-warning-popup-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.faculty-attendance-warning-popup-copy strong {
+  color: #633d05;
+  font-size: 0.9rem;
+}
+
+.faculty-attendance-warning-popup-copy span {
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.faculty-attendance-warning-popup-action {
+  flex: 0 0 auto;
+  padding: 9px 13px;
+  border: 0;
+  border-radius: 8px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.faculty-attendance-warning-popup-action:hover {
+  background: #1d4ed8;
+}
+
+.faculty-attendance-warning-popup-close {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #8d6a2b;
+  cursor: pointer;
+}
+
+.faculty-attendance-warning-popup-close:hover {
+  background: #ffefc4;
+}
+
 .faculty-today-work-submodule-list,
 .faculty-today-work-student-list {
   display: grid;
