@@ -3020,6 +3020,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }
   const toggleDashboardWidget = (widgetKey) => setDashboardWidgets((current) => current.map((widget) => widget.widgetKey === widgetKey ? { ...widget, isVisible: !widget.isVisible } : widget))
   const visibleDashboardWidgetCount = dashboardWidgets.filter((widget) => widget.isVisible !== false).length
+  const areAllDashboardWidgetsVisible = dashboardWidgets.length > 0 && visibleDashboardWidgetCount === dashboardWidgets.length
   const setAllDashboardWidgetsVisible = (isVisible) => setDashboardWidgets((current) => current.map((widget) => ({ ...widget, isVisible })))
   const dashboardWidgetIconByKey = {
     this_month_admissions: Users,
@@ -14485,7 +14486,7 @@ else {
               <p className="dashboard-widget-customize-description">Choose the cards you want to display on your Branch Admin dashboard.</p>
               <div className="dashboard-widget-customize-layout">
                 <section className="dashboard-widget-customize-main">
-                  <div className="dashboard-widget-customize-toolbar"><label className="dashboard-widget-search"><Search size={17} /><input type="search" value={widgetSearchQuery} onChange={(event) => setWidgetSearchQuery(event.target.value)} placeholder="Search widgets..." aria-label="Search dashboard widgets" /></label><button type="button" className="dashboard-widget-select-all-button" onClick={() => setAllDashboardWidgetsVisible(true)}>Select all</button><span className="dashboard-widget-selected-count">{visibleDashboardWidgetCount} selected</span></div>
+                  <div className="dashboard-widget-customize-toolbar"><label className="dashboard-widget-search"><Search size={17} /><input type="search" value={widgetSearchQuery} onChange={(event) => setWidgetSearchQuery(event.target.value)} placeholder="Search widgets..." aria-label="Search dashboard widgets" /></label><label className="dashboard-widget-select-all-control"><input type="checkbox" checked={areAllDashboardWidgetsVisible} onChange={(event) => setAllDashboardWidgetsVisible(event.target.checked)} disabled={!dashboardWidgets.length} /><span>Select all</span></label><span className="dashboard-widget-selected-count" aria-disabled="true">{visibleDashboardWidgetCount} selected</span></div>
                   <div className="dashboard-widget-customize-list">
                     {dashboardWidgets.filter((widget) => `${widget.widgetName} ${widget.category} ${widget.description || ''}`.toLowerCase().includes(widgetSearchQuery.trim().toLowerCase())).map((widget) => { const isVisible = widget.isVisible !== false; const WidgetIcon = dashboardWidgetIconByKey[widget.widgetKey] || LayoutDashboard; return <label key={widget.widgetKey} className={`dashboard-widget-customize-item ${isVisible ? 'is-selected' : ''}`}><input type="checkbox" checked={isVisible} onChange={() => toggleDashboardWidget(widget.widgetKey)} /><span className="dashboard-widget-customize-card-icon"><WidgetIcon size={19} /></span><span className="dashboard-widget-customize-item-copy"><strong>{widget.widgetName}</strong><small>{widget.description || widget.category}</small></span><span className="dashboard-widget-customize-check" aria-hidden="true">{isVisible ? <Check size={14} strokeWidth={3} /> : null}</span></label> })}
                   </div>

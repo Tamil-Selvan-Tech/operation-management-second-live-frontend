@@ -11878,11 +11878,12 @@ body.branch-notification-menu-open .main-area {
 .dashboard-widget-customize-modal .dashboard-widget-customize-toolbar { display:flex; flex-direction:row; align-items:center; margin:0; }
 .dashboard-widget-search { min-width:0; }
 .dashboard-widget-search input { border:0 !important; box-shadow:none !important; outline:0 !important; }
-.dashboard-widget-select-all-button { flex:0 0 auto; border:0; padding:0 2px; color:#2563eb; background:none; font:inherit; font-size:11px; font-weight:800; cursor:pointer; white-space:nowrap; }
-.dashboard-widget-select-all-button:hover { color:#1e40af; text-decoration:underline; }
-.dashboard-widget-select-all-button { min-height:34px; padding:0 12px; border:1px solid #bfdbfe; border-radius:9px; background:#eff6ff; font-size:11px; }
-.dashboard-widget-select-all-button:hover { border-color:#60a5fa; background:#dbeafe; text-decoration:none; }
-.dashboard-widget-selected-count { color:#1d4ed8; background:#dbeafe; }
+.dashboard-widget-select-all-control { display:inline-flex; align-items:center; gap:7px; flex:0 0 auto; min-height:34px; padding:0 12px; border:1px solid #bfdbfe; border-radius:9px; color:#2563eb; background:#eff6ff; font-size:11px; font-weight:800; cursor:pointer; white-space:nowrap; }
+.dashboard-widget-select-all-control:hover { border-color:#60a5fa; background:#dbeafe; }
+.dashboard-widget-select-all-control input { width:16px; height:16px; margin:0; accent-color:#2563eb; cursor:pointer; }
+.dashboard-widget-select-all-control input:disabled { cursor:not-allowed; }
+.dashboard-widget-select-all-control > span { margin:0; color:#2563eb; }
+.dashboard-widget-customize-toolbar .dashboard-widget-selected-count { margin:0; color:#1d4ed8; background:#dbeafe; opacity:1; cursor:default; user-select:none; }
 .dashboard-widget-customize-modal .dashboard-widget-customize-toolbar { gap:10px; }
 .dashboard-widget-search { flex:1 1 auto; max-width:560px; }
 .dashboard-widget-customize-modal > .branch-modal-actions { position:relative !important; top:auto !important; right:auto !important; bottom:auto !important; left:auto !important; z-index:1; flex:0 0 auto; width:auto !important; margin:14px -30px -30px; padding:14px 30px 16px; transform:none !important; }
