@@ -152,9 +152,11 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
     const date = addMonths(currentMonth, index - 1)
     return { key: `${date.getFullYear()}-${date.getMonth()}`, label: date.toLocaleDateString('en-US', { month: 'short' }), value: 0 }
   })
-  const dailyBuckets = Array.from({ length: 7 }, (_, index) => { const date = addDays(now, index - 6); return { key: keyForDate(date), label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), value: 0 } })
+  const dailyBuckets = Array.from({ length: 7 }, (_, index) => { const date = addDays(now, index - 6); return { key: keyForDate(date), label: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), expected: 0, actual: 0 } })
+  const weekStart = addDays(now, -now.getDay())
+  const weeklyBuckets = Array.from({ length: 7 }, (_, index) => { const date = addDays(weekStart, index); return { key: keyForDate(date), label: date.toLocaleDateString('en-US', { weekday: 'short' }), expected: 0, actual: 0, start: date, end: date } })
   const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-  const weeklyBuckets = [
+  const monthlyBuckets = [
     { startDay: 1, endDay: 7 },
     { startDay: 8, endDay: 14 },
     { startDay: 15, endDay: 21 },
@@ -164,9 +166,13 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
     label: `Week ${index + 1}`,
     start: new Date(now.getFullYear(), now.getMonth(), range.startDay),
     end: new Date(now.getFullYear(), now.getMonth(), range.endDay),
-    value: 0,
+    expected: 0,
+    actual: 0,
   }))
-  const monthlyBuckets = Array.from({ length: 2 }, (_, index) => { const date = addMonths(currentMonth, index - 1); return { key: `${date.getFullYear()}-${date.getMonth()}`, label: date.toLocaleDateString('en-US', { month: 'short' }), value: 0 } })
+  const monthlySummaryBuckets = Array.from({ length: 2 }, (_, index) => {
+    const date = addMonths(currentMonth, index - 1)
+    return { key: `${date.getFullYear()}-${date.getMonth()}`, label: date.toLocaleDateString('en-US', { month: 'short' }), value: 0 }
+  })
 
   students.forEach((student) => {
     const admissionDate = dateValue(student.admissionDate || student.createdAt || student.firstInstallmentDate)
@@ -190,11 +196,13 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
         if (paid && paidDate === today) result.todayCollection += toNumber(payment.amount)
         if (paid && paidDate === yesterday) result.yesterdayCollection += toNumber(payment.amount)
         const dayBucket = dailyBuckets.find((item) => item.key === paidDate)
-        if (dayBucket) dayBucket.value += toNumber(payment.amount)
+        if (dayBucket) dayBucket.actual += toNumber(payment.amount)
         const weekBucket = weeklyBuckets.find((item) => paid && paid >= item.start && paid <= item.end)
-        if (weekBucket) weekBucket.value += toNumber(payment.amount)
-        const monthBucket = monthlyBuckets.find((item) => item.key === `${paid?.getFullYear()}-${paid?.getMonth()}`)
-        if (monthBucket) monthBucket.value += toNumber(payment.amount)
+        if (weekBucket) weekBucket.actual += toNumber(payment.amount)
+        const monthBucket = monthlyBuckets.find((item) => paid && paid >= item.start && paid <= item.end)
+        if (monthBucket) monthBucket.actual += toNumber(payment.amount)
+        const monthSummaryBucket = monthlySummaryBuckets.find((item) => item.key === `${paid?.getFullYear()}-${paid?.getMonth()}`)
+        if (monthSummaryBucket) monthSummaryBucket.value += toNumber(payment.amount)
     })
 
     const planned = toNumber(student.finalFee || student.courseAmount || student.totalAmount || student.afterDiscount) || installments.reduce((sum, entry) => sum + entry.amount, 0)
@@ -209,13 +217,21 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
       if (dueDate === yesterday) result.yesterdayDue += unpaidAmount
       if (dueDate < today) result.overdueAmount += unpaidAmount
       if (dueDate <= today) result.dueStudents.add(String(student.id || student.studentId || `${student.branchId}-${admissionDate}`))
+      const due = new Date(`${dueDate}T00:00:00`)
+      const dayBucket = dailyBuckets.find((item) => item.key === dueDate)
+      if (dayBucket) dayBucket.expected += unpaidAmount
+      const weekBucket = weeklyBuckets.find((item) => due >= item.start && due <= item.end)
+      if (weekBucket) weekBucket.expected += unpaidAmount
+      const monthBucket = monthlyBuckets.find((item) => due >= item.start && due <= item.end)
+      if (monthBucket) monthBucket.expected += unpaidAmount
     })
   })
 
   result.admissionsByMonth = admissionBuckets
   result.dailyPaymentData = dailyBuckets
   result.weeklyPaymentData = weeklyBuckets
-  result.monthlyPaymentData = monthlyBuckets
+  result.monthlyPaymentData = monthlySummaryBuckets
+  result.monthlyPaymentChartData = monthlyBuckets
   result.dueStudents = result.dueStudents.size
   return result
 }

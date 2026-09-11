@@ -36,15 +36,15 @@ function AdmissionDonut({ data, isLoading }) {
 
 function BarChart({ title, data, formatter, emptyMessage }) {
   const [hovered, setHovered] = useState(null)
-  const max = Math.max(...data.map((item) => Number(item.value) || 0), 1)
-  if (!data.length || data.every((item) => !Number(item.value))) return <div className="sa-overall-chart-empty">{emptyMessage}</div>
+  const max = Math.max(...data.flatMap((item) => [Number(item.expected) || 0, Number(item.actual) || 0]), 1)
+  if (!data.length || data.every((item) => !Number(item.expected) && !Number(item.actual))) return <div className="sa-overall-chart-empty">{emptyMessage}</div>
   return <div className="sa-overall-chart" aria-label={title}>
     <div className="sa-overall-chart-y-label">Payment amount</div>
     <div className="sa-overall-bars">
       {data.map((item, index) => <div className="sa-overall-bar-group" key={`${item.label}-${index}`} onMouseEnter={() => setHovered(index)} onMouseLeave={() => setHovered(null)}>
-        {hovered === index ? <div className="sa-overall-tooltip"><strong>{item.fullLabel || item.label}</strong><span>Overall Collection: {formatter(item.value)}</span><span>Branches included: All active</span></div> : null}
-        <div className="sa-overall-bar-value">{Number(item.value) ? formatter(item.value) : ''}</div>
-        <div className="sa-overall-bar-track"><div className="sa-overall-bar" style={{ height: `${Math.max(5, (Number(item.value) / max) * 100)}%` }} /></div>
+        {hovered === index ? <div className="sa-overall-tooltip"><strong>{item.fullLabel || item.label}</strong><span>Expected: {formatter(item.expected)}</span><span>Actual: {formatter(item.actual)}</span><span>Difference: {formatter(Number(item.expected || 0) - Number(item.actual || 0))}</span></div> : null}
+        <div className="sa-overall-bar-value">{Number(item.actual) ? formatter(item.actual) : ''}</div>
+        <div className="sa-overall-bar-track sa-overall-grouped-track"><div className="sa-overall-bar sa-overall-bar-expected" style={{ height: `${Math.max(4, (Number(item.expected) / max) * 100)}%` }} /><div className="sa-overall-bar sa-overall-bar-actual" style={{ height: `${Math.max(4, (Number(item.actual) / max) * 100)}%` }} /></div>
         <span className="sa-overall-bar-label">{item.label}</span>
       </div>)}
     </div>
@@ -77,7 +77,7 @@ export function SuperAdminOverallDashboard({ branches }) {
   const chartData = useMemo(() => {
     if (!overview) return []
     if (period === 'weekly') return overview.weeklyPaymentData || []
-    if (period === 'monthly') return overview.monthlyPaymentData || []
+    if (period === 'monthly') return overview.monthlyPaymentChartData || overview.monthlyPaymentData || []
     return overview.dailyPaymentData || []
   }, [overview, period])
 
@@ -95,7 +95,7 @@ export function SuperAdminOverallDashboard({ branches }) {
   }
 
   const admissionsComparison = getMonthComparison(overview?.admissionsByMonth)
-  const paymentComparison = getMonthComparison(overview?.monthlyPaymentData)
+  const paymentComparison = getMonthComparison((overview?.monthlyPaymentData || []).map((item) => ({ ...item, value: item.actual ?? item.value })))
   const getDayComparison = (current, previous) => {
     if (isLoading || previous === undefined || previous === null) return null
     if (!Number(previous)) {
@@ -145,7 +145,7 @@ export function SuperAdminOverallDashboard({ branches }) {
           <div className="sa-admission-current-summary"><span>This Month</span><strong>{isLoading ? '—' : overview?.admissionsByMonth?.at(-1)?.value || 0}</strong><b>Admissions</b>{admissionsComparison ? <div><em className={admissionsComparison.direction}>{admissionsComparison.value}</em><small>{admissionsComparison.label}</small></div> : <small>All active branches</small>}</div>
         </div>
       </section>
-      <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Overall collection by period</p></div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment collection recorded for this period." />}</section>
+      <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection across all active branches</p></div><div className="sa-payment-heading-actions"><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment collection recorded for this period." />}</section>
     </div>
   </div>
 }

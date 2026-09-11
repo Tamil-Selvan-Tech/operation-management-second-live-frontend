@@ -4216,3 +4216,23 @@ body.super-admin-sidebar-open {
 @media (max-width: 1120px) { .sa-admission-overview-content { grid-template-columns: 112px minmax(100px, 1fr) 112px; gap: 11px; } .sa-admission-donut { width: 108px; height: 108px; } .sa-admission-donut-hole { width: 73px; height: 73px; } }
 @media (max-width: 820px) { .sa-admission-overview-content { grid-template-columns: 132px 1fr; } .sa-admission-current-summary { grid-column: 1 / -1; min-height: auto; } }
 @media (max-width: 520px) { .sa-admission-heading-actions select { max-width: 105px; } .sa-admission-overview-content { grid-template-columns: 1fr; justify-items: center; } .sa-admission-breakdown, .sa-admission-current-summary { width: 100%; } .sa-admission-current-summary { grid-column: auto; } }
+
+/* Expected vs actual payment chart */
+.sa-payment-legend { display: flex; gap: 14px; margin: 10px 0 4px; color: #748398; font-size: 10px; font-weight: 650; }
+.sa-payment-heading-actions { display: flex; align-items: center; gap: 10px; }
+.sa-payment-heading-actions .sa-overall-tabs { margin: 0; }
+.sa-payment-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.sa-payment-legend i { width: 8px; height: 8px; border-radius: 50%; }
+.sa-payment-legend i.is-expected { background: #f4a340; }
+.sa-payment-legend i.is-actual { background: #2f80ed; }
+.sa-payment-totals { display: flex; flex-wrap: wrap; gap: 18px; margin: 8px 0 2px; padding: 9px 11px; border: 1px solid #e8edf4; border-radius: 8px; background: #fbfcfe; }
+.sa-payment-totals div { display: grid; gap: 3px; }
+.sa-payment-totals small { color: #8a97a9; font-size: 9px; }
+.sa-payment-totals strong { color: #26364d; font-size: 13px; }
+.sa-overall-grouped-track { display: flex; align-items: flex-end; justify-content: center; gap: 3px; background: linear-gradient(to top, #f8fafc 1px, transparent 1px); background-size: 100% 25%; }
+.sa-overall-grouped-track .sa-overall-bar { width: 28%; min-height: 4px; margin: 0; border-radius: 4px 4px 0 0; }
+.sa-overall-grouped-track .sa-overall-bar-expected { background: #f4a340; }
+.sa-overall-grouped-track .sa-overall-bar-actual { background: #2f80ed; }
+.sa-overall-bar-group:hover .sa-overall-bar-expected { background: #d98622; }
+.sa-overall-bar-group:hover .sa-overall-bar-actual { background: #1554b5; }
+@media (max-width: 620px) { .sa-overall-payments .sa-overall-panel-heading { align-items: flex-start; flex-direction: column; } .sa-payment-heading-actions { width: 100%; justify-content: space-between; } }
