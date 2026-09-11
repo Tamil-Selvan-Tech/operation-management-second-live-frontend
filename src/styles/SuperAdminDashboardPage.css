@@ -4214,6 +4214,7 @@ body.super-admin-sidebar-open {
 .sa-admission-current-summary em.neutral { background: #eef2f6; color: #718096; }
 .sa-admission-current-summary div small { color: #8291a4; font-size: 9px; }
 @media (max-width: 1120px) { .sa-admission-overview-content { grid-template-columns: 112px minmax(100px, 1fr) 112px; gap: 11px; } .sa-admission-donut { width: 108px; height: 108px; } .sa-admission-donut-hole { width: 73px; height: 73px; } }
+@media (max-width: 1200px) { .sa-admission-overview-content { grid-template-columns: 100px minmax(0, 1fr); gap: 12px; } .sa-admission-current-summary { grid-column: 1 / -1; min-height: auto; } }
 @media (max-width: 820px) { .sa-admission-overview-content { grid-template-columns: 132px 1fr; } .sa-admission-current-summary { grid-column: 1 / -1; min-height: auto; } }
 @media (max-width: 520px) { .sa-admission-heading-actions select { max-width: 105px; } .sa-admission-overview-content { grid-template-columns: 1fr; justify-items: center; } .sa-admission-breakdown, .sa-admission-current-summary { width: 100%; } .sa-admission-current-summary { grid-column: auto; } }
 
