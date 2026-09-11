@@ -1,5 +1,7 @@
 import { request, setImpersonateBranchId } from './apiClient'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
+import { loadBranchStudents } from '../lib/branchStudentStore'
+import { listBranchLedger } from './branchLedgerService'
 
 const CURRENCY = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -49,11 +51,6 @@ function installmentEntries(student) {
   return entries.map((entry) => ({ ...entry, amount: toNumber(entry.amount), paidAmount: String(entry.status || '').toLowerCase() === 'paid' ? toNumber(entry.amount) : toNumber(student[`${entry.amountKey}Paid`]), status: String(entry.status || 'Pending').trim() }))
 }
 
-function normalizePayload(payload) {
-  const value = payload?.data ?? payload
-  return value && typeof value === 'object' && !Array.isArray(value) ? value : null
-}
-
 async function loadAllBranchStudents(branch) {
   const branchId = branch.id || branch.branchId
   const rows = []
@@ -70,19 +67,52 @@ async function loadAllBranchStudents(branch) {
       hasNextPage = page < Number(meta?.totalPages || 1)
       page += 1
     } while (hasNextPage && page <= 100)
+  } catch (error) {
+    const status = Number(error?.status || error?.statusCode)
+    if (![403, 404].includes(status)) throw error
+    return loadBranchStudents(branchId)
   } finally {
     setImpersonateBranchId(null)
   }
   return rows.map((student) => ({ ...student, branchId: student.branchId || branchId }))
 }
 
-function buildFallbackOverview(branches, studentsByBranch) {
+async function loadBranchLedgerPayments(branch) {
+  const branchId = branch.id || branch.branchId
+  setImpersonateBranchId(branchId)
+  try {
+    const result = await listBranchLedger({ page: 1, limit: 500, sortBy: 'date', sortOrder: 'desc' })
+    return (result?.entries || [])
+      .filter((entry) => String(entry.entryType || '').toUpperCase() === 'CREDIT' || Number(entry.credit || 0) > 0)
+      .map((entry) => ({
+        ...entry,
+        studentId: entry.studentId || entry.studentRecordId,
+        amount: toNumber(entry.credit || entry.amount),
+        paymentDate: entry.dateRaw || entry.date || entry.createdAt,
+        dateRaw: entry.dateRaw || entry.date || entry.createdAt,
+        branchId,
+      }))
+  } finally {
+    setImpersonateBranchId(null)
+  }
+}
+
+function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory = []) {
   const now = new Date()
   const today = keyForDate(now)
+  const yesterday = keyForDate(addDays(now, -1))
   const currentMonth = monthStart(now)
   const activeBranches = branches.filter((branch) => String(branch?.status || '').toLowerCase() === 'active')
   const students = activeBranches.flatMap((branch) => studentsByBranch.get(String(branch.id || branch.branchId)) || [])
-  const paymentHistory = activeBranches.flatMap((branch) => loadBranchPaymentHistoryEntries(branch.id || branch.branchId))
+  const allPaymentHistory = loadBranchPaymentHistoryEntries('')
+  const activeBranchKeys = new Set(activeBranches.flatMap((branch) => [branch.id, branch.branchId, branch.branchCode].map((value) => String(value || '').trim()).filter(Boolean)))
+  const activeStudentKeys = new Set(students.flatMap((student) => [student.id, student._id, student.studentId].map((value) => String(value || '').trim()).filter(Boolean)))
+  const localPaymentHistory = allPaymentHistory.filter((payment) => {
+    const paymentBranchKeys = [payment.branchId, payment.branchCode].map((value) => String(value || '').trim()).filter(Boolean)
+    const belongsToActiveBranch = !paymentBranchKeys.length || paymentBranchKeys.some((key) => activeBranchKeys.has(key))
+    return belongsToActiveBranch && activeStudentKeys.has(String(payment.studentId || '').trim())
+  })
+  const paymentHistory = backendPaymentHistory.length ? backendPaymentHistory : localPaymentHistory
   const paymentHistoryByStudent = new Map()
   paymentHistory.forEach((payment) => {
     const studentId = String(payment.studentId || '').trim()
@@ -107,9 +137,11 @@ function buildFallbackOverview(branches, studentsByBranch) {
     totalOutstanding: 0,
     thisMonthDue: 0,
     todayDue: 0,
+    yesterdayDue: 0,
     overdueAmount: 0,
     dueStudents: new Set(),
     todayCollection: 0,
+    yesterdayCollection: 0,
     admissionsByMonth: [],
     dailyPaymentData: [],
     weeklyPaymentData: [],
@@ -156,6 +188,7 @@ function buildFallbackOverview(branches, studentsByBranch) {
         result.totalPayment += toNumber(payment.amount)
         if (paid && paid.getFullYear() === now.getFullYear() && paid.getMonth() === now.getMonth()) result.thisMonthPayment += toNumber(payment.amount)
         if (paid && paidDate === today) result.todayCollection += toNumber(payment.amount)
+        if (paid && paidDate === yesterday) result.yesterdayCollection += toNumber(payment.amount)
         const dayBucket = dailyBuckets.find((item) => item.key === paidDate)
         if (dayBucket) dayBucket.value += toNumber(payment.amount)
         const weekBucket = weeklyBuckets.find((item) => paid && paid >= item.start && paid <= item.end)
@@ -173,6 +206,7 @@ function buildFallbackOverview(branches, studentsByBranch) {
       if (!dueDate) return
       if (dueDate.slice(0, 7) === today.slice(0, 7)) result.thisMonthDue += unpaidAmount
       if (dueDate === today) result.todayDue += unpaidAmount
+      if (dueDate === yesterday) result.yesterdayDue += unpaidAmount
       if (dueDate < today) result.overdueAmount += unpaidAmount
       if (dueDate <= today) result.dueStudents.add(String(student.id || student.studentId || `${student.branchId}-${admissionDate}`))
     })
@@ -187,25 +221,23 @@ function buildFallbackOverview(branches, studentsByBranch) {
 }
 
 export async function getSuperAdminOverview(branches = []) {
-  try {
-    const response = await request('/dashboard/super-admin/overview')
-    const payload = normalizePayload(response)
-    if (payload) return payload
-  } catch (error) {
-    // Older backend deployments may not expose the consolidated endpoint, or
-    // may reject it while still allowing the existing branch/student APIs.
-    // In both cases use the safe branch-level aggregation below.
-    if (![403, 404, 405].includes(Number(error?.status))) throw error
-  }
-
+  // The current backend does not authorize the consolidated Super Admin
+  // endpoint. Aggregate through the existing branch-scoped APIs instead so
+  // the dashboard does not issue a guaranteed 403 request.
   const activeBranches = branches.filter((branch) => String(branch?.status || '').toLowerCase() === 'active')
   const studentsByBranch = new Map()
+  const backendPaymentHistory = []
   // Impersonation is held by the shared API client, so branch requests must be
   // serialized to keep each request scoped to the correct branch.
   for (const branch of activeBranches) {
     studentsByBranch.set(String(branch.id || branch.branchId), await loadAllBranchStudents(branch))
+    try {
+      backendPaymentHistory.push(...await loadBranchLedgerPayments(branch))
+    } catch {
+      // Local payment history remains the safe fallback for older branch APIs.
+    }
   }
-  return buildFallbackOverview(branches, studentsByBranch)
+  return buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory)
 }
 
 export function formatOverviewCurrency(value) {
