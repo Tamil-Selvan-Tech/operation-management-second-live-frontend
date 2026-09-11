@@ -15,6 +15,25 @@ function MetricCard({ label, value, icon: Icon, tone = '', variant = '', compari
   </article>
 }
 
+function AdmissionDonut({ data, isLoading }) {
+  const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
+  let offset = 0
+  const colors = ['#2f80ed', '#8b5cf6', '#10a978', '#f59e0b', '#ef6c78', '#4f9cf9']
+  const gradient = data.length
+    ? `conic-gradient(${data.map((item, index) => {
+        const start = offset
+        offset += (Number(item.value || 0) / Math.max(total, 1)) * 100
+        return `${colors[index % colors.length]} ${start}% ${offset}%`
+      }).join(', ')})`
+    : '#eaf0f7'
+
+  return <div className="sa-admission-donut-wrap">
+    <div className={`sa-admission-donut ${isLoading ? 'is-loading' : ''}`} style={{ background: gradient }} aria-label={`Total ${total} admissions`}>
+      <div className="sa-admission-donut-hole"><span>Total</span><strong>{isLoading ? '—' : total}</strong><span>Admissions</span></div>
+    </div>
+  </div>
+}
+
 function BarChart({ title, data, formatter, emptyMessage }) {
   const [hovered, setHovered] = useState(null)
   const max = Math.max(...data.map((item) => Number(item.value) || 0), 1)
@@ -112,7 +131,20 @@ export function SuperAdminOverallDashboard({ branches }) {
       {metric("Today's collection", overview?.todayCollection, Banknote, 'green', true, '', todayCollectionComparison)}
     </div>
     <div className="sa-overall-grid">
-      <section className="sa-overall-panel sa-overall-admissions"><div className="sa-overall-panel-heading"><div><h2>Admission overview</h2><p>Monthly admissions across all active branches</p></div><span className="sa-overall-panel-icon"><Users size={18} /></span></div>{isLoading ? <div className="sa-overall-skeleton" /> : <div className="sa-admission-list">{(overview?.admissionsByMonth || []).map((item) => <div className="sa-admission-row" key={item.key}><span>{item.label}</span><div className="sa-admission-track"><div style={{ width: `${Math.max(3, (item.value / Math.max(...(overview?.admissionsByMonth || []).map((entry) => entry.value), 1)) * 100)}%` }} /></div><strong>{item.value}</strong></div>)}</div>}</section>
+      <section className="sa-overall-panel sa-overall-admissions">
+        <div className="sa-overall-panel-heading">
+          <div><h2>Admission Overview</h2><p>Monthly admissions across all active branches</p></div>
+          <span className="sa-overall-panel-icon"><Users size={18} /></span>
+        </div>
+        <div className="sa-admission-overview-content">
+          <AdmissionDonut data={overview?.admissionsByMonth || []} isLoading={isLoading} />
+          <div className="sa-admission-breakdown" aria-label="Monthly admission breakdown">
+            {(overview?.admissionsByMonth || []).map((item, index, items) => <div className={`sa-admission-breakdown-row ${index === items.length - 1 ? 'is-current' : ''}`} key={item.key}><span className="sa-admission-dot" style={{ background: ['#2f80ed', '#8b5cf6', '#10a978', '#f59e0b', '#ef6c78', '#4f9cf9'][index % 6] }} /><span>{item.label}</span><strong>{isLoading ? '—' : item.value}</strong></div>)}
+            {!isLoading && !(overview?.admissionsByMonth || []).length ? <span className="sa-admission-empty">No admission data available.</span> : null}
+          </div>
+          <div className="sa-admission-current-summary"><span>This Month</span><strong>{isLoading ? '—' : overview?.admissionsByMonth?.at(-1)?.value || 0}</strong><b>Admissions</b>{admissionsComparison ? <div><em className={admissionsComparison.direction}>{admissionsComparison.value}</em><small>{admissionsComparison.label}</small></div> : <small>All active branches</small>}</div>
+        </div>
+      </section>
       <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Overall collection by period</p></div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment collection recorded for this period." />}</section>
     </div>
   </div>
