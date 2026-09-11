@@ -12,6 +12,18 @@ const escapeReceiptValue = (value) => String(value ?? "-")
   .replace(/"/g, "&quot;")
   .replace(/'/g, "&#039;");
 
+function arrayBufferToBase64(arrayBuffer) {
+  const bytes = new Uint8Array(arrayBuffer || []);
+  let binary = "";
+  const chunkSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+
+  return window.btoa(binary);
+}
+
 const getReceiptInstallmentNumber = (paymentFor) => {
   const match = String(paymentFor || "").match(/installment\s+(\d+)/i);
   return match ? Number(match[1]) : null;
@@ -1614,8 +1626,8 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
       .toPdf()
       .get("pdf")
       .then(async (pdf) => {
-        const dataUri = pdf.output("datauristring");
-        const pdfBase64 = String(dataUri || "").split(",")[1] || "";
+        // Use the raw PDF bytes so the email attachment is always valid base64.
+        const pdfBase64 = arrayBufferToBase64(pdf.output("arraybuffer"));
         pdf.save(pdfOptions.filename);
         if (
           document.body.contains(
