@@ -1,6 +1,6 @@
 // A missing mark interrupts an absence streak; holidays/leave are already
 // excluded by the API. Streaks follow the batch's recorded attendance dates.
-export function buildAttendanceInsights(data, threshold = 3) {
+export function buildAttendanceInsights(data, threshold = 5) {
   const yesterday = new Date(`${data.date}T00:00:00Z`)
   yesterday.setUTCDate(yesterday.getUTCDate() - 1)
   const yesterdayKey = yesterday.toISOString().slice(0, 10)

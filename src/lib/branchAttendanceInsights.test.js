@@ -19,16 +19,16 @@ test('today partitions the full roster, yesterday uses the calendar date, future
 })
 
 test('long absence follows batch dates, breaks on missing/present marks and ignores other batches', () => {
-  const three = [['2026-09-04', 'ABSENT'], ['2026-09-07', 'ABSENT'], ['2026-09-09', 'ABSENT']]
+  const five = [['2026-09-01', 'ABSENT'], ['2026-09-04', 'ABSENT'], ['2026-09-07', 'ABSENT'], ['2026-09-08', 'ABSENT'], ['2026-09-09', 'ABSENT']]
   const info = buildAttendanceInsights({ date: '2026-09-09', students: [
-    student('long', three),
-    student('gap', [three[0], three[2]]),
-    student('returned', [...three.slice(0, 2), ['2026-09-09', 'PRESENT']]),
+    student('long', five),
+    student('gap', [five[0], five[2], five[4]]),
+    student('returned', [...five.slice(0, 4), ['2026-09-09', 'PRESENT']]),
     student('other', [['2026-09-08', 'PRESENT']], 'b'),
   ] })
   assert.equal(info.longAbsent.length, 1)
   assert.equal(info.longAbsent[0].id, 'long')
-  assert.equal(info.longAbsent[0].streak, 3)
+  assert.equal(info.longAbsent[0].streak, 5)
   assert.equal(info.longAbsent[0].lastMarkedDate, '2026-09-09')
 })
 
