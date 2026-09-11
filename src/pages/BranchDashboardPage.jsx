@@ -2996,6 +2996,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [dashboardWidgets, setDashboardWidgets] = useState([])
   const [isWidgetCustomizerOpen, setIsWidgetCustomizerOpen] = useState(false)
   const [isWidgetSaving, setIsWidgetSaving] = useState(false)
+  const [widgetSearchQuery, setWidgetSearchQuery] = useState('')
 
   useEffect(() => {
     if (embeddedMode || role !== 'branch-admin') return undefined
@@ -3018,6 +3019,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     return widget ? widget.isVisible !== false : true
   }
   const toggleDashboardWidget = (widgetKey) => setDashboardWidgets((current) => current.map((widget) => widget.widgetKey === widgetKey ? { ...widget, isVisible: !widget.isVisible } : widget))
+  const visibleDashboardWidgetCount = dashboardWidgets.filter((widget) => widget.isVisible !== false).length
+  const setAllDashboardWidgetsVisible = (isVisible) => setDashboardWidgets((current) => current.map((widget) => ({ ...widget, isVisible })))
+  const dashboardWidgetIconByKey = {
+    this_month_admissions: Users,
+    batch_availability: Layers3,
+    total_revenue: IndianRupee,
+    total_collected: Wallet,
+    outstanding: FileText,
+    due_today: CalendarClock,
+    due_this_week: CalendarDays,
+    overdue_amount: Clock3,
+    collection_percentage: PieChart,
+  }
   const saveDashboardWidgetChanges = async () => {
     setIsWidgetSaving(true)
     try { setDashboardWidgets(await saveBranchDashboardWidgets(dashboardWidgets)); setIsWidgetCustomizerOpen(false) }
@@ -7976,7 +7990,8 @@ useEffect(() => {
                       <h1>Dashboard</h1>
                       {!embeddedMode && role === 'branch-admin' ? (
                         <button type="button" className="branch-dashboard-customize-button" onClick={() => setIsWidgetCustomizerOpen(true)}>
-                          Customize Dashboard
+                          <LayoutDashboard size={16} strokeWidth={2.4} />
+                          <span>Customize Dashboard</span>
                         </button>
                       ) : null}
                     </div>
@@ -14460,20 +14475,25 @@ else {
         {isWidgetCustomizerOpen ? (
           <div className="branch-modal-backdrop" role="presentation">
             <div className="dashboard-widget-customize-modal" role="dialog" aria-modal="true" aria-labelledby="customize-dashboard-title" onClick={(event) => event.stopPropagation()}>
-              <button type="button" className="branch-modal-close" aria-label="Close dashboard customization" onClick={() => setIsWidgetCustomizerOpen(false)}><X size={22} strokeWidth={2} /></button>
-              <h2 id="customize-dashboard-title">Customize Dashboard</h2>
-              <p>Select the widgets you want to show on your Branch Admin dashboard.</p>
-              <div className="dashboard-widget-customize-list">
-                {dashboardWidgets.map((widget) => (
-                  <label key={widget.widgetKey} className="dashboard-widget-customize-item">
-                    <input type="checkbox" checked={widget.isVisible !== false} onChange={() => toggleDashboardWidget(widget.widgetKey)} />
-                    <span><strong>{widget.widgetName}</strong><small>{widget.category}</small></span>
-                  </label>
-                ))}
+              <div className="dashboard-widget-customize-header">
+                <div className="dashboard-widget-customize-heading">
+                  <span className="dashboard-widget-customize-icon"><LayoutDashboard size={20} /></span>
+                  <div><span className="dashboard-widget-customize-kicker">BRANCH ADMIN</span><h2 id="customize-dashboard-title">Customize Dashboard</h2></div>
+                </div>
+                <button type="button" className="branch-modal-close" aria-label="Close dashboard customization" onClick={() => setIsWidgetCustomizerOpen(false)}><X size={22} strokeWidth={2} /></button>
+              </div>
+              <p className="dashboard-widget-customize-description">Choose the cards you want to display on your Branch Admin dashboard.</p>
+              <div className="dashboard-widget-customize-layout">
+                <section className="dashboard-widget-customize-main">
+                  <div className="dashboard-widget-customize-toolbar"><label className="dashboard-widget-search"><Search size={17} /><input type="search" value={widgetSearchQuery} onChange={(event) => setWidgetSearchQuery(event.target.value)} placeholder="Search widgets..." aria-label="Search dashboard widgets" /></label><button type="button" className="dashboard-widget-select-all-button" onClick={() => setAllDashboardWidgetsVisible(true)}>Select all</button><span className="dashboard-widget-selected-count">{visibleDashboardWidgetCount} selected</span></div>
+                  <div className="dashboard-widget-customize-list">
+                    {dashboardWidgets.filter((widget) => `${widget.widgetName} ${widget.category} ${widget.description || ''}`.toLowerCase().includes(widgetSearchQuery.trim().toLowerCase())).map((widget) => { const isVisible = widget.isVisible !== false; const WidgetIcon = dashboardWidgetIconByKey[widget.widgetKey] || LayoutDashboard; return <label key={widget.widgetKey} className={`dashboard-widget-customize-item ${isVisible ? 'is-selected' : ''}`}><input type="checkbox" checked={isVisible} onChange={() => toggleDashboardWidget(widget.widgetKey)} /><span className="dashboard-widget-customize-card-icon"><WidgetIcon size={19} /></span><span className="dashboard-widget-customize-item-copy"><strong>{widget.widgetName}</strong><small>{widget.description || widget.category}</small></span><span className="dashboard-widget-customize-check" aria-hidden="true">{isVisible ? <Check size={14} strokeWidth={3} /> : null}</span></label> })}
+                  </div>
+                </section>
               </div>
               <div className="branch-modal-actions">
-                <button type="button" className="branch-modal-cancel" onClick={async () => { const reset = await resetBranchDashboardWidgets(); setDashboardWidgets(reset); }}>Reset to Default</button>
-                <button type="button" className="branch-modal-submit" disabled={isWidgetSaving} onClick={saveDashboardWidgetChanges}>{isWidgetSaving ? 'Saving...' : 'Save Changes'}</button>
+                <button type="button" className="branch-modal-cancel dashboard-widget-reset-button" disabled={isWidgetSaving} onClick={async () => { try { setIsWidgetSaving(true); setDashboardWidgets(await resetBranchDashboardWidgets()) } catch (error) { console.error('Failed to reset dashboard widget configuration:', error) } finally { setIsWidgetSaving(false) } }}><RefreshCcw size={15} /> Reset to Default</button>
+                <button type="button" className="branch-modal-submit" disabled={isWidgetSaving || !dashboardWidgets.length} onClick={saveDashboardWidgetChanges}>{isWidgetSaving ? 'Saving...' : 'Save Changes'}</button>
               </div>
             </div>
           </div>
