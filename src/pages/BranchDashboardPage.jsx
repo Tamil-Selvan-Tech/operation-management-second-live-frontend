@@ -137,6 +137,11 @@ function getBranchEntityPrefix(branchCode, entityPrefix) {
   const branchPrefix = compact.replace(/\d{3}$/, '')
   return branchPrefix ? `${branchPrefix.startsWith('CIS') ? branchPrefix : `CIS${branchPrefix}`}${entityPrefix}` : `${entityPrefix}-`
 }
+
+function getAllowedCourseModes(courseMode) {
+  const mode = String(courseMode || '').trim().toUpperCase()
+  return mode === 'HYBRID' ? ['ONLINE', 'OFFLINE'] : mode === 'ONLINE' || mode === 'OFFLINE' ? [mode] : []
+}
 const STUDENT_FORM_STEP_ONE_FIELDS = [
   'studentIdSuffix',
   'studentName',
@@ -5784,6 +5789,7 @@ const studentCourseOptions = useMemo(() => {
         id,
         name,
         courseCode: String(course?.courseCode || '').trim(),
+        mode: String(course?.mode || '').trim(),
         amount: normalizeBranchStudentCourseAmount(course),
         assignedFaculty: normalizeBranchStudentCourseFacultyOptions(course),
 
@@ -6107,7 +6113,7 @@ const studentCourseOptions = useMemo(() => {
         classSchedule: '',
         courseStartDate: '',
         courseEndDate: '',
-        courseMode: '',
+        courseMode: getAllowedCourseModes(nextCourse?.mode)[0] ? (getAllowedCourseModes(nextCourse.mode)[0] === 'ONLINE' ? 'Online' : 'Offline') : '',
         facultyId: '',
         facultyName: '',
         facultyEmail: '',
@@ -9228,6 +9234,7 @@ else {
 {activeSection === 'batches' ? (
   <BranchBatchManagementSection
     branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
+    branchCode={branchProfile?.branchId || branchProfile?.branchCode || branchData?.branchId || branchData?.branchCode || ''}
     branchCourses={branchCourseCards}
     branchFacultyRecords={branchFacultyRecords}
     facultyList={facultyList}
@@ -10897,19 +10904,23 @@ else {
               {addCourseStep === 1 ? (
                 <div className="course-form-grid">
                   <Field
-                    label="Course Code"
+                    label="Course ID"
                     required
-                    hint="Recommended unique identifier for reports and integrations"
+                    hint="Unique identifier used for reports and integrations"
                     error={shouldShowBasicAddCourseError('courseCode') ? addCourseVisibleBasicErrors.courseCode : ''}
                   >
-                    <input
-                      type="text"
-                      placeholder="CIS-001"
-                      value={addCourseForm.courseCode || COURSE_CODE_PREFIX}
-                      onChange={(event) => updateAddCourseField('courseCode', event.target.value)}
-                      onBlur={() => markAddCourseTouched('courseCode')}
-                      aria-invalid={Boolean(shouldShowBasicAddCourseError('courseCode'))}
-                    />
+                    <div className="student-id-input-group">
+                      <span className="student-id-prefix" aria-hidden="true">{getBranchEntityPrefix(branchProfile?.branchId || branchData?.branchId, 'COU')}</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="001"
+                        value={String(addCourseForm.courseCode || '').match(/(\d+)$/)?.[1] || ''}
+                        onChange={(event) => updateAddCourseField('courseCode', `${getBranchEntityPrefix(branchProfile?.branchId || branchData?.branchId, 'COU')}${event.target.value.replace(/\D/g, '').slice(0, 3)}`)}
+                        onBlur={() => markAddCourseTouched('courseCode')}
+                        aria-invalid={Boolean(shouldShowBasicAddCourseError('courseCode'))}
+                      />
+                    </div>
                   </Field>
 
                   <Field
@@ -11468,6 +11479,22 @@ else {
 
                         {isPaymentPlanDropdownOpen ? (
                           <div className="course-payment-plan-dropdown-panel" role="group" aria-label="Payment plan options">
+                            <div className="course-payment-plan-select-all-row">
+                              <strong>Select installment plans</strong>
+                              <button
+                                type="button"
+                                className="course-payment-plan-select-all-button"
+                                onClick={() => {
+                                  markAddCourseTouched('paymentPlans')
+                                  const allPlanIds = addCoursePaymentPlanOptions.map((template) => String(template.id || '').trim()).filter(Boolean)
+                                  const allSelected = allPlanIds.length > 0 && allPlanIds.every((id) => addCoursePaymentPlanSelectedIds.includes(id))
+                                  updateAddCoursePaymentPlanSelections(allSelected ? [] : allPlanIds)
+                                }}
+                                disabled={!addCoursePaymentPlanOptions.length}
+                              >
+                                {addCoursePaymentPlanOptions.length > 0 && addCoursePaymentPlanOptions.every((template) => addCoursePaymentPlanSelectedIds.includes(String(template.id || '').trim())) ? 'Clear all' : 'Select all'}
+                              </button>
+                            </div>
                             <div
                               className="course-payment-plan-checklist"
                               role="group"
@@ -14232,11 +14259,12 @@ else {
                courseMode: true,
              }))
            }}
-           disabled={studentFormMode === 'view'}
+           disabled={studentFormMode === 'view' || getAllowedCourseModes(selectedStudentCourse?.mode).length === 1}
          >
            <option value="">Select Course Mode</option>
-           <option value="Offline">Offline</option>
-           <option value="Online">Online</option>
+           {getAllowedCourseModes(selectedStudentCourse?.mode).map((mode) => (
+             <option key={mode} value={mode === 'ONLINE' ? 'Online' : 'Offline'}>{mode === 'ONLINE' ? 'Online' : 'Offline'}</option>
+           ))}
          </select>
        </Field>
 

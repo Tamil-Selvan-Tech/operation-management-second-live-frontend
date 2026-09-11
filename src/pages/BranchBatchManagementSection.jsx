@@ -417,6 +417,17 @@ function makeBatchId(sequenceNumber = 1) {
   return `BAT-${String(safeSequence).padStart(3, '0')}`
 }
 
+function getBatchEntityPrefix(branchCode, entityPrefix) {
+  const compact = String(branchCode || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const branchPrefix = compact.replace(/\d{3}$/, '')
+  return branchPrefix ? `${branchPrefix.startsWith('CIS') ? branchPrefix : `CIS${branchPrefix}`}${entityPrefix}` : `${entityPrefix}-`
+}
+
+function getAllowedBatchModes(courseMode) {
+  const mode = normalizeText(courseMode).toUpperCase()
+  return mode === 'HYBRID' ? ['ONLINE', 'OFFLINE'] : mode === 'ONLINE' || mode === 'OFFLINE' ? [mode] : []
+}
+
 function makeBatchGroupId(sequenceNumber = 1) {
   const safeSequence = Math.max(1, Number(sequenceNumber) || 1)
   return `BBG-${String(safeSequence).padStart(3, '0')}`
@@ -580,6 +591,7 @@ function buildSingleBatchDisplayGroup(group = {}) {
 
 export function BranchBatchManagementSection({
   branchId = '',
+  branchCode = '',
   branchCourses = [],
   branchFacultyRecords = [],
   facultyList = [],
@@ -775,6 +787,7 @@ export function BranchBatchManagementSection({
         name: getCourseLabel(course),
         assignedFaculty: Array.isArray(course?.assignedFaculty) ? course.assignedFaculty : [],
         code: normalizeText(course?.courseCode || ''),
+        mode: normalizeText(course?.mode || course?.courseMode || ''),
         hours: course?.hours ?? '',
         duration: course?.duration ?? '',
       }))
@@ -807,6 +820,8 @@ export function BranchBatchManagementSection({
     () => activeCourses.find((course) => course.id === draft.courseId) || null,
     [activeCourses, draft.courseId],
   )
+
+  const allowedBatchModes = getAllowedBatchModes(selectedCourse?.mode)
 
   const resolvedDraftFacultyId = isFacultyNameFallbackValue(draft.facultyId) ? '' : normalizeText(draft.facultyId)
   const resolvedDraftFacultyName = isFacultyNameFallbackValue(draft.facultyId)
@@ -878,15 +893,19 @@ export function BranchBatchManagementSection({
       const groupKey = normalizeText(group?.id || group?.batchGroupId || group?.batchId || '')
       if (editingGroupKey && groupKey === editingGroupKey) return []
       if (!isSameFacultyGroup(group, resolvedDraftFacultyId, resolvedDraftFacultyName)) return []
+      const groupWeekType = normalizeText(group?.weekType || group?.weekTypeName || '').toUpperCase()
+      if (groupWeekType && groupWeekType !== normalizeText(draft.weekType).toUpperCase()) return []
 
       return (Array.isArray(group?.batches) ? group.batches : [])
         .map((batch) => {
           if (normalizeStatus(batch?.status || '').toLowerCase() === 'inactive') return null
+          const batchWeekType = normalizeText(batch?.weekType || batch?.weekTypeName || '').toUpperCase()
+          if (!groupWeekType && batchWeekType && batchWeekType !== normalizeText(draft.weekType).toUpperCase()) return null
           return getBatchTimingRange(batch)
         })
         .filter(Boolean)
     })
-  }, [currentBranchBatchGroups, editingGroupKey, resolvedDraftFacultyId, resolvedDraftFacultyName])
+  }, [currentBranchBatchGroups, draft.weekType, editingGroupKey, resolvedDraftFacultyId, resolvedDraftFacultyName])
 
   const batchSeatSummaryMap = useMemo(() => {
     const counts = new Map()
@@ -1146,6 +1165,8 @@ export function BranchBatchManagementSection({
 
   const selectCourseFromSearch = useCallback((course) => {
     handleDraftChange('courseId', course.id)
+    const allowedModes = getAllowedBatchModes(course?.mode)
+    if (allowedModes.length === 1) setDraft((current) => ({ ...current, mode: allowedModes[0] }))
     setCourseSearch(course.name)
     setFacultySearch('')
   }, [handleDraftChange])
@@ -1505,7 +1526,7 @@ export function BranchBatchManagementSection({
           </div>
 
           <div className="batch-management-form-shell">
-            <div className="batch-management-form-grid">
+            <div className="batch-management-form-grid batch-management-identifiers-grid">
               <label className="batch-management-field">
                 <span>Course Name *</span>
                 <div style={{ position: 'relative' }}>
@@ -1569,11 +1590,18 @@ export function BranchBatchManagementSection({
                 {fieldErrors.facultyId ? <small className="batch-management-field-error">{fieldErrors.facultyId}</small> : null}
                 
               </label>
+              <label className="batch-management-field batch-management-id-top-field">
+                <span>Batch ID</span>
+                <div className="student-id-input-group">
+                  <span className="student-id-prefix" aria-hidden="true">{getBatchEntityPrefix(branchCode, 'BAT')}</span>
+                  <input type="text" value={String(draft.rows[0]?.batchId || '').match(/(\d+)$/)?.[1] || ''} readOnly aria-label="Batch ID" />
+                </div>
+              </label>
             </div>
 
             <div className="batch-management-form-grid">
               <label className="batch-management-field"><span>Week Type *</span><select value={draft.weekType} onChange={(event) => handleDraftChange('weekType', event.target.value)}><option value="">Select week type</option><option value="WEEKDAY">Weekday</option><option value="WEEKEND">Weekend</option></select>{fieldErrors.weekType ? <small className="batch-management-field-error">{fieldErrors.weekType}</small> : null}</label>
-              <label className="batch-management-field"><span>Mode *</span><select value={draft.mode} onChange={(event) => handleDraftChange('mode', event.target.value)}><option value="">Select mode</option><option value="OFFLINE">Offline</option><option value="ONLINE">Online</option></select>{fieldErrors.mode ? <small className="batch-management-field-error">{fieldErrors.mode}</small> : null}</label>
+              <label className="batch-management-field"><span>Mode *</span><select value={draft.mode} disabled={allowedBatchModes.length === 1} onChange={(event) => handleDraftChange('mode', event.target.value)}><option value="">Select mode</option>{allowedBatchModes.map((mode) => <option key={mode} value={mode}>{mode === 'ONLINE' ? 'Online' : 'Offline'}</option>)}</select>{fieldErrors.mode ? <small className="batch-management-field-error">{fieldErrors.mode}</small> : null}</label>
               <label className="batch-management-field"><span>Course Start Date *</span><input type="date" value={draft.courseStartDate} onChange={(event) => handleDraftChange('courseStartDate', event.target.value)} />{fieldErrors.courseStartDate ? <small className="batch-management-field-error">{fieldErrors.courseStartDate}</small> : null}</label>
               <label className="batch-management-field"><span>Course End Date</span><input type="date" value={draft.courseEndDate} readOnly /></label>
             </div>
@@ -1603,7 +1631,6 @@ export function BranchBatchManagementSection({
                       return (
                         <>
                           <div className="batch-management-row-name">
-                            <small>ID: {row.batchId}</small>
                             <input
                               type="text"
                               placeholder=" Batch Name"
