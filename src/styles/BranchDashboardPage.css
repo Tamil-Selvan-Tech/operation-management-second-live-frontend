@@ -12027,3 +12027,34 @@ body.branch-notification-menu-open .main-area {
   color: #64748b;
   font-size: 11px;
 }
+
+/* Screenshot-matched customize card layout. */
+.dashboard-widget-customize-modal { width: min(1120px, calc(100vw - 48px)); height: min(760px, calc(100vh - 48px)); max-height: none; padding: 28px 34px 0; border-radius: 22px; }
+.dashboard-widget-customize-header { padding-bottom: 0; }
+.dashboard-widget-customize-heading { display: block; }
+.dashboard-widget-customize-heading h2 { margin: 0; color: #1d3557; font-size: 28px; line-height: 1.2; }
+.dashboard-widget-customize-description { margin: 10px 0 0 !important; color: #7b8da6 !important; font-size: 16px !important; }
+.dashboard-widget-customize-layout { display: block; margin-top: 30px; min-height: 0; }
+.dashboard-widget-customize-main { display: flex; min-width: 0; flex-direction: column; }
+.dashboard-widget-customize-modal .dashboard-widget-customize-toolbar { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin: 0 0 24px; }
+.dashboard-widget-customize-modal .dashboard-widget-search { order: 1; }
+.dashboard-widget-customize-modal .dashboard-widget-select-all-control { order: 2; }
+.dashboard-widget-customize-modal .dashboard-widget-selected-count { order: 3; }
+.dashboard-widget-customize-search { flex: 0 1 450px; max-width: 450px; min-height: 54px; padding: 0 16px; border: 1px solid #d4e0f0; border-radius: 10px; }
+.dashboard-widget-customize-search input { font-size: 15px; }
+.dashboard-widget-select-all-control { min-height: 42px; padding: 0 16px; border-color: #bad4ff; border-radius: 10px; background: #f0f6ff; font-size: 14px; }
+.dashboard-widget-selected-count { padding: 12px 18px; color: #2166d1; background: #edf5ff; font-size: 13px; }
+.dashboard-widget-customize-modal .dashboard-widget-customize-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; height: auto; max-height: none; margin: 0; padding: 0 0 28px; overflow: visible; }
+.dashboard-widget-customize-item { position: relative; min-width: 0; min-height: 104px; padding: 14px 14px; gap: 10px; border: 1px solid #d5e0ef; border-radius: 12px; background: #fff; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease; }
+.dashboard-widget-customize-item.is-selected { border-color: #4f94ff; background: linear-gradient(135deg, #f3f8ff 0%, #fff 100%); box-shadow: 0 3px 10px rgba(37, 99, 235, .06); }
+.dashboard-widget-customize-item:hover { border-color: #4f94ff; background: #f6f9ff; transform: none; }
+.dashboard-widget-customize-card-icon { width: 42px; height: 42px; flex-basis: 42px; border-radius: 12px; }
+.dashboard-widget-customize-item-copy strong { font-size: 14px; }
+.dashboard-widget-customize-item-copy small { margin-top: 5px; color: #71839d; font-size: 11px; line-height: 1.35; white-space: normal; }
+.dashboard-widget-customize-check { width: 21px; height: 21px; flex-basis: 21px; border-radius: 6px; }
+.dashboard-widget-customize-modal > .branch-modal-actions { display: flex; justify-content: space-between; align-items: center; min-height: 82px; margin: 0 -34px; padding: 16px 34px; border-top: 1px solid #e3eaf3; background: #fff; }
+.dashboard-widget-customize-modal > .branch-modal-actions button { min-height: 50px; padding: 0 22px; border-radius: 10px; font-size: 14px; }
+.dashboard-widget-customize-modal > .branch-modal-actions .branch-modal-submit { background: #2868df; border-color: #2868df; }
+.dashboard-widget-customize-modal > .branch-modal-actions .dashboard-widget-reset-button { color: #637792; background: #fff; border-color: #d6e1ef; }
+@media (max-width: 900px) { .dashboard-widget-customize-modal { width: calc(100vw - 32px); height: calc(100vh - 32px); padding: 24px 22px 0; } .dashboard-widget-customize-modal .dashboard-widget-customize-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dashboard-widget-customize-modal > .branch-modal-actions { margin: 0 -22px; padding-left: 22px; padding-right: 22px; } }
+@media (max-width: 620px) { .dashboard-widget-customize-modal { padding: 22px 16px 0; } .dashboard-widget-customize-heading h2 { font-size: 23px; } .dashboard-widget-customize-description { font-size: 13px !important; } .dashboard-widget-customize-modal .dashboard-widget-customize-toolbar { flex-wrap: wrap; } .dashboard-widget-customize-search { flex-basis: 100%; max-width: none; } .dashboard-widget-customize-modal .dashboard-widget-customize-list { grid-template-columns: 1fr; } .dashboard-widget-customize-modal > .branch-modal-actions { margin: 0 -16px; padding-left: 16px; padding-right: 16px; } }
