@@ -8039,15 +8039,6 @@ useEffect(() => {
                         onClick: () => goToBranchSection('students'),
                       },
                       {
-                        label: 'Batch Availability',
-                        value: availableBatchRecords.length,
-                        note: 'Batches ending within 4 days',
-                        Icon: CalendarClock,
-                        TrailIcon: ArrowUpRight,
-                        tone: 'sky',
-                        onClick: () => goToBranchSection('batches'),
-                      },
-                      {
                         label: 'Total Revenue',
                         value: formatBranchRupees(dashboardData.totalFee),
                         note: 'Across All Batches',
@@ -8123,6 +8114,15 @@ useEffect(() => {
                         Icon: BadgePercent,
                         TrailIcon: PieChart,
                         tone: 'green',
+                      },
+                      {
+                        label: 'Batch Availability',
+                        value: availableBatchRecords.length,
+                        note: 'Batches ending',
+                        Icon: CalendarClock,
+                        TrailIcon: ArrowUpRight,
+                        tone: 'sky',
+                        onClick: () => goToBranchSection('batches'),
                       },
                     ].filter(({ label }) => isDashboardWidgetVisible(label)).map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
                       <article
@@ -14488,7 +14488,7 @@ else {
                 <section className="dashboard-widget-customize-main">
                   <div className="dashboard-widget-customize-toolbar"><label className="dashboard-widget-search"><Search size={17} /><input type="search" value={widgetSearchQuery} onChange={(event) => setWidgetSearchQuery(event.target.value)} placeholder="Search widgets..." aria-label="Search dashboard widgets" /></label><label className="dashboard-widget-select-all-control"><input type="checkbox" checked={areAllDashboardWidgetsVisible} onChange={(event) => setAllDashboardWidgetsVisible(event.target.checked)} disabled={!dashboardWidgets.length} /><span>Select all</span></label><span className="dashboard-widget-selected-count" aria-disabled="true">{visibleDashboardWidgetCount} selected</span></div>
                   <div className="dashboard-widget-customize-list">
-                    {dashboardWidgets.filter((widget) => `${widget.widgetName} ${widget.category} ${widget.description || ''}`.toLowerCase().includes(widgetSearchQuery.trim().toLowerCase())).map((widget) => { const isVisible = widget.isVisible !== false; const WidgetIcon = dashboardWidgetIconByKey[widget.widgetKey] || LayoutDashboard; return <label key={widget.widgetKey} className={`dashboard-widget-customize-item ${isVisible ? 'is-selected' : ''}`}><input type="checkbox" checked={isVisible} onChange={() => toggleDashboardWidget(widget.widgetKey)} /><span className="dashboard-widget-customize-card-icon"><WidgetIcon size={19} /></span><span className="dashboard-widget-customize-item-copy"><strong>{widget.widgetName}</strong><small>{widget.description || widget.category}</small></span><span className="dashboard-widget-customize-check" aria-hidden="true">{isVisible ? <Check size={14} strokeWidth={3} /> : null}</span></label> })}
+                    {dashboardWidgets.filter((widget) => `${widget.widgetName} ${widget.category} ${widget.description || ''}`.toLowerCase().includes(widgetSearchQuery.trim().toLowerCase())).sort((left, right) => Number(left.widgetKey === 'batch_availability') - Number(right.widgetKey === 'batch_availability')).map((widget) => { const isVisible = widget.isVisible !== false; const WidgetIcon = dashboardWidgetIconByKey[widget.widgetKey] || LayoutDashboard; const widgetName = widget.widgetKey === 'batch_availability' ? 'Batch Availability' : widget.widgetName; const widgetDescription = widget.widgetKey === 'batch_availability' ? 'Batches ending' : (widget.description || widget.category); return <label key={widget.widgetKey} className={`dashboard-widget-customize-item ${isVisible ? 'is-selected' : ''}`}><input type="checkbox" checked={isVisible} onChange={() => toggleDashboardWidget(widget.widgetKey)} /><span className="dashboard-widget-customize-card-icon"><WidgetIcon size={19} /></span><span className="dashboard-widget-customize-item-copy"><strong>{widgetName}</strong><small>{widgetDescription}</small></span><span className="dashboard-widget-customize-check" aria-hidden="true">{isVisible ? <Check size={14} strokeWidth={3} /> : null}</span></label> })}
                   </div>
                 </section>
               </div>
