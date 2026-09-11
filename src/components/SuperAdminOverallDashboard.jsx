@@ -3,6 +3,7 @@ import {
   AlertCircle, Banknote, CalendarDays, Clock3, IndianRupee, LayoutDashboard, RefreshCcw, Users, Wallet, Building2,
 } from 'lucide-react'
 import { formatOverviewCurrency, getSuperAdminOverview } from '../services/superAdminDashboardService'
+import { TrendingCourses } from './TrendingCourses'
 
 const emptyValue = '—'
 
@@ -147,5 +148,6 @@ export function SuperAdminOverallDashboard({ branches }) {
       </section>
       <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection across all active branches</p></div><div className="sa-payment-heading-actions"><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment collection recorded for this period." />}</section>
     </div>
+    <TrendingCourses courses={overview?.trendingCourses || []} month={overview?.trendingMonth} isLoading={isLoading} />
   </div>
 }

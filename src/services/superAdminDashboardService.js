@@ -127,6 +127,28 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
     if (!uniqueStudents.has(key)) uniqueStudents.set(key, student)
   })
 
+  const trendingCourseMap = new Map()
+  students.forEach((student) => {
+    const admissionDate = dateValue(student.admissionDate || student.createdAt || student.firstInstallmentDate)
+    if (!admissionDate || admissionDate.slice(0, 7) !== today.slice(0, 7)) return
+    const courseName = String(student.courseName || student.courseInterested || student.course?.name || student.course?.title || '').trim()
+    if (!courseName) return
+    const courseId = String(student.courseId || student.course?.id || '').trim()
+    const key = (courseId || courseName).toLowerCase()
+    const current = trendingCourseMap.get(key) || { courseId, courseName, admissionCount: 0 }
+    current.admissionCount += 1
+    trendingCourseMap.set(key, current)
+  })
+  const trendingCourses = [...trendingCourseMap.values()]
+    .sort((left, right) => right.admissionCount - left.admissionCount || left.courseName.localeCompare(right.courseName))
+    .slice(0, 3)
+  const topTrendingCount = trendingCourses[0]?.admissionCount || 0
+  const rankedTrendingCourses = trendingCourses.map((course, index) => ({
+    ...course,
+    rank: index + 1,
+    progress: topTrendingCount ? (course.admissionCount / topTrendingCount) * 100 : 0,
+  }))
+
   const result = {
     totalBranches: activeBranches.length,
     totalStudents: uniqueStudents.size,
@@ -146,6 +168,8 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
     dailyPaymentData: [],
     weeklyPaymentData: [],
     monthlyPaymentData: [],
+    trendingCourses: rankedTrendingCourses,
+    trendingMonth: now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
   }
 
   const admissionBuckets = Array.from({ length: 2 }, (_, index) => {
