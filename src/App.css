@@ -6003,6 +6003,12 @@ tbody tr:hover {
   border: 1px dashed #d7e3f4;
 }
 
+.faculty-my-batches-empty-cell .faculty-my-batches-empty,
+td .faculty-my-batches-empty {
+  justify-items: center;
+  text-align: center;
+}
+
 .faculty-my-batches-empty strong {
   color: #0f172a;
   font-size: 0.92rem;

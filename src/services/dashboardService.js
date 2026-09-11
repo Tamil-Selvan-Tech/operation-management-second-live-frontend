@@ -57,5 +57,8 @@ export async function getRevenueInsights() {
 }
 
 export async function getFacultyMyBatchesSummary() {
-  return getCachedDashboardValue('faculty-my-batches-summary', '/dashboard/faculty/my-batches-summary')
+  // This response is user-scoped. A shared module cache can leak the previous
+  // faculty's batches after logout/login or after switching branch accounts.
+  const response = await request('/dashboard/faculty/my-batches-summary')
+  return response?.data ?? response ?? null
 }

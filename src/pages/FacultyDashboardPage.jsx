@@ -2189,8 +2189,60 @@ export function FacultyDashboardPage() {
     // faculty-profile batches back into the current branch assignment list.
     const rawEntries = summaryEntries.length ? summaryEntries : profileEntries
 
+    // The dashboard summary can contain batches from the whole branch. A
+    // faculty dashboard must only expose batches explicitly assigned to the
+    // currently logged-in faculty. An entry without an assignment marker is
+    // not safe to show because it may be a branch-wide batch.
+    const normalizedFacultyId = String(facultyId || '').trim().toLowerCase()
+    const normalizedFacultyName = String(facultyNameValue || '').trim().toLowerCase()
+    const normalizedFacultyEmail = String(facultyEmailValue || '').trim().toLowerCase()
+    const currentBranchKeys = [currentFacultyIdentity.branchId, currentFacultyIdentity.branchCode]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .filter(Boolean)
+    const assignedEntries = rawEntries.filter((entry) => {
+      const entryFacultyIds = [
+        entry?.facultyId,
+        entry?.branchFacultyId,
+        entry?.facultyUserId,
+        entry?.userId,
+        entry?.faculty?.id,
+        entry?.faculty?.facultyId,
+        entry?.faculty?.facultyUserId,
+        entry?.faculty?.userId,
+      ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+      const entryFacultyNames = [entry?.facultyName, entry?.branchFacultyName, entry?.faculty?.facultyName, entry?.faculty?.name]
+        .map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+      const entryFacultyEmails = [entry?.facultyEmail, entry?.branchFacultyEmail, entry?.faculty?.facultyEmail, entry?.faculty?.email]
+        .map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+      const entryBranchKeys = [
+        entry?.branchId,
+        entry?.branchCode,
+        entry?.branchKey,
+        entry?.branch?.id,
+        entry?.branch?.branchId,
+        entry?.branch?.branchCode,
+      ].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+
+      const hasAssignmentMarker = entryFacultyIds.length || entryFacultyNames.length || entryFacultyEmails.length
+      if (!hasAssignmentMarker) return false
+
+      // The summary endpoint may include batches from multiple branches. When
+      // it does, a batch must carry the current branch identity as well.
+      if (currentBranchKeys.length) {
+        if (!entryBranchKeys.length || !entryBranchKeys.some((key) => currentBranchKeys.includes(key))) {
+          return false
+        }
+      }
+
+      return (
+        (normalizedFacultyId && entryFacultyIds.includes(normalizedFacultyId))
+        || (normalizedFacultyName && entryFacultyNames.includes(normalizedFacultyName))
+        || (normalizedFacultyEmail && entryFacultyEmails.includes(normalizedFacultyEmail))
+      )
+    })
+
     const uniqueEntries = Array.from(
-      rawEntries.reduce((map, entry) => {
+      assignedEntries.reduce((map, entry) => {
         const entryId = String(entry?.id || '').trim()
         const batchCode = String(entry?.batchCode || entry?.code || '').trim().toLowerCase()
         const batchName = String(entry?.batchName || entry?.batch || '').trim().toLowerCase()
@@ -2282,37 +2334,18 @@ export function FacultyDashboardPage() {
       return matchedEntries
     }
 
-    const groups = new Map()
-    facultyScopedStudents.forEach((student) => {
-      const batchId = String(student.batchId || student.batchEntryId || '').trim()
-      const batchName = String(student.batchName || student.batch || '').trim()
-      const courseId = String(student.courseId || '').trim()
-      const courseName = String(student.courseInterested || student.courseName || student.course?.name || '-').trim() || '-'
-      const batchTiming = String(student.batchTiming || student.batchTime || '-').trim() || '-'
-      const key = batchId || `${courseId}-${batchName}-${batchTiming}` || courseName
+    // Do not reconstruct rows from student records when the API returned
+    // batches but none of them belongs to this faculty. That fallback would
+    // make an unassigned faculty appear to have branch batches again.
+    if (rawEntries.length && !assignedEntries.length) {
+      return []
+    }
 
-      if (!groups.has(key)) {
-        groups.set(key, {
-          id: key,
-          courseId,
-          course: courseName,
-          batchId: batchId || key,
-          batchName,
-          code: batchName || batchId || '-',
-          timing: batchTiming,
-          students: [],
-        })
-      }
-
-      groups.get(key).students.push(student)
-    })
-
-    return Array.from(groups.values()).map((entry) => ({
-      ...entry,
-      status: 'Active',
-      students: getBatchStudentCount(entry),
-    }))
-  }, [backfilledStudents, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyProfile?.batchEntries, dashboardSummary, facultyScopedStudents])
+    // Never infer a batch from student records. Students can retain legacy or
+    // cross-branch batch references; only an explicit faculty batch
+    // assignment is valid for this dashboard.
+    return []
+  }, [backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName, facultyProfile?.batchEntries, dashboardSummary, facultyScopedStudents])
 
   const facultyCourseRows = useMemo(() => {
     return assignedCourses.map((course) => {
@@ -4562,7 +4595,6 @@ const nextName = trimmedValue
                             <td colSpan={6}>
                               <div className="faculty-my-batches-empty" style={{ padding: '20px 0' }}>
                                 <strong>No batches mapped yet</strong>
-                                <p>When the branch assigns students to your faculty, the matching batches will appear here automatically.</p>
                               </div>
                             </td>
                           </tr>
