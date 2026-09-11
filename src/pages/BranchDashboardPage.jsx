@@ -3000,13 +3000,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [widgetSearchQuery, setWidgetSearchQuery] = useState('')
 
   useEffect(() => {
-    if (embeddedMode || role !== 'branch-admin') return undefined
+    if (!embeddedMode && role !== 'branch-admin') return undefined
+    if (embeddedMode && !branchProfile) return undefined
     let active = true
     getBranchDashboardWidgets()
       .then((widgets) => { if (active) setDashboardWidgets(Array.isArray(widgets) ? widgets : []) })
       .catch((error) => console.error('Failed to load dashboard widget configuration:', error))
     return () => { active = false }
-  }, [embeddedMode, role])
+  }, [branchProfile, embeddedMode, role])
 
   const dashboardWidgetKeyByLabel = {
     'This Month Admissions': 'this_month_admissions', 'Batch Availability': 'batch_availability',
@@ -7793,7 +7794,7 @@ useEffect(() => {
         <h1>Branch Dashboard</h1>
       </div>
       <div className="super-admin-topbar-right">
-        {!embeddedMode ? (
+        <>
           <div ref={notificationMenuRef} className="notification-menu branch-dashboard-notification-menu">
             <button
               type="button"
@@ -7923,7 +7924,7 @@ useEffect(() => {
               </div>
             ) : null}
           </div>
-        ) : null}
+        </>
 
         {!embeddedMode && (
           <div ref={profileMenuRef} className="branch-dashboard-profile-menu-wrap">
@@ -8010,7 +8011,7 @@ useEffect(() => {
                   <div className="branch-dashboard-overview-intro">
                     <div className="branch-dashboard-overview-intro-heading">
                       <h1>Dashboard</h1>
-                      {!embeddedMode && role === 'branch-admin' ? (
+                      {(!embeddedMode && role === 'branch-admin') || embeddedMode ? (
                         <button type="button" className="branch-dashboard-customize-button" onClick={() => setIsWidgetCustomizerOpen(true)}>
                           <LayoutDashboard size={16} strokeWidth={2.4} />
                           <span>Customize Dashboard</span>
