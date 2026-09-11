@@ -8209,7 +8209,6 @@ useEffect(() => {
                       {trendingCourses.map((course) => <article className={`trending-course-card rank-${course.rank}`} key={course.courseId}>
                         <span className="trending-course-rank">#{course.rank}</span>
                         <div className="trending-course-copy"><strong>{course.courseName}</strong><span><b>{course.totalAdmissions}</b> Admissions</span></div>
-                        <ArrowUpRight className="trending-course-indicator" size={18} strokeWidth={2.4} aria-label="Trending up" />
                       </article>)}
                     </div> : <p className="dashboard-empty-state">No trending courses available yet.</p>}
                   </section>
@@ -14058,7 +14057,17 @@ else {
             <button
               type="button"
               className="student-batch-dropdown-trigger"
-              onClick={() => setIsStudentBatchDropdownOpen((current) => !current)}
+              onMouseDown={(event) => {
+                // Keep the first click from blurring the trigger before the menu opens.
+                event.preventDefault()
+                setIsStudentBatchDropdownOpen((current) => !current)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  setIsStudentBatchDropdownOpen((current) => !current)
+                }
+              }}
               onBlur={() => setStudentFormTouched((c) => ({ ...c, batchId: true }))}
               disabled={studentFormMode === 'view' || !studentForm.courseId || !studentForm.classSchedule || !studentForm.courseMode || !hasSelectableStudentBatchOption}
               aria-expanded={isStudentBatchDropdownOpen}
