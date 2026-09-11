@@ -32,6 +32,7 @@ import { SuperAdminNotificationBell } from '../components/SuperAdminNotification
 import { BranchDashboardPage } from './BranchDashboardPage'
 import { setImpersonateBranchId } from '../services/apiClient'
 import { getAllBranchStudentCounts } from '../lib/branchStudentStore'
+import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -1744,7 +1745,10 @@ useEffect(() => {
                 </div>
               </section>
             ) : (
-              <div className="super-admin-dashboard-overview">
+              <>
+              <SuperAdminOverallDashboard branches={branches} />
+              {/* Legacy branch summary intentionally replaced by the consolidated overview. */}
+              {branches.length < 0 && <div className="super-admin-dashboard-overview">
                 <div className="super-admin-dashboard-intro">
                   <h1>Dashboard</h1>
                   <p>Welcome back! Here’s an overview of your operations and today’s activities.</p>
@@ -1809,7 +1813,8 @@ useEffect(() => {
                     </div>
                   </article>
                 </div>
-              </div>
+              </div>}
+              </>
             )}
           </main>
         </div>
