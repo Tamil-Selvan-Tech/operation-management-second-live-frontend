@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  AlertCircle, Banknote, CalendarDays, Clock3, IndianRupee, LayoutDashboard, RefreshCcw, Users, Wallet, Building2,
+  AlertCircle, Banknote, CalendarDays, Check, Clock3, GripVertical, IndianRupee, LayoutDashboard, RefreshCcw, RotateCcw, Settings2, Users, Wallet, Building2, X,
 } from 'lucide-react'
 import { formatOverviewCurrency, getSuperAdminOverview } from '../services/superAdminDashboardService'
 import { TrendingCourses } from './TrendingCourses'
 
 const emptyValue = '—'
+const DASHBOARD_LAYOUT_STORAGE_KEY = 'cispro:super-admin-dashboard-layout'
+const DEFAULT_METRIC_ORDER = ['totalBranches', 'totalStudents', 'thisMonthAdmissions', 'totalPayment', 'thisMonthPayment', 'totalOutstanding', 'thisMonthDue', 'todayDue', 'overdueAmount', 'dueStudents', 'todayCollection']
 
 function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null }) {
   return <article className={`sa-overall-metric ${tone} ${variant}`.trim()}>
@@ -57,6 +59,20 @@ export function SuperAdminOverallDashboard({ branches }) {
   const [period, setPeriod] = useState('daily')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isCustomizeOpen, setIsCustomizeOpen] = useState(false)
+  const [metricLayout, setMetricLayout] = useState(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(DASHBOARD_LAYOUT_STORAGE_KEY) || 'null')
+      if (!saved || !Array.isArray(saved.order)) return { order: DEFAULT_METRIC_ORDER, hidden: [] }
+      return {
+        order: [...new Set([...saved.order, ...DEFAULT_METRIC_ORDER])].filter((key) => DEFAULT_METRIC_ORDER.includes(key)),
+        hidden: Array.isArray(saved.hidden) ? saved.hidden.filter((key) => DEFAULT_METRIC_ORDER.includes(key)) : [],
+      }
+    } catch {
+      return { order: DEFAULT_METRIC_ORDER, hidden: [] }
+    }
+  })
+  const [draggedMetric, setDraggedMetric] = useState(null)
 
   const load = useCallback(async () => {
     setIsLoading(true)
@@ -114,22 +130,42 @@ export function SuperAdminOverallDashboard({ branches }) {
   const todayDueComparison = getDayComparison(overview?.todayDue, overview?.yesterdayDue)
   const todayCollectionComparison = getDayComparison(overview?.todayCollection, overview?.yesterdayCollection)
   const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => <MetricCard label={label} value={isLoading ? emptyValue : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} />
+  const metricDefinitions = {
+    totalBranches: { label: 'Total branches', icon: Building2, tone: 'blue', node: metric('Total branches', overview?.totalBranches, Building2, 'blue', false) },
+    totalStudents: { label: 'Total students', icon: Users, tone: 'purple', node: metric('Total students', overview?.totalStudents, Users, 'purple', false) },
+    thisMonthAdmissions: { label: 'This month admissions', icon: CalendarDays, tone: 'orange', node: metric('This month admissions', overview?.thisMonthAdmissions, CalendarDays, 'orange', false, '', admissionsComparison) },
+    totalPayment: { label: 'Total payment collected', icon: Wallet, tone: 'blue', node: metric('Total payment collected', overview?.totalPayment, Wallet, 'blue') },
+    thisMonthPayment: { label: 'This month payment', icon: IndianRupee, tone: 'green', node: metric('This month payment', overview?.thisMonthPayment, IndianRupee, 'green', true, '', paymentComparison) },
+    totalOutstanding: { label: 'Total outstanding', icon: Clock3, tone: 'orange', node: metric('Total outstanding', overview?.totalOutstanding, Clock3, 'orange') },
+    thisMonthDue: { label: 'This month due', icon: CalendarDays, tone: 'purple', node: metric('This month due', overview?.thisMonthDue, CalendarDays, 'purple') },
+    todayDue: { label: "Today's due", icon: Clock3, tone: 'orange', node: metric("Today's due", overview?.todayDue, Clock3, 'orange', true, '', todayDueComparison) },
+    overdueAmount: { label: 'Overdue amount', icon: AlertCircle, tone: 'red', node: metric('Overdue amount', overview?.overdueAmount, AlertCircle, 'red') },
+    dueStudents: { label: 'Due students', icon: Users, tone: 'purple', node: metric('Due students', overview?.dueStudents, Users, 'purple', false) },
+    todayCollection: { label: "Today's collection", icon: Banknote, tone: 'green', node: metric("Today's collection", overview?.todayCollection, Banknote, 'green', true, '', todayCollectionComparison) },
+  }
+
+  const persistMetricLayout = (nextLayout) => {
+    setMetricLayout(nextLayout)
+    window.localStorage.setItem(DASHBOARD_LAYOUT_STORAGE_KEY, JSON.stringify(nextLayout))
+  }
+  const toggleMetric = (key) => persistMetricLayout({ ...metricLayout, hidden: metricLayout.hidden.includes(key) ? metricLayout.hidden.filter((item) => item !== key) : [...metricLayout.hidden, key] })
+  const moveMetric = (targetKey) => {
+    if (!draggedMetric || draggedMetric === targetKey) return
+    const order = [...metricLayout.order]
+    const fromIndex = order.indexOf(draggedMetric)
+    const toIndex = order.indexOf(targetKey)
+    order.splice(fromIndex, 1)
+    order.splice(toIndex, 0, draggedMetric)
+    persistMetricLayout({ ...metricLayout, order })
+    setDraggedMetric(null)
+  }
+  const resetMetricLayout = () => persistMetricLayout({ order: DEFAULT_METRIC_ORDER, hidden: [] })
 
   return <div className="sa-overall-dashboard">
-    <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> Consolidated view</p><h1>Overall Dashboard</h1><p>Combined performance across every active branch.</p></div><div className="sa-overall-actions"><span className="sa-overall-scope"><Building2 size={15} /> All active branches</span><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
+    <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> Consolidated view</p><h1>Overall Dashboard</h1><p>Combined performance across every active branch.</p></div><div className="sa-overall-actions"><span className="sa-overall-scope"><Building2 size={15} /> All active branches</span><button type="button" className="sa-overall-customize" onClick={() => setIsCustomizeOpen(true)}><Settings2 size={15} /> Customize Dashboard</button><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
     {error ? <div className="sa-overall-alert"><AlertCircle size={18} /> <span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div> : null}
     <div className="sa-overall-metrics sa-overall-summary-grid" aria-label="Overall dashboard summary">
-      {metric('Total branches', overview?.totalBranches, Building2, 'blue', false)}
-      {metric('Total students', overview?.totalStudents, Users, 'purple', false)}
-      {metric('This month admissions', overview?.thisMonthAdmissions, CalendarDays, 'orange', false, '', admissionsComparison)}
-      {metric('Total payment collected', overview?.totalPayment, Wallet, 'blue')}
-      {metric('This month payment', overview?.thisMonthPayment, IndianRupee, 'green', true, '', paymentComparison)}
-      {metric('Total outstanding', overview?.totalOutstanding, Clock3, 'orange')}
-      {metric('This month due', overview?.thisMonthDue, CalendarDays, 'purple')}
-      {metric("Today's due", overview?.todayDue, Clock3, 'orange', true, '', todayDueComparison)}
-      {metric('Overdue amount', overview?.overdueAmount, AlertCircle, 'red')}
-      {metric('Due students', overview?.dueStudents, Users, 'purple', false)}
-      {metric("Today's collection", overview?.todayCollection, Banknote, 'green', true, '', todayCollectionComparison)}
+      {metricLayout.order.filter((key) => !metricLayout.hidden.includes(key)).map((key) => <div key={key}>{metricDefinitions[key].node}</div>)}
     </div>
     <div className="sa-overall-grid">
       <section className="sa-overall-panel sa-overall-admissions">
@@ -149,5 +185,20 @@ export function SuperAdminOverallDashboard({ branches }) {
       <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection across all active branches</p></div><div className="sa-payment-heading-actions"><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment collection recorded for this period." />}</section>
     </div>
     <TrendingCourses courses={overview?.trendingCourses || []} month={overview?.trendingMonth} isLoading={isLoading} />
+    {isCustomizeOpen ? <div className="sa-customize-backdrop" role="presentation">
+      <section className="sa-customize-modal" role="dialog" aria-modal="true" aria-labelledby="sa-customize-title" onClick={(event) => event.stopPropagation()}>
+        <div className="sa-customize-header"><div><h2 id="sa-customize-title">Customize Dashboard</h2><p>Choose the summary cards you want to see and arrange their order.</p></div><button type="button" className="sa-customize-close" onClick={() => setIsCustomizeOpen(false)} aria-label="Close customize dashboard"><X size={19} /></button></div>
+        <div className="sa-customize-select-all">
+          <label><input type="checkbox" checked={metricLayout.hidden.length === 0} onChange={(event) => persistMetricLayout({ ...metricLayout, hidden: event.target.checked ? [] : [...metricLayout.order] })} /> <span>Select all</span></label>
+          <span>{metricLayout.order.length - metricLayout.hidden.length} / {metricLayout.order.length} selected</span>
+        </div>
+        <div className="sa-customize-list">
+          {metricLayout.order.map((key) => { const item = metricDefinitions[key]; const Icon = item.icon; const isHidden = metricLayout.hidden.includes(key); return <div key={key} className={`sa-customize-item ${isHidden ? 'is-hidden' : ''}`} draggable onDragStart={() => setDraggedMetric(key)} onDragOver={(event) => event.preventDefault()} onDrop={() => moveMetric(key)}>
+            <GripVertical className="sa-customize-drag" size={18} aria-hidden="true" /><span className={`sa-customize-item-icon ${item.tone}`}><Icon size={16} /></span><span className="sa-customize-item-label">{item.label}</span><button type="button" className={`sa-customize-toggle ${isHidden ? '' : 'is-on'}`} onClick={() => toggleMetric(key)} aria-pressed={!isHidden}>{isHidden ? 'Show' : 'Shown'}{!isHidden ? <Check size={14} /> : null}</button>
+          </div> })}
+        </div>
+        <div className="sa-customize-footer"><button type="button" className="sa-customize-reset" onClick={resetMetricLayout}><RotateCcw size={15} /> Reset to default</button><button type="button" className="sa-customize-done" onClick={() => persistMetricLayout(metricLayout)}>Done</button></div>
+      </section>
+    </div> : null}
   </div>
 }
