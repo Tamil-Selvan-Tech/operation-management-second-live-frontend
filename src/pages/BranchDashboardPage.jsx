@@ -96,6 +96,7 @@ import {
 } from '../lib/facultyProgress'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
+import { getBranchDashboardWidgets, saveBranchDashboardWidgets, resetBranchDashboardWidgets } from '../services/branchDashboardWidgetService'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
@@ -2992,6 +2993,37 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   // ── Student state ──
   const [branchStudents, setBranchStudents] = useState([])
+  const [dashboardWidgets, setDashboardWidgets] = useState([])
+  const [isWidgetCustomizerOpen, setIsWidgetCustomizerOpen] = useState(false)
+  const [isWidgetSaving, setIsWidgetSaving] = useState(false)
+
+  useEffect(() => {
+    if (embeddedMode || role !== 'branch-admin') return undefined
+    let active = true
+    getBranchDashboardWidgets()
+      .then((widgets) => { if (active) setDashboardWidgets(Array.isArray(widgets) ? widgets : []) })
+      .catch((error) => console.error('Failed to load dashboard widget configuration:', error))
+    return () => { active = false }
+  }, [embeddedMode, role])
+
+  const dashboardWidgetKeyByLabel = {
+    'This Month Admissions': 'this_month_admissions', 'Batch Availability': 'batch_availability',
+    'Total Revenue': 'total_revenue', 'Total Collected': 'total_collected',
+    Outstanding: 'outstanding', 'Due Today': 'due_today',
+    'Due This Week': 'due_this_week', 'Overdue Amount': 'overdue_amount', 'Collection %': 'collection_percentage',
+  }
+  const isDashboardWidgetVisible = (label) => {
+    if (!dashboardWidgets.length) return true
+    const widget = dashboardWidgets.find((item) => item.widgetKey === dashboardWidgetKeyByLabel[label])
+    return widget ? widget.isVisible !== false : true
+  }
+  const toggleDashboardWidget = (widgetKey) => setDashboardWidgets((current) => current.map((widget) => widget.widgetKey === widgetKey ? { ...widget, isVisible: !widget.isVisible } : widget))
+  const saveDashboardWidgetChanges = async () => {
+    setIsWidgetSaving(true)
+    try { setDashboardWidgets(await saveBranchDashboardWidgets(dashboardWidgets)); setIsWidgetCustomizerOpen(false) }
+    catch (error) { console.error('Failed to save dashboard widget configuration:', error) }
+    finally { setIsWidgetSaving(false) }
+  }
   const [dashboardCourseFilter, setDashboardCourseFilter] = useState('all')
   const [dashboardBatchFilter, setDashboardBatchFilter] = useState('all')
   const [dashboardDateFrom, setDashboardDateFrom] = useState('')
@@ -5663,7 +5695,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [viewCourse])
 
   // ── Student helpers ──
-  const branchId = branchProfile?.id || branchProfile?.branchId || ''
+  const branchId = branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''
   const branchCode = branchProfile?.branchId || branchProfile?.branchCode || ''
   const branchStudentScope = useMemo(() => ({
     id: branchId,
@@ -7940,7 +7972,14 @@ useEffect(() => {
               {activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
-                    <h1>Dashboard</h1>
+                    <div className="branch-dashboard-overview-intro-heading">
+                      <h1>Dashboard</h1>
+                      {!embeddedMode && role === 'branch-admin' ? (
+                        <button type="button" className="branch-dashboard-customize-button" onClick={() => setIsWidgetCustomizerOpen(true)}>
+                          Customize Dashboard
+                        </button>
+                      ) : null}
+                    </div>
                     <p>{branchTitle} collection and fee overview</p>
                   </div>
 
@@ -8069,7 +8108,7 @@ useEffect(() => {
                         TrailIcon: PieChart,
                         tone: 'green',
                       },
-                    ].map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
+                    ].filter(({ label }) => isDashboardWidgetVisible(label)).map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
                       <article
                         key={label}
                         className={`branch-dashboard-stat-card tone-${tone}${onClick ? ' is-clickable' : ''}`}
@@ -14418,6 +14457,28 @@ else {
         ) : null}
 
         {/* ── LOGOUT CONFIRM ── */}
+        {isWidgetCustomizerOpen ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <div className="dashboard-widget-customize-modal" role="dialog" aria-modal="true" aria-labelledby="customize-dashboard-title" onClick={(event) => event.stopPropagation()}>
+              <button type="button" className="branch-modal-close" aria-label="Close dashboard customization" onClick={() => setIsWidgetCustomizerOpen(false)}><X size={22} strokeWidth={2} /></button>
+              <h2 id="customize-dashboard-title">Customize Dashboard</h2>
+              <p>Select the widgets you want to show on your Branch Admin dashboard.</p>
+              <div className="dashboard-widget-customize-list">
+                {dashboardWidgets.map((widget) => (
+                  <label key={widget.widgetKey} className="dashboard-widget-customize-item">
+                    <input type="checkbox" checked={widget.isVisible !== false} onChange={() => toggleDashboardWidget(widget.widgetKey)} />
+                    <span><strong>{widget.widgetName}</strong><small>{widget.category}</small></span>
+                  </label>
+                ))}
+              </div>
+              <div className="branch-modal-actions">
+                <button type="button" className="branch-modal-cancel" onClick={async () => { const reset = await resetBranchDashboardWidgets(); setDashboardWidgets(reset); }}>Reset to Default</button>
+                <button type="button" className="branch-modal-submit" disabled={isWidgetSaving} onClick={saveDashboardWidgetChanges}>{isWidgetSaving ? 'Saving...' : 'Save Changes'}</button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {isLogoutConfirmOpen ? (
           <div
             className="branch-modal-backdrop"
