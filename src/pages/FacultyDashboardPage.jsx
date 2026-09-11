@@ -80,8 +80,10 @@ import {
   listFacultyTodayWorkEntries,
 } from '../lib/facultyTodayWorkStore'
 import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
+import { formatCourseEditChangeSummary } from '../lib/courseEditChangeSummary'
 import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
 import { saveStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
+import { createNotification } from '../services/notificationService'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -1046,6 +1048,7 @@ function cloneFacultyEditSubmodule(submodule = {}, subIndex = 0) {
   const source = submodule && typeof submodule === 'object' ? submodule : {}
 
   return {
+    ...source,
     id: String(source.id || `submodule-${subIndex + 1}`),
     name: String(source.name || source.title || source.submoduleName || `Submodule ${subIndex + 1}`).trim(),
     percentage: String(source.percentage ?? source.weight ?? '').trim(),
@@ -1065,6 +1068,7 @@ function cloneFacultyEditModule(module = {}, moduleIndex = 0) {
           : []
 
   return {
+    ...source,
     id: String(source.id || `module-${moduleIndex + 1}`),
     name: String(source.name || source.title || source.moduleName || `Module ${moduleIndex + 1}`).trim(),
     percentage: String(source.percentage ?? source.weight ?? '').trim(),
@@ -1092,78 +1096,6 @@ function buildFacultyCourseUpdatePayload(course = {}, modules = []) {
     courseModels: modules,
     modules,
   }
-}
-
-function summarizeFacultyEditChanges(previousModules = [], nextModules = [], facultyName = 'Faculty', courseName = 'Course') {
-  const previousList = Array.isArray(previousModules) ? previousModules : []
-  const nextList = Array.isArray(nextModules) ? nextModules : []
-  const resolvedFacultyName = String(facultyName || 'Faculty').trim() || 'Faculty'
-  const resolvedCourseName = String(courseName || 'Course').trim() || 'Course'
-
-  const getModuleName = (module = {}, moduleIndex = 0) =>
-    String(module?.name || module?.title || module?.moduleName || `Module ${moduleIndex + 1}`).trim() ||
-    `Module ${moduleIndex + 1}`
-
-  const getSubmoduleName = (submodule = {}, subIndex = 0) =>
-    String(submodule?.name || submodule?.title || submodule?.submoduleName || `Submodule ${subIndex + 1}`).trim() ||
-    `Submodule ${subIndex + 1}`
-
-  const getModuleSubmodules = (module = {}) => (Array.isArray(module?.submodules) ? module.submodules : [])
-
-  if (nextList.length > previousList.length) {
-    const addedModuleIndex = Math.max(0, nextList.length - 1)
-    const addedModule = nextList[addedModuleIndex] || {}
-    const addedModuleName = getModuleName(addedModule, addedModuleIndex)
-    const addedSubmodule = getModuleSubmodules(addedModule)[0] || null
-
-    if (addedSubmodule) {
-      return `${resolvedFacultyName} added a new module "${addedModuleName}" with a new submodule "${getSubmoduleName(addedSubmodule, 0)}" in ${resolvedCourseName}.`
-    }
-
-    return `${resolvedFacultyName} added a new module "${addedModuleName}" in ${resolvedCourseName}.`
-  }
-
-  if (nextList.length < previousList.length) {
-    const deletedModuleIndex = Math.max(0, previousList.length - 1)
-    const deletedModule = previousList[deletedModuleIndex] || {}
-    return `${resolvedFacultyName} deleted the "${getModuleName(deletedModule, deletedModuleIndex)}" module from ${resolvedCourseName}.`
-  }
-
-  for (let moduleIndex = 0; moduleIndex < nextList.length; moduleIndex += 1) {
-    const previousModule = previousList[moduleIndex] || {}
-    const nextModule = nextList[moduleIndex] || {}
-    const previousModuleName = getModuleName(previousModule, moduleIndex)
-    const nextModuleName = getModuleName(nextModule, moduleIndex)
-    const previousSubmodules = getModuleSubmodules(previousModule)
-    const nextSubmodules = getModuleSubmodules(nextModule)
-
-    if (previousModuleName !== nextModuleName) {
-      return `${resolvedFacultyName} edited the module name from "${previousModuleName}" to "${nextModuleName}" in ${resolvedCourseName}.`
-    }
-
-    if (nextSubmodules.length > previousSubmodules.length) {
-      const addedSubmoduleIndex = Math.max(0, nextSubmodules.length - 1)
-      const addedSubmodule = nextSubmodules[addedSubmoduleIndex] || {}
-      return `${resolvedFacultyName} added a new submodule "${getSubmoduleName(addedSubmodule, addedSubmoduleIndex)}" under the "${nextModuleName}" module in ${resolvedCourseName}.`
-    }
-
-    if (nextSubmodules.length < previousSubmodules.length) {
-      const deletedSubmoduleIndex = Math.max(0, previousSubmodules.length - 1)
-      const deletedSubmodule = previousSubmodules[deletedSubmoduleIndex] || {}
-      return `${resolvedFacultyName} deleted the "${getSubmoduleName(deletedSubmodule, deletedSubmoduleIndex)}" submodule from the "${nextModuleName}" module in ${resolvedCourseName}.`
-    }
-
-    for (let submoduleIndex = 0; submoduleIndex < nextSubmodules.length; submoduleIndex += 1) {
-      const previousSubmoduleName = getSubmoduleName(previousSubmodules[submoduleIndex] || {}, submoduleIndex)
-      const nextSubmoduleName = getSubmoduleName(nextSubmodules[submoduleIndex] || {}, submoduleIndex)
-
-      if (previousSubmoduleName !== nextSubmoduleName) {
-        return `${resolvedFacultyName} edited the submodule name from "${previousSubmoduleName}" to "${nextSubmoduleName}" under the "${nextModuleName}" module in ${resolvedCourseName}.`
-      }
-    }
-  }
-
-  return `${resolvedFacultyName} updated modules and submodules in ${resolvedCourseName}.`
 }
 
 function formatNotificationTime(createdAt) {
@@ -3794,13 +3726,22 @@ const nextName = trimmedValue
     setCourseEditError('')
 
     try {
+      const { changes, hasChanges, summary: changeSummary } = formatCourseEditChangeSummary(
+        selectedCourseModules,
+        normalizedModules,
+        facultyDetails?.name || facultyDetails?.facultyName || 'Faculty',
+        selectedCourse?.name || selectedCourse?.courseName || 'Course',
+      )
       const payload = {
         branchCourseId: selectedCourse.id,
         modules: normalizedModules,
         courseModels: normalizedModules,
         models: normalizedModules,
+        // The API can persist/inspect this structured diff when it owns
+        // notification delivery; the client also uses it for the existing
+        // notification UI fallback.
+        changeSet: changes,
       }
-      const changeSummary = summarizeFacultyEditChanges(selectedCourseModules, normalizedModules, facultyDetails?.name || facultyDetails?.facultyName || 'Faculty', selectedCourse?.name || selectedCourse?.courseName || 'Course')
       const response = await saveCourseEditRequestModules(currentCourseEditRequest.id, payload)
       const updatedCourseRecord = response?.course || payload
       const updatedModules = cloneFacultyEditModules(updatedCourseRecord)
@@ -3862,28 +3803,43 @@ const nextName = trimmedValue
           )
       }
 
-      addNotification({
-        kind: 'branch-course-edit-updated',
-        tone: 'amber',
-        title: `${selectedCourse?.name || selectedCourse?.courseName || 'Course'} updated`,
-        message: changeSummary,
-        actionLabel: 'Updated',
-        targetSection: 'courses',
-        ...facultyBranchScope,
-        courseId: selectedCourse.id,
-        courseCode: selectedCourse.courseCode || selectedCourse.id || '',
-        courseName: selectedCourse.name || selectedCourse.courseName || 'Course',
-        facultyId: facultyDetails?.id || facultyDetails?.facultyId || '',
-        facultyName: facultyDetails?.name || facultyDetails?.facultyName || '',
-        facultyEmail: facultyDetails?.email || facultyDetails?.facultyEmail || '',
-        requestId: completedRequest.id || currentCourseEditRequest.id,
-        requestStatus: 'completed',
-        requestTitle: completedRequest.requestTitle || currentCourseEditRequest.requestTitle || '',
-        requestReason: completedRequest.requestReason || currentCourseEditRequest.requestReason || '',
-        requestDescription: completedRequest.requestDescription || currentCourseEditRequest.requestDescription || '',
-        changeSummary,
-        summary: changeSummary,
-      })
+      if (hasChanges) {
+        const notificationPayload = {
+          kind: 'branch-course-edit-updated',
+          tone: 'amber',
+          title: 'Course Content Updated',
+          message: changeSummary,
+          actionLabel: 'Updated',
+          targetSection: 'courses',
+          ...facultyBranchScope,
+          courseId: selectedCourse.id,
+          courseCode: selectedCourse.courseCode || selectedCourse.id || '',
+          courseName: selectedCourse.name || selectedCourse.courseName || 'Course',
+          facultyId: facultyDetails?.id || facultyDetails?.facultyId || '',
+          facultyName: facultyDetails?.name || facultyDetails?.facultyName || '',
+          facultyEmail: facultyDetails?.email || facultyDetails?.facultyEmail || '',
+          requestId: completedRequest.id || currentCourseEditRequest.id,
+          requestStatus: 'completed',
+          requestTitle: completedRequest.requestTitle || currentCourseEditRequest.requestTitle || '',
+          requestReason: completedRequest.requestReason || currentCourseEditRequest.requestReason || '',
+          requestDescription: completedRequest.requestDescription || currentCourseEditRequest.requestDescription || '',
+          changeSummary,
+          summary: changeSummary,
+          changeSet: changes,
+        }
+
+        // Persist the notification for the branch-admin account. The local
+        // store remains as a same-browser fallback for the existing UI.
+        void createNotification({
+          ...notificationPayload,
+          recipientRole: 'branch-admin',
+          recipientId: facultyBranchScope.targetBranchId || facultyBranchScope.branchId,
+        }).catch((notificationError) => {
+          console.error('Failed to persist branch course edit notification:', notificationError)
+        })
+
+        addNotification(notificationPayload)
+      }
 
       setIsCourseEditModalOpen(false)
       setCourseEditDraft(null)

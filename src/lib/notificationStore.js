@@ -69,6 +69,7 @@ const normalizeNotification = (notification = {}) => {
     requestedChanges: String(notification.requestedChanges || '').trim(),
     sourceNotificationId: String(notification.sourceNotificationId || '').trim(),
     changeSummary: String(notification.changeSummary || '').trim(),
+    changeSet: notification.changeSet && typeof notification.changeSet === 'object' ? notification.changeSet : null,
     studentId: String(notification.studentId || '').trim(),
     studentName: String(notification.studentName || '').trim(),
     courseProgress: String(notification.courseProgress || '').trim(),

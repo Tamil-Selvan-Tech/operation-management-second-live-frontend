@@ -17,3 +17,10 @@ export function unwrapNotifications(response) {
 export async function getNotifications({ limit = 100, page = 1 } = {}) {
   return request(`/notifications?limit=${limit}&page=${page}`, { method: 'GET' })
 }
+
+export async function createNotification(payload = {}) {
+  return request('/notifications', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}

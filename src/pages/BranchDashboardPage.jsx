@@ -1652,6 +1652,7 @@ function BranchNotificationGroup({
   onView,
   onAcceptRequest,
   onRejectRequest,
+  processingNotification = { id: '', action: '' },
   showDetails = false,
 }) {
   return (
@@ -1666,6 +1667,8 @@ function BranchNotificationGroup({
           const isAcceptedRequest = isCourseEditRequest && requestStatus === 'accepted'
           const isRejectedRequest = isCourseEditRequest && requestStatus === 'rejected'
           const isPendingRequest = isCourseEditRequest && requestStatus === 'pending'
+          const notificationId = String(item.id || item.requestId || '').trim()
+          const isProcessing = processingNotification.id === notificationId
           const isProgressNotification = String(item.kind || '').includes('progress-status')
 
           return (
@@ -1808,32 +1811,32 @@ function BranchNotificationGroup({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {isCourseEditRequest ? (
-                        isAcceptedRequest || isRejectedRequest ? (
-                          null
-                        ) : (
+                      {isPendingRequest ? (
+                        (
                           <>
-                            <button
-                              type="button"
-                              className="notifications-item-view-button is-danger"
+                              <button
+                                type="button"
+                                className="notifications-item-view-button is-danger"
+                                disabled={isProcessing}
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
                                 onRejectRequest?.(item)
                               }}
                             >
-                              Reject
+                              {isProcessing && processingNotification.action === 'reject' ? 'Rejecting...' : 'Reject'}
                             </button>
-                            <button
-                              type="button"
-                              className="notifications-item-view-button"
+                              <button
+                                type="button"
+                                className="notifications-item-view-button"
+                                disabled={isProcessing}
                               onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
                                 onAcceptRequest?.(item)
                               }}
                             >
-                              Accept
+                              {isProcessing && processingNotification.action === 'accept' ? 'Accepting...' : 'Accept'}
                             </button>
                           </>
                         )
@@ -1909,7 +1912,7 @@ function BranchNotificationGroup({
                             ? 'Pending'
                             : item.categoryLabel || item.actionLabel || 'View'}
                     </span>
-                    {isCourseEditRequest ? (
+                    {isPendingRequest ? (
                       isAcceptedRequest || isRejectedRequest ? (
                         null
                       ) : (
@@ -1917,24 +1920,26 @@ function BranchNotificationGroup({
                           <button
                             type="button"
                             className="notifications-item-view-button is-danger"
+                            disabled={isProcessing}
                             onClick={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
                               onRejectRequest?.(item)
                             }}
                           >
-                            Reject
+                            {isProcessing && processingNotification.action === 'reject' ? 'Rejecting...' : 'Reject'}
                           </button>
                           <button
                             type="button"
                             className="notifications-item-view-button"
+                            disabled={isProcessing}
                             onClick={(e) => {
                               e.preventDefault()
                               e.stopPropagation()
                               onAcceptRequest?.(item)
                             }}
                           >
-                            Accept
+                            {isProcessing && processingNotification.action === 'accept' ? 'Accepting...' : 'Accept'}
                           </button>
                         </div>
                       )
@@ -3104,7 +3109,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [stuStateOptions, setStuStateOptions] = useState([])
   const [stuCityOptions, setStuCityOptions] = useState([])
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
-  const [processingBranchNotificationId, setProcessingBranchNotificationId] = useState('')
+  const [processingBranchNotification, setProcessingBranchNotification] = useState({ id: '', action: '' })
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
   const [branchNotificationMonthFilter, setBranchNotificationMonthFilter] = useState(() => {
@@ -4262,9 +4267,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const acceptBranchCourseEditNotification = async (notification) => {
     const notificationId = String(notification?.id || notification?.requestId || '').trim()
-    if (processingBranchNotificationId === notificationId) return
+    if (processingBranchNotification.id === notificationId) return
 
-    setProcessingBranchNotificationId(notificationId)
+    setProcessingBranchNotification({ id: notificationId, action: 'accept' })
     let requestId = ''
 
     try {
@@ -4304,15 +4309,15 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     } catch (error) {
       console.error('Failed to accept course edit request:', error)
     } finally {
-      setProcessingBranchNotificationId('')
+      setProcessingBranchNotification({ id: '', action: '' })
     }
   }
 
   const rejectBranchCourseEditNotification = async (notification) => {
     const notificationId = String(notification?.id || notification?.requestId || '').trim()
-    if (processingBranchNotificationId === notificationId) return
+    if (processingBranchNotification.id === notificationId) return
 
-    setProcessingBranchNotificationId(notificationId)
+    setProcessingBranchNotification({ id: notificationId, action: 'reject' })
     let requestId = ''
 
     try {
@@ -4351,7 +4356,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     } catch (error) {
       console.error('Failed to reject course edit request:', error)
     } finally {
-      setProcessingBranchNotificationId('')
+      setProcessingBranchNotification({ id: '', action: '' })
     }
   }
 
@@ -7837,7 +7842,8 @@ useEffect(() => {
                       const requestStatus = String(item.requestStatus || '').trim().toLowerCase()
                       const isRespondableCourseEditRequest =
                         isCourseEditRequest && requestStatus !== 'accepted' && requestStatus !== 'rejected'
-                      const isProcessing = processingBranchNotificationId === String(item.id || item.requestId || '').trim()
+                      const notificationId = String(item.id || item.requestId || '').trim()
+                      const isProcessing = processingBranchNotification.id === notificationId
 
                       return (
                         <article
@@ -7871,7 +7877,7 @@ useEffect(() => {
                                     void rejectBranchCourseEditNotification(item)
                                   }}
                                 >
-                                  {isProcessing ? 'Rejecting...' : 'Reject'}
+                                  {isProcessing && processingBranchNotification.action === 'reject' ? 'Rejecting...' : 'Reject'}
                                 </button>
                                 <button
                                   type="button"
@@ -7885,7 +7891,7 @@ useEffect(() => {
                                     void acceptBranchCourseEditNotification(item)
                                   }}
                                 >
-                                  {isProcessing ? 'Accepting...' : 'Accept'}
+                                  {isProcessing && processingBranchNotification.action === 'accept' ? 'Accepting...' : 'Accept'}
                                 </button>
                               </>
                             ) : null}
@@ -8366,6 +8372,7 @@ useEffect(() => {
                           onView={openBranchNotificationTarget}
                           onAcceptRequest={acceptBranchCourseEditNotification}
                           onRejectRequest={rejectBranchCourseEditNotification}
+                          processingNotification={processingBranchNotification}
                           showDetails
                         />
                       ))
