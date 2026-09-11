@@ -17,7 +17,7 @@ function extractLedgerEntriesPayload(payload) {
 function normalizeLedgerEntry(entry = {}) {
   const debit = Number(entry.debit ?? 0)
   const credit = Number(entry.credit ?? 0)
-  const amount = Number(entry.amount ?? debit ?? credit ?? 0)
+  const amount = Number(entry.amount ?? (credit > 0 ? credit : debit) ?? 0)
   const dateRaw = String(
     entry.dateRaw ||
     entry.paymentDate ||

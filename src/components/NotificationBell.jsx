@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../auth/useAuth'
@@ -71,6 +71,12 @@ export function NotificationBell() {
     }
   }, [isOpen])
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return undefined
+    document.body.classList.toggle('student-notification-menu-open', isOpen)
+    return () => document.body.classList.remove('student-notification-menu-open')
+  }, [isOpen])
+
   return (
     <div
       ref={menuRef}
@@ -98,9 +104,14 @@ export function NotificationBell() {
         <div className="notification-dropdown" role="menu" aria-label="Notifications">
           <div className="notification-dropdown-head">
             <strong>Notifications</strong>
-            <button type="button" className="notification-mark-read" onClick={markRead}>
-              Mark all as read
-            </button>
+            <div className="notification-dropdown-head-actions">
+              <button type="button" className="notification-mark-read" onClick={markRead}>
+                Mark all as read
+              </button>
+              <button type="button" className="notification-dropdown-close" aria-label="Close notifications" onClick={() => setIsOpen(false)}>
+                <X size={17} strokeWidth={2.4} aria-hidden="true" />
+              </button>
+            </div>
           </div>
 
           <div className="notification-dropdown-list">
