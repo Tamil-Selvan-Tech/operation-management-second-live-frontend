@@ -3938,6 +3938,15 @@ const nextName = trimmedValue
     setIsProfileMenuOpen(false)
   }
 
+  const handleSidebarSectionChange = (section) => {
+    // The calendar is rendered from the student-calendar route. Leave that
+    // route before switching sections so it cannot remain below the new view.
+    if (isStudentCalendarRoute) {
+      navigate('/dashboard/faculty/my-batches')
+    }
+    setActiveSection(section)
+  }
+
   const renderSidebar = () => (
     <aside className="super-admin-sidebar" aria-label="Faculty navigation">
       <div className="super-admin-sidebar-brand">
@@ -3961,7 +3970,7 @@ const nextName = trimmedValue
               key={item.id}
               type="button"
               className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
-              onClick={() => setActiveSection(item.id)}
+              onClick={() => handleSidebarSectionChange(item.id)}
             >
               <span className="super-admin-sidebar-icon" aria-hidden="true">
                 <Icon size={18} strokeWidth={2.15} />
