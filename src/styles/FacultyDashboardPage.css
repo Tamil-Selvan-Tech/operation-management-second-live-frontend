@@ -1474,6 +1474,11 @@ body.faculty-notification-menu-open .super-admin-content {
   font-weight: 700;
 }
 
+.faculty-today-work-attendance-window-note.is-warning {
+  color: #b45309;
+  font-weight: 700;
+}
+
 .faculty-today-work-submodule-list,
 .faculty-today-work-student-list {
   display: grid;

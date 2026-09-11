@@ -216,6 +216,17 @@ function parseTimeSegment(timeText = '') {
   return { hours, minutes }
 }
 
+function getBatchTimingValue(batchTiming = {}, field = '') {
+  if (!batchTiming || typeof batchTiming !== 'object') return ''
+
+  const value = batchTiming[field]
+  if (!value) return ''
+
+  const periodField = field === 'startTime' ? 'startPeriod' : 'endPeriod'
+  const period = String(batchTiming[periodField] || '').trim().toUpperCase()
+  return `${String(value).trim()}${period && !/[AP]M$/i.test(String(value)) ? ` ${period}` : ''}`.trim()
+}
+
 function getAttendanceDateTime(dateKey = getAttendanceDateKey(), timeSegment = null) {
   if (!timeSegment) return null
 
@@ -230,8 +241,11 @@ function getAttendanceDateTime(dateKey = getAttendanceDateKey(), timeSegment = n
 }
 
 export function parseBatchStartTime(batchTiming = '') {
-  const normalized = String(batchTiming || '').trim()
+  const explicitStart = getBatchTimingValue(batchTiming, 'startTime')
+  const normalized = explicitStart || String(batchTiming || '').trim()
   if (!normalized) return null
+
+  if (explicitStart) return parseTimeSegment(explicitStart)
 
   const [startSegment] = normalized.split(/\s*(?:-|to)\s*/i).map((part) => String(part || '').trim())
   return parseTimeSegment(startSegment)
@@ -242,8 +256,11 @@ export function getBatchStartDateTime(batchTiming = '', dateKey = getAttendanceD
 }
 
 export function parseBatchEndTime(batchTiming = '') {
-  const normalized = String(batchTiming || '').trim()
+  const explicitEnd = getBatchTimingValue(batchTiming, 'endTime')
+  const normalized = explicitEnd || String(batchTiming || '').trim()
   if (!normalized) return null
+
+  if (explicitEnd) return parseTimeSegment(explicitEnd)
 
   const [, endSegment] = normalized.split(/\s*(?:-|to)\s*/i).map((part) => String(part || '').trim())
   return parseTimeSegment(endSegment)
@@ -253,7 +270,7 @@ export function getBatchEndDateTime(batchTiming = '', dateKey = getAttendanceDat
   return getAttendanceDateTime(dateKey, parseBatchEndTime(batchTiming))
 }
 
-const BATCH_ATTENDANCE_REMINDER_WINDOW_MINUTES = 5
+const BATCH_ATTENDANCE_WARNING_MINUTES = [5, 10]
 
 export function resolveBatchAttendanceWindow(batchTiming = '', now = new Date()) {
   const dateKey = getAttendanceDateKey(now)
@@ -261,7 +278,7 @@ export function resolveBatchAttendanceWindow(batchTiming = '', now = new Date())
   const endDateTime = getBatchEndDateTime(batchTiming, dateKey)
   const nowTime = now instanceof Date ? now.getTime() : new Date(now).getTime()
 
-  if (!startDateTime || !endDateTime) {
+  if (!startDateTime || !endDateTime || endDateTime.getTime() <= startDateTime.getTime() || !Number.isFinite(nowTime)) {
     return {
       dateKey,
       startDateTime: startDateTime || null,
@@ -278,11 +295,15 @@ export function resolveBatchAttendanceWindow(batchTiming = '', now = new Date())
   const isAfterEnd = Number.isFinite(nowTime) && nowTime > endTime
   const remainingMs = endTime - nowTime
   const elapsedMs = nowTime - endTime
+  const minutesUntilClose = Math.max(0, Math.ceil(remainingMs / 60000))
+  const warningMinutes = isBeforeStart || isAtOrAfterEnd
+    ? 0
+    : BATCH_ATTENDANCE_WARNING_MINUTES.find((minutes) => minutesUntilClose <= minutes) || 0
   const isWithinReminderWindow =
     Number.isFinite(nowTime) &&
     nowTime >= startTime &&
     nowTime < endTime &&
-    remainingMs <= BATCH_ATTENDANCE_REMINDER_WINDOW_MINUTES * 60 * 1000
+    warningMinutes > 0
   const phase = isBeforeStart ? 'pre-open' : isAtOrAfterEnd ? 'closed' : isWithinReminderWindow ? 'reminder' : 'open'
   const isEditable = phase === 'open' || phase === 'reminder'
   const isLateAvailable = phase === 'closed'
@@ -300,7 +321,7 @@ export function resolveBatchAttendanceWindow(batchTiming = '', now = new Date())
     phase === 'pre-open'
       ? `Attendance will open at ${formatAttendanceTimeLabel(startDateTime)}.`
       : phase === 'reminder'
-        ? `Attendance Reminder: Please submit before ${formatAttendanceTimeLabel(endDateTime)}.`
+        ? `${warningMinutes}-minute warning: Attendance closes at ${formatAttendanceTimeLabel(endDateTime)}. Please submit now.`
         : phase === 'open'
           ? 'Attendance is open for this batch right now.'
           : `Attendance closed automatically at ${formatAttendanceTimeLabel(endDateTime)}. Late Attendance required.`
@@ -312,6 +333,8 @@ export function resolveBatchAttendanceWindow(batchTiming = '', now = new Date())
     phase,
     isEditable,
     isReminder: phase === 'reminder',
+    warningMinutes,
+    minutesUntilClose,
     isLateAvailable,
     lateByMinutes,
     minutesUntilEnd,

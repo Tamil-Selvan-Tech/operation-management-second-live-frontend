@@ -162,6 +162,20 @@ function getFacultyFlowBatchKey(batch = {}) {
   )
 }
 
+function getAttendanceBatchTiming(batch = {}) {
+  const startTime = String(batch?.startTime || batch?.fromTime || '').trim()
+  const endTime = String(batch?.endTime || batch?.toTime || '').trim()
+  if (startTime || endTime) {
+    return {
+      startTime,
+      endTime,
+      startPeriod: String(batch?.startPeriod || '').trim().toUpperCase(),
+      endPeriod: String(batch?.endPeriod || '').trim().toUpperCase(),
+    }
+  }
+  return String(batch?.timing || batch?.batchTiming || batch?.batchTime || '').trim()
+}
+
 function doesFacultyBatchBelongToCourse(batch = {}, course = {}) {
   const batchCourseId = String(batch?.courseId || '').trim()
   const batchCourseName = normalizeCourseKey(batch?.course || batch?.courseName || '')
@@ -1490,11 +1504,19 @@ export function FacultyDashboardPage() {
   const [pendingTodayWorkSubmission, setPendingTodayWorkSubmission] = useState(null)
   const [attendanceSavedPrompt, setAttendanceSavedPrompt] = useState(null)
   const [todayWorkAttendanceSearch, setTodayWorkAttendanceSearch] = useState('')
+  const [attendanceClock, setAttendanceClock] = useState(() => new Date())
   const [courseEditError, setCourseEditError] = useState('')
   const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
   const [isCourseEditSaving, setIsCourseEditSaving] = useState(false)
   const [coursesLoading, setCoursesLoading] = useState(false)
   const [coursesError, setCoursesError] = useState('')
+
+  useEffect(() => {
+    if (!isTodayWorkModalOpen || todayWorkMode !== 'attendance') return undefined
+
+    const intervalId = window.setInterval(() => setAttendanceClock(new Date()), 1000)
+    return () => window.clearInterval(intervalId)
+  }, [isTodayWorkModalOpen, todayWorkMode, selectedStudentsBatchId])
 
 
 
@@ -2245,6 +2267,10 @@ export function FacultyDashboardPage() {
           batchName: String(entry?.batchName || entry?.batch || entry?.code || entry?.id || '').trim() || '-',
           code: String(entry?.batchCode || entry?.code || entry?.id || '-').trim() || '-',
           timing: String(entry?.batchTiming || entry?.timing || '-').trim() || '-',
+          startTime: String(entry?.startTime || entry?.fromTime || '').trim(),
+          startPeriod: String(entry?.startPeriod || '').trim().toUpperCase(),
+          endTime: String(entry?.endTime || entry?.toTime || '').trim(),
+          endPeriod: String(entry?.endPeriod || '').trim().toUpperCase(),
           students: getBatchStudentCount(entry),
           status: String(entry?.status || 'Active').trim() || 'Active',
         }
@@ -2929,7 +2955,7 @@ export function FacultyDashboardPage() {
     if (!normalizedStudentId) return
 
     const attendanceWindow = resolveBatchAttendanceWindow(
-      String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+      getAttendanceBatchTiming(selectedStudentsBatch),
     )
     if (!attendanceWindow.isEditable) {
       setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
@@ -2950,7 +2976,7 @@ export function FacultyDashboardPage() {
 
   const markAllTodayWorkStudentsPresent = () => {
     const attendanceWindow = resolveBatchAttendanceWindow(
-      String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+      getAttendanceBatchTiming(selectedStudentsBatch),
     )
     if (!attendanceWindow.isEditable) return
 
@@ -2975,7 +3001,7 @@ export function FacultyDashboardPage() {
 
   const toggleMarkAllTodayWorkStudents = () => {
     const attendanceWindow = resolveBatchAttendanceWindow(
-      String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+      getAttendanceBatchTiming(selectedStudentsBatch),
     )
     if (!attendanceWindow.isEditable) return
 
@@ -3000,7 +3026,7 @@ export function FacultyDashboardPage() {
 
   const performAttendanceOnlySave = async () => {
     const attendanceWindow = resolveBatchAttendanceWindow(
-      String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+      getAttendanceBatchTiming(selectedStudentsBatch),
     )
     if (!attendanceWindow.isEditable) {
       setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
@@ -4174,7 +4200,8 @@ const nextName = trimmedValue
 
   const normalizedAttendanceSearch = todayWorkAttendanceSearch.trim().toLowerCase()
   const todayWorkAttendanceWindow = resolveBatchAttendanceWindow(
-    String(selectedStudentsBatch?.timing || selectedStudentsBatch?.batchTiming || selectedStudentsBatch?.batchTime || '').trim(),
+    getAttendanceBatchTiming(selectedStudentsBatch),
+    attendanceClock,
   )
   const attendanceWindowLocked = todayWorkMode === 'attendance' && !todayWorkAttendanceWindow.isEditable
   const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
@@ -5592,7 +5619,11 @@ const nextName = trimmedValue
                   <div>
                     <h4>{todayWorkMode === 'attendance' ? 'Student Attendance' : 'Select Students'}</h4>
                     {todayWorkMode === 'attendance' ? (
-                      <p className={attendanceWindowLocked ? 'faculty-today-work-attendance-window-note is-locked' : 'faculty-today-work-attendance-window-note'}>
+                      <p
+                        className={`faculty-today-work-attendance-window-note${attendanceWindowLocked ? ' is-locked' : ''}${todayWorkAttendanceWindow.isReminder ? ' is-warning' : ''}`.trim()}
+                        role="status"
+                        aria-live="polite"
+                      >
                         {todayWorkAttendanceWindow.reason || 'Attendance timing is not configured for this batch.'}
                       </p>
                     ) : (
