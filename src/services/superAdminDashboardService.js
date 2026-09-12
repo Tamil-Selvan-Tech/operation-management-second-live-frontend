@@ -1,4 +1,4 @@
-import { request, setImpersonateBranchId } from './apiClient'
+import { request } from './apiClient'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import { loadBranchStudents } from '../lib/branchStudentStore'
 import { listBranchLedger } from './branchLedgerService'
@@ -56,10 +56,11 @@ async function loadAllBranchStudents(branch) {
   const rows = []
   let page = 1
   let hasNextPage
-  setImpersonateBranchId(branchId)
   try {
     do {
-      const response = await request(`/branch-students?page=${page}&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchId)}`)
+      const response = await request(`/branch-students?page=${page}&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchId)}`, {
+        impersonateBranchId: branchId,
+      })
       const payload = response?.data ?? response
       const data = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.items) ? payload.items : Array.isArray(payload?.records) ? payload.records : []
       rows.push(...data)
@@ -71,30 +72,26 @@ async function loadAllBranchStudents(branch) {
     const status = Number(error?.status || error?.statusCode)
     if (![403, 404].includes(status)) throw error
     return loadBranchStudents(branchId)
-  } finally {
-    setImpersonateBranchId(null)
   }
   return rows.map((student) => ({ ...student, branchId: student.branchId || branchId }))
 }
 
 async function loadBranchLedgerPayments(branch) {
   const branchId = branch.id || branch.branchId
-  setImpersonateBranchId(branchId)
-  try {
-    const result = await listBranchLedger({ page: 1, limit: 500, sortBy: 'date', sortOrder: 'desc' })
-    return (result?.entries || [])
-      .filter((entry) => String(entry.entryType || '').toUpperCase() === 'CREDIT' || Number(entry.credit || 0) > 0)
-      .map((entry) => ({
-        ...entry,
-        studentId: entry.studentId || entry.studentRecordId,
-        amount: toNumber(entry.credit || entry.amount),
-        paymentDate: entry.dateRaw || entry.date || entry.createdAt,
-        dateRaw: entry.dateRaw || entry.date || entry.createdAt,
-        branchId,
-      }))
-  } finally {
-    setImpersonateBranchId(null)
-  }
+    const result = await listBranchLedger(
+      { page: 1, limit: 500, fast: 1, sortBy: 'date', sortOrder: 'desc' },
+    { impersonateBranchId: branchId },
+  )
+  return (result?.entries || [])
+    .filter((entry) => String(entry.entryType || '').toUpperCase() === 'CREDIT' || Number(entry.credit || 0) > 0)
+    .map((entry) => ({
+      ...entry,
+      studentId: entry.studentId || entry.studentRecordId,
+      amount: toNumber(entry.credit || entry.amount),
+      paymentDate: entry.dateRaw || entry.date || entry.createdAt,
+      dateRaw: entry.dateRaw || entry.date || entry.createdAt,
+      branchId,
+    }))
 }
 
 function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory = []) {
@@ -267,16 +264,20 @@ export async function getSuperAdminOverview(branches = []) {
   const activeBranches = branches.filter((branch) => String(branch?.status || '').toLowerCase() === 'active')
   const studentsByBranch = new Map()
   const backendPaymentHistory = []
-  // Impersonation is held by the shared API client, so branch requests must be
-  // serialized to keep each request scoped to the correct branch.
-  for (const branch of activeBranches) {
-    studentsByBranch.set(String(branch.id || branch.branchId), await loadAllBranchStudents(branch))
-    try {
-      backendPaymentHistory.push(...await loadBranchLedgerPayments(branch))
-    } catch {
-      // Local payment history remains the safe fallback for older branch APIs.
-    }
-  }
+  // Each request carries its own branch header, so independent branches can
+  // load concurrently without the old shared impersonation state mixing data.
+  const branchResults = await Promise.all(activeBranches.map(async (branch) => {
+    const [students, payments] = await Promise.all([
+      loadAllBranchStudents(branch),
+      loadBranchLedgerPayments(branch).catch(() => []),
+    ])
+    return { branch, students, payments }
+  }))
+
+  branchResults.forEach(({ branch, students, payments }) => {
+    studentsByBranch.set(String(branch.id || branch.branchId), students)
+    backendPaymentHistory.push(...payments)
+  })
   return buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory)
 }
 

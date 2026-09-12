@@ -135,7 +135,7 @@ function persistRefreshedTokens(nextAccessToken, nextRefreshToken) {
 }
 
 async function request(path, options = {}, retryCount = 0) {
-  const { skipAuth, headers: optionHeaders, body, ...fetchOptions } = options
+  const { skipAuth, headers: optionHeaders, body, impersonateBranchId: requestBranchId, ...fetchOptions } = options
   const headers = new Headers(optionHeaders || {})
   const controller = new AbortController()
   let didTimeout = false
@@ -161,8 +161,9 @@ async function request(path, options = {}, retryCount = 0) {
     headers.set('Authorization', `Bearer ${accessToken}`)
   }
 
-  if (impersonateBranchId) {
-    headers.set('X-Impersonate-Branch-Id', impersonateBranchId)
+  const branchIdForRequest = requestBranchId || impersonateBranchId
+  if (branchIdForRequest) {
+    headers.set('X-Impersonate-Branch-Id', branchIdForRequest)
   }
 
   if (body && !headers.has('Content-Type')) {

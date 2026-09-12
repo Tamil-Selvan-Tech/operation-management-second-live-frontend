@@ -75,7 +75,7 @@ function extractLedgerResponse(response = {}) {
   }
 }
 
-export async function listBranchLedger(query = {}) {
+export async function listBranchLedger(query = {}, requestOptions = {}) {
   const params = new URLSearchParams()
 
   Object.entries(query || {}).forEach(([key, value]) => {
@@ -88,6 +88,7 @@ export async function listBranchLedger(query = {}) {
 
   const response = await request(`/branch-students/ledger${params.toString() ? `?${params.toString()}` : ''}`, {
     method: 'GET',
+    ...requestOptions,
   })
 
   return extractLedgerResponse(response || {})
