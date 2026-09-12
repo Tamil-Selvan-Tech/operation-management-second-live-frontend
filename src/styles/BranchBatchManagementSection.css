@@ -1028,6 +1028,47 @@
   max-width: 220px;
 }
 
+.batch-management-identifiers-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.batch-management-identifiers-grid .batch-management-id-top-field { order: -1; }
+
+.batch-management-id-field {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 34px;
+  overflow: hidden;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.batch-management-id-field > span {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-right: 1px solid #bfdbfe;
+  background: #f8fbff;
+}
+
+.batch-management-id-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px 7px 2px;
+  border: 0;
+  outline: 0;
+  color: #1e40af;
+  background: transparent;
+  font: inherit;
+}
+
+.batch-management-id-field.student-id-input-group { display:flex; align-items:stretch; width:100%; min-height:0; overflow:visible; border:0; border-radius:0; background:transparent; }
+.batch-management-id-field.student-id-input-group .student-id-prefix { padding:0 14px; border-radius:12px 0 0 12px; border-right:0; }
+.batch-management-id-field.student-id-input-group input { padding:8px 10px; border:1px solid #dbe4f0; border-left:0; border-radius:0 12px 12px 0; background:#fff; color:#475569; }
+
 .batch-management-row-name small {
   color: #94a3b8;
   font-size: 0.78rem;
@@ -2153,4 +2194,8 @@
   .batch-management-time-controls {
     grid-template-columns: repeat(3, minmax(72px, 1fr));
   }
+}
+
+@media (max-width: 640px) {
+  .batch-management-identifiers-grid { grid-template-columns: 1fr; }
 }

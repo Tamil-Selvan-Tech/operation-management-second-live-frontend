@@ -12048,6 +12048,81 @@ body.branch-notification-menu-open .main-area {
   outline-offset: 3px;
 }
 
+.course-payment-plan-select-all-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 4px 10px;
+  border-bottom: 1px solid #eef2f7;
+  color: #475569;
+  font-size: 0.82rem;
+}
+
+.course-payment-plan-select-all-button {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: #2563eb;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.course-payment-plan-select-all-button:hover:not(:disabled) {
+  border-color: #60a5fa;
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+.course-payment-plan-select-all-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.course-id-input-shell {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  overflow: hidden;
+  border: 1px solid #d7e2f1;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.course-id-input-shell:focus-within {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.35);
+}
+
+.course-id-prefix {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border-right: 1px solid #d7e2f1;
+  color: #475569;
+  background: #f8fafc;
+  font-weight: 800;
+}
+
+.course-id-input-shell input {
+  min-width: 0;
+  flex: 1;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Course and batch IDs share the same split-field treatment as Student ID. */
+.course-id-input-shell { min-height:0; overflow:visible; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.course-id-input-shell:focus-within { border:0; box-shadow:none; }
+.course-id-input-shell .student-id-prefix { border-right:0; }
+
 @media (max-width: 640px) {
   .branch-dashboard-overview-intro-heading {
     align-items: flex-start;
