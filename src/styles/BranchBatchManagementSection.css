@@ -836,6 +836,37 @@
   font-weight: 800;
 }
 
+.batch-detail-download-attendance {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 0 auto;
+  min-height: 38px;
+  padding: 0 15px;
+  border: 1px solid #2563eb;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2);
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.batch-detail-hero-topline .batch-detail-download-attendance {
+  flex: 0 0 auto;
+  margin-right: 48px;
+}
+
+.batch-detail-download-attendance:hover,
+.batch-detail-download-attendance:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+  box-shadow: 0 11px 22px rgba(37, 99, 235, 0.28);
+  outline: none;
+}
+
 .batch-detail-count-pill {
   display: inline-flex;
   align-items: center;

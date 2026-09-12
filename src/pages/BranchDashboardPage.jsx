@@ -100,6 +100,7 @@ import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
 import { getBranchDashboardWidgets, saveBranchDashboardWidgets, resetBranchDashboardWidgets } from '../services/branchDashboardWidgetService'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
+import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
@@ -3005,6 +3006,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   // ── Student state ──
   const [branchStudents, setBranchStudents] = useState([])
+  const [attendanceReportTarget, setAttendanceReportTarget] = useState(null)
   const [dashboardWidgets, setDashboardWidgets] = useState([])
   const [isWidgetCustomizerOpen, setIsWidgetCustomizerOpen] = useState(false)
   const [isWidgetSaving, setIsWidgetSaving] = useState(false)
@@ -8845,6 +8847,11 @@ else {
                         <span>View</span>
                       </button>
 
+                      <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setAttendanceReportTarget({ mode: 'student', record: stu }) }}>
+                        <Download size={15} />
+                        <span>Download Attendance</span>
+                      </button>
+
                       {/* <button
                         type="button"
                         role="menuitem"
@@ -9268,6 +9275,7 @@ else {
     branchFacultyRecords={branchFacultyRecords}
     facultyList={facultyList}
     branchStudents={branchStudents}
+    onDownloadAttendance={(batch) => setAttendanceReportTarget({ mode: 'batch', record: batch })}
   />
 ) : null}
 
@@ -12812,9 +12820,7 @@ else {
               <div className="student-drawer-header">
 
                 <div className="student-drawer-title-area">
-                  <p className="student-drawer-label">
-                    STUDENT DETAILS
-                  </p>
+                  <p className="student-drawer-label">STUDENT DETAILS</p>
 
                   <h2>
                     {viewStudentDrawer.studentName || '-'}
@@ -12827,17 +12833,16 @@ else {
 
                 <div className="student-drawer-header-actions">
 
-                  <span
-                    className={`student-drawer-status ${(viewStudentDrawer.currentStatus || '')
-                      .toLowerCase()
-                      .replace(/\s+/g, '-')
-                      }`}
-                  >
-                    <span className="student-status-dot"></span>
-                    {viewStudentDrawer.currentStatus || 'Student'}
-                  </span>
-
                   <div className="student-drawer-header-action-buttons">
+                    <button
+                      type="button"
+                      className="student-drawer-calendar-btn student-drawer-download-btn"
+                      onClick={() => setAttendanceReportTarget({ mode: 'student', record: viewStudentDrawer })}
+                    >
+                      <Download size={16} strokeWidth={2.2} aria-hidden="true" />
+                      Download Attendance
+                    </button>
+
                     <button
                       type="button"
                       className="student-drawer-calendar-btn"
@@ -13034,6 +13039,14 @@ else {
       <div className="student-details-label">Designation</div>
       <div className="student-details-value">
         {viewStudentDrawer.designation || '-'}
+      </div>
+    </div>
+
+    {/* Current Status */}
+    <div className="student-details-row">
+      <div className="student-details-label">Current Status</div>
+      <div className="student-details-value">
+        {viewStudentDrawer.currentStatus || '-'}
       </div>
     </div>
 
@@ -14701,6 +14714,13 @@ else {
             </div>
           </div>
         ) : null}
+        <BranchAttendanceReportModal
+          isOpen={Boolean(attendanceReportTarget)}
+          mode={attendanceReportTarget?.mode || 'student'}
+          record={attendanceReportTarget?.record}
+          branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
+          onClose={() => setAttendanceReportTarget(null)}
+        />
       </div>
     </section>
   )

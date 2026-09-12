@@ -8485,6 +8485,12 @@ body.branch-notification-menu-open .main-area {
   letter-spacing: 1.3px;
 }
 
+.student-drawer-download-btn {
+  height: 36px;
+  padding: 0 13px;
+  font-size: 12px;
+}
+
 .student-drawer-title-area h2 {
   margin: 0 0 8px;
   color: #111827;

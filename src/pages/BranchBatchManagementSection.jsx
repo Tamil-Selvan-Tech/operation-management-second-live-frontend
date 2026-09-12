@@ -7,6 +7,7 @@ import {
   Plus,
   Trash2,
   UsersRound,
+  Download,
   X,
 } from 'lucide-react'
 import { PaginationBar } from '../components/PaginationBar'
@@ -26,6 +27,7 @@ import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import '../styles/BranchBatchManagementSection.css'
+import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
 
 function normalizeText(value = '') {
   return String(value || '').trim()
@@ -596,6 +598,7 @@ export function BranchBatchManagementSection({
   branchFacultyRecords = [],
   facultyList = [],
   branchStudents = [],
+  onDownloadAttendance,
 }) {
   const [batchGroups, setBatchGroups] = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -619,6 +622,7 @@ export function BranchBatchManagementSection({
   const [actionMenuOpenId, setActionMenuOpenId] = useState('')
   const [actionMenuPosition, setActionMenuPosition] = useState(null)
   const [saveSuccessPopup, setSaveSuccessPopup] = useState(null)
+  const [attendanceReportBatch, setAttendanceReportBatch] = useState(null)
   const actionMenuCloseTimerRef = useRef(null)
 
   const refreshBatchGroups = useCallback(async () => {
@@ -1081,6 +1085,18 @@ export function BranchBatchManagementSection({
           role="menu"
           aria-label={`${activeGroup.courseName || activeGroup.batchId || 'Batch'} actions`}
         >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              if (onDownloadAttendance) onDownloadAttendance(activeGroup)
+              else setAttendanceReportBatch(activeGroup)
+              closeActionMenu()
+            }}
+          >
+            <Download size={14} strokeWidth={2.2} aria-hidden="true" />
+            Download Attendance
+          </button>
           <button
             type="button"
             role="menuitem"
@@ -1907,12 +1923,30 @@ export function BranchBatchManagementSection({
               <div className="batch-detail-hero-topline">
                 <h3 id="batch-detail-title">{detailGroup.batchId || detailGroup.batchGroupId}</h3>
                 <span className={`batch-detail-status-pill ${detailStatusClass}`}>{detailStatus}</span>
+                <button
+                  type="button"
+                  className="batch-detail-download-attendance"
+                  onClick={() => {
+                    const reportBatch = {
+                      ...detailGroup,
+                      ...detailBatch,
+                      batchId: detailBatch?.batchId || detailGroup?.batchId || detailGroup?.batchGroupId,
+                      batchName: detailBatch?.batchName || detailGroup?.batchName || '',
+                    }
+                    if (onDownloadAttendance) onDownloadAttendance(reportBatch)
+                    else setAttendanceReportBatch(reportBatch)
+                  }}
+                >
+                  <Download size={16} strokeWidth={2.2} aria-hidden="true" />
+                  Download Attendance
+                </button>
               </div>
 
               <div className="batch-detail-hero-meta">
                 <span>Course: <strong>{detailGroup.courseName || '-'}</strong></span>
                 <span>Faculty: <strong>{detailGroup.facultyName || '-'}</strong></span>
               </div>
+
             </div>
           </div>
 
@@ -2198,6 +2232,13 @@ export function BranchBatchManagementSection({
       {renderDeleteConfirmModal()}
       {renderDetailModal()}
       {renderSaveSuccessPopup()}
+      <BranchAttendanceReportModal
+        isOpen={Boolean(attendanceReportBatch)}
+        mode="batch"
+        record={attendanceReportBatch}
+        branchId={branchId}
+        onClose={() => setAttendanceReportBatch(null)}
+      />
     </section>
   )
 }

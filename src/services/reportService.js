@@ -23,7 +23,7 @@ function triggerBrowserDownload(blob, fileName = 'report.xlsx') {
   URL.revokeObjectURL(downloadUrl)
 }
 
-async function downloadReport(path, query, fallbackFileName) {
+async function downloadReport(path, query, fallbackFileName, preferredFileName = '') {
   const queryString = buildQueryString(query)
   const response = await requestBlob(queryString ? `${path}?${queryString}` : path, {
     method: 'GET',
@@ -33,7 +33,7 @@ async function downloadReport(path, query, fallbackFileName) {
     throw new Error('Unable to download report right now.')
   }
 
-  triggerBrowserDownload(response.blob, response.fileName || fallbackFileName)
+  triggerBrowserDownload(response.blob, preferredFileName || response.fileName || fallbackFileName)
   return response
 }
 
@@ -50,6 +50,14 @@ export async function downloadBatchAttendanceReport(
   fileName = 'batch-attendance-report.xlsx',
 ) {
   return downloadReport('/reports/batch-attendance', query, fileName)
+}
+
+export async function downloadBranchStudentAttendanceReport(query = {}, fileName = '') {
+  return downloadReport('/reports/branch-student-attendance', query, 'student-attendance-report.xlsx', fileName)
+}
+
+export async function downloadBranchBatchAttendanceReport(query = {}, fileName = '') {
+  return downloadReport('/reports/branch-batch-attendance', query, 'batch-attendance-report.xlsx', fileName)
 }
 
 export async function downloadFacultyAttendanceReport(query = {}) {
