@@ -4276,6 +4276,59 @@ body.super-admin-sidebar-open {
 @media (max-width: 900px) { .sa-customize-card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 620px) { .sa-customize-modal { width: calc(100vw - 24px); height: calc(100vh - 24px); border-radius: 16px; } .sa-customize-header, .sa-customize-list, .sa-customize-footer { padding-left: 16px; padding-right: 16px; } .sa-customize-toolbar { flex-wrap: wrap; } .sa-customize-search { flex-basis: 100%; max-width: none; } .sa-customize-card-grid { grid-template-columns: 1fr; } }
 
+/* Keep the widget picker usable: only the cards scroll, while the footer stays visible. */
+.sa-customize-modal {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.sa-customize-modal .sa-customize-header {
+  flex: 0 0 auto !important;
+}
+
+.sa-customize-modal .sa-customize-list {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow: hidden !important;
+}
+
+.sa-customize-modal .sa-customize-toolbar {
+  flex: 0 0 auto !important;
+}
+
+.sa-customize-modal .sa-customize-card-grid {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  align-content: start;
+  padding: 2px 8px 8px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: #a9c7ee transparent;
+}
+
+.sa-customize-modal .sa-customize-card-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sa-customize-modal .sa-customize-card-grid::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #a9c7ee;
+}
+
+.sa-customize-modal .sa-customize-footer {
+  display: flex !important;
+  flex: 0 0 auto !important;
+  min-height: 64px;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 /* Admission Overview redesign */
 .sa-admission-heading-actions { display: flex; align-items: center; gap: 9px; }
 .sa-admission-heading-actions select { height: 32px; padding: 0 25px 0 10px; border: 1px solid #e1e8f1; border-radius: 7px; background: #fff; color: #6e7d92; font-size: 11px; font-weight: 650; outline: none; }

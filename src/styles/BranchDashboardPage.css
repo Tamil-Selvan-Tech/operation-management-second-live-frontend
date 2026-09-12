@@ -12016,6 +12016,101 @@ body.branch-notification-menu-open .main-area {
   }
 }
 
+/* Keep the footer visible while the widget cards have their own scroll area. */
+.dashboard-widget-customize-modal {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.dashboard-widget-customize-layout,
+.dashboard-widget-customize-main {
+  min-height: 0;
+}
+
+.dashboard-widget-customize-layout {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+.dashboard-widget-customize-list {
+  flex: 1 1 auto;
+  height: min(250px, calc(100vh - 330px));
+  max-height: min(250px, calc(100vh - 330px));
+  min-height: 120px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #93c5fd #eff6ff;
+}
+
+.dashboard-widget-customize-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dashboard-widget-customize-list::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #eff6ff;
+}
+
+.dashboard-widget-customize-list::-webkit-scrollbar-thumb {
+  border: 2px solid #eff6ff;
+  border-radius: 999px;
+  background: #60a5fa;
+}
+
+@media (max-width: 620px) {
+  .dashboard-widget-customize-list {
+    height: min(220px, calc(100vh - 360px));
+    max-height: min(220px, calc(100vh - 360px));
+  }
+}
+
+/* Keep the card viewport between the toolbar and fixed footer. */
+.dashboard-widget-customize-modal {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.dashboard-widget-customize-modal .dashboard-widget-customize-layout {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.dashboard-widget-customize-modal .dashboard-widget-customize-main {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+}
+
+.dashboard-widget-customize-modal .dashboard-widget-customize-list {
+  flex: 1 1 auto !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding-bottom: 18px !important;
+}
+
+.dashboard-widget-customize-modal > .branch-modal-actions {
+  min-height: 62px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.dashboard-widget-customize-modal > .branch-modal-actions button {
+  min-height: 40px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 .branch-dashboard-overview-intro-heading {
   display: flex;
   align-items: center;
@@ -12187,3 +12282,20 @@ body.branch-notification-menu-open .main-area {
 .dashboard-widget-customize-modal > .branch-modal-actions .dashboard-widget-reset-button { color: #637792; background: #fff; border-color: #d6e1ef; }
 @media (max-width: 900px) { .dashboard-widget-customize-modal { width: calc(100vw - 32px); height: calc(100vh - 32px); padding: 24px 22px 0; } .dashboard-widget-customize-modal .dashboard-widget-customize-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dashboard-widget-customize-modal > .branch-modal-actions { margin: 0 -22px; padding-left: 22px; padding-right: 22px; } }
 @media (max-width: 620px) { .dashboard-widget-customize-modal { padding: 22px 16px 0; } .dashboard-widget-customize-heading h2 { font-size: 23px; } .dashboard-widget-customize-description { font-size: 13px !important; } .dashboard-widget-customize-modal .dashboard-widget-customize-toolbar { flex-wrap: wrap; } .dashboard-widget-customize-search { flex-basis: 100%; max-width: none; } .dashboard-widget-customize-modal .dashboard-widget-customize-list { grid-template-columns: 1fr; } .dashboard-widget-customize-modal > .branch-modal-actions { margin: 0 -16px; padding-left: 16px; padding-right: 16px; } }
+
+/* Final override: the picker list must scroll independently from the footer. */
+.dashboard-widget-customize-modal .dashboard-widget-customize-list {
+  height: 300px !important;
+  max-height: 300px !important;
+  overflow-y: scroll !important;
+  overflow-x: hidden !important;
+  padding-right: 10px;
+  scrollbar-width: auto;
+}
+
+@media (max-width: 620px) {
+  .dashboard-widget-customize-modal .dashboard-widget-customize-list {
+    height: 260px !important;
+    max-height: 260px !important;
+  }
+}

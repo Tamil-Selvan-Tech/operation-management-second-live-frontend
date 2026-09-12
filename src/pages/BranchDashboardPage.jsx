@@ -3017,8 +3017,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     if (embeddedMode && !branchProfile) return undefined
     let active = true
     getBranchDashboardWidgets()
-      .then((widgets) => { if (active) setDashboardWidgets(Array.isArray(widgets) ? widgets : []) })
-      .catch((error) => console.error('Failed to load dashboard widget configuration:', error))
+      .then((widgets) => {
+        if (!active) return
+        setDashboardWidgets(Array.isArray(widgets) && widgets.length ? widgets : defaultDashboardWidgets)
+      })
+      .catch((error) => {
+        console.error('Failed to load dashboard widget configuration:', error)
+        if (active) setDashboardWidgets(defaultDashboardWidgets)
+      })
     return () => { active = false }
   }, [branchProfile, embeddedMode, role])
 
@@ -3028,6 +3034,24 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     Outstanding: 'outstanding', 'Due Today': 'due_today',
     'Due This Week': 'due_this_week', 'Overdue Amount': 'overdue_amount', 'Collection %': 'collection_percentage',
   }
+  const defaultDashboardWidgets = [
+    ['this_month_admissions', 'This Month Admissions', 'Student Management'],
+    ['batch_availability', 'Batch Availability', 'Batch Management'],
+    ['total_revenue', 'Total Revenue', 'Fees'],
+    ['total_collected', 'Total Collected', 'Fees'],
+    ['outstanding', 'Outstanding', 'Fees'],
+    ['due_today', 'Due Today', 'Fees'],
+    ['due_this_week', 'Due This Week', 'Fees'],
+    ['overdue_amount', 'Overdue Amount', 'Fees'],
+    ['collection_percentage', 'Collection %', 'Fees'],
+  ].map(([widgetKey, widgetName, category], index) => ({
+    widgetKey,
+    widgetName,
+    category,
+    description: `${widgetName} on the branch dashboard`,
+    isVisible: true,
+    displayOrder: index + 1,
+  }))
   const isDashboardWidgetVisible = (label) => {
     if (!dashboardWidgets.length) return true
     const widget = dashboardWidgets.find((item) => item.widgetKey === dashboardWidgetKeyByLabel[label])
