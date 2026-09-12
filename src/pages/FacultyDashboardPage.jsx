@@ -83,7 +83,6 @@ import { saveBranchCourseSnapshot } from '../lib/branchCourseSnapshot'
 import { formatCourseEditChangeSummary } from '../lib/courseEditChangeSummary'
 import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
 import { saveStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
-import { createNotification } from '../services/notificationService'
 import { Button } from '../components/Button'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
@@ -3828,17 +3827,6 @@ const nextName = trimmedValue
           changeSet: changes,
         }
 
-        // Persist the notification for the branch-admin account. The local
-        // store remains as a same-browser fallback for the existing UI.
-        void createNotification({
-          ...notificationPayload,
-          recipientRole: 'branch-admin',
-          recipientId: facultyBranchScope.targetBranchId || facultyBranchScope.branchId,
-        }).catch((notificationError) => {
-          console.error('Failed to persist branch course edit notification:', notificationError)
-        })
-
-        addNotification(notificationPayload)
       }
 
       setIsCourseEditModalOpen(false)

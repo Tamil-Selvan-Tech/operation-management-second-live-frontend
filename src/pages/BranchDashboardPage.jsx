@@ -3736,7 +3736,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     window.addEventListener('focus', handleFocus)
     document.addEventListener('visibilitychange', handleVisibilityChange)
-
     return () => {
       window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -4055,8 +4054,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     branchProfile?.mustResetPassword,
   )
   const normalizedBranchNotifications = useMemo(
-    () =>
-      branchNotificationRecords
+    () => {
+      const seenCourseEditNotifications = new Set()
+      return branchNotificationRecords
         .map(normalizeBranchNotification)
         .filter(
           (notification) =>
@@ -4067,7 +4067,26 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             ),
         )
         .filter((notification) => doesBranchNotificationBelongToBranch(notification, branchScope))
-        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()),
+        .filter((notification) => {
+          const kind = String(notification.kind || '').trim()
+          const requestId = String(notification.requestId || '').trim()
+          const isCourseEditNotification = kind.startsWith('course-edit-') || kind.startsWith('branch-course-edit-')
+
+          if (!isCourseEditNotification || !requestId) return true
+
+          const notificationFamily =
+            kind === 'branch-course-edit-request'
+              ? 'course-edit-request'
+              : kind === 'branch-course-edit-updated'
+                ? 'course-edit-module-updated'
+                : kind
+          const dedupeKey = `${notificationFamily}:${requestId}`
+          if (seenCourseEditNotifications.has(dedupeKey)) return false
+          seenCourseEditNotifications.add(dedupeKey)
+          return true
+        })
+        .sort((left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime())
+    },
     [branchNotificationRecords, branchScope],
   )
   const branchNotificationSections = useMemo(
@@ -7814,7 +7833,11 @@ useEffect(() => {
               aria-label="Notifications"
               aria-haspopup="menu"
               aria-expanded={isNotificationMenuOpen}
-              onClick={() => setIsNotificationMenuOpen((current) => !current)}
+              onClick={() => {
+                // Fetch before opening so a faculty save is visible immediately.
+                void loadBranchNotifications()
+                setIsNotificationMenuOpen((current) => !current)
+              }}
             >
               <Bell size={20} strokeWidth={2.2} aria-hidden="true" focusable="false" />
               {branchUnreadNotificationCount > 0 ? <b>{branchUnreadNotificationCount}</b> : null}
