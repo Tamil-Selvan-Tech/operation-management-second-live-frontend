@@ -1935,6 +1935,7 @@ export function BranchBatchManagementSection({
                     }
                     if (onDownloadAttendance) onDownloadAttendance(reportBatch)
                     else setAttendanceReportBatch(reportBatch)
+                    closeDetailModal()
                   }}
                 >
                   <Download size={16} strokeWidth={2.2} aria-hidden="true" />

@@ -12861,7 +12861,10 @@ else {
                     <button
                       type="button"
                       className="student-drawer-calendar-btn student-drawer-download-btn"
-                      onClick={() => setAttendanceReportTarget({ mode: 'student', record: viewStudentDrawer })}
+                      onClick={() => {
+                        setAttendanceReportTarget({ mode: 'student', record: viewStudentDrawer })
+                        setViewStudentDrawer(null)
+                      }}
                     >
                       <Download size={16} strokeWidth={2.2} aria-hidden="true" />
                       Download Attendance
