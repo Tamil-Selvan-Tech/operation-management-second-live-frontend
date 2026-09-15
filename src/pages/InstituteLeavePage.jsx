@@ -61,6 +61,11 @@ export function InstituteLeavePage() {
     window.addEventListener('focus', load)
     return () => { clearInterval(timer); window.removeEventListener('focus', load) }
   }, [load])
+  useEffect(() => {
+    const openFacultyRequests = () => setViewMode('faculty')
+    window.addEventListener('open-faculty-leave-requests', openFacultyRequests)
+    return () => window.removeEventListener('open-faculty-leave-requests', openFacultyRequests)
+  }, [])
   const open = Boolean(form || detail || cancel)
   useEffect(() => {
     if (open) dialog.current?.showModal()
@@ -125,7 +130,7 @@ export function InstituteLeavePage() {
     {viewMode === 'faculty' ? <section className="faculty-request-readonly-panel">
       <header className="institute-leave-header"><div><p className="section-kicker">Branch Admin</p><h2>Faculty Leave Requests</h2><p>Review leave requests submitted by faculty in this branch.</p></div></header>
       <div className="institute-table-scroll"><table><caption>Faculty leave requests</caption><thead><tr><th>S.No</th><th>Faculty</th><th>Leave dates</th><th>Type</th><th>Duration</th><th>Reason</th><th>Status</th><th>Affected classes</th></tr></thead><tbody>
-        {facultyRequests.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td><strong>{item.facultyName}</strong><small>{item.facultyId}</small></td><td>{formatLeaveDate(item.fromDate)}{item.fromDate !== item.toDate ? ` - ${formatLeaveDate(item.toDate)}` : ''}</td><td>{item.leaveType}</td><td>{item.durationType === 'HALF_DAY' ? `${item.halfDayPeriod} half day` : 'Full day'}</td><td>{item.reason}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{item.affectedClassCount || 0}</td></tr>)}
+        {facultyRequests.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td><strong>{item.facultyName}</strong><small>{item.facultyId}</small></td><td>{formatLeaveDate(item.fromDate)}{item.fromDate !== item.toDate ? ` - ${formatLeaveDate(item.toDate)}` : ''}</td><td>{item.leaveType}</td><td>{item.durationType === 'HALF_DAY' ? `${item.halfDayStart || '-'} - ${item.halfDayEnd || '-'}` : item.durationType === 'PERMISSION' ? `${item.permissionHours} hour permission` : 'Full day'}</td><td>{item.reason}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{item.affectedClassCount || 0}</td></tr>)}
         {!facultyRequests.length ? <tr><td colSpan="8">No faculty leave requests found.</td></tr> : null}
       </tbody></table></div>
     </section> : <>
