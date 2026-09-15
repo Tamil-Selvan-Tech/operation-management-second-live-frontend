@@ -104,6 +104,7 @@ import { getBranchDashboardWidgets, saveBranchDashboardWidgets } from '../servic
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
 import { InstituteLeavePage } from './InstituteLeavePage'
+import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
@@ -1628,6 +1629,9 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
 
   if (section === 'notifications') return 'notifications'
   if (section === 'institute-leave') return 'institute-leave'
+  if (section === 'faculty-leave') return 'faculty-leave'
+  if (section === 'progress-notifications') return 'progress-notifications'
+  if (section === 'faculty-edit-requests') return 'faculty-edit-requests'
   if (section === 'students') return 'students'
   if (section === 'courses') return 'courses'
   if (section === 'installments') return 'installments'
@@ -2908,10 +2912,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     courses: activeSection === 'installments',
     faculty: activeSection === 'batches',
     students: activeSection === 'payments',
+    management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests'].includes(activeSection),
   }))
 
   useEffect(() => {
-    const parentByChild = { installments: 'courses', batches: 'faculty', payments: 'students' }
+    const parentByChild = { installments: 'courses', batches: 'faculty', payments: 'students', 'institute-leave': 'management', 'faculty-leave': 'management', 'progress-notifications': 'management', 'faculty-edit-requests': 'management' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -7812,14 +7817,19 @@ useEffect(() => {
           { id: 'courses', label: 'Courses', icon: BookOpen, child: { id: 'installments', label: 'Installments', icon: Wallet } },
           { id: 'faculty', label: 'Faculty', icon: UserRound, child: { id: 'batches', label: 'Batches', icon: Layers3 } },
           { id: 'students', label: 'Students', icon: Users, child: { id: 'payments', label: 'Payments', icon: Wallet } },
-          { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
+          { id: 'management', label: 'Management', icon: LayoutGrid, children: [
+            { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
+            { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
+            { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
+            { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
+          ] },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
           const Icon = item.icon
           const child = item.child
-          const ChildIcon = child?.icon
-          const isChildActive = child && activeSection === child.id
+          const children = item.children || (child ? [child] : [])
+          const isChildActive = children.some((entry) => activeSection === entry.id)
           const isActive = activeSection === item.id || isChildActive
           const isExpanded = Boolean(expandedSidebarGroups[item.id])
 
@@ -7829,29 +7839,25 @@ useEffect(() => {
                 type="button"
                 className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
                 onClick={() => {
-                  if (child) setExpandedSidebarGroups((current) => ({ ...current, [item.id]: !current[item.id] }))
+                  if (children.length) {
+                    setExpandedSidebarGroups((current) => ({ ...current, [item.id]: !current[item.id] }))
+                    if (item.children) return
+                  }
                   goToBranchSection(item.id)
                 }}
-                aria-expanded={child ? isExpanded : undefined}
+                aria-expanded={children.length ? isExpanded : undefined}
               >
                 <span className="super-admin-sidebar-icon" aria-hidden="true">
                   <Icon size={18} strokeWidth={2.15} />
                 </span>
                 <span>{item.label}</span>
-                {child ? (
+                {children.length ? (
                   <ChevronDown className={isExpanded ? 'is-expanded' : ''} size={16} strokeWidth={2.2} aria-hidden="true" />
                 ) : null}
               </button>
-              {child && isExpanded ? (
+              {children.length && isExpanded ? (
                 <div className="super-admin-sidebar-submenu">
-                  <button
-                    type="button"
-                    className={`super-admin-sidebar-subitem ${isChildActive ? 'is-active' : ''}`.trim()}
-                    onClick={() => goToBranchSection(child.id)}
-                  >
-                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
-                    <span>{child.label}</span>
-                  </button>
+                  {children.map((entry) => { const ChildIcon = entry.icon; return <button key={entry.id} type="button" className={`super-admin-sidebar-subitem ${activeSection === entry.id ? 'is-active' : ''}`.trim()} onClick={() => goToBranchSection(entry.id)}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span><span>{entry.label}</span></button> })}
                 </div>
               ) : null}
             </div>
@@ -8373,7 +8379,9 @@ useEffect(() => {
                 </>
               ) : null}
 
-              {activeSection === 'institute-leave' ? <InstituteLeavePage /> : null}
+              {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage /> : null}
+              {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
+              {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'notifications' ? (
                 <section className="notifications-page branch-notifications-page">
                   <header className="notifications-page-header">

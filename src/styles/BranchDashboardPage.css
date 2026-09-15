@@ -12306,3 +12306,34 @@ body.branch-notification-menu-open .main-area {
     max-height: 260px !important;
   }
 }
+
+.branch-management-data-page { min-width: 0; padding: 8px 0 28px; }
+.branch-management-data-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.branch-management-data-header h2 { margin: 4px 0 7px; color: #17345d; font-size: 28px; }
+.branch-management-data-header p:not(.section-kicker) { margin: 0; color: #71839d; }
+.branch-management-table-wrap { overflow-x: auto; border: 1px solid #dce6f2; border-radius: 16px; background: #fff; }
+.branch-management-table-wrap table { width: 100%; min-width: 900px; border-collapse: collapse; }
+.branch-management-table-wrap th { padding: 14px 16px; color: #657792; background: #f5f8fc; font-size: 12px; text-align: left; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; }
+.branch-management-table-wrap th:first-child, .branch-management-table-wrap td:first-child { white-space: nowrap; }
+.branch-management-table-wrap td { padding: 16px; border-top: 1px solid #edf1f6; color: #31496b; vertical-align: top; }
+.branch-management-table-wrap td strong, .branch-management-table-wrap td small { display: block; }
+.branch-management-table-wrap td small { margin-top: 4px; color: #8493a8; font-size: 12px; }
+.branch-management-view-state { min-height: 170px; display: grid; place-items: center; margin: 0; padding: 28px; color: #71839d; }
+.branch-management-view-state.is-error, .branch-management-inline-error { color: #b42318; }
+.branch-management-inline-error { margin: 0 0 14px; }
+.branch-management-status { display: inline-flex; padding: 5px 10px; border-radius: 999px; background: #eef2f7; color: #536982; font-size: 12px; font-weight: 700; text-transform: capitalize; }
+.branch-management-status.is-pending, .branch-management-status.is-unread { background: #fff1c7; color: #a35a00; }
+.branch-management-status.is-accepted, .branch-management-status.is-read { background: #e4f7ed; color: #16734b; }
+.branch-management-status.is-rejected { background: #fee8e7; color: #b42318; }
+.branch-management-date { display: inline-grid; gap: 2px; white-space: nowrap; }
+.branch-management-request-details { display: grid; gap: 5px; min-width: 220px; }
+.branch-management-request-details p { margin: 0; }
+.branch-management-actions { display: flex; gap: 8px; }
+.branch-management-actions button { display: inline-flex; align-items: center; gap: 5px; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; cursor: pointer; font-weight: 700; }
+.branch-management-actions button:disabled { cursor: wait; opacity: .6; }
+.branch-management-approve { color: #16734b; background: #e7f8ef; }
+.branch-management-reject { color: #b42318; background: #fee8e7; }
+.branch-management-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 16px; border-top: 1px solid #edf1f6; color: #71839d; font-size: 13px; }
+.branch-management-pagination div { display: flex; gap: 8px; }
+.branch-management-pagination button { padding: 8px 12px; border: 1px solid #dce6f2; border-radius: 8px; background: #fff; color: #31496b; cursor: pointer; font: inherit; font-weight: 650; }
+.branch-management-pagination button:disabled { cursor: not-allowed; opacity: .5; }
