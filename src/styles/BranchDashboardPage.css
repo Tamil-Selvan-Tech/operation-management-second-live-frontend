@@ -11897,6 +11897,8 @@ body.branch-notification-menu-open .main-area {
   background: #ffffff;
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
 }
+.dashboard-widget-customize-drag { flex: 0 0 auto; color: #94a3b8; cursor: grab; }
+.dashboard-widget-customize-pin { margin-left: auto; }
 
 .dashboard-widget-customize-item.is-selected { border-color:#93c5fd; background:linear-gradient(135deg,#eff6ff,#fff); }
 .dashboard-widget-customize-item input { position:absolute; opacity:0; pointer-events:none; }

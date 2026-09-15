@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertCircle, Banknote, CalendarDays, Check, Clock3, GripVertical, IndianRupee, LayoutDashboard, LayoutGrid, RefreshCcw, RotateCcw, Search, Users, Wallet, Building2, X,
+  AlertCircle, Banknote, CalendarDays, Check, Clock3, GripVertical, IndianRupee, LayoutDashboard, LayoutGrid, Pin, RefreshCcw, RotateCcw, Search, Users, Wallet, Building2, X,
 } from 'lucide-react'
 import { formatOverviewCurrency, getSuperAdminOverview } from '../services/superAdminDashboardService'
 import { TrendingCourses } from './TrendingCourses'
@@ -54,25 +54,29 @@ function BarChart({ title, data, formatter, emptyMessage }) {
   </div>
 }
 
-export function SuperAdminOverallDashboard({ branches }) {
+export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }) {
   const [overview, setOverview] = useState(null)
   const [period, setPeriod] = useState('daily')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false)
+  const [isMetricSaving, setIsMetricSaving] = useState(false)
   const [metricSearchQuery, setMetricSearchQuery] = useState('')
+  const layoutStorageKey = `${DASHBOARD_LAYOUT_STORAGE_KEY}:${String(userKey || 'super-admin')}`
   const [metricLayout, setMetricLayout] = useState(() => {
     try {
-      const saved = JSON.parse(window.localStorage.getItem(DASHBOARD_LAYOUT_STORAGE_KEY) || 'null')
+      const saved = JSON.parse(window.localStorage.getItem(layoutStorageKey) || window.localStorage.getItem(DASHBOARD_LAYOUT_STORAGE_KEY) || 'null')
       if (!saved || !Array.isArray(saved.order)) return { order: DEFAULT_METRIC_ORDER, hidden: [] }
       return {
         order: [...new Set([...saved.order, ...DEFAULT_METRIC_ORDER])].filter((key) => DEFAULT_METRIC_ORDER.includes(key)),
         hidden: Array.isArray(saved.hidden) ? saved.hidden.filter((key) => DEFAULT_METRIC_ORDER.includes(key)) : [],
+        pinned: Array.isArray(saved.pinned) ? saved.pinned.filter((key) => DEFAULT_METRIC_ORDER.includes(key)) : [],
       }
     } catch {
-      return { order: DEFAULT_METRIC_ORDER, hidden: [] }
+      return { order: DEFAULT_METRIC_ORDER, hidden: [], pinned: [] }
     }
   })
+  const savedMetricLayoutRef = useRef(metricLayout)
   const [draggedMetric, setDraggedMetric] = useState(null)
 
   const load = useCallback(async () => {
@@ -146,10 +150,11 @@ export function SuperAdminOverallDashboard({ branches }) {
   }
 
   const persistMetricLayout = (nextLayout) => {
+    savedMetricLayoutRef.current = nextLayout
     setMetricLayout(nextLayout)
-    window.localStorage.setItem(DASHBOARD_LAYOUT_STORAGE_KEY, JSON.stringify(nextLayout))
+    window.localStorage.setItem(layoutStorageKey, JSON.stringify(nextLayout))
   }
-  const toggleMetric = (key) => persistMetricLayout({ ...metricLayout, hidden: metricLayout.hidden.includes(key) ? metricLayout.hidden.filter((item) => item !== key) : [...metricLayout.hidden, key] })
+  const toggleMetric = (key) => setMetricLayout({ ...metricLayout, hidden: metricLayout.hidden.includes(key) ? metricLayout.hidden.filter((item) => item !== key) : [...metricLayout.hidden, key] })
   const moveMetric = (targetKey) => {
     if (!draggedMetric || draggedMetric === targetKey) return
     const order = [...metricLayout.order]
@@ -157,16 +162,30 @@ export function SuperAdminOverallDashboard({ branches }) {
     const toIndex = order.indexOf(targetKey)
     order.splice(fromIndex, 1)
     order.splice(toIndex, 0, draggedMetric)
-    persistMetricLayout({ ...metricLayout, order })
+    setMetricLayout({ ...metricLayout, order })
     setDraggedMetric(null)
   }
-  const resetMetricLayout = () => persistMetricLayout({ order: DEFAULT_METRIC_ORDER, hidden: [] })
+  const toggleMetricPin = (key) => {
+    setMetricLayout({ ...metricLayout, pinned: metricLayout.pinned?.includes(key) ? metricLayout.pinned.filter((item) => item !== key) : [...(metricLayout.pinned || []), key] })
+  }
+  const resetMetricLayout = () => {
+    if (window.confirm('Reset dashboard widget visibility, order, and pinned settings to default?')) setMetricLayout({ order: DEFAULT_METRIC_ORDER, hidden: [], pinned: [] })
+  }
+  const saveMetricLayout = () => {
+    setIsMetricSaving(true)
+    persistMetricLayout(metricLayout)
+    window.setTimeout(() => {
+      setIsMetricSaving(false)
+      setIsCustomizeOpen(false)
+    }, 450)
+  }
+  const orderedMetricKeys = [...metricLayout.order].sort((left, right) => Number(metricLayout.pinned?.includes(right)) - Number(metricLayout.pinned?.includes(left)))
 
   return <div className="sa-overall-dashboard">
-    <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> Consolidated view</p><h1>Overall Dashboard</h1><p>Combined performance across every active branch.</p></div><div className="sa-overall-actions"><span className="sa-overall-scope"><Building2 size={15} /> All active branches</span><button type="button" className="sa-overall-customize" onClick={() => setIsCustomizeOpen(true)}><LayoutGrid size={17} /> Customize Dashboard</button><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
+    <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> Consolidated view</p><h1>Overall Dashboard</h1><p>Combined performance across every active branch.</p></div><div className="sa-overall-actions"><span className="sa-overall-scope"><Building2 size={15} /> All active branches</span><button type="button" className="sa-overall-customize" onClick={() => { setMetricLayout(savedMetricLayoutRef.current); setIsCustomizeOpen(true) }}><LayoutGrid size={17} /> Customize Dashboard</button><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
     {error ? <div className="sa-overall-alert"><AlertCircle size={18} /> <span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div> : null}
     <div className="sa-overall-metrics sa-overall-summary-grid" aria-label="Overall dashboard summary">
-      {metricLayout.order.filter((key) => !metricLayout.hidden.includes(key)).map((key) => <div key={key}>{metricDefinitions[key].node}</div>)}
+      {orderedMetricKeys.filter((key) => !metricLayout.hidden.includes(key)).map((key) => <div key={key}>{metricDefinitions[key].node}</div>)}
     </div>
     <div className="sa-overall-grid">
       <section className="sa-overall-panel sa-overall-admissions">
@@ -188,14 +207,14 @@ export function SuperAdminOverallDashboard({ branches }) {
     <TrendingCourses courses={overview?.trendingCourses || []} month={overview?.trendingMonth} isLoading={isLoading} />
     {isCustomizeOpen ? <div className="sa-customize-backdrop" role="presentation">
       <section className="sa-customize-modal" role="dialog" aria-modal="true" aria-labelledby="sa-customize-title" onClick={(event) => event.stopPropagation()}>
-        <div className="sa-customize-header"><div><h2 id="sa-customize-title">Customize Dashboard</h2><p>Choose the cards you want to display and arrange their order.</p></div><button type="button" className="sa-customize-close" onClick={() => setIsCustomizeOpen(false)} aria-label="Close customize dashboard"><X size={19} /></button></div>
+        <div className="sa-customize-header"><div><h2 id="sa-customize-title">Customize Dashboard</h2><p>Choose the cards you want to display and arrange their order.</p></div><button type="button" className="sa-customize-close" onClick={() => { setMetricLayout(savedMetricLayoutRef.current); setIsCustomizeOpen(false) }} aria-label="Close customize dashboard"><X size={19} /></button></div>
         <div className="sa-customize-list">
-          <div className="sa-customize-toolbar"><label className="sa-customize-search"><Search size={18} /><input type="search" value={metricSearchQuery} onChange={(event) => setMetricSearchQuery(event.target.value)} placeholder="Search widgets..." aria-label="Search dashboard cards" /></label><label className="sa-customize-select-all-control"><input type="checkbox" checked={metricLayout.hidden.length === 0} onChange={(event) => persistMetricLayout({ ...metricLayout, hidden: event.target.checked ? [] : [...metricLayout.order] })} /> <span>Select all</span></label><span className="sa-customize-selected-count">{metricLayout.order.length - metricLayout.hidden.length} selected</span></div>
-          <div className="sa-customize-card-grid">{metricLayout.order.filter((key) => `${metricDefinitions[key].label} ${metricDefinitions[key].description}`.toLowerCase().includes(metricSearchQuery.trim().toLowerCase())).map((key) => { const item = metricDefinitions[key]; const Icon = item.icon; const isHidden = metricLayout.hidden.includes(key); return <label key={key} className={`sa-customize-item ${isHidden ? '' : 'is-selected'}`} draggable onDragStart={() => setDraggedMetric(key)} onDragOver={(event) => event.preventDefault()} onDrop={() => moveMetric(key)}>
-            <GripVertical className="sa-customize-drag" size={18} aria-hidden="true" /><span className={`sa-customize-item-icon ${item.tone}`}><Icon size={17} /></span><span className="sa-customize-item-copy"><strong>{item.label}</strong><small>{item.description}</small></span><input type="checkbox" checked={!isHidden} onChange={() => toggleMetric(key)} aria-label={`Show ${item.label}`} /><span className="sa-customize-check" aria-hidden="true">{!isHidden ? <Check size={14} strokeWidth={3} /> : null}</span>
+          <div className="sa-customize-toolbar"><label className="sa-customize-search"><Search size={18} /><input type="search" value={metricSearchQuery} onChange={(event) => setMetricSearchQuery(event.target.value)} placeholder="Search widgets..." aria-label="Search dashboard cards" /></label><label className="sa-customize-select-all-control"><input type="checkbox" checked={metricLayout.hidden.length === 0} onChange={(event) => setMetricLayout({ ...metricLayout, hidden: event.target.checked ? [] : [...metricLayout.order] })} /> <span>Select all</span></label><span className="sa-customize-selected-count">{metricLayout.order.length - metricLayout.hidden.length} selected</span></div>
+          <div className="sa-customize-card-grid">{metricLayout.order.filter((key) => `${metricDefinitions[key].label} ${metricDefinitions[key].description}`.toLowerCase().includes(metricSearchQuery.trim().toLowerCase())).map((key) => { const item = metricDefinitions[key]; const Icon = item.icon; const isHidden = metricLayout.hidden.includes(key); const isPinned = metricLayout.pinned?.includes(key); return <label key={key} className={`sa-customize-item ${isHidden ? '' : 'is-selected'}`} draggable onDragStart={() => setDraggedMetric(key)} onDragOver={(event) => event.preventDefault()} onDrop={() => moveMetric(key)}>
+            <GripVertical className="sa-customize-drag" size={18} aria-hidden="true" /><span className={`sa-customize-item-icon ${item.tone}`}><Icon size={17} /></span><span className="sa-customize-item-copy"><strong>{item.label}</strong><small>{item.description}</small></span><button type="button" className={`sa-customize-pin ${isPinned ? 'is-pinned' : ''}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMetricPin(key) }} aria-label={`${isPinned ? 'Unpin' : 'Pin'} ${item.label}`} title={isPinned ? 'Unpin from top' : 'Pin to top'}><Pin size={15} /></button><input type="checkbox" checked={!isHidden} onChange={() => toggleMetric(key)} aria-label={`Show ${item.label}`} /><span className="sa-customize-check" aria-hidden="true">{!isHidden ? <Check size={14} strokeWidth={3} /> : null}</span>
           </label> })}</div>
         </div>
-        <div className="sa-customize-footer"><button type="button" className="sa-customize-reset" onClick={resetMetricLayout}><RotateCcw size={15} /> Reset to Default</button><button type="button" className="sa-customize-done" onClick={() => persistMetricLayout(metricLayout)}>Save Changes</button></div>
+        <div className="sa-customize-footer"><button type="button" className="sa-customize-reset" disabled={isMetricSaving} onClick={resetMetricLayout}><RotateCcw size={15} /> Reset to Default</button><button type="button" className="sa-customize-done" disabled={isMetricSaving} onClick={saveMetricLayout}>{isMetricSaving ? 'Saving...' : 'Save Changes'}</button></div>
       </section>
     </div> : null}
   </div>

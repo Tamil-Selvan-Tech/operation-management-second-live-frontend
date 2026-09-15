@@ -1746,7 +1746,7 @@ useEffect(() => {
               </section>
             ) : (
               <>
-              <SuperAdminOverallDashboard branches={branches} />
+              <SuperAdminOverallDashboard branches={branches} userKey={user?.id || user?.email || 'super-admin'} />
               {/* Legacy branch summary intentionally replaced by the consolidated overview. */}
               {branches.length < 0 && <div className="super-admin-dashboard-overview">
                 <div className="super-admin-dashboard-intro">

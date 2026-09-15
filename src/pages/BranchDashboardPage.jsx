@@ -41,6 +41,8 @@ import {
   Pencil, Trash2,
   Building2,
   Check,
+  GripVertical,
+  Pin,
   X,
   Wallet,
   CalendarClock,
@@ -98,7 +100,7 @@ import {
 } from '../lib/facultyProgress'
 import { BranchFacultyPage } from './BranchFacultyPage'
 import { BranchStudentAttendance } from '../components/BranchStudentAttendance'
-import { getBranchDashboardWidgets, saveBranchDashboardWidgets, resetBranchDashboardWidgets } from '../services/branchDashboardWidgetService'
+import { getBranchDashboardWidgets, saveBranchDashboardWidgets } from '../services/branchDashboardWidgetService'
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
 import { InstituteLeavePage } from './InstituteLeavePage'
@@ -3011,6 +3013,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [isWidgetCustomizerOpen, setIsWidgetCustomizerOpen] = useState(false)
   const [isWidgetSaving, setIsWidgetSaving] = useState(false)
   const [widgetSearchQuery, setWidgetSearchQuery] = useState('')
+  const [draggedDashboardWidget, setDraggedDashboardWidget] = useState(null)
+  const [savedDashboardWidgets, setSavedDashboardWidgets] = useState([])
 
   useEffect(() => {
     if (!embeddedMode && role !== 'branch-admin') return undefined
@@ -3019,11 +3023,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     getBranchDashboardWidgets()
       .then((widgets) => {
         if (!active) return
-        setDashboardWidgets(Array.isArray(widgets) && widgets.length ? widgets : defaultDashboardWidgets)
+        const normalizedWidgets = normalizeDashboardWidgets(Array.isArray(widgets) && widgets.length ? widgets : defaultDashboardWidgets)
+        setDashboardWidgets(normalizedWidgets)
+        setSavedDashboardWidgets(normalizedWidgets)
       })
       .catch((error) => {
         console.error('Failed to load dashboard widget configuration:', error)
-        if (active) setDashboardWidgets(defaultDashboardWidgets)
+        if (active) { setDashboardWidgets(defaultDashboardWidgets); setSavedDashboardWidgets(defaultDashboardWidgets) }
       })
     return () => { active = false }
   }, [branchProfile, embeddedMode, role])
@@ -3057,10 +3063,26 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     const widget = dashboardWidgets.find((item) => item.widgetKey === dashboardWidgetKeyByLabel[label])
     return widget ? widget.isVisible !== false : true
   }
+  const normalizeDashboardWidgets = (widgets) => (Array.isArray(widgets) ? [...widgets].sort((left, right) => Number(right.isPinned === true) - Number(left.isPinned === true) || Number(left.displayOrder || 0) - Number(right.displayOrder || 0)).map((widget, index) => ({ ...widget, displayOrder: index + 1, isPinned: widget.isPinned === true })) : [])
   const toggleDashboardWidget = (widgetKey) => setDashboardWidgets((current) => current.map((widget) => widget.widgetKey === widgetKey ? { ...widget, isVisible: !widget.isVisible } : widget))
   const visibleDashboardWidgetCount = dashboardWidgets.filter((widget) => widget.isVisible !== false).length
   const areAllDashboardWidgetsVisible = dashboardWidgets.length > 0 && visibleDashboardWidgetCount === dashboardWidgets.length
   const setAllDashboardWidgetsVisible = (isVisible) => setDashboardWidgets((current) => current.map((widget) => ({ ...widget, isVisible })))
+  const moveDashboardWidget = (targetKey) => {
+    if (!draggedDashboardWidget || draggedDashboardWidget === targetKey) return
+    setDashboardWidgets((current) => {
+      const order = [...current]
+      const fromIndex = order.findIndex((widget) => widget.widgetKey === draggedDashboardWidget)
+      const toIndex = order.findIndex((widget) => widget.widgetKey === targetKey)
+      const [moved] = order.splice(fromIndex, 1)
+      order.splice(toIndex, 0, moved)
+      return order.map((widget, index) => ({ ...widget, displayOrder: index + 1 }))
+    })
+    setDraggedDashboardWidget(null)
+  }
+  const toggleDashboardWidgetPin = (widgetKey) => {
+    setDashboardWidgets((current) => current.map((widget) => widget.widgetKey === widgetKey ? { ...widget, isPinned: widget.isPinned !== true } : widget))
+  }
   const dashboardWidgetIconByKey = {
     this_month_admissions: Users,
     batch_availability: Layers3,
@@ -3074,7 +3096,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }
   const saveDashboardWidgetChanges = async () => {
     setIsWidgetSaving(true)
-    try { setDashboardWidgets(await saveBranchDashboardWidgets(dashboardWidgets)); setIsWidgetCustomizerOpen(false) }
+    const saveStartedAt = Date.now()
+    try {
+      const savedWidgets = normalizeDashboardWidgets(await saveBranchDashboardWidgets(dashboardWidgets))
+      setDashboardWidgets(savedWidgets)
+      setSavedDashboardWidgets(savedWidgets)
+      const remainingIndicatorTime = Math.max(0, 450 - (Date.now() - saveStartedAt))
+      if (remainingIndicatorTime) await new Promise((resolve) => window.setTimeout(resolve, remainingIndicatorTime))
+      setIsWidgetCustomizerOpen(false)
+    }
     catch (error) { console.error('Failed to save dashboard widget configuration:', error) }
     finally { setIsWidgetSaving(false) }
   }
@@ -8074,7 +8104,7 @@ useEffect(() => {
                     <div className="branch-dashboard-overview-intro-heading">
                       <h1>Dashboard</h1>
                       {(!embeddedMode && role === 'branch-admin') || embeddedMode ? (
-                        <button type="button" className="branch-dashboard-customize-button" onClick={() => setIsWidgetCustomizerOpen(true)}>
+                        <button type="button" className="branch-dashboard-customize-button" onClick={() => { setDashboardWidgets(savedDashboardWidgets); setIsWidgetCustomizerOpen(true) }}>
                           <LayoutGrid size={17} strokeWidth={2.4} />
                           <span>Customize Dashboard</span>
                         </button>
@@ -8208,7 +8238,7 @@ useEffect(() => {
                         tone: 'sky',
                         onClick: () => goToBranchSection('batches'),
                       },
-                    ].filter(({ label }) => isDashboardWidgetVisible(label)).map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
+                    ].sort((left, right) => { const leftWidget = dashboardWidgets.find((widget) => widget.widgetKey === dashboardWidgetKeyByLabel[left.label]); const rightWidget = dashboardWidgets.find((widget) => widget.widgetKey === dashboardWidgetKeyByLabel[right.label]); return Number(rightWidget?.isPinned === true) - Number(leftWidget?.isPinned === true) || Number(leftWidget?.displayOrder || 0) - Number(rightWidget?.displayOrder || 0) }).filter(({ label }) => isDashboardWidgetVisible(label)).map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
                       <article
                         key={label}
                         className={`branch-dashboard-stat-card tone-${tone}${onClick ? ' is-clickable' : ''}`}
@@ -14624,19 +14654,19 @@ else {
             <div className="dashboard-widget-customize-modal" role="dialog" aria-modal="true" aria-labelledby="customize-dashboard-title" onClick={(event) => event.stopPropagation()}>
               <div className="dashboard-widget-customize-header">
                 <div className="dashboard-widget-customize-heading"><h2 id="customize-dashboard-title">Customize Dashboard</h2></div>
-                <button type="button" className="branch-modal-close" aria-label="Close dashboard customization" onClick={() => setIsWidgetCustomizerOpen(false)}><X size={22} strokeWidth={2} /></button>
+                <button type="button" className="branch-modal-close" aria-label="Close dashboard customization" onClick={() => { setDashboardWidgets(savedDashboardWidgets); setIsWidgetCustomizerOpen(false) }}><X size={22} strokeWidth={2} /></button>
               </div>
               <p className="dashboard-widget-customize-description">Choose the cards you want to display and arrange their order.</p>
               <div className="dashboard-widget-customize-layout">
                 <section className="dashboard-widget-customize-main">
                   <div className="dashboard-widget-customize-toolbar"><label className="dashboard-widget-search"><Search size={17} /><input type="search" value={widgetSearchQuery} onChange={(event) => setWidgetSearchQuery(event.target.value)} placeholder="Search widgets..." aria-label="Search dashboard widgets" /></label><label className="dashboard-widget-select-all-control"><input type="checkbox" checked={areAllDashboardWidgetsVisible} onChange={(event) => setAllDashboardWidgetsVisible(event.target.checked)} disabled={!dashboardWidgets.length} /><span>Select all</span></label><span className="dashboard-widget-selected-count" aria-disabled="true">{visibleDashboardWidgetCount} selected</span></div>
                   <div className="dashboard-widget-customize-list">
-                    {dashboardWidgets.filter((widget) => `${widget.widgetName} ${widget.category} ${widget.description || ''}`.toLowerCase().includes(widgetSearchQuery.trim().toLowerCase())).sort((left, right) => Number(left.widgetKey === 'batch_availability') - Number(right.widgetKey === 'batch_availability')).map((widget) => { const isVisible = widget.isVisible !== false; const WidgetIcon = dashboardWidgetIconByKey[widget.widgetKey] || LayoutDashboard; const widgetName = widget.widgetKey === 'batch_availability' ? 'Batch Availability' : widget.widgetName; const widgetDescription = widget.widgetKey === 'batch_availability' ? 'Batches ending' : (widget.description || widget.category); return <label key={widget.widgetKey} className={`dashboard-widget-customize-item ${isVisible ? 'is-selected' : ''}`}><input type="checkbox" checked={isVisible} onChange={() => toggleDashboardWidget(widget.widgetKey)} /><span className="dashboard-widget-customize-card-icon"><WidgetIcon size={19} /></span><span className="dashboard-widget-customize-item-copy"><strong>{widgetName}</strong><small>{widgetDescription}</small></span><span className="dashboard-widget-customize-check" aria-hidden="true">{isVisible ? <Check size={14} strokeWidth={3} /> : null}</span></label> })}
+                    {dashboardWidgets.filter((widget) => `${widget.widgetName} ${widget.category} ${widget.description || ''}`.toLowerCase().includes(widgetSearchQuery.trim().toLowerCase())).map((widget) => { const isVisible = widget.isVisible !== false; const isPinned = widget.isPinned === true; const WidgetIcon = dashboardWidgetIconByKey[widget.widgetKey] || LayoutDashboard; const widgetName = widget.widgetKey === 'batch_availability' ? 'Batch Availability' : widget.widgetName; const widgetDescription = widget.widgetKey === 'batch_availability' ? 'Batches ending' : (widget.description || widget.category); return <label key={widget.widgetKey} className={`dashboard-widget-customize-item ${isVisible ? 'is-selected' : ''}`} draggable onDragStart={() => setDraggedDashboardWidget(widget.widgetKey)} onDragOver={(event) => event.preventDefault()} onDrop={() => moveDashboardWidget(widget.widgetKey)}><GripVertical className="dashboard-widget-customize-drag" size={18} aria-hidden="true" /><input type="checkbox" checked={isVisible} onChange={() => toggleDashboardWidget(widget.widgetKey)} /><span className="dashboard-widget-customize-card-icon"><WidgetIcon size={19} /></span><span className="dashboard-widget-customize-item-copy"><strong>{widgetName}</strong><small>{widgetDescription}</small></span><button type="button" className={`dashboard-widget-customize-pin ${isPinned ? 'is-pinned' : ''}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleDashboardWidgetPin(widget.widgetKey) }} aria-label={`${isPinned ? 'Unpin' : 'Pin'} ${widgetName}`} title={isPinned ? 'Unpin from top' : 'Pin to top'}><Pin size={15} /></button><span className="dashboard-widget-customize-check" aria-hidden="true">{isVisible ? <Check size={14} strokeWidth={3} /> : null}</span></label> })}
                   </div>
                 </section>
               </div>
               <div className="branch-modal-actions">
-                <button type="button" className="branch-modal-cancel dashboard-widget-reset-button" disabled={isWidgetSaving} onClick={async () => { try { setIsWidgetSaving(true); setDashboardWidgets(await resetBranchDashboardWidgets()) } catch (error) { console.error('Failed to reset dashboard widget configuration:', error) } finally { setIsWidgetSaving(false) } }}><RefreshCcw size={15} /> Reset to Default</button>
+                <button type="button" className="branch-modal-cancel dashboard-widget-reset-button" disabled={isWidgetSaving} onClick={() => { if (window.confirm('Reset dashboard widget visibility, order, and pinned settings to default?')) setDashboardWidgets(defaultDashboardWidgets) }}><RefreshCcw size={15} /> Reset to Default</button>
                 <button type="button" className="branch-modal-submit" disabled={isWidgetSaving || !dashboardWidgets.length} onClick={saveDashboardWidgetChanges}>{isWidgetSaving ? 'Saving...' : 'Save Changes'}</button>
               </div>
             </div>

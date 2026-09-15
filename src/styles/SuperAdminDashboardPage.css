@@ -4268,6 +4268,8 @@ body.super-admin-sidebar-open {
 .sa-customize-item-copy strong { display: block; overflow: hidden; color: #263853; font-size: 12px; font-weight: 750; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .sa-customize-item-copy small { display: block; margin-top: 4px; color: #71839d; font-size: 10px; line-height: 1.35; }
 .sa-customize-item > input { position: absolute; top: 14px; right: 11px; width: 17px; height: 17px; opacity: 0; cursor: pointer; }
+.sa-customize-pin, .dashboard-widget-customize-pin { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; border: 1px solid #dbe4ef; border-radius: 7px; color: #94a3b8; background: #fff; cursor: pointer; }
+.sa-customize-pin.is-pinned, .dashboard-widget-customize-pin.is-pinned { border-color: #f5c76b; color: #d97706; background: #fff7df; }
 .sa-customize-check { display: grid; place-items: center; flex: 0 0 18px; width: 18px; height: 18px; margin-top: 1px; border: 1px solid #b9c7d8; border-radius: 5px; color: #fff; background: #fff; pointer-events: none; }
 .sa-customize-item.is-selected .sa-customize-check { border-color: #2563eb; background: #2563eb; }
 .sa-customize-footer { padding: 16px 34px 20px; }
