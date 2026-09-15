@@ -8449,6 +8449,11 @@ body.branch-notification-menu-open .main-area {
   animation: studentDrawerSlideIn 0.25s ease-out;
 }
 
+/* Attendance date picker must stay above student/batch detail views. */
+.attendance-report-backdrop {
+  z-index: 11000 !important;
+}
+
 @keyframes studentDrawerSlideIn {
   from {
     transform: translateX(100%);
