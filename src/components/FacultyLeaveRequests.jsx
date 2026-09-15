@@ -65,14 +65,36 @@ function requestDuration(item) {
   return 'Full Day'
 }
 
+function displayTime(value) {
+  const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!match) return value || '-'
+  let hour = Number(match[1])
+  if (hour > 23) return value || '-'
+  const period = match[3] ? match[3].toUpperCase() : hour >= 12 ? 'PM' : 'AM'
+  if (match[3]) {
+    if (hour < 1 || hour > 12) return value || '-'
+  } else {
+    hour = hour % 12 || 12
+  }
+  return `${String(hour).padStart(2, '0')}:${match[2]} ${period}`
+}
+
 function requestDateTime(item) {
-  if (item.durationType === 'HALF_DAY') return `${item.halfDayStart || '-'} - ${item.halfDayEnd || '-'}`
-  if (item.durationType === 'PERMISSION') return `${item.permissionStart || '-'} - ${item.permissionEnd || '-'}`
+  if (item.durationType === 'HALF_DAY') return `${displayTime(item.halfDayStart)} - ${displayTime(item.halfDayEnd)}`
+  if (item.durationType === 'PERMISSION') return `${displayTime(item.permissionStart)} - ${displayTime(item.permissionEnd)}`
   return '-'
 }
 
 function requestDates(item) {
   return `${formatDate(item.fromDate)}${item.fromDate !== item.toDate ? ` - ${formatDate(item.toDate)}` : ''}`
+}
+
+function fullDayCount(fromDate, toDate) {
+  if (!fromDate || !toDate || toDate < fromDate) return ''
+  const from = new Date(`${fromDate}T00:00:00`)
+  const to = new Date(`${toDate}T00:00:00`)
+  const count = Math.round((to - from) / 86400000) + 1
+  return Number.isFinite(count) && count > 0 ? count : ''
 }
 
 export function FacultyLeaveRequests() {
@@ -111,6 +133,16 @@ export function FacultyLeaveRequests() {
   }, [])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    function closeActionMenu(event) {
+      if (!event.target.closest('.faculty-leave-action-menu')) {
+        setOpenActionMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', closeActionMenu)
+    return () => document.removeEventListener('mousedown', closeActionMenu)
+  }, [])
 
   function update(field, value) {
     setForm(current => ({ ...current, [field]: value }))
@@ -273,7 +305,7 @@ export function FacultyLeaveRequests() {
         <div className="faculty-leave-form-grid">
           <label>Leave Type *<select value={form.leaveType} onChange={event => update('leaveType', event.target.value)}><option value="PLANNED">Planned</option><option value="UNPLANNED">Unplanned</option><option value="EMERGENCY">Emergency</option></select></label>
           <label>Day Type *<select value={form.durationType} onChange={event => { const nextDuration = event.target.value; update('durationType', nextDuration); if (nextDuration === 'HALF_DAY' || nextDuration === 'PERMISSION') { update('fromDate', today()); update('toDate', today()) } if (nextDuration !== 'HALF_DAY') { update('halfDayStart', ''); update('halfDayEnd', '') }; if (nextDuration !== 'PERMISSION') { update('permissionStart', ''); update('permissionEnd', ''); update('permissionHours', '') } }}><option value="FULL_DAY">Full Day</option><option value="HALF_DAY">Half Day</option><option value="PERMISSION">Permission</option></select></label>
-          {form.durationType === 'HALF_DAY' || form.durationType === 'PERMISSION' ? <label>Date *<input type="date" min={today()} value={form.fromDate} onChange={event => { update('fromDate', event.target.value); update('toDate', event.target.value) }} />{fieldErrors.fromDate ? <small className="faculty-leave-field-error">{fieldErrors.fromDate}</small> : null}</label> : <><label>From Date *<input type="date" min={today()} value={form.fromDate} onChange={event => { update('fromDate', event.target.value); if (!form.toDate) update('toDate', event.target.value) }} />{fieldErrors.fromDate ? <small className="faculty-leave-field-error">{fieldErrors.fromDate}</small> : null}</label><label>To Date *<input type="date" min={form.fromDate || today()} value={form.toDate} onChange={event => update('toDate', event.target.value)} />{fieldErrors.toDate ? <small className="faculty-leave-field-error">{fieldErrors.toDate}</small> : null}</label></>}
+          {form.durationType === 'HALF_DAY' || form.durationType === 'PERMISSION' ? <label>Date *<input type="date" min={today()} value={form.fromDate} onChange={event => { update('fromDate', event.target.value); update('toDate', event.target.value) }} />{fieldErrors.fromDate ? <small className="faculty-leave-field-error">{fieldErrors.fromDate}</small> : null}</label> : <><label>From Date *<input type="date" min={today()} value={form.fromDate} onChange={event => { update('fromDate', event.target.value); if (!form.toDate) update('toDate', event.target.value) }} />{fieldErrors.fromDate ? <small className="faculty-leave-field-error">{fieldErrors.fromDate}</small> : null}</label><label>To Date *<input type="date" min={form.fromDate || today()} value={form.toDate} onChange={event => update('toDate', event.target.value)} />{fieldErrors.toDate ? <small className="faculty-leave-field-error">{fieldErrors.toDate}</small> : null}</label><label>Duration *<input type="text" value={fullDayCount(form.fromDate, form.toDate) ? `${fullDayCount(form.fromDate, form.toDate)} Day${fullDayCount(form.fromDate, form.toDate) === 1 ? '' : 's'}` : ''} readOnly aria-readonly="true" placeholder="Select dates" /></label></>}
           {form.durationType === 'HALF_DAY' ? <div className="faculty-leave-full-width faculty-leave-clock-picker"><div className="faculty-leave-clock-picker-heading"><strong>Half-Day Timing *</strong></div><div className="faculty-leave-clock-range">{renderClock('start', 'START')}<span className="faculty-leave-clock-separator">-</span>{renderClock('end', 'END')}</div>{fieldErrors.halfDayStart || fieldErrors.halfDayEnd ? <small className="faculty-leave-field-error">{fieldErrors.halfDayStart || fieldErrors.halfDayEnd}</small> : null}</div> : null}
           {form.durationType === 'PERMISSION' ? <><div className="faculty-leave-full-width faculty-leave-clock-picker"><div className="faculty-leave-clock-range">{renderPermissionClock('start', 'START')}<span className="faculty-leave-clock-separator">-</span>{renderPermissionClock('end', 'END')}</div>{fieldErrors.permissionStart || fieldErrors.permissionEnd ? <small className="faculty-leave-field-error">{fieldErrors.permissionStart || fieldErrors.permissionEnd}</small> : null}</div><label className="faculty-leave-full-width">Total Hours<input type="text" value={permissionHours() ? `${permissionHours()} Hours` : ''} readOnly aria-readonly="true" placeholder="Automatically calculated" /></label></> : null}
           <label className="faculty-leave-full-width">Reason *<textarea maxLength={1000} rows={4} value={form.reason} onChange={event => update('reason', event.target.value)} placeholder="Tell your Branch Admin why you need leave" />{fieldErrors.reason ? <small className="faculty-leave-field-error">{fieldErrors.reason}</small> : null}</label>
@@ -285,10 +317,10 @@ export function FacultyLeaveRequests() {
 
       <div className="faculty-leave-history-card">
         <div className="faculty-leave-card-heading"><div><h2>My Requests</h2><p>Newest requests appear first.</p></div><Clock3 size={20} /></div>
-        {loading ? <div className="faculty-leave-empty faculty-leave-table-state">Loading leave requests...</div> : requests.length ? <div className="faculty-leave-table-wrap"><table className="faculty-leave-table"><caption className="sr-only">My leave requests</caption><thead><tr><th scope="col">S.No</th><th scope="col">Leave Type</th><th scope="col">Day Type</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Applied Date</th><th scope="col">Actions</th></tr></thead><tbody>{requests.map((item, index) => { const isPending = String(item.status || 'PENDING').toUpperCase() === 'PENDING'; return <tr key={`table-${item.id}`}><td>{index + 1}</td><td>{item.leaveType || '-'}</td><td>{requestDuration(item)}</td><td>{requestDates(item)}</td><td>{requestDateTime(item)}</td><td className="faculty-leave-reason-cell">{item.reason || '-'}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{formatAppliedDate(item.appliedAt || item.createdAt || item.submittedAt)}</td><td><div className="faculty-leave-action-menu"><button type="button" className="faculty-leave-action-trigger" aria-label={`Actions for request ${index + 1}`} aria-expanded={openActionMenu === item.id} onClick={() => setOpenActionMenu(openActionMenu === item.id ? null : item.id)}><MoreVertical size={19} /></button>{openActionMenu === item.id ? <div className="faculty-leave-action-dropdown" role="menu"><button type="button" role="menuitem" disabled={!isPending} onClick={() => isPending && openEditForm(item)}>Edit</button><button type="button" role="menuitem" disabled={!isPending} onClick={() => { if (isPending) { setCancelRequest(item); setOpenActionMenu(null) } }}>Cancel</button></div> : null}</div></td></tr> })}</tbody></table></div> : <div className="faculty-leave-empty faculty-leave-table-state">No Data</div>}
+        {loading ? <div className="faculty-leave-empty faculty-leave-table-state">Loading leave requests...</div> : requests.length ? <div className="faculty-leave-table-wrap"><table className="faculty-leave-table"><caption className="sr-only">My leave requests</caption><thead><tr><th scope="col">S.No</th><th scope="col">Leave Type</th><th scope="col">Day Type</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Applied Date</th><th scope="col">Actions</th></tr></thead><tbody>{requests.map((item, index) => { const isPending = String(item.status || 'PENDING').toUpperCase() === 'PENDING'; const isActionMenuVisible = openActionMenu === item.id; return <tr key={`table-${item.id}`}><td>{index + 1}</td><td>{item.leaveType || '-'}</td><td>{requestDuration(item)}</td><td>{requestDates(item)}</td><td>{item.durationType === 'FULL_DAY' ? `${item.durationDays || fullDayCount(item.fromDate, item.toDate) || '-'} Day${Number(item.durationDays || fullDayCount(item.fromDate, item.toDate)) === 1 ? '' : 's'}` : requestDateTime(item)}</td><td className="faculty-leave-reason-cell">{item.reason || '-'}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{formatAppliedDate(item.appliedAt || item.createdAt || item.submittedAt)}</td><td><div className={`faculty-leave-action-menu${index === 0 ? ' is-first-row' : ''}`}><button type="button" className="faculty-leave-action-trigger" aria-label={`Actions for request ${index + 1}`} aria-expanded={isActionMenuVisible} onClick={() => setOpenActionMenu(item.id)}><MoreVertical size={19} /></button>{isActionMenuVisible ? <div className="faculty-leave-action-dropdown" role="menu"><button type="button" role="menuitem" disabled={!isPending} onClick={() => isPending && openEditForm(item)}>Edit</button><button type="button" role="menuitem" disabled={!isPending} onClick={() => { if (isPending) { setCancelRequest(item); setOpenActionMenu(null) } }}>Cancel</button></div> : null}</div></td></tr> })}</tbody></table></div> : <div className="faculty-leave-empty faculty-leave-table-state">No Data</div>}
       </div>
     </div>
-    {cancelRequest ? <div className="faculty-leave-warning-popup" role="presentation"><div className="faculty-leave-warning-card" role="dialog" aria-modal="true" aria-labelledby="cancel-leave-title"><strong id="cancel-leave-title">Cancel Leave Request?</strong><p>Are you sure you want to cancel this leave request?</p><p className="faculty-leave-cancel-details">{requestDates(cancelRequest)} · {requestDuration(cancelRequest)}</p><div className="faculty-leave-confirm-actions"><button type="button" className="faculty-leave-cancel-button" onClick={() => setCancelRequest(null)} disabled={saving}>Keep Request</button><button type="button" onClick={confirmCancelRequest} disabled={saving}>{saving ? 'Cancelling...' : 'Confirm Cancel'}</button></div></div></div> : null}
+    {cancelRequest ? <div className="faculty-leave-warning-popup" role="presentation"><div className="faculty-leave-warning-card faculty-leave-confirm-card" role="dialog" aria-modal="true" aria-labelledby="cancel-leave-title"><button type="button" className="faculty-leave-confirm-close" aria-label="Close cancel confirmation" onClick={() => setCancelRequest(null)} disabled={saving}><X size={19} /></button><strong id="cancel-leave-title">Cancel Leave Request?</strong><p>Are you sure you want to cancel this leave request?</p><p className="faculty-leave-cancel-details">{requestDates(cancelRequest)} · {requestDuration(cancelRequest)}</p><div className="faculty-leave-confirm-actions"><button type="button" className="faculty-leave-cancel-button" onClick={() => setCancelRequest(null)} disabled={saving}>Keep Request</button><button type="button" onClick={confirmCancelRequest} disabled={saving}>{saving ? 'Cancelling...' : 'Confirm Cancel'}</button></div></div></div> : null}
     {warningMessage ? <div className="faculty-leave-warning-popup" role="alertdialog" aria-modal="true"><div className="faculty-leave-warning-card"><strong>Half-Day Duration Limit</strong><p>{warningMessage}</p><button type="button" onClick={() => setWarningMessage('')}>OK</button></div></div> : null}
   </section>
 }
