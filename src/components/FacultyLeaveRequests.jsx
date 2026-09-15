@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { CalendarDays, Clock3, Send, X } from 'lucide-react'
+import { CalendarDays, Clock3, MoreVertical, Send, X } from 'lucide-react'
 import { request } from '../services/apiClient'
 
 const MAX_HALF_DAY_MINUTES = 5 * 60
@@ -86,13 +86,18 @@ export function FacultyLeaveRequests() {
   const [scheduleSlots, setScheduleSlots] = useState([])
   const [warningMessage, setWarningMessage] = useState('')
   const [isApplyLeaveOpen, setIsApplyLeaveOpen] = useState(false)
+  const [editingRequest, setEditingRequest] = useState(null)
+  const [openActionMenu, setOpenActionMenu] = useState(null)
+  const [cancelRequest, setCancelRequest] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const response = await request('/faculty-leave-requests/me')
-      setRequests(response?.data?.requests || response?.requests || [])
+      const requestRows = response?.data?.requests || response?.data?.data?.requests || response?.requests || response?.data?.leaves || response?.leaves || (Array.isArray(response) ? response : Array.isArray(response?.data) ? response.data : [])
+      setRequests(Array.isArray(requestRows) ? requestRows : [])
     } catch (loadError) {
+      console.error('Unable to load faculty leave requests:', loadError)
       setError(loadError.message || 'Unable to load your leave requests')
     } finally {
       setLoading(false)
@@ -165,6 +170,41 @@ export function FacultyLeaveRequests() {
     return Number.isFinite(start) && Number.isFinite(end) && end > start ? (end - start) / 60 : ''
   }
 
+  function openCreateForm() {
+    setEditingRequest(null)
+    setForm(emptyForm)
+    setFieldErrors({})
+    setError('')
+    setSuccess('')
+    setIsApplyLeaveOpen(true)
+  }
+
+  function openEditForm(item) {
+    setEditingRequest(item)
+    setForm({ ...emptyForm, ...item, permissionHours: item.permissionHours == null ? '' : String(item.permissionHours) })
+    setOpenActionMenu(null)
+    setFieldErrors({})
+    setError('')
+    setSuccess('')
+    setIsApplyLeaveOpen(true)
+  }
+
+  async function confirmCancelRequest() {
+    if (!cancelRequest) return
+    setSaving(true)
+    setError('')
+    try {
+      await request(`/faculty-leave-requests/${cancelRequest.id}/cancel`, { method: 'POST' })
+      setCancelRequest(null)
+      setSuccess('Leave request cancelled successfully.')
+      await load()
+    } catch (cancelError) {
+      setError(cancelError.message || 'Unable to cancel leave request')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function submit(event) {
     event.preventDefault()
     setError('')
@@ -203,10 +243,12 @@ export function FacultyLeaveRequests() {
     }
     setSaving(true)
     try {
-      await request('/faculty-leave-requests', { method: 'POST', body: JSON.stringify({ ...form, toDate: form.durationType === 'PERMISSION' ? form.fromDate : form.toDate, halfDayStart: form.durationType === 'HALF_DAY' ? form.halfDayStart : null, halfDayEnd: form.durationType === 'HALF_DAY' ? form.halfDayEnd : null, permissionHours: form.durationType === 'PERMISSION' ? calculatedPermissionHours : null, permissionStart: form.durationType === 'PERMISSION' ? form.permissionStart : null, permissionEnd: form.durationType === 'PERMISSION' ? form.permissionEnd : null }) })
+      const payload = { ...form, toDate: form.durationType === 'PERMISSION' ? form.fromDate : form.toDate, halfDayStart: form.durationType === 'HALF_DAY' ? form.halfDayStart : null, halfDayEnd: form.durationType === 'HALF_DAY' ? form.halfDayEnd : null, permissionHours: form.durationType === 'PERMISSION' ? calculatedPermissionHours : null, permissionStart: form.durationType === 'PERMISSION' ? form.permissionStart : null, permissionEnd: form.durationType === 'PERMISSION' ? form.permissionEnd : null }
+      await request(editingRequest ? `/faculty-leave-requests/${editingRequest.id}` : '/faculty-leave-requests', { method: editingRequest ? 'PATCH' : 'POST', body: JSON.stringify(payload) })
       setForm(emptyForm)
+      setEditingRequest(null)
       setIsApplyLeaveOpen(false)
-      setSuccess('Leave request submitted to your Branch Admin.')
+      setSuccess(editingRequest ? 'Leave request updated and sent to your Branch Admin.' : 'Leave request submitted to your Branch Admin.')
       await load()
     } catch (saveError) {
       setError(saveError.message || 'Unable to submit leave request')
@@ -218,12 +260,14 @@ export function FacultyLeaveRequests() {
   return <section className="faculty-leave-page">
     <header className="faculty-leave-page-header">
       <div><span className="faculty-leave-eyebrow">FACULTY LEAVE</span><h1>Leave Requests</h1><p>Submit a request and track its status with your Branch Admin.</p></div>
-      <div className="faculty-leave-page-header-actions"><span className="faculty-leave-header-icon"><CalendarDays size={24} /></span><button type="button" className="faculty-leave-apply-button" onClick={() => setIsApplyLeaveOpen(true)}><Send size={16} /> Apply Leave</button></div>
+      <div className="faculty-leave-page-header-actions"><span className="faculty-leave-header-icon"><CalendarDays size={24} /></span><button type="button" className="faculty-leave-apply-button" onClick={openCreateForm}><Send size={16} /> Apply Leave</button></div>
     </header>
+    {success && !isApplyLeaveOpen ? <p className="faculty-leave-feedback is-success" role="status">{success}</p> : null}
+    {error && !isApplyLeaveOpen ? <p className="faculty-leave-feedback is-error" role="alert">{error}</p> : null}
 
     <div className="faculty-leave-layout">
       {isApplyLeaveOpen ? <div className="faculty-leave-modal-backdrop" role="presentation"><div className="faculty-leave-modal" role="dialog" aria-modal="true" aria-labelledby="faculty-leave-modal-title"><form className="faculty-leave-form-card" onSubmit={submit} noValidate>
-        <div className="faculty-leave-card-heading"><div><h2 id="faculty-leave-modal-title">Apply Leave</h2><p>Provide the dates and class period you will be unavailable.</p></div><button type="button" className="faculty-leave-close-button" aria-label="Close Apply Leave" onClick={() => setIsApplyLeaveOpen(false)}><X size={20} /></button></div>
+        <div className="faculty-leave-card-heading"><div><h2 id="faculty-leave-modal-title">{editingRequest ? 'Edit Leave Request' : 'Apply Leave'}</h2><p>Provide the dates and class period you will be unavailable.</p></div><button type="button" className="faculty-leave-close-button" aria-label="Close Apply Leave" onClick={() => setIsApplyLeaveOpen(false)}><X size={20} /></button></div>
         {error ? <p className="faculty-leave-feedback is-error" role="alert">{error}</p> : null}
         {success ? <p className="faculty-leave-feedback is-success" role="status">{success}</p> : null}
         <div className="faculty-leave-form-grid">
@@ -234,16 +278,17 @@ export function FacultyLeaveRequests() {
           {form.durationType === 'PERMISSION' ? <><div className="faculty-leave-full-width faculty-leave-clock-picker"><div className="faculty-leave-clock-range">{renderPermissionClock('start', 'START')}<span className="faculty-leave-clock-separator">-</span>{renderPermissionClock('end', 'END')}</div>{fieldErrors.permissionStart || fieldErrors.permissionEnd ? <small className="faculty-leave-field-error">{fieldErrors.permissionStart || fieldErrors.permissionEnd}</small> : null}</div><label className="faculty-leave-full-width">Total Hours<input type="text" value={permissionHours() ? `${permissionHours()} Hours` : ''} readOnly aria-readonly="true" placeholder="Automatically calculated" /></label></> : null}
           <label className="faculty-leave-full-width">Reason *<textarea maxLength={1000} rows={4} value={form.reason} onChange={event => update('reason', event.target.value)} placeholder="Tell your Branch Admin why you need leave" />{fieldErrors.reason ? <small className="faculty-leave-field-error">{fieldErrors.reason}</small> : null}</label>
         </div>
-        <div className="faculty-leave-form-actions"><span>Requests are sent as Pending.</span><div className="faculty-leave-modal-actions"><button type="button" className="faculty-leave-cancel-button" onClick={() => setIsApplyLeaveOpen(false)} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Submitting...' : 'Submit Request'}</button></div></div>
+        <div className="faculty-leave-form-actions"><span>Requests are sent as Pending.</span><div className="faculty-leave-modal-actions"><button type="button" className="faculty-leave-cancel-button" onClick={() => setIsApplyLeaveOpen(false)} disabled={saving}>Cancel</button><button type="submit" disabled={saving}>{saving ? 'Saving...' : editingRequest ? 'Save Changes' : 'Submit Request'}</button></div></div>
       </form>
 
       </div></div> : null}
 
       <div className="faculty-leave-history-card">
         <div className="faculty-leave-card-heading"><div><h2>My Requests</h2><p>Newest requests appear first.</p></div><Clock3 size={20} /></div>
-        {loading ? <div className="faculty-leave-empty faculty-leave-table-state">Loading leave requests...</div> : requests.length ? <div className="faculty-leave-table-wrap"><table className="faculty-leave-table"><caption className="sr-only">My leave requests</caption><thead><tr><th scope="col">S.No</th><th scope="col">Leave Type</th><th scope="col">Day Type</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Applied Date</th></tr></thead><tbody>{requests.map((item, index) => <tr key={`table-${item.id}`}><td>{index + 1}</td><td>{item.leaveType || '-'}</td><td>{requestDuration(item)}</td><td>{requestDates(item)}</td><td>{requestDateTime(item)}</td><td className="faculty-leave-reason-cell">{item.reason || '-'}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{formatAppliedDate(item.appliedAt || item.createdAt || item.submittedAt)}</td></tr>)}</tbody></table></div> : <div className="faculty-leave-empty faculty-leave-table-state">No Data</div>}
+        {loading ? <div className="faculty-leave-empty faculty-leave-table-state">Loading leave requests...</div> : requests.length ? <div className="faculty-leave-table-wrap"><table className="faculty-leave-table"><caption className="sr-only">My leave requests</caption><thead><tr><th scope="col">S.No</th><th scope="col">Leave Type</th><th scope="col">Day Type</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Applied Date</th><th scope="col">Actions</th></tr></thead><tbody>{requests.map((item, index) => { const isPending = String(item.status || 'PENDING').toUpperCase() === 'PENDING'; return <tr key={`table-${item.id}`}><td>{index + 1}</td><td>{item.leaveType || '-'}</td><td>{requestDuration(item)}</td><td>{requestDates(item)}</td><td>{requestDateTime(item)}</td><td className="faculty-leave-reason-cell">{item.reason || '-'}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{formatAppliedDate(item.appliedAt || item.createdAt || item.submittedAt)}</td><td><div className="faculty-leave-action-menu"><button type="button" className="faculty-leave-action-trigger" aria-label={`Actions for request ${index + 1}`} aria-expanded={openActionMenu === item.id} onClick={() => setOpenActionMenu(openActionMenu === item.id ? null : item.id)}><MoreVertical size={19} /></button>{openActionMenu === item.id ? <div className="faculty-leave-action-dropdown" role="menu"><button type="button" role="menuitem" disabled={!isPending} onClick={() => isPending && openEditForm(item)}>Edit</button><button type="button" role="menuitem" disabled={!isPending} onClick={() => { if (isPending) { setCancelRequest(item); setOpenActionMenu(null) } }}>Cancel</button></div> : null}</div></td></tr> })}</tbody></table></div> : <div className="faculty-leave-empty faculty-leave-table-state">No Data</div>}
       </div>
     </div>
+    {cancelRequest ? <div className="faculty-leave-warning-popup" role="presentation"><div className="faculty-leave-warning-card" role="dialog" aria-modal="true" aria-labelledby="cancel-leave-title"><strong id="cancel-leave-title">Cancel Leave Request?</strong><p>Are you sure you want to cancel this leave request?</p><p className="faculty-leave-cancel-details">{requestDates(cancelRequest)} · {requestDuration(cancelRequest)}</p><div className="faculty-leave-confirm-actions"><button type="button" className="faculty-leave-cancel-button" onClick={() => setCancelRequest(null)} disabled={saving}>Keep Request</button><button type="button" onClick={confirmCancelRequest} disabled={saving}>{saving ? 'Cancelling...' : 'Confirm Cancel'}</button></div></div></div> : null}
     {warningMessage ? <div className="faculty-leave-warning-popup" role="alertdialog" aria-modal="true"><div className="faculty-leave-warning-card"><strong>Half-Day Duration Limit</strong><p>{warningMessage}</p><button type="button" onClick={() => setWarningMessage('')}>OK</button></div></div> : null}
   </section>
 }

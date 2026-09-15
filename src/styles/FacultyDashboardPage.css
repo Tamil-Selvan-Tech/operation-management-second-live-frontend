@@ -4898,6 +4898,7 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-leave-status.status-pending { color: #92400e; background: #fef3c7; }
 .faculty-leave-status.status-approved { color: #166534; background: #dcfce7; }
 .faculty-leave-status.status-rejected { color: #991b1b; background: #fee2e2; }
+.faculty-leave-status.status-cancelled { color: #475569; background: #e2e8f0; }
 .faculty-leave-empty { display: grid; place-items: center; min-height: 180px; color: #64748b; text-align: center; }
 .faculty-leave-time-help { grid-column: 1 / -1; margin: -7px 0 0; color: #64748b; font-size: 12px; }
 .faculty-leave-field-note { color: #64748b; font-size: 12px; font-weight: 500; }
@@ -4931,6 +4932,18 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-leave-cancel-button { color: #334155 !important; background: #e2e8f0 !important; }
 .faculty-leave-table-wrap { width: 100%; margin-left: 0; overflow-x: auto; }
 .faculty-leave-table { width: 100%; min-width: 760px; border-collapse: collapse; text-align: left; }
+.faculty-leave-table { min-width: 900px; }
+.faculty-leave-action-menu { position: relative; display: inline-flex; }
+.faculty-leave-action-trigger { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; color: #64748b; background: transparent; cursor: pointer; }
+.faculty-leave-action-trigger:hover, .faculty-leave-action-trigger[aria-expanded="true"] { color: #2563eb; background: #e8f0ff; }
+.faculty-leave-action-dropdown { position: absolute; right: 0; top: calc(100% + 4px); z-index: 10; display: grid; min-width: 120px; padding: 5px; border: 1px solid #dce6f2; border-radius: 10px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, .14); }
+.faculty-leave-action-dropdown button { padding: 8px 10px; border: 0; border-radius: 7px; color: #334155; background: transparent; text-align: left; font: inherit; font-size: 13px; cursor: pointer; }
+.faculty-leave-action-dropdown button:hover:not(:disabled) { background: #eff6ff; color: #2563eb; }
+.faculty-leave-action-dropdown button:disabled { color: #94a3b8; cursor: not-allowed; }
+.faculty-leave-cancel-details { font-weight: 700; }
+.faculty-leave-confirm-actions { display: flex; justify-content: flex-end; gap: 9px; }
+.faculty-leave-confirm-actions button { border: 0; border-radius: 9px; padding: 10px 13px; color: #fff; background: #dc2626; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.faculty-leave-confirm-actions button:disabled { opacity: .6; cursor: wait; }
 .faculty-leave-table th { padding: 11px 12px; color: #64748b; background: #f8fafc; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .faculty-leave-table td { padding: 14px 12px; border-top: 1px solid #e2e8f0; color: #334155; font-size: 13px; vertical-align: middle; }
 .faculty-leave-table td strong, .faculty-leave-table td small { display: block; }
