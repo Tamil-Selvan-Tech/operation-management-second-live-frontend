@@ -26,6 +26,8 @@ function formatLeaveDate(value) {
 }
 export function InstituteLeavePage() {
   const [data, setData] = useState(null)
+  const [facultyRequests, setFacultyRequests] = useState([])
+  const [viewMode, setViewMode] = useState('institute')
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [leavePage, setLeavePage] = useState(1)
@@ -45,6 +47,13 @@ export function InstituteLeavePage() {
       const response = await request('/institute-leaves')
       setData(unwrap(response))
     } catch (err) { setError(err.message || 'Unable to load Institute Leave') }
+    try {
+      const facultyResponse = await request('/faculty-leave-requests/branch')
+      setFacultyRequests(unwrap(facultyResponse)?.requests || [])
+    } catch (err) {
+      // Keep the existing Institute Leave screen usable during rollout/migration.
+      setFacultyRequests([])
+    }
   }, [])
   useEffect(() => {
     void Promise.resolve().then(load)
@@ -52,6 +61,11 @@ export function InstituteLeavePage() {
     window.addEventListener('focus', load)
     return () => { clearInterval(timer); window.removeEventListener('focus', load) }
   }, [load])
+  useEffect(() => {
+    const openFacultyRequests = () => setViewMode('faculty')
+    window.addEventListener('open-faculty-leave-requests', openFacultyRequests)
+    return () => window.removeEventListener('open-faculty-leave-requests', openFacultyRequests)
+  }, [])
   const open = Boolean(form || detail || cancel)
   useEffect(() => {
     if (open) dialog.current?.showModal()
@@ -109,6 +123,17 @@ export function InstituteLeavePage() {
     return groups
   }, {})) : []
   return <section className="institute-leave-page">
+    <div className="institute-leave-view-tabs" role="tablist" aria-label="Leave management views">
+      <button type="button" className={viewMode === 'institute' ? 'is-active' : ''} onClick={() => setViewMode('institute')}>Institute Leave</button>
+      <button type="button" className={viewMode === 'faculty' ? 'is-active' : ''} onClick={() => setViewMode('faculty')}>Faculty Requests <span>{facultyRequests.filter(item => item.status === 'PENDING').length}</span></button>
+    </div>
+    {viewMode === 'faculty' ? <section className="faculty-request-readonly-panel">
+      <header className="institute-leave-header"><div><p className="section-kicker">Branch Admin</p><h2>Faculty Leave Requests</h2><p>Review leave requests submitted by faculty in this branch.</p></div></header>
+      <div className="institute-table-scroll"><table><caption>Faculty leave requests</caption><thead><tr><th>S.No</th><th>Faculty</th><th>Leave dates</th><th>Type</th><th>Duration</th><th>Reason</th><th>Status</th><th>Affected classes</th></tr></thead><tbody>
+        {facultyRequests.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td><strong>{item.facultyName}</strong><small>{item.facultyId}</small></td><td>{formatLeaveDate(item.fromDate)}{item.fromDate !== item.toDate ? ` - ${formatLeaveDate(item.toDate)}` : ''}</td><td>{item.leaveType}</td><td>{item.durationType === 'HALF_DAY' ? `${item.halfDayStart || '-'} - ${item.halfDayEnd || '-'}` : item.durationType === 'PERMISSION' ? `${item.permissionHours} hour permission` : 'Full day'}</td><td>{item.reason}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{item.affectedClassCount || 0}</td></tr>)}
+        {!facultyRequests.length ? <tr><td colSpan="8">No faculty leave requests found.</td></tr> : null}
+      </tbody></table></div>
+    </section> : <>
     <header className="institute-leave-header"><div className="institute-leave-heading"><span className="institute-heading-icon"><CalendarDays size={34} /></span><div><p className="section-kicker">Management</p><h2>Institute Leave</h2><p>Manage institute-wide leaves and schedule changes</p></div></div>
       <button className="institute-primary" onClick={() => { setError(''); setFieldErrors({}); setForm({ leaveDate: formDate(data?.today), reason: '' }) }} disabled={!data}><Plus size={18} /> Cancel Class</button></header>
     {error && !open ? <p role="alert" className="institute-error">{error}</p> : null}
@@ -133,6 +158,7 @@ export function InstituteLeavePage() {
       {detail ? <div><p><strong>{formatLeaveDate(detail.leaveDate)}</strong> · {detail.status === 'ACTIVE' ? 'Active' : 'Cancelled'}</p><p>{detail.reason}</p><p>{detail.affectedClassCount} classes · {detail.affectedStudentCount} students · {detail.affectedFacultyCount} faculty</p><p>Declared: {formatDeclaredAt(detail.declaredAt, data?.timezone)}</p><div className="institute-table-scroll"><table><thead><tr><th>Affected Batch</th><th>Class Time</th><th>Students</th><th>Hours</th></tr></thead><tbody>{affectedBatches.map((item, index) => <tr key={`${item.batchRecordId || item.batchName}-${item.startTime}-${index}`}><td><strong>{item.batchName || item.batchId || 'Batch'}</strong></td><td>{formatClassTime(item.startTime)} – {formatClassTime(item.endTime)}</td><td>{item.affectedStudents}</td><td>{item.scheduledHours}</td></tr>)}</tbody></table></div>{!detail.affectedClassCount ? <p>No scheduled batches affected.</p> : null}</div> : null}
     </dialog>
     {successPopup ? <div className="institute-success-popup" role="alertdialog" aria-modal="true"><div><strong>Success</strong><p>{successPopup}</p><button type="button" className="institute-primary" onClick={() => setSuccessPopup('')}>OK</button></div></div> : null}
+    </>}
   </section>
 }
 

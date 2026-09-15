@@ -84,6 +84,7 @@ import { formatCourseEditChangeSummary } from '../lib/courseEditChangeSummary'
 import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
 import { saveStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { Button } from '../components/Button'
+import { FacultyLeaveRequests } from '../components/FacultyLeaveRequests'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 import '../styles/FacultyDashboardPage.css'
@@ -3947,6 +3948,7 @@ const nextName = trimmedValue
           { id: 'my-courses', label: 'My Courses', icon: BookOpen },
           { id: 'my-batches', label: 'My Batches', icon: Layers3 },
           { id: 'students', label: 'Students', icon: Users },
+          { id: 'leave-requests', label: 'Leave Requests', icon: CalendarDays },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
@@ -5115,6 +5117,8 @@ const nextName = trimmedValue
                   </aside>
                 </div>
               ) : null}
+
+              {activeSection === 'leave-requests' ? <FacultyLeaveRequests /> : null}
 
               {activeSection === 'notifications' ? (
                 <section className="faculty-notifications-page">
