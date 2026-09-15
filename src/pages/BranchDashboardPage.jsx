@@ -2922,6 +2922,18 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
   }, [activeSection])
 
+  useEffect(() => {
+    if (activeSection !== 'faculty-leave') return undefined
+    const timer = window.setTimeout(() => window.dispatchEvent(new Event('open-faculty-leave-requests')), 0)
+    return () => window.clearTimeout(timer)
+  }, [activeSection])
+
+  useEffect(() => {
+    if (activeSection !== 'institute-leave') return undefined
+    const timer = window.setTimeout(() => window.dispatchEvent(new Event('open-institute-leave')), 0)
+    return () => window.clearTimeout(timer)
+  }, [activeSection])
+
   const goToBranchSection = useCallback(
     (section = 'dashboard', options = {}) => {
       const nextSection = String(section || '').trim().toLowerCase() || 'dashboard'
@@ -8379,7 +8391,7 @@ useEffect(() => {
                 </>
               ) : null}
 
-              {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage /> : null}
+              {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage key={activeSection} initialViewMode={activeSection === 'faculty-leave' ? 'faculty' : 'institute'} /> : null}
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'notifications' ? (

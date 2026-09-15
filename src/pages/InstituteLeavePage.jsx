@@ -24,10 +24,10 @@ function formatLeaveDate(value) {
   if (Number.isNaN(date.getTime())) return value || '-'
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
 }
-export function InstituteLeavePage() {
+export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   const [data, setData] = useState(null)
   const [facultyRequests, setFacultyRequests] = useState([])
-  const [viewMode, setViewMode] = useState('institute')
+  const [viewMode, setViewMode] = useState(initialViewMode)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [leavePage, setLeavePage] = useState(1)
@@ -50,7 +50,7 @@ export function InstituteLeavePage() {
     try {
       const facultyResponse = await request('/faculty-leave-requests/branch')
       setFacultyRequests(unwrap(facultyResponse)?.requests || [])
-    } catch (err) {
+    } catch {
       // Keep the existing Institute Leave screen usable during rollout/migration.
       setFacultyRequests([])
     }
@@ -63,8 +63,13 @@ export function InstituteLeavePage() {
   }, [load])
   useEffect(() => {
     const openFacultyRequests = () => setViewMode('faculty')
+    const openInstituteLeave = () => setViewMode('institute')
     window.addEventListener('open-faculty-leave-requests', openFacultyRequests)
-    return () => window.removeEventListener('open-faculty-leave-requests', openFacultyRequests)
+    window.addEventListener('open-institute-leave', openInstituteLeave)
+    return () => {
+      window.removeEventListener('open-faculty-leave-requests', openFacultyRequests)
+      window.removeEventListener('open-institute-leave', openInstituteLeave)
+    }
   }, [])
   const open = Boolean(form || detail || cancel)
   useEffect(() => {
@@ -123,10 +128,6 @@ export function InstituteLeavePage() {
     return groups
   }, {})) : []
   return <section className="institute-leave-page">
-    <div className="institute-leave-view-tabs" role="tablist" aria-label="Leave management views">
-      <button type="button" className={viewMode === 'institute' ? 'is-active' : ''} onClick={() => setViewMode('institute')}>Institute Leave</button>
-      <button type="button" className={viewMode === 'faculty' ? 'is-active' : ''} onClick={() => setViewMode('faculty')}>Faculty Requests <span>{facultyRequests.filter(item => item.status === 'PENDING').length}</span></button>
-    </div>
     {viewMode === 'faculty' ? <section className="faculty-request-readonly-panel">
       <header className="institute-leave-header"><div><p className="section-kicker">Branch Admin</p><h2>Faculty Leave Requests</h2><p>Review leave requests submitted by faculty in this branch.</p></div></header>
       <div className="institute-table-scroll"><table><caption>Faculty leave requests</caption><thead><tr><th>S.No</th><th>Faculty</th><th>Leave dates</th><th>Type</th><th>Duration</th><th>Reason</th><th>Status</th><th>Affected classes</th></tr></thead><tbody>

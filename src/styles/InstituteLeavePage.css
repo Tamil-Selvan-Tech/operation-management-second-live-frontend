@@ -63,9 +63,9 @@
 .institute-success-popup .institute-primary { width: 100px; }
 .institute-leave-session { background: #fff5dc; color: #815609; }
 @media(max-width: 700px) { .institute-leave-stats { grid-template-columns: repeat(2, 1fr); } .institute-leave-header { align-items: flex-start; flex-wrap: wrap; } }
-.institute-leave-view-tabs { display: flex; gap: 8px; margin-bottom: 18px; border-bottom: 1px solid #dbe5f0; }
+.institute-leave-view-tabs { display: flex; gap: 28px; margin-bottom: 18px; border-bottom: 1px solid #dbe5f0; }
 .institute-leave-view-tabs button { border: 0; border-bottom: 3px solid transparent; padding: 10px 14px; color: #64748b; background: transparent; font: inherit; font-weight: 800; cursor: pointer; }
 .institute-leave-view-tabs button.is-active { border-bottom-color: #2563eb; color: #2563eb; }
-.institute-leave-view-tabs span { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: 5px; border-radius: 999px; color: #92400e; background: #fef3c7; font-size: 11px; }
+.institute-leave-view-tabs span { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: 10px; border-radius: 999px; color: #92400e; background: #fef3c7; font-size: 11px; }
 .faculty-request-readonly-panel { min-height: 350px; }
 .faculty-request-readonly-panel td small { display: block; margin-top: 3px; color: #64748b; }
