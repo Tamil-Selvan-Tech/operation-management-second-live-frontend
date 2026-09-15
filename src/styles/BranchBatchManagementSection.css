@@ -983,6 +983,15 @@
   white-space: nowrap;
 }
 
+.batch-management-field-warning {
+  display: block;
+  color: #b45309;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-top: 6px;
+}
+
 .batch-management-context {
   display: flex;
   flex-wrap: wrap;

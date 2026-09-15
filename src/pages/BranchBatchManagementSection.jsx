@@ -33,6 +33,18 @@ function normalizeText(value = '') {
   return String(value || '').trim()
 }
 
+function getWeeklyOffStartMessage(startDate, weekType, weeklyOffDay) {
+  if (!startDate || String(weekType).toUpperCase() !== 'WEEKDAY' || !weeklyOffDay) return ''
+  const date = new Date(`${startDate}T00:00:00`)
+  if (Number.isNaN(date.getTime())) return ''
+  const days = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+  if (days[date.getDay()] !== String(weeklyOffDay).toUpperCase()) return ''
+  const nextDate = new Date(date)
+  nextDate.setDate(nextDate.getDate() + 1)
+  const nextDay = nextDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  return `Selected start date is ${weeklyOffDay.charAt(0) + weeklyOffDay.slice(1).toLowerCase()}, the faculty weekly off. The first class will be scheduled from ${nextDay}.`
+}
+
 function normalizeStatus(value = '') {
   const text = normalizeText(value)
   if (!text) return 'Active'
@@ -520,6 +532,7 @@ function createDraftFromGroup(group = {}, sequenceStart = 1, groupSequence = 1, 
     courseId: normalizeText(group.courseId || ''),
     facultyId: resolveFacultyIdForGroup(group, facultyOptions),
     facultyName: resolveFacultyNameForGroup(group, facultyOptions),
+    weeklyOffDay: normalizeText(group.weeklyOffDay || rows[0]?.weeklyOffDay).toUpperCase(),
     weekType: normalizeText(group.weekType || rows[0]?.weekType).toUpperCase(),
     mode: normalizeText(group.mode || rows[0]?.mode).toUpperCase(),
     courseStartDate: normalizeText(group.courseStartDate || rows[0]?.courseStartDate),
@@ -809,12 +822,14 @@ export function BranchBatchManagementSection({
         )
         const name = getFacultyLabel(faculty)
         const status = normalizeStatus(faculty?.status || faculty?.recordStatus || 'Active')
+        const weeklyOffDay = normalizeText(faculty?.weeklyOffDay || '').toUpperCase()
 
         return {
           id,
           facultyCode,
           name,
           status,
+          weeklyOffDay,
         }
       })
       .filter((faculty) => faculty.id && faculty.name && faculty.status.toLowerCase() === 'active')
@@ -826,6 +841,7 @@ export function BranchBatchManagementSection({
   )
 
   const allowedBatchModes = getAllowedBatchModes(selectedCourse?.mode)
+  const weeklyOffStartMessage = getWeeklyOffStartMessage(draft.courseStartDate, draft.weekType, draft.weeklyOffDay)
 
   const resolvedDraftFacultyId = isFacultyNameFallbackValue(draft.facultyId) ? '' : normalizeText(draft.facultyId)
   const resolvedDraftFacultyName = isFacultyNameFallbackValue(draft.facultyId)
@@ -1142,8 +1158,8 @@ export function BranchBatchManagementSection({
       ...current,
       [field]: value,
       ...(field === 'courseId' ? { facultyId: '', facultyName: '', weekType: '', mode: '', courseStartDate: '', courseEndDate: '' } : {}),
-      ...(['weekType', 'mode', 'courseStartDate'].includes(field)
-        ? { courseEndDate: calculateBatchCourseEndDate(field === 'courseStartDate' ? value : current.courseStartDate, field === 'weekType' ? value : current.weekType, field === 'mode' ? value : current.mode, selectedCourse?.hours || selectedCourse?.duration) }
+      ...(['weekType', 'mode', 'courseStartDate', 'facultyId'].includes(field)
+        ? { courseEndDate: calculateBatchCourseEndDate(field === 'courseStartDate' ? value : current.courseStartDate, field === 'weekType' ? value : current.weekType, field === 'mode' ? value : current.mode, selectedCourse?.hours || selectedCourse?.duration, { weeklyOffDay: field === 'facultyId' ? availableFacultyOptions.find((faculty) => normalizeText(faculty.id) === normalizeText(value))?.weeklyOffDay : current.weeklyOffDay }) }
         : {}),
       ...(field === 'facultyId'
         ? {
@@ -1151,6 +1167,7 @@ export function BranchBatchManagementSection({
               availableFacultyOptions.find((faculty) => normalizeText(faculty.id) === normalizeText(value))?.name ||
               current.facultyName ||
               '',
+            weeklyOffDay: availableFacultyOptions.find((faculty) => normalizeText(faculty.id) === normalizeText(value))?.weeklyOffDay || '',
           }
         : {}),
     }))
@@ -1413,6 +1430,7 @@ export function BranchBatchManagementSection({
           courseName: String(selectedCourseRecord?.name || existingGroup?.courseName || '').trim(),
           facultyId: String(payload.facultyId || existingGroup?.facultyId || '').trim(),
           facultyName: String(selectedFacultyRecord?.name || existingGroup?.facultyName || resolvedFacultyName || '').trim(),
+          weeklyOffDay: String(savedGroup?.weeklyOffDay || selectedFacultyRecord?.weeklyOffDay || existingGroup?.weeklyOffDay || '').trim().toUpperCase(),
           status: normalizeStatus(savedGroup?.status || cleanedRows[0]?.status || existingGroup?.status || 'Active'),
           rows: cleanedRows,
           batches: cleanedRows,
@@ -1574,7 +1592,6 @@ export function BranchBatchManagementSection({
                 </div>
                 {fieldErrors.courseId ? <small className="batch-management-field-error">{fieldErrors.courseId}</small> : null}
               </label>
-
               <label className="batch-management-field">
                 <span>Faculty Name *</span>
                 <div style={{ position: 'relative' }}>
@@ -1606,6 +1623,10 @@ export function BranchBatchManagementSection({
                 {fieldErrors.facultyId ? <small className="batch-management-field-error">{fieldErrors.facultyId}</small> : null}
                 
               </label>
+              <label className="batch-management-field">
+                <span>Faculty Weekly Off Days</span>
+                <input type="text" value={draft.weeklyOffDay ? draft.weeklyOffDay.charAt(0) + draft.weeklyOffDay.slice(1).toLowerCase() : 'Select faculty first'} readOnly />
+              </label>
               <label className="batch-management-field batch-management-id-top-field">
                 <span>Batch ID</span>
                 <div className="student-id-input-group">
@@ -1618,7 +1639,7 @@ export function BranchBatchManagementSection({
             <div className="batch-management-form-grid">
               <label className="batch-management-field"><span>Week Type *</span><select value={draft.weekType} onChange={(event) => handleDraftChange('weekType', event.target.value)}><option value="">Select week type</option><option value="WEEKDAY">Weekday</option><option value="WEEKEND">Weekend</option></select>{fieldErrors.weekType ? <small className="batch-management-field-error">{fieldErrors.weekType}</small> : null}</label>
               <label className="batch-management-field"><span>Mode *</span><select value={draft.mode} disabled={allowedBatchModes.length === 1} onChange={(event) => handleDraftChange('mode', event.target.value)}><option value="">Select mode</option>{(allowedBatchModes.length ? allowedBatchModes : ['ONLINE', 'OFFLINE']).map((mode) => <option key={mode} value={mode}>{mode === 'ONLINE' ? 'Online' : 'Offline'}</option>)}</select>{fieldErrors.mode ? <small className="batch-management-field-error">{fieldErrors.mode}</small> : null}</label>
-              <label className="batch-management-field"><span>Course Start Date *</span><input type="date" value={draft.courseStartDate} onChange={(event) => handleDraftChange('courseStartDate', event.target.value)} />{fieldErrors.courseStartDate ? <small className="batch-management-field-error">{fieldErrors.courseStartDate}</small> : null}</label>
+              <label className="batch-management-field"><span>Course Start Date *</span><input type="date" value={draft.courseStartDate} onChange={(event) => handleDraftChange('courseStartDate', event.target.value)} />{fieldErrors.courseStartDate ? <small className="batch-management-field-error">{fieldErrors.courseStartDate}</small> : null}{weeklyOffStartMessage ? <small className="batch-management-field-warning">{weeklyOffStartMessage}</small> : null}</label>
               <label className="batch-management-field"><span>Course End Date</span><input type="date" value={draft.courseEndDate} readOnly /></label>
             </div>
 

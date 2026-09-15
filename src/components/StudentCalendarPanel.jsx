@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, Clock3, Flag, Sparkles, Timer } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, Clock3, Flag, Sparkles, Timer, CalendarOff } from 'lucide-react'
 
 import { buildStudentCourseCalendar, formatCalendarDate, formatCalendarLongDate } from '../lib/studentCalendar'
 
@@ -13,6 +13,7 @@ function getStatusTone(status) {
   if (normalized === 'institute leave' || normalized === 'institute_leave' || normalized.startsWith('institute leave')) return 'tone-holiday'
   if (normalized === 'holiday' || normalized === 'general holiday' || normalized === 'government holiday') return 'tone-holiday'
   if (normalized === 'leave') return 'tone-holiday'
+  if (normalized === 'faculty weekly off') return 'tone-holiday'
   if (normalized === 'present') return 'tone-present'
   if (normalized === 'absent') return 'tone-absent'
   return 'tone-no-class'
@@ -22,6 +23,7 @@ function getCalendarStatusClass(day = {}) {
   const normalized = String(day.status || '').trim().toLowerCase()
   if (normalized === 'general holiday' || normalized === 'government holiday' || normalized === 'holiday') return 'status-general-holiday'
   if (normalized === 'institute leave' || normalized === 'institute_leave' || normalized.startsWith('institute leave') || normalized === 'leave') return 'status-institute-leave'
+  if (normalized === 'faculty weekly off') return 'status-institute-leave'
   if (day.isStartDate) return 'status-course-start'
   if (day.isEndDate) return 'status-course-end'
   return ''
@@ -242,6 +244,13 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
             ? `${calendarDurationDays} day${Number(calendarDurationDays) === 1 ? '' : 's'}`
             : 'Not available'}
           note={`${calendarHolidayCount} holidays / leaves`}
+          tone="tone-holiday"
+        />
+        <CalendarSummaryCard
+          icon={CalendarOff}
+          label="Faculty Weekly Off Days"
+          value={calendar.summary.facultyWeeklyOffDays || 0}
+          note={calendar.weeklyOffDay ? `${calendar.weeklyOffDay.charAt(0) + calendar.weeklyOffDay.slice(1).toLowerCase()} is not a class day` : 'No weekly off configured'}
           tone="tone-holiday"
         />
       </div>

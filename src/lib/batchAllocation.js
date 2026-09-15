@@ -27,6 +27,7 @@ export function calculateBatchCourseEndDate(startDate, weekType, mode, durationH
   const duration = Number(durationHours)
   if (!Number.isFinite(duration) || duration <= 0) return ''
   const dailyHours = mode === 'ONLINE' ? 1 : weekType === 'WEEKEND' ? 3 : 2
+  const weeklyOffIndex = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'].indexOf(String(batch?.weeklyOffDay || '').toUpperCase())
   const requiredDays = Math.max(1, Math.ceil(duration / dailyHours))
   const date = new Date(`${startDate}T00:00:00`)
   if (Number.isNaN(date.getTime())) return ''
@@ -34,7 +35,7 @@ export function calculateBatchCourseEndDate(startDate, weekType, mode, durationH
   while (counted < requiredDays) {
     const isoDate = [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
     const cancelled = leaves.some((leave) => leave?.status === 'ACTIVE' && leave.leaveDate === isoDate && leaveAffectsDate(leave, batch))
-    if (VALID_WEEK_DAYS[weekType].has(date.getDay()) && !cancelled) counted += 1
+    if (VALID_WEEK_DAYS[weekType].has(date.getDay()) && (weekType === 'WEEKEND' || date.getDay() !== weeklyOffIndex) && !cancelled) counted += 1
     if (counted < requiredDays) date.setDate(date.getDate() + 1)
   }
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
