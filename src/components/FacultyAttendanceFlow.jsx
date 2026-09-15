@@ -168,5 +168,5 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', facultyId = '' 
     </div>, document.body,
   ) : null
 
-  return <><button type="button" className="faculty-attendance-chip" onClick={() => { setIsOpen(true); setNow(Date.now()) }} aria-haspopup="dialog" aria-expanded={isOpen}><CalendarDays size={18} /><span>Attendance</span></button>{modal}</>
+  return <><button type="button" className="faculty-attendance-chip" onClick={() => { setIsOpen(true); setNow(Date.now()) }} aria-haspopup="dialog" aria-expanded={isOpen}><CalendarDays size={18} /><span>Work Log</span></button>{modal}</>
 }
