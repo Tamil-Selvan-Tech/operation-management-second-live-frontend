@@ -159,6 +159,99 @@ export async function recordFacultyAttendanceLogout(payload = {}) {
   }
 }
 
+function unwrapFacultyAttendanceResponse(response) {
+  return response?.data ?? response ?? null
+}
+
+// Faculty attendance endpoints are intentionally user-scoped. The authenticated
+// faculty identity is resolved by the API; the client never sends an authority
+// field for faculty, branch, or attendance state.
+export async function getFacultyAttendanceToday() {
+  try {
+    const response = await request('/faculty/attendance/today')
+    return unwrapFacultyAttendanceResponse(response)
+  } catch (error) {
+    if (Number(error?.status || 0) !== 404) throw error
+    return getCurrentFacultyAttendanceOverview({ date: new Date().toISOString().slice(0, 10) })
+  }
+}
+
+function normalizeLegacyFacultyAttendanceStatus(payload = {}) {
+  const source = payload?.data ?? payload ?? {}
+  const sessions = Array.isArray(source?.facultySession?.sessions) ? source.facultySession.sessions : []
+  const first = sessions[0] || null
+  const latest = sessions[sessions.length - 1] || null
+  const loginAt = first?.loginAt || null
+  const finalLogoutAt = latest?.logoutAt || null
+  const workingSeconds = sessions.reduce((total, session) => {
+    const start = new Date(session?.loginAt || '').getTime()
+    const end = new Date(session?.logoutAt || Date.now()).getTime()
+    return Number.isFinite(start) && Number.isFinite(end) ? total + Math.max(0, Math.floor((end - start) / 1000)) : total
+  }, 0)
+
+  return {
+    status: finalLogoutAt ? 'LOGGED_OUT' : loginAt ? 'LOGGED_IN' : 'NOT_LOGGED_IN',
+    faculty: { name: source?.facultyName || '', facultyId: source?.facultyId || '' },
+    attendanceDate: source?.date || new Date().toISOString().slice(0, 10),
+    currentServerTime: new Date().toISOString(),
+    firstLoginAt: loginAt,
+    finalLogoutAt,
+    currentSession: latest?.logoutAt ? null : latest,
+    workingSeconds,
+    interruptionType: 'NONE',
+    canLogin: !loginAt && !finalLogoutAt,
+    canLogout: Boolean(loginAt && !finalLogoutAt),
+  }
+}
+
+export async function getFacultyAttendanceStatus(options = {}) {
+  try {
+    const response = await request('/faculty/attendance/status')
+    return unwrapFacultyAttendanceResponse(response)
+  } catch (error) {
+    if (![404, 405].includes(Number(error?.status || 0))) throw error
+    const legacy = await getCurrentFacultyAttendanceOverview({ date: new Date().toISOString().slice(0, 10), facultyId: options?.facultyId || '' })
+    return normalizeLegacyFacultyAttendanceStatus(legacy)
+  }
+}
+
+export async function loginFacultyAttendance(payload = {}) {
+  try {
+    const response = await request('/faculty/attendance/login', { method: 'POST' })
+    return unwrapFacultyAttendanceResponse(response)
+  } catch (error) {
+    if (![404, 405].includes(Number(error?.status || 0))) throw error
+    return recordFacultyAttendanceLogin({ date: new Date().toISOString().slice(0, 10), facultyId: payload?.facultyId || '', facultyName: payload?.facultyName || '', profileInitials: payload?.profileInitials || '', loginAt: new Date().toISOString(), loginTimestamp: Date.now() })
+  }
+}
+
+export async function getFacultyAttendanceBatches() {
+  try {
+    const response = await request('/faculty/attendance/batches')
+    return unwrapFacultyAttendanceResponse(response)
+  } catch (error) {
+    if (![404, 405].includes(Number(error?.status || 0))) throw error
+    const response = await request('/dashboard/faculty/my-batches-summary')
+    const summary = unwrapFacultyAttendanceResponse(response)
+    return Array.isArray(summary?.batchEntries) ? summary.batchEntries : []
+  }
+}
+
+export async function getFacultyAttendancePermission() {
+  const response = await request('/faculty/attendance/permission')
+  return unwrapFacultyAttendanceResponse(response)
+}
+
+export async function logoutFacultyAttendance(batchWork = [], payload = {}) {
+  try {
+    const response = await request('/faculty/attendance/logout', { method: 'POST', body: JSON.stringify({ batchWork }) })
+    return unwrapFacultyAttendanceResponse(response)
+  } catch (error) {
+    if (![404, 405].includes(Number(error?.status || 0))) throw error
+    return recordFacultyAttendanceLogout({ date: new Date().toISOString().slice(0, 10), facultyId: payload?.facultyId || '', facultyName: payload?.facultyName || '', logoutType: 'normal', workReport: batchWork.map((item) => `${item.batchId}: ${item.workSummary}`).join('\n'), logoutAt: new Date().toISOString(), logoutTimestamp: Date.now() })
+  }
+}
+
 export async function getCurrentStudentAttendanceOverview(date = '') {
   const params = new URLSearchParams()
   if (String(date || '').trim()) {

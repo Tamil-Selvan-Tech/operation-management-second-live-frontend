@@ -4263,6 +4263,18 @@ const nextName = trimmedValue
                       </article>
                     ))}
                   </div>
+
+                  <div className="faculty-dashboard-attendance-entry">
+                    <div>
+                      <span className="faculty-leave-eyebrow">Daily attendance</span>
+                      <h2>Faculty Attendance</h2>
+                      <p>Record your working session and review today&apos;s attendance status.</p>
+                    </div>
+                    <FacultyAttendanceFlow
+                      profileName={currentFacultyIdentity.facultyName || facultyName}
+                      facultyId={currentFacultyIdentity.facultyId}
+                    />
+                  </div>
                 </>
               ) : null}
 
