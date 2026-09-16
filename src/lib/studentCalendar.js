@@ -428,6 +428,7 @@ export function buildStudentCourseCalendar(student = {}) {
     attendanceDays: 0,
     presentDays: 0,
     absentDays: 0,
+    facultyWeeklyOffDays: 0,
   }
 
   for (let cursor = new Date(rangeStart); cursor <= rangeEnd; cursor = addCalendarMonths(cursor, 1)) {
@@ -437,6 +438,7 @@ export function buildStudentCourseCalendar(student = {}) {
 
       if (day.isCourseDay) summary.courseDays += 1
       if (day.status === 'No Class') summary.noClassDays += 1
+      if (String(day.status || '').toLowerCase() === 'faculty weekly off') summary.facultyWeeklyOffDays += 1
       // Count every holiday in the course range. Scheduled holidays are also
       // removed from the Course Day total by the status precedence above.
       const attendanceStatus = day.attendanceStatus || (day.status === 'Completed' ? 'Present' : day.status)

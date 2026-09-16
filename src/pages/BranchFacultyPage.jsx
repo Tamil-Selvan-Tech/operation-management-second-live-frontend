@@ -52,6 +52,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
     city: '',
     address: '',
     courseId: '',
+    weeklyOffDay: '',
     status: 'Active',
   })
   const [editingId, setEditingId] = useState(null)
@@ -161,6 +162,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
           city: f.city,
           address: f.address,
           courseId: f.courseId,
+          weeklyOffDay: f.weeklyOffDay || '',
           courseName: f.branchCourse?.name || f.course?.name || '-',
           status: f.status,
           batchCount: Number(f._count?.branchBatches || 0),
@@ -561,6 +563,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
       city: '',
       address: '',
       courseId: '',
+      weeklyOffDay: '',
       status: 'Active',
     })
     setErrors({})
@@ -590,6 +593,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
       city: faculty.city || '',
       address: faculty.address || '',
       courseId: faculty.courseId || '',
+      weeklyOffDay: faculty.weeklyOffDay || '',
       status: faculty.status,
     })
     setErrors({})
@@ -666,6 +670,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
       city: modalForm.city,
       address: modalForm.address,
       courseId: modalForm.courseId,
+      weeklyOffDay: modalForm.weeklyOffDay || null,
       status: modalForm.status,
     }
 
@@ -1335,6 +1340,23 @@ export function BranchFacultyPage({ branchCode = '' }) {
                   >
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+
+                {/* Weekly off is configured once on the faculty and snapshotted by batches. */}
+                <div className="faculty-field-group">
+                  <span className="faculty-field-label">Faculty Weekly Off Days</span>
+                  <select
+                    value={modalForm.weeklyOffDay}
+                    onChange={(e) => handleInputChange('weeklyOffDay', e.target.value)}
+                    className="faculty-select-input"
+                  >
+                    <option value="">Select weekly off day</option>
+                    <option value="MONDAY">Monday</option>
+                    <option value="TUESDAY">Tuesday</option>
+                    <option value="WEDNESDAY">Wednesday</option>
+                    <option value="THURSDAY">Thursday</option>
+                    <option value="FRIDAY">Friday</option>
                   </select>
                 </div>
 
