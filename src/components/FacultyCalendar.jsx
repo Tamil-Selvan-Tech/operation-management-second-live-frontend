@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react'
+import { CalendarDays, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Flag, RefreshCw, Sparkles, Timer, X } from 'lucide-react'
 import { getFacultyCalendar, getFacultyLeaveRequests } from '../services/facultyCalendarService'
 import '../styles/FacultyCalendar.css'
 
@@ -29,6 +29,13 @@ function timing(event) {
   const start = event?.startTime || event?.fromTime || ''
   const end = event?.endTime || event?.toTime || ''
   return start && end ? `${start} – ${end}` : event?.batchTiming || 'Scheduled time'
+}
+
+function SummaryCard({ icon: Icon, label, value, note, tone = 'blue' }) {
+  return <article className={`faculty-calendar-summary-card faculty-calendar-summary-card--${tone}`}>
+    <span className="faculty-calendar-summary-icon"><Icon size={20} strokeWidth={2.2} /></span>
+    <div><span>{label}</span><strong>{value || '—'}</strong>{note ? <small>{note}</small> : null}</div>
+  </article>
 }
 
 function CalendarEvent({ event, onSelect }) {
@@ -109,15 +116,36 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
   const eventsByDate = useMemo(() => events.reduce((map, event) => { const key = String(event.date || '').slice(0, 10); (map[key] ||= []).push(event); return map }, {}), [events])
   const courses = new Set(batches.map((batch) => batch.courseName || batch.courseId).filter(Boolean))
   const today = isoDate(new Date())
+  const calendarMonths = useMemo(() => {
+    const start = parseDate(range.start); const end = parseDate(range.end)
+    if (!start || !end) return []
+    const months = []; const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
+    while (cursor <= end) { months.push(new Date(cursor)); cursor.setMonth(cursor.getMonth() + 1) }
+    return months
+  }, [range.end, range.start])
+  const classCount = events.filter((event) => ['CLASS', 'SCHEDULED', 'COMPLETED'].includes(normalizeStatus(event))).length
+  const leaveCount = events.filter((event) => ['LEAVE', 'HALF_DAY', 'PERMISSION', 'INSTITUTE_LEAVE', 'HOLIDAY'].includes(normalizeStatus(event))).length
+  const weeklyOffCount = events.filter((event) => normalizeStatus(event) === 'FACULTY_WEEKLY_OFF').length
 
   if (!batches.length) return <section className="faculty-calendar-page"><div className="faculty-calendar-empty"><CalendarDays size={40} /><h2>No batches assigned</h2><p>Your calendar will appear once a batch is assigned to you.</p></div></section>
   return <section className="faculty-calendar-page">
+    <h1 className="faculty-calendar-page-title">Course Calendar</h1>
     <header className="faculty-calendar-header"><div><span className="faculty-calendar-eyebrow">FACULTY SCHEDULE</span><h1>My Calendar</h1><p>{faculty?.name || facultyProfile?.facultyName || 'Faculty'} · {faculty?.id || facultyProfile?.facultyId || 'Faculty ID unavailable'}</p></div><button type="button" className="faculty-calendar-refresh" onClick={load} disabled={loading}><RefreshCw size={17} /> Refresh</button></header>
     {error ? <div className="faculty-calendar-error">{error}</div> : null}
-    <div className="faculty-calendar-summary"><div><span>Total Courses</span><strong>{courses.size}</strong></div><div><span>Assigned Batches</span><strong>{batches.length}</strong></div><div><span>Active Batches</span><strong>{batches.length}</strong></div><div><span>Calendar Range</span><strong>{displayDate(range.start, { day: '2-digit', month: 'short' })} – {displayDate(range.end, { day: '2-digit', month: 'short', year: 'numeric' })}</strong></div></div>
-    <div className="faculty-calendar-card"><div className="faculty-calendar-toolbar"><button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft /></button><h2>{month?.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</h2><button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight /></button><button type="button" className="faculty-calendar-today" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Today</button></div>
-      <div className="faculty-calendar-legend">{Object.entries(STATUS_LABELS).filter(([key]) => !['CLASS', 'SCHEDULED'].includes(key)).map(([key, label]) => <span key={key} className={`faculty-calendar-legend-item faculty-calendar-legend-item--${key.toLowerCase()}`}><i />{label}</span>)}</div>
-      <div className="faculty-calendar-weekdays">{DAY_NAMES.map((day) => <span key={day}>{day}</span>)}</div><div className="faculty-calendar-grid">{days.map((date, index) => date ? <div key={isoDate(date)} className={`faculty-calendar-day ${isoDate(date) === today ? 'is-today' : ''}`}><button type="button" className="faculty-calendar-date" onClick={() => setSelected({ date: isoDate(date), events: eventsByDate[isoDate(date)] || [] })}>{date.getDate()}</button><div>{(eventsByDate[isoDate(date)] || []).map((event, eventIndex) => <CalendarEvent key={`${event.id || event.code}-${eventIndex}`} event={event} onSelect={setSelected} />)}</div></div> : <div key={`empty-${index}`} className="faculty-calendar-day is-empty" />)}</div>
+    <div className="faculty-calendar-summary-grid">
+      <SummaryCard icon={CalendarDays} label="Faculty Name" value={faculty?.name || facultyProfile?.facultyName} note="Assigned faculty" />
+      <SummaryCard icon={Flag} label="Calendar Start Date" value={displayDate(range.start, { day: '2-digit', month: 'short', year: 'numeric' })} note="Earliest assigned batch" tone="purple" />
+      <SummaryCard icon={CheckCircle2} label="Calendar End Date" value={displayDate(range.end, { day: '2-digit', month: 'short', year: 'numeric' })} note="Latest assigned batch" tone="green" />
+      <SummaryCard icon={Sparkles} label="Assigned Courses" value={courses.size} note={`${classCount} scheduled events`} />
+      <SummaryCard icon={CheckCircle2} label="Assigned Batches" value={batches.length} note="Active teaching batches" tone="green" />
+      <SummaryCard icon={Clock3} label="Pending / No Class" value={events.filter((event) => normalizeStatus(event) === 'NO_CLASS').length} note="Dates without a class" />
+      <SummaryCard icon={Timer} label="Leave / Holiday" value={leaveCount} note="Approved or declared dates" tone="red" />
+      <SummaryCard icon={CalendarOff} label="Weekly Off Days" value={weeklyOffCount} note={batches.map((batch) => batch.weeklyOffDay).filter(Boolean).join(', ') || 'No weekly off configured'} tone="red" />
+    </div>
+    <div className="faculty-calendar-card"><div className="faculty-calendar-panel-head"><div><span className="faculty-calendar-eyebrow">FACULTY CALENDAR</span><h2>{month?.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</h2><p>Use the arrows or month tabs to browse your complete teaching schedule.</p></div><div className="faculty-calendar-navigation"><button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} disabled={!calendarMonths.length || month <= calendarMonths[0]}><ChevronLeft /></button><div><strong>{month?.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</strong><span>{Math.max(1, calendarMonths.findIndex((item) => item.getFullYear() === month?.getFullYear() && item.getMonth() === month?.getMonth()) + 1)} / {calendarMonths.length || 1}</span></div><button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} disabled={!calendarMonths.length || month >= calendarMonths.at(-1)}><ChevronRight /></button></div></div>
+      <div className="faculty-calendar-month-strip">{calendarMonths.map((item) => <button key={item.toISOString()} type="button" className={item.getFullYear() === month?.getFullYear() && item.getMonth() === month?.getMonth() ? 'is-active' : ''} onClick={() => setMonth(item)}>{item.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</button>)}</div>
+      <div className="faculty-calendar-legend">{[['CLASS', 'Class Day'], ['NO_CLASS', 'No Class'], ['FACULTY_WEEKLY_OFF', 'Week Off'], ['HOLIDAY', 'Government Holiday'], ['INSTITUTE_LEAVE', 'Class Cancel'], ['LEAVE', 'Leave'], ['HALF_DAY', 'Half Day Leave'], ['PERMISSION', 'Permission']].map(([key, label]) => <span key={key} className={`faculty-calendar-legend-item faculty-calendar-legend-item--${key.toLowerCase()}`}><i />{label}</span>)}</div>
+      <div className="faculty-calendar-weekdays">{DAY_NAMES.map((day) => <span key={day}>{day}</span>)}</div><div className="faculty-calendar-grid">{days.map((date, index) => date ? <div key={isoDate(date)} className={`faculty-calendar-day ${isoDate(date) === today ? 'is-today' : ''}`}><button type="button" className="faculty-calendar-date" onClick={() => setSelected({ date: isoDate(date), events: eventsByDate[isoDate(date)] || [] })}><b>{date.getDate()}</b><em>{DAY_NAMES[date.getDay()]}</em></button><div>{(eventsByDate[isoDate(date)] || []).map((event, eventIndex) => <CalendarEvent key={`${event.id || event.code}-${eventIndex}`} event={event} onSelect={setSelected} />)}</div><button type="button" className="faculty-calendar-day-open" onClick={() => setSelected({ date: isoDate(date), events: eventsByDate[isoDate(date)] || [] })}>View details</button></div> : <div key={`empty-${index}`} className="faculty-calendar-day is-empty" />)}</div>
       {loading ? <div className="faculty-calendar-loading">Loading schedule…</div> : null}
     </div>
     {selected ? <div className="faculty-calendar-modal-backdrop" role="presentation" onClick={() => setSelected(null)}><aside className="faculty-calendar-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><button type="button" className="faculty-calendar-modal-close" onClick={() => setSelected(null)}><X /></button><span className="faculty-calendar-eyebrow">DAY DETAILS</span><h2>{displayDate(selected.date)}</h2>{selected.events.length ? selected.events.map((event, index) => <article className="faculty-calendar-detail" key={index}><strong>{STATUS_LABELS[normalizeStatus(event)] || event.status || 'Calendar event'}</strong><p>{event.courseName || event.batchName || event.reason || 'No additional details'}</p>{event.batchId ? <p>Batch: {event.batchId}</p> : null}<p>{timing(event)}</p>{event.reason ? <p>Reason: {event.reason}</p> : null}{event.status ? <p>Status: {event.status}</p> : null}</article>) : <p>No scheduled class or approved leave on this date.</p>}</aside></div> : null}
