@@ -2085,6 +2085,17 @@ aside.branch-course-view-drawer .branch-course-view-edit {
   margin-top: 2px;
 }
 
+/* Keep the Faculty View drawer compact without affecting its content. */
+.branch-course-drawer-backdrop aside.branch-course-view-drawer {
+  width: min(600px, 92vw);
+}
+
+@media (max-width: 640px) {
+  .branch-course-drawer-backdrop aside.branch-course-view-drawer {
+    width: 100%;
+  }
+}
+
 .branch-faculty-attendance-status-heading {
   display: flex;
   align-items: flex-start;
