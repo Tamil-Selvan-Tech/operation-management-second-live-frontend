@@ -104,6 +104,7 @@ import { getBranchDashboardWidgets, saveBranchDashboardWidgets } from '../servic
 import { BranchBatchManagementSection } from './BranchBatchManagementSection'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
 import { InstituteLeavePage } from './InstituteLeavePage'
+import { GeneralHolidayPage } from './GeneralHolidayPage'
 import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
@@ -1629,6 +1630,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
 
   if (section === 'notifications') return 'notifications'
   if (section === 'institute-leave') return 'institute-leave'
+  if (section === 'general-holidays') return 'general-holidays'
   if (section === 'faculty-leave') return 'faculty-leave'
   if (section === 'progress-notifications') return 'progress-notifications'
   if (section === 'faculty-edit-requests') return 'faculty-edit-requests'
@@ -2912,11 +2914,11 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     courses: activeSection === 'installments',
     faculty: activeSection === 'batches',
     students: activeSection === 'payments',
-    management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests'].includes(activeSection),
+    management: ['institute-leave', 'general-holidays', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests'].includes(activeSection),
   }))
 
   useEffect(() => {
-    const parentByChild = { installments: 'courses', batches: 'faculty', payments: 'students', 'institute-leave': 'management', 'faculty-leave': 'management', 'progress-notifications': 'management', 'faculty-edit-requests': 'management' }
+    const parentByChild = { installments: 'courses', batches: 'faculty', payments: 'students', 'institute-leave': 'management', 'general-holidays': 'management', 'faculty-leave': 'management', 'progress-notifications': 'management', 'faculty-edit-requests': 'management' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -7831,6 +7833,7 @@ useEffect(() => {
           { id: 'students', label: 'Students', icon: Users, child: { id: 'payments', label: 'Payments', icon: Wallet } },
           { id: 'management', label: 'Management', icon: LayoutGrid, children: [
             { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
+            { id: 'general-holidays', label: 'General Holidays', icon: CalendarDays },
             { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
             { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
             { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
@@ -8392,6 +8395,7 @@ useEffect(() => {
               ) : null}
 
               {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage key={activeSection} initialViewMode={activeSection === 'faculty-leave' ? 'faculty' : 'institute'} /> : null}
+              {activeSection === 'general-holidays' ? <GeneralHolidayPage /> : null}
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'notifications' ? (
