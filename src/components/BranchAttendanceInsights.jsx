@@ -3,8 +3,48 @@ import { Check, X, History, Users, Minus } from 'lucide-react'
 import { buildAttendanceInsights } from '../lib/branchAttendanceInsights'
 import { attendancePercentage } from '../lib/branchAttendanceSummary'
 
+function normalizeAttendanceInsightsData(data) {
+  const source = data?.data && typeof data.data === 'object' ? data.data : (data || {})
+  const sourceBatches = Array.isArray(source.batches) ? source.batches : []
+  const batchStudents = sourceBatches.flatMap((batch) => (
+    (Array.isArray(batch?.students) ? batch.students : []).map((student) => ({
+      ...student,
+      batchId: student?.batchId || batch?.batchId || batch?.id || '',
+      batchName: student?.batchName || batch?.batchName || '',
+    }))
+  ))
+  const sourceStudents = Array.isArray(source.students) ? source.students : []
+  const students = [...sourceStudents, ...batchStudents]
+    .reduce((unique, student) => {
+      const id = String(student?.id || student?.studentId || student?.studentCode || '').trim()
+      if (!id) return unique
+      const existingIndex = unique.findIndex((item) => String(item?.id || item?.studentId || item?.studentCode || '').trim() === id)
+      if (existingIndex === -1) {
+        unique.push(student)
+      } else {
+        unique[existingIndex] = {
+          ...unique[existingIndex],
+          ...student,
+          records: [...(unique[existingIndex].records || []), ...(student.records || [])],
+        }
+      }
+      return unique
+    }, [])
+    .map((student) => {
+      const status = String(student?.attendanceStatus || student?.status || '').trim().toUpperCase()
+      const records = Array.isArray(student?.records) ? [...student.records] : []
+      const date = String(source.date || source.attendanceDate || '').trim()
+      if (date && ['PRESENT', 'ABSENT'].includes(status) && !records.some((record) => record?.attendanceDate === date)) {
+        records.push({ attendanceDate: date, status, batchId: student?.batchId || '', courseId: student?.courseId || '' })
+      }
+      return { ...student, id: student?.id || student?.studentId || student?.studentCode, records }
+    })
+
+  return { ...source, students }
+}
+
 export function BranchAttendanceInsights({ data }) {
-  const info = useMemo(() => buildAttendanceInsights(data), [data])
+  const info = useMemo(() => buildAttendanceInsights(normalizeAttendanceInsightsData(data)), [data])
   const segments = [
     { key: 'present', label: 'Present', color: '#0db369', students: info.present },
     { key: 'absent', label: 'Absent', color: '#1686f8', students: info.absent },

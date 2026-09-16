@@ -1341,8 +1341,20 @@ function FacultyBatchOverviewCard({ batch, batchOptions = [], selectedBatchId = 
   const chartBatches = [batch]
   const getAttendanceValue = (row, metric = 'present') => {
     const status = String(row?.status || '').toUpperCase()
-    const value = metric === 'absent' ? row?.absentPercentage : (row?.presentPercentage ?? row?.percentage)
-    return status !== 'UNMARKED' && status !== 'NOT_APPLICABLE' && status !== 'PARTIAL' && Number.isFinite(Number(value)) ? Number(value) : null
+    if (status === 'UNMARKED' || status === 'NOT_APPLICABLE') return null
+
+    const present = row?.presentPercentage ?? row?.percentage
+    const absent = row?.absentPercentage
+    const absentCount = Number(row?.absent)
+    const value = metric === 'absent'
+      ? (Number.isFinite(Number(absent)) && Number(absent) > 0
+        ? absent
+        : absentCount > 0 ? absent : null)
+      : present
+
+    return Number.isFinite(Number(value))
+      ? Math.max(0, Math.min(100, Number(value)))
+      : null
   }
   const getSeries = (entry) => {
     if (period === 'daily') return dayOrder.map((day) => (entry?.weekly || []).find((item) => item.day === day) || { day, status: 'UNMARKED' })
@@ -1350,7 +1362,7 @@ function FacultyBatchOverviewCard({ batch, batchOptions = [], selectedBatchId = 
     return Array.isArray(entry?.monthlyYear) ? entry.monthlyYear.slice(6, 12) : []
   }
   const chartRows = getSeries(chartBatches[0]).map((item, index) => ({
-    label: period === 'daily' ? item.day : item.label,
+    label: period === 'daily' ? item.day : (item.label || `Period ${index + 1}`),
     values: chartBatches.flatMap((entry) => {
       const row = getSeries(entry)[index]
       return ['present', 'absent'].map((metric) => ({ metric, value: getAttendanceValue(row, metric), detail: getAttendanceValue(row, metric) != null ? `${row.present} present · ${row.absent} absent` : row?.status === 'PARTIAL' ? 'Attendance not fully marked' : row?.status === 'NOT_APPLICABLE' ? 'Not scheduled' : 'Attendance not marked' }))
