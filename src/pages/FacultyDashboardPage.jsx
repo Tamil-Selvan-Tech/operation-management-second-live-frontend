@@ -85,6 +85,7 @@ import { getStudentPaymentProgress } from '../lib/studentPaymentProgress'
 import { saveStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { Button } from '../components/Button'
 import { FacultyLeaveRequests } from '../components/FacultyLeaveRequests'
+import { FacultyCalendar } from '../components/FacultyCalendar'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 import '../styles/FacultyDashboardPage.css'
@@ -3947,6 +3948,7 @@ const nextName = trimmedValue
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
           { id: 'my-courses', label: 'My Courses', icon: BookOpen },
           { id: 'my-batches', label: 'My Batches', icon: Layers3 },
+          { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'leave-requests', label: 'Leave Requests', icon: CalendarDays },
           { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -4576,6 +4578,10 @@ const nextName = trimmedValue
                     ) : null}
                   </div>
                 </FacultyDashboardSection>
+              ) : null}
+
+              {activeSection === 'my-calendar' ? (
+                <FacultyCalendar faculty={facultyDetails} facultyProfile={facultyProfile || currentFacultyIdentity} />
               ) : null}
 
               {isStudentCalendarRoute ? (
