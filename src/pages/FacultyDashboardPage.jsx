@@ -88,7 +88,7 @@ import { saveStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { Button } from '../components/Button'
 import { FacultyLeaveRequests } from '../components/FacultyLeaveRequests'
 import { FacultyCalendar } from '../components/FacultyCalendar'
-import { getFacultyTemporaryBatches } from '../services/facultyCalendarService'
+import { getFacultyTemporaryBatches, getTemporaryBatchStudents } from '../services/facultyCalendarService'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 import '../styles/FacultyDashboardPage.css'
@@ -1392,9 +1392,13 @@ function FacultyDashboardOverview({ overview, loading, error, onRetry, todayAtte
 }
 
 function OtherFacultyBatchesSection() {
+  const navigate = useNavigate()
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [studentView, setStudentView] = useState(null)
+  const [studentLoading, setStudentLoading] = useState(false)
+  const [studentError, setStudentError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -1405,8 +1409,22 @@ function OtherFacultyBatchesSection() {
     return () => { active = false }
   }, [])
 
+  async function viewStudents(item) {
+    setStudentLoading(true)
+    setStudentError('')
+    try {
+      const result = await getTemporaryBatchStudents(item.id)
+      setStudentView({ ...result, item })
+    } catch (err) {
+      setStudentError(err.message || 'Unable to load students')
+    } finally {
+      setStudentLoading(false)
+    }
+  }
+
   return <FacultyDashboardSection title="Other Faculty Batches" description="Temporary leave-related batches assigned to you for the current and upcoming dates.">
-    {loading ? <div className="faculty-my-batches-loading-card"><strong>Loading temporary batches...</strong></div> : error ? <div className="faculty-my-batches-empty"><strong>{error}</strong></div> : batches.length ? <div className="branch-dashboard-table-shell"><table className="branch-dashboard-table"><thead><tr><th>Date</th><th>Course</th><th>Batch</th><th>Original Faculty</th><th>Time</th><th>Assignment</th></tr></thead><tbody>{batches.map(item => <tr key={item.id}><td>{formatDisplayDate(item.effectiveDate)}</td><td>{item.courseName || '-'}</td><td>{item.batchName || item.batchId || '-'}</td><td>{item.originalFacultyName || item.originalFacultyId || '-'}</td><td>{formatClassTimeForDashboard(item.effectiveStartTime)} - {formatClassTimeForDashboard(item.effectiveEndTime)}</td><td>{item.assignmentType || 'Replacement'}</td></tr>)}</tbody></table></div> : <div className="faculty-my-batches-empty"><strong>No temporary batches</strong><p>No replacement or combined classes are currently assigned to you.</p></div>}
+    {loading ? <div className="faculty-my-batches-loading-card"><strong>Loading temporary batches...</strong></div> : error ? <div className="faculty-my-batches-empty"><strong>{error}</strong></div> : batches.length ? <div className="branch-dashboard-table-shell"><table className="branch-dashboard-table"><thead><tr><th>Date</th><th>Course</th><th>Batch</th><th>Original Faculty</th><th>Time</th><th>Assignment</th><th>Actions</th></tr></thead><tbody>{batches.map(item => <tr key={item.id}><td>{formatDisplayDate(item.effectiveDate)}</td><td>{item.courseName || '-'}</td><td>{item.batchName || item.batchId || '-'}</td><td>{item.originalFacultyName || item.originalFacultyId || '-'}</td><td>{formatClassTimeForDashboard(item.effectiveStartTime)} - {formatClassTimeForDashboard(item.effectiveEndTime)}</td><td>{item.assignmentType || 'Replacement'}</td><td><button type="button" onClick={() => viewStudents(item)}>View Students</button></td></tr>)}</tbody></table></div> : <div className="faculty-my-batches-empty"><strong>No temporary batches</strong><p>No replacement or combined classes are currently assigned to you.</p></div>}
+    {studentLoading ? <div className="faculty-my-batches-empty"><strong>Loading students...</strong></div> : studentError ? <div className="faculty-my-batches-empty"><strong>{studentError}</strong></div> : studentView ? <div className="faculty-my-batches-student-view"><button type="button" onClick={() => setStudentView(null)}>Back to Other Faculty Batches</button><h3>{studentView.session?.batchName || studentView.item?.batchName}</h3><p>{studentView.session?.courseName || studentView.item?.courseName || '-'} · {formatDisplayDate(studentView.session?.replacementDate || studentView.item?.effectiveDate)} · {formatClassTimeForDashboard(studentView.session?.replacementStartTime || studentView.item?.effectiveStartTime)} - {formatClassTimeForDashboard(studentView.session?.replacementEndTime || studentView.item?.effectiveEndTime)}</p>{studentView.students?.length ? <div className="branch-dashboard-table-shell"><table className="branch-dashboard-table"><thead><tr><th>S.No</th><th>Student ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Paid Progress</th><th>Course Progress</th><th>Attendance</th><th>Actions</th></tr></thead><tbody>{studentView.students.map((student, index) => <tr key={student.id}><td>{index + 1}</td><td>{student.studentId}</td><td>{student.studentName}</td><td>{student.emailAddress || '-'}</td><td>{student.mobileNumber || '-'}</td><td>{student.paidProgress ?? '-'}{student.paidProgress != null ? '%' : ''}</td><td>{student.courseProgress ?? '-'}{student.courseProgress != null ? '%' : ''}</td><td>{student.attendance || 'UNMARKED'}</td><td><button type="button" onClick={() => navigate(`/dashboard/faculty/my-batches/students/${encodeURIComponent(student.studentId || student.id || '')}/calendar`, { state: { temporaryStudent: student, temporarySession: studentView.session, temporaryBatch: studentView.item } })}>View Calendar</button></td></tr>)}</tbody></table></div> : <p>No students found for this batch.</p>}</div> : null}
   </FacultyDashboardSection>
 }
 
@@ -4786,7 +4804,7 @@ const nextName = trimmedValue
               {isStudentCalendarRoute ? (
                 <StudentCalendarPage
                   studentId={decodeURIComponent(studentCalendarId)}
-                  student={facultyScopedStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase()))}
+                  student={location.state?.temporaryStudent || facultyScopedStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase()))}
                   backPath="/dashboard/faculty/my-batches"
                   onBack={() => {
                     setActiveSection('students')

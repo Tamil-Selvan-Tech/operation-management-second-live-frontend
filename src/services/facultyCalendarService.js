@@ -23,3 +23,8 @@ export async function getFacultyTemporaryBatches() {
   const response = await request('/faculty-leave-requests/me/temporary-batches')
   return response?.data?.batches || response?.batches || []
 }
+
+export async function getTemporaryBatchStudents(sessionId) {
+  const response = await request(`/faculty-leave-requests/me/temporary-batches/${encodeURIComponent(sessionId)}/students`)
+  return response?.data || response || { session: null, students: [] }
+}

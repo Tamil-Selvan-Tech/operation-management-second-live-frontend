@@ -110,6 +110,7 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
       <header className="student-calendar-page-header">
         <div>
           <h1>Student Calendar</h1>
+          <p>{student.studentName || student.name || student.studentId || resolvedId}</p>
         </div>
       </header>
 
