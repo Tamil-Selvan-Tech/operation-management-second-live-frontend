@@ -18,6 +18,7 @@ import {
   updateBranchFaculty,
   deleteBranchFaculty,
 } from '../services/branchFacultyService'
+import { getBranchFacultyAttendanceStatus } from '../services/attendanceService'
 
 // Prefix constant for Faculty ID
 const FACULTY_ID_PREFIX = 'FC-'
@@ -27,6 +28,36 @@ function getBranchEntityPrefix(branchCode, entityPrefix) {
   const withoutNumber = compact.replace(/\d{3}$/, '')
   const branchPrefix = withoutNumber.startsWith('CIS') ? withoutNumber : `CIS${withoutNumber}`
   return `${branchPrefix}${entityPrefix}`
+}
+
+function formatAttendanceTime(value) {
+  if (!value) return 'N/A'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).format(date)
+}
+
+function formatAttendanceDuration(seconds) {
+  const total = Math.max(0, Number(seconds) || 0)
+  const hours = Math.floor(total / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`
+}
+
+function attendanceStatusLabel(status) {
+  return {
+    LOGGED_IN: 'LOGGED IN',
+    LOGGED_OUT: 'LOGGED OUT',
+    ON_PERMISSION: 'ON PERMISSION',
+    HALF_DAY: 'HALF DAY',
+    LOGIN_REQUIRED: 'LOGIN REQUIRED',
+    NOT_LOGGED_IN: 'NOT LOGGED IN',
+  }[status] || 'NOT LOGGED IN'
+}
+
+function displayAttendanceStatus(attendance) {
+  if (attendance?.status === 'ON_PERMISSION' && attendance?.interruptionType === 'HALF_DAY') return 'HALF_DAY'
+  return attendance?.status || 'NOT_LOGGED_IN'
 }
 
 export function BranchFacultyPage({ branchCode = '' }) {
@@ -72,6 +103,9 @@ export function BranchFacultyPage({ branchCode = '' }) {
   const [successAlert, setSuccessAlert] = useState(null) // { title, message }
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null) // faculty object
   const [viewFaculty, setViewFaculty] = useState(null) // faculty object for details drawer
+  const [viewAttendance, setViewAttendance] = useState(null)
+  const [viewAttendanceLoading, setViewAttendanceLoading] = useState(false)
+  const [viewAttendanceError, setViewAttendanceError] = useState('')
 
   // Actions dropdown
   const [openActionId, setOpenActionId] = useState('')
@@ -182,6 +216,38 @@ export function BranchFacultyPage({ branchCode = '' }) {
   useEffect(() => {
     fetchFaculty()
   }, [])
+
+  useEffect(() => {
+    if (!viewFaculty) {
+      setViewAttendance(null)
+      setViewAttendanceError('')
+      return undefined
+    }
+
+    let cancelled = false
+    const reference = viewFaculty.id || viewFaculty.dbId
+    const refreshAttendance = async () => {
+      setViewAttendanceLoading(true)
+      try {
+        const data = await getBranchFacultyAttendanceStatus(reference)
+        if (!cancelled) {
+          setViewAttendance(data)
+          setViewAttendanceError('')
+        }
+      } catch (error) {
+        if (!cancelled) setViewAttendanceError(error?.message || 'Unable to load attendance status')
+      } finally {
+        if (!cancelled) setViewAttendanceLoading(false)
+      }
+    }
+
+    refreshAttendance()
+    const timer = window.setInterval(refreshAttendance, 5000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [viewFaculty])
 
   // Load states on country code change
   useEffect(() => {
@@ -1479,6 +1545,45 @@ export function BranchFacultyPage({ branchCode = '' }) {
                   </button>
                 </div>
               </div>
+
+              <section className="branch-faculty-attendance-status" aria-labelledby="branch-faculty-attendance-title">
+                <div className="branch-faculty-attendance-status-heading">
+                  <div>
+                    <p className="section-kicker">TODAY'S WORK LOG</p>
+                  </div>
+                  {viewAttendance && (
+                    <div className={`branch-faculty-attendance-badge branch-faculty-attendance-heading-badge ${String(displayAttendanceStatus(viewAttendance)).toLowerCase().replaceAll('_', '-')}`}>
+                      <span aria-hidden="true" />
+                      {attendanceStatusLabel(displayAttendanceStatus(viewAttendance))}
+                    </div>
+                  )}
+                  {viewAttendanceLoading && <span className="branch-faculty-attendance-refresh">Updating…</span>}
+                </div>
+
+                {viewAttendanceError ? (
+                  <p className="branch-faculty-attendance-error">{viewAttendanceError}</p>
+                ) : viewAttendance ? (
+                  <>
+                    <div className="branch-faculty-attendance-metrics">
+                      <div><span>Login Time</span><strong>{formatAttendanceTime(viewAttendance.firstLoginAt)}</strong></div>
+                      <div><span>Logout Time</span><strong>{formatAttendanceTime(viewAttendance.finalLogoutAt)}</strong></div>
+                      <div><span>{viewAttendance.status === 'LOGGED_OUT' ? 'Total Working Time' : 'Current Working Time'}</span><strong>{formatAttendanceDuration(viewAttendance.workingSeconds)}</strong></div>
+                    </div>
+
+                    {['ON_PERMISSION', 'HALF_DAY', 'LOGIN_REQUIRED'].includes(viewAttendance.status) && viewAttendance.interruptionStartTime && (
+                      <div className="branch-faculty-attendance-interruption">
+                        <strong>{viewAttendance.status === 'LOGIN_REQUIRED' ? 'Permission Completed' : attendanceStatusLabel(displayAttendanceStatus(viewAttendance))}</strong>
+                        <span>{viewAttendance.interruptionStartTime} – {viewAttendance.interruptionEndTime}</span>
+                        {viewAttendance.interruptionReason && <span>Reason: {viewAttendance.interruptionReason}</span>}
+                        {viewAttendance.status === 'ON_PERMISSION' && <span>Remaining: {Math.ceil((Number(viewAttendance.remainingSeconds) || 0) / 60)} minutes</span>}
+                        {viewAttendance.status === 'LOGIN_REQUIRED' && <span>Re-login required.</span>}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="branch-faculty-attendance-refresh">Loading attendance status…</p>
+                )}
+              </section>
 
               {/* Details Table */}
               <div className="branch-course-view-body">

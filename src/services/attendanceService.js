@@ -215,6 +215,13 @@ export async function getFacultyAttendanceStatus(options = {}) {
   }
 }
 
+export async function getBranchFacultyAttendanceStatus(facultyReference) {
+  const reference = String(facultyReference || '').trim()
+  if (!reference) throw new Error('Faculty reference is required')
+  const response = await request(`/faculty/attendance/admin-status/${encodeURIComponent(reference)}`)
+  return unwrapFacultyAttendanceResponse(response)
+}
+
 export async function loginFacultyAttendance(payload = {}) {
   try {
     const response = await request('/faculty/attendance/login', { method: 'POST' })

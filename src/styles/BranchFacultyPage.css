@@ -2062,3 +2062,130 @@
   font-size: 0.96rem;
   font-weight: 600;
 }
+
+.branch-faculty-attendance-status {
+  margin: 24px 28px 22px;
+  padding: 9px 14px 8px;
+  border: 1px solid #dbe4f0;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+
+/* Give the faculty view header controls comfortable separation. */
+aside.branch-course-view-drawer .branch-course-view-header-actions {
+  gap: 14px;
+  margin-top: 2px;
+}
+
+aside.branch-course-view-drawer .branch-course-view-header-actions-row {
+  gap: 14px;
+}
+
+aside.branch-course-view-drawer .branch-course-view-edit {
+  margin-top: 2px;
+}
+
+.branch-faculty-attendance-status-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 5px;
+}
+
+.branch-faculty-attendance-status-heading h3 {
+  margin: 2px 0 0;
+  color: #102a56;
+  font-size: 1.1rem;
+}
+
+.branch-faculty-attendance-heading-badge {
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+.branch-faculty-attendance-refresh {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.branch-faculty-attendance-badge {
+  display: flex;
+  width: fit-content;
+  margin-left: auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.branch-faculty-attendance-badge span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.branch-faculty-attendance-badge.logged-out { color: #b91c1c; background: #fee2e2; }
+.branch-faculty-attendance-badge.on-permission,
+.branch-faculty-attendance-badge.half-day { color: #a16207; background: #fef3c7; }
+.branch-faculty-attendance-badge.login-required { color: #1d4ed8; background: #dbeafe; }
+.branch-faculty-attendance-badge.not-logged-in { color: #475569; background: #e2e8f0; }
+
+.branch-faculty-attendance-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.branch-faculty-attendance-metrics > div,
+.branch-faculty-attendance-interruption {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.branch-faculty-attendance-metrics span,
+.branch-faculty-attendance-interruption span {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.branch-faculty-attendance-metrics strong,
+.branch-faculty-attendance-interruption strong {
+  color: #102a56;
+  font-size: 0.94rem;
+}
+
+.branch-faculty-attendance-interruption {
+  margin-top: 10px;
+  border-color: #f6d58b;
+  background: #fffbeb;
+}
+
+.branch-faculty-attendance-error {
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  background: #fef2f2;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .branch-faculty-attendance-status { margin-inline: 16px; }
+  .branch-faculty-attendance-metrics { grid-template-columns: 1fr; }
+}
