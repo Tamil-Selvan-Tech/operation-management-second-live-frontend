@@ -18,3 +18,8 @@ export async function getFacultyLeaveRequests() {
   const data = unwrap(response)
   return Array.isArray(data) ? data : data?.requests || []
 }
+
+export async function getFacultyTemporaryBatches() {
+  const response = await request('/faculty-leave-requests/me/temporary-batches')
+  return response?.data?.batches || response?.batches || []
+}

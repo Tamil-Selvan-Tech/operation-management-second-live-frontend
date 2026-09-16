@@ -73,6 +73,90 @@ function formatDeclaredAt(value, timeZone = 'Asia/Kolkata') {
   }).format(new Date(value))
 }
 
+const CLOCK_HOURS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'))
+const CLOCK_MINUTES = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']
+
+function clockParts(value) {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return { hour: '', minute: '', period: 'AM' }
+  const numericHour = Number(match[1])
+  return { hour: String(numericHour % 12 || 12).padStart(2, '0'), minute: match[2], period: numericHour >= 12 ? 'PM' : 'AM' }
+}
+
+function clockValue({ hour, minute, period }) {
+  if (!hour || !minute || !period) return ''
+  let numericHour = Number(hour)
+  if (period === 'AM' && numericHour === 12) numericHour = 0
+  if (period === 'PM' && numericHour !== 12) numericHour += 12
+  return `${String(numericHour).padStart(2, '0')}:${minute}`
+}
+
+function ClockTimePicker({ label, value, onChange }) {
+  const [draftParts, setDraftParts] = useState(() => clockParts(value))
+  const parts = value ? clockParts(value) : draftParts
+  const update = (field, nextValue) => {
+    const nextParts = { ...parts, [field]: nextValue }
+    setDraftParts(nextParts)
+    onChange(clockValue(nextParts))
+  }
+  return <div className="faculty-replacement-clock"><span>{label}</span><div><select aria-label={`${label} hour`} value={parts.hour} onChange={event => update('hour', event.target.value)}><option value="">HH</option>{CLOCK_HOURS.map(hour => <option key={hour} value={hour}>{hour}</option>)}</select><select aria-label={`${label} minute`} value={parts.minute} onChange={event => update('minute', event.target.value)}><option value="">MM</option>{CLOCK_MINUTES.map(minute => <option key={minute} value={minute}>{minute}</option>)}</select><select aria-label={`${label} period`} value={parts.period} onChange={event => update('period', event.target.value)}><option value="AM">AM</option><option value="PM">PM</option></select></div></div>
+}
+
+function clockMinutes(value) {
+  const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/)
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null
+}
+
+function batchTimeMinutes(value, period) {
+  const text = String(value || '').trim()
+  const match = text.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!match) return null
+  let hour = Number(match[1])
+  const normalizedPeriod = String(period || match[3] || '').toUpperCase()
+  if (normalizedPeriod) {
+    if (normalizedPeriod === 'AM' && hour === 12) hour = 0
+    if (normalizedPeriod === 'PM' && hour !== 12) hour += 12
+  }
+  return hour * 60 + Number(match[2])
+}
+
+function getBatchTimeRange(batch) {
+  const timing = String(batch.batchTiming || batch.timing || '').split(/\s+-\s+/)
+  return {
+    start: batchTimeMinutes(batch.startTime || timing[0], batch.startPeriod),
+    end: batchTimeMinutes(batch.endTime || timing[1], batch.endPeriod),
+  }
+}
+
+function getFacultyTimingConflicts(facultyId, groups, startTime, endTime) {
+  const start = clockMinutes(startTime)
+  const end = clockMinutes(endTime)
+  if (start === null || end === null || end <= start) return []
+  return groups
+    .filter(group => String(group.facultyId || group.branchFacultyId || '').trim() === String(facultyId || '').trim())
+    .flatMap(group => group.batches || [])
+    .filter(batch => {
+      const range = getBatchTimeRange(batch)
+      return range.start !== null && range.end !== null && start < range.end && end > range.start
+    })
+}
+
+function SelectedFacultyBatches({ facultyId, groups = [] }) {
+  const selectedBatches = groups
+    .filter(group => String(group.facultyId || group.branchFacultyId || '').trim() === String(facultyId || '').trim())
+    .flatMap(group => (group.batches || []).map(batch => ({ ...batch, courseName: group.courseName })))
+  if (!facultyId) return null
+  return <div className="faculty-selected-batches"><strong>Selected faculty batches</strong>{selectedBatches.length ? <div className="faculty-selected-batches-list">{selectedBatches.map(batch => <div key={batch.id || batch.batchId}><span>{batch.batchName || batch.batchId || 'Batch'}</span><small>{batch.batchTiming || `${formatClassTime(batch.startTime)} - ${formatClassTime(batch.endTime)}`}</small></div>)}</div> : <p>No other batches found for this faculty.</p>}</div>
+}
+
+function ReplacementTimingStatus({ facultyId, groups = [], startTime, endTime }) {
+  const conflicts = getFacultyTimingConflicts(facultyId, groups, startTime, endTime)
+  if (!startTime || !endTime || clockMinutes(endTime) <= clockMinutes(startTime)) return null
+  return conflicts.length
+    ? <p className="faculty-selected-batches-conflict">Time conflict with: {conflicts.map(batch => `${batch.batchName || batch.batchId || 'Batch'} (${batch.batchTiming || `${formatClassTime(batch.startTime)} - ${formatClassTime(batch.endTime)}`})`).join(', ')}</p>
+    : <p className="faculty-selected-batches-available">Selected replacement time is available.</p>
+}
+
 function normalizeLeaveDateKey(value) {
   const text = String(value || '').trim()
   if (!text) return ''
@@ -107,7 +191,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   const [rejectReason, setRejectReason] = useState('')
   const [resolutionTarget, setResolutionTarget] = useState(null)
   const [resolutionType, setResolutionType] = useState('')
-  const [resolutionForm, setResolutionForm] = useState({ replacementFacultyId: '', rescheduledDate: '', rescheduledStartTime: '', rescheduledEndTime: '', targetSessionId: '', reason: '' })
+  const [resolutionForm, setResolutionForm] = useState({ replacementFacultyId: '', replacementStartTime: '', replacementEndTime: '', rescheduledDate: '', rescheduledStartTime: '', rescheduledEndTime: '', targetSessionId: '', reason: '' })
   const [replacementFaculty, setReplacementFaculty] = useState([])
   const [cancel, setCancel] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
@@ -253,11 +337,22 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
       return
     }
     setError(''); setResolutionTarget(session); setResolutionType(assignmentType)
-    setResolutionForm({ replacementFacultyId: '', rescheduledDate: session.sessionDate || '', rescheduledStartTime: session.originalStartTime || '', rescheduledEndTime: session.originalEndTime || '', targetSessionId: '', reason: '' })
+    setResolutionForm({ replacementFacultyId: '', replacementStartTime: '', replacementEndTime: '', rescheduledDate: session.sessionDate || '', rescheduledStartTime: session.originalStartTime || '', rescheduledEndTime: session.originalEndTime || '', targetSessionId: '', reason: '' })
     if (assignmentType === 'REPLACEMENT' || assignmentType === 'COMBINED') {
       try {
         const eligible = unwrap(await request(`/faculty-leave-requests/${facultyDetail.id}/sessions/${session.id}/eligible-faculty`)) || {}
-        setReplacementFaculty(eligible.faculty || [])
+        const courseKey = String(session.courseId || '').trim().toLowerCase()
+        const courseNameKey = String(session.courseName || '').trim().toLowerCase()
+        const fallbackFaculty = Array.from(new Map(branchBatchGroups
+          .filter(group => {
+            const groupCourseKey = String(group.courseId || '').trim().toLowerCase()
+            const groupCourseNameKey = String(group.courseName || '').trim().toLowerCase()
+            return (courseKey && groupCourseKey === courseKey) || (courseNameKey && groupCourseNameKey === courseNameKey)
+          })
+          .map(group => [group.facultyId || group.branchFacultyId, { facultyId: group.facultyId || group.branchFacultyId, name: group.facultyName || group.facultyId, email: group.facultyEmail || '' }])
+          .filter(([id]) => id && String(id).toLowerCase() !== String(facultyDetail.facultyId || facultyDetail.facultyId || '').toLowerCase()))
+          .values())
+        setReplacementFaculty((eligible.faculty || []).length ? eligible.faculty : fallbackFaculty)
         if (assignmentType === 'COMBINED') {
           setFacultyDetail(previous => ({ ...previous, affectedSessions: (eligible.combineSessions || []).map(item => ({ ...item, batchName: `${item.batchName} · ${item.facultyName || 'Faculty'} · ${item.moduleProgress ?? item.courseProgress ?? 'N/A'}% progress`, statusLabel: `Module: ${item.moduleName || 'Not started'} · Progress: ${item.moduleProgress ?? item.courseProgress ?? 'N/A'}%` })) }))
         }
@@ -267,8 +362,11 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   }
   async function submitResolution() {
     if (!facultyDetail || !resolutionTarget) return
-    const payload = { assignmentType: resolutionType, ...resolutionForm }
+    const payload = { assignmentType: resolutionType, ...resolutionForm, ...(resolutionType === 'REPLACEMENT' ? { replacementDate: resolutionTarget.sessionDate } : {}) }
     if (resolutionType === 'REPLACEMENT' && !payload.replacementFacultyId) return setError('Select a replacement faculty')
+    if (resolutionType === 'REPLACEMENT' && (!payload.replacementStartTime || !payload.replacementEndTime)) return setError('Select the replacement start and end time')
+    if (resolutionType === 'REPLACEMENT' && clockMinutes(payload.replacementEndTime) <= clockMinutes(payload.replacementStartTime)) return setError('Replacement end time must be after start time')
+    if (resolutionType === 'REPLACEMENT' && getFacultyTimingConflicts(payload.replacementFacultyId, branchBatchGroups, payload.replacementStartTime, payload.replacementEndTime).length) return setError('Replacement timing conflicts with an existing faculty batch')
     if (resolutionType === 'RESCHEDULED' && (!payload.rescheduledDate || !payload.rescheduledStartTime || !payload.rescheduledEndTime)) return setError('Complete the rescheduled date and time')
     if (resolutionType === 'COMBINED' && !payload.targetSessionId) return setError('Select a compatible session to combine')
     if (resolutionType === 'CANCELLED' && !payload.reason.trim()) return setError('Enter a cancellation reason')
@@ -300,7 +398,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
         {!facultyRequests.length ? <tr><td colSpan="9">No faculty leave requests found.</td></tr> : null}
       </tbody></table></div>
       <dialog ref={facultyDialog} className="institute-dialog faculty-review-dialog" onCancel={event => { event.preventDefault(); close() }}>
-        {rejectTarget ? <><div className="institute-leave-header"><h3>Reject Leave Request</h3><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div><p className="institute-confirm-question">Are you sure you want to reject this faculty leave request?</p><label>Reason (optional)<textarea value={rejectReason} maxLength={500} onChange={event => setRejectReason(event.target.value)} placeholder="Add a reason for the faculty member" /></label><div className="institute-confirm-actions"><button type="button" onClick={close} disabled={busy}>Keep Request</button><button type="button" className="institute-danger-button" onClick={() => reviewFacultyRequest(rejectTarget, 'reject')} disabled={busy}>{busy ? 'Rejecting...' : 'Confirm Reject'}</button></div></> : resolutionTarget ? <div className="faculty-resolution-form"><div className="institute-leave-header"><div><p className="section-kicker">AFFECTED CLASS RESOLUTION</p><h3>{resolutionType === 'REPLACEMENT' ? 'Assign Replacement Faculty' : resolutionType === 'RESCHEDULED' ? 'Reschedule Class' : resolutionType === 'COMBINED' ? 'Combine Class' : 'Cancel Class'}</h3><p>{resolutionTarget.batchName || resolutionTarget.batchId} · {formatLeaveDate(resolutionTarget.sessionDate)} · {formatClassTime(resolutionTarget.originalStartTime)} - {formatClassTime(resolutionTarget.originalEndTime)}</p></div><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div>{error ? <p role="alert" className="institute-error">{error}</p> : null}{resolutionType === 'REPLACEMENT' ? <label>Replacement faculty<select value={resolutionForm.replacementFacultyId} onChange={event => setResolutionForm({ ...resolutionForm, replacementFacultyId: event.target.value })}><option value="">Select faculty</option>{replacementFaculty.map(faculty => <option key={faculty.facultyId} value={faculty.facultyId}>{faculty.name} ({faculty.facultyId})</option>)}</select></label> : null}{resolutionType === 'RESCHEDULED' ? <div className="faculty-resolution-grid"><label>New date<input type="date" value={resolutionForm.rescheduledDate} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledDate: event.target.value })} /></label><label>Start time<input type="time" value={resolutionForm.rescheduledStartTime} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledStartTime: event.target.value })} /></label><label>End time<input type="time" value={resolutionForm.rescheduledEndTime} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledEndTime: event.target.value })} /></label></div> : null}{resolutionType === 'COMBINED' ? <label>Compatible class<select value={resolutionForm.targetSessionId} onChange={event => setResolutionForm({ ...resolutionForm, targetSessionId: event.target.value })}><option value="">Select class</option>{(facultyDetail.affectedSessions || []).filter(item => item.id !== resolutionTarget.id && item.courseId === resolutionTarget.courseId && item.sessionDate === resolutionTarget.sessionDate && item.originalStartTime === resolutionTarget.originalStartTime && item.originalEndTime === resolutionTarget.originalEndTime).map(item => <option key={item.id} value={item.id}>{item.batchName} · {item.id}</option>)}</select></label> : null}<label>{resolutionType === 'CANCELLED' ? 'Cancellation reason' : 'Notes (optional)'}<textarea value={resolutionForm.reason} onChange={event => setResolutionForm({ ...resolutionForm, reason: event.target.value })} placeholder="Add notes for this resolution" /></label><div className="institute-confirm-actions"><button type="button" onClick={() => { setResolutionTarget(null); setResolutionType(''); setError('') }} disabled={busy}>Back</button><button type="button" className="institute-primary" onClick={submitResolution} disabled={busy}>{busy ? 'Saving...' : 'Save Resolution'}</button></div></div> : facultyDetail ? <div className="faculty-leave-review-detail"><div className="institute-leave-header"><div><p className="section-kicker">FACULTY LEAVE REVIEW</p><h3>{facultyDetail.facultyName}</h3><p>{facultyDetail.leaveType} · {formatLeaveDate(facultyDetail.fromDate)}{facultyDetail.fromDate !== facultyDetail.toDate ? ` - ${formatLeaveDate(facultyDetail.toDate)}` : ''}</p></div><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div><p>{facultyDetail.reason}</p>{(facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED') ? <p role="alert" className="institute-error">Resolve every affected class below before approving this leave request.</p> : null}<div className="institute-table-scroll"><table><thead><tr><th>Batch</th><th>Date</th><th>Time</th><th>Resolution</th><th>Actions</th></tr></thead><tbody>{(facultyDetail.affectedSessions || []).map(session => <tr key={session.id}><td>{session.batchName || session.batchId || '-'}</td><td>{formatLeaveDate(session.sessionDate)}</td><td>{formatClassTime(session.originalStartTime)} - {formatClassTime(session.originalEndTime)}</td><td><span className={`faculty-leave-status status-${String(session.resolutionStatus || 'UNRESOLVED').toLowerCase()}`}>{session.statusLabel}</span></td><td>{session.resolutionStatus === 'UNRESOLVED' ? <><button type="button" onClick={() => openResolution(session, 'REPLACEMENT')}>Replace</button><button type="button" onClick={() => openResolution(session, 'RESCHEDULED')}>Reschedule</button><button type="button" onClick={() => openResolution(session, 'COMBINED')}>Combine</button><button type="button" onClick={() => openResolution(session, 'CANCELLED')}>Cancel class</button></> : session.resolutionStatus === 'NO_SCHEDULED_CLASS' ? 'No action' : 'Resolved'}</td></tr>)}</tbody></table></div><div className="institute-confirm-actions">{['PENDING', 'UNDER_REVIEW'].includes(facultyDetail.status) ? <><button type="button" className="institute-danger-button" onClick={() => openRejectConfirmation(facultyDetail.id)} disabled={busy}>Reject</button><button type="button" className="institute-primary" onClick={() => reviewFacultyRequest(facultyDetail.id, 'approve')} disabled={busy || (facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED')}>Approve</button></> : null}</div></div> : null}
+        {rejectTarget ? <><div className="institute-leave-header"><h3>Reject Leave Request</h3><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div><p className="institute-confirm-question">Are you sure you want to reject this faculty leave request?</p><label>Reason (optional)<textarea value={rejectReason} maxLength={500} onChange={event => setRejectReason(event.target.value)} placeholder="Add a reason for the faculty member" /></label><div className="institute-confirm-actions"><button type="button" onClick={close} disabled={busy}>Keep Request</button><button type="button" className="institute-danger-button" onClick={() => reviewFacultyRequest(rejectTarget, 'reject')} disabled={busy}>{busy ? 'Rejecting...' : 'Confirm Reject'}</button></div></> : resolutionTarget ? <div className="faculty-resolution-form"><div className="institute-leave-header"><div><p className="section-kicker">AFFECTED CLASS RESOLUTION</p><h3>{resolutionType === 'REPLACEMENT' ? 'Assign Replacement Faculty' : resolutionType === 'RESCHEDULED' ? 'Reschedule Class' : resolutionType === 'COMBINED' ? 'Combine Class' : 'Cancel Class'}</h3><p>{resolutionTarget.batchName || resolutionTarget.batchId} · {formatLeaveDate(resolutionTarget.sessionDate)} · {formatClassTime(resolutionTarget.originalStartTime)} - {formatClassTime(resolutionTarget.originalEndTime)}</p></div><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div>{error ? <p role="alert" className="institute-error">{error}</p> : null}{resolutionType === 'REPLACEMENT' ? <label>Replacement faculty<select value={resolutionForm.replacementFacultyId} onChange={event => setResolutionForm({ ...resolutionForm, replacementFacultyId: event.target.value })}><option value="">Select faculty</option>{replacementFaculty.map(faculty => <option key={faculty.facultyId} value={faculty.facultyId}>{faculty.name} ({faculty.facultyId})</option>)}</select></label> : null}{resolutionType === 'REPLACEMENT' && resolutionForm.replacementFacultyId ? <SelectedFacultyBatches facultyId={resolutionForm.replacementFacultyId} groups={branchBatchGroups} /> : null}{resolutionType === 'REPLACEMENT' && resolutionForm.replacementFacultyId ? <div className="faculty-replacement-timing"><strong>Replacement timing</strong><div><ClockTimePicker label="Start time" value={resolutionForm.replacementStartTime} onChange={value => setResolutionForm({ ...resolutionForm, replacementStartTime: value })} /><ClockTimePicker label="End time" value={resolutionForm.replacementEndTime} onChange={value => setResolutionForm({ ...resolutionForm, replacementEndTime: value })} /></div><ReplacementTimingStatus facultyId={resolutionForm.replacementFacultyId} groups={branchBatchGroups} startTime={resolutionForm.replacementStartTime} endTime={resolutionForm.replacementEndTime} /></div> : null}{resolutionType === 'RESCHEDULED' ? <div className="faculty-resolution-grid"><label>New date<input type="date" value={resolutionForm.rescheduledDate} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledDate: event.target.value })} /></label><label>Start time<input type="time" value={resolutionForm.rescheduledStartTime} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledStartTime: event.target.value })} /></label><label>End time<input type="time" value={resolutionForm.rescheduledEndTime} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledEndTime: event.target.value })} /></label></div> : null}{resolutionType === 'COMBINED' ? <label>Compatible class<select value={resolutionForm.targetSessionId} onChange={event => setResolutionForm({ ...resolutionForm, targetSessionId: event.target.value })}><option value="">Select class</option>{(facultyDetail.affectedSessions || []).filter(item => item.id !== resolutionTarget.id && item.courseId === resolutionTarget.courseId && item.sessionDate === resolutionTarget.sessionDate && item.originalStartTime === resolutionTarget.originalStartTime && item.originalEndTime === resolutionTarget.originalEndTime).map(item => <option key={item.id} value={item.id}>{item.batchName} · {item.id}</option>)}</select></label> : null}<label>{resolutionType === 'CANCELLED' ? 'Cancellation reason' : 'Notes (optional)'}<textarea value={resolutionForm.reason} onChange={event => setResolutionForm({ ...resolutionForm, reason: event.target.value })} placeholder="Add notes for this resolution" /></label><div className="institute-confirm-actions"><button type="button" onClick={() => { setResolutionTarget(null); setResolutionType(''); setError('') }} disabled={busy}>Back</button><button type="button" className="institute-primary" onClick={submitResolution} disabled={busy}>{busy ? 'Saving...' : 'Save Resolution'}</button></div></div> : facultyDetail ? <div className="faculty-leave-review-detail"><div className="institute-leave-header"><div><p className="section-kicker">FACULTY LEAVE REVIEW</p><h3>{facultyDetail.facultyName}</h3><p>{facultyDetail.leaveType} · {formatLeaveDate(facultyDetail.fromDate)}{facultyDetail.fromDate !== facultyDetail.toDate ? ` - ${formatLeaveDate(facultyDetail.toDate)}` : ''}</p></div><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div><p>{facultyDetail.reason}</p>{(facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED') ? <p role="alert" className="institute-error">Resolve every affected class below before approving this leave request.</p> : null}<div className="institute-table-scroll"><table><thead><tr><th>Batch</th><th>Date</th><th>Time</th><th>Resolution</th><th>Actions</th></tr></thead><tbody>{(facultyDetail.affectedSessions || []).map(session => <tr key={session.id}><td>{session.batchName || session.batchId || '-'}</td><td>{formatLeaveDate(session.sessionDate)}</td><td>{formatClassTime(session.originalStartTime)} - {formatClassTime(session.originalEndTime)}</td><td><span className={`faculty-leave-status status-${String(session.resolutionStatus || 'UNRESOLVED').toLowerCase()}`}>{session.statusLabel}</span></td><td>{session.resolutionStatus === 'UNRESOLVED' ? <><button type="button" onClick={() => openResolution(session, 'REPLACEMENT')}>Replace</button><button type="button" onClick={() => openResolution(session, 'RESCHEDULED')}>Reschedule</button><button type="button" onClick={() => openResolution(session, 'COMBINED')}>Combine</button><button type="button" onClick={() => openResolution(session, 'CANCELLED')}>Cancel class</button></> : session.resolutionStatus === 'NO_SCHEDULED_CLASS' ? 'No action' : 'Resolved'}</td></tr>)}</tbody></table></div><div className="institute-confirm-actions">{['PENDING', 'UNDER_REVIEW'].includes(facultyDetail.status) ? <><button type="button" className="institute-danger-button" onClick={() => openRejectConfirmation(facultyDetail.id)} disabled={busy}>Reject</button><button type="button" className="institute-primary" onClick={() => reviewFacultyRequest(facultyDetail.id, 'approve')} disabled={busy || (facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED')}>Approve</button></> : null}</div></div> : null}
       </dialog>
     </section> : <>
     <header className="institute-leave-header"><div className="institute-leave-heading"><span className="institute-heading-icon"><CalendarDays size={34} /></span><div><p className="section-kicker">Management</p><h2>Institute Leave</h2><p>Manage institute-wide leaves and schedule changes</p></div></div>

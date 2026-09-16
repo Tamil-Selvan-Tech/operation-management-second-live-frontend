@@ -75,6 +75,22 @@
 .faculty-review-dialog td, .faculty-review-dialog th { white-space: nowrap; vertical-align: middle; }
 .faculty-review-dialog td:last-child { white-space: normal; min-width: 260px; }
 .faculty-review-dialog td:last-child button { margin: 3px; padding: 7px 10px; font-size: 12px; }
+.faculty-selected-batches { margin: 18px 0 4px; padding: 14px 16px; border: 1px solid #dfe5ef; border-radius: 10px; background: #f8fafc; }
+.faculty-selected-batches > strong { display: block; margin-bottom: 10px; color: #334155; }
+.faculty-selected-batches-list { display: grid; gap: 8px; }
+.faculty-selected-batches-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 10px; border-radius: 7px; background: white; }
+.faculty-selected-batches-list small { color: #64748b; }
+.faculty-selected-batches p { margin: 0; color: #64748b; }
+.faculty-replacement-timing { margin: 18px 0 4px; padding: 14px 16px; border: 1px solid #dfe5ef; border-radius: 10px; background: #f8fafc; }
+.faculty-replacement-timing > strong { display: block; margin-bottom: 10px; color: #334155; }
+.faculty-replacement-timing > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.faculty-replacement-timing label { display: grid; gap: 6px; color: #64748b; font-size: 13px; }
+.faculty-replacement-clock { display: grid; gap: 6px; color: #64748b; font-size: 13px; }
+.faculty-replacement-clock > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.faculty-replacement-clock select { min-width: 0; }
+.faculty-selected-batches-conflict { margin: 10px 0 0; color: #b42318; font-size: 13px; font-weight: 600; }
+.faculty-selected-batches-available { margin: 10px 0 0; color: #18794e; font-size: 13px; font-weight: 600; }
+@media (max-width: 700px) { .faculty-replacement-timing > div { grid-template-columns: 1fr; } }
 .institute-danger-button { display: inline-flex; align-items: center; justify-content: center; color: white !important; background: #c6283d !important; border-color: #c6283d !important; }
 .faculty-resolution-form { display: grid; gap: 18px; }
 .faculty-resolution-form label { color: #52627d; font-size: 13px; font-weight: 750; }
