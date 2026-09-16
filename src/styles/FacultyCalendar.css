@@ -7,6 +7,8 @@
 .faculty-calendar-cell-batches{display:grid;gap:5px;margin-top:2px}.faculty-calendar-cell-batch{display:block;width:100%;padding:5px 7px;text-align:left;border:0;border-radius:9px;background:#f7faff;color:#31577f;cursor:pointer}.faculty-calendar-cell-batch strong,.faculty-calendar-cell-batch small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.faculty-calendar-cell-batch strong{font-size:10px}.faculty-calendar-cell-batch small{margin-top:2px;color:#7189a5;font-size:9px}.faculty-calendar-cell-batch:hover{background:#eaf2ff}.faculty-calendar-more{border:0;background:none;color:#3868b8;font-size:10px;text-align:left;padding:2px 7px;cursor:pointer}.faculty-calendar-more:hover{text-decoration:underline}
 .faculty-calendar-summary-card{min-height:78px;padding:13px 15px;gap:12px;border-radius:14px}.faculty-calendar-summary-icon{width:38px;height:38px;border-radius:11px}.faculty-calendar-summary-card strong{margin-top:5px;font-size:17px}.faculty-calendar-summary-card small{margin-top:5px;font-size:12px}
 .faculty-calendar-weekdays span{background:#334155;color:#fff}
+.faculty-calendar-legend-item--present,.faculty-calendar-event--present,.faculty-calendar-drawer-pill--present{background:#dcfce7;color:#15803d}
+.faculty-calendar-legend-item--absent,.faculty-calendar-event--absent,.faculty-calendar-drawer-pill--absent{background:#fee2e2;color:#b91c1c}
 .faculty-calendar-modal-backdrop{background:#0f172a66;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 .faculty-calendar-modal-backdrop{pointer-events:none}.faculty-calendar-modal{pointer-events:auto}
 body:has(.faculty-calendar-modal-backdrop) .super-admin-sidebar{display:block;filter:blur(4px);opacity:.45;pointer-events:none}
