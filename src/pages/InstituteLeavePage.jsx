@@ -12,6 +12,21 @@ function formatClassTime(value) {
   return `${hour % 12 || 12}:${match[2]} ${hour >= 12 ? 'PM' : 'AM'}`
 }
 
+function normalizeFacultyLeaveDetail(value) {
+  const detail = value && typeof value === 'object' ? value : {}
+  const sessions = Array.isArray(detail.affectedSessions) ? detail.affectedSessions.filter(Boolean) : []
+  return {
+    ...detail,
+    affectedSessions: sessions.map(session => ({
+      ...session,
+      originalStartTime: session.originalStartTime || session.startTime || String(session.batchTiming || '').split(' - ')?.[0] || '',
+      originalEndTime: session.originalEndTime || session.endTime || String(session.batchTiming || '').split(' - ')?.[1] || '',
+      resolutionStatus: session.resolutionStatus || 'UNRESOLVED',
+      statusLabel: session.statusLabel || 'Needs resolution',
+    })),
+  }
+}
+
 function formatDeclaredAt(value, timeZone = 'Asia/Kolkata') {
   if (!value) return '-'
   return new Intl.DateTimeFormat('en-GB', {
@@ -36,12 +51,21 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   const [busy, setBusy] = useState(false)
   const [form, setForm] = useState(null)
   const [detail, setDetail] = useState(null)
+  const [facultyDetail, setFacultyDetail] = useState(null)
+  const [rejectTarget, setRejectTarget] = useState(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [resolutionTarget, setResolutionTarget] = useState(null)
+  const [resolutionType, setResolutionType] = useState('')
+  const [resolutionForm, setResolutionForm] = useState({ replacementFacultyId: '', rescheduledDate: '', rescheduledStartTime: '', rescheduledEndTime: '', targetSessionId: '', reason: '' })
+  const [replacementFaculty, setReplacementFaculty] = useState([])
+  const [combineSessions, setCombineSessions] = useState([])
   const [cancel, setCancel] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
   const [successPopup, setSuccessPopup] = useState('')
   const [openActionMenu, setOpenActionMenu] = useState(null)
   const [pinnedActionMenu, setPinnedActionMenu] = useState(false)
   const dialog = useRef(null)
+  const facultyDialog = useRef(null)
   const load = useCallback(async () => {
     try {
       const response = await request('/institute-leaves')
@@ -50,9 +74,11 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     try {
       const facultyResponse = await request('/faculty-leave-requests/branch')
       setFacultyRequests(unwrap(facultyResponse)?.requests || [])
-    } catch {
-      // Keep the existing Institute Leave screen usable during rollout/migration.
+    } catch (err) {
+      // Do not silently turn a failed faculty-request query into an empty
+      // table; keep the error visible so the branch admin knows what failed.
       setFacultyRequests([])
+      setError(err.message || 'Unable to load faculty leave requests')
     }
   }, [])
   useEffect(() => {
@@ -77,6 +103,11 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     else dialog.current?.close()
   }, [open])
   useEffect(() => {
+    const facultyOpen = Boolean(facultyDetail || rejectTarget || resolutionTarget)
+    if (facultyOpen && !facultyDialog.current?.open) facultyDialog.current?.showModal()
+    if (!facultyOpen && facultyDialog.current?.open) facultyDialog.current.close()
+  }, [facultyDetail, rejectTarget])
+  useEffect(() => {
     const closeOnOutsideClick = event => {
       if (!event.target.closest('.institute-action-menu')) {
         setOpenActionMenu(null)
@@ -86,7 +117,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     document.addEventListener('mousedown', closeOnOutsideClick)
     return () => document.removeEventListener('mousedown', closeOnOutsideClick)
   }, [])
-  const close = () => { if (!busy) { setForm(null); setDetail(null); setCancel(null) } }
+  const close = () => { if (!busy) { setForm(null); setDetail(null); setFacultyDetail(null); setRejectTarget(null); setRejectReason(''); setResolutionTarget(null); setResolutionType(''); setReplacementFaculty([]); setCombineSessions([]); setCancel(null) } }
   async function save(event) {
     event.preventDefault()
     if (form) {
@@ -116,6 +147,56 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     try { setDetail(unwrap(await request(`/institute-leaves/${leave.id}`))) }
     catch (err) { setError(err.message) }
   }
+  async function viewFacultyRequest(leave) {
+    setError('')
+    try { setFacultyDetail(normalizeFacultyLeaveDetail(unwrap(await request(`/faculty-leave-requests/${leave.id}`)))) }
+    catch (err) { setError(err.message || 'Unable to load faculty leave request') }
+  }
+  async function reviewFacultyRequest(id, action) {
+    setBusy(true); setError('')
+    try {
+      if (action === 'reject') await request(`/faculty-leave-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason: rejectReason.trim() || 'Rejected by Branch Admin' }) })
+      else await request(`/faculty-leave-requests/${id}/approve`, { method: 'POST' })
+      setFacultyDetail(null); setRejectTarget(null); setRejectReason(''); setMessage(action === 'approve' ? 'Faculty leave approved.' : 'Faculty leave rejected.'); await load()
+    } catch (err) {
+      setError(err.message || 'Unable to review faculty leave request')
+      try { setFacultyDetail(normalizeFacultyLeaveDetail(unwrap(await request(`/faculty-leave-requests/${id}`)))) } catch { /* Keep the review error visible if detail loading fails. */ }
+    }
+    finally { setBusy(false) }
+  }
+  function openRejectConfirmation(id) {
+    setError(''); setRejectReason(''); setRejectTarget(id)
+  }
+  async function openResolution(session, assignmentType) {
+    if (!facultyDetail) return
+    setError(''); setResolutionTarget(session); setResolutionType(assignmentType)
+    setResolutionForm({ replacementFacultyId: '', rescheduledDate: session.sessionDate || '', rescheduledStartTime: session.originalStartTime || '', rescheduledEndTime: session.originalEndTime || '', targetSessionId: '', reason: '' })
+    if (assignmentType === 'REPLACEMENT' || assignmentType === 'COMBINED') {
+      try {
+        const eligible = unwrap(await request(`/faculty-leave-requests/${facultyDetail.id}/sessions/${session.id}/eligible-faculty`)) || {}
+        setReplacementFaculty(eligible.faculty || [])
+        setCombineSessions(eligible.combineSessions || [])
+        if (assignmentType === 'COMBINED') {
+          setFacultyDetail(previous => ({ ...previous, affectedSessions: (eligible.combineSessions || []).map(item => ({ ...item, batchName: `${item.batchName} · ${item.facultyName || 'Faculty'} · ${item.moduleProgress ?? item.courseProgress ?? 'N/A'}% progress`, statusLabel: `Module: ${item.moduleName || 'Not started'} · Progress: ${item.moduleProgress ?? item.courseProgress ?? 'N/A'}%` })) }))
+        }
+      }
+      catch (err) { setError(err.message || 'Unable to load replacement faculty') }
+    }
+  }
+  async function submitResolution() {
+    if (!facultyDetail || !resolutionTarget) return
+    const payload = { assignmentType: resolutionType, ...resolutionForm }
+    if (resolutionType === 'REPLACEMENT' && !payload.replacementFacultyId) return setError('Select a replacement faculty')
+    if (resolutionType === 'RESCHEDULED' && (!payload.rescheduledDate || !payload.rescheduledStartTime || !payload.rescheduledEndTime)) return setError('Complete the rescheduled date and time')
+    if (resolutionType === 'COMBINED' && !payload.targetSessionId) return setError('Select a compatible session to combine')
+    if (resolutionType === 'CANCELLED' && !payload.reason.trim()) return setError('Enter a cancellation reason')
+    setBusy(true); setError('')
+    try {
+      await request(`/faculty-leave-requests/${facultyDetail.id}/sessions/${resolutionTarget.id}/resolve`, { method: 'POST', body: JSON.stringify(payload) })
+      setResolutionTarget(null); setResolutionType(''); setFacultyDetail(normalizeFacultyLeaveDetail(unwrap(await request(`/faculty-leave-requests/${facultyDetail.id}`)))); await load()
+    } catch (err) { setError(err.message || 'Unable to resolve affected class') }
+    finally { setBusy(false) }
+  }
   const leaves = (data?.leaves || []).filter(l => (!status || l.status === status) && `${l.leaveDate} ${l.reason}`.toLowerCase().includes(search.toLowerCase()))
   const leavePageSize = 5
   const leavePageCount = Math.max(1, Math.ceil(leaves.length / leavePageSize))
@@ -130,10 +211,15 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   return <section className="institute-leave-page">
     {viewMode === 'faculty' ? <section className="faculty-request-readonly-panel">
       <header className="institute-leave-header"><div><p className="section-kicker">Branch Admin</p><h2>Faculty Leave Requests</h2><p>Review leave requests submitted by faculty in this branch.</p></div></header>
-      <div className="institute-table-scroll"><table><caption>Faculty leave requests</caption><thead><tr><th>S.No</th><th>Faculty</th><th>Leave dates</th><th>Type</th><th>Duration</th><th>Reason</th><th>Status</th><th>Affected classes</th></tr></thead><tbody>
-        {facultyRequests.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td><strong>{item.facultyName}</strong><small>{item.facultyId}</small></td><td>{formatLeaveDate(item.fromDate)}{item.fromDate !== item.toDate ? ` - ${formatLeaveDate(item.toDate)}` : ''}</td><td>{item.leaveType}</td><td>{item.durationType === 'HALF_DAY' ? `${item.halfDayStart || '-'} - ${item.halfDayEnd || '-'}` : item.durationType === 'PERMISSION' ? `${item.permissionHours} hour permission` : 'Full day'}</td><td>{item.reason}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{item.affectedClassCount || 0}</td></tr>)}
-        {!facultyRequests.length ? <tr><td colSpan="8">No faculty leave requests found.</td></tr> : null}
+      {error ? <p role="alert" className="institute-error">{error}</p> : null}
+      {message ? <p role="status" className="institute-success">{message}</p> : null}
+      <div className="institute-table-scroll"><table><caption>Faculty leave requests</caption><thead><tr><th>S.No</th><th>Faculty</th><th>Leave dates</th><th>Type</th><th>Duration</th><th>Reason</th><th>Status</th><th>Affected classes</th><th>Actions</th></tr></thead><tbody>
+        {facultyRequests.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td><strong>{item.facultyName}</strong><small>{item.facultyId}</small></td><td>{formatLeaveDate(item.fromDate)}{item.fromDate !== item.toDate ? ` - ${formatLeaveDate(item.toDate)}` : ''}</td><td>{item.leaveType}</td><td>{item.durationType === 'HALF_DAY' ? `${item.halfDayStart || '-'} - ${item.halfDayEnd || '-'}` : item.durationType === 'PERMISSION' ? `${item.permissionHours} hour permission` : 'Full day'}</td><td>{item.reason}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{item.affectedClassCount || 0}</td><td><button type="button" onClick={() => viewFacultyRequest(item)}>Review</button>{['PENDING', 'UNDER_REVIEW'].includes(item.status) ? <button type="button" onClick={() => openRejectConfirmation(item.id)}>Reject</button> : null}</td></tr>)}
+        {!facultyRequests.length ? <tr><td colSpan="9">No faculty leave requests found.</td></tr> : null}
       </tbody></table></div>
+      <dialog ref={facultyDialog} className="institute-dialog faculty-review-dialog" onCancel={event => { event.preventDefault(); close() }}>
+        {rejectTarget ? <><div className="institute-leave-header"><h3>Reject Leave Request</h3><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div><p className="institute-confirm-question">Are you sure you want to reject this faculty leave request?</p><label>Reason (optional)<textarea value={rejectReason} maxLength={500} onChange={event => setRejectReason(event.target.value)} placeholder="Add a reason for the faculty member" /></label><div className="institute-confirm-actions"><button type="button" onClick={close} disabled={busy}>Keep Request</button><button type="button" className="institute-danger-button" onClick={() => reviewFacultyRequest(rejectTarget, 'reject')} disabled={busy}>{busy ? 'Rejecting...' : 'Confirm Reject'}</button></div></> : resolutionTarget ? <div className="faculty-resolution-form"><div className="institute-leave-header"><div><p className="section-kicker">AFFECTED CLASS RESOLUTION</p><h3>{resolutionType === 'REPLACEMENT' ? 'Assign Replacement Faculty' : resolutionType === 'RESCHEDULED' ? 'Reschedule Class' : resolutionType === 'COMBINED' ? 'Combine Class' : 'Cancel Class'}</h3><p>{resolutionTarget.batchName || resolutionTarget.batchId} · {formatLeaveDate(resolutionTarget.sessionDate)} · {formatClassTime(resolutionTarget.originalStartTime)} - {formatClassTime(resolutionTarget.originalEndTime)}</p></div><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div>{error ? <p role="alert" className="institute-error">{error}</p> : null}{resolutionType === 'REPLACEMENT' ? <label>Replacement faculty<select value={resolutionForm.replacementFacultyId} onChange={event => setResolutionForm({ ...resolutionForm, replacementFacultyId: event.target.value })}><option value="">Select faculty</option>{replacementFaculty.map(faculty => <option key={faculty.facultyId} value={faculty.facultyId}>{faculty.name} ({faculty.facultyId})</option>)}</select></label> : null}{resolutionType === 'RESCHEDULED' ? <div className="faculty-resolution-grid"><label>New date<input type="date" value={resolutionForm.rescheduledDate} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledDate: event.target.value })} /></label><label>Start time<input type="time" value={resolutionForm.rescheduledStartTime} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledStartTime: event.target.value })} /></label><label>End time<input type="time" value={resolutionForm.rescheduledEndTime} onChange={event => setResolutionForm({ ...resolutionForm, rescheduledEndTime: event.target.value })} /></label></div> : null}{resolutionType === 'COMBINED' ? <label>Compatible class<select value={resolutionForm.targetSessionId} onChange={event => setResolutionForm({ ...resolutionForm, targetSessionId: event.target.value })}><option value="">Select class</option>{(facultyDetail.affectedSessions || []).filter(item => item.id !== resolutionTarget.id && item.courseId === resolutionTarget.courseId && item.sessionDate === resolutionTarget.sessionDate && item.originalStartTime === resolutionTarget.originalStartTime && item.originalEndTime === resolutionTarget.originalEndTime).map(item => <option key={item.id} value={item.id}>{item.batchName} · {item.id}</option>)}</select></label> : null}<label>{resolutionType === 'CANCELLED' ? 'Cancellation reason' : 'Notes (optional)'}<textarea value={resolutionForm.reason} onChange={event => setResolutionForm({ ...resolutionForm, reason: event.target.value })} placeholder="Add notes for this resolution" /></label><div className="institute-confirm-actions"><button type="button" onClick={() => { setResolutionTarget(null); setResolutionType(''); setError('') }} disabled={busy}>Back</button><button type="button" className="institute-primary" onClick={submitResolution} disabled={busy}>{busy ? 'Saving...' : 'Save Resolution'}</button></div></div> : facultyDetail ? <div className="faculty-leave-review-detail"><div className="institute-leave-header"><div><p className="section-kicker">FACULTY LEAVE REVIEW</p><h3>{facultyDetail.facultyName}</h3><p>{facultyDetail.leaveType} · {formatLeaveDate(facultyDetail.fromDate)}{facultyDetail.fromDate !== facultyDetail.toDate ? ` - ${formatLeaveDate(facultyDetail.toDate)}` : ''}</p></div><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div><p>{facultyDetail.reason}</p>{(facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED') ? <p role="alert" className="institute-error">Resolve every affected class below before approving this leave request.</p> : null}<div className="institute-table-scroll"><table><thead><tr><th>Batch</th><th>Date</th><th>Time</th><th>Resolution</th><th>Actions</th></tr></thead><tbody>{(facultyDetail.affectedSessions || []).map(session => <tr key={session.id}><td>{session.batchName || session.batchId || '-'}</td><td>{formatLeaveDate(session.sessionDate)}</td><td>{formatClassTime(session.originalStartTime)} - {formatClassTime(session.originalEndTime)}</td><td><span className={`faculty-leave-status status-${String(session.resolutionStatus || 'UNRESOLVED').toLowerCase()}`}>{session.statusLabel}</span></td><td>{session.resolutionStatus === 'UNRESOLVED' ? <><button type="button" onClick={() => openResolution(session, 'REPLACEMENT')}>Replace</button><button type="button" onClick={() => openResolution(session, 'RESCHEDULED')}>Reschedule</button><button type="button" onClick={() => openResolution(session, 'COMBINED')}>Combine</button><button type="button" onClick={() => openResolution(session, 'CANCELLED')}>Cancel class</button></> : 'Resolved'}</td></tr>)}</tbody></table></div><div className="institute-confirm-actions">{['PENDING', 'UNDER_REVIEW'].includes(facultyDetail.status) ? <><button type="button" className="institute-danger-button" onClick={() => openRejectConfirmation(facultyDetail.id)} disabled={busy}>Reject</button><button type="button" className="institute-primary" onClick={() => reviewFacultyRequest(facultyDetail.id, 'approve')} disabled={busy || (facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED')}>Approve</button></> : null}</div></div> : null}
+      </dialog>
     </section> : <>
     <header className="institute-leave-header"><div className="institute-leave-heading"><span className="institute-heading-icon"><CalendarDays size={34} /></span><div><p className="section-kicker">Management</p><h2>Institute Leave</h2><p>Manage institute-wide leaves and schedule changes</p></div></div>
       <button className="institute-primary" onClick={() => { setError(''); setFieldErrors({}); setForm({ leaveDate: formDate(data?.today), reason: '' }) }} disabled={!data}><Plus size={18} /> Cancel Class</button></header>
@@ -152,10 +238,11 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     </tbody></table></div>
     {leaves.length > leavePageSize ? <div className="institute-pagination"><span>Page {Math.min(leavePage, leavePageCount)} of {leavePageCount}</span><div><button type="button" disabled={leavePage === 1} onClick={() => setLeavePage(page => Math.max(1, page - 1))}>Previous</button><button type="button" disabled={leavePage >= leavePageCount} onClick={() => setLeavePage(page => Math.min(leavePageCount, page + 1))}>Next</button></div></div> : null}
     <dialog ref={dialog} className={`institute-dialog ${cancel ? 'is-confirmation' : ''}`.trim()} onCancel={event => { event.preventDefault(); close() }}>
-      <div className="institute-leave-header"><h3>{detail ? 'Leave details' : cancel ? 'Cancel Institute Leave' : form?.id ? 'Edit Institute Leave' : 'Declare Leave'}</h3><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div>
+      <div className="institute-leave-header"><h3>{facultyDetail ? 'Faculty Leave Review' : detail ? 'Leave details' : cancel ? 'Cancel Institute Leave' : form?.id ? 'Edit Institute Leave' : 'Declare Leave'}</h3><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div>
       {error ? <p role="alert" className="institute-error">{error}</p> : null}
       {form ? <form onSubmit={save} noValidate><label>Leave Date *<input type="date" min={form.id ? undefined : data?.today} value={form.leaveDate} onChange={e => { setForm({ ...form, leaveDate: e.target.value }); setFieldErrors(current => ({ ...current, leaveDate: '' })) }} />{fieldErrors.leaveDate ? <small className="institute-field-error">{fieldErrors.leaveDate}</small> : null}</label><label>Reason *<textarea maxLength={1000} value={form.reason} onChange={e => { setForm({ ...form, reason: e.target.value }); setFieldErrors(current => ({ ...current, reason: '' })) }} />{fieldErrors.reason ? <small className="institute-field-error">{fieldErrors.reason}</small> : null}</label><button className="institute-primary" disabled={busy}>{busy ? 'Saving…' : 'Save Leave'}</button></form> : null}
       {cancel ? <form onSubmit={save}><p className="institute-confirm-question">Are you sure you want to cancel this leave?</p><p>Leave date: <strong>{formatLeaveDate(cancel.leaveDate)}</strong></p><p>This will restore the affected future classes and recalculate schedules.</p><div className="institute-confirm-actions"><button type="button" onClick={close} disabled={busy}>Keep Leave</button><button className="institute-primary" disabled={busy}>{busy ? 'Cancelling…' : 'Confirm Cancel'}</button></div></form> : null}
+      {facultyDetail ? <div className="faculty-leave-review-detail"><p><strong>{facultyDetail.facultyName}</strong> · {facultyDetail.leaveType} · {formatLeaveDate(facultyDetail.fromDate)}{facultyDetail.fromDate !== facultyDetail.toDate ? ` - ${formatLeaveDate(facultyDetail.toDate)}` : ''}</p><p>{facultyDetail.reason}</p>{(facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED') ? <p role="alert" className="institute-error">Resolve every affected class below before approving this leave request.</p> : null}<div className="institute-table-scroll"><table><thead><tr><th>Batch</th><th>Date</th><th>Time</th><th>Resolution</th><th>Actions</th></tr></thead><tbody>{(facultyDetail.affectedSessions || []).map(session => <tr key={session.id}><td>{session.batchName}</td><td>{formatLeaveDate(session.sessionDate)}</td><td>{formatClassTime(session.originalStartTime)} - {formatClassTime(session.originalEndTime)}</td><td><span className={`faculty-leave-status status-${String(session.resolutionStatus || 'UNRESOLVED').toLowerCase()}`}>{session.statusLabel}</span></td><td>{session.resolutionStatus === 'UNRESOLVED' ? <><button type="button" onClick={() => openResolution(session, 'REPLACEMENT')}>Replace</button><button type="button" onClick={() => openResolution(session, 'RESCHEDULED')}>Reschedule</button><button type="button" onClick={() => openResolution(session, 'COMBINED')}>Combine</button><button type="button" onClick={() => openResolution(session, 'CANCELLED')}>Cancel class</button></> : 'Resolved'}</td></tr>)}</tbody></table></div>{['PENDING', 'UNDER_REVIEW'].includes(facultyDetail.status) ? <div className="institute-confirm-actions"><button type="button" onClick={() => openRejectConfirmation(facultyDetail.id)} disabled={busy}>Reject</button><button type="button" className="institute-primary" onClick={() => reviewFacultyRequest(facultyDetail.id, 'approve')} disabled={busy || (facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED')} title={(facultyDetail.affectedSessions || []).some(session => session.resolutionStatus === 'UNRESOLVED') ? 'Resolve all affected classes first' : 'Approve leave request'}>Approve</button></div> : null}</div> : null}
       {detail ? <div><p><strong>{formatLeaveDate(detail.leaveDate)}</strong> · {detail.status === 'ACTIVE' ? 'Active' : 'Cancelled'}</p><p>{detail.reason}</p><p>{detail.affectedClassCount} classes · {detail.affectedStudentCount} students · {detail.affectedFacultyCount} faculty</p><p>Declared: {formatDeclaredAt(detail.declaredAt, data?.timezone)}</p><div className="institute-table-scroll"><table><thead><tr><th>Affected Batch</th><th>Class Time</th><th>Students</th><th>Hours</th></tr></thead><tbody>{affectedBatches.map((item, index) => <tr key={`${item.batchRecordId || item.batchName}-${item.startTime}-${index}`}><td><strong>{item.batchName || item.batchId || 'Batch'}</strong></td><td>{formatClassTime(item.startTime)} – {formatClassTime(item.endTime)}</td><td>{item.affectedStudents}</td><td>{item.scheduledHours}</td></tr>)}</tbody></table></div>{!detail.affectedClassCount ? <p>No scheduled batches affected.</p> : null}</div> : null}
     </dialog>
     {successPopup ? <div className="institute-success-popup" role="alertdialog" aria-modal="true"><div><strong>Success</strong><p>{successPopup}</p><button type="button" className="institute-primary" onClick={() => setSuccessPopup('')}>OK</button></div></div> : null}

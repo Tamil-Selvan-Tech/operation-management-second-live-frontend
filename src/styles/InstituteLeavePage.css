@@ -69,3 +69,16 @@
 .institute-leave-view-tabs span { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-left: 10px; border-radius: 999px; color: #92400e; background: #fef3c7; font-size: 11px; }
 .faculty-request-readonly-panel { min-height: 350px; }
 .faculty-request-readonly-panel td small { display: block; margin-top: 3px; color: #64748b; }
+.faculty-review-dialog { width: min(980px, calc(100vw - 32px)); max-height: 88vh; overflow: auto; box-shadow: 0 24px 80px rgb(15 23 42 / 22%); }
+.faculty-review-dialog .institute-leave-header { padding-bottom: 16px; border-bottom: 1px solid #e7edf5; }
+.faculty-review-dialog .institute-table-scroll { margin-top: 18px; max-height: 46vh; overflow: auto; }
+.faculty-review-dialog td, .faculty-review-dialog th { white-space: nowrap; vertical-align: middle; }
+.faculty-review-dialog td:last-child { white-space: normal; min-width: 260px; }
+.faculty-review-dialog td:last-child button { margin: 3px; padding: 7px 10px; font-size: 12px; }
+.institute-danger-button { display: inline-flex; align-items: center; justify-content: center; color: white !important; background: #c6283d !important; border-color: #c6283d !important; }
+.faculty-resolution-form { display: grid; gap: 18px; }
+.faculty-resolution-form label { color: #52627d; font-size: 13px; font-weight: 750; }
+.faculty-resolution-form select, .faculty-resolution-form input, .faculty-resolution-form textarea { width: 100%; box-sizing: border-box; margin-top: 7px; background: #fbfdff; }
+.faculty-resolution-form textarea { min-height: 92px; }
+.faculty-resolution-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media(max-width: 700px) { .faculty-review-dialog { width: calc(100vw - 20px); padding: 16px; } .faculty-resolution-grid { grid-template-columns: 1fr; } .faculty-review-dialog .institute-confirm-actions { flex-wrap: wrap; } }

@@ -197,7 +197,8 @@ export function BranchFacultyPage({ branchCode = '' }) {
           address: f.address,
           courseId: f.courseId,
           weeklyOffDay: f.weeklyOffDay || '',
-          courseName: f.branchCourse?.name || f.course?.name || '-',
+          courses: Array.isArray(f.courses) ? f.courses : [],
+          courseName: (Array.isArray(f.courses) && f.courses.length ? f.courses.map((course) => course.name).filter(Boolean).join(', ') : '') || f.branchCourse?.name || f.course?.name || '-',
           status: f.status,
           batchCount: Number(f._count?.branchBatches || 0),
         }))

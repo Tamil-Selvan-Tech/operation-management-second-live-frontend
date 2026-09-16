@@ -65,7 +65,7 @@ import { StudentAttendanceReportModal } from '../components/StudentAttendanceRep
 import { StudentCalendarPage } from './StudentCalendarPage'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import { BRANCH_STUDENTS_KEY, loadBranchStudents } from '../lib/branchStudentStore'
+import { BRANCH_STUDENTS_KEY, loadBranchStudents, refreshBranchStudents } from '../lib/branchStudentStore'
 import {
   loadNotifications as loadStoredNotifications,
   addNotification,
@@ -1482,6 +1482,28 @@ export function FacultyDashboardPage() {
   }, [])
 
   useEffect(() => {
+    const branchScopeId = String(dashboardSummary?.faculty?.branchId || '').trim()
+    if (!branchScopeId) return undefined
+
+    let isMounted = true
+    const refreshStudentsForSummaryBranch = async () => {
+      try {
+        const records = await refreshBranchStudents(branchScopeId)
+        if (isMounted) setStudents(records)
+      } catch (error) {
+        if (isMounted) {
+          console.error('Failed to refresh faculty students from branch summary', error)
+        }
+      }
+    }
+
+    void refreshStudentsForSummaryBranch()
+    return () => {
+      isMounted = false
+    }
+  }, [dashboardSummary?.faculty?.branchId])
+
+  useEffect(() => {
     const unsubscribe = subscribeNotifications(() => {
       setNotificationStoreVersion((current) => current + 1)
     })
@@ -1519,7 +1541,12 @@ export function FacultyDashboardPage() {
       try {
         const shouldLoadMasterCourses = userRole === 'operation-manager' || userRole === 'business-owner'
         const [profileResult, masterCoursesResult, branchCoursesResult] = await Promise.allSettled([
-          getCurrentFacultyProfile(),
+          getCurrentFacultyProfile({
+            id: user?.id,
+            userId: user?.userId,
+            email: user?.email,
+            userCode: user?.userCode,
+          }),
           shouldLoadMasterCourses ? listCourses({ page: 1, limit: 100 }) : Promise.resolve({ data: [], meta: null }),
           listBranchCourses({ page: 1, limit: 100 }),
         ])
@@ -1542,7 +1569,23 @@ export function FacultyDashboardPage() {
           branchCoursesResult.status === 'fulfilled' && Array.isArray(branchCoursesResult.value?.data)
             ? branchCoursesResult.value.data
             : []
-        const nextStudents = loadBranchStudents()
+        const branchScopeId = String(
+          profileData?.branchId ||
+          profileData?.branch?.id ||
+          profileData?.branch?.branchId ||
+          '',
+        ).trim()
+        let nextStudents = []
+        try {
+          nextStudents = branchScopeId
+            ? await refreshBranchStudents(branchScopeId)
+            : loadBranchStudents()
+        } catch (studentError) {
+          // Keep the dashboard usable if the student list request is
+          // temporarily unavailable; the local cache is still a safe fallback.
+          console.error('Failed to refresh faculty students', studentError)
+          nextStudents = loadBranchStudents(branchScopeId)
+        }
 
         setBranchCourses(branchCourseList)
         setStudents(nextStudents)
@@ -1604,7 +1647,7 @@ export function FacultyDashboardPage() {
       window.removeEventListener('cispro:students-changed', syncStudents)
       window.removeEventListener('cispro:branch-students-changed', syncStudents)
     }
-  }, [])
+  }, [user?.email, user?.id, user?.role, user?.userCode, user?.userId, userRole])
 
   useEffect(() => {
     let isMounted = true
@@ -1859,16 +1902,19 @@ export function FacultyDashboardPage() {
 
   const currentFacultyIdentity = useMemo(() => {
     const profile = facultyProfile || {}
+    const summaryFaculty = dashboardSummary?.faculty || {}
     const branch = facultyDetails?.branch || {}
     return {
-      facultyId: String(profile.id || profile.facultyId || profile.facultyUserId || facultyDetails?.id || '').trim(),
+      // The branch dashboard summary is authoritative for branch faculties.
+      // The legacy faculty profile can have a different internal id.
+      facultyId: String(summaryFaculty.id || profile.facultyId || profile.id || profile.facultyUserId || facultyDetails?.id || '').trim(),
       facultyUserId: String(profile.userId || profile.user?.id || user?.id || '').trim(),
-      facultyName: String(profile.facultyName || profile.name || facultyDetails?.name || '').trim(),
-      facultyEmail: String(profile.facultyEmail || profile.email || facultyDetails?.email || '').trim(),
-      branchId: String(profile.branchId || branch.id || facultyDetails?.branchId || facultyDetails?.branch?.id || '').trim(),
-      branchCode: String(profile.branchCode || branch.branchId || facultyDetails?.branchCode || facultyDetails?.branch?.branchId || '').trim(),
+      facultyName: String(summaryFaculty.facultyName || profile.facultyName || profile.name || facultyDetails?.name || '').trim(),
+      facultyEmail: String(summaryFaculty.facultyEmail || profile.facultyEmail || profile.email || facultyDetails?.email || '').trim(),
+      branchId: String(summaryFaculty.branchId || profile.branchId || branch.id || facultyDetails?.branchId || facultyDetails?.branch?.id || '').trim(),
+      branchCode: String(summaryFaculty.branchCode || profile.branchCode || branch.branchId || facultyDetails?.branchCode || facultyDetails?.branch?.branchId || '').trim(),
     }
-  }, [facultyDetails, facultyProfile, user?.id])
+  }, [dashboardSummary, facultyDetails, facultyProfile, user?.id])
 
   const facultyBranch = useMemo(() => facultyDetails?.branch || {}, [facultyDetails])
   const facultyBranchScope = useMemo(() => {

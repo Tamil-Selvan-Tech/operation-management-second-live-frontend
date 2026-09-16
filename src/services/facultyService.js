@@ -343,8 +343,13 @@ export async function listFacultyRecords(query = {}) {
   }
 }
 
-export async function getCurrentFacultyProfile() {
-  const cacheKey = 'current-faculty'
+export async function getCurrentFacultyProfile(identity = {}) {
+  // Keep profiles isolated between sessions. A global cache key can expose the
+  // previously logged-in faculty profile after switching accounts in one tab.
+  const identityKey = String(
+    identity?.id || identity?.userId || identity?.email || identity?.userCode || '',
+  ).trim().toLowerCase()
+  const cacheKey = `current-faculty:${identityKey || 'unknown'}`
   const cached = getCachedResult(facultyProfileCache, cacheKey, FACULTY_PROFILE_CACHE_TTL_MS)
   if (cached) {
     return cached
