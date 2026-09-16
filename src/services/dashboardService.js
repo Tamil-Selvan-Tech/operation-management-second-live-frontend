@@ -62,3 +62,8 @@ export async function getFacultyMyBatchesSummary() {
   const response = await request('/dashboard/faculty/my-batches-summary')
   return response?.data ?? response ?? null
 }
+
+export async function getFacultyDashboardOverview() {
+  const response = await request('/dashboard/faculty/overview')
+  return response?.data ?? response ?? null
+}
