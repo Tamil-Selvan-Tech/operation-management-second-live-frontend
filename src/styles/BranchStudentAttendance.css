@@ -31,6 +31,8 @@
 .attendance-insight-row summary { cursor: pointer; list-style: none; }
 .attendance-insight-row summary::-webkit-details-marker { display: none; }
 .attendance-insight-row summary > b, .attendance-long-heading > b { margin-left: auto; color: var(--insight-color); }
+.attendance-insight-row summary > b { display: inline-flex; align-items: baseline; gap: 5px; }
+.attendance-insight-row summary > b small { color: var(--insight-color); font-size: 11px; font-weight: 700; }
 .attendance-insight-icon { width: 25px; height: 25px; border-radius: 50%; display: grid; place-items: center; background: var(--insight-color); color: #fff; flex-shrink: 0; }
 .attendance-insight-detail { padding: 0 12px 10px; font-size: 12px; }
 .attendance-insight-detail ul { list-style: none; padding: 0; margin: 8px 0 0; max-height: 190px; overflow-y: auto; }

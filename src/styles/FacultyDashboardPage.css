@@ -202,6 +202,13 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-dashboard-single-card--attendance .faculty-dashboard-period-tabs { justify-content: flex-end; gap: 8px; margin: 0 0 8px; padding: 0; background: transparent; transform: translateY(-26px); }
 .faculty-dashboard-single-card--attendance .faculty-dashboard-period-tabs button { flex: 0 0 auto; min-width: 0; padding: 9px 12px; border-radius: 9px; color: #64748b; background: #f8fafc; }
 .faculty-dashboard-single-card--attendance .faculty-dashboard-period-tabs button.is-active { color: #fff; background: #2563eb; box-shadow: none; }
+.faculty-dashboard-attendance-dashboard-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); gap: 18px; align-items: stretch; }
+.faculty-dashboard-attendance-dashboard-layout .faculty-dashboard-single-card--attendance { width: 100%; }
+.faculty-dashboard-today-attendance-loading { display: grid; min-height: 220px; place-items: center; color: #64748b; }
+.faculty-dashboard-attendance-dashboard-layout .attendance-insight-rows { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.faculty-dashboard-attendance-dashboard-layout .attendance-insight-row.tone-long { grid-column: 1 / -1; }
+@media (max-width: 900px) { .faculty-dashboard-attendance-dashboard-layout { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .faculty-dashboard-attendance-dashboard-layout .attendance-insight-rows { grid-template-columns: 1fr; }.faculty-dashboard-attendance-dashboard-layout .attendance-insight-row.tone-long { grid-column: auto; } }
 @keyframes faculty-dashboard-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 @media (max-width: 640px) { .faculty-dashboard-overview-grid { grid-template-columns: 1fr; }.faculty-dashboard-overview-card, .faculty-dashboard-progress-card { padding: 18px; }.faculty-dashboard-single-card--attendance { width: 100%; } }
 .faculty-dashboard-bar-chart { display: flex; gap: 9px; height: 190px; margin-top: 20px; padding: 12px 8px 0 0; border-bottom: 1px solid #dbe4ee; }

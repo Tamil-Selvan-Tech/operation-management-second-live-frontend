@@ -61,8 +61,10 @@ import {
 } from '../services/facultyNotificationService'
 import { useMobileMenu } from '../layouts/mobileMenuContext'
 import { FacultyAttendanceFlow } from '../components/FacultyAttendanceFlow'
+import { BranchAttendanceInsights } from '../components/BranchAttendanceInsights'
 import { StudentAttendanceReportModal } from '../components/StudentAttendanceReportModal'
 import { StudentCalendarPage } from './StudentCalendarPage'
+import '../styles/BranchStudentAttendance.css'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
 import { BRANCH_STUDENTS_KEY, loadBranchStudents } from '../lib/branchStudentStore'
@@ -1363,7 +1365,7 @@ function FacultyBatchOverviewCard({ batch, batchOptions = [], selectedBatchId = 
   </article>
 }
 
-function FacultyDashboardOverview({ overview, loading, error, onRetry }) {
+function FacultyDashboardOverview({ overview, loading, error, onRetry, todayAttendance, todayAttendanceLoading, todayAttendanceError }) {
   const [selectedBatchId, setSelectedBatchId] = useState('all')
   const [selectedProgressBatchId, setSelectedProgressBatchId] = useState('all')
   const formatPercent = (value) => Number.isFinite(Number(value)) ? `${Number(value)}%` : '—'
@@ -1373,7 +1375,7 @@ function FacultyDashboardOverview({ overview, loading, error, onRetry }) {
   const selectedBatch = selectedBatchId === 'all' ? overview?.allBatches : batches.find((batch) => String(batch.id) === String(selectedBatchId))
   const selectedProgressBatch = selectedProgressBatchId === 'all' ? overview?.allBatches : batches.find((batch) => String(batch.id) === String(selectedProgressBatchId))
   if (!batches.length) return <FacultyDashboardSection title="Attendance"><div className="faculty-dashboard-overview-empty"><strong>No batches assigned</strong><p>There are no active batches assigned to your faculty account.</p></div></FacultyDashboardSection>
-  return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : selectedProgressBatch?.progress ? <div className="faculty-dashboard-donut-wrap"><div className="faculty-dashboard-donut" style={{ '--progress': `${Math.max(0, Math.min(100, selectedProgressBatch.progress.percentage))}%` }}><div><strong>{formatPercent(selectedProgressBatch.progress.percentage)}</strong><span>Overall Progress</span></div></div><p className="faculty-dashboard-progress-note">Based on {selectedProgressBatch.progress.studentsIncluded} student{selectedProgressBatch.progress.studentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
+  return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-attendance-dashboard-layout"><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div>{todayAttendanceLoading ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>Loading today's attendance…</p></aside> : todayAttendanceError ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>{todayAttendanceError}</p></aside> : todayAttendance ? <BranchAttendanceInsights data={todayAttendance} /> : null}</div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : selectedProgressBatch?.progress ? <div className="faculty-dashboard-donut-wrap"><div className="faculty-dashboard-donut" style={{ '--progress': `${Math.max(0, Math.min(100, selectedProgressBatch.progress.percentage))}%` }}><div><strong>{formatPercent(selectedProgressBatch.progress.percentage)}</strong><span>Overall Progress</span></div></div><p className="faculty-dashboard-progress-note">Based on {selectedProgressBatch.progress.studentsIncluded} student{selectedProgressBatch.progress.studentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
 }
 
 export function FacultyDashboardPage() {
@@ -1433,6 +1435,9 @@ export function FacultyDashboardPage() {
   const [dashboardOverview, setDashboardOverview] = useState(null)
   const [dashboardOverviewLoading, setDashboardOverviewLoading] = useState(true)
   const [dashboardOverviewError, setDashboardOverviewError] = useState('')
+  const [todayAttendance, setTodayAttendance] = useState(null)
+  const [todayAttendanceLoading, setTodayAttendanceLoading] = useState(true)
+  const [todayAttendanceError, setTodayAttendanceError] = useState('')
   const [facultyNotifications, setFacultyNotifications] =useState([])
   const [notificationOpen, setNotificationOpen] =useState(false)
   const [notificationStoreVersion, setNotificationStoreVersion] = useState(0)
@@ -1533,6 +1538,26 @@ export function FacultyDashboardPage() {
       isMounted = false
       window.clearInterval(intervalId)
     }
+  }, [])
+
+  useEffect(() => {
+    let isMounted = true
+    const loadTodayAttendance = async () => {
+      setTodayAttendanceLoading(true)
+      setTodayAttendanceError('')
+      try {
+        const response = await getCurrentFacultyAttendanceOverview({ date: getAttendanceDateKey() })
+        if (isMounted) setTodayAttendance(response?.data ?? response ?? null)
+      } catch (error) {
+        if (isMounted) setTodayAttendanceError(error?.message || "Unable to load today's attendance.")
+      } finally {
+        if (isMounted) setTodayAttendanceLoading(false)
+      }
+    }
+    const refresh = () => void loadTodayAttendance()
+    void loadTodayAttendance()
+    window.addEventListener('cispro:faculty-dashboard-refresh', refresh)
+    return () => { isMounted = false; window.removeEventListener('cispro:faculty-dashboard-refresh', refresh) }
   }, [])
 
   useEffect(() => {
@@ -4354,6 +4379,9 @@ const nextName = trimmedValue
                     overview={dashboardOverview}
                     loading={dashboardOverviewLoading}
                     error={dashboardOverviewError}
+                    todayAttendance={todayAttendance}
+                    todayAttendanceLoading={todayAttendanceLoading}
+                    todayAttendanceError={todayAttendanceError}
                     onRetry={() => window.dispatchEvent(new Event('cispro:faculty-dashboard-refresh'))}
                   />
 
