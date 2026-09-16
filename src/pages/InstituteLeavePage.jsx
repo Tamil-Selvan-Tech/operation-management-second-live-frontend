@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BarChart3, CalendarCheck2, CalendarClock, CalendarDays, MoreVertical, Plus, UsersRound, X } from 'lucide-react'
 import { request } from '../services/apiClient'
+import { listBranchBatches } from '../services/branchBatchService'
 import '../styles/InstituteLeavePage.css'
 
 const unwrap = response => response?.data ?? response
@@ -13,14 +14,52 @@ function formatClassTime(value) {
 }
 
 function normalizeFacultyLeaveDetail(value) {
-  const detail = value && typeof value === 'object' ? value : {}
-  const sessions = Array.isArray(detail.affectedSessions) ? detail.affectedSessions.filter(Boolean) : []
+  const detail = value?.data && typeof value.data === 'object' ? value.data : value && typeof value === 'object' ? value : {}
+  const sessionSources = [detail.affectedSessions, detail.affectedClasses, detail.sessions, detail.classes, detail.batchSessions, detail.affectedBatches]
+  const sessions = sessionSources.find(source => Array.isArray(source) && source.length) || sessionSources.find(Array.isArray) || []
+  const batchSources = [detail.batches, detail.batchEntries, detail.assignedBatches]
+  const batches = batchSources.find(source => Array.isArray(source) && source.length) || batchSources.find(Array.isArray) || []
+  const expandedSessions = sessions.length ? sessions.flatMap(session => {
+      const nested = session?.sessions || session?.classes || session?.scheduledClasses
+      return Array.isArray(nested) ? nested.map(item => ({ ...session, ...item })) : [session]
+    }) : batches.flatMap(batch => {
+      const nested = batch?.sessions || batch?.classes || batch?.scheduledClasses
+      return Array.isArray(nested) && nested.length ? nested.map(item => ({ ...batch, ...item })) : [batch]
+    })
+  const leaveDates = []
+  const from = normalizeLeaveDateKey(detail.fromDate)
+  const to = normalizeLeaveDateKey(detail.toDate || detail.fromDate)
+  if (from && to && from <= to) {
+    const cursor = new Date(`${from}T00:00:00`)
+    const end = new Date(`${to}T00:00:00`)
+    while (cursor <= end) {
+      leaveDates.push(cursor.toISOString().slice(0, 10))
+      cursor.setDate(cursor.getDate() + 1)
+    }
+  }
+  const rows = expandedSessions.length && leaveDates.length && expandedSessions.every(item => !item?.sessionDate && !item?.date)
+    ? expandedSessions.flatMap(item => leaveDates.map(date => ({ ...item, sessionDate: date })))
+    : expandedSessions
+  const requestFromDate = normalizeLeaveDateKey(detail.fromDate)
+  const requestToDate = normalizeLeaveDateKey(detail.toDate || detail.fromDate)
   return {
     ...detail,
-    affectedSessions: sessions.map(session => ({
+    affectedSessions: rows.map(session => ({
       ...session,
-      originalStartTime: session.originalStartTime || session.startTime || String(session.batchTiming || '').split(' - ')?.[0] || '',
-      originalEndTime: session.originalEndTime || session.endTime || String(session.batchTiming || '').split(' - ')?.[1] || '',
+      batchName: (() => {
+        const name = session.batchName || session.batch?.name || session.batch || session.code || session.batchCode || session.batchId || ''
+        const timing = session.batchTiming || session.timing || session.batchTime || ''
+        return name && timing && !String(name).includes(String(timing)) ? `${name} (${timing})` : name
+      })(),
+      batchTiming: session.batchTiming || session.timing || session.batchTime || (detail.durationType === 'HALF_DAY' ? `${detail.halfDayStart || ''} - ${detail.halfDayEnd || ''}` : detail.durationType === 'PERMISSION' ? `${detail.permissionStart || ''} - ${detail.permissionEnd || ''}` : ''),
+      // The review table must show the requested leave date. Some schedule
+      // records arrive as the previous UTC calendar date (for example
+      // 18T18:30Z for 19 Sep in India), so prefer the request's date here.
+      sessionDate: requestFromDate === requestToDate
+        ? requestFromDate
+        : normalizeLeaveDateKey(session.sessionDate || session.date || session.leaveDate || detail.fromDate),
+      originalStartTime: session.originalStartTime || session.startTime || String(session.batchTiming || session.timing || session.batchTime || '').split(' - ')?.[0] || '',
+      originalEndTime: session.originalEndTime || session.endTime || String(session.batchTiming || session.timing || session.batchTime || '').split(' - ')?.[1] || '',
       resolutionStatus: session.resolutionStatus || 'UNRESOLVED',
       statusLabel: session.statusLabel || 'Needs resolution',
     })),
@@ -34,14 +73,26 @@ function formatDeclaredAt(value, timeZone = 'Asia/Kolkata') {
   }).format(new Date(value))
 }
 
+function normalizeLeaveDateKey(value) {
+  const text = String(value || '').trim()
+  if (!text) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return text.slice(0, 10)
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date)
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]))
+  return `${values.year}-${values.month}-${values.day}`
+}
+
 function formatLeaveDate(value) {
-  const date = new Date(`${String(value || '').slice(0, 10)}T00:00:00`)
+  const date = new Date(`${normalizeLeaveDateKey(value)}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value || '-'
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
 }
 export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   const [data, setData] = useState(null)
   const [facultyRequests, setFacultyRequests] = useState([])
+  const [branchBatchGroups, setBranchBatchGroups] = useState([])
   const [viewMode, setViewMode] = useState(initialViewMode)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -58,7 +109,6 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   const [resolutionType, setResolutionType] = useState('')
   const [resolutionForm, setResolutionForm] = useState({ replacementFacultyId: '', rescheduledDate: '', rescheduledStartTime: '', rescheduledEndTime: '', targetSessionId: '', reason: '' })
   const [replacementFaculty, setReplacementFaculty] = useState([])
-  const [combineSessions, setCombineSessions] = useState([])
   const [cancel, setCancel] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
   const [successPopup, setSuccessPopup] = useState('')
@@ -79,6 +129,12 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
       // table; keep the error visible so the branch admin knows what failed.
       setFacultyRequests([])
       setError(err.message || 'Unable to load faculty leave requests')
+    }
+    try {
+      const batchResponse = await listBranchBatches({ limit: 100 })
+      setBranchBatchGroups(batchResponse?.data || [])
+    } catch {
+      setBranchBatchGroups([])
     }
   }, [])
   useEffect(() => {
@@ -117,7 +173,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     document.addEventListener('mousedown', closeOnOutsideClick)
     return () => document.removeEventListener('mousedown', closeOnOutsideClick)
   }, [])
-  const close = () => { if (!busy) { setForm(null); setDetail(null); setFacultyDetail(null); setRejectTarget(null); setRejectReason(''); setResolutionTarget(null); setResolutionType(''); setReplacementFaculty([]); setCombineSessions([]); setCancel(null) } }
+  const close = () => { if (!busy) { setForm(null); setDetail(null); setFacultyDetail(null); setRejectTarget(null); setRejectReason(''); setResolutionTarget(null); setResolutionType(''); setReplacementFaculty([]); setCancel(null) } }
   async function save(event) {
     event.preventDefault()
     if (form) {
@@ -149,7 +205,29 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   }
   async function viewFacultyRequest(leave) {
     setError('')
-    try { setFacultyDetail(normalizeFacultyLeaveDetail(unwrap(await request(`/faculty-leave-requests/${leave.id}`)))) }
+    try {
+      const detail = normalizeFacultyLeaveDetail(unwrap(await request(`/faculty-leave-requests/${leave.id}`)))
+      const batchGroups = branchBatchGroups.length ? branchBatchGroups : (await listBranchBatches({ limit: 100 })).data || []
+      if (!branchBatchGroups.length) setBranchBatchGroups(batchGroups)
+      const facultyId = String(leave.facultyId || leave.facultyUserId || '').trim().toLowerCase()
+      const facultyName = String(leave.facultyName || '').trim().toLowerCase()
+      const assignedBatches = batchGroups.flatMap(group => {
+        const groupFacultyId = String(group.facultyId || group.branchFacultyId || '').trim().toLowerCase()
+        const groupFacultyName = String(group.facultyName || '').trim().toLowerCase()
+        const belongsToFaculty = (facultyId && groupFacultyId === facultyId) || (!facultyId && facultyName && groupFacultyName === facultyName)
+        if (!belongsToFaculty) return []
+        return (group.batches || []).map(batch => ({
+          ...batch,
+          batchName: batch.batchName || batch.batchId,
+          batchTiming: batch.batchTiming || `${batch.startTime || ''} - ${batch.endTime || ''}`,
+          courseName: group.courseName,
+          courseId: group.courseId,
+        }))
+      })
+      setFacultyDetail(normalizeFacultyLeaveDetail(
+        detail.affectedSessions.length ? detail : { ...detail, batches: assignedBatches },
+      ))
+    }
     catch (err) { setError(err.message || 'Unable to load faculty leave request') }
   }
   async function reviewFacultyRequest(id, action) {
@@ -175,7 +253,6 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
       try {
         const eligible = unwrap(await request(`/faculty-leave-requests/${facultyDetail.id}/sessions/${session.id}/eligible-faculty`)) || {}
         setReplacementFaculty(eligible.faculty || [])
-        setCombineSessions(eligible.combineSessions || [])
         if (assignmentType === 'COMBINED') {
           setFacultyDetail(previous => ({ ...previous, affectedSessions: (eligible.combineSessions || []).map(item => ({ ...item, batchName: `${item.batchName} · ${item.facultyName || 'Faculty'} · ${item.moduleProgress ?? item.courseProgress ?? 'N/A'}% progress`, statusLabel: `Module: ${item.moduleName || 'Not started'} · Progress: ${item.moduleProgress ?? item.courseProgress ?? 'N/A'}%` })) }))
         }
