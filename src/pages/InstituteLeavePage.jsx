@@ -121,6 +121,7 @@ function batchTimeMinutes(value, period) {
 }
 
 function getBatchTimeRange(batch) {
+  if (batch?.isCombineTarget) return { start: null, end: null }
   const timing = String(batch.batchTiming || batch.timing || '').split(/\s+-\s+/)
   return {
     start: batchTimeMinutes(batch.startTime || timing[0], batch.startPeriod),
@@ -176,12 +177,26 @@ function formatLeaveDate(value) {
 
 function RescheduleAvailability({ facultyId, groups = [], date, startTime, endTime, leaveId, sessionId }) {
   const [availability, setAvailability] = useState([])
+  const [combineTarget, setCombineTarget] = useState(null)
   useEffect(() => {
     let active = true
-    if (!leaveId || !sessionId || !date) return () => { active = false }
+    if (!leaveId || !sessionId || !date) {
+      setAvailability([])
+      setCombineTarget(null)
+      return () => { active = false }
+    }
     request(`/faculty-leave-requests/${leaveId}/sessions/${sessionId}/eligible-faculty?assignmentType=RESCHEDULED&targetDate=${encodeURIComponent(date)}&targetStartTime=${encodeURIComponent(startTime || '')}&targetEndTime=${encodeURIComponent(endTime || '')}`)
-      .then(response => { if (active) setAvailability(unwrap(response)?.availability || []) })
-      .catch(() => { if (active) setAvailability([]) })
+      .then(response => {
+        if (!active) return
+        const result = unwrap(response) || {}
+        setAvailability(result.availability || [])
+        setCombineTarget(result.combineTarget || null)
+      })
+      .catch(() => {
+        if (!active) return
+        setAvailability([])
+        setCombineTarget(null)
+      })
     return () => { active = false }
   }, [leaveId, sessionId, date, startTime, endTime])
   if (!facultyId || !date) return null
@@ -190,7 +205,10 @@ function RescheduleAvailability({ facultyId, groups = [], date, startTime, endTi
     .filter(group => String(group.facultyId || group.branchFacultyId || '').trim() === String(facultyId).trim())
     .flatMap(group => (group.batches || []).map(batch => ({ ...batch, courseName: batch.courseName || group.courseName })))
     .filter(batch => String(batch.weekType || '').toUpperCase() === selectedType)
-  const rows = availability.length ? availability : fallbackRows
+  const availableRows = availability.length ? availability : fallbackRows
+  const rows = combineTarget
+    ? [{ ...combineTarget, id: `combine-target-${combineTarget.batchRecordId || combineTarget.batchId}`, isCombineTarget: true, batchName: 'Combine with ' + (combineTarget.batchName || combineTarget.batchId || 'compatible batch'), availabilityStatus: 'AVAILABLE' }, ...availableRows]
+    : availableRows
   const requestedStart = clockMinutes(startTime)
   const requestedEnd = clockMinutes(endTime)
   return <div className="faculty-selected-batches faculty-reschedule-availability"><strong>Faculty availability on selected date</strong>{rows.length ? <div className="faculty-selected-batches-list">{rows.map(batch => { const range = getBatchTimeRange(batch); const occupied = batch.availabilityStatus === 'ALREADY_SCHEDULED' || (requestedStart !== null && requestedEnd !== null && range.start !== null && range.end !== null && requestedStart < range.end && requestedEnd > range.start); const submodules = Array.isArray(batch.submodules) ? batch.submodules : []; return <div key={batch.id || batch.batchId}><span><b>{batch.batchName || batch.batchId || 'Batch'}</b><small>{batch.courseName || '-'} · Module: {batch.moduleName || '-'} · Module Progress: {batch.moduleProgress ?? 0}% · Course Progress: {batch.courseProgress ?? 0}%</small>{submodules.length ? <small>Sub-modules: {submodules.map(item => `${item.name} (${item.status})`).join(', ')}</small> : null}</span><small>{batch.batchTiming || `${formatClassTime(batch.startTime)} - ${formatClassTime(batch.endTime)}`} · {occupied ? 'Already Scheduled / Not Available' : 'Available'}</small></div> })}</div> : <p>No {selectedType.toLowerCase()} batches found for this faculty on the selected date.</p>}</div>

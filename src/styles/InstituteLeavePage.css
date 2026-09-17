@@ -98,6 +98,13 @@
 .faculty-replacement-clock select { min-width: 0; }
 .faculty-selected-batches-conflict { margin: 10px 0 0; color: #b42318; font-size: 13px; font-weight: 600; }
 .faculty-selected-batches-available { margin: 10px 0 0; color: #18794e; font-size: 13px; font-weight: 600; }
+.faculty-reschedule-availability .faculty-selected-batches-list > div:first-child {
+  border: 1px solid #b7e4c7;
+  background: #f0fdf4;
+}
+.faculty-reschedule-availability .faculty-selected-batches-list > div:first-child span b {
+  color: #18794e;
+}
 @media (max-width: 700px) { .faculty-replacement-timing > div { grid-template-columns: 1fr; } }
 .institute-danger-button { display: inline-flex; align-items: center; justify-content: center; color: white !important; background: #c6283d !important; border-color: #c6283d !important; }
 .faculty-resolution-form { display: grid; gap: 18px; }
