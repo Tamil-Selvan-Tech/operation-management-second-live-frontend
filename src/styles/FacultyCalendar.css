@@ -24,3 +24,14 @@ body:has(.faculty-calendar-modal-backdrop) .super-admin-sidebar{display:block;fi
 .faculty-calendar-drawer-pill{background:var(--status-background);color:var(--status-text);border:1px solid var(--status-border)}
 .faculty-calendar-drawer-pill--class{--status-background:var(--calendar-class-bg);--status-text:var(--calendar-class-text);--status-border:var(--calendar-class-border)}.faculty-calendar-drawer-pill--no_class{--status-background:var(--calendar-no-class-bg);--status-text:var(--calendar-no-class-text);--status-border:var(--calendar-no-class-border)}.faculty-calendar-drawer-pill--faculty_weekly_off{--status-background:var(--calendar-week-off-bg);--status-text:var(--calendar-week-off-text);--status-border:var(--calendar-week-off-border)}.faculty-calendar-drawer-pill--holiday{--status-background:var(--calendar-holiday-bg);--status-text:var(--calendar-holiday-text);--status-border:var(--calendar-holiday-border)}.faculty-calendar-drawer-pill--present{--status-background:var(--calendar-present-bg);--status-text:var(--calendar-present-text);--status-border:var(--calendar-present-border)}.faculty-calendar-drawer-pill--absent{--status-background:var(--calendar-absent-bg);--status-text:var(--calendar-absent-text);--status-border:var(--calendar-absent-border)}.faculty-calendar-drawer-pill--institute_leave{--status-background:var(--calendar-cancel-bg);--status-text:var(--calendar-cancel-text);--status-border:var(--calendar-cancel-border)}.faculty-calendar-drawer-pill--leave{--status-background:var(--calendar-leave-bg);--status-text:var(--calendar-leave-text);--status-border:var(--calendar-leave-border)}.faculty-calendar-drawer-pill--half_day{--status-background:var(--calendar-half-day-bg);--status-text:var(--calendar-half-day-text);--status-border:var(--calendar-half-day-border)}.faculty-calendar-drawer-pill--permission{--status-background:var(--calendar-permission-bg);--status-text:var(--calendar-permission-text);--status-border:var(--calendar-permission-border)}.faculty-calendar-drawer-pill--reassigned{--status-background:var(--calendar-reassigned-bg);--status-text:var(--calendar-reassigned-text);--status-border:var(--calendar-reassigned-border)}
 :root{--calendar-no-class-bg:#e0f2fe;--calendar-no-class-text:#0369a1;--calendar-no-class-border:#7dd3fc;--calendar-no-class-hover:#bae6fd}
+.faculty-calendar-drawer-pill--present,
+.faculty-calendar-drawer-pill--half_day,
+.faculty-calendar-drawer-pill--completed {
+  display: none;
+}
+.faculty-calendar-event--completed {
+  display: none;
+}
+.faculty-calendar-event--present small {
+  display: none;
+}

@@ -35,6 +35,28 @@ function timing(event) {
   return start && end ? `${start} – ${end}` : event?.batchTiming || 'Scheduled time'
 }
 
+function clockMinutes(value) {
+  const raw = String(value || '').trim()
+  const numeric = Number(raw)
+  if (/^\d+$/.test(raw) && Number.isFinite(numeric) && numeric <= 1439) return numeric
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!match) return null
+  let hour = Number(match[1]); const minute = Number(match[2]); const period = match[3]?.toUpperCase()
+  if (period === 'PM' && hour < 12) hour += 12
+  if (period === 'AM' && hour === 12) hour = 0
+  return hour * 60 + minute
+}
+
+function halfDayFinished(event, date) {
+  const end = clockMinutes(event?.halfDayEnd)
+  if (end === null) return false
+  const today = isoDate(new Date())
+  if (date < today) return true
+  if (date > today) return false
+  const now = new Date()
+  return now.getHours() * 60 + now.getMinutes() >= end
+}
+
 function SummaryCard({ icon: Icon, label, value, note, tone = 'blue' }) {
   return <article className={`faculty-calendar-summary-card faculty-calendar-summary-card--${tone}`}>
     <span className="faculty-calendar-summary-icon"><Icon size={20} strokeWidth={2.2} /></span>
@@ -82,7 +104,19 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
   }, [permanentBatches])
   const batches = useMemo(() => {
     const source = [...permanentBatches, ...(Array.isArray(calendar?.batches) ? calendar.batches : [])]
-    return [...new Map(source.map((batch) => [String(batch?.id || batch?.batchId || batch?.batchName || ''), batch])).values()]
+    const merged = new Map()
+    source.forEach((batch) => {
+      const key = String(batch?.id || batch?.batchId || batch?.batchName || '')
+      const previous = merged.get(key) || {}
+      merged.set(key, {
+        ...previous,
+        ...batch,
+        studentCount: Number(batch?.studentCount || batch?.studentsCount || 0) > 0
+          ? Number(batch.studentCount || batch.studentsCount)
+          : Number(previous.studentCount || previous.studentsCount || 0),
+      })
+    })
+    return [...merged.values()]
   }, [calendar, permanentBatches])
 
   const load = useCallback(async () => {
@@ -146,7 +180,18 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
     const last = new Date(month.getFullYear(), month.getMonth() + 1, 0)
     return [...Array(first.getDay()).fill(null), ...Array.from({ length: last.getDate() }, (_, index) => new Date(month.getFullYear(), month.getMonth(), index + 1))]
   }, [month])
-  const eventsByDate = useMemo(() => events.reduce((map, event) => { const key = String(event.date || '').slice(0, 10); const status = normalizeStatus(event); if (status === 'FACULTY_WEEKLY_OFF' && map[key]?.some((item) => normalizeStatus(item) === status)) return map; (map[key] ||= []).push(event); return map }, {}), [events])
+  const eventsByDate = useMemo(() => {
+    const grouped = events.reduce((map, event) => { const key = String(event.date || '').slice(0, 10); const status = normalizeStatus(event); if (status === 'FACULTY_WEEKLY_OFF' && map[key]?.some((item) => normalizeStatus(item) === status)) return map; (map[key] ||= []).push(event); return map }, {})
+    Object.keys(grouped).forEach((date) => {
+      const dateEvents = grouped[date]
+      const hasClass = dateEvents.some((event) => ['CLASS', 'SCHEDULED', 'COMPLETED', 'PRESENT', 'REASSIGNED', 'COMBINED'].includes(normalizeStatus(event)))
+      const hasHalfDay = dateEvents.some((event) => normalizeStatus(event) === 'HALF_DAY')
+      if (hasClass || hasHalfDay) {
+        grouped[date] = dateEvents.filter((event) => normalizeStatus(event) !== 'NO_CLASS' && (!hasHalfDay || normalizeStatus(event) !== 'LEAVE'))
+      }
+    })
+    return grouped
+  }, [events])
   const batchLookup = useMemo(() => new Map(batches.map((batch) => [String(batch.id || batch.batchId || '').trim(), batch])), [batches])
   const getBatchForEvent = (event) => {
     const eventRecordId = String(event?.batchRecordId || '').trim()
@@ -157,7 +202,15 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
       || batches.find((batch) => String(batch?.batchName || '').trim().toLowerCase() === eventBatchName)
       || {}
   }
-  const statusesByDate = useMemo(() => Object.fromEntries(Object.entries(eventsByDate).map(([date, dateEvents]) => [date, Array.from(new Set(dateEvents.map(normalizeStatus)))])), [eventsByDate])
+  const statusesByDate = useMemo(() => Object.fromEntries(Object.entries(eventsByDate).map(([date, dateEvents]) => {
+    const rawStatuses = Array.from(new Set(dateEvents.map(normalizeStatus)))
+    const hasHalfDay = rawStatuses.includes('HALF_DAY')
+    if (!hasHalfDay) return [date, rawStatuses]
+    const leaveCompleted = dateEvents.some((event) => normalizeStatus(event) === 'HALF_DAY' && halfDayFinished(event, date))
+    const statuses = rawStatuses.filter((status) => status !== 'NO_CLASS' && status !== 'LEAVE' && (!leaveCompleted || status !== 'HALF_DAY'))
+    if (leaveCompleted && !statuses.some((status) => ['CLASS', 'SCHEDULED', 'COMPLETED', 'PRESENT'].includes(status))) statuses.push('CLASS')
+    return [date, statuses]
+  })), [eventsByDate])
   const batchesByDate = useMemo(() => Object.fromEntries(Object.keys(eventsByDate).map((date) => {
     const eventBatches = eventsByDate[date]
       .filter((event) => event.batchRecordId || event.batchId)
@@ -173,11 +226,11 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
   })), [batchLookup, batches, eventsByDate])
   const boundaryBatchesByDate = useMemo(() => Object.fromEntries(Object.entries(batchesByDate).map(([date, dateBatches]) => [
     date,
-    dateBatches.filter((batch) => {
+    [...new Map(dateBatches.filter((batch) => {
       const start = String(batch.courseStartDate || batch.startDate || '').slice(0, 10)
       const end = String(batch.courseEndDate || batch.endDate || '').slice(0, 10)
       return date === start || date === end
-    }),
+    }).map((batch) => [String(batch.batchName || batch.batchId || batch.id || '').trim().toLowerCase(), batch])).values()],
   ])), [batchesByDate])
   const courses = new Set(batches.map((batch) => batch.courseName || batch.courseId).filter(Boolean))
   const today = isoDate(new Date())
@@ -193,6 +246,15 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
   const holidayCount = new Set(events.filter((event) => normalizeStatus(event) === 'HOLIDAY' && String(event.date || '').startsWith(viewedMonthKey)).map((event) => String(event.date).slice(0, 10))).size
   const weeklyOffCount = events.filter((event) => normalizeStatus(event) === 'FACULTY_WEEKLY_OFF').length
   const hasCalendarData = Boolean(calendar && !loading && !error)
+  const selectedBoundaryBatches = selected ? boundaryBatchesByDate[selected.date] || [] : []
+  useEffect(() => {
+    if (!selected || !selectedBoundaryBatches.length) return
+    const currentKeys = new Set(selected.events.map((event) => String(event.batchName || event.batchId || '').trim().toLowerCase()).filter(Boolean))
+    const missing = selectedBoundaryBatches
+      .filter((batch) => !currentKeys.has(String(batch.batchName || batch.batchId || '').trim().toLowerCase()))
+      .map((batch) => ({ ...batch, date: selected.date, code: 'CLASS', status: 'Class Day', batchName: batch.batchName || batch.batchId }))
+    if (missing.length) setSelected((current) => ({ ...current, events: [...current.events, ...missing] }))
+  }, [selected?.date, selectedBoundaryBatches])
 
   if (!batches.length && !loading) return <section className="faculty-calendar-page"><div className="faculty-calendar-empty"><CalendarDays size={40} /><h2>No batches assigned</h2><p>Your calendar will appear once a batch is assigned to you.</p></div></section>
   return <section className="faculty-calendar-page">
