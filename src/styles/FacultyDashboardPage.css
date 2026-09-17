@@ -5026,3 +5026,26 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-leave-legacy-list, .faculty-leave-legacy-state { display: none; }
 @media (max-width: 560px) { .faculty-leave-page-header > div:first-child { transform: none; } .faculty-leave-page-header-actions { align-items: flex-end; flex-direction: column; gap: 9px; } .faculty-leave-apply-button { width: 100%; justify-content: center; } .faculty-leave-modal-backdrop { align-items: start; padding: 10px; } .faculty-leave-modal .faculty-leave-form-card { max-height: calc(100vh - 20px); padding: 16px; } .faculty-leave-history-card { width: 100%; margin-left: 0; } .faculty-leave-history-card .faculty-leave-card-heading { padding: 16px 16px 0; } .faculty-leave-modal-actions { flex-direction: column-reverse; align-items: stretch; } }
 @media (max-width: 640px) { .faculty-dashboard-page .branch-dashboard-stats { grid-template-columns: 1fr; } }
+.faculty-other-batches-action-button,
+.faculty-other-batches-back-button {
+  border: 1px solid #d6e0ef;
+  border-radius: 8px;
+  background: #fff;
+  color: #17345f;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 9px 14px;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.faculty-other-batches-action-button:hover,
+.faculty-other-batches-back-button:hover {
+  border-color: #2f8fe8;
+  background: #f1f7ff;
+  color: #1265b0;
+}
+
+.faculty-other-batches-back-button {
+  margin-bottom: 18px;
+}
