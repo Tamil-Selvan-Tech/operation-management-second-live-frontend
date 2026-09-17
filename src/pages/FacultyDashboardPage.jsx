@@ -182,6 +182,23 @@ function getAttendanceBatchTiming(batch = {}) {
   return String(batch?.timing || batch?.batchTiming || batch?.batchTime || '').trim()
 }
 
+function isTemporarySessionEditable(session, now = new Date()) {
+  const date = String(session?.effectiveDate || session?.replacementDate || session?.sessionDate || '').trim()
+  const start = String(session?.effectiveStartTime || session?.replacementStartTime || session?.originalStartTime || '').trim()
+  const end = String(session?.effectiveEndTime || session?.replacementEndTime || session?.originalEndTime || '').trim()
+  const parseMinutes = (value) => {
+    const match = value.match(/^(\d{1,2}):(\d{2})$/)
+    if (!match) return null
+    return Number(match[1]) * 60 + Number(match[2])
+  }
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Calcutta' }).format(now)
+  const startMinutes = parseMinutes(start)
+  const endMinutes = parseMinutes(end)
+  if (!date || date !== today || startMinutes == null || endMinutes == null || endMinutes <= startMinutes) return false
+  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+  return currentMinutes >= startMinutes && currentMinutes < endMinutes
+}
+
 function doesFacultyBatchBelongToCourse(batch = {}, course = {}) {
   const batchCourseId = String(batch?.courseId || '').trim()
   const batchCourseName = normalizeCourseKey(batch?.course || batch?.courseName || '')
@@ -1391,7 +1408,7 @@ function FacultyDashboardOverview({ overview, loading, error, onRetry, todayAtte
   return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-attendance-dashboard-layout"><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div>{todayAttendanceLoading ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>Loading today's attendance…</p></aside> : todayAttendanceError ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>{todayAttendanceError}</p></aside> : todayAttendance ? <BranchAttendanceInsights data={todayAttendance} /> : null}</div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : selectedProgressBatch?.progress ? <div className="faculty-dashboard-donut-wrap"><div className="faculty-dashboard-donut" style={{ '--progress': `${Math.max(0, Math.min(100, selectedProgressBatch.progress.percentage))}%` }}><div><strong>{formatPercent(selectedProgressBatch.progress.percentage)}</strong><span>Overall Progress</span></div></div><p className="faculty-dashboard-progress-note">Based on {selectedProgressBatch.progress.studentsIncluded} student{selectedProgressBatch.progress.studentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
 }
 
-function OtherFacultyBatchesSection() {
+function OtherFacultyBatchesSection({ onOpenTemporaryWork }) {
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -1423,6 +1440,9 @@ function OtherFacultyBatchesSection() {
     }
   }
 
+  const activeStudentSession = studentView?.session || studentView?.item || null
+  const temporarySessionEditable = isTemporarySessionEditable(activeStudentSession)
+
   return <FacultyDashboardSection title="Other Faculty Batches" description="Temporary leave-related batches assigned to you for the current and upcoming dates.">
     {studentLoading ? (
       <div className="faculty-my-batches-empty"><strong>Loading students...</strong></div>
@@ -1437,11 +1457,21 @@ function OtherFacultyBatchesSection() {
         <button type="button" className="faculty-other-batches-back-button" onClick={() => { setCalendarStudent(null); setStudentView(null) }}>← Back to Other Faculty Batches</button>
         <h3>{studentView.session?.batchName || studentView.item?.batchName}</h3>
         <p>{studentView.session?.courseName || studentView.item?.courseName || '-'} · {formatDisplayDate(studentView.session?.replacementDate || studentView.item?.effectiveDate)} · {formatClassTimeForDashboard(studentView.session?.replacementStartTime || studentView.item?.effectiveStartTime)} - {formatClassTimeForDashboard(studentView.session?.replacementEndTime || studentView.item?.effectiveEndTime)}</p>
+        <div className="faculty-student-action-buttons faculty-other-batches-session-actions">
+          <button type="button" className="faculty-today-work-trigger" disabled={!temporarySessionEditable} title={temporarySessionEditable ? 'Open Attendance' : 'Attendance opens during the assigned session time'} onClick={() => onOpenTemporaryWork?.(activeStudentSession, studentView.students, 'attendance')}>
+            <span>▣</span>
+            <span>Attendance</span>
+          </button>
+          <button type="button" className="faculty-today-work-trigger faculty-today-work-trigger--progress" disabled={!temporarySessionEditable} title={temporarySessionEditable ? "Open Today's Work" : "Today's Work opens during the assigned session time"} onClick={() => onOpenTemporaryWork?.(activeStudentSession, studentView.students, 'progress')}>
+            <span>▣</span>
+            <span>Today's Work</span>
+          </button>
+        </div>
         {studentView.students?.length ? (
           <div className="branch-dashboard-table-shell">
             <table className="branch-dashboard-table">
               <thead><tr><th>S.No</th><th>Student ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Paid Progress</th><th>Course Progress</th><th>Attendance</th><th>Actions</th></tr></thead>
-              <tbody>{studentView.students.map((student, index) => <tr key={student.id}><td>{index + 1}</td><td>{student.studentId}</td><td>{student.studentName}</td><td>{student.emailAddress || '-'}</td><td>{student.mobileNumber || '-'}</td><td>{student.paidProgress ?? '-'}{student.paidProgress != null ? '%' : ''}</td><td>{student.courseProgress ?? '-'}{student.courseProgress != null ? '%' : ''}</td><td>{student.attendance || 'UNMARKED'}</td><td><button type="button" className="faculty-other-batches-action-button" onClick={() => setCalendarStudent(student)}>View Calendar</button></td></tr>)}</tbody>
+              <tbody>{studentView.students.map((student, index) => <tr key={student.id}><td>{index + 1}</td><td>{student.studentId}</td><td>{student.studentName}</td><td>{student.emailAddress || '-'}</td><td>{student.mobileNumber || '-'}</td><td>{student.paidProgress ?? '-'}{student.paidProgress != null ? '%' : ''}</td><td>{student.courseProgress ?? '-'}{student.courseProgress != null ? '%' : ''}</td><td>{student.attendance || 'UNMARKED'}</td><td><div className="faculty-other-batches-student-actions"><button type="button" className="faculty-other-batches-action-button" onClick={() => setCalendarStudent(student)}>View Calendar</button></div></td></tr>)}</tbody>
             </table>
           </div>
         ) : <p>No students found for this batch.</p>}
@@ -1456,7 +1486,7 @@ function OtherFacultyBatchesSection() {
       <div className="branch-dashboard-table-shell">
         <table className="branch-dashboard-table">
           <thead><tr><th>Date</th><th>Course</th><th>Batch</th><th>Original Faculty</th><th>Time</th><th>Assignment</th><th>Actions</th></tr></thead>
-          <tbody>{batches.map(item => <tr key={item.id}><td>{formatDisplayDate(item.effectiveDate)}</td><td>{item.courseName || '-'}</td><td>{item.batchName || item.batchId || '-'}</td><td>{item.originalFacultyName || item.originalFacultyId || '-'}</td><td>{formatClassTimeForDashboard(item.effectiveStartTime)} - {formatClassTimeForDashboard(item.effectiveEndTime)}</td><td>{item.assignmentType || 'Replacement'}</td><td><button type="button" className="faculty-other-batches-action-button" onClick={() => viewStudents(item)}>View Students</button></td></tr>)}</tbody>
+          <tbody>{batches.map(item => <tr key={item.id}><td>{formatDisplayDate(item.effectiveDate)}</td><td>{item.courseName || '-'}</td><td>{item.batchName || item.batchId || '-'}</td><td>{item.originalFacultyName || item.originalFacultyId || '-'}</td><td>{formatClassTimeForDashboard(item.effectiveStartTime)} - {formatClassTimeForDashboard(item.effectiveEndTime)}</td><td>{item.combinedFacultyName || '-'}</td><td>{item.assignmentLabel || (item.assignmentType === 'COMBINED' ? 'Combined Class' : item.assignmentType || 'Replacement')}</td><td><button type="button" className="faculty-other-batches-action-button" onClick={() => viewStudents(item)}>View Students</button></td></tr>)}</tbody>
         </table>
       </div>
     ) : (
@@ -1547,6 +1577,7 @@ export function FacultyDashboardPage() {
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [selectedStudentsCourseId, setSelectedStudentsCourseId] = useState('')
   const [selectedStudentsBatchId, setSelectedStudentsBatchId] = useState('')
+  const [temporarySessionContext, setTemporarySessionContext] = useState(null)
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [expandedCourseModuleIds, setExpandedCourseModuleIds] = useState([])
   const [courseModuleLimit, setCourseModuleLimit] = useState(5)
@@ -1603,7 +1634,7 @@ export function FacultyDashboardPage() {
 
     const intervalId = window.setInterval(() => setAttendanceClock(new Date()), 1000)
     return () => window.clearInterval(intervalId)
-  }, [selectedStudentsBatchId])
+  }, [selectedStudentsBatchId, temporarySessionContext])
 
 
 
@@ -2534,14 +2565,37 @@ export function FacultyDashboardPage() {
     const normalizedCourseId = String(selectedStudentsCourseId || '').trim()
     if (!normalizedCourseId) return null
 
-    return facultyCourseRows.find((course) => getFacultyFlowCourseKey(course) === normalizedCourseId) || null
-  }, [facultyCourseRows, selectedStudentsCourseId])
+    return facultyCourseRows.find((course) => getFacultyFlowCourseKey(course) === normalizedCourseId)
+      || assignedCourses.find((course) => getFacultyFlowCourseKey(course) === normalizedCourseId)
+      || (temporarySessionContext?.item?.courseId === normalizedCourseId
+        ? { id: normalizedCourseId, courseId: normalizedCourseId, name: temporarySessionContext.item.courseName, courseName: temporarySessionContext.item.courseName }
+        : null)
+  }, [assignedCourses, facultyCourseRows, selectedStudentsCourseId, temporarySessionContext])
 
   const selectedStudentsCourseBatches = useMemo(() => {
     if (!selectedStudentsCourse) return []
 
-    return facultyBatchRows.filter((batch) => doesFacultyBatchBelongToCourse(batch, selectedStudentsCourse))
-  }, [facultyBatchRows, selectedStudentsCourse])
+    const assignedBatches = facultyBatchRows.filter((batch) => doesFacultyBatchBelongToCourse(batch, selectedStudentsCourse))
+    const temporaryBatchId = String(temporarySessionContext?.item?.batchId || temporarySessionContext?.item?.id || '').trim()
+    const selectedTemporaryBatch = temporaryBatchId && String(selectedStudentsBatchId || '').trim() === temporaryBatchId
+      ? {
+      ...temporarySessionContext.item,
+      id: temporaryBatchId,
+      batchEntryId: temporaryBatchId,
+      timing: `${temporarySessionContext.item.effectiveStartTime || ''} - ${temporarySessionContext.item.effectiveEndTime || ''}`.trim(),
+      batchTiming: `${temporarySessionContext.item.effectiveStartTime || ''} - ${temporarySessionContext.item.effectiveEndTime || ''}`.trim(),
+      }
+      : null
+    if (selectedTemporaryBatch) return [selectedTemporaryBatch, ...assignedBatches.filter((batch) => getFacultyFlowBatchKey(batch) !== temporaryBatchId)]
+    if (assignedBatches.length || !temporarySessionContext?.item) return assignedBatches
+    return [{
+      ...temporarySessionContext.item,
+      id: temporaryBatchId,
+      batchEntryId: temporaryBatchId,
+      timing: `${temporarySessionContext.item.effectiveStartTime || ''} - ${temporarySessionContext.item.effectiveEndTime || ''}`.trim(),
+      batchTiming: `${temporarySessionContext.item.effectiveStartTime || ''} - ${temporarySessionContext.item.effectiveEndTime || ''}`.trim(),
+    }]
+  }, [facultyBatchRows, selectedStudentsBatchId, selectedStudentsCourse, temporarySessionContext])
 
   const selectedStudentsBatch = useMemo(() => {
     const normalizedBatchId = String(selectedStudentsBatchId || '').trim()
@@ -2579,6 +2633,7 @@ export function FacultyDashboardPage() {
   }, [currentFacultyIdentity.facultyId, selectedStudentsBatch, selectedStudentsCourse, selectedStudentsCourse?.courseId, selectedStudentsCourse?.id])
 
   const selectedBatchStudents = useMemo(() => {
+    if (temporarySessionContext?.students?.length && selectedStudentsBatch?.batchId === temporarySessionContext.item?.batchId) return temporarySessionContext.students
     if (!selectedStudentsBatch) return []
     return getFacultyBatchProgressStudents(
       selectedStudentsBatch,
@@ -2591,6 +2646,7 @@ export function FacultyDashboardPage() {
     facultyScopedStudents,
     selectedStudentsBatch,
     selectedStudentsCourse,
+    temporarySessionContext,
   ])
 
   const selectedCourseBatchProgress = useMemo(() => {
@@ -2664,21 +2720,23 @@ export function FacultyDashboardPage() {
   useEffect(() => {
     if (
       selectedStudentsCourseId &&
+      !temporarySessionContext &&
       !facultyCourseRows.some((course) => getFacultyFlowCourseKey(course) === String(selectedStudentsCourseId || '').trim())
     ) {
       setSelectedStudentsCourseId('')
       setSelectedStudentsBatchId('')
     }
-  }, [facultyCourseRows, selectedStudentsCourseId])
+  }, [facultyCourseRows, selectedStudentsCourseId, temporarySessionContext])
 
   useEffect(() => {
     if (
       selectedStudentsBatchId &&
+      !temporarySessionContext &&
       !selectedStudentsCourseBatches.some((batch) => getFacultyFlowBatchKey(batch) === String(selectedStudentsBatchId || '').trim())
     ) {
       setSelectedStudentsBatchId('')
     }
-  }, [selectedStudentsBatchId, selectedStudentsCourseBatches])
+  }, [selectedStudentsBatchId, selectedStudentsCourseBatches, temporarySessionContext])
 
   const studentsPerPage = 5
   const studentsTotalPages = Math.max(1, Math.ceil(studentsFlowVisibleStudents.length / studentsPerPage))
@@ -2918,6 +2976,20 @@ export function FacultyDashboardPage() {
     setExpandedCourseModuleIds(
       isAllModulesExpanded ? [] : selectedCourseModuleKeys,
     )
+  }
+
+  const openTemporarySessionWork = (session, sessionStudents, mode = 'attendance') => {
+    const item = {
+      ...session,
+      effectiveDate: session?.effectiveDate || session?.replacementDate || session?.sessionDate,
+      effectiveStartTime: session?.effectiveStartTime || session?.replacementStartTime || session?.originalStartTime,
+      effectiveEndTime: session?.effectiveEndTime || session?.replacementEndTime || session?.originalEndTime,
+    }
+    setTemporarySessionContext({ item, students: Array.isArray(sessionStudents) ? sessionStudents : [] })
+    setSelectedStudentsCourseId(String(item.courseId || '').trim())
+    setSelectedStudentsBatchId(String(item.batchId || '').trim())
+    setStudentsPage(1)
+    window.setTimeout(() => openTodayWorkModal(mode), 0)
   }
 
   const openTodayWorkModal = (mode = 'attendance') => {
@@ -4445,7 +4517,8 @@ const nextName = trimmedValue
     getAttendanceBatchTiming(selectedStudentsBatch),
     attendanceClock,
   )
-  const attendanceWindowLocked = todayWorkMode === 'attendance' && !todayWorkAttendanceWindow.isEditable
+  const temporarySessionWindowLocked = Boolean(temporarySessionContext) && !isTemporarySessionEditable(temporarySessionContext.item, attendanceClock)
+  const attendanceWindowLocked = temporarySessionWindowLocked || (todayWorkMode === 'attendance' && !todayWorkAttendanceWindow.isEditable)
 
   useEffect(() => {
     if (!selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder) {
@@ -5387,7 +5460,7 @@ const nextName = trimmedValue
 
               {activeSection === 'leave-requests' ? <FacultyLeaveRequests /> : null}
 
-              {activeSection === 'other-faculty-batches' ? <OtherFacultyBatchesSection /> : null}
+              {activeSection === 'other-faculty-batches' ? <OtherFacultyBatchesSection onOpenTemporaryWork={openTemporarySessionWork} /> : null}
 
               {activeSection === 'notifications' ? (
                 <section className="faculty-notifications-page">
