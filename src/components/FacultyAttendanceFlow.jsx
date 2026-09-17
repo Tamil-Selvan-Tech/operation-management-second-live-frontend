@@ -7,6 +7,7 @@ import {
   loginFacultyAttendance,
   logoutFacultyAttendance,
 } from '../services/attendanceService'
+import { FACULTY_ATTENDANCE_SYNC_EVENT } from '../lib/facultyAttendanceStore'
 import '../styles/FacultyAttendanceFlow.css'
 
 const STATES = ['NOT_LOGGED_IN', 'LOGGED_IN', 'ON_PERMISSION', 'LOGIN_REQUIRED', 'LOGGED_OUT']
@@ -122,7 +123,10 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', facultyId = '' 
   const handleLogin = async () => {
     if (loading || !status?.canLogin) return
     setLoading(true); setError('')
-    try { setStatus(responseStatus(await loginFacultyAttendance({ facultyId, facultyName: profileName }))) } catch (errorObject) { setError(requestError(errorObject, 'Unable to save login.')); await refresh() } finally { setLoading(false) }
+    try {
+      setStatus(responseStatus(await loginFacultyAttendance({ facultyId, facultyName: profileName })))
+      window.dispatchEvent(new CustomEvent(FACULTY_ATTENDANCE_SYNC_EVENT))
+    } catch (errorObject) { setError(requestError(errorObject, 'Unable to save login.')); await refresh() } finally { setLoading(false) }
   }
   const openLogout = async () => {
     if (loading || !status?.canLogout) return
@@ -135,6 +139,7 @@ export function FacultyAttendanceFlow({ profileName = 'Faculty', facultyId = '' 
     try {
       const batchWork = batches.map((batch, index) => { const id = batch.id || batch.batchId || `batch-${index}`; return { batchId: id, workSummary: String(work[id] || '').trim() } })
       setStatus(responseStatus(await logoutFacultyAttendance(batchWork, { facultyId, facultyName: profileName }))); setLogoutOpen(false)
+      window.dispatchEvent(new CustomEvent(FACULTY_ATTENDANCE_SYNC_EVENT))
     } catch (errorObject) { setError(requestError(errorObject, 'Unable to complete logout.')); await refresh() } finally { setLoading(false) }
   }
 

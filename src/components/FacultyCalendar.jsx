@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, CalendarOff, CheckCircle2, ChevronLeft, ChevronRight, Flag, RefreshCw, Sparkles, Timer, X } from 'lucide-react'
 import { getFacultyCalendar, getFacultyLeaveRequests } from '../services/facultyCalendarService'
+import { getFacultyAttendanceStatus } from '../services/attendanceService'
+import { FACULTY_ATTENDANCE_SYNC_EVENT } from '../lib/facultyAttendanceStore'
 import { statusStyle } from '../config/facultyCalendarStatusColors'
 import '../styles/FacultyCalendar.css'
 
@@ -14,6 +16,14 @@ const STATUS_LABELS = {
 
 function isoDate(date) {
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
+}
+function hasLoginOnDate(status, dateKey) {
+  const loginAt = status?.firstLoginAt || status?.loginAt || status?.currentSession?.loginAt
+  const loginDate = loginAt ? new Date(loginAt) : null
+  if (!loginDate || Number.isNaN(loginDate.getTime()) || isoDate(loginDate) !== dateKey) return false
+
+  const recordedDate = String(status?.attendanceDate || status?.date || '').slice(0, 10)
+  return !recordedDate || recordedDate === dateKey
 }
 function parseDate(value) {
   const date = new Date(`${String(value || '').slice(0, 10)}T00:00:00`)
@@ -92,6 +102,8 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [workLogStatus, setWorkLogStatus] = useState(null)
+  const facultyId = faculty?.id || facultyProfile?.facultyId || ''
 
   const permanentBatches = useMemo(() => (facultyProfile?.batchEntries || []).filter((batch) => String(batch?.status || 'ACTIVE').toUpperCase() === 'ACTIVE'), [facultyProfile])
   const range = useMemo(() => {
@@ -124,26 +136,40 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
     try {
       const todayDate = isoDate(new Date())
       const attendanceStart = range.start && range.start > todayDate ? todayDate : range.start
-      const [nextCalendar, requests] = await Promise.all([
+      const [nextCalendar, requests, nextWorkLogStatus] = await Promise.all([
         getFacultyCalendar({ startDate: attendanceStart, endDate: range.end }),
         getFacultyLeaveRequests(),
+        getFacultyAttendanceStatus({ facultyId }),
       ])
       setCalendar(nextCalendar || { events: [] })
       setLeaveRequests(requests)
+      setWorkLogStatus(nextWorkLogStatus || null)
       const initial = parseDate(nextCalendar?.events?.[0]?.date || range.start) || new Date()
       setMonth(new Date(initial.getFullYear(), initial.getMonth(), 1))
     } catch (requestError) {
       setError(requestError?.message || 'Unable to load your calendar.')
     } finally { setLoading(false) }
-  }, [range.end, range.start])
+  }, [facultyId, range.end, range.start])
   useEffect(() => {
     if (!facultyProfile) return undefined
     const timer = window.setTimeout(() => { load() }, 0)
     return () => window.clearTimeout(timer)
   }, [facultyProfile, load])
 
+  useEffect(() => {
+    const handleAttendanceChange = () => { void load() }
+    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, handleAttendanceChange)
+    return () => window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, handleAttendanceChange)
+  }, [load])
+
   const events = useMemo(() => {
-    const source = Array.isArray(calendar?.events) ? calendar.events : []
+    const source = (Array.isArray(calendar?.events) ? calendar.events : [])
+      .filter((event) => normalizeStatus(event) !== 'PRESENT')
+    const today = isoDate(new Date())
+    const workLogPresent = hasLoginOnDate(workLogStatus, today)
+    const workLogEvent = workLogPresent
+      ? [{ date: today, code: 'PRESENT', status: 'Present', loginAt: workLogStatus?.firstLoginAt || workLogStatus?.loginAt || workLogStatus?.currentSession?.loginAt, facultyId }]
+      : []
     const approved = leaveRequests.filter((item) => String(item?.status || '').toUpperCase() === 'APPROVED')
     const leaveEvents = approved.flatMap((item) => {
       const from = parseDate(item.fromDate); const to = parseDate(item.toDate || item.fromDate)
@@ -152,7 +178,7 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
       return rows
     })
     const existingLeaveKeys = new Set(source.map((event) => `${event?.id || ''}:${event?.date || ''}:${normalizeStatus(event)}`))
-    const result = [...source, ...leaveEvents.filter((event) => !existingLeaveKeys.has(`${event?.id || ''}:${event?.date || ''}:${normalizeStatus(event)}`))]
+    const result = [...source, ...workLogEvent, ...leaveEvents.filter((event) => !existingLeaveKeys.has(`${event?.id || ''}:${event?.date || ''}:${normalizeStatus(event)}`))]
     if (range.start && range.end) {
       const existingDates = new Set(result.map((event) => String(event.date || '').slice(0, 10)))
       const cursor = parseDate(range.start)
@@ -172,7 +198,7 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
       : normalizeStatus(event) === 'HOLIDAY' && !event.name && !event.holidayName
         ? { ...event, name: holidayName(event) }
         : event)
-  }, [batches, calendar, leaveRequests, range.end, range.start])
+  }, [batches, calendar, facultyId, leaveRequests, range.end, range.start, workLogStatus])
 
   const days = useMemo(() => {
     if (!month) return []
