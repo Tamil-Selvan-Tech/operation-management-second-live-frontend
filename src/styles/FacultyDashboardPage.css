@@ -211,6 +211,14 @@ body.faculty-notification-menu-open .super-admin-content {
 @media (max-width: 600px) { .faculty-dashboard-attendance-dashboard-layout .attendance-insight-rows { grid-template-columns: 1fr; }.faculty-dashboard-attendance-dashboard-layout .attendance-insight-row.tone-long { grid-column: auto; } }
 @keyframes faculty-dashboard-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 @media (max-width: 640px) { .faculty-dashboard-overview-grid { grid-template-columns: 1fr; }.faculty-dashboard-overview-card, .faculty-dashboard-progress-card { padding: 18px; }.faculty-dashboard-single-card--attendance { width: 100%; } }
+
+/* Keep the Overall Progress card compact on the faculty dashboard. */
+.faculty-dashboard-progress-card { width: 50%; }
+@media (max-width: 640px) { .faculty-dashboard-progress-card { width: 100%; } }
+
+/* A fully resolved faculty-leave review has only the close action. */
+.faculty-leave-review-detail > .institute-confirm-actions button:only-child { font-size: 0; }
+.faculty-leave-review-detail > .institute-confirm-actions button:only-child::after { content: 'OK'; font-size: 14px; }
 .faculty-dashboard-bar-chart { display: flex; gap: 9px; height: 190px; margin-top: 20px; padding: 12px 8px 0 0; border-bottom: 1px solid #dbe4ee; }
 .faculty-dashboard-bar-axis { display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 23px; color: #94a3b8; font-size: 10px; }
 .faculty-dashboard-bars { display: flex; align-items: stretch; justify-content: space-around; flex: 1; gap: 7px; min-width: 0; }

@@ -1407,7 +1407,7 @@ function FacultyDashboardOverview({ overview, loading, error, onRetry, todayAtte
   return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-attendance-dashboard-layout"><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div>{todayAttendanceLoading ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>Loading today's attendance…</p></aside> : todayAttendanceError ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>{todayAttendanceError}</p></aside> : todayAttendance ? <BranchAttendanceInsights data={todayAttendance} /> : null}</div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : selectedProgressBatch?.progress ? <div className="faculty-dashboard-donut-wrap"><div className="faculty-dashboard-donut" style={{ '--progress': `${Math.max(0, Math.min(100, selectedProgressBatch.progress.percentage))}%` }}><div><strong>{formatPercent(selectedProgressBatch.progress.percentage)}</strong><span>Overall Progress</span></div></div><p className="faculty-dashboard-progress-note">Based on {selectedProgressBatch.progress.studentsIncluded} student{selectedProgressBatch.progress.studentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
 }
 
-function OtherFacultyBatchesSection({ onOpenTemporaryWork }) {
+function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibility }) {
   const [batches, setBatches] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -1419,11 +1419,11 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork }) {
   useEffect(() => {
     let active = true
     getFacultyTemporaryBatches()
-      .then(rows => { if (active) setBatches(Array.isArray(rows) ? rows : []) })
-      .catch(err => { if (active) setError(err.message || 'Unable to load temporary batches') })
+      .then(rows => { if (active) { const nextRows = Array.isArray(rows) ? rows : []; setBatches(nextRows); onAssignmentVisibility?.(nextRows.length > 0) } })
+      .catch(err => { if (active) { setError(err.message || 'Unable to load temporary batches'); onAssignmentVisibility?.(false) } })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [])
+  }, [onAssignmentVisibility])
 
   async function viewStudents(item) {
     setCalendarStudent(null)
@@ -1525,10 +1525,21 @@ export function FacultyDashboardPage() {
   const isStudentCalendarRoute = Boolean(studentCalendarId)
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState('dashboard')
+  const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const profileMenuRef = useRef(null)
   const notificationRef = useRef(null)
+
+  useEffect(() => {
+    let active = true
+    const refreshTemporaryAssignmentVisibility = () => getFacultyTemporaryBatches()
+      .then(rows => { if (active) setHasTemporaryAssignments(Array.isArray(rows) && rows.length > 0) })
+      .catch(() => { if (active) setHasTemporaryAssignments(false) })
+    refreshTemporaryAssignmentVisibility()
+    const timer = window.setInterval(refreshTemporaryAssignmentVisibility, 60000)
+    return () => { active = false; window.clearInterval(timer) }
+  }, [])
 
   // Retrieve logged-in faculty details dynamically from registry or fallback to session
   const facultyDetails = useMemo(() => {
@@ -4284,7 +4295,7 @@ const nextName = trimmedValue
           { id: 'leave-requests', label: 'Leave Requests', icon: CalendarDays },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
-        ].map((item) => {
+        ].filter((item) => item.id !== 'other-faculty-batches' || hasTemporaryAssignments).map((item) => {
           const Icon = item.icon
           const isActive = activeSection === item.id
 
@@ -5475,7 +5486,7 @@ const nextName = trimmedValue
 
               {activeSection === 'leave-requests' ? <FacultyLeaveRequests /> : null}
 
-              {activeSection === 'other-faculty-batches' ? <OtherFacultyBatchesSection onOpenTemporaryWork={openTemporarySessionWork} /> : null}
+              {activeSection === 'other-faculty-batches' && hasTemporaryAssignments ? <OtherFacultyBatchesSection onOpenTemporaryWork={openTemporarySessionWork} onAssignmentVisibility={setHasTemporaryAssignments} /> : null}
 
               {activeSection === 'notifications' ? (
                 <section className="faculty-notifications-page">
