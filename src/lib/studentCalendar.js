@@ -346,7 +346,11 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
         batch: serverEvent.batchName || '',
         faculty: serverEvent.facultyName || serverEvent.replacementFacultyName || serverEvent.combinedFacultyName || '',
         originalFaculty: serverEvent.originalFacultyName || '',
-        assignmentType: serverEvent.assignmentType === 'COMBINED' ? 'Combined Class' : serverEvent.assignmentType === 'REPLACEMENT' ? 'Replacement/Reassignment' : '',
+        assignmentType: serverEvent.assignmentType === 'COMBINED' ? 'Combined Class' : serverEvent.assignmentType === 'REPLACEMENT' ? 'Replacement/Reassignment' : serverEvent.assignmentType === 'RESCHEDULED' ? 'Rescheduled' : '',
+        originalDate: serverEvent.originalDate || '',
+        originalTime: serverEvent.originalStartTime && serverEvent.originalEndTime ? formatSessionRange(serverEvent.originalStartTime, serverEvent.originalEndTime) : '',
+        rescheduledDate: serverEvent.rescheduledDate || '',
+        rescheduledTime: serverEvent.rescheduledStartTime && serverEvent.rescheduledEndTime ? formatSessionRange(serverEvent.rescheduledStartTime, serverEvent.rescheduledEndTime) : '',
       } : null,
       status,
       tone,
@@ -355,6 +359,7 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
         isEndDate ? 'Course End Date' : '',
         serverEvent?.isReplacement ? 'Replacement Class' : '',
         serverEvent?.code === 'REASSIGNED' ? 'Reassigned Class' : '',
+        serverEvent?.code === 'RESCHEDULED' ? 'Rescheduled' : '',
       ].filter(Boolean),
       isHoliday: Boolean(holiday),
     })
@@ -367,7 +372,7 @@ function getStatusToneKey(status) {
   const normalized = String(status || '').trim().toLowerCase()
   if (normalized === 'present') return 'present'
   if (normalized === 'completed') return 'present'
-  if (normalized === 'class' || normalized === 'scheduled' || normalized === 'reassigned' || normalized === 'replaced' || normalized === 'combined') return 'course-day'
+  if (normalized === 'class' || normalized === 'scheduled' || normalized === 'reassigned' || normalized === 'replaced' || normalized === 'combined' || normalized === 'rescheduled') return 'course-day'
   if (normalized === 'institute leave' || normalized === 'institute_leave') return 'holiday'
   if (normalized === 'absent') return 'absent'
   if (normalized === 'leave' || normalized === 'holiday' || normalized === 'government holiday') return 'holiday'

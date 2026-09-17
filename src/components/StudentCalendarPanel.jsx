@@ -77,6 +77,10 @@ function CalendarDayCell({ day, externalUi = false, onSelect }) {
     day.details?.submodule ? `Submodule: ${day.details.submodule}` : '',
     day.details?.originalFaculty ? `Original Faculty: ${day.details.originalFaculty}` : '',
     day.details?.assignmentType ? `Assignment: ${day.details.assignmentType}` : '',
+    day.details?.originalDate ? `Original Date: ${day.details.originalDate}` : '',
+    day.details?.originalTime ? `Original Time: ${day.details.originalTime}` : '',
+    day.details?.rescheduledDate ? `Rescheduled Date: ${day.details.rescheduledDate}` : '',
+    day.details?.rescheduledTime ? `Rescheduled Time: ${day.details.rescheduledTime}` : '',
     day.holidayName ? `Reason: ${day.holidayName}` : '',
   ].filter(Boolean).join(' | ')
 
@@ -372,6 +376,10 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
               {selectedDay.details?.course ? <><dt>Course</dt><dd>{selectedDay.details.course}</dd></> : null}
               {selectedDay.details?.batch ? <><dt>Batch</dt><dd>{selectedDay.details.batch}</dd></> : null}
               {selectedDay.details?.classTime ? <><dt>Time</dt><dd>{selectedDay.details.classTime}</dd></> : null}
+              {selectedDay.details?.originalDate ? <><dt>Original Date</dt><dd>{selectedDay.details.originalDate}</dd></> : null}
+              {selectedDay.details?.originalTime ? <><dt>Original Time</dt><dd>{selectedDay.details.originalTime}</dd></> : null}
+              {selectedDay.details?.rescheduledDate ? <><dt>New Date</dt><dd>{selectedDay.details.rescheduledDate}</dd></> : null}
+              {selectedDay.details?.rescheduledTime ? <><dt>New Time</dt><dd>{selectedDay.details.rescheduledTime}</dd></> : null}
               {selectedDay.details?.originalFaculty ? <><dt>Original Faculty</dt><dd>{selectedDay.details.originalFaculty}</dd></> : null}
               {selectedDay.details?.faculty ? <><dt>Class Faculty</dt><dd>{selectedDay.details.faculty}</dd></> : null}
               {selectedDay.details?.assignmentType ? <><dt>Assignment</dt><dd>{selectedDay.details.assignmentType}</dd></> : null}
