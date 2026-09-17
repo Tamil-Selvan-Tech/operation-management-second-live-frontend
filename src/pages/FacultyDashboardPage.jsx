@@ -519,10 +519,9 @@ function getWorkEntrySubmoduleStatus(entry = {}, submoduleId = '', studentId = '
   )
   if (legacyEntryStatus) return legacyEntryStatus
 
-  // Legacy entries only recorded selection. Preserve that history as completed.
-  return getWorkEntrySubmoduleIds(entry).some((id) => normalizeWorkStudentId(id) === normalizedSubmoduleId)
-    ? 'Completed'
-    : ''
+  // A selected sub-module is not progress by itself. Only an explicit
+  // Completed status may contribute to the course percentage.
+  return ''
 }
 
 function getWorkEntryStudentAttendanceStatus(entry = {}, studentId = '') {
@@ -1439,6 +1438,22 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork }) {
       setStudentLoading(false)
     }
   }
+
+  useEffect(() => {
+    const refreshTemporaryStudents = async () => {
+      const sessionId = studentView?.item?.id
+      if (!sessionId) return
+      try {
+        const result = await getTemporaryBatchStudents(sessionId)
+        setStudentView((current) => current ? { ...result, item: current.item } : current)
+      } catch {
+        // Keep the current view if a background refresh fails.
+      }
+    }
+
+    window.addEventListener('cispro:faculty-dashboard-refresh', refreshTemporaryStudents)
+    return () => window.removeEventListener('cispro:faculty-dashboard-refresh', refreshTemporaryStudents)
+  }, [studentView?.item?.id])
 
   const activeStudentSession = studentView?.session || studentView?.item || null
   const temporarySessionEditable = isTemporarySessionEditable(activeStudentSession)
@@ -3050,7 +3065,7 @@ export function FacultyDashboardPage() {
       progressPercentage: 0,
       attendanceByStudent: Object.fromEntries(statusStudentIds.map((studentId) => {
         const student = studentsFlowVisibleStudents.find((item) => getTodayWorkStudentId(item) === studentId)
-        return [studentId, getStudentAttendanceStatus(studentAttendanceStatuses, student)]
+        return [studentId, getStudentAttendanceStatus(studentAttendanceStatuses, student) || String(student?.attendanceStatus || student?.attendance || '').trim().toUpperCase()]
       })),
       submoduleStatuses: initialSubmoduleStatuses,
       submoduleStatusById: initialSubmoduleStatusById,
