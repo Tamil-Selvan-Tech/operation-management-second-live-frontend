@@ -779,11 +779,11 @@ export function BranchFacultyPage({ branchCode = '' }) {
     } catch (err) {
       console.error(err)
 
+      const message = err?.body?.message || err?.message || 'Error saving faculty. Please try again.'
       setErrors((prev) => ({
         ...prev,
-        email:
-          err?.body?.message ||
-          'Error saving faculty. Please try again.',
+        idDigits: message.toLowerCase().includes('faculty id') ? message : prev.idDigits,
+        email: message.toLowerCase().includes('email') ? message : prev.email,
       }))
     } finally {
       setIsSubmitting(false)
