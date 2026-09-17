@@ -187,6 +187,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   const [form, setForm] = useState(null)
   const [detail, setDetail] = useState(null)
   const [facultyDetail, setFacultyDetail] = useState(null)
+  const [approveTarget, setApproveTarget] = useState(null)
   const [rejectTarget, setRejectTarget] = useState(null)
   const [rejectReason, setRejectReason] = useState('')
   const [resolutionTarget, setResolutionTarget] = useState(null)
@@ -258,7 +259,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     document.addEventListener('mousedown', closeOnOutsideClick)
     return () => document.removeEventListener('mousedown', closeOnOutsideClick)
   }, [])
-  const close = () => { if (!busy) { setForm(null); setDetail(null); setFacultyDetail(null); setRejectTarget(null); setRejectReason(''); setResolutionTarget(null); setResolutionType(''); setReplacementFaculty([]); setCombineSessions([]); setCancel(null) } }
+  const close = () => { if (!busy) { setForm(null); setDetail(null); setFacultyDetail(null); setApproveTarget(null); setRejectTarget(null); setRejectReason(''); setResolutionTarget(null); setResolutionType(''); setReplacementFaculty([]); setCombineSessions([]); setCancel(null) } }
   async function save(event) {
     event.preventDefault()
     if (form) {
@@ -316,12 +317,17 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     }
     catch (err) { setError(err.message || 'Unable to load faculty leave request') }
   }
-  async function reviewFacultyRequest(id, action) {
+  async function reviewFacultyRequest(id, action, confirmed = false) {
+    if (action === 'approve' && !confirmed) {
+      const requestItem = facultyRequests.find(item => item.id === id) || (facultyDetail?.id === id ? facultyDetail : { id })
+      openApproveConfirmation(requestItem)
+      return
+    }
     setBusy(true); setError('')
     try {
       if (action === 'reject') await request(`/faculty-leave-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason: rejectReason.trim() || 'Rejected by Branch Admin' }) })
       else await request(`/faculty-leave-requests/${id}/approve`, { method: 'POST' })
-      setFacultyDetail(null); setRejectTarget(null); setRejectReason(''); setMessage(action === 'approve' ? 'Faculty leave approved.' : 'Faculty leave rejected.'); await load()
+      setFacultyDetail(null); setApproveTarget(null); setRejectTarget(null); setRejectReason(''); setMessage(action === 'approve' ? 'Faculty leave approved.' : 'Faculty leave rejected.'); await load()
     } catch (err) {
       setError(err.message || 'Unable to review faculty leave request')
       try { setFacultyDetail(normalizeFacultyLeaveDetail(unwrap(await request(`/faculty-leave-requests/${id}`)))) } catch { /* Keep the review error visible if detail loading fails. */ }
@@ -330,6 +336,13 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
   }
   function openRejectConfirmation(id) {
     setError(''); setRejectReason(''); setRejectTarget(id)
+  }
+  function openApproveConfirmation(requestItem) {
+    setError(''); setApproveTarget(requestItem)
+  }
+  function confirmApprove() {
+    if (!approveTarget) return
+    void reviewFacultyRequest(approveTarget.id, 'approve', true)
   }
   async function openResolution(session, assignmentType) {
     if (!facultyDetail) return
@@ -391,12 +404,13 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     return groups
   }, {})) : []
   return <section className="institute-leave-page">
+    {approveTarget ? <div className="institute-success-popup" role="alertdialog" aria-modal="true"><div className="approval-confirmation-card"><button type="button" className="approval-confirmation-close" aria-label="Close confirmation" onClick={() => setApproveTarget(null)} disabled={busy}>×</button><strong>Confirm Approval</strong><p>Are you sure you want to approve this faculty leave request?</p><p><strong>{approveTarget.facultyName || 'Faculty'}</strong>{approveTarget.fromDate ? ` · ${formatLeaveDate(approveTarget.fromDate)}` : ''}</p><div className="institute-confirm-actions"><button type="button" className="institute-primary" onClick={confirmApprove} disabled={busy}>{busy ? 'Approving...' : 'OK'}</button></div></div></div> : null}
     {viewMode === 'faculty' ? <section className="faculty-request-readonly-panel">
       <header className="institute-leave-header"><div><p className="section-kicker">Branch Admin</p><h2>Faculty Leave Requests</h2><p>Review leave requests submitted by faculty in this branch.</p></div></header>
       {error ? <p role="alert" className="institute-error">{error}</p> : null}
       {message ? <p role="status" className="institute-success">{message}</p> : null}
       <div className="institute-table-scroll"><table><caption>Faculty leave requests</caption><thead><tr><th>S.No</th><th>Faculty</th><th>Leave dates</th><th>Type</th><th>Duration</th><th>Reason</th><th>Status</th><th>Affected classes</th><th>Actions</th></tr></thead><tbody>
-        {facultyRequests.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td><strong>{item.facultyName}</strong><small>{item.facultyId}</small></td><td>{formatLeaveDate(item.fromDate)}{item.fromDate !== item.toDate ? ` - ${formatLeaveDate(item.toDate)}` : ''}</td><td>{item.leaveType}</td><td>{item.durationType === 'HALF_DAY' ? `${item.halfDayStart || '-'} - ${item.halfDayEnd || '-'}` : item.durationType === 'PERMISSION' ? `${item.permissionHours} hour permission` : 'Full day'}</td><td>{item.reason}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{item.affectedClassCount || 0}</td><td><div className="institute-action-menu"><button type="button" className="institute-action-menu-trigger" aria-label={'Actions for ' + item.facultyName} aria-expanded={openActionMenu === item.id} onClick={() => { if (openActionMenu === item.id) { setOpenActionMenu(null); setPinnedActionMenu(false) } else { setOpenActionMenu(item.id); setPinnedActionMenu(true) } }}><MoreVertical size={19} /></button>{openActionMenu === item.id ? <div className="institute-action-menu-dropdown" role="menu"><button type="button" role="menuitem" onClick={() => { setOpenActionMenu(null); setPinnedActionMenu(false); viewFacultyRequest(item) }}>Review</button>{['PENDING', 'UNDER_REVIEW'].includes(item.status) ? <button type="button" role="menuitem" onClick={() => { setOpenActionMenu(null); setPinnedActionMenu(false); openRejectConfirmation(item.id) }}>Reject</button> : null}</div> : null}</div></td></tr>)}
+        {facultyRequests.map((item, index) => <tr key={item.id}><td>{index + 1}</td><td><strong>{item.facultyName}</strong><small>{item.facultyId}</small></td><td>{formatLeaveDate(item.fromDate)}{item.fromDate !== item.toDate ? ` - ${formatLeaveDate(item.toDate)}` : ''}</td><td>{item.leaveType}</td><td>{item.durationType === 'HALF_DAY' ? `${item.halfDayStart || '-'} - ${item.halfDayEnd || '-'}` : item.durationType === 'PERMISSION' ? `${item.permissionHours} hour permission` : 'Full day'}</td><td>{item.reason}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{item.affectedClassCount || 0}</td><td><div className="institute-action-menu"><button type="button" className="institute-action-menu-trigger" aria-label={'Actions for ' + item.facultyName} aria-expanded={openActionMenu === item.id} onClick={() => { if (openActionMenu === item.id) { setOpenActionMenu(null); setPinnedActionMenu(false) } else { setOpenActionMenu(item.id); setPinnedActionMenu(true) } }}><MoreVertical size={19} /></button>{openActionMenu === item.id ? <div className="institute-action-menu-dropdown" role="menu"><button type="button" role="menuitem" onClick={() => { setOpenActionMenu(null); setPinnedActionMenu(false); viewFacultyRequest(item) }}>Review</button><button type="button" role="menuitem" disabled={busy || !['PENDING', 'UNDER_REVIEW'].includes(item.status) || (String(item.leaveType).toUpperCase() !== 'EMERGENCY' && Number(item.unresolvedSessionCount || 0) > 0)} onClick={() => { setOpenActionMenu(null); setPinnedActionMenu(false); openApproveConfirmation(item) }}>Approve</button><button type="button" role="menuitem" disabled={busy || !['PENDING', 'UNDER_REVIEW'].includes(item.status)} onClick={() => { setOpenActionMenu(null); setPinnedActionMenu(false); openRejectConfirmation(item.id) }}>Reject</button></div> : null}</div></td></tr>)}
         {!facultyRequests.length ? <tr><td colSpan="9">No faculty leave requests found.</td></tr> : null}
       </tbody></table></div>
       <dialog ref={facultyDialog} className="institute-dialog faculty-review-dialog" onCancel={event => { event.preventDefault(); close() }}>

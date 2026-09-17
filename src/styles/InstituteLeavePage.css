@@ -58,6 +58,11 @@
 .institute-success { color: #12633d; background: #edf9f2; padding: 12px; border-radius: 8px; }
 .institute-success-popup { position: fixed; inset: 0; z-index: 100000; display: grid; place-items: center; background: rgb(23 33 59 / 34%); backdrop-filter: blur(7px); -webkit-backdrop-filter: blur(7px); }
 .institute-success-popup > div { width: min(360px, calc(100vw - 32px)); padding: 28px; border-radius: 16px; background: white; text-align: center; box-shadow: 0 18px 50px #17213b33; }
+.approval-confirmation-card { position: relative; min-height: 250px; box-sizing: border-box; padding-top: 32px !important; }
+.approval-confirmation-card .approval-confirmation-close { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; padding: 0; border: 0; background: transparent; color: #64748b; font-size: 26px; line-height: 1; cursor: pointer; }
+.approval-confirmation-card .approval-confirmation-close:hover { color: #17213b; background: #f1f5f9; }
+.approval-confirmation-card .institute-confirm-actions { margin-top: 18px; }
+.approval-confirmation-card .institute-confirm-actions .institute-primary { min-height: 42px; padding: 8px 20px; }
 .institute-success-popup strong { display: block; color: #147a49; font-size: 21px; }
 .institute-success-popup p { margin: 12px 0 20px; color: #53627b; }
 .institute-success-popup .institute-primary { width: 100px; }
@@ -70,6 +75,9 @@
 .faculty-request-readonly-panel { min-height: 350px; }
 .faculty-request-readonly-panel td small { display: block; margin-top: 3px; color: #64748b; }
 .faculty-review-dialog { width: min(980px, calc(100vw - 32px)); max-height: 88vh; overflow: auto; box-shadow: 0 24px 80px rgb(15 23 42 / 22%); }
+.faculty-review-dialog:has(.institute-confirm-question) { width: min(560px, calc(100vw - 32px)); }
+.faculty-review-dialog:has(.institute-confirm-question) .institute-confirm-actions { justify-content: flex-end; margin-top: 4px; }
+.faculty-review-dialog:has(.institute-confirm-question) .institute-confirm-actions button { min-width: 132px; }
 .faculty-review-dialog .institute-leave-header { padding-bottom: 16px; border-bottom: 1px solid #e7edf5; }
 .faculty-review-dialog .institute-table-scroll { margin-top: 18px; max-height: 46vh; overflow: auto; }
 .faculty-review-dialog td, .faculty-review-dialog th { white-space: nowrap; vertical-align: middle; }
