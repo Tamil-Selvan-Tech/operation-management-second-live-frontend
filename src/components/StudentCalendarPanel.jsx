@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, Clock3, Flag, Sparkles, Timer, CalendarOff } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, Clock3, Flag, Sparkles, Timer, CalendarOff, X } from 'lucide-react'
 
 import { buildStudentCourseCalendar, formatCalendarDate, formatCalendarLongDate } from '../lib/studentCalendar'
 
@@ -8,7 +9,7 @@ const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 function getStatusTone(status) {
   const normalized = String(status || '').trim().toLowerCase()
   if (normalized === 'course day') return 'tone-course-day'
-  if (normalized === 'class' || normalized === 'scheduled') return 'tone-course-day'
+  if (normalized === 'class' || normalized === 'scheduled' || normalized === 'reassigned' || normalized === 'replaced' || normalized === 'combined') return 'tone-course-day'
   if (normalized === 'completed') return 'tone-present'
   if (normalized === 'institute leave' || normalized === 'institute_leave' || normalized.startsWith('institute leave')) return 'tone-holiday'
   if (normalized === 'holiday' || normalized === 'general holiday' || normalized === 'government holiday') return 'tone-holiday'
@@ -61,7 +62,7 @@ function CalendarSummaryCard({ icon: Icon, label, value, note, tone = 'tone-no-c
   )
 }
 
-function CalendarDayCell({ day, externalUi = false }) {
+function CalendarDayCell({ day, externalUi = false, onSelect }) {
   if (day.isPlaceholder) {
     return <div className="student-calendar-day is-placeholder" aria-hidden="true" />
   }
@@ -74,6 +75,8 @@ function CalendarDayCell({ day, externalUi = false }) {
     day.details?.actualEndTime ? `Actual End Time: ${day.details.actualEndTime}` : '',
     day.details?.totalClassDuration ? `Duration: ${day.details.totalClassDuration}` : '',
     day.details?.submodule ? `Submodule: ${day.details.submodule}` : '',
+    day.details?.originalFaculty ? `Original Faculty: ${day.details.originalFaculty}` : '',
+    day.details?.assignmentType ? `Assignment: ${day.details.assignmentType}` : '',
     day.holidayName ? `Reason: ${day.holidayName}` : '',
   ].filter(Boolean).join(' | ')
 
@@ -117,6 +120,8 @@ function CalendarDayCell({ day, externalUi = false }) {
           fallbackNote ? <span className="student-calendar-day-note">{fallbackNote}</span> : null
         ) : null}
       </div>
+
+      {onSelect ? <button type="button" className="student-calendar-view-details" onClick={() => onSelect(day)}>View Details</button> : null}
 
     </article>
   )
@@ -178,6 +183,7 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
   const presentCount = calendar.summary.presentDays || sourceSummary.presentDays || sourceSummary.present || attendanceSummary.presentDays || attendanceSummary.present || 0
   const absentCount = calendar.summary.absentDays || sourceSummary.absentDays || sourceSummary.absent || attendanceSummary.absentDays || attendanceSummary.absent || 0
   const [chosenMonthIndex, setSelectedMonthIndex] = useState(null)
+  const [selectedDay, setSelectedDay] = useState(null)
   const selectedMonthIndex = chosenMonthIndex === null ? getInitialMonthIndex(calendar) : Math.min(chosenMonthIndex, calendar.months.length - 1)
 
   const selectedMonth = calendar.months[selectedMonthIndex] || calendar.months[0] || null
@@ -331,7 +337,7 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
           ))}
 
           {selectedMonth?.days?.map((day) => (
-            <CalendarDayCell key={day.key} day={day} externalUi={externalUi} />
+            <CalendarDayCell key={day.key} day={day} externalUi={externalUi} onSelect={day.details || day.markers?.length ? setSelectedDay : undefined} />
           )) || null}
         </div>
 
@@ -354,6 +360,28 @@ export function StudentCalendarPanel({ student, externalUi = false }) {
           </div>
         </div>
       </div>
+
+      {selectedDay && typeof document !== 'undefined' ? createPortal(
+        <div className="student-calendar-details-backdrop" role="presentation">
+          <section className="student-calendar-details-modal" role="dialog" aria-modal="true" aria-labelledby="student-calendar-details-title" onClick={(event) => event.stopPropagation()}>
+            <button type="button" className="student-calendar-details-close" onClick={() => setSelectedDay(null)} aria-label="Close details"><X size={20} /></button>
+            <p className="student-new-calendar-panel-kicker">VIEW DETAILS</p>
+            <h2 id="student-calendar-details-title">{formatCalendarLongDate(selectedDay.dateKey || selectedDay.date)}</h2>
+            <span className={`student-calendar-details-status ${getStatusTone(selectedDay.status)}`}>{selectedDay.status}</span>
+            <dl className="student-calendar-details-list">
+              {selectedDay.details?.course ? <><dt>Course</dt><dd>{selectedDay.details.course}</dd></> : null}
+              {selectedDay.details?.batch ? <><dt>Batch</dt><dd>{selectedDay.details.batch}</dd></> : null}
+              {selectedDay.details?.classTime ? <><dt>Time</dt><dd>{selectedDay.details.classTime}</dd></> : null}
+              {selectedDay.details?.originalFaculty ? <><dt>Original Faculty</dt><dd>{selectedDay.details.originalFaculty}</dd></> : null}
+              {selectedDay.details?.faculty ? <><dt>Class Faculty</dt><dd>{selectedDay.details.faculty}</dd></> : null}
+              {selectedDay.details?.assignmentType ? <><dt>Assignment</dt><dd>{selectedDay.details.assignmentType}</dd></> : null}
+              {selectedDay.attendanceStatus ? <><dt>Attendance</dt><dd>{selectedDay.attendanceStatus}</dd></> : null}
+              {selectedDay.holidayName ? <><dt>Reason</dt><dd>{selectedDay.holidayName}</dd></> : null}
+            </dl>
+          </section>
+        </div>,
+        document.body,
+      ) : null}
     </section>
   )
 }

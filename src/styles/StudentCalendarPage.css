@@ -8,6 +8,21 @@
 /* External Branch Admin / Faculty calendar presentation. Business logic stays
    in StudentCalendarPanel; these rules only change the visual treatment. */
 .student-calendar-external-page { max-width: none; }
+.student-calendar-view-details { margin-top: auto; align-self: flex-start; border: 0; padding: 3px 0; background: transparent; color: #2563eb; font-size: .68rem; font-weight: 800; cursor: pointer; }
+.student-calendar-view-details:hover { text-decoration: underline; }
+.student-calendar-details-backdrop { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 20px; background: rgba(15, 23, 42, .42); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+.student-calendar-details-modal { position: relative; z-index: 1; width: min(460px, 100%); padding: 28px; border: 1px solid #dbeafe; border-radius: 18px; background: #fff; box-shadow: 0 24px 60px rgba(15, 23, 42, .25); }
+.student-calendar-details-close { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #dbeafe; border-radius: 9px; background: #fff; color: #475569; cursor: pointer; }
+.student-calendar-details-modal h2 { margin: 0 42px 12px 0; color: #102a63; font-size: 1.25rem; }
+.student-calendar-details-status { display: inline-flex; margin-bottom: 18px; padding: 5px 10px; border-radius: 999px; font-size: .75rem; font-weight: 800; }
+.student-calendar-details-status.tone-course-day { background: #dbeafe; color: #1d4ed8; }
+.student-calendar-details-status.tone-present { background: #dcfce7; color: #15803d; }
+.student-calendar-details-status.tone-absent { background: #fee2e2; color: #b91c1c; }
+.student-calendar-details-status.tone-holiday { background: #ffedd5; color: #c2410c; }
+.student-calendar-details-status.tone-no-class { background: #f1f5f9; color: #475569; }
+.student-calendar-details-list { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px 14px; margin: 0; }
+.student-calendar-details-list dt { color: #64748b; font-size: .78rem; font-weight: 700; }
+.student-calendar-details-list dd { margin: 0; color: #172554; font-size: .86rem; font-weight: 700; overflow-wrap: anywhere; }
 .student-calendar-external-page .student-new-calendar-page-title { display: none; }
 .student-calendar-external-page .student-new-calendar-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
 .student-calendar-external-page .student-calendar-summary-card { min-width: 0; min-height: 86px; padding: 12px; gap: 8px; }

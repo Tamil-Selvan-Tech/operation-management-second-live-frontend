@@ -10,6 +10,7 @@ const COLOR_PALETTE = {
   HALF_DAY: { background: 'var(--calendar-half-day-bg)', text: 'var(--calendar-half-day-text)', border: 'var(--calendar-half-day-border)', hover: 'var(--calendar-half-day-hover)' },
   PERMISSION: { background: 'var(--calendar-permission-bg)', text: 'var(--calendar-permission-text)', border: 'var(--calendar-permission-border)', hover: 'var(--calendar-permission-hover)' },
   REASSIGNED: { background: 'var(--calendar-reassigned-bg)', text: 'var(--calendar-reassigned-text)', border: 'var(--calendar-reassigned-border)', hover: 'var(--calendar-reassigned-hover)' },
+  COMBINED: { background: 'var(--calendar-reassigned-bg)', text: 'var(--calendar-reassigned-text)', border: 'var(--calendar-reassigned-border)', hover: 'var(--calendar-reassigned-hover)' },
 }
 
 export function statusStyle(status) {

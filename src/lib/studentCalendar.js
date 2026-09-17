@@ -244,6 +244,39 @@ function buildServerEventMap(student = {}) {
   return entries
 }
 
+function formatSessionTime(value) {
+  if (value === null || value === undefined || value === '') return ''
+  const raw = String(value).trim()
+  const numeric = Number(raw)
+  if (/^\d+$/.test(raw) && Number.isFinite(numeric)) {
+    const minutes = numeric >= 0 && numeric <= 1439 ? numeric : null
+    if (minutes !== null) {
+      const hour = Math.floor(minutes / 60)
+      const minute = minutes % 60
+      const period = hour >= 12 ? 'PM' : 'AM'
+      const displayHour = hour % 12 || 12
+      return `${String(displayHour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${period}`
+    }
+  }
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i)
+  if (!match) return raw
+  let hour = Number(match[1])
+  const minute = match[2]
+  const period = match[3]?.toUpperCase()
+  if (!period) {
+    const inferredPeriod = hour >= 12 ? 'PM' : 'AM'
+    hour %= 12
+    return `${String(hour || 12).padStart(2, '0')}:${minute} ${inferredPeriod}`
+  }
+  return `${String(hour).padStart(2, '0')}:${minute} ${period}`
+}
+
+function formatSessionRange(start, end) {
+  const startValue = formatSessionTime(start)
+  const endValue = formatSessionTime(end)
+  return startValue && endValue ? `${startValue} - ${endValue}` : startValue || endValue
+}
+
 function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holidayMap, attendanceMap, serverEventMap) {
   const firstDate = startOfCalendarMonth(monthDate)
   const lastDate = endOfCalendarMonth(monthDate)
@@ -302,7 +335,7 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       attendanceStatus: attendance,
       classHours: Number(serverEvent?.classHours || 0),
       details: serverEvent ? {
-        classTime: serverEvent.classTime || serverEvent.time || serverEvent.schedule || '',
+        classTime: serverEvent.classTime || serverEvent.time || serverEvent.schedule || formatSessionRange(serverEvent.startTime, serverEvent.endTime),
         originalClassTime: serverEvent.originalClassTime || serverEvent.classTime || serverEvent.time || '',
         extendedTime: serverEvent.extendedTime || serverEvent.extension || '',
         actualEndTime: serverEvent.actualEndTime || serverEvent.endTime || '',
@@ -311,7 +344,9 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
         attendance: serverEvent.attendanceStatus || serverEvent.attendance || attendance,
         course: serverEvent.courseName || '',
         batch: serverEvent.batchName || '',
-        faculty: serverEvent.facultyName || '',
+        faculty: serverEvent.facultyName || serverEvent.replacementFacultyName || serverEvent.combinedFacultyName || '',
+        originalFaculty: serverEvent.originalFacultyName || '',
+        assignmentType: serverEvent.assignmentType === 'COMBINED' ? 'Combined Class' : serverEvent.assignmentType === 'REPLACEMENT' ? 'Replacement/Reassignment' : '',
       } : null,
       status,
       tone,
@@ -319,6 +354,7 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
         isStartDate ? 'Course Start Date' : '',
         isEndDate ? 'Course End Date' : '',
         serverEvent?.isReplacement ? 'Replacement Class' : '',
+        serverEvent?.code === 'REASSIGNED' ? 'Reassigned Class' : '',
       ].filter(Boolean),
       isHoliday: Boolean(holiday),
     })
@@ -331,7 +367,7 @@ function getStatusToneKey(status) {
   const normalized = String(status || '').trim().toLowerCase()
   if (normalized === 'present') return 'present'
   if (normalized === 'completed') return 'present'
-  if (normalized === 'class' || normalized === 'scheduled') return 'course-day'
+  if (normalized === 'class' || normalized === 'scheduled' || normalized === 'reassigned' || normalized === 'replaced' || normalized === 'combined') return 'course-day'
   if (normalized === 'institute leave' || normalized === 'institute_leave') return 'holiday'
   if (normalized === 'absent') return 'absent'
   if (normalized === 'leave' || normalized === 'holiday' || normalized === 'government holiday') return 'holiday'
