@@ -203,11 +203,15 @@ export function getFacultyTodayWorkEntriesByFaculty(
     const entryFacultyId = normalizeText(entry?.facultyId || entry?.facultyProfileId || entry?.facultyUserId)
     const entryFacultyName = normalizeText(entry?.facultyName)
     const entryFacultyEmail = normalizeText(entry?.facultyEmail)
+    const originalFacultyId = normalizeText(entry?.originalFacultyId)
+    const originalFacultyName = normalizeText(entry?.originalFacultyName)
 
     return (
       (normalizedFacultyId && entryFacultyId && entryFacultyId === normalizedFacultyId) ||
       (normalizedFacultyEmail && entryFacultyEmail && entryFacultyEmail === normalizedFacultyEmail) ||
-      (normalizedFacultyName && entryFacultyName && entryFacultyName === normalizedFacultyName)
+      (normalizedFacultyName && entryFacultyName && entryFacultyName === normalizedFacultyName) ||
+      (normalizedFacultyId && originalFacultyId && originalFacultyId === normalizedFacultyId) ||
+      (normalizedFacultyName && originalFacultyName && originalFacultyName === normalizedFacultyName)
     )
   })
 }
