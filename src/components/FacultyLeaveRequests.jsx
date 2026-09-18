@@ -111,6 +111,13 @@ export function FacultyLeaveRequests() {
   const [editingRequest, setEditingRequest] = useState(null)
   const [openActionMenu, setOpenActionMenu] = useState(null)
   const [cancelRequest, setCancelRequest] = useState(null)
+  const [delegatedSessions, setDelegatedSessions] = useState([])
+  const [delegatedTarget, setDelegatedTarget] = useState(null)
+  const [delegatedMode, setDelegatedMode] = useState('REPLACEMENT')
+  const [delegatedEligible, setDelegatedEligible] = useState({ faculty: [], combineSessions: [] })
+  const [replacementBatches, setReplacementBatches] = useState([])
+  const [delegatedForm, setDelegatedForm] = useState({ replacementFacultyId: '', replacementStartTime: '', replacementEndTime: '', targetSessionId: '' })
+  const [delegatedError, setDelegatedError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -118,6 +125,9 @@ export function FacultyLeaveRequests() {
       const response = await request('/faculty-leave-requests/me')
       const requestRows = response?.data?.requests || response?.data?.data?.requests || response?.requests || response?.data?.leaves || response?.leaves || (Array.isArray(response) ? response : Array.isArray(response?.data) ? response.data : [])
       setRequests(Array.isArray(requestRows) ? requestRows : [])
+      const delegatedResponse = await request('/faculty-leave-requests/me/delegated-emergency')
+      const delegatedRows = delegatedResponse?.data?.sessions || delegatedResponse?.sessions || []
+      setDelegatedSessions(Array.isArray(delegatedRows) ? delegatedRows : [])
     } catch (loadError) {
       console.error('Unable to load faculty leave requests:', loadError)
       setError(loadError.message || 'Unable to load your leave requests')
@@ -132,6 +142,40 @@ export function FacultyLeaveRequests() {
     }
   }, [])
 
+  async function openDelegatedResolution(session, mode) {
+    setDelegatedError('')
+    setDelegatedTarget(session)
+    setDelegatedMode(mode)
+    setReplacementBatches([])
+    setDelegatedForm({ replacementFacultyId: '', replacementBatchRecordId: '', replacementStartTime: session.originalStartTime || '', replacementEndTime: session.originalEndTime || '', targetSessionId: '' })
+    try {
+      const response = await request(`/faculty-leave-requests/${session.leaveRequestId}/sessions/${session.id}/delegated-eligible-faculty?assignmentType=${mode}`)
+      const data = response?.data || response || {}
+      setDelegatedEligible({ faculty: data.faculty || [], combineSessions: data.combineSessions || [] })
+      setReplacementBatches(data.replacementBatches || [])
+    } catch (resolutionError) {
+      setDelegatedError(resolutionError.message || 'Unable to load eligible faculty')
+    }
+  }
+
+  async function saveDelegatedResolution() {
+    if (!delegatedTarget) return
+    setSaving(true)
+    setDelegatedError('')
+    try {
+      const payload = delegatedMode === 'REPLACEMENT'
+        ? { assignmentType: 'REPLACEMENT', replacementFacultyId: delegatedForm.replacementFacultyId, replacementBatchRecordId: delegatedForm.replacementBatchRecordId, replacementDate: delegatedTarget.sessionDate, replacementStartTime: delegatedForm.replacementStartTime, replacementEndTime: delegatedForm.replacementEndTime }
+        : { assignmentType: 'COMBINED', targetSessionId: delegatedForm.targetSessionId }
+      await request(`/faculty-leave-requests/${delegatedTarget.leaveRequestId}/sessions/${delegatedTarget.id}/delegated-resolve`, { method: 'POST', body: JSON.stringify(payload) })
+      setDelegatedTarget(null)
+      await load()
+    } catch (resolutionError) {
+      setDelegatedError(resolutionError.message || 'Unable to save this session resolution')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   useEffect(() => { void load() }, [load])
 
   useEffect(() => {
@@ -143,6 +187,16 @@ export function FacultyLeaveRequests() {
     document.addEventListener('mousedown', closeActionMenu)
     return () => document.removeEventListener('mousedown', closeActionMenu)
   }, [])
+
+  useEffect(() => {
+    if (!delegatedTarget || delegatedMode !== 'REPLACEMENT' || !delegatedForm.replacementFacultyId) return
+    let active = true
+    const query = new URLSearchParams({ assignmentType: 'REPLACEMENT', replacementFacultyId: delegatedForm.replacementFacultyId, replacementStartTime: delegatedForm.replacementStartTime || '', replacementEndTime: delegatedForm.replacementEndTime || '' })
+    request(`/faculty-leave-requests/${delegatedTarget.leaveRequestId}/sessions/${delegatedTarget.id}/delegated-eligible-faculty?${query.toString()}`)
+      .then(response => { if (active) setReplacementBatches(response?.data?.replacementBatches || response?.replacementBatches || []) })
+      .catch(() => { if (active) setReplacementBatches([]) })
+    return () => { active = false }
+  }, [delegatedTarget, delegatedMode, delegatedForm.replacementFacultyId, delegatedForm.replacementStartTime, delegatedForm.replacementEndTime])
 
   function update(field, value) {
     setForm(current => ({ ...current, [field]: value }))
@@ -289,6 +343,11 @@ export function FacultyLeaveRequests() {
     }
   }
 
+  function renderDelegatedTime(field, label) {
+    const parts = clockParts(delegatedForm[field])
+    return <label>{label}<div className="faculty-delegated-time-selects"><select value={parts.hour} onChange={event => setDelegatedForm(current => ({ ...current, [field]: clockValue({ ...parts, hour: event.target.value }) }))}><option value="">HH</option>{CLOCK_HOURS.map(value => <option key={value} value={value}>{value}</option>)}</select><select value={parts.minute} onChange={event => setDelegatedForm(current => ({ ...current, [field]: clockValue({ ...parts, minute: event.target.value }) }))}><option value="">MM</option>{CLOCK_MINUTES.map(value => <option key={value} value={value}>{value}</option>)}</select><select value={parts.period} onChange={event => setDelegatedForm(current => ({ ...current, [field]: clockValue({ ...parts, period: event.target.value }) }))}><option value="AM">AM</option><option value="PM">PM</option></select></div></label>
+  }
+
   return <section className="faculty-leave-page">
     <header className="faculty-leave-page-header">
       <div><span className="faculty-leave-eyebrow">FACULTY LEAVE</span><h1>Leave Requests</h1><p>Submit a request and track its status with your Branch Admin.</p></div>
@@ -315,6 +374,8 @@ export function FacultyLeaveRequests() {
 
       </div></div> : null}
 
+      {delegatedSessions.length ? <section className="faculty-emergency-delegated-card"><div className="faculty-leave-card-heading"><div><span className="faculty-leave-eyebrow">EMERGENCY LEAVE</span><h2>Session Action Required</h2><p>These affected sessions were delegated to you by your Branch Admin.</p></div></div><div className="faculty-emergency-session-list">{delegatedSessions.map(session => <article key={session.id} className="faculty-emergency-session"><div><strong>{session.batchName || session.batchId}</strong><span>{session.courseName || 'Course'} · {formatDate(session.sessionDate)} · {displayTime(session.originalStartTime)} - {displayTime(session.originalEndTime)}</span></div><div className="faculty-emergency-session-actions"><button type="button" onClick={() => openDelegatedResolution(session, 'REPLACEMENT')}>Replace</button><button type="button" onClick={() => openDelegatedResolution(session, 'COMBINED')}>Combine</button></div></article>)}</div></section> : null}
+
       <div className="faculty-leave-history-card">
         <div className="faculty-leave-card-heading"><div><h2>My Requests</h2><p>Newest requests appear first.</p></div><Clock3 size={20} /></div>
         {loading ? <div className="faculty-leave-empty faculty-leave-table-state">Loading leave requests...</div> : requests.length ? <div className="faculty-leave-table-wrap"><table className="faculty-leave-table"><caption className="sr-only">My leave requests</caption><thead><tr><th scope="col">S.No</th><th scope="col">Leave Type</th><th scope="col">Day Type</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Applied Date</th><th scope="col">Actions</th></tr></thead><tbody>{requests.map((item, index) => { const isPending = String(item.status || 'PENDING').toUpperCase() === 'PENDING'; const isActionMenuVisible = openActionMenu === item.id; return <tr key={`table-${item.id}`}><td>{index + 1}</td><td>{item.leaveType || '-'}</td><td>{requestDuration(item)}</td><td>{requestDates(item)}</td><td>{item.durationType === 'FULL_DAY' ? `${item.durationDays || fullDayCount(item.fromDate, item.toDate) || '-'} Day${Number(item.durationDays || fullDayCount(item.fromDate, item.toDate)) === 1 ? '' : 's'}` : requestDateTime(item)}</td><td className="faculty-leave-reason-cell">{item.reason || '-'}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{formatAppliedDate(item.appliedAt || item.createdAt || item.submittedAt)}</td><td><div className={`faculty-leave-action-menu${index === 0 ? ' is-first-row' : ''}`}><button type="button" className="faculty-leave-action-trigger" aria-label={`Actions for request ${index + 1}`} aria-expanded={isActionMenuVisible} onClick={() => setOpenActionMenu(item.id)}><MoreVertical size={19} /></button>{isActionMenuVisible ? <div className="faculty-leave-action-dropdown" role="menu"><button type="button" role="menuitem" disabled={!isPending} onClick={() => isPending && openEditForm(item)}>Edit</button><button type="button" role="menuitem" disabled={!isPending} onClick={() => { if (isPending) { setCancelRequest(item); setOpenActionMenu(null) } }}>Cancel</button></div> : null}</div></td></tr> })}</tbody></table></div> : <div className="faculty-leave-empty faculty-leave-table-state">No Data</div>}
@@ -322,5 +383,8 @@ export function FacultyLeaveRequests() {
     </div>
     {cancelRequest ? <div className="faculty-leave-warning-popup" role="presentation"><div className="faculty-leave-warning-card faculty-leave-confirm-card" role="dialog" aria-modal="true" aria-labelledby="cancel-leave-title"><button type="button" className="faculty-leave-confirm-close" aria-label="Close cancel confirmation" onClick={() => setCancelRequest(null)} disabled={saving}><X size={19} /></button><strong id="cancel-leave-title">Cancel Leave Request?</strong><p>Are you sure you want to cancel this leave request?</p><p className="faculty-leave-cancel-details">{requestDates(cancelRequest)} · {requestDuration(cancelRequest)}</p><div className="faculty-leave-confirm-actions"><button type="button" className="faculty-leave-cancel-button" onClick={() => setCancelRequest(null)} disabled={saving}>Keep Request</button><button type="button" onClick={confirmCancelRequest} disabled={saving}>{saving ? 'Cancelling...' : 'Confirm Cancel'}</button></div></div></div> : null}
     {warningMessage ? <div className="faculty-leave-warning-popup" role="alertdialog" aria-modal="true"><div className="faculty-leave-warning-card"><strong>Half-Day Duration Limit</strong><p>{warningMessage}</p><button type="button" onClick={() => setWarningMessage('')}>OK</button></div></div> : null}
+    {delegatedTarget ? <div className="faculty-leave-warning-popup" role="presentation"><div className="faculty-leave-warning-card faculty-delegated-resolution-card" role="dialog" aria-modal="true"><button type="button" className="faculty-leave-confirm-close" aria-label="Close resolution" onClick={() => setDelegatedTarget(null)} disabled={saving}><X size={19} /></button><strong>{delegatedMode === 'REPLACEMENT' ? 'Replace Affected Session' : 'Combine Affected Session'}</strong><p>{delegatedTarget.batchName} · {formatDate(delegatedTarget.sessionDate)} · {displayTime(delegatedTarget.originalStartTime)} - {displayTime(delegatedTarget.originalEndTime)}</p>{delegatedError ? <p className="faculty-leave-feedback is-error" role="alert">{delegatedError}</p> : null}{delegatedMode === 'REPLACEMENT' ? <><label>Replacement Faculty<select value={delegatedForm.replacementFacultyId} onChange={event => setDelegatedForm(current => ({ ...current, replacementFacultyId: event.target.value }))}><option value="">Select same-course faculty</option>{delegatedEligible.faculty.map(item => <option key={item.facultyId} value={item.facultyId}>{item.name} ({item.facultyId})</option>)}</select></label><label>Start Time<input type="time" value={delegatedForm.replacementStartTime} onChange={event => setDelegatedForm(current => ({ ...current, replacementStartTime: event.target.value }))} /></label><label>End Time<input type="time" value={delegatedForm.replacementEndTime} onChange={event => setDelegatedForm(current => ({ ...current, replacementEndTime: event.target.value }))} /></label></> : <label>Compatible Batch<select value={delegatedForm.targetSessionId} onChange={event => setDelegatedForm(current => ({ ...current, targetSessionId: event.target.value }))}><option value="">Select compatible batch</option>{delegatedEligible.combineSessions.map(item => <option key={item.id} value={item.id}>{item.batchName} · {displayTime(item.originalStartTime)} - {displayTime(item.originalEndTime)}</option>)}</select></label>}<div className="faculty-leave-confirm-actions"><button type="button" className="faculty-leave-cancel-button" onClick={() => setDelegatedTarget(null)} disabled={saving}>Cancel</button><button type="button" onClick={saveDelegatedResolution} disabled={saving || (delegatedMode === 'REPLACEMENT' ? !delegatedForm.replacementFacultyId : !delegatedForm.targetSessionId)}>{saving ? 'Saving...' : 'Save'}</button></div></div></div> : null}
+    {delegatedTarget && delegatedMode === 'REPLACEMENT' && replacementBatches.length ? <div className="faculty-delegated-batch-summary"><strong>Selected faculty batches</strong><select value={delegatedForm.replacementBatchRecordId} onChange={event => setDelegatedForm(current => ({ ...current, replacementBatchRecordId: event.target.value }))}><option value="">Select batch</option>{replacementBatches.map(batch => <option key={batch.id} value={batch.id}>{batch.batchName} · {batch.courseName} · {displayTime(batch.startTime)} - {displayTime(batch.endTime)}{batch.availabilityStatus === 'ALREADY_SCHEDULED' ? ' · Already Scheduled' : ''}</option>)}</select>{replacementBatches.map(batch => <div key={`info-${batch.id}`}><span>{batch.batchName} · {batch.courseName} · {displayTime(batch.startTime)} - {displayTime(batch.endTime)}</span><em className={batch.availabilityStatus === 'ALREADY_SCHEDULED' ? 'is-conflict' : ''}>{batch.availabilityStatus === 'ALREADY_SCHEDULED' ? 'Already Scheduled' : 'Available'}</em></div>)}<div className="faculty-delegated-time-section">{renderDelegatedTime('replacementStartTime', 'Start Time')}{renderDelegatedTime('replacementEndTime', 'End Time')}</div></div> : null}
+    {delegatedTarget && delegatedError ? <p className="faculty-delegated-timing-error" role="alert">{delegatedError}</p> : null}
   </section>
 }
