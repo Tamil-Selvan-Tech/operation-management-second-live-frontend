@@ -116,7 +116,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
     const previous = Number(items[items.length - 2]?.value || 0)
     const current = Number(items[items.length - 1]?.value || 0)
     if (!previous) return null
-    const percentage = ((current - previous) / previous) * 100
+    const percentage = Math.min(100, ((current - previous) / previous) * 100)
     return {
       value: `${percentage >= 0 ? '+' : ''}${percentage.toFixed(1).replace('.0', '')}%`,
       label: 'vs last month',
@@ -133,7 +133,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
         ? { value: '+100%', label: 'vs yesterday', direction: 'positive' }
         : { value: '0%', label: 'vs yesterday', direction: 'neutral' }
     }
-    const percentage = ((Number(current || 0) - Number(previous)) / Number(previous)) * 100
+    const percentage = Math.min(100, ((Number(current || 0) - Number(previous)) / Number(previous)) * 100)
     return {
       value: `${percentage >= 0 ? '+' : ''}${percentage.toFixed(1).replace('.0', '')}%`,
       label: 'vs yesterday',
