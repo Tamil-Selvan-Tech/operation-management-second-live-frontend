@@ -111,5 +111,13 @@
 .faculty-resolution-form label { color: #52627d; font-size: 13px; font-weight: 750; }
 .faculty-resolution-form select, .faculty-resolution-form input, .faculty-resolution-form textarea { width: 100%; box-sizing: border-box; margin-top: 7px; background: #fbfdff; }
 .faculty-resolution-form textarea { min-height: 92px; }
+.faculty-leave-status { display: inline-flex; align-items: center; justify-content: center; min-width: 92px; padding: 5px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; line-height: 1.2; text-align: center; white-space: nowrap; }
+.faculty-leave-status.status-pending { color: #a16207; background: #fef3c7; }
+.faculty-leave-status.status-under_review { color: #92400e; background: #ffedd5; }
+.faculty-leave-status.status-approved { color: #15803d; background: #dcfce7; }
+.faculty-leave-status.status-rejected, .faculty-leave-status.status-cancelled { color: #b91c1c; background: #fee2e2; }
+.faculty-combine-current-details { display: grid; gap: 4px; margin-top: 16px; padding: 12px 14px; border: 1px solid #dfe7f1; border-radius: 10px; background: #f8fafc; color: #52627d; font-size: 13px; }
+.faculty-combine-current-details strong { color: #17345f; font-size: 14px; }
+.faculty-combine-current-details em { color: #b42318; font-style: normal; font-weight: 700; }
 .faculty-resolution-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 @media(max-width: 700px) { .faculty-review-dialog { width: calc(100vw - 20px); padding: 16px; } .faculty-resolution-grid { grid-template-columns: 1fr; } .faculty-review-dialog .institute-confirm-actions { flex-wrap: wrap; } }
