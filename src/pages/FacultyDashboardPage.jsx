@@ -96,6 +96,7 @@ import {
   buildProgressComparisonNotification,
   syncProgressComparisonNotifications,
 } from '../lib/progressComparisonNotification'
+import { getCourseStatusFromProgress, getCourseStatusLabel } from '../lib/courseStatus'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -5181,6 +5182,7 @@ const nextName = trimmedValue
                               <th>Paid</th>
                               {/* <th>Module Progress</th> */}
                               <th>Course Progress</th>
+                              <th>Course Status</th>
                               <th>Actions</th>
                             </tr>
                           </thead>
@@ -5232,6 +5234,7 @@ const nextName = trimmedValue
                                     ? Math.min(100, Math.max(0, storedCourseProgress))
                                     : 0
                                 const workCourseProgressLabel = `${Math.round(workCourseProgress)}% Complete`
+                                const courseStatus = getCourseStatusFromProgress(workCourseProgress)
 
                                 return (
                                   <tr
@@ -5308,6 +5311,11 @@ const nextName = trimmedValue
                                       </div>
                                     </td>
                                     <td>
+                                      <span className={`faculty-student-course-status ${courseStatus.toLowerCase()}`}>
+                                        {getCourseStatusLabel(courseStatus)}
+                                      </span>
+                                    </td>
+                                    <td>
                                       <button
                                         type="button"
                                         className="faculty-students-flow-action-btn is-primary"
@@ -5324,7 +5332,7 @@ const nextName = trimmedValue
                               })
                             ) : (
                               <tr>
-                                <td className="faculty-students-empty-cell" colSpan={8}>
+                                <td className="faculty-students-empty-cell" colSpan={9}>
                                   <div className="faculty-my-batches-empty">
                                     <strong>No students found</strong>
                                     <p>Students selected with this batch will show up here once they are saved.</p>

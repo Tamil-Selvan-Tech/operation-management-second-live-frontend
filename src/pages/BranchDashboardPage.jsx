@@ -130,6 +130,7 @@ import {
   buildProgressComparisonNotification,
   syncProgressComparisonNotifications,
 } from '../lib/progressComparisonNotification'
+import { getCourseStatusFromProgress, getCourseStatusLabel } from '../lib/courseStatus'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
@@ -8594,6 +8595,7 @@ useEffect(() => {
         <th>Total Fee</th>
         <th>Paid</th>
         <th>Course Progress</th>
+        <th>Course Status</th>
         <th>Next Installment</th>
         <th>Due Date</th>
         <th>Status</th>
@@ -8749,6 +8751,35 @@ else {
             })
           }
 
+          const studentKeys = getBranchStudentLookupKeys(stu)
+          const resolvedCourse = resolveBranchStudentCourse(stu, branchCourseCards)
+          const matchedEntry = branchTodayWorkEntriesByStudent.get(studentKeys[0]) || null
+          const effectiveCourse = resolvedCourse || (matchedEntry
+            ? branchCourseCards.find((item) => String(item?.id || '').trim() === String(matchedEntry?.courseId || '').trim()) || null
+            : null)
+          const directCourseProgressSummary = effectiveCourse
+            ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, effectiveCourse, stu)
+            : null
+          const directCourseProgress = Number(directCourseProgressSummary?.courseProgress)
+          const storedCourseProgress = Number(
+            stu?.courseProgress ??
+            stu?.courseCompletionPercentage ??
+            stu?.progress ??
+            NaN,
+          )
+          const fallbackCourseProgress = studentKeys
+            .map((key) => branchStudentCourseProgressByKey.get(key))
+            .find((value) => Number.isFinite(value))
+          const studentCourseProgress = Number.isFinite(storedCourseProgress)
+            ? Math.min(100, Math.max(0, storedCourseProgress))
+            : Number.isFinite(directCourseProgress)
+              ? Math.min(100, Math.max(0, directCourseProgress))
+              : (Number.isFinite(fallbackCourseProgress)
+                ? Math.min(100, Math.max(0, fallbackCourseProgress))
+                : (effectiveCourse ? 0 : null))
+          const hasCourseProgress = Number.isFinite(studentCourseProgress)
+          const courseStatus = getCourseStatusFromProgress(studentCourseProgress)
+
           return (
             <tr
               key={stu.studentId}
@@ -8789,39 +8820,7 @@ else {
                 </div>
               </td>
               <td>
-                {(() => {
-                  const studentKeys = getBranchStudentLookupKeys(stu)
-                  const resolvedCourse = resolveBranchStudentCourse(stu, branchCourseCards)
-                  const matchedEntry = branchTodayWorkEntriesByStudent.get(studentKeys[0]) || null
-                  const effectiveCourse = resolvedCourse || (matchedEntry
-                    ? branchCourseCards.find((item) => String(item?.id || '').trim() === String(matchedEntry?.courseId || '').trim()) || null
-                    : null)
-                  const directCourseProgressSummary = effectiveCourse
-                    ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, effectiveCourse, stu)
-                    : null
-                  const directCourseProgress = Number(directCourseProgressSummary?.courseProgress)
-                  const storedCourseProgress = Number(
-                    stu?.courseProgress ??
-                    stu?.courseCompletionPercentage ??
-                    stu?.progress ??
-                    NaN,
-                  )
-                  const fallbackCourseProgress = studentKeys
-                    .map((key) =>
-                      branchStudentCourseProgressByKey.get(key),
-                    )
-                    .find((value) => Number.isFinite(value))
-                  const studentCourseProgress =
-                    Number.isFinite(storedCourseProgress)
-                      ? Math.min(100, Math.max(0, storedCourseProgress))
-                      : Number.isFinite(directCourseProgress)
-                        ? Math.min(100, Math.max(0, directCourseProgress))
-                        : (Number.isFinite(fallbackCourseProgress)
-                          ? Math.min(100, Math.max(0, fallbackCourseProgress))
-                          : (effectiveCourse ? 0 : null))
-                  const hasCourseProgress = Number.isFinite(studentCourseProgress)
-
-                  return hasCourseProgress ? (
+                {hasCourseProgress ? (
                     <div className="branch-student-paid-cell">
                       <span className="branch-student-course-progress-amount">
                         {formatBranchPercentage(studentCourseProgress)}%
@@ -8841,7 +8840,12 @@ else {
                   ) : (
                     <span className="faculty-today-work-empty-label">-</span>
                   )
-                })()}
+                }
+              </td>
+              <td>
+                <span className={`branch-student-course-status ${courseStatus.toLowerCase()}`}>
+                  {hasCourseProgress ? getCourseStatusLabel(courseStatus) : '-'}
+                </span>
               </td>
               <td>
                 {nextInstallment ? (
