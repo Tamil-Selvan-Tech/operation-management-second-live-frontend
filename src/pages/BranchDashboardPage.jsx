@@ -61,6 +61,7 @@ import {
   assignFacultyToBranchCourse,
   createBranchCourse,
   deleteBranchCourse,
+  getBranchCourse,
   listBranchCourses,
   updateBranchCourse,
 } from '../services/branchCourseService'
@@ -1979,9 +1980,11 @@ function BranchNotificationGroup({
   )
 }
 
-function Field({ label, hint, error, children, required = false, className = '' }) {
+function Field({ label, hint, error, children, required = false, className = '', as = 'label' }) {
+  const FieldWrapper = as
+
   return (
-    <label className={`course-field ${className}`.trim()}>
+    <FieldWrapper className={`course-field ${className}`.trim()}>
       <div className="course-field-label">
         {label}
         {required ? <b>*</b> : null}
@@ -1989,7 +1992,7 @@ function Field({ label, hint, error, children, required = false, className = '' 
       {children}
       {hint ? <small>{hint}</small> : null}
       {error ? <small className="course-field-error">{error}</small> : null}
-    </label>
+    </FieldWrapper>
   )
 }
 
@@ -2078,6 +2081,7 @@ const COURSE_CODE_PREFIX = 'CIS-'
 const COURSE_DRAFT_STORAGE_PREFIX = 'branch-course-draft:'
 const COURSE_BASIC_FIELDS = [
   'courseCode',
+  'courseType',
   'name',
   'mode',
   'duration',
@@ -2374,7 +2378,7 @@ function normalizeBranchCourseSubmodels(submodels = [], modelIndex = 0) {
 
   return items.map((submodel, submodelIndex) => ({
     id: String(submodel?.id || createCourseNodeId(`submodel-${modelIndex + 1}`)),
-    name: String(submodel?.name || submodel?.title || ''),
+    name: String(submodel?.name || submodel?.title || submodel?.submoduleName || '').trim(),
   }))
 }
 
@@ -2387,7 +2391,7 @@ function normalizeBranchCourseModels(models = []) {
 
   return items.map((model, modelIndex) => ({
     id: String(model?.id || createCourseNodeId(`model-${modelIndex + 1}`)),
-    name: String(model?.name || model?.title || ''),
+    name: String(model?.name || model?.title || model?.moduleName || model?.moduleTitle || '').trim(),
     submodels: normalizeBranchCourseSubmodels(getBranchCourseSubmodelSource(model), modelIndex),
   }))
 }
@@ -2483,6 +2487,7 @@ function createBranchCourseErrors(form) {
 
   const normalizedCourseCode = normalizeBranchCourseCode(form.courseCode)
   if (normalizedCourseCode.length <= COURSE_CODE_PREFIX.length) basic.courseCode = 'Course Code is required.'
+  if (!String(form.courseType || '').trim()) basic.courseType = 'Course Type is required.'
   if (!String(form.name || '').trim()) basic.name = 'Course Name is required.'
   if (!String(form.mode || '').trim()) basic.mode = 'Mode is required.'
   if (!String(form.duration || '').trim()) basic.duration = 'Duration (Months) is required.'
@@ -2510,11 +2515,17 @@ function createBranchCourseErrors(form) {
       modelErrors.submodelsError = 'At least one submodel is required.'
     }
 
+    const submoduleKeys = new Set()
     modelErrors.submodels = submodels.map((submodel) => {
       const submodelErrors = {}
       if (!String(submodel.name || '').trim()) {
         submodelErrors.name = 'Submodel name is required.'
       }
+      const submoduleKey = normalizeBranchSubmoduleKey(submodel.name)
+      if (submoduleKey && submoduleKeys.has(submoduleKey)) {
+        submodelErrors.name = 'Submodule name already exists in this module.'
+      }
+      if (submoduleKey) submoduleKeys.add(submoduleKey)
       return submodelErrors
     })
 
@@ -2525,21 +2536,52 @@ function createBranchCourseErrors(form) {
 }
 
 function getBranchCourseDuplicateErrors(form, existingCourses = [], editingCourseId = null) {
-  const normalizedCourseCode = normalizeBranchCourseCode(form.courseCode).trim().toLowerCase()
+  const normalizedCourseCode = normalizeBranchCourseCode(form.courseCode).replace(/[^A-Z0-9]/gi, '').trim().toLowerCase()
+  const normalizedCourseName = normalizeCourseNameKey(form.name)
   const normalizedEditingCourseId = String(editingCourseId || '').trim().toLowerCase()
 
-  if (!normalizedCourseCode || normalizedCourseCode.length <= COURSE_CODE_PREFIX.length) {
-    return {}
-  }
-
-  const duplicateCourseCode = (Array.isArray(existingCourses) ? existingCourses : []).find((course) => {
+  const courses = Array.isArray(existingCourses) ? existingCourses : []
+  const duplicateCourseCode = courses.some((course) => {
     const courseId = String(course?.id || '').trim().toLowerCase()
-    const courseCode = String(course?.courseCode || '').trim().toLowerCase()
-
-    return courseId !== normalizedEditingCourseId && courseCode === normalizedCourseCode
+    const courseCode = String(course?.courseCode || '').replace(/[^A-Z0-9]/gi, '').trim().toLowerCase()
+    return courseId !== normalizedEditingCourseId && normalizedCourseCode.length > COURSE_CODE_PREFIX.replace(/[^A-Z0-9]/gi, '').length && courseCode === normalizedCourseCode
+  })
+  const duplicateCourseName = courses.some((course) => {
+    const courseId = String(course?.id || '').trim().toLowerCase()
+    const courseName = normalizeCourseNameKey(course?.name || course?.courseName)
+    return courseId !== normalizedEditingCourseId && normalizedCourseName && courseName === normalizedCourseName
   })
 
-  return duplicateCourseCode ? { courseCode: 'Course code already exists.' } : {}
+  return {
+    ...(duplicateCourseCode ? { courseCode: 'Course code already exists.' } : {}),
+    ...(duplicateCourseName ? { name: 'Course name already exists.' } : {}),
+  }
+}
+
+function normalizeBranchSubmoduleKey(value = '') {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function parseBulkBranchSubmoduleNames(value = '') {
+  const seen = new Set()
+  const names = []
+  let duplicateCount = 0
+
+  String(value || '').split(/\r?\n/).forEach((line) => {
+    const name = line.trim()
+    if (!name) return
+
+    const key = normalizeBranchSubmoduleKey(name)
+    if (seen.has(key)) {
+      duplicateCount += 1
+      return
+    }
+
+    seen.add(key)
+    names.push(name)
+  })
+
+  return { names, duplicateCount }
 }
 
 function formatBranchAdminDisplayName(value) {
@@ -2737,6 +2779,7 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
       `branch-course-${index + 1}`,
     ),
     courseCode: String(course.courseCode || '').trim(),
+    courseType: String(course.courseType || '').trim(),
     name: String(course.name || '').trim(),
     mode: String(course.mode || '').trim(),
     duration: String(course.duration ?? '').trim(),
@@ -2781,6 +2824,7 @@ function buildBranchCoursePayload(form) {
 
   return {
     courseCode: normalizeBranchCourseCode(form.courseCode),
+    courseType: String(form.courseType || '').trim(),
     name: String(form.name || '').trim(),
     mode: form.mode,
     duration: form.duration,
@@ -2800,6 +2844,7 @@ function buildBranchCoursePayload(form) {
 function createInitialBranchCourseForm() {
   return {
     courseCode: COURSE_CODE_PREFIX,
+    courseType: '',
     name: '',
     mode: '',
     duration: '',
@@ -2822,6 +2867,28 @@ function normalizeBranchCourseCode(value = '') {
   return `${COURSE_CODE_PREFIX}${suffix}`
 }
 
+function normalizeCourseNameKey(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(' ')
+}
+
+function getNextBranchCourseCode(branchCode, courses = []) {
+  const prefix = getBranchEntityPrefix(branchCode, 'COU')
+  const compactPrefix = prefix.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+  const maxSequence = (Array.isArray(courses) ? courses : []).reduce((max, course) => {
+    const compactCode = String(course?.courseCode || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
+    const match = compactCode.match(new RegExp(`^${compactPrefix}(\\d+)$`))
+    return match ? Math.max(max, Number(match[1]) || 0) : max
+  }, 0)
+  return `${prefix}${String(maxSequence + 1).padStart(3, '0')}`
+}
+
 function buildBranchCourseFormFromRecord(course = {}) {
   const installmentTemplate = normalizeBranchInstallmentTemplate(course.installmentTemplate, {
     templateName: 'Standard Installment Plan',
@@ -2834,6 +2901,7 @@ function buildBranchCourseFormFromRecord(course = {}) {
 
   return {
     courseCode: String(course.courseCode || COURSE_CODE_PREFIX).trim() || COURSE_CODE_PREFIX,
+    courseType: String(course.courseType || '').trim(),
     name: String(course.name || '').trim(),
     mode: String(course.mode || '').trim(),
     duration: String(course.duration ?? '').trim(),
@@ -2980,6 +3048,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseSaveSuccess, setCourseSaveSuccess] = useState(null)
   const [addCourseForm, setAddCourseForm] = useState(() => createInitialBranchCourseForm())
   const [addCourseTouched, setAddCourseTouched] = useState({})
+  const [isCourseTypeFocused, setIsCourseTypeFocused] = useState(false)
   const [addCourseStep, setAddCourseStep] = useState(1)
   const [selectedSavedModelIndex, setSelectedSavedModelIndex] = useState(0)
   const [selectedSavedSubmodelIndex, setSelectedSavedSubmodelIndex] = useState(0)
@@ -3002,6 +3071,9 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseDraftKey, setCourseDraftKey] = useState('')
   const [courseEditorStage, setCourseEditorStage] = useState('module')
   const [isSubmoduleDraftOpen, setIsSubmoduleDraftOpen] = useState(false)
+  const [isBulkSubmoduleDraftOpen, setIsBulkSubmoduleDraftOpen] = useState(false)
+  const [bulkSubmoduleInput, setBulkSubmoduleInput] = useState('')
+  const [bulkSubmoduleFeedback, setBulkSubmoduleFeedback] = useState(null)
   const [submoduleDraftRestoreIndex, setSubmoduleDraftRestoreIndex] = useState(0)
   const [submoduleDraftRestoreLength, setSubmoduleDraftRestoreLength] = useState(null)
   const activeSubmoduleInputRef = useRef(null)
@@ -4496,6 +4568,24 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     )
   }, [branchCourseCards, courseSearchTerm])
 
+  const courseTypeOptions = useMemo(() => {
+    const uniqueTypes = new Map()
+    branchCourseCards.forEach((course) => {
+      const courseType = String(course?.courseType || '').trim()
+      if (!courseType) return
+      const key = courseType.toLowerCase()
+      if (!uniqueTypes.has(key)) uniqueTypes.set(key, courseType)
+    })
+    return Array.from(uniqueTypes.values()).sort((left, right) => left.localeCompare(right))
+  }, [branchCourseCards])
+
+  const matchingCourseTypeOptions = useMemo(() => {
+    const query = String(addCourseForm.courseType || '').trim().toLowerCase()
+    return courseTypeOptions
+      .filter((courseType) => !query || courseType.toLowerCase().startsWith(query))
+      .slice(0, 8)
+  }, [addCourseForm.courseType, courseTypeOptions])
+
   const totalBranchCoursePages = Math.max(1, Math.ceil(filteredBranchCourseCards.length / BRANCH_COURSES_PER_PAGE))
   const safeBranchCoursePage = Math.min(branchCoursePage, totalBranchCoursePages)
   const visibleBranchCourses = useMemo(() => {
@@ -4552,7 +4642,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const addCourseValidationErrors = useMemo(() => createBranchCourseErrors(addCourseForm), [addCourseForm])
   const addCourseDuplicateErrors = useMemo(
     () => getBranchCourseDuplicateErrors(addCourseForm, branchCourseCards, editingCourseId),
-    [addCourseForm.courseCode, branchCourseCards, editingCourseId],
+    [addCourseForm.courseCode, addCourseForm.name, branchCourseCards, editingCourseId],
   )
   const addCourseVisibleBasicErrors = useMemo(
     () => ({
@@ -4648,6 +4738,23 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     [savedCourseHierarchy],
   )
 
+  const bulkSubmodulePreview = useMemo(() => {
+    const parsed = parseBulkBranchSubmoduleNames(bulkSubmoduleInput)
+    const existingKeys = new Set(
+      (activeCourseModel?.submodels || [])
+        .map((submodule) => normalizeBranchSubmoduleKey(submodule?.name))
+        .filter(Boolean),
+    )
+    const existingNames = parsed.names.filter((name) => existingKeys.has(normalizeBranchSubmoduleKey(name)))
+    const newNames = parsed.names.filter((name) => !existingKeys.has(normalizeBranchSubmoduleKey(name)))
+
+    return {
+      ...parsed,
+      existingNames,
+      newNames,
+    }
+  }, [activeCourseModel, bulkSubmoduleInput])
+
   const shouldShowBasicAddCourseError = (field) =>
     Boolean(addCourseTouched[field] && addCourseVisibleBasicErrors[field])
 
@@ -4678,6 +4785,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const updateAddCourseField = (field, value) => {
     setAddCourseError('')
+    if (field === 'courseCode' || field === 'courseType' || field === 'name') {
+      setAddCourseTouched((current) => ({ ...current, [field]: true }))
+    }
     setAddCourseForm((current) => ({
       ...current,
       [field]: field === 'courseCode' ? normalizeBranchCourseCode(value) : value,
@@ -4902,6 +5012,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setSelectedSavedSubmodelIndex(0)
     setCourseEditorStage('module')
     setIsSubmoduleDraftOpen(false)
+    setIsBulkSubmoduleDraftOpen(false)
+    setBulkSubmoduleInput('')
+    setBulkSubmoduleFeedback(null)
     setSubmoduleDraftRestoreLength(null)
     setAddCourseTouched({})
   }
@@ -4962,7 +5075,12 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const handleCourseModelSaveAndNext = (modelIndex) => {
-    markCurrentCourseModelTouched(modelIndex)
+    // The submodule step is still being edited, so validate only the module name here.
+    // Submodule validation should begin when the user saves or submits the module.
+    setAddCourseTouched((current) => ({
+      ...current,
+      [`model-${modelIndex}-name`]: true,
+    }))
 
     const moduleError = getCurrentCourseModuleNameError(modelIndex)
     if (moduleError) {
@@ -4976,11 +5094,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     setSelectedSavedSubmodelIndex(existingSubmodelCount)
     setCourseEditorStage('submodule')
-    if (existingSubmodelCount === 0) {
-      openCourseSubmodelDraft(modelIndex, 0)
-      return
-    }
     setIsSubmoduleDraftOpen(false)
+    setIsBulkSubmoduleDraftOpen(false)
+    setBulkSubmoduleInput('')
+    setBulkSubmoduleFeedback(null)
   }
 
   const handleCourseEditorCancel = () => {
@@ -4992,10 +5109,80 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }))
     setCourseEditorStage('closed')
     setIsSubmoduleDraftOpen(false)
+    setIsBulkSubmoduleDraftOpen(false)
+    setBulkSubmoduleInput('')
+    setBulkSubmoduleFeedback(null)
     setSelectedSavedModelIndex(Math.max(0, savedModuleCount - 1))
     setSelectedSavedSubmodelIndex(0)
     setSubmoduleDraftRestoreLength(null)
     setAddCourseTouched({})
+  }
+
+  const openBulkSubmoduleDraft = () => {
+    setAddCourseError('')
+    setBulkSubmoduleInput('')
+    setBulkSubmoduleFeedback(null)
+    setIsSubmoduleDraftOpen(false)
+    setIsBulkSubmoduleDraftOpen(true)
+  }
+
+  const openBulkSubmoduleDraftForModel = (modelIndex) => {
+    const model = addCourseForm.models?.[modelIndex]
+    if (!model) return
+
+    setSelectedSavedModelIndex(modelIndex)
+    setSelectedSavedSubmodelIndex(normalizeBranchCourseSubmodels(model.submodels, modelIndex).length)
+    setCourseEditorStage('submodule')
+    openBulkSubmoduleDraft()
+  }
+
+  const cancelBulkSubmoduleDraft = () => {
+    setBulkSubmoduleInput('')
+    setBulkSubmoduleFeedback(null)
+    setIsBulkSubmoduleDraftOpen(false)
+    setAddCourseError('')
+  }
+
+  const addBulkSubmodulesToCurrentModule = () => {
+    const { names, newNames, duplicateCount, existingNames } = bulkSubmodulePreview
+
+    if (!names.length) {
+      setBulkSubmoduleFeedback({ type: 'error', message: 'Please enter at least one submodule.' })
+      return
+    }
+
+    if (!newNames.length) {
+      setBulkSubmoduleFeedback({ type: 'error', message: 'All entered submodules already exist in this module.' })
+      return
+    }
+
+    const modelIndex = activeCourseModelIndex
+    setAddCourseForm((current) => {
+      const models = normalizeBranchCourseModels(current.models)
+      return {
+        ...current,
+        models: models.map((model, index) => {
+          if (index !== modelIndex) return model
+
+          const currentSubmodules = normalizeBranchCourseSubmodels(model.submodels, modelIndex)
+          return {
+            ...model,
+            submodels: [
+              ...currentSubmodules,
+              ...newNames.map((name, indexOffset) => createBranchCourseSubmodel(currentSubmodules.length + indexOffset + 1, name)),
+            ],
+          }
+        }),
+      }
+    })
+    setSelectedSavedSubmodelIndex((current) => current + newNames.length)
+    setBulkSubmoduleInput('')
+    setIsBulkSubmoduleDraftOpen(false)
+    setBulkSubmoduleFeedback({
+      type: 'success',
+      message: `${newNames.length} submodule${newNames.length === 1 ? '' : 's'} added to the module draft.${duplicateCount || existingNames.length ? ` ${duplicateCount + existingNames.length} duplicate entr${duplicateCount + existingNames.length === 1 ? 'y was' : 'ies were'} skipped.` : ''}`,
+    })
+    setAddCourseError('')
   }
 
   const openCourseSubmodelDraft = (modelIndex, draftIndexOverride = null) => {
@@ -5200,7 +5387,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setAddCourseError('')
     setCourseEditorStage('closed')
     setIsSubmoduleDraftOpen(false)
+    setIsBulkSubmoduleDraftOpen(false)
+    setBulkSubmoduleInput('')
     setSelectedSavedSubmodelIndex(0)
+    setBulkSubmoduleFeedback(null)
     setSubmoduleDraftRestoreLength(null)
     return true
   }
@@ -5240,6 +5430,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setAddCourseStep(2)
     setCourseEditorStage('module')
     setIsSubmoduleDraftOpen(false)
+    setIsBulkSubmoduleDraftOpen(false)
+    setBulkSubmoduleInput('')
+    setBulkSubmoduleFeedback(null)
     setSubmoduleDraftRestoreLength(null)
     setAddCourseError('')
   }
@@ -5288,7 +5481,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     isAddCourseSubmitLockedRef.current = false
     const nextForm = record
       ? buildBranchCourseFormFromRecord(record)
-      : createInitialBranchCourseForm()
+      : {
+          ...createInitialBranchCourseForm(),
+          courseCode: getNextBranchCourseCode(branchProfile?.branchId || branchData?.branchId, branchCourseCards),
+        }
     const nextHierarchy = record
       ? buildBranchCourseHierarchySummary(record.models || record.courseModels || record.modules || [])
       : []
@@ -5298,7 +5494,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setAddCourseSavedPaymentPlanId('')
     setAddCoursePaymentPlanSaveAttempted(false)
     setAddCourseTouched({})
+    setIsCourseTypeFocused(false)
     setAddCourseError('')
+    setIsBulkSubmoduleDraftOpen(false)
+    setBulkSubmoduleInput('')
+    setBulkSubmoduleFeedback(null)
     setAddCourseStep(1)
     setCourseEditorStage('module')
     setSelectedSavedModelIndex(0)
@@ -5339,13 +5539,28 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     navigate('/branch-dashboard?section=installments')
   }
 
-  const openViewCourseDrawer = (course) => {
-    setViewCourse(normalizeBranchCourseRecord(course))
+  const openViewCourseDrawer = async (course) => {
+    const courseId = resolveBranchCourseEditableId(course, branchCourseCards)
+    const listCourse = normalizeBranchCourseRecord(course)
+
+    setViewCourse(listCourse)
     setViewCourseTab('basic')
     setExpandedViewCourseModuleIds([])
     setViewCoursePaymentPlanOpenId('')
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
+
+    if (!courseId) return
+
+    try {
+      const fullCourse = await getBranchCourse(courseId)
+      if (fullCourse) {
+        setViewCourse(normalizeBranchCourseRecord(fullCourse))
+      }
+    } catch (error) {
+      // Keep the list data visible if the detail request fails.
+      console.warn('Failed to load full course details for view', error)
+    }
   }
 
   const closeViewCourseDrawer = () => {
@@ -5393,6 +5608,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setCourseModuleDeleteTarget(null)
     setCourseSubmoduleDeleteTarget(null)
     setAddCourseStep(1)
+    setIsCourseTypeFocused(false)
     setAddCourseSavedPaymentPlans([])
     setAddCourseSavedPaymentPlanId('')
     setAddCoursePaymentPlanSaveAttempted(false)
@@ -5582,33 +5798,35 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setIsAddCourseSaving(true)
     try {
       const normalizedCourseCode = normalizeBranchCourseCode(addCourseForm.courseCode)
-      const editingTargetId = resolveBranchCourseEditableId(
-        branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || {
-          id: editingCourseId,
-          courseCode: addCourseForm.courseCode,
-          name: addCourseForm.name,
-        },
-        branchCourseCards,
-      )
+      // Only an explicitly opened edit form may issue PATCH. Duplicate code or
+      // name in a new form must remain a validation error, not an auto-update.
+      const editingTargetId = editingCourseId
+        ? resolveBranchCourseEditableId(
+            branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || { id: editingCourseId },
+            branchCourseCards,
+          )
+        : ''
       const duplicateCourse = branchCourseCards.find(
         (course) =>
           String(course.id || '').trim() !== editingTargetId &&
-          String(course.name || '').trim().toLowerCase() === String(addCourseForm.name || '').trim().toLowerCase(),
+          normalizeCourseNameKey(course.name) === normalizeCourseNameKey(addCourseForm.name),
       )
       const duplicateCourseCode = branchCourseCards.find(
         (course) =>
           String(course.id || '').trim() !== editingTargetId &&
-          String(course.courseCode || '').trim().toLowerCase() ===
-          String(normalizedCourseCode).trim().toLowerCase(),
+          String(course.courseCode || '').replace(/[^A-Z0-9]/gi, '').trim().toLowerCase() ===
+          String(normalizedCourseCode).replace(/[^A-Z0-9]/gi, '').trim().toLowerCase(),
       )
 
       if (duplicateCourseCode) {
+        setAddCourseTouched((current) => ({ ...current, courseCode: true }))
         setAddCourseError('Course code already exists.')
         isAddCourseSubmitLockedRef.current = false
         return
       }
 
       if (duplicateCourse) {
+        setAddCourseTouched((current) => ({ ...current, name: true }))
         setAddCourseError('Course already exists.')
         isAddCourseSubmitLockedRef.current = false
         return
@@ -5649,7 +5867,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       setEditingCourseId('')
       setAddCourseStep(1)
     } catch (error) {
-      setAddCourseError(apiErrorMessage(error, 'Unable to save course right now.'))
+      const message = apiErrorMessage(error, 'Unable to save course right now.')
+      const normalizedMessage = String(message).toLowerCase()
+      if (normalizedMessage.includes('course code already exists')) {
+        setAddCourseTouched((current) => ({ ...current, courseCode: true }))
+        setAddCourseStep(1)
+      } else if (normalizedMessage.includes('course name already exists') || normalizedMessage.includes('course already exists')) {
+        setAddCourseTouched((current) => ({ ...current, name: true }))
+        setAddCourseStep(1)
+      }
+      setAddCourseError(message)
     } finally {
       setIsAddCourseSaving(false)
       isAddCourseSubmitLockedRef.current = false
@@ -9125,7 +9352,6 @@ else {
                           <th>Discount</th> */}
                           <th>Final Fee</th>
 
-                          <th>Faculty</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -9170,39 +9396,6 @@ else {
                                 <td>{formatBranchCourseAmount(course.discount || '0')}</td> */}
                                 <td>{formatBranchCourseFinalFee(course)}</td>
 
-                                <td>
-                                  <span className="branch-course-faculty-cell">
-                                    {Array.isArray(course.assignedFaculty) && course.assignedFaculty.length > 0 ? (
-                                      <span className="branch-course-faculty-summary">
-                                        <span className="branch-course-faculty-primary">
-                                          {course.assignedFaculty[0]?.name}
-                                        </span>
-
-                                        {course.assignedFaculty.length > 1 ? (
-                                          <span className="branch-course-faculty-more-wrap">
-                                            <button
-                                              type="button"
-                                              className="branch-course-faculty-more"
-                                              onClick={(event) => event.stopPropagation()}
-                                            >
-                                              +{course.assignedFaculty.length - 1}
-                                            </button>
-
-                                            <span className="branch-course-faculty-tooltip">
-                                              {course.assignedFaculty.slice(1).map((faculty) => (
-                                                <span key={faculty.id} className="branch-course-faculty-tooltip-item">
-                                                  {faculty.name}
-                                                </span>
-                                              ))}
-                                            </span>
-                                          </span>
-                                        ) : null}
-                                      </span>
-                                    ) : (
-                                      'Not Assigned'
-                                    )}
-                                  </span>
-                                </td>
                                 <td onClick={(event) => event.stopPropagation()}>
                                   <div className="branch-course-actions-wrap">
                                     <button
@@ -9314,7 +9507,7 @@ else {
                           })
                         ) : (
                           <tr>
-                            <td colSpan="6" className="branch-course-empty-state">
+                            <td colSpan="5" className="branch-course-empty-state">
                               No courses saved yet. Use Add Course to create the first one.
                             </td>
                           </tr>
@@ -11051,7 +11244,8 @@ else {
                         inputMode="numeric"
                         placeholder="001"
                         value={String(addCourseForm.courseCode || '').match(/(\d+)$/)?.[1] || ''}
-                        onChange={(event) => updateAddCourseField('courseCode', `${getBranchEntityPrefix(branchProfile?.branchId || branchData?.branchId, 'COU')}${event.target.value.replace(/\D/g, '').slice(0, 3)}`)}
+                        readOnly
+                        aria-readonly="true"
                         onBlur={() => markAddCourseTouched('courseCode')}
                         aria-invalid={Boolean(shouldShowBasicAddCourseError('courseCode'))}
                       />
@@ -11059,10 +11253,55 @@ else {
                   </Field>
 
                   <Field
+                    label="Course Type"
+                    required
+                    as="div"
+                    hint="Type a new category or select an existing one"
+                    error={shouldShowBasicAddCourseError('courseType') ? addCourseValidationErrors.basic.courseType : ''}
+                  >
+                    <div className="branch-course-type-picker">
+                      <input
+                        type="text"
+                        placeholder="e.g. Fullstack"
+                        value={addCourseForm.courseType}
+                        autoComplete="off"
+                        onFocus={() => setIsCourseTypeFocused(true)}
+                        onChange={(event) => updateAddCourseField('courseType', event.target.value)}
+                        onBlur={() => {
+                          markAddCourseTouched('courseType')
+                          window.setTimeout(() => setIsCourseTypeFocused(false), 120)
+                        }}
+                        aria-autocomplete="list"
+                        aria-expanded={isCourseTypeFocused && matchingCourseTypeOptions.length > 0}
+                        aria-invalid={Boolean(shouldShowBasicAddCourseError('courseType'))}
+                      />
+                      {isCourseTypeFocused && matchingCourseTypeOptions.length > 0 ? (
+                        <div className="branch-course-type-suggestions" role="listbox">
+                          {matchingCourseTypeOptions.map((courseType) => (
+                            <button
+                              key={courseType.toLowerCase()}
+                              type="button"
+                              role="option"
+                              aria-selected={courseType.toLowerCase() === String(addCourseForm.courseType || '').trim().toLowerCase()}
+                              onMouseDown={(event) => event.preventDefault()}
+                              onClick={() => {
+                                updateAddCourseField('courseType', courseType)
+                                setIsCourseTypeFocused(false)
+                              }}
+                            >
+                              {courseType}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </Field>
+
+                  <Field
                     label="Course Name"
                     required
                     hint="Required field"
-                    error={shouldShowBasicAddCourseError('name') ? addCourseValidationErrors.basic.name : ''}
+                    error={shouldShowBasicAddCourseError('name') ? addCourseVisibleBasicErrors.name : ''}
                   >
                     <input
                       type="text"
@@ -11077,22 +11316,41 @@ else {
                   <Field
                     label="Mode"
                     required
+                    as="div"
                     hint="Online / Offline / Hybrid"
                     error={shouldShowBasicAddCourseError('mode') ? addCourseValidationErrors.basic.mode : ''}
                   >
-                    <select
-                      value={addCourseForm.mode}
-                      onChange={(event) => updateAddCourseField('mode', event.target.value)}
-                      onBlur={() => markAddCourseTouched('mode')}
-                      aria-invalid={Boolean(shouldShowBasicAddCourseError('mode'))}
-                    >
-                      <option value="" disabled>
-                        Select Mode
-                      </option>
-                      <option>Online</option>
-                      <option>Offline</option>
-                      <option>Hybrid</option>
-                    </select>
+                    <div className="branch-course-mode-options" role="radiogroup" aria-label="Course mode">
+                      {['Online', 'Offline', 'Hybrid'].map((mode) => {
+                        const selected = addCourseForm.mode === mode
+                        return (
+                          <div
+                            key={mode}
+                            className={`branch-course-mode-option ${selected ? 'is-selected' : ''}`.trim()}
+                          >
+                            <button
+                              type="button"
+                              className="branch-course-mode-checkbox"
+                              role="checkbox"
+                              aria-checked={selected}
+                              aria-label={`${selected ? 'Unselect' : 'Select'} ${mode} course mode`}
+                              onClick={() => {
+                                updateAddCourseField('mode', selected ? '' : mode)
+                                markAddCourseTouched('mode')
+                              }}
+                            >{selected ? <Check size={14} strokeWidth={3} aria-hidden="true" /> : null}</button>
+                            <button
+                              type="button"
+                              className="branch-course-mode-option-label"
+                              onClick={() => {
+                                updateAddCourseField('mode', selected ? '' : mode)
+                                markAddCourseTouched('mode')
+                              }}
+                            >{mode}</button>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </Field>
 
                   <Field
@@ -11281,7 +11539,9 @@ else {
                                           onClick={() => handleCourseSubmodelEdit(modelIndex, subIndex)}
                                           aria-label={`Edit submodule ${subIndex + 1}`}
                                         >
-                                          <span className="course-submodule-checkmark">✓</span>
+                                          <span className="course-submodule-checkmark">
+                                            <Check size={14} strokeWidth={3} aria-hidden="true" />
+                                          </span>
                                           <div>
                                             <strong>{submodel.name || `Submodule ${subIndex + 1}`}</strong>
                                           </div>
@@ -11350,20 +11610,106 @@ else {
                                   </div>
                                 ) : null}
 
+                                {isBulkSubmoduleDraftOpen ? (
+                                  <div className="course-bulk-submodule-draft">
+                                    <div className="course-bulk-submodule-input-column">
+                                      <Field
+                                        label="Add Submodules"
+                                        required
+                                        as="div"
+                                        hint="Enter one submodule per line"
+                                      >
+                                        <textarea
+                                          className="course-bulk-submodule-textarea"
+                                          value={bulkSubmoduleInput}
+                                          onChange={(event) => {
+                                            setBulkSubmoduleInput(event.target.value)
+                                            setBulkSubmoduleFeedback(null)
+                                          }}
+                                          placeholder={'HTML Basics\nCSS Basics\nJavaScript\nReact Basics\nNode.js Basics'}
+                                          rows={7}
+                                          aria-label="Add submodules, one per line"
+                                        />
+                                      </Field>
+                                    </div>
+
+                                    <div className="course-bulk-submodule-preview-column">
+                                      <div className="course-bulk-submodule-count">
+                                        {bulkSubmodulePreview.newNames.length} submodule{bulkSubmodulePreview.newNames.length === 1 ? '' : 's'} ready to add
+                                      </div>
+
+                                      {bulkSubmodulePreview.newNames.length ? (
+                                        <div className="course-bulk-submodule-preview">
+                                          <div className="course-bulk-submodule-preview-heading">Preview</div>
+                                          {bulkSubmodulePreview.newNames.map((name) => (
+                                            <div key={normalizeBranchSubmoduleKey(name)} className="course-bulk-submodule-preview-item">
+                                              <span className="course-submodule-checkmark">
+                                                <Check size={14} strokeWidth={3} aria-hidden="true" />
+                                              </span>
+                                              <span>{name}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="course-bulk-submodule-empty-preview">
+                                          Add submodule names to see the preview here.
+                                        </div>
+                                      )}
+
+                                      {bulkSubmodulePreview.duplicateCount || bulkSubmodulePreview.existingNames.length ? (
+                                        <div className="course-validation-note course-bulk-submodule-info">
+                                          <span>
+                                            {bulkSubmodulePreview.duplicateCount ? 'Duplicate entries will be ignored. ' : ''}
+                                            {bulkSubmodulePreview.existingNames.length ? 'Some submodules already exist and will be skipped.' : ''}
+                                          </span>
+                                        </div>
+                                      ) : null}
+
+                                      {bulkSubmoduleFeedback ? (
+                                        <div className={`course-validation-note ${bulkSubmoduleFeedback.type === 'error' ? 'course-validation-error' : 'course-bulk-submodule-success'}`}>
+                                          <span>{bulkSubmoduleFeedback.message}</span>
+                                        </div>
+                                      ) : null}
+                                    </div>
+
+                                    <div className="course-bulk-submodule-actions">
+                                      <button type="button" className="course-inline-action course-inline-cancel" onClick={cancelBulkSubmoduleDraft}>
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="button button-solid"
+                                        onClick={addBulkSubmodulesToCurrentModule}
+                                        disabled={!bulkSubmodulePreview.newNames.length}
+                                      >
+                                        {bulkSubmodulePreview.newNames.length
+                                          ? `Add ${bulkSubmodulePreview.newNames.length} Submodule${bulkSubmodulePreview.newNames.length === 1 ? '' : 's'}`
+                                          : 'Add Submodules'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : null}
+
+                                {!isBulkSubmoduleDraftOpen && bulkSubmoduleFeedback ? (
+                                  <div className="course-validation-note course-bulk-submodule-success">
+                                    <span>{bulkSubmoduleFeedback.message}</span>
+                                  </div>
+                                ) : null}
+
                                 {shouldShowModelSubmodelsError(modelIndex) ? (
                                   <div className="course-validation-note course-validation-error course-model-inline-error">
                                     <span>{addCourseValidationErrors.hierarchy.models?.[modelIndex]?.submodelsError}</span>
                                   </div>
                                 ) : null}
-                                {isSubmoduleDraftOpen ? null : (
+                                {!isSubmoduleDraftOpen && !isBulkSubmoduleDraftOpen ? (
                                   <button
                                     type="button"
                                     className="button button-ghost course-add-submodel-button"
-                                    onClick={() => openCourseSubmodelDraft(modelIndex)}
+                                    onClick={openBulkSubmoduleDraft}
                                   >
-                                    + Add Sub Model
+                                    + Add Submodules
                                   </button>
-                                )}
+                                ) : null}
                               </div>
                             ) : null}
                           </div>
@@ -11394,7 +11740,7 @@ else {
                                   Continue
                                 </button>
                               </>
-                            ) : !isSubmoduleDraftOpen ? (
+                            ) : !isSubmoduleDraftOpen && !isBulkSubmoduleDraftOpen ? (
                               <button
                                 type="button"
                                 className="button button-solid course-model-editor-card-save-next"
@@ -11552,8 +11898,8 @@ else {
                                   ) : null}
                                 </div>
                                 {!isAddingInlineSubmodule ? (
-                                  <button type="button" className="course-added-submodule-add-button course-added-submodule-add-button--below" onClick={() => startInlineSubmoduleAdd(selectedModelIndex)}>
-                                    + Add Submodule
+                                  <button type="button" className="course-added-submodule-add-button course-added-submodule-add-button--below" onClick={() => openBulkSubmoduleDraftForModel(selectedModelIndex)}>
+                                    + Add Submodules
                                   </button>
                                 ) : null}
                               </section>
@@ -12131,12 +12477,22 @@ else {
                   </button>
                 </div>
 
-                <div className="branch-course-view-content">
+                <div className={`branch-course-view-content ${viewCourseTab === 'modules' ? 'is-modules-view' : ''}`.trim()}>
                   {viewCourseTab === 'basic' ? (
                     <div className="branch-course-view-table" role="table" aria-label="Course details">
                       <div className="branch-course-view-table-header" role="row">
                         <div className="branch-course-view-table-head" role="columnheader">DETAILS</div>
                         <div className="branch-course-view-table-head" role="columnheader">INFORMATION</div>
+                      </div>
+
+                      <div className="branch-course-view-row" role="row">
+                        <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                          <BookOpen size={20} strokeWidth={2.1} aria-hidden="true" />
+                          <span>Course Type</span>
+                        </div>
+                        <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                          <strong>{viewCourse.courseType || '-'}</strong>
+                        </div>
                       </div>
 
                       <div className="branch-course-view-row" role="row">
@@ -12216,6 +12572,32 @@ else {
                           <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
                         </div>
                       </div>
+
+                      {(() => {
+                        const assignedFaculty = Array.isArray(viewCourse.assignedFaculty)
+                          ? viewCourse.assignedFaculty.filter((faculty) => faculty?.name || faculty?.facultyId)
+                          : []
+                        const label = assignedFaculty.length === 1 ? 'Assigned Faculty' : 'Assigned Faculties'
+                        return (
+                          <div className="branch-course-view-row" role="row">
+                            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                              <Users size={20} strokeWidth={2.1} aria-hidden="true" />
+                              <span>{label}</span>
+                            </div>
+                            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                              {assignedFaculty.length ? (
+                                <div className="branch-course-view-assigned-faculty-list">
+                                  {assignedFaculty.map((faculty) => (
+                                    <span key={faculty.id || faculty.facultyId || faculty.name}>
+                                      {faculty.name || faculty.facultyName || faculty.facultyId}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : <strong>Not Assigned</strong>}
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       {/* <div className="branch-course-view-row" role="row">
                         <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
@@ -12391,14 +12773,20 @@ else {
                             const isExpanded = expandedViewCourseModuleIds.includes(model.id)
 
                             return (
-                              <article key={model.id} className="branch-course-view-model-card">
+                              <article
+                                key={model.id}
+                                className={`branch-course-view-model-card ${isExpanded ? 'is-expanded' : ''}`.trim()}
+                              >
                                 <div className="branch-course-view-model-row" role="row">
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-module" role="cell">
                                     <span>Module {modelIndex + 1}</span>
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-name" role="cell">
-                                    <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
+                                    <div className="branch-course-view-model-name-copy">
+                                      <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
+                                      <small>{model.submodels.length} submodule{model.submodels.length === 1 ? '' : 's'}</small>
+                                    </div>
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-percentage" role="cell">
@@ -12426,9 +12814,11 @@ else {
                                   <div className="branch-course-view-submodels">
                                     {model.submodels.length ? (
                                       model.submodels.map((submodel, submodelIndex) => (
-                                        <div key={submodel.id} className="branch-course-view-submodel">
-                                          <div>
-                                            <span>Submodel {submodelIndex + 1}</span>
+                                      <div key={submodel.id} className="branch-course-view-submodel">
+                                        <div>
+                                            <span className="branch-course-view-submodel-index">
+                                              {String(submodelIndex + 1).padStart(2, '0')}
+                                            </span>
                                             <strong>{submodel.name || `Submodel ${submodelIndex + 1}`}</strong>
                                           </div>
                                         </div>

@@ -185,6 +185,7 @@ export function normalizeBranchCourse(course) {
     ...course,
     id: resolvedId || '',
     courseCode: normalizeText(course.courseCode),
+    courseType: normalizeText(course.courseType || course.type),
     name: normalizeText(course.name || course.courseName),
     description: normalizeText(course.description),
     mode: normalizeText(course.mode),
@@ -281,6 +282,14 @@ export async function listBranchCourses(query = {}) {
   } finally {
     courseListInflight.delete(cacheKey)
   }
+}
+
+export async function getBranchCourse(courseId) {
+  const id = String(courseId || '').trim()
+  if (!id) return null
+
+  const response = await request(`/branch-courses/${encodeURIComponent(id)}`)
+  return normalizeBranchCourse(unwrapData(response))
 }
 
 export async function createBranchCourse(payload) {
