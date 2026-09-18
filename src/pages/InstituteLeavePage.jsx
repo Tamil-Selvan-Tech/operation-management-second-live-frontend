@@ -420,7 +420,16 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
           .values())
         setReplacementFaculty(assignmentType === 'COMBINED' ? (eligible.faculty || []) : ((eligible.faculty || []).length ? eligible.faculty : fallbackFaculty))
         if (assignmentType === 'COMBINED') {
-          setCombineSessions(eligible.combineSessions || [])
+          // Combine matching is based on course/module/sub-module/progress and schedule type.
+          // Keep the source timing only for the legacy option renderer; the backend stores
+          // and uses the selected target batch timing for the combined date.
+          setCombineSessions((eligible.combineSessions || []).map(item => ({
+            ...item,
+            originalStartTime: session.originalStartTime,
+            originalEndTime: session.originalEndTime,
+            targetStartTime: item.originalStartTime,
+            targetEndTime: item.originalEndTime,
+          })))
           setCombineSource(eligible.source || null)
         }
       }
