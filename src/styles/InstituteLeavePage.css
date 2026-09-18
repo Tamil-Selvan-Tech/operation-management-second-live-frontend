@@ -32,7 +32,7 @@
 .institute-action-menu.opens-down .institute-action-menu-dropdown { top: calc(100% + 5px); bottom: auto; }
 .institute-action-menu-dropdown button { width: 100%; padding: 5px 10px; border: 0; border-radius: 7px; background: transparent; color: #17213b; line-height: 1.2; text-align: left; cursor: pointer; }
 .institute-action-menu-dropdown button:hover, .institute-action-menu-dropdown button:focus-visible { background: #f1f5ff; color: #3157d5; outline: none; }
-.institute-pagination { display: flex; justify-content: space-between; align-items: center; color: #68738a; font-size: 14px; }
+.institute-pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; color: #68738a; font-size: 14px; }
 .institute-pagination > div { display: flex; gap: 8px; }
 .institute-leave-page input, .institute-leave-page select, .institute-dialog textarea, .institute-dialog input { border: 1px solid #dfe5ef; border-radius: 8px; padding: 11px; font: inherit; }
 .institute-table-scroll { overflow-x: auto; background: white; border: 1px solid #e2e7ef; border-radius: 12px; }

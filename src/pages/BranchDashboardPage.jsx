@@ -4311,7 +4311,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
     setIsNotificationMenuOpen(false)
     if (String(notification?.kind || '').trim() === 'faculty-leave-request') {
-      goToBranchSection('institute-leave')
+      goToBranchSection('faculty-leave')
       window.setTimeout(() => window.dispatchEvent(new Event('open-faculty-leave-requests')), 0)
       return
     }

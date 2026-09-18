@@ -76,6 +76,7 @@ function normalizeStoredStudentRecord(record = {}) {
     courseDuration: record.courseDuration || record.duration || nestedCourse.duration || nestedCourse.courseDuration || '',
     courseEndDate: record.courseEndDate || '',
     courseProgress: record.courseProgress,
+    courseCompletedAt: record.courseCompletedAt || null,
     courseCompletionPercentage: record.courseCompletionPercentage,
     progress: record.progress,
     _fromBackend: Boolean(record._fromBackend),
@@ -403,6 +404,26 @@ export async function refreshBranchStudents(branchId) {
   const remaining = all.filter((record) => !recordMatchesBranchScope(record, branchScopeKeys))
   writeAll([...records, ...remaining])
   return records
+}
+
+export async function listBranchStudentsByLifecycle(branchId = '', lifecycle = '') {
+  const query = new URLSearchParams({
+    page: '1',
+    limit: '100',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  })
+
+  if (String(branchId || '').trim()) query.set('branchId', String(branchId).trim())
+  if (String(lifecycle || '').trim()) query.set('lifecycle', String(lifecycle).trim())
+
+  const response = await request(`/branch-students?${query.toString()}`, { method: 'GET' })
+  const payload = response?.data ?? response
+  return extractBranchStudentListPayload(payload).map((record) => normalizeStoredStudentRecord({
+    ...record,
+    _fromBackend: true,
+    _isExistingRecord: true,
+  }))
 }
 
 /**

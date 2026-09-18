@@ -12393,3 +12393,25 @@ body.branch-notification-menu-open .main-area {
 .branch-management-pagination div { display: flex; gap: 8px; }
 .branch-management-pagination button { padding: 8px 12px; border: 1px solid #dce6f2; border-radius: 8px; background: #fff; color: #31496b; cursor: pointer; font: inherit; font-weight: 650; }
 .branch-management-pagination button:disabled { cursor: not-allowed; opacity: .5; }
+.super-admin-sidebar-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: none;
+}
+
+.super-admin-sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.super-admin-sidebar-submenu {
+  margin-left: 0;
+  padding-left: 30px;
+}
+
+.super-admin-sidebar-submenu .super-admin-sidebar-subitem {
+  gap: 5px;
+  padding-left: 0;
+}

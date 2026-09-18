@@ -67,7 +67,7 @@ import { StudentCalendarPage } from './StudentCalendarPage'
 import '../styles/BranchStudentAttendance.css'
 import { useAuth } from '../auth/useAuth'
 import { loadFacultyRegistry } from '../lib/facultyAuth'
-import { BRANCH_STUDENTS_KEY, loadBranchStudents, refreshBranchStudents } from '../lib/branchStudentStore'
+import { BRANCH_STUDENTS_KEY, listBranchStudentsByLifecycle, loadBranchStudents } from '../lib/branchStudentStore'
 import {
   loadNotifications as loadStoredNotifications,
   addNotification,
@@ -112,7 +112,8 @@ function getInitials(name) {
 function formatDisplayDate(value) {
   if (!value) return '-'
 
-  const date = new Date(`${value}T00:00:00`)
+  const rawValue = String(value).trim()
+  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(rawValue) ? `${rawValue}T00:00:00` : rawValue)
   if (Number.isNaN(date.getTime())) return '-'
 
   return new Intl.DateTimeFormat('en-GB', {
@@ -976,6 +977,14 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
   const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
 
   return dedupeStudentsByIdentity((Array.isArray(students) ? students : []).filter((student) => {
+    // The active Students view must never include a student whose persisted
+    // course progress is complete. The backend already applies this lifecycle
+    // filter, but keeping the guard here also protects batch-detail views from
+    // stale cached records.
+    if (isCompletedStudentRecord(student)) {
+      return false
+    }
+
     const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
     // Direct assignment fields on the student are authoritative. Profile
     // context is only a legacy fallback and must not move a student to a
@@ -995,6 +1004,13 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
       (batchName && studentBatchName && studentBatchName === batchName),
     )
   }))
+}
+
+function isCompletedStudentRecord(student = {}) {
+  const persistedCourseProgress = Number(student?.courseProgress)
+  const persistedCourseStatus = String(student?.courseStatus || '').trim().toUpperCase()
+  return persistedCourseStatus === 'COMPLETED'
+    || (Number.isFinite(persistedCourseProgress) && persistedCourseProgress >= 100)
 }
 
 function getCourseFromSource(source = {}) {
@@ -1608,6 +1624,7 @@ export function FacultyDashboardPage() {
   const [branchCourses, setBranchCourses] = useState([])
   const [courseCatalog, setCourseCatalog] = useState([])
   const [students, setStudents] = useState([])
+  const [completedStudents, setCompletedStudents] = useState([])
   const [studentAttendanceStatuses, setStudentAttendanceStatuses] = useState({})
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [selectedStudentsCourseId, setSelectedStudentsCourseId] = useState('')
@@ -1618,6 +1635,10 @@ export function FacultyDashboardPage() {
   const [courseModuleLimit, setCourseModuleLimit] = useState(5)
   const [batchPage, setBatchPage] = useState(1)
   const [studentsPage, setStudentsPage] = useState(1)
+  const [studentsViewMode, setStudentsViewMode] = useState('active')
+  const [isStudentsSubnavOpen, setIsStudentsSubnavOpen] = useState(false)
+  const [studentRecordsSearch, setStudentRecordsSearch] = useState('')
+  const [studentRecordsPage, setStudentRecordsPage] = useState(1)
   const [courseEditRequests, setCourseEditRequests] = useState([])
   const [isCourseRequestModalOpen, setIsCourseRequestModalOpen] = useState(false)
   const [isCourseEditModalOpen, setIsCourseEditModalOpen] = useState(false)
@@ -1707,8 +1728,14 @@ export function FacultyDashboardPage() {
     let isMounted = true
     const refreshStudentsForSummaryBranch = async () => {
       try {
-        const records = await refreshBranchStudents(branchScopeId)
-        if (isMounted) setStudents(records)
+        const [activeRecords, completedRecords] = await Promise.all([
+          listBranchStudentsByLifecycle(branchScopeId, 'active'),
+          listBranchStudentsByLifecycle(branchScopeId, 'completed'),
+        ])
+        if (isMounted) {
+          setStudents(activeRecords)
+          setCompletedStudents(completedRecords)
+        }
       } catch (error) {
         if (isMounted) {
           console.error('Failed to refresh faculty students from branch summary', error)
@@ -1836,14 +1863,26 @@ export function FacultyDashboardPage() {
         ).trim()
         let nextStudents = []
         try {
-          nextStudents = branchScopeId
-            ? await refreshBranchStudents(branchScopeId)
-            : loadBranchStudents()
+          if (branchScopeId) {
+            const [activeRecords, completedRecords] = await Promise.all([
+              listBranchStudentsByLifecycle(branchScopeId, 'active'),
+              listBranchStudentsByLifecycle(branchScopeId, 'completed'),
+            ])
+            nextStudents = activeRecords
+            if (isMounted) setCompletedStudents(completedRecords)
+          } else {
+            nextStudents = loadBranchStudents()
+            if (isMounted) setCompletedStudents([])
+          }
         } catch (studentError) {
           // Keep the dashboard usable if the student list request is
           // temporarily unavailable; the local cache is still a safe fallback.
           console.error('Failed to refresh faculty students', studentError)
-          nextStudents = loadBranchStudents(branchScopeId)
+          const fallbackStudents = loadBranchStudents(branchScopeId)
+          nextStudents = fallbackStudents.filter((student) => !isCompletedStudentRecord(student))
+          if (isMounted) {
+            setCompletedStudents(fallbackStudents.filter((student) => isCompletedStudentRecord(student)))
+          }
         }
 
         setBranchCourses(branchCourseList)
@@ -1900,11 +1939,13 @@ export function FacultyDashboardPage() {
     const syncStudents = () => void loadCourseData()
     window.addEventListener('cispro:students-changed', syncStudents)
     window.addEventListener('cispro:branch-students-changed', syncStudents)
+    window.addEventListener('cispro:faculty-dashboard-refresh', syncStudents)
 
     return () => {
       isMounted = false
       window.removeEventListener('cispro:students-changed', syncStudents)
       window.removeEventListener('cispro:branch-students-changed', syncStudents)
+      window.removeEventListener('cispro:faculty-dashboard-refresh', syncStudents)
     }
   }, [user?.email, user?.id, user?.role, user?.userCode, user?.userId, userRole])
 
@@ -2275,6 +2316,9 @@ export function FacultyDashboardPage() {
       : backfilledStudents
 
     return getExactFacultyStudents(branchScopedStudents, facultyId, facultyNameValue, facultyEmailValue)
+      .filter((student) => {
+        return !isCompletedStudentRecord(student)
+      })
   }, [backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
 
   const facultyTodayWorkEntries = useMemo(() => {
@@ -2781,9 +2825,38 @@ export function FacultyDashboardPage() {
     return studentsFlowVisibleStudents.slice(startIndex, startIndex + studentsPerPage)
   }, [safeStudentsPage, studentsFlowVisibleStudents])
 
+  const filteredStudentRecords = useMemo(() => {
+    const query = studentRecordsSearch.trim().toLowerCase()
+    if (!query) return completedStudents
+
+    return completedStudents.filter((student) => [
+      student?.studentId,
+      student?.studentName,
+      student?.courseName,
+      student?.batchName,
+      student?.facultyName,
+    ].some((value) => String(value || '').toLowerCase().includes(query)))
+  }, [completedStudents, studentRecordsSearch])
+
+  const studentRecordsPerPage = 5
+  const studentRecordsTotalPages = Math.max(1, Math.ceil(filteredStudentRecords.length / studentRecordsPerPage))
+  const safeStudentRecordsPage = Math.min(Math.max(1, studentRecordsPage), studentRecordsTotalPages)
+  const paginatedStudentRecords = useMemo(() => {
+    const startIndex = (safeStudentRecordsPage - 1) * studentRecordsPerPage
+    return filteredStudentRecords.slice(startIndex, startIndex + studentRecordsPerPage)
+  }, [filteredStudentRecords, safeStudentRecordsPage])
+
   useEffect(() => {
     setStudentsPage((current) => Math.min(Math.max(1, current), studentsTotalPages))
   }, [studentsTotalPages])
+
+  useEffect(() => {
+    setStudentRecordsPage((current) => Math.min(Math.max(1, current), studentRecordsTotalPages))
+  }, [studentRecordsTotalPages])
+
+  useEffect(() => {
+    setStudentRecordsPage(1)
+  }, [studentRecordsSearch])
 
   useEffect(() => {
     setStudentsPage(1)
@@ -4307,6 +4380,60 @@ const nextName = trimmedValue
         ].filter((item) => item.id !== 'other-faculty-batches' || hasTemporaryAssignments).map((item) => {
           const Icon = item.icon
           const isActive = activeSection === item.id
+          const isStudentRecordsActive = item.id === 'students' && isActive && studentsViewMode === 'records'
+          const studentNavigation = (
+            <>
+              <div className="super-admin-sidebar-parent-row">
+                <button
+                  type="button"
+                  className={`super-admin-sidebar-item ${isActive && !isStudentRecordsActive ? 'is-active' : ''}`.trim()}
+                  onClick={() => {
+                    handleSidebarSectionChange('students')
+                    setStudentsViewMode('active')
+                    setSelectedStudentsCourseId('')
+                    setSelectedStudentsBatchId('')
+                  }}
+                >
+                  <span className="super-admin-sidebar-icon" aria-hidden="true">
+                    <Icon size={18} strokeWidth={2.15} />
+                  </span>
+                  <span>{item.label}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`super-admin-sidebar-expand-button ${isStudentsSubnavOpen ? 'is-open' : ''}`.trim()}
+                  aria-label={`${isStudentsSubnavOpen ? 'Collapse' : 'Expand'} Student Records`}
+                  aria-expanded={isStudentsSubnavOpen}
+                  onClick={() => {
+                    handleSidebarSectionChange('students')
+                    setIsStudentsSubnavOpen((open) => !open)
+                  }}
+                >
+                  <ChevronDown size={16} />
+                </button>
+              </div>
+              {isActive && isStudentsSubnavOpen ? (
+                <button
+                  type="button"
+                  className={`super-admin-sidebar-subitem ${isStudentRecordsActive ? 'is-active' : ''}`.trim()}
+                  onClick={() => {
+                    handleSidebarSectionChange('students')
+                    setStudentsViewMode('records')
+                    setIsStudentsSubnavOpen(true)
+                    setSelectedStudentsCourseId('')
+                    setSelectedStudentsBatchId('')
+                  }}
+                >
+                  <span aria-hidden="true" />
+                  <span>Student Records</span>
+                </button>
+              ) : null}
+            </>
+          )
+
+          if (item.id === 'students') {
+            return <div key={item.id} className="super-admin-sidebar-item-group">{studentNavigation}</div>
+          }
 
           return (
             <button
@@ -4961,8 +5088,10 @@ const nextName = trimmedValue
               {activeSection === 'students' && !isStudentCalendarRoute ? (
                 <FacultyDashboardSection
                   title={facultyViewLabel}
-                  actions={studentsFlowLevel === 3 ? (
+                  actions={(
                     <div className="faculty-student-action-buttons">
+                      {studentsViewMode === 'active' && studentsFlowLevel === 3 ? (
+                        <>
                       <button
                         type="button"
                         className="faculty-today-work-trigger"
@@ -4979,9 +5108,82 @@ const nextName = trimmedValue
                         <BookOpen size={16} />
                         <span>Today's Work</span>
                       </button>
+                        </>
+                      ) : null}
                     </div>
-                  ) : null}
+                  )}
                 >
+                  {studentsViewMode === 'records' ? (
+                    <div className="faculty-students-flow-stage faculty-student-records-stage">
+                      <div className="faculty-student-records-toolbar">
+                        <div>
+                          <strong>Completed Student Records</strong>
+                          <span>Students whose persisted course progress has reached 100%.</span>
+                        </div>
+                        <input
+                          type="search"
+                          value={studentRecordsSearch}
+                          onChange={(event) => setStudentRecordsSearch(event.target.value)}
+                          placeholder="Search student records"
+                          aria-label="Search completed student records"
+                        />
+                      </div>
+                      {paginatedStudentRecords.length ? (
+                        <div className="branch-dashboard-table-shell faculty-students-table-shell">
+                          <table className="branch-dashboard-table faculty-student-records-table">
+                            <thead>
+                              <tr>
+                                <th>Student ID</th>
+                                <th>Student Name</th>
+                                <th>Course</th>
+                                <th>Batch</th>
+                                <th>Faculty</th>
+                                <th>Course Progress</th>
+                                <th>Course Status</th>
+                                <th>Completion Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {paginatedStudentRecords.map((student) => (
+                                (() => {
+                                  const courseStatus = getCourseStatusFromProgress(student.courseProgress)
+                                  return (
+                                <tr key={student.id || student.studentId}>
+                                  <td><strong>{student.studentId || student.id || '-'}</strong></td>
+                                  <td>{student.studentName || '-'}</td>
+                                  <td>{student.courseName || student.course?.name || '-'}</td>
+                                  <td>{student.batchName || '-'}</td>
+                                  <td>{student.facultyName || '-'}</td>
+                                  <td>{Math.min(100, Math.max(0, Number(student.courseProgress) || 0))}%</td>
+                                  <td><span className={`faculty-student-course-status ${courseStatus.toLowerCase()}`}>{getCourseStatusLabel(courseStatus)}</span></td>
+                                  <td>{student.courseCompletedAt ? formatStudentDate(student.courseCompletedAt) : '-'}</td>
+                                </tr>
+                                  )
+                                })()
+                              ))}
+                            </tbody>
+                          </table>
+                          {filteredStudentRecords.length > studentRecordsPerPage ? (
+                            <div className="faculty-students-pagination-wrap">
+                              <PaginationBar
+                                currentPage={safeStudentRecordsPage}
+                                totalPages={studentRecordsTotalPages}
+                                onPageChange={setStudentRecordsPage}
+                                className="faculty-students-pagination"
+                                label="Student records pagination"
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="faculty-my-batches-empty faculty-students-flow-empty">
+                          <strong>{studentRecordsSearch ? 'No matching student records' : 'No completed student records'}</strong>
+                          <p>Completed students will appear here when their database course progress reaches 100%.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
                   {studentsFlowLevel === 1 ? (
                     <div className="faculty-students-flow-stage">
                       {facultyCourseRows.length ? (
@@ -5356,6 +5558,8 @@ const nextName = trimmedValue
                       </div>
                     </>
                   ) : null}
+                    </>
+                  )}
                 </FacultyDashboardSection>
               ) : null}
 

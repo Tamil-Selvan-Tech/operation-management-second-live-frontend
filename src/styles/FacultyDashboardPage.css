@@ -2084,6 +2084,64 @@ body.faculty-notification-menu-open .super-admin-content {
   background: #f1f5f9;
 }
 
+.faculty-student-records-stage {
+  display: grid;
+  gap: 16px;
+}
+
+.faculty-student-records-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.faculty-student-records-toolbar > div {
+  display: grid;
+  gap: 4px;
+}
+
+.faculty-student-records-toolbar strong {
+  color: #0f172a;
+}
+
+.faculty-student-records-toolbar span {
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.faculty-student-records-toolbar input {
+  width: min(280px, 100%);
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #0f172a;
+  background: #fff;
+}
+
+.faculty-student-records-table th,
+.faculty-student-records-table td {
+  white-space: nowrap;
+}
+
+.super-admin-page .faculty-students-table-shell .faculty-student-records-table th:nth-child(1),
+.super-admin-page .faculty-students-table-shell .faculty-student-records-table td:nth-child(1) {
+  width: 150px;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.super-admin-page .faculty-students-table-shell .faculty-student-records-table th:nth-child(1) {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.super-admin-page .faculty-students-table-shell .faculty-student-records-table td:nth-child(1) {
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .faculty-student-progress-table .faculty-student-attendance-pill {
   display: inline;
   min-width: 0;
@@ -4981,7 +5039,7 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-leave-header-icon { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: #2563eb; background: #e8f0ff; }
 .faculty-leave-layout { display: block; }
 .faculty-leave-form-card, .faculty-leave-history-card { border: 1px solid #dce6f2; border-radius: 18px; background: #fff; padding: 22px; box-shadow: 0 12px 30px rgba(37, 99, 235, .06); }
-.faculty-leave-history-card { width: 100%; margin-left: 0; padding: 0; overflow: hidden; }
+.faculty-leave-history-card { width: 100%; margin-left: 0; padding: 0; overflow: visible; }
 .faculty-leave-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 20px; color: #2563eb; }
 .faculty-leave-history-card .faculty-leave-card-heading { padding: 22px 22px 0; }
 .faculty-leave-card-heading h2 { margin: 0 0 5px; color: #172b4d; font-size: 19px; }
@@ -5038,7 +5096,7 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-leave-close-button:hover { color: #172b4d; background: #e2e8f0; }
 .faculty-leave-modal-actions { display: inline-flex; align-items: center; gap: 9px; }
 .faculty-leave-cancel-button { color: #334155 !important; background: #e2e8f0 !important; }
-.faculty-leave-table-wrap { width: 100%; margin-left: 0; overflow-x: auto; }
+.faculty-leave-table-wrap { width: 100%; margin-left: 0; overflow: visible; }
 .faculty-leave-table { width: 100%; min-width: 760px; border-collapse: collapse; text-align: left; }
 .faculty-leave-table { min-width: 900px; }
 .faculty-leave-action-menu { position: relative; display: inline-flex; }
@@ -5127,3 +5185,82 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-delegated-combine-summary select { min-height: 38px; padding: .45rem .55rem; border: 1px solid #d6e2f0; border-radius: 7px; background: #fff; }
 .faculty-delegated-combine-summary select { width: 100%; max-width: 100%; box-sizing: border-box; }
 @media (max-width: 640px) { .faculty-emergency-session { align-items: flex-start; flex-direction: column; } }
+.super-admin-sidebar-item-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.super-admin-sidebar-parent-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.super-admin-sidebar-parent-row > .super-admin-sidebar-item {
+  flex: 1;
+}
+
+.super-admin-sidebar-expand-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 38px;
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.super-admin-sidebar-expand-button:hover,
+.super-admin-sidebar-expand-button.is-open {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.super-admin-sidebar-subitem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 16px 8px 32px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #475569;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.super-admin-sidebar-subitem:hover,
+.super-admin-sidebar-subitem.is-active {
+  background: #eef4ff;
+  color: #2563eb;
+}
+
+.super-admin-sidebar-subitem > span:first-child {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.super-admin-sidebar-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: none;
+}
+
+.super-admin-sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
