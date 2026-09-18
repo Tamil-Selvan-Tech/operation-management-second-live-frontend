@@ -1979,9 +1979,11 @@ function BranchNotificationGroup({
   )
 }
 
-function Field({ label, hint, error, children, required = false, className = '' }) {
+function Field({ label, hint, error, children, required = false, className = '', as = 'label' }) {
+  const FieldWrapper = as
+
   return (
-    <label className={`course-field ${className}`.trim()}>
+    <FieldWrapper className={`course-field ${className}`.trim()}>
       <div className="course-field-label">
         {label}
         {required ? <b>*</b> : null}
@@ -1989,7 +1991,7 @@ function Field({ label, hint, error, children, required = false, className = '' 
       {children}
       {hint ? <small>{hint}</small> : null}
       {error ? <small className="course-field-error">{error}</small> : null}
-    </label>
+    </FieldWrapper>
   )
 }
 
@@ -2525,21 +2527,26 @@ function createBranchCourseErrors(form) {
 }
 
 function getBranchCourseDuplicateErrors(form, existingCourses = [], editingCourseId = null) {
-  const normalizedCourseCode = normalizeBranchCourseCode(form.courseCode).trim().toLowerCase()
+  const normalizedCourseCode = normalizeBranchCourseCode(form.courseCode).replace(/[^A-Z0-9]/gi, '').trim().toLowerCase()
+  const normalizedCourseName = normalizeCourseNameKey(form.name)
   const normalizedEditingCourseId = String(editingCourseId || '').trim().toLowerCase()
 
-  if (!normalizedCourseCode || normalizedCourseCode.length <= COURSE_CODE_PREFIX.length) {
-    return {}
-  }
-
-  const duplicateCourseCode = (Array.isArray(existingCourses) ? existingCourses : []).find((course) => {
+  const courses = Array.isArray(existingCourses) ? existingCourses : []
+  const duplicateCourseCode = courses.some((course) => {
     const courseId = String(course?.id || '').trim().toLowerCase()
-    const courseCode = String(course?.courseCode || '').trim().toLowerCase()
-
-    return courseId !== normalizedEditingCourseId && courseCode === normalizedCourseCode
+    const courseCode = String(course?.courseCode || '').replace(/[^A-Z0-9]/gi, '').trim().toLowerCase()
+    return courseId !== normalizedEditingCourseId && normalizedCourseCode.length > COURSE_CODE_PREFIX.replace(/[^A-Z0-9]/gi, '').length && courseCode === normalizedCourseCode
+  })
+  const duplicateCourseName = courses.some((course) => {
+    const courseId = String(course?.id || '').trim().toLowerCase()
+    const courseName = normalizeCourseNameKey(course?.name || course?.courseName)
+    return courseId !== normalizedEditingCourseId && normalizedCourseName && courseName === normalizedCourseName
   })
 
-  return duplicateCourseCode ? { courseCode: 'Course code already exists.' } : {}
+  return {
+    ...(duplicateCourseCode ? { courseCode: 'Course code already exists.' } : {}),
+    ...(duplicateCourseName ? { name: 'Course name already exists.' } : {}),
+  }
 }
 
 function formatBranchAdminDisplayName(value) {
@@ -2820,6 +2827,28 @@ function normalizeBranchCourseCode(value = '') {
 
   const suffix = normalized.startsWith('CIS') ? normalized.slice(3) : normalized
   return `${COURSE_CODE_PREFIX}${suffix}`
+}
+
+function normalizeCourseNameKey(value = '') {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join(' ')
+}
+
+function getNextBranchCourseCode(branchCode, courses = []) {
+  const prefix = getBranchEntityPrefix(branchCode, 'COU')
+  const compactPrefix = prefix.replace(/[^A-Z0-9]/gi, '').toUpperCase()
+  const maxSequence = (Array.isArray(courses) ? courses : []).reduce((max, course) => {
+    const compactCode = String(course?.courseCode || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
+    const match = compactCode.match(new RegExp(`^${compactPrefix}(\\d+)$`))
+    return match ? Math.max(max, Number(match[1]) || 0) : max
+  }, 0)
+  return `${prefix}${String(maxSequence + 1).padStart(3, '0')}`
 }
 
 function buildBranchCourseFormFromRecord(course = {}) {
@@ -4552,7 +4581,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const addCourseValidationErrors = useMemo(() => createBranchCourseErrors(addCourseForm), [addCourseForm])
   const addCourseDuplicateErrors = useMemo(
     () => getBranchCourseDuplicateErrors(addCourseForm, branchCourseCards, editingCourseId),
-    [addCourseForm.courseCode, branchCourseCards, editingCourseId],
+    [addCourseForm.courseCode, addCourseForm.name, branchCourseCards, editingCourseId],
   )
   const addCourseVisibleBasicErrors = useMemo(
     () => ({
@@ -4678,6 +4707,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
   const updateAddCourseField = (field, value) => {
     setAddCourseError('')
+    if (field === 'courseCode' || field === 'name') {
+      setAddCourseTouched((current) => ({ ...current, [field]: true }))
+    }
     setAddCourseForm((current) => ({
       ...current,
       [field]: field === 'courseCode' ? normalizeBranchCourseCode(value) : value,
@@ -5288,7 +5320,10 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     isAddCourseSubmitLockedRef.current = false
     const nextForm = record
       ? buildBranchCourseFormFromRecord(record)
-      : createInitialBranchCourseForm()
+      : {
+          ...createInitialBranchCourseForm(),
+          courseCode: getNextBranchCourseCode(branchProfile?.branchId || branchData?.branchId, branchCourseCards),
+        }
     const nextHierarchy = record
       ? buildBranchCourseHierarchySummary(record.models || record.courseModels || record.modules || [])
       : []
@@ -5582,33 +5617,35 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setIsAddCourseSaving(true)
     try {
       const normalizedCourseCode = normalizeBranchCourseCode(addCourseForm.courseCode)
-      const editingTargetId = resolveBranchCourseEditableId(
-        branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || {
-          id: editingCourseId,
-          courseCode: addCourseForm.courseCode,
-          name: addCourseForm.name,
-        },
-        branchCourseCards,
-      )
+      // Only an explicitly opened edit form may issue PATCH. Duplicate code or
+      // name in a new form must remain a validation error, not an auto-update.
+      const editingTargetId = editingCourseId
+        ? resolveBranchCourseEditableId(
+            branchCourseCards.find((course) => String(course.id || '').trim() === String(editingCourseId || '').trim()) || { id: editingCourseId },
+            branchCourseCards,
+          )
+        : ''
       const duplicateCourse = branchCourseCards.find(
         (course) =>
           String(course.id || '').trim() !== editingTargetId &&
-          String(course.name || '').trim().toLowerCase() === String(addCourseForm.name || '').trim().toLowerCase(),
+          normalizeCourseNameKey(course.name) === normalizeCourseNameKey(addCourseForm.name),
       )
       const duplicateCourseCode = branchCourseCards.find(
         (course) =>
           String(course.id || '').trim() !== editingTargetId &&
-          String(course.courseCode || '').trim().toLowerCase() ===
-          String(normalizedCourseCode).trim().toLowerCase(),
+          String(course.courseCode || '').replace(/[^A-Z0-9]/gi, '').trim().toLowerCase() ===
+          String(normalizedCourseCode).replace(/[^A-Z0-9]/gi, '').trim().toLowerCase(),
       )
 
       if (duplicateCourseCode) {
+        setAddCourseTouched((current) => ({ ...current, courseCode: true }))
         setAddCourseError('Course code already exists.')
         isAddCourseSubmitLockedRef.current = false
         return
       }
 
       if (duplicateCourse) {
+        setAddCourseTouched((current) => ({ ...current, name: true }))
         setAddCourseError('Course already exists.')
         isAddCourseSubmitLockedRef.current = false
         return
@@ -5649,7 +5686,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       setEditingCourseId('')
       setAddCourseStep(1)
     } catch (error) {
-      setAddCourseError(apiErrorMessage(error, 'Unable to save course right now.'))
+      const message = apiErrorMessage(error, 'Unable to save course right now.')
+      const normalizedMessage = String(message).toLowerCase()
+      if (normalizedMessage.includes('course code already exists')) {
+        setAddCourseTouched((current) => ({ ...current, courseCode: true }))
+        setAddCourseStep(1)
+      } else if (normalizedMessage.includes('course name already exists') || normalizedMessage.includes('course already exists')) {
+        setAddCourseTouched((current) => ({ ...current, name: true }))
+        setAddCourseStep(1)
+      }
+      setAddCourseError(message)
     } finally {
       setIsAddCourseSaving(false)
       isAddCourseSubmitLockedRef.current = false
@@ -9106,7 +9152,6 @@ else {
                           <th>Discount</th> */}
                           <th>Final Fee</th>
 
-                          <th>Faculty</th>
                           <th>Actions</th>
                         </tr>
                       </thead>
@@ -9151,39 +9196,6 @@ else {
                                 <td>{formatBranchCourseAmount(course.discount || '0')}</td> */}
                                 <td>{formatBranchCourseFinalFee(course)}</td>
 
-                                <td>
-                                  <span className="branch-course-faculty-cell">
-                                    {Array.isArray(course.assignedFaculty) && course.assignedFaculty.length > 0 ? (
-                                      <span className="branch-course-faculty-summary">
-                                        <span className="branch-course-faculty-primary">
-                                          {course.assignedFaculty[0]?.name}
-                                        </span>
-
-                                        {course.assignedFaculty.length > 1 ? (
-                                          <span className="branch-course-faculty-more-wrap">
-                                            <button
-                                              type="button"
-                                              className="branch-course-faculty-more"
-                                              onClick={(event) => event.stopPropagation()}
-                                            >
-                                              +{course.assignedFaculty.length - 1}
-                                            </button>
-
-                                            <span className="branch-course-faculty-tooltip">
-                                              {course.assignedFaculty.slice(1).map((faculty) => (
-                                                <span key={faculty.id} className="branch-course-faculty-tooltip-item">
-                                                  {faculty.name}
-                                                </span>
-                                              ))}
-                                            </span>
-                                          </span>
-                                        ) : null}
-                                      </span>
-                                    ) : (
-                                      'Not Assigned'
-                                    )}
-                                  </span>
-                                </td>
                                 <td onClick={(event) => event.stopPropagation()}>
                                   <div className="branch-course-actions-wrap">
                                     <button
@@ -9295,7 +9307,7 @@ else {
                           })
                         ) : (
                           <tr>
-                            <td colSpan="6" className="branch-course-empty-state">
+                            <td colSpan="5" className="branch-course-empty-state">
                               No courses saved yet. Use Add Course to create the first one.
                             </td>
                           </tr>
@@ -11032,7 +11044,8 @@ else {
                         inputMode="numeric"
                         placeholder="001"
                         value={String(addCourseForm.courseCode || '').match(/(\d+)$/)?.[1] || ''}
-                        onChange={(event) => updateAddCourseField('courseCode', `${getBranchEntityPrefix(branchProfile?.branchId || branchData?.branchId, 'COU')}${event.target.value.replace(/\D/g, '').slice(0, 3)}`)}
+                        readOnly
+                        aria-readonly="true"
                         onBlur={() => markAddCourseTouched('courseCode')}
                         aria-invalid={Boolean(shouldShowBasicAddCourseError('courseCode'))}
                       />
@@ -11043,7 +11056,7 @@ else {
                     label="Course Name"
                     required
                     hint="Required field"
-                    error={shouldShowBasicAddCourseError('name') ? addCourseValidationErrors.basic.name : ''}
+                    error={shouldShowBasicAddCourseError('name') ? addCourseVisibleBasicErrors.name : ''}
                   >
                     <input
                       type="text"
@@ -11058,22 +11071,41 @@ else {
                   <Field
                     label="Mode"
                     required
+                    as="div"
                     hint="Online / Offline / Hybrid"
                     error={shouldShowBasicAddCourseError('mode') ? addCourseValidationErrors.basic.mode : ''}
                   >
-                    <select
-                      value={addCourseForm.mode}
-                      onChange={(event) => updateAddCourseField('mode', event.target.value)}
-                      onBlur={() => markAddCourseTouched('mode')}
-                      aria-invalid={Boolean(shouldShowBasicAddCourseError('mode'))}
-                    >
-                      <option value="" disabled>
-                        Select Mode
-                      </option>
-                      <option>Online</option>
-                      <option>Offline</option>
-                      <option>Hybrid</option>
-                    </select>
+                    <div className="branch-course-mode-options" role="radiogroup" aria-label="Course mode">
+                      {['Online', 'Offline', 'Hybrid'].map((mode) => {
+                        const selected = addCourseForm.mode === mode
+                        return (
+                          <div
+                            key={mode}
+                            className={`branch-course-mode-option ${selected ? 'is-selected' : ''}`.trim()}
+                          >
+                            <button
+                              type="button"
+                              className="branch-course-mode-checkbox"
+                              role="checkbox"
+                              aria-checked={selected}
+                              aria-label={`${selected ? 'Unselect' : 'Select'} ${mode} course mode`}
+                              onClick={() => {
+                                updateAddCourseField('mode', selected ? '' : mode)
+                                markAddCourseTouched('mode')
+                              }}
+                            >{selected ? '✓' : ''}</button>
+                            <button
+                              type="button"
+                              className="branch-course-mode-option-label"
+                              onClick={() => {
+                                updateAddCourseField('mode', selected ? '' : mode)
+                                markAddCourseTouched('mode')
+                              }}
+                            >{mode}</button>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </Field>
 
                   <Field
@@ -12197,6 +12229,32 @@ else {
                           <strong>{formatBranchCourseFinalFee(viewCourse)}</strong>
                         </div>
                       </div>
+
+                      {(() => {
+                        const assignedFaculty = Array.isArray(viewCourse.assignedFaculty)
+                          ? viewCourse.assignedFaculty.filter((faculty) => faculty?.name || faculty?.facultyId)
+                          : []
+                        const label = assignedFaculty.length === 1 ? 'Assigned Faculty' : 'Assigned Faculties'
+                        return (
+                          <div className="branch-course-view-row" role="row">
+                            <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">
+                              <Users size={20} strokeWidth={2.1} aria-hidden="true" />
+                              <span>{label}</span>
+                            </div>
+                            <div className="branch-course-view-cell branch-course-view-cell-value" role="cell">
+                              {assignedFaculty.length ? (
+                                <div className="branch-course-view-assigned-faculty-list">
+                                  {assignedFaculty.map((faculty) => (
+                                    <span key={faculty.id || faculty.facultyId || faculty.name}>
+                                      {faculty.name || faculty.facultyName || faculty.facultyId}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : <strong>Not Assigned</strong>}
+                            </div>
+                          </div>
+                        )
+                      })()}
 
                       {/* <div className="branch-course-view-row" role="row">
                         <div className="branch-course-view-cell branch-course-view-cell-label" role="cell">

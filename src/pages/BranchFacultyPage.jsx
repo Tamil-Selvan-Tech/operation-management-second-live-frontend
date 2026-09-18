@@ -243,12 +243,10 @@ export function BranchFacultyPage({ branchCode = '' }) {
     }
 
     refreshAttendance()
-    const timer = window.setInterval(refreshAttendance, 5000)
     return () => {
       cancelled = true
-      window.clearInterval(timer)
     }
-  }, [viewFaculty])
+  }, [viewFaculty?.id, viewFaculty?.dbId])
 
   // Load states on country code change
   useEffect(() => {
@@ -1558,7 +1556,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
                       {attendanceStatusLabel(displayAttendanceStatus(viewAttendance))}
                     </div>
                   )}
-                  {viewAttendanceLoading && <span className="branch-faculty-attendance-refresh">Updating…</span>}
+                  {viewAttendanceLoading && !viewAttendance && <span className="branch-faculty-attendance-refresh">Loading…</span>}
                 </div>
 
                 {viewAttendanceError ? (

@@ -458,7 +458,9 @@ function getNextBatchSequenceNumber(groups = []) {
   }) : []
 
   rows.forEach((row) => {
-    const match = String(row?.batchId || '').trim().match(/^BAT-(\d+)$/i)
+    // Backend stores branch-scoped IDs such as CISBRBAT006, while older
+    // local records may still use BAT-006. Read the numeric suffix from both.
+    const match = String(row?.batchId || '').trim().match(/(\d+)$/)
     if (!match) return
     const value = Number(match[1])
     if (Number.isInteger(value) && value > maxSequence) {

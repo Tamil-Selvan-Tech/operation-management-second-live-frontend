@@ -3018,6 +3018,25 @@ body.branch-notification-menu-open .main-area {
   padding: 8px 16px;
 }
 
+.branch-course-view-assigned-faculty-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.branch-course-view-assigned-faculty-list span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 11px;
+  border: 1px solid #cfe0ff;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .branch-course-view-cell-value strong {
   color: #374151;
   font-size: 14px;
@@ -10989,6 +11008,115 @@ body.branch-notification-menu-open .main-area {
 
 .branch-courses-table-shell .branch-course-table.is-empty .branch-course-empty-state {
   text-align: center;
+}
+
+/* The course table has five visible columns. Keep it inside the dashboard
+   instead of inheriting the wider student/payment table minimum width. */
+.branch-courses-table-shell {
+  overflow-x: hidden;
+}
+
+.branch-courses-table-shell .branch-course-table {
+  min-width: 0 !important;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.branch-courses-table-shell .branch-course-table th,
+.branch-courses-table-shell .branch-course-table td {
+  padding: 12px 10px;
+  overflow-wrap: anywhere;
+}
+
+.branch-courses-table-shell .branch-course-table th:nth-child(1),
+.branch-courses-table-shell .branch-course-table td:nth-child(1) { width: 8%; }
+.branch-courses-table-shell .branch-course-table th:nth-child(2),
+.branch-courses-table-shell .branch-course-table td:nth-child(2) { width: 20%; }
+.branch-courses-table-shell .branch-course-table th:nth-child(3),
+.branch-courses-table-shell .branch-course-table td:nth-child(3) { width: 34%; }
+.branch-courses-table-shell .branch-course-table th:nth-child(4),
+.branch-courses-table-shell .branch-course-table td:nth-child(4) { width: 20%; }
+.branch-courses-table-shell .branch-course-table th:nth-child(5),
+.branch-courses-table-shell .branch-course-table td:nth-child(5) { width: 18%; }
+
+.branch-course-mode-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.branch-course-mode-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #475569;
+  cursor: default;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.branch-course-mode-option.is-selected {
+  background: transparent;
+  color: #1d4ed8;
+  box-shadow: none;
+}
+
+.branch-course-mode-checkbox {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  padding: 0;
+  border: 1.5px solid #b8c6d8;
+  border-radius: 7px;
+  background: #fff;
+  color: transparent;
+  box-shadow: 0 2px 5px rgba(15, 35, 70, 0.08), inset 0 0 0 2px #fff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  appearance: none;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.branch-course-mode-checkbox:hover {
+  border-color: #5b8ff9;
+  box-shadow: 0 3px 8px rgba(37, 99, 235, 0.18), inset 0 0 0 2px #fff;
+  transform: translateY(-1px);
+}
+
+.branch-course-mode-checkbox:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.branch-course-mode-option-label {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.branch-course-mode-option-label:hover {
+  color: #1e40af;
+}
+
+.branch-course-mode-option.is-selected .branch-course-mode-checkbox {
+  border-color: #2563eb;
+  background: linear-gradient(145deg, #3d7cff, #1e5be7);
+  color: #fff;
+  box-shadow: 0 4px 9px rgba(37, 99, 235, 0.28), inset 0 0 0 2px rgba(255, 255, 255, 0.18);
 }
 
 .branch-students-table-shell .branch-course-table th:nth-child(1),
