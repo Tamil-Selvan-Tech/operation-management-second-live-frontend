@@ -130,7 +130,6 @@ import {
   buildProgressComparisonNotification,
   syncProgressComparisonNotifications,
 } from '../lib/progressComparisonNotification'
-import { getCourseStatusFromProgress, getCourseStatusLabel } from '../lib/courseStatus'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
@@ -8595,7 +8594,6 @@ useEffect(() => {
         <th>Total Fee</th>
         <th>Paid</th>
         <th>Course Progress</th>
-        <th>Course Status</th>
         <th>Next Installment</th>
         <th>Due Date</th>
         <th>Status</th>
@@ -8778,7 +8776,6 @@ else {
                 ? Math.min(100, Math.max(0, fallbackCourseProgress))
                 : (effectiveCourse ? 0 : null))
           const hasCourseProgress = Number.isFinite(studentCourseProgress)
-          const courseStatus = getCourseStatusFromProgress(studentCourseProgress)
 
           return (
             <tr
@@ -8841,11 +8838,6 @@ else {
                     <span className="faculty-today-work-empty-label">-</span>
                   )
                 }
-              </td>
-              <td>
-                <span className={`branch-student-course-status ${courseStatus.toLowerCase()}`}>
-                  {hasCourseProgress ? getCourseStatusLabel(courseStatus) : '-'}
-                </span>
               </td>
               <td>
                 {nextInstallment ? (

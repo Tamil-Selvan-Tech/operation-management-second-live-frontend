@@ -977,14 +977,6 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
   const courseName = normalizeCourseKey(course?.name || course?.courseName || '')
 
   return dedupeStudentsByIdentity((Array.isArray(students) ? students : []).filter((student) => {
-    // The active Students view must never include a student whose persisted
-    // course progress is complete. The backend already applies this lifecycle
-    // filter, but keeping the guard here also protects batch-detail views from
-    // stale cached records.
-    if (isCompletedStudentRecord(student)) {
-      return false
-    }
-
     const context = resolveFacultyBatchContextForStudent(student, backfillRecords)
     // Direct assignment fields on the student are authoritative. Profile
     // context is only a legacy fallback and must not move a student to a
@@ -1016,13 +1008,6 @@ function isAttendanceDayForBatch(batch = {}, date = new Date()) {
   }).format(date)
   const isWeekend = weekday === 'Sat' || weekday === 'Sun'
   return weekType === 'WEEKEND' ? isWeekend : !isWeekend
-}
-
-function isCompletedStudentRecord(student = {}) {
-  const persistedCourseProgress = Number(student?.courseProgress)
-  const persistedCourseStatus = String(student?.courseStatus || '').trim().toUpperCase()
-  return persistedCourseStatus === 'COMPLETED'
-    || (Number.isFinite(persistedCourseProgress) && persistedCourseProgress >= 100)
 }
 
 function getCourseFromSource(source = {}) {
@@ -1648,7 +1633,6 @@ export function FacultyDashboardPage() {
   const [batchPage, setBatchPage] = useState(1)
   const [studentsPage, setStudentsPage] = useState(1)
   const [studentsViewMode, setStudentsViewMode] = useState('active')
-  const [isStudentsSubnavOpen, setIsStudentsSubnavOpen] = useState(false)
   const [studentRecordsSearch, setStudentRecordsSearch] = useState('')
   const [studentRecordsPage, setStudentRecordsPage] = useState(1)
   const [courseEditRequests, setCourseEditRequests] = useState([])
@@ -1739,13 +1723,10 @@ export function FacultyDashboardPage() {
     let isMounted = true
     const refreshStudentsForSummaryBranch = async () => {
       try {
-        const [activeRecords, completedRecords] = await Promise.all([
-          listBranchStudentsByLifecycle(branchScopeId, 'active'),
-          listBranchStudentsByLifecycle(branchScopeId, 'completed'),
-        ])
+        const activeRecords = await listBranchStudentsByLifecycle(branchScopeId)
         if (isMounted) {
           setStudents(activeRecords)
-          setCompletedStudents(completedRecords)
+          setCompletedStudents([])
         }
       } catch (error) {
         if (isMounted) {
@@ -1875,12 +1856,9 @@ export function FacultyDashboardPage() {
         let nextStudents = []
         try {
           if (branchScopeId) {
-            const [activeRecords, completedRecords] = await Promise.all([
-              listBranchStudentsByLifecycle(branchScopeId, 'active'),
-              listBranchStudentsByLifecycle(branchScopeId, 'completed'),
-            ])
+            const activeRecords = await listBranchStudentsByLifecycle(branchScopeId)
             nextStudents = activeRecords
-            if (isMounted) setCompletedStudents(completedRecords)
+            if (isMounted) setCompletedStudents([])
           } else {
             nextStudents = loadBranchStudents()
             if (isMounted) setCompletedStudents([])
@@ -1890,9 +1868,9 @@ export function FacultyDashboardPage() {
           // temporarily unavailable; the local cache is still a safe fallback.
           console.error('Failed to refresh faculty students', studentError)
           const fallbackStudents = loadBranchStudents(branchScopeId)
-          nextStudents = fallbackStudents.filter((student) => !isCompletedStudentRecord(student))
-          if (isMounted) {
-            setCompletedStudents(fallbackStudents.filter((student) => isCompletedStudentRecord(student)))
+            nextStudents = fallbackStudents
+            if (isMounted) {
+              setCompletedStudents([])
           }
         }
 
@@ -2327,9 +2305,6 @@ export function FacultyDashboardPage() {
       : backfilledStudents
 
     return getExactFacultyStudents(branchScopedStudents, facultyId, facultyNameValue, facultyEmailValue)
-      .filter((student) => {
-        return !isCompletedStudentRecord(student)
-      })
   }, [backfilledStudents, currentFacultyIdentity.branchCode, currentFacultyIdentity.branchId, currentFacultyIdentity.facultyEmail, currentFacultyIdentity.facultyId, currentFacultyIdentity.facultyName])
 
   const facultyTodayWorkEntries = useMemo(() => {
@@ -4451,13 +4426,12 @@ const nextName = trimmedValue
         ].filter((item) => item.id !== 'other-faculty-batches' || hasTemporaryAssignments).map((item) => {
           const Icon = item.icon
           const isActive = activeSection === item.id
-          const isStudentRecordsActive = item.id === 'students' && isActive && studentsViewMode === 'records'
           const studentNavigation = (
             <>
               <div className="super-admin-sidebar-parent-row">
                 <button
                   type="button"
-                  className={`super-admin-sidebar-item ${isActive && !isStudentRecordsActive ? 'is-active' : ''}`.trim()}
+                  className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
                   onClick={() => {
                     handleSidebarSectionChange('students')
                     setStudentsViewMode('active')
@@ -4470,35 +4444,7 @@ const nextName = trimmedValue
                   </span>
                   <span>{item.label}</span>
                 </button>
-                <button
-                  type="button"
-                  className={`super-admin-sidebar-expand-button ${isStudentsSubnavOpen ? 'is-open' : ''}`.trim()}
-                  aria-label={`${isStudentsSubnavOpen ? 'Collapse' : 'Expand'} Student Records`}
-                  aria-expanded={isStudentsSubnavOpen}
-                  onClick={() => {
-                    handleSidebarSectionChange('students')
-                    setIsStudentsSubnavOpen((open) => !open)
-                  }}
-                >
-                  <ChevronDown size={16} />
-                </button>
               </div>
-              {isActive && isStudentsSubnavOpen ? (
-                <button
-                  type="button"
-                  className={`super-admin-sidebar-subitem ${isStudentRecordsActive ? 'is-active' : ''}`.trim()}
-                  onClick={() => {
-                    handleSidebarSectionChange('students')
-                    setStudentsViewMode('records')
-                    setIsStudentsSubnavOpen(true)
-                    setSelectedStudentsCourseId('')
-                    setSelectedStudentsBatchId('')
-                  }}
-                >
-                  <span aria-hidden="true" />
-                  <span>Student Records</span>
-                </button>
-              ) : null}
             </>
           )
 
@@ -5392,7 +5338,7 @@ const nextName = trimmedValue
                                   <td>{index + 1}</td>
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
                                   <td>{String(batch.weekType || batch.weekdayType || '').toUpperCase() === 'WEEKEND' ? 'Weekend' : String(batch.weekType || batch.weekdayType || '').toUpperCase() === 'WEEKDAY' ? 'Weekday' : '-'}</td>
-                                  <td>{batch.students}</td>
+                                  <td>{batchStudents.length}</td>
                                   <td><span className="faculty-batch-attendance-count faculty-batch-attendance-count--present">{batchAttendanceCounts.present}</span></td>
                                   <td><span className="faculty-batch-attendance-count faculty-batch-attendance-count--absent">{batchAttendanceCounts.absent}</span></td>
                                   {/*
@@ -5464,7 +5410,6 @@ const nextName = trimmedValue
                               <th>Paid</th>
                               {/* <th>Module Progress</th> */}
                               <th>Course Progress</th>
-                              <th>Course Status</th>
                               <th>Actions</th>
                             </tr>
                           </thead>
@@ -5516,8 +5461,6 @@ const nextName = trimmedValue
                                     ? Math.min(100, Math.max(0, storedCourseProgress))
                                     : 0
                                 const workCourseProgressLabel = `${Math.round(workCourseProgress)}% Complete`
-                                const courseStatus = getCourseStatusFromProgress(workCourseProgress)
-
                                 return (
                                   <tr
                                     key={student.id || student.studentId || `${studentName}-${index}`}
@@ -5591,11 +5534,6 @@ const nextName = trimmedValue
                                           </span>
                                         </div>
                                       </div>
-                                    </td>
-                                    <td>
-                                      <span className={`faculty-student-course-status ${courseStatus.toLowerCase()}`}>
-                                        {getCourseStatusLabel(courseStatus)}
-                                      </span>
                                     </td>
                                     <td>
                                       <button

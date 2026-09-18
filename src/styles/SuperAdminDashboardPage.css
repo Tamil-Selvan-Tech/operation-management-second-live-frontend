@@ -78,6 +78,7 @@
 .super-admin-sidebar-nav {
   display: grid;
   gap: 14px;
+  align-content: start;
 }
 
 .super-admin-sidebar-section {
