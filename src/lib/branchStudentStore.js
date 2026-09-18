@@ -78,6 +78,12 @@ function normalizeStoredStudentRecord(record = {}) {
     courseProgress: record.courseProgress,
     courseCompletionPercentage: record.courseCompletionPercentage,
     progress: record.progress,
+    feeScheduleMode: record.feeScheduleMode || 'MONTHLY_FIXED_DATE',
+    feeFirstPaymentDate: record.feeFirstPaymentDate || record.admissionDate || '',
+    fee70ProgressDate: record.fee70ProgressDate || '',
+    fee70TargetHours: record.fee70TargetHours ?? '',
+    feePaymentDeadline: record.feePaymentDeadline || record.fee70ProgressDate || '',
+    feeComplianceStatus: record.feeComplianceStatus || 'PENDING',
     _fromBackend: Boolean(record._fromBackend),
     _isExistingRecord: Boolean(record._isExistingRecord),
   }

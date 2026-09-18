@@ -433,6 +433,12 @@ function createInitialStudentForm(branchId) {
     paymentPlan: '',
     paymentMode: '',
     installmentSchedule: [],
+    feeScheduleMode: 'MONTHLY_FIXED_DATE',
+    feeFirstPaymentDate: '',
+    fee70ProgressDate: '',
+    fee70TargetHours: '',
+    feePaymentDeadline: '',
+    feeComplianceStatus: 'PENDING',
     courseProgress: 0,
     progress: 0,
   }
@@ -489,6 +495,12 @@ function buildStudentFormFromRecord(student = {}) {
     installmentSchedule: Array.isArray(student.installmentSchedule)
       ? student.installmentSchedule
       : [],
+    feeScheduleMode: student.feeScheduleMode || 'MONTHLY_FIXED_DATE',
+    feeFirstPaymentDate: student.feeFirstPaymentDate || student.admissionDate || '',
+    fee70ProgressDate: student.fee70ProgressDate || '',
+    fee70TargetHours: student.fee70TargetHours ?? '',
+    feePaymentDeadline: student.feePaymentDeadline || student.fee70ProgressDate || '',
+    feeComplianceStatus: student.feeComplianceStatus || 'PENDING',
   }
 }
 
@@ -7940,6 +7952,8 @@ useEffect(() => {
       courseMode: String(studentForm.courseMode || '').trim(),
       mode: String(selectedBatch?.mode || studentForm.courseMode || '').trim().toUpperCase(),
       paymentMode: studentForm.paymentMode || 'Installment',
+      feeScheduleMode: studentForm.feeScheduleMode || 'MONTHLY_FIXED_DATE',
+      feeFirstPaymentDate: studentForm.feeFirstPaymentDate || studentForm.admissionDate || '',
       courseProgress: 0,
       progress: 0,
       installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
@@ -14840,6 +14854,31 @@ else {
       )}
   </select>
 </Field>
+
+       <Field
+         label="Fee Schedule"
+         className="student-course-step-payment"
+       >
+         <select
+           value={studentForm.feeScheduleMode || 'MONTHLY_FIXED_DATE'}
+           onChange={(e) => updateStudentField('feeScheduleMode', e.target.value)}
+           disabled={studentFormMode === 'view'}
+         >
+           <option value="MONTHLY_FIXED_DATE">Monthly Fixed Date</option>
+           <option value="BEFORE_70_PERCENT">Complete Fee Before 70% Progress</option>
+           <option value="CUSTOM_DATES">Custom Installment Dates</option>
+         </select>
+         {studentForm.feeScheduleMode === 'BEFORE_70_PERCENT' ? (
+           <small className="field-hint">
+             Installment dates are calculated from the actual batch calendar and must finish by the 70% course-progress date.
+           </small>
+         ) : null}
+         {studentForm.feePaymentDeadline ? (
+           <small className="field-hint">
+             70% payment deadline: {studentForm.feePaymentDeadline}
+           </small>
+         ) : null}
+       </Field>
 
       </div>
 
