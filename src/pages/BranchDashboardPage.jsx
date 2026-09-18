@@ -6552,13 +6552,14 @@ const studentCourseOptions = useMemo(() => {
   }, [branchBatchGroups, branchCourseCards, branchStudents, dashboardCourseDraft])
 
   const dashboardData = useMemo(() => {
-    const today = new Date()
+    const selectedDate = dashboardDateFrom || ''
+    const today = selectedDate ? new Date(`${selectedDate}T00:00:00`) : new Date()
     today.setHours(0, 0, 0, 0)
     const todayValue = getDashboardDateValue(today)
     const weekEnd = new Date(today)
     weekEnd.setDate(weekEnd.getDate() + (7 - ((today.getDay() + 6) % 7) - 1))
     const from = dashboardDateFrom || ''
-    const to = dashboardDateTo || ''
+    const to = dashboardDateTo || dashboardDateFrom || ''
     const normalizeFilterValue = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
     const matchesFilterValue = (values, selectedValue, selectedLabel = '') => {
       if (selectedValue === 'all') return true
@@ -6696,7 +6697,7 @@ const studentCourseOptions = useMemo(() => {
 
   const trendingCourses = useMemo(() => {
     const courseMap = new Map()
-    branchStudents.forEach((student) => {
+    dashboardData.students.forEach((student) => {
       const status = String(student.status || student.currentStatus || '').trim().toLowerCase()
       if (['inactive', 'deleted', 'cancelled', 'canceled', 'discontinued', 'rejected', 'withdrawn'].includes(status)) return
       const courseName = String(student.courseName || student.courseInterested || student.course?.name || '').trim()
@@ -6712,7 +6713,7 @@ const studentCourseOptions = useMemo(() => {
       .sort((left, right) => right.totalStudents - left.totalStudents || right.totalAdmissions - left.totalAdmissions || left.courseName.localeCompare(right.courseName))
       .slice(0, 3)
       .map((course, index) => ({ ...course, rank: index + 1 }))
-  }, [branchStudents])
+  }, [dashboardData.students])
 
   const paymentModeFilterOptions = useMemo(() => {
     const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque', 'Installment']
@@ -6731,12 +6732,20 @@ const studentCourseOptions = useMemo(() => {
   const currentMonthAdmissions = dashboardData.currentMonthStudents
   const batchAvailability = useMemo(() => {
     const records = []
+    const normalizeFilterValue = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
+    const selectedCourse = dashboardFilterOptions.courses.find((course) => course.id === dashboardCourseFilter)
+    const selectedBatch = dashboardFilterOptions.batches.find((batch) => batch.id === dashboardBatchFilter)
+    const referenceDate = dashboardDateFrom ? new Date(`${dashboardDateFrom}T00:00:00`) : new Date()
     branchBatchGroups.forEach((group) => {
       const batches = Array.isArray(group?.batches) && group.batches.length ? group.batches : [group]
       batches.forEach((batch, index) => {
         const endDate = batch?.courseEndDate || group?.courseEndDate || ''
         if (!endDate) return
-        const availability = getBatchAvailability(endDate)
+        const courseValues = [batch?.courseId, group?.courseId, batch?.courseName, group?.courseName]
+        const batchValues = [batch?.batchId, batch?.id, batch?.batchName, group?.batchId, group?.batchName]
+        if (dashboardCourseFilter !== 'all' && !courseValues.some((value) => [dashboardCourseFilter, selectedCourse?.label].map(normalizeFilterValue).includes(normalizeFilterValue(value)))) return
+        if (dashboardBatchFilter !== 'all' && !batchValues.some((value) => [dashboardBatchFilter, selectedBatch?.label].map(normalizeFilterValue).includes(normalizeFilterValue(value)))) return
+        const availability = getBatchAvailability(endDate, referenceDate)
         records.push({
           ...availability,
           batchId: batch?.batchId || batch?.id || group?.batchId || `batch-${index}`,
@@ -6747,7 +6756,7 @@ const studentCourseOptions = useMemo(() => {
       })
     })
     return records
-  }, [branchBatchGroups])
+  }, [branchBatchGroups, dashboardBatchFilter, dashboardCourseFilter, dashboardDateFrom, dashboardFilterOptions])
   const availableBatchRecords = batchAvailability.filter((batch) => batch.remainingDays >= 0 && batch.remainingDays <= 4)
   const nextMonthExpectedAdmissions = currentMonthAdmissions + 10
   const nextMonthTargetAdmissions = 30
@@ -8160,7 +8169,8 @@ useEffect(() => {
                       <option value="all">All Batches</option>
                       {dashboardFilterOptions.batches.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
                     </select></label>
-                    <button type="button" className="dashboard-filter-apply" onClick={() => { setDashboardCourseFilter(dashboardCourseDraft); setDashboardBatchFilter(dashboardBatchDraft); setDashboardDateFrom(dashboardDateFromDraft); setDashboardDateTo(dashboardDateToDraft) }}>Apply</button>
+                    <label><span>Date</span><input type="date" value={dashboardDateFromDraft} onChange={(event) => { setDashboardDateFromDraft(event.target.value); setDashboardDateToDraft(event.target.value) }} aria-label="Filter by date" /></label>
+                    <button type="button" className="dashboard-filter-apply" onClick={() => { setDashboardCourseFilter(dashboardCourseDraft); setDashboardBatchFilter(dashboardBatchDraft); setDashboardDateFrom(dashboardDateFromDraft); setDashboardDateTo(dashboardDateFromDraft) }}>Apply</button>
                     <button type="button" className="dashboard-filter-reset" onClick={() => { setDashboardCourseDraft('all'); setDashboardBatchDraft('all'); setDashboardDateFromDraft(''); setDashboardDateToDraft(''); setDashboardCourseFilter('all'); setDashboardBatchFilter('all'); setDashboardDateFrom(''); setDashboardDateTo('') }}>Reset</button>
                   </div>
 
@@ -8367,7 +8377,20 @@ useEffect(() => {
                     </section>
                     <section className="branch-dashboard-analytics-card dashboard-fee-status-card">
                       <div className="branch-dashboard-analytics-heading"><div><span>Fee Status</span><h2>Collection breakdown</h2></div></div>
-                      <div className="dashboard-donut-wrap"><div className="dashboard-donut" style={{ background: `conic-gradient(#16a34a 0 ${dashboardData.totalFee ? (dashboardData.statusValues[0] / dashboardData.totalFee) * 360 : 0}deg, #f59e0b 0 ${dashboardData.totalFee ? ((dashboardData.statusValues[0] + dashboardData.statusValues[1]) / dashboardData.totalFee) * 360 : 0}deg, #ef4444 0 360deg)` }}><div><strong>{formatBranchPercentage(dashboardData.collectionPercentage)}%</strong><small>collected</small></div></div><div className="dashboard-donut-legend"><span><i className="is-collected" />Collected <b>{formatBranchRupees(dashboardData.statusValues[0])}</b></span><span><i className="is-pending" />Outstanding <b>{formatBranchRupees(dashboardData.statusValues[1])}</b></span><span><i className="is-overdue" />Overdue <b>{formatBranchRupees(dashboardData.statusValues[2])}</b></span><span><i className="is-target" />Target <b>{formatBranchRupees(dashboardData.totalFee)}</b></span></div></div>
+                      <div className="dashboard-bar-chart" aria-label="Fee status collection breakdown bar chart">
+                        {[
+                          ['Collected', dashboardData.statusValues[0], 'is-collected'],
+                          ['Outstanding', dashboardData.statusValues[1], 'is-pending'],
+                          ['Overdue', dashboardData.statusValues[2], 'is-overdue'],
+                          ['Target', dashboardData.totalFee, 'is-target'],
+                        ].map(([label, value, tone]) => (
+                          <div className="dashboard-bar-column" key={label}>
+                            <b className="dashboard-bar-value">{formatBranchRupees(value)}</b>
+                            <div className="dashboard-bar-track"><span className={tone} style={{ height: `${dashboardData.totalFee ? Math.min(100, (value / dashboardData.totalFee) * 100) : 0}%` }} /></div>
+                            <span className="dashboard-bar-label"><i className={tone} />{label}</span>
+                          </div>
+                        ))}
+                      </div>
                     </section>
                   </div>
 

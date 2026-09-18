@@ -18,23 +18,31 @@ function MetricCard({ label, value, icon: Icon, tone = '', variant = '', compari
   </article>
 }
 
-function AdmissionDonut({ data, isLoading }) {
+function AdmissionBarChart({ data, isLoading }) {
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
-  let offset = 0
   const colors = ['#2f80ed', '#8b5cf6', '#10a978', '#f59e0b', '#ef6c78', '#4f9cf9']
-  const gradient = data.length
-    ? `conic-gradient(${data.map((item, index) => {
-        const start = offset
-        offset += (Number(item.value || 0) / Math.max(total, 1)) * 100
-        return `${colors[index % colors.length]} ${start}% ${offset}%`
-      }).join(', ')})`
-    : '#eaf0f7'
+  const max = Math.max(...data.map((item) => Number(item.value) || 0), 1)
 
+  return <div className="sa-admission-bar-wrap">
+    <div className={`sa-admission-bars ${isLoading ? 'is-loading' : ''}`} aria-label={`Total ${total} admissions`}>
+      {data.map((item, index) => (
+        <div className="sa-admission-bar-column" key={item.key || `${item.label}-${index}`}>
+          <strong>{isLoading ? 'â€”' : item.value}</strong>
+          <div className="sa-admission-bar-track"><span style={{ height: `${Math.max(4, ((Number(item.value) || 0) / max) * 100)}%`, background: colors[index % colors.length] }} /></div>
+          <small>{item.label}</small>
+        </div>
+      ))}
+    </div>
+  </div>
+
+  /* Legacy donut markup retained below for styling compatibility. */
+  /*
   return <div className="sa-admission-donut-wrap">
-    <div className={`sa-admission-donut ${isLoading ? 'is-loading' : ''}`} style={{ background: gradient }} aria-label={`Total ${total} admissions`}>
+    <div className={`sa-admission-donut ${isLoading ? 'is-loading' : ''}`} style={{ background: '#eaf0f7' }} aria-label={`Total ${total} admissions`}>
       <div className="sa-admission-donut-hole"><span>Total</span><strong>{isLoading ? '—' : total}</strong><span>Admissions</span></div>
     </div>
   </div>
+  */
 }
 
 function BarChart({ title, data, formatter, emptyMessage }) {
@@ -194,7 +202,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
           <span className="sa-overall-panel-icon"><Users size={18} /></span>
         </div>
         <div className="sa-admission-overview-content">
-          <AdmissionDonut data={overview?.admissionsByMonth || []} isLoading={isLoading} />
+          <AdmissionBarChart data={overview?.admissionsByMonth || []} isLoading={isLoading} />
           <div className="sa-admission-breakdown" aria-label="Monthly admission breakdown">
             {(overview?.admissionsByMonth || []).map((item, index, items) => <div className={`sa-admission-breakdown-row ${index === items.length - 1 ? 'is-current' : ''}`} key={item.key}><span className="sa-admission-dot" style={{ background: ['#2f80ed', '#8b5cf6', '#10a978', '#f59e0b', '#ef6c78', '#4f9cf9'][index % 6] }} /><span>{item.label}</span><strong>{isLoading ? '—' : item.value}</strong></div>)}
             {!isLoading && !(overview?.admissionsByMonth || []).length ? <span className="sa-admission-empty">No admission data available.</span> : null}

@@ -16,6 +16,12 @@
 .attendance-insights-donut { width: 120px; flex-shrink: 0; }
 .attendance-insights-donut text { font-size: 12px; font-family: inherit; fill: #526179; }
 .attendance-insights-donut .attendance-donut-total { font-size: 22px; font-weight: 700; fill: #172b4d; }
+.attendance-bar-chart { display: flex; align-items: stretch; justify-content: space-between; gap: 60px; width: 600px; min-height: 150px; padding: 6px 2px 0; }
+.attendance-bar-column { display: grid; grid-template-rows: 18px minmax(0, 1fr) 28px; align-items: end; flex: 1 1 0; min-width: 0; gap: 5px; text-align: center; }
+.attendance-bar-value { color: #172b4d; font-size: 12px; line-height: 18px; }
+.attendance-bar-track { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+.attendance-bar-track span { display: block; width: min(24px, 70%); min-height: 3px; border-radius: 5px 5px 1px 1px; transition: height .2s ease; }
+.attendance-bar-column small { overflow: hidden; color: #526179; font-size: 10px; line-height: 1.2; text-overflow: ellipsis; white-space: normal; }
 .attendance-donut-legend { flex: 1; min-width: 0; }
 .attendance-donut-legend > div { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; margin: 12px 0; font-size: 13px; }
 .attendance-donut-legend span { display: flex; align-items: center; gap: 6px; }

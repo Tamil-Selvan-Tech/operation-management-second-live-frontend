@@ -4341,6 +4341,14 @@ body.super-admin-sidebar-open {
 .sa-admission-donut-hole span { color: #8b98aa; font-size: 9px; line-height: 1; }
 .sa-admission-donut-hole strong { color: #192a40; font-size: 22px; line-height: 1; }
 .sa-admission-donut.is-loading { opacity: .45; }
+.sa-admission-bar-wrap { display: grid; place-items: center; min-width: 0; }
+.sa-admission-bars { display: flex; align-items: stretch; justify-content: space-between; gap: 8px; width: 100%; min-height: 170px; padding: 8px 4px 0; }
+.sa-admission-bars.is-loading { opacity: .45; }
+.sa-admission-bar-column { display: grid; grid-template-rows: 18px minmax(0, 1fr) 30px; align-items: end; flex: 1 1 0; min-width: 0; gap: 6px; text-align: center; }
+.sa-admission-bar-column strong { overflow: hidden; color: #273850; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.sa-admission-bar-track { display: flex; align-items: flex-end; justify-content: center; width: 100%; height: 100%; overflow: hidden; border-radius: 5px 5px 1px 1px; background: transparent; }
+.sa-admission-bar-track span { display: block; width: min(24px, 62%); min-height: 4px; border-radius: 5px 5px 1px 1px; transition: height .2s ease; }
+.sa-admission-bar-column small { overflow: hidden; color: #718096; font-size: 10px; line-height: 1.2; text-overflow: ellipsis; white-space: normal; }
 .sa-admission-breakdown { display: grid; gap: 7px; min-width: 0; }
 .sa-admission-breakdown-row { display: grid; grid-template-columns: 8px 1fr auto; align-items: center; gap: 8px; min-height: 25px; padding: 3px 6px; border-radius: 6px; color: #718096; font-size: 11px; }
 .sa-admission-breakdown-row.is-current { background: #f1f7ff; color: #1e5ebc; font-weight: 650; }
