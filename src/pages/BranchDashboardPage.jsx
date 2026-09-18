@@ -61,6 +61,7 @@ import {
   assignFacultyToBranchCourse,
   createBranchCourse,
   deleteBranchCourse,
+  getBranchCourse,
   listBranchCourses,
   updateBranchCourse,
 } from '../services/branchCourseService'
@@ -2377,7 +2378,7 @@ function normalizeBranchCourseSubmodels(submodels = [], modelIndex = 0) {
 
   return items.map((submodel, submodelIndex) => ({
     id: String(submodel?.id || createCourseNodeId(`submodel-${modelIndex + 1}`)),
-    name: String(submodel?.name || submodel?.title || ''),
+    name: String(submodel?.name || submodel?.title || submodel?.submoduleName || '').trim(),
   }))
 }
 
@@ -2390,7 +2391,7 @@ function normalizeBranchCourseModels(models = []) {
 
   return items.map((model, modelIndex) => ({
     id: String(model?.id || createCourseNodeId(`model-${modelIndex + 1}`)),
-    name: String(model?.name || model?.title || ''),
+    name: String(model?.name || model?.title || model?.moduleName || model?.moduleTitle || '').trim(),
     submodels: normalizeBranchCourseSubmodels(getBranchCourseSubmodelSource(model), modelIndex),
   }))
 }
@@ -5538,13 +5539,28 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     navigate('/branch-dashboard?section=installments')
   }
 
-  const openViewCourseDrawer = (course) => {
-    setViewCourse(normalizeBranchCourseRecord(course))
+  const openViewCourseDrawer = async (course) => {
+    const courseId = resolveBranchCourseEditableId(course, branchCourseCards)
+    const listCourse = normalizeBranchCourseRecord(course)
+
+    setViewCourse(listCourse)
     setViewCourseTab('basic')
     setExpandedViewCourseModuleIds([])
     setViewCoursePaymentPlanOpenId('')
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
+
+    if (!courseId) return
+
+    try {
+      const fullCourse = await getBranchCourse(courseId)
+      if (fullCourse) {
+        setViewCourse(normalizeBranchCourseRecord(fullCourse))
+      }
+    } catch (error) {
+      // Keep the list data visible if the detail request fails.
+      console.warn('Failed to load full course details for view', error)
+    }
   }
 
   const closeViewCourseDrawer = () => {
@@ -12442,7 +12458,7 @@ else {
                   </button>
                 </div>
 
-                <div className="branch-course-view-content">
+                <div className={`branch-course-view-content ${viewCourseTab === 'modules' ? 'is-modules-view' : ''}`.trim()}>
                   {viewCourseTab === 'basic' ? (
                     <div className="branch-course-view-table" role="table" aria-label="Course details">
                       <div className="branch-course-view-table-header" role="row">
@@ -12738,14 +12754,20 @@ else {
                             const isExpanded = expandedViewCourseModuleIds.includes(model.id)
 
                             return (
-                              <article key={model.id} className="branch-course-view-model-card">
+                              <article
+                                key={model.id}
+                                className={`branch-course-view-model-card ${isExpanded ? 'is-expanded' : ''}`.trim()}
+                              >
                                 <div className="branch-course-view-model-row" role="row">
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-module" role="cell">
                                     <span>Module {modelIndex + 1}</span>
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-name" role="cell">
-                                    <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
+                                    <div className="branch-course-view-model-name-copy">
+                                      <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
+                                      <small>{model.submodels.length} submodule{model.submodels.length === 1 ? '' : 's'}</small>
+                                    </div>
                                   </div>
 
                                   <div className="branch-course-view-model-cell branch-course-view-model-cell-percentage" role="cell">
@@ -12773,9 +12795,11 @@ else {
                                   <div className="branch-course-view-submodels">
                                     {model.submodels.length ? (
                                       model.submodels.map((submodel, submodelIndex) => (
-                                        <div key={submodel.id} className="branch-course-view-submodel">
-                                          <div>
-                                            <span>Submodel {submodelIndex + 1}</span>
+                                      <div key={submodel.id} className="branch-course-view-submodel">
+                                        <div>
+                                            <span className="branch-course-view-submodel-index">
+                                              {String(submodelIndex + 1).padStart(2, '0')}
+                                            </span>
                                             <strong>{submodel.name || `Submodel ${submodelIndex + 1}`}</strong>
                                           </div>
                                         </div>

@@ -284,6 +284,14 @@ export async function listBranchCourses(query = {}) {
   }
 }
 
+export async function getBranchCourse(courseId) {
+  const id = String(courseId || '').trim()
+  if (!id) return null
+
+  const response = await request(`/branch-courses/${encodeURIComponent(id)}`)
+  return normalizeBranchCourse(unwrapData(response))
+}
+
 export async function createBranchCourse(payload) {
   const response = await request('/branch-courses', {
     method: 'POST',
