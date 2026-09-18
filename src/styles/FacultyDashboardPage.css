@@ -655,6 +655,34 @@ body.faculty-notification-menu-open .super-admin-content {
   white-space: nowrap;
 }
 
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(3),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(3) {
+  width: 120px;
+  min-width: 120px;
+}
+
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(2),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(2) {
+  width: 24%;
+}
+
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(4),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(4) {
+  width: 96px;
+}
+
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(5),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(5),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(6),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(6) {
+  width: 130px;
+}
+
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(7),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(7) {
+  width: 170px;
+}
+
 .super-admin-page .faculty-students-flow-stage {
   display: grid;
   gap: 16px;
@@ -1128,6 +1156,13 @@ body.faculty-notification-menu-open .super-admin-content {
   border-color: #cbd5e1;
   background: #f8fafc;
   box-shadow: 0 14px 24px rgba(15, 23, 42, 0.08);
+}
+
+.faculty-today-work-trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .faculty-student-action-buttons {

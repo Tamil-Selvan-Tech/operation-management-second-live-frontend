@@ -88,7 +88,7 @@ import { saveStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { Button } from '../components/Button'
 import { FacultyLeaveRequests } from '../components/FacultyLeaveRequests'
 import { FacultyCalendar } from '../components/FacultyCalendar'
-import { getFacultyTemporaryBatches, getTemporaryBatchStudents } from '../services/facultyCalendarService'
+import { getFacultyCalendar, getFacultyTemporaryBatches, getTemporaryBatchStudents } from '../services/facultyCalendarService'
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 import '../styles/FacultyDashboardPage.css'
@@ -1006,6 +1006,18 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
   }))
 }
 
+function isAttendanceDayForBatch(batch = {}, date = new Date()) {
+  const weekType = String(batch?.weekType || batch?.weekdayType || '').trim().toUpperCase()
+  if (!weekType) return true
+
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    timeZone: 'Asia/Calcutta',
+  }).format(date)
+  const isWeekend = weekday === 'Sat' || weekday === 'Sun'
+  return weekType === 'WEEKEND' ? isWeekend : !isWeekend
+}
+
 function isCompletedStudentRecord(student = {}) {
   const persistedCourseProgress = Number(student?.courseProgress)
   const persistedCourseStatus = String(student?.courseStatus || '').trim().toUpperCase()
@@ -1679,6 +1691,7 @@ export function FacultyDashboardPage() {
   const attendanceWarningLevelRef = useRef(0)
   const [todayWorkAttendanceSearch, setTodayWorkAttendanceSearch] = useState('')
   const [attendanceClock, setAttendanceClock] = useState(() => new Date())
+  const [activeTemporaryAttendanceSession, setActiveTemporaryAttendanceSession] = useState(null)
   const [courseEditError, setCourseEditError] = useState('')
   const [isCourseRequestSaving, setIsCourseRequestSaving] = useState(false)
   const [isCourseEditSaving, setIsCourseEditSaving] = useState(false)
@@ -1691,8 +1704,6 @@ export function FacultyDashboardPage() {
     const intervalId = window.setInterval(() => setAttendanceClock(new Date()), 1000)
     return () => window.clearInterval(intervalId)
   }, [selectedStudentsBatchId, temporarySessionContext])
-
-
 
   useEffect(() => {
     let isMounted = true
@@ -2606,6 +2617,7 @@ export function FacultyDashboardPage() {
           startPeriod: String(entry?.startPeriod || '').trim().toUpperCase(),
           endTime: String(entry?.endTime || entry?.toTime || '').trim(),
           endPeriod: String(entry?.endPeriod || '').trim().toUpperCase(),
+          weekType: String(entry?.weekType || entry?.weekdayType || '').trim().toUpperCase(),
           students: getBatchStudentCount(entry),
           status: String(entry?.status || 'Active').trim() || 'Active',
         }
@@ -2682,6 +2694,65 @@ export function FacultyDashboardPage() {
 
     return selectedStudentsCourseBatches.find((batch) => getFacultyFlowBatchKey(batch) === normalizedBatchId) || null
   }, [selectedStudentsBatchId, selectedStudentsCourseBatches])
+
+  const attendanceDate = getAttendanceDateKey(attendanceClock)
+
+  useEffect(() => {
+    const batch = selectedStudentsBatch
+    const batchIds = new Set([
+      batch?.id,
+      batch?.batchEntryId,
+      batch?.batchId,
+    ].map((value) => String(value || '').trim()).filter(Boolean))
+
+    if (!batch || !batchIds.size || !attendanceDate) {
+      setActiveTemporaryAttendanceSession(null)
+      return undefined
+    }
+
+    let active = true
+    setActiveTemporaryAttendanceSession(null)
+    getFacultyCalendar({ startDate: attendanceDate, endDate: attendanceDate })
+      .then((calendar) => {
+        if (!active) return
+        const events = Array.isArray(calendar?.events) ? calendar.events : []
+        const courseIds = new Set([
+          batch.courseId,
+          selectedStudentsCourse?.id,
+          selectedStudentsCourse?.courseId,
+        ].map((value) => String(value || '').trim()).filter(Boolean))
+        const candidates = events.filter((event) => {
+          const eventBatchIds = [event?.batchRecordId, event?.batchId]
+            .map((value) => String(value || '').trim())
+            .filter(Boolean)
+          const batchMatches = eventBatchIds.some((value) => batchIds.has(value))
+          const courseMatches = !courseIds.size || !event?.courseId || courseIds.has(String(event.courseId).trim())
+          const temporaryCode = ['RESCHEDULED', 'RESCHEDULED_ORIGINAL', 'REASSIGNED', 'COMBINED'].includes(String(event?.code || '').toUpperCase())
+          return batchMatches && courseMatches && temporaryCode && String(event?.date || '').slice(0, 10) === attendanceDate
+        })
+        const session = candidates.find((event) => String(event?.code || '').toUpperCase() !== 'RESCHEDULED_ORIGINAL')
+          || candidates.find((event) => String(event?.code || '').toUpperCase() === 'RESCHEDULED_ORIGINAL')
+        setActiveTemporaryAttendanceSession(session
+          ? {
+            ...session,
+            isOriginalRescheduledSession: String(session.code || '').toUpperCase() === 'RESCHEDULED_ORIGINAL',
+          }
+          : null)
+      })
+      .catch(() => {
+        if (active) setActiveTemporaryAttendanceSession(null)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [attendanceDate, selectedStudentsBatch, selectedStudentsCourse])
+
+  const attendanceBatchTiming = activeTemporaryAttendanceSession && !activeTemporaryAttendanceSession.isOriginalRescheduledSession
+    ? `${activeTemporaryAttendanceSession.startTime || ''} - ${activeTemporaryAttendanceSession.endTime || ''}`.trim()
+    : activeTemporaryAttendanceSession?.isOriginalRescheduledSession
+      ? ''
+      : getAttendanceBatchTiming(selectedStudentsBatch)
 
   useEffect(() => {
     if (!selectedStudentsCourse || !currentFacultyIdentity.facultyId) {
@@ -3341,7 +3412,7 @@ export function FacultyDashboardPage() {
     if (!normalizedStudentId) return
 
     const attendanceWindow = resolveBatchAttendanceWindow(
-      getAttendanceBatchTiming(selectedStudentsBatch),
+      attendanceBatchTiming,
     )
     if (!attendanceWindow.isEditable) {
       setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
@@ -3362,7 +3433,7 @@ export function FacultyDashboardPage() {
 
   const markAllTodayWorkStudentsPresent = () => {
     const attendanceWindow = resolveBatchAttendanceWindow(
-      getAttendanceBatchTiming(selectedStudentsBatch),
+      attendanceBatchTiming,
     )
     if (!attendanceWindow.isEditable) return
 
@@ -3387,7 +3458,7 @@ export function FacultyDashboardPage() {
 
   const toggleMarkAllTodayWorkStudents = () => {
     const attendanceWindow = resolveBatchAttendanceWindow(
-      getAttendanceBatchTiming(selectedStudentsBatch),
+      attendanceBatchTiming,
     )
     if (!attendanceWindow.isEditable) return
 
@@ -3412,7 +3483,7 @@ export function FacultyDashboardPage() {
 
   const performAttendanceOnlySave = async () => {
     const attendanceWindow = resolveBatchAttendanceWindow(
-      getAttendanceBatchTiming(selectedStudentsBatch),
+      attendanceBatchTiming,
     )
     if (!attendanceWindow.isEditable) {
       setTodayWorkError(attendanceWindow.reason || 'Attendance is closed for this batch.')
@@ -4676,11 +4747,16 @@ const nextName = trimmedValue
 
   const normalizedAttendanceSearch = todayWorkAttendanceSearch.trim().toLowerCase()
   const todayWorkAttendanceWindow = resolveBatchAttendanceWindow(
-    getAttendanceBatchTiming(selectedStudentsBatch),
+    attendanceBatchTiming,
     attendanceClock,
   )
   const temporarySessionWindowLocked = Boolean(temporarySessionContext) && !isTemporarySessionEditable(temporarySessionContext.item, attendanceClock)
   const attendanceWindowLocked = temporarySessionWindowLocked || (todayWorkMode === 'attendance' && !todayWorkAttendanceWindow.isEditable)
+  const hasTemporaryAttendanceOverride = Boolean(activeTemporaryAttendanceSession)
+  const attendanceWeekTypeLocked = Boolean(selectedStudentsBatch) && (
+    activeTemporaryAttendanceSession?.isOriginalRescheduledSession
+    || (!hasTemporaryAttendanceOverride && !isAttendanceDayForBatch(selectedStudentsBatch))
+  )
 
   useEffect(() => {
     if (!selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder) {
@@ -5095,6 +5171,8 @@ const nextName = trimmedValue
                       <button
                         type="button"
                         className="faculty-today-work-trigger"
+                        disabled={attendanceWeekTypeLocked}
+                        title={attendanceWeekTypeLocked ? `Attendance is disabled today for this ${selectedStudentsBatch?.weekType === 'WEEKEND' ? 'weekend' : 'weekday'} batch` : 'Open Attendance'}
                         onClick={() => openTodayWorkModal('attendance')}
                       >
                         <BookOpen size={16} />
@@ -5272,6 +5350,7 @@ const nextName = trimmedValue
                               <tr>
                                 <th style={{ width: '72px' }}>S.No</th>
                                 <th>Batch Name</th>
+                                <th>Week Type</th>
                                 <th>Students</th>
                                 <th>Present</th>
                                 <th>Absent</th>
@@ -5312,6 +5391,7 @@ const nextName = trimmedValue
                                 >
                                   <td>{index + 1}</td>
                                   <td><strong>{batch.batchName || batch.code || batch.timing || '-'}</strong></td>
+                                  <td>{String(batch.weekType || batch.weekdayType || '').toUpperCase() === 'WEEKEND' ? 'Weekend' : String(batch.weekType || batch.weekdayType || '').toUpperCase() === 'WEEKDAY' ? 'Weekday' : '-'}</td>
                                   <td>{batch.students}</td>
                                   <td><span className="faculty-batch-attendance-count faculty-batch-attendance-count--present">{batchAttendanceCounts.present}</span></td>
                                   <td><span className="faculty-batch-attendance-count faculty-batch-attendance-count--absent">{batchAttendanceCounts.absent}</span></td>
