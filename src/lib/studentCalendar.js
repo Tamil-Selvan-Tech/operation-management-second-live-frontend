@@ -307,15 +307,18 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
     if (!isWithinRange) {
       status = 'No Class'
       tone = 'no-class'
+    } else if (attendance === 'Present' || attendance === 'Absent') {
+      // Attendance is persisted per student and date. It must remain the
+      // displayed status even when a generic calendar event exists for the
+      // same date.
+      status = attendance
+      tone = attendance.toLowerCase()
     } else if (serverEvent?.status) {
       status = serverEvent.status
       tone = getStatusToneKey(status)
     } else if (holiday) {
       status = holiday.type === 'Leave' ? 'Leave' : 'General Holiday'
       tone = 'holiday'
-    } else if (attendance === 'Present' || attendance === 'Absent') {
-      status = attendance
-      tone = attendance.toLowerCase()
     } else if (isCourseDay) {
       status = 'Course Day'
       tone = 'course-day'

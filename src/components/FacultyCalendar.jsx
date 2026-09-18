@@ -163,9 +163,11 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
   }, [load])
 
   const events = useMemo(() => {
-    const source = (Array.isArray(calendar?.events) ? calendar.events : [])
-      .filter((event) => normalizeStatus(event) !== 'PRESENT')
     const today = isoDate(new Date())
+    const source = (Array.isArray(calendar?.events) ? calendar.events : [])
+      // Today is controlled by the current Work Log record. Historical
+      // attendance events remain date-specific calendar history.
+      .filter((event) => normalizeStatus(event) !== 'PRESENT' || String(event?.date || '').slice(0, 10) !== today)
     const workLogPresent = hasLoginOnDate(workLogStatus, today)
     const workLogEvent = workLogPresent
       ? [{ date: today, code: 'PRESENT', status: 'Present', loginAt: workLogStatus?.firstLoginAt || workLogStatus?.loginAt || workLogStatus?.currentSession?.loginAt, facultyId }]
