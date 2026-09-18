@@ -284,6 +284,54 @@ export async function listBranchCourses(query = {}) {
   }
 }
 
+// The course table is paginated, but callers such as the Course Type
+// autocomplete need the complete branch-scoped course set.
+export async function listAllBranchCourses(query = {}) {
+  const requestedLimit = Number(query.limit)
+  const limit = Number.isInteger(requestedLimit) && requestedLimit > 0
+    ? Math.min(requestedLimit, 100)
+    : 100
+  const collectedCourses = []
+  let page = 1
+  let lastMeta
+
+  while (page <= 100) {
+    const result = await listBranchCourses({ ...query, page, limit })
+    const pageCourses = Array.isArray(result?.data) ? result.data : []
+    collectedCourses.push(...pageCourses)
+    lastMeta = result?.meta || null
+
+    const reportedTotalPages = Number(result?.meta?.totalPages)
+    const totalPages = Number.isFinite(reportedTotalPages) && reportedTotalPages > 0
+      ? reportedTotalPages
+      : pageCourses.length < limit
+        ? page
+        : page + 1
+    page += 1
+    if (page > totalPages) break
+  }
+
+  const uniqueCourses = []
+  const seenCourseIds = new Set()
+  collectedCourses.forEach((course, index) => {
+    const courseKey = String(course?.id || `${course?.courseCode || ''}:${course?.name || ''}:${index}`).trim().toLowerCase()
+    if (seenCourseIds.has(courseKey)) return
+    seenCourseIds.add(courseKey)
+    uniqueCourses.push(course)
+  })
+
+  return {
+    data: uniqueCourses,
+    meta: {
+      ...(lastMeta || {}),
+      page: 1,
+      limit,
+      total: uniqueCourses.length,
+      totalPages: 1,
+    },
+  }
+}
+
 export async function getBranchCourse(courseId) {
   const id = String(courseId || '').trim()
   if (!id) return null

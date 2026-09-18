@@ -62,7 +62,7 @@ import {
   createBranchCourse,
   deleteBranchCourse,
   getBranchCourse,
-  listBranchCourses,
+  listAllBranchCourses,
   updateBranchCourse,
 } from '../services/branchCourseService'
 import { listBranchBatches } from '../services/branchBatchService'
@@ -3368,9 +3368,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const branchNotificationsRefreshTimerRef = useRef(null)
 
   const loadBranchCourses = useCallback(async (fallbackCourses = null, branchScopeId = '') => {
-    const result = await listBranchCourses({
-      page: 1,
-      limit: 100,
+    const result = await listAllBranchCourses({
       sortBy: 'createdAt',
       sortOrder: 'desc',
     })
@@ -4582,8 +4580,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   const matchingCourseTypeOptions = useMemo(() => {
     const query = String(addCourseForm.courseType || '').trim().toLowerCase()
     return courseTypeOptions
-      .filter((courseType) => !query || courseType.toLowerCase().startsWith(query))
-      .slice(0, 8)
+      .filter((courseType) => !query || courseType.toLowerCase().includes(query))
   }, [addCourseForm.courseType, courseTypeOptions])
 
   const totalBranchCoursePages = Math.max(1, Math.ceil(filteredBranchCourseCards.length / BRANCH_COURSES_PER_PAGE))
@@ -5832,7 +5829,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         return
       }
 
-      const payload = buildBranchCoursePayload(addCourseForm)
+      const typedCourseType = String(addCourseForm.courseType || '').trim()
+      const existingCourseType = courseTypeOptions.find(
+        (courseType) => courseType.toLowerCase() === typedCourseType.toLowerCase(),
+      )
+      const payload = buildBranchCoursePayload({
+        ...addCourseForm,
+        // Reuse the existing spelling/casing when the user typed an existing
+        // type instead of selecting it, so IT/it/It cannot create duplicates.
+        courseType: existingCourseType || typedCourseType,
+      })
       const savedCourse = editingTargetId
         ? await updateBranchCourse(editingTargetId, payload)
         : await createBranchCourse(payload)
