@@ -1256,6 +1256,7 @@ function normalizeFacultyNotification(notification = {}) {
     statusKey: String(source.statusKey || '').trim(),
     statusLabel: String(source.statusLabel || '').trim(),
     recipientLabel: String(source.recipientLabel || '').trim(),
+    requestReason: String(source.requestReason || '').trim(),
   }
 }
 
@@ -1288,6 +1289,9 @@ function FacultyNotificationGroup({ label, items, onViewNotification }) {
       <div className="faculty-notifications-group-list">
         {items.map((notification) => {
           const Icon = getFacultyNotificationIcon(notification)
+          const isWeekOffRejection = notification.title === 'Week-Off Request Rejected'
+          const parsedReason = notification.requestReason || (isWeekOffRejection ? notification.message.match(/\s*Reason:\s*(.*)$/i)?.[1]?.trim() : '')
+          const notificationMessage = parsedReason ? notification.message.replace(/\s*Reason:\s*.*$/i, '').trim() : notification.message
 
           return (
             <article
@@ -1302,7 +1306,8 @@ function FacultyNotificationGroup({ label, items, onViewNotification }) {
                   <h3>{notification.title}</h3>
                   <small>{notification.time}</small>
                 </div>
-                <p>{notification.message}</p>
+                <p>{notificationMessage}</p>
+                {isWeekOffRejection && parsedReason ? <p className="faculty-notification-reason"><strong>Reason:</strong> {parsedReason}</p> : null}
                 {String(notification.kind || '').includes('progress-status') ? (
                   <div className="faculty-notification-progress-details">
                     <p><strong>Student ID:</strong> {notification.studentId || '-'}</p>
