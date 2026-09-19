@@ -452,7 +452,8 @@ export function getNextStudentId(branchId) {
 
   let highest = 0
   branchStudents.forEach((s) => {
-    const match = String(s.studentId || '').match(/^STU-(\d+)$/i)
+    // Support both legacy STU-001 IDs and current branch-scoped IDs such as CISBRSTU042.
+    const match = String(s.studentId || '').trim().match(/STU-?(\d+)$/i)
     if (match) {
       const num = Number(match[1])
       if (Number.isFinite(num) && num > highest) highest = num
