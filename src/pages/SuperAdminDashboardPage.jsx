@@ -31,7 +31,6 @@ import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { BranchDashboardPage } from './BranchDashboardPage'
 import { setImpersonateBranchId } from '../services/apiClient'
-import { getAllBranchStudentCounts } from '../lib/branchStudentStore'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import '../styles/SuperAdminDashboardPage.css'
 
@@ -269,7 +268,6 @@ const statusFilterRef = useRef(null)
   const [actionError, setActionError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [branchStudentCounts, setBranchStudentCounts] = useState(() => getAllBranchStudentCounts())
   const previousBranchSnapshotRef = useRef(null)
   const actionMenuCloseTimerRef = useRef(null)
   const [form, setForm] = useState({
@@ -401,18 +399,6 @@ useEffect(() => {
     document.removeEventListener('pointerdown', handleOutsideClick)
   }
 }, [isStatusFilterOpen])
-  // Load student counts and listen for changes
-  useEffect(() => {
-    const refresh = () => setBranchStudentCounts(getAllBranchStudentCounts())
-    refresh()
-    window.addEventListener('cispro:branch-students-changed', refresh)
-    window.addEventListener('storage', refresh)
-    return () => {
-      window.removeEventListener('cispro:branch-students-changed', refresh)
-      window.removeEventListener('storage', refresh)
-    }
-  }, [])
-
   useEffect(() => {
     let cancelled = false
 
@@ -1514,7 +1500,7 @@ useEffect(() => {
                               </div>
                             </td>
                             <td style={{ textAlign: 'center' }}>
-                              <strong>{branchStudentCounts[branch.branchId] || 0}</strong>
+                              <strong>{branch.studentCount ?? 0}</strong>
                             </td>
                             <td className="branch-table-col-dashboard" style={{ textAlign: 'center' }}>
                               {getNormalizedBranchStatus(branch) === 'Active' ? (

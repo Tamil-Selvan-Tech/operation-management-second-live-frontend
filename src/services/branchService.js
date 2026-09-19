@@ -31,6 +31,9 @@ function normalizeBranchRecord(record = {}) {
     id: String(record.id || ''),
     branchId: String(record.branchId || '').trim(),
     branchName: String(record.branchName || '').trim(),
+    // This value is calculated by the backend from the current student data.
+    // Keep it on the branch record so consumers do not derive counts locally.
+    studentCount: Number(record.studentCount ?? record.studentsCount ?? 0),
     branchAdminName: String(record.branchAdminName || '').trim(),
     branchEmail: String(record.branchEmail || '').trim().toLowerCase(),
     branchPhone: String(record.branchPhone || '').trim(),
