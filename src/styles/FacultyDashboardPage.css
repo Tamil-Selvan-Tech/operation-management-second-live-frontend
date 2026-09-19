@@ -5236,6 +5236,10 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-delegated-resolution-card .faculty-leave-confirm-actions { position: absolute; right: 24px; bottom: 16px; left: 24px; display: flex; justify-content: flex-end; gap: .6rem; margin-top: 1rem; }
 .faculty-delegated-resolution-card label:has(input[type="time"]) { display: none; }
 .faculty-delegated-resolution-card > .faculty-leave-feedback.is-error { display: none; }
+.faculty-delegated-source-summary { display: grid; gap: .25rem; margin-top: .85rem; padding: .75rem .85rem; border: 1px solid #dbe7f3; border-radius: 8px; background: #f8fbff; color: #475569; }
+.faculty-delegated-source-summary strong { color: #17345f; font-size: .85rem; }
+.faculty-delegated-source-summary span { font-size: .88rem; }
+.faculty-delegated-resolution-card select:disabled { cursor: not-allowed; background: #f8fafc; color: #64748b; }
 .faculty-delegated-batch-summary { position: fixed; z-index: 1700; top: calc(50% - 5px); left: 50%; width: min(480px, calc(100vw - 3rem)); transform: translateX(-50%); padding: .85rem 1rem; border: 0; background: transparent; box-shadow: none; }
 .faculty-delegated-batch-summary > strong { display: block; margin-bottom: .55rem; color: #17345f; }
 .faculty-delegated-batch-summary > select { width: 100%; min-height: 38px; margin-bottom: .45rem; padding: .45rem .55rem; border: 1px solid #d6e2f0; border-radius: 7px; background: #fff; }
