@@ -174,22 +174,124 @@ function buildInstallmentRows(student, paymentEntries) {
   })
 }
 
-function downloadStudentReceipt(payment, student, totalPaid) {
+function getStudentTotalFee(student = {}) {
+  const record = student || {}
+  return asAmount(
+    record.finalFee || record.courseAmount || record.totalFee || record.totalCourseFee ||
+    record.feeAmount || record.afterDiscount || record.totalAmount || record.actualFees ||
+    record.course?.afterDiscount || record.course?.finalFee,
+  )
+}
+
+function formatPaymentTime(value) {
+  if (!value) return '-'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function getReceiptInstallments(student, paymentEntries, installmentRows) {
+  const plan = Array.isArray(student?.installmentSchedule) && student.installmentSchedule.length
+    ? student.installmentSchedule
+    : Array.isArray(student?.paymentPlan?.installments) ? student.paymentPlan.installments : []
+
+  if (plan.length) {
+    return plan.map((item, index) => {
+      const relatedPayment = paymentEntries.find((entry) => getInstallmentNumber(entry) === index + 1)
+      return {
+        ...item,
+        installmentNumber: item?.installmentNumber || index + 1,
+        amount: item?.amount ?? item?.installmentAmount ?? item?.amountDue ?? 0,
+        paidAmount: item?.paidAmount ?? item?.amountPaid ?? (relatedPayment ? asAmount(relatedPayment.amount || relatedPayment.credit) : 0),
+        dueDate: item?.dueDate || item?.dueOn || '',
+      }
+    })
+  }
+
+  return installmentRows.map((item) => ({
+    installmentNumber: item.number,
+    amount: item.amount,
+    paidAmount: ['paid', 'completed', 'success'].includes(String(item.status).toLowerCase()) ? item.amount : 0,
+    dueDate: item.dueDate,
+  }))
+}
+
+async function downloadStudentReceipt(payment, student, totalPaid, paymentEntries, installmentRows) {
   const receiptElement = document.createElement('div')
-  receiptElement.innerHTML = buildModernPaymentReceiptHtml({
-    logoUrl: '/logo1.png', instituteName: 'CISPRO', studentName: student?.studentName || 'Student',
-    studentId: student?.studentId || '-', courseName: student?.courseName || student?.courseInterested || '-',
-    receiptNumber: payment.receiptNumber || payment.id || 'Receipt', receiptDate: formatPaymentDate(payment.dateRaw || payment.date),
-    paymentDate: formatPaymentDate(payment.dateRaw || payment.date), paymentFor: payment.payAgainst || 'Payment',
-    paymentMode: payment.paymentMode || '-', transactionReference: payment.transactionReference || '-',
-    collectedBy: payment.collectedBy || '-', notes: payment.notes || '-', totalCourseFee: student?.afterDiscount || student?.totalAmount || 0,
-    previouslyPaid: Math.max(totalPaid - asAmount(payment.amount), 0), currentPayment: asAmount(payment.amount), totalPaid,
-    balance: Math.max(asAmount(student?.afterDiscount || student?.totalAmount) - totalPaid, 0), paymentAlreadyApplied: true,
-  })
-  receiptElement.style.position = 'fixed'
-  receiptElement.style.left = '-10000px'
-  document.body.appendChild(receiptElement)
-  void html2pdf().set({ margin: 0, filename: `Payment_Receipt_${payment.receiptNumber || payment.id || 'receipt'}.pdf`, html2canvas: { scale: 1.5 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(receiptElement.querySelector('.receipt-page')).save().finally(() => receiptElement.remove())
+  try {
+    const currentPayment = asAmount(payment.amount || payment.credit)
+    const totalFee = getStudentTotalFee(student)
+    const receiptNumber = payment.receiptNumber || payment.id || 'receipt'
+    const receiptInstallments = getReceiptInstallments(student, paymentEntries, installmentRows)
+    const branch = student?.branch || {}
+    const course = student?.course || {}
+    const branchId = String(student?.branchId || student?.branchCode || branch?.id || branch?.branchId || '').trim()
+    const branchNameForLookup = String(student?.branchName || branch?.branchName || branch?.name || '').trim().toLowerCase()
+    const branchProfile = loadBranchRegistry().find((entry) => {
+      const identifiers = [entry.id, entry.branchId, entry.branchName].map((value) => String(value || '').trim().toLowerCase()).filter(Boolean)
+      return (branchId && identifiers.includes(branchId.toLowerCase())) || (branchNameForLookup && identifiers.includes(branchNameForLookup))
+    }) || {}
+    const instituteName = firstValue(student?.instituteName, student?.organizationName, student?.organization?.name, 'Cispro Training and Placement Pvt Ltd')
+    const branchAddress = firstValue(student?.instituteLocation, student?.branchAddress, branch?.branchAddress, branch?.address, branch?.location, branchProfile.branchAddress, [branchProfile.branchCity, branchProfile.branchState].filter(Boolean).join(', '), '')
+    const branchPhone = firstValue(student?.institutePhone, student?.branchPhone, branch?.branchPhone, branch?.phone, branchProfile.branchPhone, '')
+    const branchEmail = firstValue(student?.instituteEmail, student?.branchEmail, branch?.branchEmail, branch?.email, branchProfile.branchEmail, '')
+    const collectedBy = firstValue(
+      payment?.collectedBy,
+      payment?.collectedByName,
+      payment?.collectorName,
+      payment?.createdByName,
+      payment?.createdBy,
+      payment?.branchAdminName,
+      student?.collectedBy,
+      student?.branchAdminName,
+      branch?.branchAdminName,
+      branch?.adminName,
+      branchProfile.branchAdminName,
+      '-',
+    )
+    const branchName = student?.branchName || student?.branch?.name || student?.branch?.branchName || student?.branchCode || '-'
+    const courseName = student?.courseName || student?.courseInterested || course.name || student?.course || '-'
+
+    receiptElement.innerHTML = buildModernPaymentReceiptHtml({
+      logoUrl: '/logo.png', instituteName,
+      branchName, branchAddress, branchPhone, branchEmail,
+      studentName: student?.studentName || student?.name || 'Student', studentId: student?.studentId || student?.id || '-',
+      studentEmail: student?.emailAddress || student?.email || '-', studentPhone: student?.mobileNumber || student?.phone || '-', studentAddress: student?.address || student?.fullAddress || '-',
+      courseName, courseCode: student?.courseCode || course.code || '-', courseType: student?.courseType || course.type || course.mode || '-', courseStartDate: student?.courseStartDate || course.startDate || '-',
+      batchName: student?.batchName || student?.batch || student?.batchId || '-', facultyName: student?.facultyName || student?.faculty?.name || course.facultyName || '-',
+      receiptNumber, receiptDate: formatPaymentDate(payment.dateRaw || payment.date), paymentDate: formatPaymentDate(payment.dateRaw || payment.date), paymentTime: formatPaymentTime(payment.dateRaw || payment.date),
+      paymentFor: payment.payAgainst || 'Payment', paymentMode: payment.paymentMode || payment.mode || '-', transactionReference: payment.transactionReference || '-',
+      collectedBy, notes: payment.notes || '-', paymentStatus: payment.status || 'Paid',
+      totalCourseFee: totalFee, discount: student?.discount ?? payment.discount, tax: student?.tax ?? payment.tax ?? student?.gst, lateFee: payment.lateFee,
+      previouslyPaid: Math.max(totalPaid - currentPayment, 0), currentPayment, totalPaid, balance: Math.max(totalFee - totalPaid, 0),
+      installments: receiptInstallments, compactReceipt: true, paymentAlreadyApplied: true,
+    })
+    receiptElement.style.position = 'fixed'
+    receiptElement.style.left = '-10000px'
+    receiptElement.style.top = '0'
+    document.body.appendChild(receiptElement)
+    const receiptPage = receiptElement.querySelector('.receipt-page')
+    if (!receiptPage) throw new Error('Receipt template could not be rendered')
+    await html2pdf().set({
+      margin: 0,
+      filename: `Payment_Receipt_${receiptNumber}.pdf`,
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['.card', '.meta-grid', '.amount-box', '.payment-status', '.next-payment', '.receipt-footer', 'tr'] },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }).from(receiptPage).toPdf().get('pdf').then((pdf) => {
+      const pageCount = pdf.internal.getNumberOfPages()
+      pdf.setFontSize(8)
+      pdf.setTextColor(100, 116, 139)
+      for (let page = 1; page <= pageCount; page += 1) {
+        pdf.setPage(page)
+        pdf.text(`Page ${page} of ${pageCount}`, 190, 291, { align: 'right' })
+      }
+    }).save()
+  } catch (error) {
+    console.error('Failed to generate student payment receipt:', error)
+    window.alert('Unable to generate payment receipt. Please try again.')
+  } finally {
+    receiptElement.remove()
+  }
 }
 
 export function StudentNewDashboardPage() {
@@ -416,7 +518,7 @@ export function StudentNewDashboardPage() {
  const courseName = student?.courseName || student?.courseInterested || student?.course?.name || 'Not assigned'
  const attendance = getAttendance(student)
  const displayName = student?.studentName || studentSession?.studentName || 'Student'
- const totalFee = asAmount(student?.finalFee || student?.courseAmount || student?.totalFee || student?.totalCourseFee || student?.feeAmount || student?.afterDiscount || student?.totalAmount || student?.actualFees || student?.course?.afterDiscount || student?.course?.finalFee)
+ const totalFee = getStudentTotalFee(student)
  const configuredInstallments = Array.isArray(student?.installmentSchedule) && student.installmentSchedule.length
    ? student.installmentSchedule
    : Array.isArray(student?.paymentPlan?.installments) ? student.paymentPlan.installments : []
@@ -968,7 +1070,7 @@ const handleLogoutConfirm = async () => {
                   <div><span>Payment Progress (%)</span><strong>{paymentProgress}%</strong><small>Collected against total fee</small><div className="student-new-payment-progress"><i style={{ width: `${paymentProgress}%` }} /></div></div>
                 </div>
                 <div className="student-new-payment-card"><h2>Installment Details</h2><p>Each installment shows the due date, payment mode, and status.</p><div className="student-new-payment-table-wrap"><table><thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Payment Mode</th><th>Paid Date</th><th>Status</th></tr></thead><tbody>{installmentRows.length ? installmentRows.map((row) => <tr key={row.number}><td>{row.number}/{installmentRows.length}</td><td>{formatPaymentAmount(row.amount)}</td><td>{formatPaymentDate(row.dueDate)}</td><td>{row.paymentMode}</td><td>{formatPaymentDate(row.paidDate)}</td><td><span className={`student-new-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td></tr>) : <tr><td colSpan="6" className="student-new-payment-empty">No installment plan has been configured.</td></tr>}</tbody></table></div></div>
-                <div className="student-new-payment-card"><h2>Payment History</h2><p>Download any receipt directly from the history rows.</p><div className="student-new-payment-table-wrap"><table><thead><tr><th>Payment Date</th><th>Amount</th><th>Payment Mode</th><th>Installment</th><th>Receipt Download</th><th>Payment Status</th></tr></thead><tbody>{paymentHistoryRows.length ? paymentHistoryRows.map((row) => <tr key={row.id}><td>{formatPaymentDate(row.dateRaw || row.date)}</td><td><strong>{formatPaymentAmount(row.amount || row.credit)}</strong></td><td>{row.paymentMode || '-'}</td><td>{getInstallmentNumber(row) ? `${getInstallmentNumber(row)}/${installmentRows.length || '-'}` : '-'}</td><td><button type="button" className="student-new-receipt-button" onClick={() => downloadStudentReceipt(row, student, paidAmount)}><Download size={14} /> Download</button></td><td><span className="student-new-status paid">{row.status || 'Paid'}</span></td></tr>) : <tr><td colSpan="6" className="student-new-payment-empty">No payments recorded yet.</td></tr>}</tbody></table></div></div>
+                <div className="student-new-payment-card"><h2>Payment History</h2><p>Download any receipt directly from the history rows.</p><div className="student-new-payment-table-wrap"><table><thead><tr><th>Payment Date</th><th>Amount</th><th>Payment Mode</th><th>Installment</th><th>Receipt Download</th><th>Payment Status</th></tr></thead><tbody>{paymentHistoryRows.length ? paymentHistoryRows.map((row) => <tr key={row.id}><td>{formatPaymentDate(row.dateRaw || row.date)}</td><td><strong>{formatPaymentAmount(row.amount || row.credit)}</strong></td><td>{row.paymentMode || '-'}</td><td>{getInstallmentNumber(row) ? `${getInstallmentNumber(row)}/${installmentRows.length || '-'}` : '-'}</td><td><button type="button" className="student-new-receipt-button" onClick={() => void downloadStudentReceipt(row, student, paidAmount, paymentHistoryRows, installmentRows)}><Download size={14} /> Download</button></td><td><span className="student-new-status paid">{row.status || 'Paid'}</span></td></tr>) : <tr><td colSpan="6" className="student-new-payment-empty">No payments recorded yet.</td></tr>}</tbody></table></div></div>
                 {nextInstallment ? <div className="student-new-next-payment"><span>Next Payment</span><strong>{formatPaymentAmount(nextInstallment.amount)}</strong><span>Due Date</span><strong>{formatPaymentDate(nextInstallment.dueDate)}</strong><span>Status</span><strong className="pending">{nextInstallment.status}</strong></div> : null}
               </section>
             ) : null}

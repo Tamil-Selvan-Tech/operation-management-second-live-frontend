@@ -711,10 +711,34 @@ function computeBranchStudentPaymentSummary(stu = {}) {
   }
 }
 
+function branchAmountInWords(value) {
+  const amount = Math.floor(Number(value) || 0)
+  if (amount === 0) return 'Zero Rupees Only'
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+  const belowThousand = (number) => {
+    let result = ''
+    if (number >= 100) { result += `${ones[Math.floor(number / 100)]} Hundred `; number %= 100 }
+    if (number >= 20) { result += `${tens[Math.floor(number / 10)]} `; number %= 10 }
+    if (number > 0) result += `${ones[number]} `
+    return result.trim()
+  }
+  let remaining = amount
+  const parts = []
+  const crore = Math.floor(remaining / 10000000); remaining %= 10000000
+  const lakh = Math.floor(remaining / 100000); remaining %= 100000
+  const thousand = Math.floor(remaining / 1000); remaining %= 1000
+  if (crore) parts.push(`${belowThousand(crore)} Crore`)
+  if (lakh) parts.push(`${belowThousand(lakh)} Lakh`)
+  if (thousand) parts.push(`${belowThousand(thousand)} Thousand`)
+  if (remaining) parts.push(belowThousand(remaining))
+  return `Rupees ${parts.join(' ')} Only`
+}
+
 function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) {
   const paymentSummary = computeBranchStudentPaymentSummary(student)
   const receiptNumber = payment.receiptNumber || payment.id || 'Receipt'
-  const amount = Number(payment.amount || payment.paidAmount || 0)
+  const amount = Number(payment.amount ?? payment.paidAmount ?? payment.credit ?? 0)
   const html = buildModernPaymentReceiptHtml({
     logoUrl: `${window.location.origin}/logo.png`,
     instituteName: context.branchProfile?.branchName || 'CISPRO',
@@ -732,15 +756,16 @@ function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) 
     paymentFor: payment.payAgainst || 'Payment',
     paymentMode: payment.paymentMode || payment.mode || '-',
     transactionReference: payment.transactionReference || '-',
-    collectedBy: context.branchAdminDisplay || '-',
+    collectedBy: context.branchAdminDisplay || payment.collectedBy || payment.collectedByName || payment.collectorName || payment.createdByName || payment.createdBy || payment.branchAdminName || student.branchAdminName || context.branchProfile?.branchAdminName || '-',
     notes: payment.notes || '-',
     totalCourseFee: paymentSummary.totalFee,
     previouslyPaid: Math.max(paymentSummary.paidAmount - amount, 0),
     currentPayment: amount,
     totalPaid: paymentSummary.paidAmount,
     balance: paymentSummary.pendingAmount,
-    amountInWords: '-',
     installments: Array.isArray(student.installmentSchedule) ? student.installmentSchedule : [],
+    amountInWords: branchAmountInWords(amount),
+    compactReceipt: true,
     paymentAlreadyApplied: true,
   })
   const receiptElement = document.createElement('div')
@@ -759,7 +784,8 @@ function downloadBranchStudentReceipt(payment = {}, student = {}, context = {}) 
       filename: `Payment_Receipt_${String(receiptNumber).replace(/[^a-z0-9_-]/gi, '-')}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'px', format: [800, 1150], orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'], avoid: ['.card', '.meta-grid', '.amount-box', '.payment-status', '.next-payment', '.receipt-footer', 'tr'] },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
     })
     .from(receiptElement.querySelector('.receipt-page'))
     .save()
