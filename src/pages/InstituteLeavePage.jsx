@@ -76,6 +76,7 @@ function formatDeclaredAt(value, timeZone = 'Asia/Kolkata') {
 
 const CLOCK_HOURS = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, '0'))
 const CLOCK_MINUTES = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']
+let activeResolutionDate = ''
 
 function clockParts(value) {
   const match = String(value || '').match(/^(\d{1,2}):(\d{2})$/)
@@ -123,36 +124,44 @@ function batchTimeMinutes(value, period) {
 
 function getBatchTimeRange(batch) {
   if (batch?.isCombineTarget) return { start: null, end: null }
-  const timing = String(batch.batchTiming || batch.timing || '').split(/\s+-\s+/)
+  const timing = String(batch.batchTiming || batch.timing || '').split(/\s*(?:-|–|—)\s*/)
   return {
-    start: batchTimeMinutes(batch.startTime || timing[0], batch.startPeriod),
-    end: batchTimeMinutes(batch.endTime || timing[1], batch.endPeriod),
+    start: batchTimeMinutes(timing[0] || batch.startTime, batch.startPeriod),
+    end: batchTimeMinutes(timing[1] || batch.endTime, batch.endPeriod),
   }
 }
 
-function getFacultyTimingConflicts(facultyId, groups, startTime, endTime) {
+function getFacultyTimingConflicts(facultyId, groups, startTime, endTime, date = '') {
   const start = clockMinutes(startTime)
   const end = clockMinutes(endTime)
   if (start === null || end === null || end <= start) return []
+  const selectedType = date ? scheduleTypeForDate(date) : ''
   return groups
     .filter(group => String(group.facultyId || group.branchFacultyId || '').trim() === String(facultyId || '').trim())
-    .flatMap(group => group.batches || [])
+    .flatMap(group => (group.batches || []).map(batch => ({ ...batch, weekType: batch.weekType || group.weekType })))
     .filter(batch => {
+      const batchType = String(batch.weekType || batch.weekdayType || batch.scheduleType || '').trim().toUpperCase()
+      if (selectedType && batchType && batchType !== selectedType) return false
       const range = getBatchTimeRange(batch)
       return range.start !== null && range.end !== null && start < range.end && end > range.start
     })
 }
 
-function SelectedFacultyBatches({ facultyId, groups = [] }) {
+function SelectedFacultyBatches({ facultyId, groups = [], date = '' }) {
+  const selectedType = (date || activeResolutionDate) ? scheduleTypeForDate(date || activeResolutionDate) : ''
   const selectedBatches = groups
     .filter(group => String(group.facultyId || group.branchFacultyId || '').trim() === String(facultyId || '').trim())
-    .flatMap(group => (group.batches || []).map(batch => ({ ...batch, courseName: group.courseName })))
+    .flatMap(group => (group.batches || []).map(batch => ({ ...batch, courseName: group.courseName, weekType: batch.weekType || group.weekType })))
+    .filter(batch => {
+      const batchType = String(batch.weekType || batch.weekdayType || batch.scheduleType || '').trim().toUpperCase()
+      return !selectedType || batchType === selectedType
+    })
   if (!facultyId) return null
-  return <div className="faculty-selected-batches"><strong>Selected faculty batches</strong>{selectedBatches.length ? <div className="faculty-selected-batches-list">{selectedBatches.map(batch => <div key={batch.id || batch.batchId}><span>{batch.batchName || batch.batchId || 'Batch'}</span><small>{batch.batchTiming || `${formatClassTime(batch.startTime)} - ${formatClassTime(batch.endTime)}`}</small></div>)}</div> : <p>No other batches found for this faculty.</p>}</div>
+  return <div className="faculty-selected-batches"><strong>Selected faculty {selectedType === 'WEEKEND' ? 'weekend' : selectedType === 'WEEKDAY' ? 'weekday' : ''} batches</strong>{selectedBatches.length ? <div className="faculty-selected-batches-list">{selectedBatches.map(batch => <div key={batch.id || batch.batchId}><span>{batch.batchName || batch.batchId || 'Batch'}</span><small>{batch.batchTiming || `${formatClassTime(batch.startTime)} - ${formatClassTime(batch.endTime)}`}</small></div>)}</div> : <p>No {selectedType ? selectedType.toLowerCase() : ''} batches found for this faculty.</p>}</div>
 }
 
-function ReplacementTimingStatus({ facultyId, groups = [], startTime, endTime }) {
-  const conflicts = getFacultyTimingConflicts(facultyId, groups, startTime, endTime)
+function ReplacementTimingStatus({ facultyId, groups = [], startTime, endTime, date = '' }) {
+  const conflicts = getFacultyTimingConflicts(facultyId, groups, startTime, endTime, date || activeResolutionDate)
   if (!startTime || !endTime || clockMinutes(endTime) <= clockMinutes(startTime)) return null
   return conflicts.length
     ? <p className="faculty-selected-batches-conflict">Time conflict with: {conflicts.map(batch => `${batch.batchName || batch.batchId || 'Batch'} (${batch.batchTiming || `${formatClassTime(batch.startTime)} - ${formatClassTime(batch.endTime)}`})`).join(', ')}</p>
@@ -404,6 +413,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
       return
     }
     setError(''); setResolutionTarget(session); setResolutionType(assignmentType); setCombineSessions([]); setCombineSource(null)
+    activeResolutionDate = session?.sessionDate || session?.date || session?.leaveDate || facultyDetail.fromDate || ''
     setResolutionForm({ replacementFacultyId: '', replacementStartTime: '', replacementEndTime: '', scheduleType: '', rescheduledDate: '', rescheduledStartTime: session.originalStartTime || '', rescheduledEndTime: session.originalEndTime || '', targetSessionId: '', reason: '' })
     if (assignmentType === 'REPLACEMENT' || assignmentType === 'COMBINED') {
       try {
@@ -443,7 +453,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     if (resolutionType === 'REPLACEMENT' && !payload.replacementFacultyId) return setError('Select a replacement faculty')
     if (resolutionType === 'REPLACEMENT' && (!payload.replacementStartTime || !payload.replacementEndTime)) return setError('Select the replacement start and end time')
     if (resolutionType === 'REPLACEMENT' && clockMinutes(payload.replacementEndTime) <= clockMinutes(payload.replacementStartTime)) return setError('Replacement end time must be after start time')
-    if (resolutionType === 'REPLACEMENT' && getFacultyTimingConflicts(payload.replacementFacultyId, branchBatchGroups, payload.replacementStartTime, payload.replacementEndTime).length) return setError('Replacement timing conflicts with an existing faculty batch')
+    if (resolutionType === 'REPLACEMENT' && getFacultyTimingConflicts(payload.replacementFacultyId, branchBatchGroups, payload.replacementStartTime, payload.replacementEndTime, resolutionTarget.sessionDate).length) return setError('Replacement timing conflicts with an existing faculty batch')
     if (resolutionType === 'RESCHEDULED' && (!payload.rescheduledDate || !payload.rescheduledStartTime || !payload.rescheduledEndTime)) return setError('Complete the rescheduled date and time')
     if (resolutionType === 'RESCHEDULED' && payload.rescheduledDate === resolutionTarget.sessionDate) return setError('Select a new date after the original class date')
     if (resolutionType === 'RESCHEDULED' && scheduleTypeForDate(payload.rescheduledDate) !== payload.scheduleType) return setError('The selected date does not match the schedule type')
