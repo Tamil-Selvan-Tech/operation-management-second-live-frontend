@@ -33,7 +33,7 @@ import {
   refreshBranchStudents,
 } from '../lib/branchStudentStore'
 import { loadBranchRegistry } from '../lib/branchAuth'
-import { getCurrentBranchStudentCalendar, getCurrentStudentProfile, getCurrentStudentAttendanceOverview } from '../services/studentService'
+import { getCurrentBranchStudentCalendar, getCurrentStudentProfile, getCurrentStudentAttendanceOverview, getCurrentStudentCourse } from '../services/studentService'
 import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
 import { NotificationBell } from '../components/NotificationBell'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
@@ -43,7 +43,6 @@ import { getBranchStudentLedger } from '../services/branchLedgerService'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import html2pdf from 'html2pdf.js'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
-import { getNotifications, unwrapNotifications } from '../services/notificationService'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -128,23 +127,6 @@ function getModuleProgress(student) {
   return { modules: normalized, overall: Number.isFinite(overall) ? Math.max(0, Math.min(100, overall)) : null, completedModules, totalModules: normalized.length, totalItems, completedItems, activeModule, activeItem, latestCompleted: completedItemsList.at(-1) }
 }
 
-function getTodayKey() {
-  const date = new Date()
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
-function getCalendarEvents(student) {
-  return Array.isArray(student?.calendarEvents) ? student.calendarEvents : []
-}
-
-function getEventDate(event) {
-  return firstValue(event?.date, event?.startDate, event?.scheduledDate, event?.classDate)
-}
-
-function getEventTitle(event) {
-  return firstValue(event?.moduleName, event?.topicName, event?.courseName, event?.title, event?.name)
-}
-
 function asAmount(value) {
   const amount = Number(value)
   return Number.isFinite(amount) ? amount : 0
@@ -223,11 +205,14 @@ export function StudentNewDashboardPage() {
  const [loadError, setLoadError] = useState('')
  const [paymentEntries, setPaymentEntries] = useState([])
  const [paymentLoadError, setPaymentLoadError] = useState('')
- const [notifications, setNotifications] = useState([])
  const [attendanceOverview, setAttendanceOverview] = useState(null)
  const [attendanceTab, setAttendanceTab] = useState('weekly')
  const [attendanceLoading, setAttendanceLoading] = useState(false)
  const [attendanceError, setAttendanceError] = useState('')
+ const [courseDetails, setCourseDetails] = useState(null)
+ const [courseLoading, setCourseLoading] = useState(false)
+ const [courseError, setCourseError] = useState('')
+ const [expandedCourseModules, setExpandedCourseModules] = useState({})
 
  useEffect(() => {
    if (!student?.studentId) {
@@ -265,21 +250,17 @@ export function StudentNewDashboardPage() {
  }, [student?.studentId, student?.id])
 
  useEffect(() => {
+   if (!student?.studentId && !student?.id) return undefined
    let isMounted = true
-   const loadNotifications = async () => {
-     try {
-       const result = unwrapNotifications(await getNotifications({ limit: 20, page: 1 }))
-       const identity = String(student?.studentId || student?.id || '').trim().toLowerCase()
-       const scoped = result.data.filter((item) => {
-         const target = String(item?.studentId || item?.recipientStudentId || '').trim().toLowerCase()
-         return !target || !identity || target === identity
-       })
-       if (isMounted) setNotifications(scoped)
-     } catch {
-       if (isMounted) setNotifications([])
-     }
-   }
-   if (student?.studentId || student?.id) void loadNotifications()
+   Promise.resolve().then(() => {
+     if (!isMounted) return
+     setCourseLoading(true)
+     setCourseError('')
+     return getCurrentStudentCourse()
+       .then((course) => { if (isMounted) setCourseDetails(course) })
+       .catch((error) => { if (isMounted) setCourseError(error?.message || 'Unable to load course details.') })
+       .finally(() => { if (isMounted) setCourseLoading(false) })
+   })
    return () => { isMounted = false }
  }, [student?.studentId, student?.id])
 
@@ -475,12 +456,6 @@ export function StudentNewDashboardPage() {
  const attendanceProgressNumber = Number(attendanceSourceValue)
  const studentStatus = student?.currentStatus || student?.status || '-'
  const learningProgress = useMemo(() => getModuleProgress(student), [student])
- const calendarEvents = useMemo(() => getCalendarEvents(student), [student])
- const todayKey = getTodayKey()
- const upcomingClasses = calendarEvents.filter((event) => {
-   const status = String(event?.status || event?.attendanceStatus || '').trim().toLowerCase()
-   return getEventDate(event) && String(getEventDate(event)).slice(0, 10) > todayKey && !['no class', 'holiday', 'leave', 'institute leave', 'faculty weekly off'].includes(status)
- }).sort((a, b) => new Date(getEventDate(a)) - new Date(getEventDate(b))).slice(0, 4)
  const attendanceSchedule = String(attendanceOverview?.course?.schedule || student?.classSchedule || '').trim().toLowerCase()
  const attendanceView = (attendanceOverview?.[attendanceTab] || []).filter((item) => {
    if (attendanceTab !== 'daily') return true
@@ -513,6 +488,16 @@ const reloadAttendance = () => {
     .then(setAttendanceOverview)
     .catch((error) => setAttendanceError(error?.message || 'Unable to load attendance.'))
     .finally(() => setAttendanceLoading(false))
+}
+
+const reloadCourse = () => {
+  setCourseDetails(null)
+  setCourseError('')
+  setCourseLoading(true)
+  getCurrentStudentCourse()
+    .then(setCourseDetails)
+    .catch((error) => setCourseError(error?.message || 'Unable to load course details.'))
+    .finally(() => setCourseLoading(false))
 }
 
 const handleLogoutCancel = () => {
@@ -940,20 +925,18 @@ const handleLogoutConfirm = async () => {
             ) : null}
 
             {!isLoading && !loadError && activeSection === 'course' ? (
-              <section className="student-new-placeholder-page">
-                <p className="student-new-dashboard-kicker">
-                  STUDENT
-                </p>
-
-                <h1>My Course</h1>
-
-                <div className="student-new-detail-grid">
-                  <div className="student-new-detail-item"><span>Course</span><strong>{courseName}</strong></div>
-                  <div className="student-new-detail-item"><span>Faculty</span><strong>{student?.facultyName || '-'}</strong></div>
-                  <div className="student-new-detail-item"><span>Batch</span><strong>{student?.batchName || student?.batch || '-'}</strong></div>
-                  <div className="student-new-detail-item"><span>Batch timing</span><strong>{student?.batchTiming || '-'}</strong></div>
-                  <div className="student-new-detail-item"><span>Course progress</span><strong>{student?.courseProgress ?? student?.courseCompletionPercentage ?? '-'}{student?.courseProgress || student?.courseCompletionPercentage ? '%' : ''}</strong></div>
-                </div>
+              <section className="student-course-page">
+                <div className="student-course-page-heading"><div><p className="student-new-dashboard-kicker">MY COURSE</p><h1>{courseLoading ? 'Loading course details...' : courseDetails?.course?.name || 'My Course'}</h1></div></div>
+                {courseLoading ? <div className="student-course-loading"><span /><span /><span /><span /><span /></div> : courseError ? <div className="student-attendance-error"><p>Unable to load course details.</p><button type="button" onClick={reloadCourse}>Retry</button></div> : !courseDetails?.course ? <div className="student-dashboard-empty"><p>No course assigned</p></div> : <>
+                  <div className="student-course-summary-grid">
+                    <div><span className="student-course-summary-label"><BookOpen size={15} />Course</span><strong>{formatValue(courseDetails.course.name)}</strong></div>
+                    <div><span className="student-course-summary-label"><GraduationCap size={15} />Faculty</span><strong>{formatValue(courseDetails.faculty?.name)}</strong></div>
+                    <div><span className="student-course-summary-label"><Users size={15} />Batch</span><strong>{formatValue(courseDetails.batch?.name)}</strong></div>
+                    <div><span className="student-course-summary-label"><Clock3 size={15} />Batch Timing</span><strong>{formatValue(courseDetails.batch?.timing)}</strong></div>
+                    <div><span className="student-course-summary-label"><BarChart3 size={15} />Course Progress</span><strong>{courseDetails.progress?.overall === null || courseDetails.progress?.overall === undefined ? 'Not available' : `${courseDetails.progress.overall}%`}</strong><div className="student-course-progress"><i style={{ width: `${Math.max(0, Math.min(100, Number(courseDetails.progress?.overall) || 0))}%` }} /></div><small>{courseDetails.progress?.totalCount ? `${courseDetails.progress.completedCount} of ${courseDetails.progress.totalCount} sub-modules completed` : 'Progress data not available'}</small></div>
+                  </div>
+                  <section className="student-course-content"><div className="student-course-section-heading"><div><p className="student-new-dashboard-kicker">COURSE CONTENT</p><h2>Modules &amp; Sub-Modules</h2></div></div>{courseDetails.modules?.length ? <div className="student-course-module-list">{courseDetails.modules.map((module, index) => { const expanded = expandedCourseModules[module.id] ?? index === 0; return <article className="student-course-module" key={module.id}><button type="button" className="student-course-module-toggle" onClick={() => setExpandedCourseModules((current) => ({ ...current, [module.id]: !expanded }))} aria-expanded={expanded}><span className="student-course-module-number">{String(module.sequenceNo || index + 1).padStart(2, '0')}</span><span className="student-course-module-title"><small>MODULE {String(module.sequenceNo || index + 1).padStart(2, '0')}</small><strong>{formatValue(module.name)}</strong></span><span className="student-course-module-meta"><b>{module.progress === null || module.progress === undefined ? 'Not available' : `${module.progress}%`}</b><em>{module.totalCount ? `${module.completedCount} / ${module.totalCount}` : 'No sub-modules'}</em><ChevronDown size={18} /></span></button>{expanded ? <div className="student-course-module-body">{module.totalCount ? <div className="student-course-progress"><i style={{ width: `${Math.max(0, Math.min(100, Number(module.progress) || 0))}%` }} /></div> : <p className="student-course-empty">No sub-modules available</p>}{module.subModules?.length ? <div className="student-course-submodule-list">{module.subModules.map((submodule) => { const status = String(submodule.status || 'NOT_STARTED').toUpperCase(); return <div key={submodule.id}><span className={`student-course-status-icon is-${status.toLowerCase()}`}>{status === 'COMPLETED' ? '✓' : status === 'IN_PROGRESS' ? '•' : '›'}</span><strong>{formatValue(submodule.name)}</strong><small>{status === 'COMPLETED' ? 'Completed' : status === 'IN_PROGRESS' ? 'In Progress' : 'Not Started'}</small></div> })}</div> : null}</div> : null}</article> })}</div> : <div className="student-dashboard-empty"><p>No modules available for this course</p></div>}</section>
+                </>}
               </section>
             ) : null}
 

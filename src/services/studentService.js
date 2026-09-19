@@ -272,6 +272,11 @@ export async function getCurrentStudentAttendanceOverview() {
   return unwrapData(response)
 }
 
+export async function getCurrentStudentCourse() {
+  const response = await request('/attendance/student/me/course')
+  return unwrapData(response)
+}
+
 export async function getCurrentBranchStudentCalendar(query = {}) {
   const params = new URLSearchParams()
   const from = String(query?.from || '').trim()
