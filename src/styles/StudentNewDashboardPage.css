@@ -2173,7 +2173,7 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 .student-course-section-heading h2 { margin-top: 13px; color: #102d5d; font-family: var(--font-sans); font-size: 24px; font-weight: 700; letter-spacing: normal; }
 .student-course-module-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; align-items: start; }
 .student-course-module { overflow: hidden; border-color: #dce7f4; background: #fff; }
-.student-course-module-toggle { min-height: 104px; padding: 22px 28px; border-radius: 10px 10px 0 0; background: linear-gradient(105deg, #f5f9ff 0%, #fbfdff 100%); }
+.student-course-module-toggle { min-height: 78px; padding: 15px 28px; border-radius: 10px 10px 0 0; background: linear-gradient(105deg, #f5f9ff 0%, #fbfdff 100%); }
 .student-course-module-number { display: grid; place-items: center; flex: 0 0 48px; width: 48px; height: 48px; border-radius: 9px; background: #1769ee; color: #fff; font-size: 16px; font-weight: 700; box-shadow: 0 5px 10px rgba(23, 105, 238, .14); }
 .student-course-module-title { display: grid; flex: 1; gap: 7px; min-width: 0; padding-left: 25px; border-left: 1px solid #dce7f4; }
 .student-course-module-toggle small { color: #6f88ac; font-size: 10px; letter-spacing: .1em; }
@@ -2205,6 +2205,22 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 .student-course-summary-grid > div > small { color: #7a8aa1; font-size: 10px; line-height: 1.35; }
 .student-course-summary-grid .student-course-progress { height: 6px; border-radius: 4px; background: #edf2f7; }
 .student-course-summary-grid .student-course-progress i { border-radius: 4px; background: #3976d8; }
+
+/* Keep all My Profile information inside one unified card */
+.student-new-profile-layout {
+  padding: 20px;
+  border: 1px solid #dbe5f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(15, 63, 112, .045);
+}
+.student-new-profile-layout .student-new-profile-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
 @media (max-width: 420px) { .student-dashboard-welcome-details { grid-template-columns: 1fr; }.student-dashboard-upcoming-list > div { grid-template-columns: 48px minmax(0, 1fr); }.student-dashboard-upcoming-list em { grid-column: 2; }.student-dashboard-mini-stats { gap: 11px; } }
 
 .student-new-password-notice strong {
