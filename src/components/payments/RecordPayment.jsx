@@ -1009,6 +1009,51 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
         error
       );
 
+      // Older backend deployments create the payment successfully, then fail
+      // while updating the newer feeComplianceStatus field. The payment POST
+      // uses separate transactions, so treating this specific error as a
+      // failed payment makes the user retry and creates duplicate payments.
+      // Keep the receipt flow usable until the backend Prisma client is
+      // regenerated and deployed.
+      const backendErrorText = String(
+        error?.message || error?.body?.message || error?.body?.error || ""
+      );
+      const isLegacyFeeStatusError =
+        /feeComplianceStatus/i.test(backendErrorText) &&
+        /branchStudent\.update|invalid.*invocation|unknown argument/i.test(
+          backendErrorText
+        );
+
+      if (isLegacyFeeStatusError) {
+        const compatibilityReceiptNumber =
+          receiptNumber ||
+          `REC-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+
+        saveBranchPaymentHistoryEntry({
+          id: compatibilityReceiptNumber,
+          receiptNumber: compatibilityReceiptNumber,
+          studentId: activeStudent?.studentId || activeStudent?.id || "",
+          studentName,
+          course: courseName,
+          amount: Number(formData.amountReceived),
+          paymentMode: formData.paymentMode,
+          mode: formData.paymentMode,
+          payAgainst: formData.payAgainst,
+          paymentDate: formData.paymentDate,
+          dateRaw: formData.paymentDate,
+          date: formData.paymentDate,
+          branchId: activeStudent?.branchId || student?.branchId || "",
+          branchCode: activeStudent?.branchCode || student?.branchCode || "",
+          collectedBy: formData.collectedBy,
+          notes: formData.notes,
+          transactionReference: formData.transactionReference,
+        });
+
+        setReceiptNumber(compatibilityReceiptNumber);
+        setPaymentSaved(true);
+        return true;
+      }
+
       alert(
         error?.response?.data?.message ||
           error?.message ||
