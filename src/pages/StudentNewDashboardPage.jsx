@@ -15,6 +15,12 @@ import {
   Bell,
   ChevronDown,
   Download,
+  Mail,
+  Phone,
+  Users,
+  GraduationCap,
+  Building2,
+  BarChart3,
 } from 'lucide-react'
 
 import '../styles/StudentNewDashboardPage.css'
@@ -22,6 +28,7 @@ import {
   loadBranchStudents,
   refreshBranchStudents,
 } from '../lib/branchStudentStore'
+import { loadBranchRegistry } from '../lib/branchAuth'
 import { getCurrentBranchStudentCalendar, getCurrentStudentProfile } from '../services/studentService'
 import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
 import { NotificationBell } from '../components/NotificationBell'
@@ -341,16 +348,31 @@ export function StudentNewDashboardPage() {
  const installmentRows = useMemo(() => buildInstallmentRows(student, paymentEntries), [student, paymentEntries])
  const paymentHistoryRows = useMemo(() => [...paymentEntries].sort((a, b) => new Date(b.dateRaw || b.date).getTime() - new Date(a.dateRaw || a.date).getTime()), [paymentEntries])
  const nextInstallment = installmentRows.find((installment) => !['paid', 'completed', 'success'].includes(String(installment.status).toLowerCase()))
- const detailItems = useMemo(() => [
-   ['Student ID', student?.studentId],
-   ['Email', student?.emailAddress || student?.email],
-   ['Mobile', student?.mobileNumber],
-   ['Parent / Guardian', student?.parentSpouseNumber],
-   ['Qualification', student?.qualification],
-   ['Passed out year', student?.passedOutYear],
-   ['Branch', student?.branchCode || student?.branchId],
-   ['Admission date', student?.admissionDate],
- ], [student])
+ const qualification = student?.qualification || '-'
+ const passedOutYear = student?.passedOutYear ?? student?.yearOfPassing ?? '-'
+ const branchId = String(student?.branchId || studentSession?.branchId || '').trim()
+ const branchRegistryName = useMemo(() => {
+   if (!branchId) return ''
+   const branch = loadBranchRegistry().find((entry) => [entry.id, entry.branchId].includes(branchId))
+   return branch?.branchName || ''
+ }, [branchId])
+ const branchName = [
+   student?.branchName,
+   student?.branch?.name,
+   student?.branch?.branchName,
+   typeof student?.branch === 'string' ? student.branch : '',
+   studentSession?.branchName,
+   studentSession?.branch?.name,
+   studentSession?.branch?.branchName,
+   branchRegistryName,
+ ].map((value) => String(value || '').trim()).find((value) => value && value !== branchId) || 'CISPRO'
+ const batchName = student?.batchName || (typeof student?.batch === 'string' ? student.batch : '') || student?.batch?.name || '-'
+ const courseStartDate = student?.courseStartDate || student?.courseStart || student?.startDate || student?.batch?.courseStartDate || student?.batch?.startDate
+ const courseProgressValue = student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.courseProgressPercentage
+ const courseProgressNumber = Number(courseProgressValue)
+ const attendanceSourceValue = student?.attendancePercentage ?? student?.attendance ?? student?.attendancePercent
+ const attendanceProgressNumber = Number(attendanceSourceValue)
+ const studentStatus = student?.currentStatus || student?.status || '-'
 
   const handleMenuClick = (section) => {
     setActiveSection(section)
@@ -889,20 +911,81 @@ const handleLogoutConfirm = async () => {
             ) : null}
 
             {!isLoading && !loadError && activeSection === 'profile' ? (
-              <section className="student-new-placeholder-page">
-                <p className="student-new-dashboard-kicker">
-                  STUDENT
-                </p>
-
-                <h1>My Profile</h1>
-
-                <div className="student-new-detail-grid">
-                  {detailItems.map(([label, value]) => (
-                    <div className="student-new-detail-item" key={label}>
-                      <span>{label}</span>
-                      <strong>{value || '-'}</strong>
+              <section className="student-new-profile-page">
+                <div className="student-new-profile-header-card">
+                  <div className="student-new-profile-header-avatar" aria-hidden="true">
+                    <CircleUserRound size={30} strokeWidth={1.9} />
+                  </div>
+                  <div className="student-new-profile-header-copy">
+                    <p className="student-new-dashboard-kicker">STUDENT PROFILE</p>
+                    <h1>{displayName}</h1>
+                    <div className="student-new-profile-header-meta">
+                      <span>Student ID: {student?.studentId || '-'}</span>
+                      <span>{qualification} <b>•</b> {passedOutYear}</span>
                     </div>
-                  ))}
+                  </div>
+                </div>
+
+                <div className="student-new-profile-layout">
+                  <div className="student-new-profile-main-column">
+                    <section className="student-new-profile-card">
+                      <div className="student-new-profile-card-heading">
+                        <span className="student-new-profile-section-icon"><UserRound size={18} /></span>
+                        <div><p>STUDENT DETAILS</p><h2>Personal Information</h2></div>
+                      </div>
+                      <div className="student-new-profile-fields">
+                        <div className="student-new-profile-field"><Mail size={16} /><div><span>Email</span><strong>{student?.emailAddress || student?.email || '-'}</strong></div></div>
+                        <div className="student-new-profile-field"><Phone size={16} /><div><span>Mobile</span><strong>{student?.mobileNumber || '-'}</strong></div></div>
+                        <div className="student-new-profile-field"><Users size={16} /><div><span>Parent / Guardian</span><strong>{student?.parentSpouseNumber || '-'}</strong></div></div>
+                      </div>
+                    </section>
+
+                    <section className="student-new-profile-card">
+                      <div className="student-new-profile-card-heading">
+                        <span className="student-new-profile-section-icon"><GraduationCap size={18} /></span>
+                        <div><p>EDUCATION</p><h2>Academic Information</h2></div>
+                      </div>
+                      <div className="student-new-profile-fields student-new-profile-fields-two-column">
+                        <div className="student-new-profile-field"><GraduationCap size={16} /><div><span>Qualification</span><strong>{qualification}</strong></div></div>
+                        <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Passed Out Year</span><strong>{passedOutYear}</strong></div></div>
+                        <div className="student-new-profile-field"><BookOpen size={16} /><div><span>Course</span><strong>{courseName}</strong></div></div>
+                        <div className="student-new-profile-field"><Users size={16} /><div><span>Batch</span><strong>{batchName}</strong></div></div>
+                      </div>
+                    </section>
+
+                    <section className="student-new-profile-card">
+                      <div className="student-new-profile-card-heading">
+                        <span className="student-new-profile-section-icon"><Building2 size={18} /></span>
+                        <div><p>ENROLLMENT</p><h2>Admission Information</h2></div>
+                      </div>
+                      <div className="student-new-profile-fields student-new-profile-fields-two-column">
+                        <div className="student-new-profile-field"><Building2 size={16} /><div><span>Branch</span><strong>{branchName}</strong></div></div>
+                        <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Admission Date</span><strong>{student?.admissionDate ? formatPaymentDate(student.admissionDate) : '-'}</strong></div></div>
+                        {courseStartDate ? <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Course Start Date</span><strong>{formatPaymentDate(courseStartDate)}</strong></div></div> : null}
+                        <div className="student-new-profile-field"><Users size={16} /><div><span>Batch</span><strong>{batchName}</strong></div></div>
+                      </div>
+                    </section>
+                  </div>
+
+                  <aside className="student-new-profile-card student-new-course-summary-card">
+                    <div className="student-new-profile-card-heading">
+                      <span className="student-new-profile-section-icon"><BarChart3 size={18} /></span>
+                      <div><p>OVERVIEW</p><h2>Course Summary</h2></div>
+                    </div>
+                    <div className="student-new-profile-summary-list">
+                      <div><span>Course</span><strong>{courseName}</strong></div>
+                      <div><span>Batch</span><strong>{batchName}</strong></div>
+                      <div className="student-new-profile-progress-item">
+                        <div><span>Course Progress</span><strong>{Number.isFinite(courseProgressNumber) && courseProgressValue !== '' && courseProgressValue !== undefined ? `${courseProgressValue}%` : '-'}</strong></div>
+                        <div className="student-new-profile-progress"><i style={{ width: `${Number.isFinite(courseProgressNumber) ? Math.max(0, Math.min(courseProgressNumber, 100)) : 0}%` }} /></div>
+                      </div>
+                      <div className="student-new-profile-progress-item">
+                        <div><span>Attendance</span><strong>{attendance}</strong></div>
+                        <div className="student-new-profile-progress"><i style={{ width: `${Number.isFinite(attendanceProgressNumber) ? Math.max(0, Math.min(attendanceProgressNumber, 100)) : 0}%` }} /></div>
+                      </div>
+                      <div className="student-new-profile-summary-status"><span>Status</span><strong>{studentStatus}</strong></div>
+                    </div>
+                  </aside>
                 </div>
               </section>
             ) : null}
