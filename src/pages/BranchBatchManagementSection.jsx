@@ -325,6 +325,33 @@ function getBatchTimingClashMessage() {
   return 'Time Clash! This faculty is already assigned to another batch during the selected time.'
 }
 
+function getRequiredBatchDuration(weekType = '', mode = '') {
+  const normalizedWeekType = normalizeText(weekType).toUpperCase()
+  const normalizedMode = normalizeText(mode).toUpperCase()
+
+  if (normalizedMode === 'ONLINE') return { minutes: 60, label: '1 hour' }
+  if (normalizedWeekType === 'WEEKEND' && normalizedMode === 'OFFLINE') return { minutes: 180, label: '3 hours' }
+  if (normalizedWeekType === 'WEEKDAY' && normalizedMode === 'OFFLINE') return { minutes: 120, label: '2 hours' }
+  return null
+}
+
+function getBatchDurationError(row = {}, weekType = '', mode = '') {
+  const requirement = getRequiredBatchDuration(weekType, mode)
+  if (!requirement || !normalizeText(row.startTime) || !normalizeText(row.endTime)) return ''
+
+  const startMinutes = parseTimeToMinutes(row.startTime, row.startPeriod || 'AM')
+  const endMinutes = parseTimeToMinutes(row.endTime, row.endPeriod || 'AM')
+  if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || endMinutes <= startMinutes) {
+    return 'Please choose a valid time range.'
+  }
+
+  if (endMinutes - startMinutes !== requirement.minutes) {
+    return `${normalizeText(weekType).toLowerCase() === 'weekend' ? 'Weekend' : 'Weekday'} ${normalizeText(mode).toLowerCase() === 'online' ? 'online' : 'offline'} batches must be exactly ${requirement.label}.`
+  }
+
+  return ''
+}
+
 function getBatchTimingRange(batch = {}) {
   const startMinutes = parseTimeToMinutes(batch?.startTime || '', batch?.startPeriod || '')
   const endMinutes = parseTimeToMinutes(batch?.endTime || '', batch?.endPeriod || '')
@@ -1186,7 +1213,16 @@ export function BranchBatchManagementSection({
         facultyId: '',
       }))
     }
-  }, [availableFacultyOptions, selectedCourse])
+    if (field === 'weekType' || field === 'mode') {
+      setFieldErrors((current) => ({
+        ...current,
+        rows: current.rows.map((rowErrors, index) => ({
+          ...rowErrors,
+          timing: getBatchDurationError(draft.rows[index], field === 'weekType' ? value : draft.weekType, field === 'mode' ? value : draft.mode),
+        })),
+      }))
+    }
+  }, [availableFacultyOptions, draft.mode, draft.rows, draft.weekType, selectedCourse])
 
   const handleCourseSearchChange = useCallback((value) => {
     const nextValue = String(value || '')
@@ -1221,6 +1257,8 @@ export function BranchBatchManagementSection({
   }, [handleDraftChange])
 
   const handleRowChange = useCallback((index, field, value) => {
+    const currentRow = draft.rows[index] || {}
+    const nextRow = { ...currentRow, [field]: value }
     setDraft((current) => ({
       ...current,
       rows: current.rows.map((row, rowIndex) => {
@@ -1240,13 +1278,15 @@ export function BranchBatchManagementSection({
         return {
           ...rowErrors,
           ...(field === 'batchName' ? { batchName: '' } : {}),
-          ...(field === 'startTime' || field === 'endTime' || field === 'startPeriod' || field === 'endPeriod' ? { timing: '' } : {}),
+          ...(field === 'startTime' || field === 'endTime' || field === 'startPeriod' || field === 'endPeriod'
+            ? { timing: getBatchDurationError(nextRow, draft.weekType, draft.mode) }
+            : {}),
           ...(field === 'totalSeats' ? { totalSeats: '' } : {}),
           ...(field === 'status' ? { status: '' } : {}),
         }
       }),
     }))
-  }, [])
+  }, [draft.mode, draft.rows, draft.weekType])
 
   const closeDeleteConfirmModal = useCallback(() => {
     setDeleteGroupTarget(null)
@@ -1312,6 +1352,9 @@ export function BranchBatchManagementSection({
       draft.rows.forEach((row, index) => {
         if (!normalizeText(row.batchName)) nextErrors.rows[index].batchName = 'This field is required'
         if (!normalizeText(row.startTime) || !normalizeText(row.endTime)) nextErrors.rows[index].timing = 'This field is required'
+        if (!nextErrors.rows[index].timing) {
+          nextErrors.rows[index].timing = getBatchDurationError(row, draft.weekType, draft.mode)
+        }
         if (!toNumber(row.totalSeats)) nextErrors.rows[index].totalSeats = 'This field is required'
         if (!normalizeText(row.status)) nextErrors.rows[index].status = 'This field is required'
       })
@@ -1640,7 +1683,7 @@ export function BranchBatchManagementSection({
 
             <div className="batch-management-form-grid">
               <label className="batch-management-field"><span>Week Type *</span><select value={draft.weekType} onChange={(event) => handleDraftChange('weekType', event.target.value)}><option value="">Select week type</option><option value="WEEKDAY">Weekday</option><option value="WEEKEND">Weekend</option></select>{fieldErrors.weekType ? <small className="batch-management-field-error">{fieldErrors.weekType}</small> : null}</label>
-              <label className="batch-management-field"><span>Mode *</span><select value={draft.mode} disabled={allowedBatchModes.length === 1} onChange={(event) => handleDraftChange('mode', event.target.value)}><option value="">Select mode</option>{(allowedBatchModes.length ? allowedBatchModes : ['ONLINE', 'OFFLINE']).map((mode) => <option key={mode} value={mode}>{mode === 'ONLINE' ? 'Online' : 'Offline'}</option>)}</select>{fieldErrors.mode ? <small className="batch-management-field-error">{fieldErrors.mode}</small> : null}</label>
+              <label className="batch-management-field"><span>Mode *</span>{allowedBatchModes.length === 1 ? <input className="batch-management-mode-display" type="text" value={allowedBatchModes[0] === 'ONLINE' ? 'Online' : 'Offline'} readOnly aria-readonly="true" /> : <select value={draft.mode} onChange={(event) => handleDraftChange('mode', event.target.value)}><option value="">Select mode</option>{(allowedBatchModes.length ? allowedBatchModes : ['ONLINE', 'OFFLINE']).map((mode) => <option key={mode} value={mode}>{mode === 'ONLINE' ? 'Online' : 'Offline'}</option>)}</select>}{fieldErrors.mode ? <small className="batch-management-field-error">{fieldErrors.mode}</small> : null}</label>
               <label className="batch-management-field"><span>Course Start Date *</span><input type="date" value={draft.courseStartDate} onChange={(event) => handleDraftChange('courseStartDate', event.target.value)} />{fieldErrors.courseStartDate ? <small className="batch-management-field-error">{fieldErrors.courseStartDate}</small> : null}{weeklyOffStartMessage ? <small className="batch-management-field-warning">{weeklyOffStartMessage}</small> : null}</label>
               <label className="batch-management-field"><span>Course End Date</span><input type="date" value={draft.courseEndDate} readOnly /></label>
             </div>
@@ -1792,11 +1835,12 @@ export function BranchBatchManagementSection({
                             <div className="batch-management-time-title">Seats</div>
                             <input
                               className="batch-management-row-seats"
-                              type="number"
-                              min="1"
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
                               placeholder="20"
                               value={row.totalSeats}
-                              onChange={(event) => handleRowChange(index, 'totalSeats', event.target.value)}
+                              onChange={(event) => handleRowChange(index, 'totalSeats', event.target.value.replace(/\D/g, '').slice(0, 4))}
                             />
                             {fieldErrors.rows[index]?.totalSeats ? (
                               <small className="batch-management-field-error">{fieldErrors.rows[index].totalSeats}</small>

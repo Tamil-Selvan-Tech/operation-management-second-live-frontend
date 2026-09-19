@@ -54,6 +54,7 @@ function normalizeBranchBatchGroup(group = {}) {
     facultyEmail: normalizeText(group.facultyEmail),
     weekType: normalizeText(group.weekType || batches[0]?.weekType).toUpperCase(),
     mode: normalizeText(group.mode || batches[0]?.mode).toUpperCase(),
+    weeklyOffDay: normalizeText(group.weeklyOffDay || batches[0]?.weeklyOffDay).toUpperCase(),
     courseStartDate: normalizeText(group.courseStartDate || batches[0]?.courseStartDate),
     courseEndDate: normalizeText(group.courseEndDate || batches[0]?.courseEndDate),
     batchCount: Number(group.batchCount || batches.length || 0),

@@ -950,6 +950,12 @@ function formatBranchPercentage(value) {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '')
 }
 
+function formatPaidPercentage(value) {
+  if (!Number.isFinite(value)) return '0'
+  const clamped = Math.min(100, Math.max(0, value))
+  return String(Math.ceil(clamped - 0.5))
+}
+
 function normalizeBranchStudentLookupKey(student = {}) {
   return String(student?.id || student?.studentId || '').trim().toLowerCase()
 }
@@ -7832,15 +7838,6 @@ useEffect(() => {
       ? (studentFormStepStatus[2] ? 3 : 2)
       : 1
   const shouldShowStudentError = (field) => Boolean(studentFormTouched[field] && studentFormValidationErrors[field])
-  const studentActiveStepFields =
-    studentFormStep === 1
-      ? STUDENT_FORM_STEP_ONE_FIELDS
-      : studentFormStep === 2
-        ? STUDENT_FORM_STEP_TWO_FIELDS
-        : STUDENT_FORM_STEP_THREE_FIELDS
-  const studentActiveStepErrorField =
-    studentActiveStepFields.find((field) => studentFormTouched[field] && studentFormValidationErrors[field]) || ''
-  const studentActiveStepError = studentActiveStepErrorField ? studentFormValidationErrors[studentActiveStepErrorField] : ''
 
   const updateStudentField = (field, value) => {
     setStudentForm((c) => ({
@@ -9174,7 +9171,7 @@ else {
                       />
                     </div>
                     <span className="branch-student-paid-progress-label">
-                      {formatBranchPercentage(installmentProgress.paidInstallmentPercentage)}% Paid
+                      {formatPaidPercentage(installmentProgress.paidInstallmentPercentage)}% Paid
                     </span>
                   </div>
                 </div>
@@ -14035,12 +14032,6 @@ else {
                 })}
               </div>
 
-              {studentFormMode !== 'view' && studentActiveStepError ? (
-                <div className="course-validation-note course-validation-error" style={{ marginBottom: 12 }}>
-                  <span>{studentActiveStepError}</span>
-                </div>
-              ) : null}
-
              <div className="student-step-panel">
 
   {/* =====================================================
@@ -14073,7 +14064,8 @@ else {
                 handleStudentIdSuffixChange(e.target.value)
               }
               onBlur={handleStudentIdSuffixBlur}
-              disabled={studentFormMode !== 'add'}
+              readOnly
+              aria-readonly="true"
             />
           </div>
         </Field>

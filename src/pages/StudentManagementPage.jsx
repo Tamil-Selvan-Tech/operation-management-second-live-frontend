@@ -2062,6 +2062,10 @@ export function StudentManagementPage() {
   }, [])
 
   const updateField = (name, value) => {
+    const duplicateEmail = name === 'emailAddress'
+      ? findDuplicateStudent({ emailAddress: value }, students, editingStudentId)
+      : null
+
     setForm((current) => ({
       ...current,
       ...(name === 'paymentMode' && value === 'Installment'
@@ -2088,11 +2092,14 @@ export function StudentManagementPage() {
       ...(name === 'weekType' || name === 'mode' ? { [name]: value, batch: '', batchId: '', courseStartDate: '', courseEndDate: '' } : { [name]: value }),
     }))
     setServerFieldErrors((current) => {
-      if (!current[name]) return current
       const nextErrors = { ...current }
       delete nextErrors[name]
+      if (duplicateEmail) nextErrors.emailAddress = 'Email already exists.'
       return nextErrors
     })
+    if (duplicateEmail) {
+      setFieldFocus((current) => ({ ...current, emailAddress: true }))
+    }
   }
 
   const applyCourseDetails = (courseId) => {
@@ -2281,6 +2288,14 @@ export function StudentManagementPage() {
     } catch (error) {
       const errorMessage = apiErrorMessage(error, 'Unable to save student details.')
       const normalizedErrorMessage = String(errorMessage || '').toLowerCase()
+
+      if (normalizedErrorMessage.includes('email already exists') || normalizedErrorMessage.includes('student email already exists')) {
+        setServerFieldErrors({ emailAddress: 'Email already exists.' })
+        setFieldFocus((current) => ({ ...current, emailAddress: true }))
+        setCurrentStep(0)
+        setActionError('')
+        return
+      }
 
       if (normalizedErrorMessage.includes('mobile number already exists') || normalizedErrorMessage.includes('mobile already exists')) {
         setServerFieldErrors({ mobileNumber: 'Mobile number already exists.' })
@@ -2962,7 +2977,7 @@ export function StudentManagementPage() {
                       />
                     </Field>
 
-                    <Field label="Enter Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? errors.emailAddress : ''}>
+                    <Field label="Enter Email Address" required icon={<FieldIcon kind="mail" />} error={shouldShowError('emailAddress') ? serverFieldErrors.emailAddress || errors.emailAddress : ''}>
                       <input
                         type="email"
                         value={form.emailAddress}
