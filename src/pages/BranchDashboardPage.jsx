@@ -85,6 +85,7 @@ import {
   loadBranchStudents,
   refreshBranchStudents,
   saveBranchStudent,
+  previewBranchStudentFeePlan,
   deleteBranchStudent as removeBranchStudent,
   BRANCH_STUDENTS_KEY,
   getNextStudentId,
@@ -226,7 +227,17 @@ function buildInstallmentDueDates(count = 0, startDate = getTodayValue(), interv
   const safeCount = Math.max(0, Number(count) || 0)
   if (!safeCount) return []
 
-  return Array.from({ length: safeCount }, (_, index) => addDaysToDateString(startDate, index * intervalDays))
+  const source = new Date(`${startDate}T00:00:00`)
+  if (Number.isNaN(source.getTime())) return []
+
+  return Array.from({ length: safeCount }, (_, index) => {
+    const next = new Date(source)
+    next.setDate(1)
+    next.setMonth(source.getMonth() + index)
+    const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()
+    next.setDate(Math.min(source.getDate(), lastDay))
+    return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+  })
 }
 
 function formatStudentBatchTiming(batch = {}) {
@@ -433,7 +444,7 @@ function createInitialStudentForm(branchId) {
     paymentPlan: '',
     paymentMode: '',
     installmentSchedule: [],
-    feeScheduleMode: 'MONTHLY_FIXED_DATE',
+    feeScheduleMode: 'BEFORE_70_PERCENT',
     feeFirstPaymentDate: '',
     fee70ProgressDate: '',
     fee70TargetHours: '',
@@ -495,7 +506,7 @@ function buildStudentFormFromRecord(student = {}) {
     installmentSchedule: Array.isArray(student.installmentSchedule)
       ? student.installmentSchedule
       : [],
-    feeScheduleMode: student.feeScheduleMode || 'MONTHLY_FIXED_DATE',
+    feeScheduleMode: 'BEFORE_70_PERCENT',
     feeFirstPaymentDate: student.feeFirstPaymentDate || student.admissionDate || '',
     fee70ProgressDate: student.fee70ProgressDate || '',
     fee70TargetHours: student.fee70TargetHours ?? '',
@@ -3229,6 +3240,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [isStudentBatchDropdownOpen, setIsStudentBatchDropdownOpen] = useState(false)
   const studentBatchDropdownRef = useRef(null)
   const [studentInstallmentDueDates, setStudentInstallmentDueDates] = useState([])
+  const [studentInstallmentDatesCustomized, setStudentInstallmentDatesCustomized] = useState(false)
+  const studentFeePreviewKeyRef = useRef('')
   const studentEditDueDatesRef = useRef(null)
   const [studentFormTouched, setStudentFormTouched] = useState({})
   const [isStudentSetupRequiredOpen, setIsStudentSetupRequiredOpen] = useState(false)
@@ -6372,6 +6385,102 @@ const studentCourseOptions = useMemo(() => {
     return buildBranchCoursePaymentPlanInstallments(total, studentInstallmentCount).map((amount) => Number(amount))
   }, [selectedStudentCourseAmount, studentInstallmentCount])
 
+  const studentInstallmentDueDateKey = studentInstallmentDueDates.join('|')
+
+  useEffect(() => {
+    const mode = studentForm.feeScheduleMode || 'BEFORE_70_PERCENT'
+    if (
+      !isStudentFormOpen ||
+      studentFormMode === 'view' ||
+      mode === 'CUSTOM_DATES' ||
+      !selectedStudentCourse?.id ||
+      !selectedStudentBatchOption?.batchId ||
+      !studentInstallmentAmounts.length
+    ) {
+      return undefined
+    }
+
+    const previewKey = JSON.stringify([
+      branchId,
+      selectedStudentCourse.id,
+      selectedStudentBatchOption.batchId,
+      mode,
+      studentForm.admissionDate,
+      studentForm.courseStartDate,
+      studentForm.courseMode,
+      selectedStudentCourseAmount,
+      studentInstallmentAmounts,
+      studentInstallmentDueDateKey,
+      studentInstallmentDatesCustomized,
+    ])
+    if (studentFeePreviewKeyRef.current === previewKey) return undefined
+    studentFeePreviewKeyRef.current = previewKey
+
+    let cancelled = false
+    const preview = async () => {
+      try {
+        const result = await previewBranchStudentFeePlan({
+          branchId,
+          courseId: selectedStudentCourse.id,
+          batchId: selectedStudentBatchOption.batchId,
+          admissionDate: studentForm.admissionDate,
+          courseStartDate: studentForm.courseStartDate || selectedStudentBatchOption.courseStartDate,
+          courseMode: studentForm.courseMode || selectedStudentBatchOption.mode,
+          courseAmount: selectedStudentCourseAmount,
+          feeScheduleMode: mode,
+          feeFirstPaymentDate: studentForm.feeFirstPaymentDate || studentForm.admissionDate,
+          installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
+            installmentNumber: index + 1,
+            amount,
+            dueDate: studentInstallmentDueDates[index] || '',
+          })),
+          preserveInstallmentDates: studentInstallmentDatesCustomized,
+        })
+
+        if (cancelled || !result) return
+        const previewDates = Array.isArray(result.installmentSchedule)
+          ? result.installmentSchedule.map((installment) => installment?.dueDate || '')
+          : []
+        setStudentInstallmentDueDates(previewDates)
+        setStudentForm((current) => ({
+          ...current,
+          fee70ProgressDate: result.fee70ProgressDate || '',
+          fee70TargetHours: result.fee70TargetHours ?? '',
+          feePaymentDeadline: result.feePaymentDeadline || '',
+          feeFirstPaymentDate: result.feeFirstPaymentDate || current.feeFirstPaymentDate || current.admissionDate,
+        }))
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('Student fee schedule preview failed:', error)
+          setStudentFormError(error?.message || 'Installment dates must be on or before the 70% payment deadline.')
+        }
+      }
+    }
+
+    void preview()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    branchId,
+    isStudentFormOpen,
+    selectedStudentBatchOption?.batchId,
+    selectedStudentBatchOption?.courseStartDate,
+    selectedStudentBatchOption?.mode,
+    selectedStudentCourse?.id,
+    selectedStudentCourseAmount,
+    studentForm.admissionDate,
+    studentForm.courseMode,
+    studentForm.courseStartDate,
+    studentForm.feeFirstPaymentDate,
+    studentForm.feeScheduleMode,
+    studentFormMode,
+    studentInstallmentAmounts,
+    studentInstallmentCount,
+    studentInstallmentDatesCustomized,
+    studentInstallmentDueDateKey,
+  ])
+
   useEffect(() => {
     if (!studentInstallmentCount) {
       setStudentInstallmentDueDates([])
@@ -7804,6 +7913,9 @@ useEffect(() => {
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
+    setStudentInstallmentDatesCustomized(false)
+    setStudentInstallmentDueDates([])
+    studentFeePreviewKeyRef.current = ''
     const nextStudentForm = await resolveStudentLocationForm(createInitialStudentForm(branchStudentScope))
     setStudentForm({
       ...nextStudentForm,
@@ -7830,6 +7942,8 @@ useEffect(() => {
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
+    setStudentInstallmentDatesCustomized(false)
+    studentFeePreviewKeyRef.current = ''
     const nextStudentForm = await resolveStudentLocationForm({
       ...buildStudentFormFromRecord(stu),
       ...resolveStudentBatchDisplay(stu, branchBatchGroups),
@@ -7860,6 +7974,7 @@ useEffect(() => {
       admissionDate: nextStudentForm.admissionDate || '',
       dueDates: savedDueDates,
     }
+    setStudentInstallmentDatesCustomized(false)
     setStudentInstallmentDueDates(savedDueDates)
     setStudentForm(nextStudentForm)
     setStudentFormTouched({})
@@ -7952,7 +8067,7 @@ useEffect(() => {
       courseMode: String(studentForm.courseMode || '').trim(),
       mode: String(selectedBatch?.mode || studentForm.courseMode || '').trim().toUpperCase(),
       paymentMode: studentForm.paymentMode || 'Installment',
-      feeScheduleMode: studentForm.feeScheduleMode || 'MONTHLY_FIXED_DATE',
+      feeScheduleMode: 'BEFORE_70_PERCENT',
       feeFirstPaymentDate: studentForm.feeFirstPaymentDate || studentForm.admissionDate || '',
       courseProgress: 0,
       progress: 0,
@@ -7961,6 +8076,7 @@ useEffect(() => {
         amount,
         dueDate: studentInstallmentDueDates[index] || '',
       })),
+      preserveInstallmentDates: studentInstallmentDatesCustomized,
     }
 
     delete record.studentIdSuffix
@@ -14855,31 +14971,6 @@ else {
   </select>
 </Field>
 
-       <Field
-         label="Fee Schedule"
-         className="student-course-step-payment"
-       >
-         <select
-           value={studentForm.feeScheduleMode || 'MONTHLY_FIXED_DATE'}
-           onChange={(e) => updateStudentField('feeScheduleMode', e.target.value)}
-           disabled={studentFormMode === 'view'}
-         >
-           <option value="MONTHLY_FIXED_DATE">Monthly Fixed Date</option>
-           <option value="BEFORE_70_PERCENT">Complete Fee Before 70% Progress</option>
-           <option value="CUSTOM_DATES">Custom Installment Dates</option>
-         </select>
-         {studentForm.feeScheduleMode === 'BEFORE_70_PERCENT' ? (
-           <small className="field-hint">
-             Installment dates are calculated from the actual batch calendar and must finish by the 70% course-progress date.
-           </small>
-         ) : null}
-         {studentForm.feePaymentDeadline ? (
-           <small className="field-hint">
-             70% payment deadline: {studentForm.feePaymentDeadline}
-           </small>
-         ) : null}
-       </Field>
-
       </div>
 
       {studentInstallmentAmounts.length > 0 && (
@@ -14890,6 +14981,11 @@ else {
         <span>
           {selectedStudentPaymentPlan?.templateName || 'Selected Payment Plan'}
         </span>
+        {studentForm.feePaymentDeadline ? (
+          <small className="field-hint">
+            70% Payment Deadline: {studentForm.feePaymentDeadline}
+          </small>
+        ) : null}
       </div>
 
       <div className="student-payment-installment-total">
@@ -14927,7 +15023,7 @@ else {
         value={studentInstallmentDueDates[index] || ''}
         onChange={(e) => {
           const value = e.target.value
-
+          setStudentInstallmentDatesCustomized(true)
           setStudentInstallmentDueDates((current) => {
             const next = [...current]
             next[index] = value
