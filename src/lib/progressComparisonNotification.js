@@ -96,6 +96,16 @@ export function buildProgressComparisonNotification({
   targetBranchName = '',
   createdAt = new Date().toISOString(),
 } = {}) {
+  const normalizedCourseProgress = normalizeProgressValue(courseProgress)
+  const normalizedPaidProgress = normalizeProgressValue(paidProgress)
+
+  // A student with no course progress and no paid progress does not need a
+  // progress comparison notification. Keep this guard at the creation point
+  // so it applies consistently to Faculty and Branch Admin notifications.
+  if (normalizedCourseProgress === 0 && normalizedPaidProgress === 0) {
+    return null
+  }
+
   const state = getProgressComparisonState(courseProgress, paidProgress)
   if (!state) return null
 
