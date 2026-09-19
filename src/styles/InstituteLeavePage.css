@@ -32,6 +32,8 @@
 .institute-action-menu.opens-down .institute-action-menu-dropdown { top: calc(100% + 5px); bottom: auto; }
 .institute-action-menu-dropdown button { width: 100%; padding: 5px 10px; border: 0; border-radius: 7px; background: transparent; color: #17213b; line-height: 1.2; text-align: left; cursor: pointer; }
 .institute-action-menu-dropdown button:hover, .institute-action-menu-dropdown button:focus-visible { background: #f1f5ff; color: #3157d5; outline: none; }
+.institute-action-menu-dropdown button:disabled { color: #9aa4b6; cursor: not-allowed; opacity: .7; }
+.institute-action-menu-dropdown button:disabled:hover { background: transparent; color: #9aa4b6; }
 .institute-pagination { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; color: #68738a; font-size: 14px; }
 .institute-pagination > div { display: flex; gap: 8px; }
 .institute-leave-page input, .institute-leave-page select, .institute-dialog textarea, .institute-dialog input { border: 1px solid #dfe5ef; border-radius: 8px; padding: 11px; font: inherit; }
