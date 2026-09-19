@@ -4187,14 +4187,14 @@ body.super-admin-sidebar-open {
 
 /* Reference-style summary cards: one compact, consistent structure for every metric. */
 .sa-overall-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
-.sa-overall-summary-grid .sa-overall-metric { display: flex; flex-direction: column; justify-content: flex-start; gap: 0; min-height: 148px; padding: 16px 17px 13px; border: 1px solid #e4e9f0; border-radius: 12px; background: #fff; box-shadow: 0 4px 14px rgba(22, 40, 72, .045); }
+.sa-overall-summary-grid .sa-overall-metric { display: flex; flex-direction: column; justify-content: flex-start; gap: 0; min-height: 126px; padding: 12px 14px 10px; border: 1px solid #e4e9f0; border-radius: 12px; background: #fff; box-shadow: 0 4px 14px rgba(22, 40, 72, .045); }
 .sa-overall-summary-grid .sa-overall-metric:hover { border-color: #d6e0ec; box-shadow: 0 7px 20px rgba(22, 40, 72, .075); }
 .sa-overall-metric-top { display: flex !important; align-items: center; gap: 10px; min-height: 31px; }
 .sa-overall-summary-grid .sa-overall-metric-icon { flex: 0 0 31px; width: 31px; height: 31px; border-radius: 8px; }
 .sa-overall-summary-grid .sa-overall-metric-label { overflow: hidden; color: #687990; font-size: 12px; font-weight: 650; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
-.sa-overall-summary-grid .sa-overall-metric-value { display: block; margin: 18px 0 14px; overflow: hidden; color: #14243a; font-size: 25px; font-weight: 750; letter-spacing: -.025em; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
+.sa-overall-summary-grid .sa-overall-metric-value { display: block; margin: 10px 0 8px; overflow: hidden; color: #14243a; font-size: 25px; font-weight: 750; letter-spacing: -.025em; line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
 .sa-overall-metric-divider { width: 100%; height: 1px; background: #edf0f4; }
-.sa-overall-metric-bottom { display: flex !important; align-items: center; min-height: 24px; margin-top: 7px; }
+.sa-overall-metric-bottom { display: flex !important; align-items: center; min-height: 24px; margin-top: 4px; }
 .sa-overall-summary-grid .sa-overall-metric-bottom small { color: #98a5b6; font-size: 10px; font-weight: 550; }
 .sa-overall-change { display: inline-flex; align-items: center; justify-content: center; min-width: 31px; margin-right: 8px; padding: 4px 7px; border-radius: 8px; font-size: 10px; font-weight: 750; line-height: 1; }
 .sa-overall-change.positive { background: #e8f8f0; color: #138a5b; }
@@ -4206,7 +4206,7 @@ body.super-admin-sidebar-open {
 .sa-overall-summary-grid .sa-overall-metric.purple .sa-overall-metric-icon { background: #f2edff; color: #7048c8; }
 .sa-overall-summary-grid .sa-overall-metric.red .sa-overall-metric-icon { background: #fff0f1; color: #e23d4b; }
 @media (max-width: 1100px) { .sa-overall-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .sa-overall-summary-grid { grid-template-columns: 1fr; } .sa-overall-summary-grid .sa-overall-metric { min-height: 140px; } }
+@media (max-width: 560px) { .sa-overall-summary-grid { grid-template-columns: 1fr; } .sa-overall-summary-grid .sa-overall-metric { min-height: 126px; } }
 
 /* Summary card customization */
 .sa-customize-backdrop { position: fixed; z-index: 1200; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(15, 31, 55, .42); }

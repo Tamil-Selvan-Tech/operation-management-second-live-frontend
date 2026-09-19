@@ -53,7 +53,7 @@ function BarChart({ title, data, formatter, emptyMessage }) {
     <div className="sa-overall-chart-y-label">Payment amount</div>
     <div className="sa-overall-bars">
       {data.map((item, index) => <div className="sa-overall-bar-group" key={`${item.label}-${index}`} onMouseEnter={() => setHovered(index)} onMouseLeave={() => setHovered(null)}>
-        {hovered === index ? <div className="sa-overall-tooltip"><strong>{item.fullLabel || item.label}</strong><span>Expected: {formatter(item.expected)}</span><span>Actual: {formatter(item.actual)}</span><span>Difference: {formatter(Number(item.expected || 0) - Number(item.actual || 0))}</span></div> : null}
+        {hovered === index ? <div className="sa-overall-tooltip"><strong>{item.fullLabel || item.label}</strong><span>Expected: {formatter(item.expected)}</span><span>Actual: {formatter(item.actual)}</span></div> : null}
         <div className="sa-overall-bar-value">{Number(item.actual) ? formatter(item.actual) : ''}</div>
         <div className="sa-overall-bar-track sa-overall-grouped-track"><div className="sa-overall-bar sa-overall-bar-expected" style={{ height: `${Math.max(4, (Number(item.expected) / max) * 100)}%` }} /><div className="sa-overall-bar sa-overall-bar-actual" style={{ height: `${Math.max(4, (Number(item.actual) / max) * 100)}%` }} /></div>
         <span className="sa-overall-bar-label">{item.label}</span>
