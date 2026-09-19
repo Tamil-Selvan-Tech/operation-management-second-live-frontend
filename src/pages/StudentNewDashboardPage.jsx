@@ -87,6 +87,25 @@ function getAttendance(student) {
   return value === undefined || value === null || value === '' ? 'Not available' : `${value}%`
 }
 
+function getAttendancePercentage(item, type, period = '') {
+  if (item?.inCoursePeriod === false || item?.status === 'NOT_IN_COURSE_PERIOD' || item?.dateRange === 'Not in course period') return period === 'weekly' ? 0 : null
+  const value = type === 'present'
+    ? item?.presentPercentage ?? item?.presentPercent
+    : item?.absentPercentage ?? item?.absentPercent
+  const numericValue = Number(value)
+  if (Number.isFinite(numericValue)) return Math.max(0, Math.min(100, numericValue))
+
+  const scheduledDays = Number(item?.scheduledDays ?? item?.totalScheduledDays ?? item?.scheduledSessions)
+  const attendanceDays = Number(type === 'present'
+    ? item?.presentDays ?? item?.presentCount
+    : item?.absentDays ?? item?.absentCount)
+  if (Number.isFinite(scheduledDays) && scheduledDays > 0 && Number.isFinite(attendanceDays)) {
+    return Math.max(0, Math.min(100, Math.round((attendanceDays / scheduledDays) * 100)))
+  }
+
+  return period === 'weekly' ? 0 : null
+}
+
 function firstValue(...values) {
   return values.find((value) => value !== undefined && value !== null && String(value).trim() !== '') || ''
 }
@@ -292,6 +311,50 @@ async function downloadStudentReceipt(payment, student, totalPaid, paymentEntrie
   } finally {
     receiptElement.remove()
   }
+}
+
+function AttendanceChart({ items, period }) {
+  return (
+    <>
+      <div className="student-attendance-chart-legend" aria-label="Attendance chart legend">
+        <span><i className="is-present" />Present</span>
+        <span><i className="is-absent" />Absent</span>
+      </div>
+      <div className={`student-attendance-chart is-${period}`}>
+        {items.map((item, index) => {
+          const present = getAttendancePercentage(item, 'present', period)
+          const absent = getAttendancePercentage(item, 'absent', period)
+          const label = period === 'weekly'
+            ? `Week ${item.week}`
+            : String(item.month || '').replace(/\s+\d{4}$/, '')
+          const dateRange = period === 'weekly'
+            ? item.dateRange
+            : `${formatDate(item.startDate, { day: '2-digit', month: 'short' })} – ${formatDate(item.endDate, { day: '2-digit', month: 'short' })}`
+
+          return (
+            <div className="student-attendance-chart-row" key={`${label}-${item.startDate || index}`}>
+              <div className="student-attendance-bar-pair">
+                <div className="student-attendance-bar-column">
+                  <span>{present === null ? 'N/A' : `${present}%`}</span>
+                  <div className="student-attendance-bar student-attendance-bar-present" title={`Present: ${present === null ? 'Not available' : `${present}%`}`}>
+                    <i style={{ height: `${present || 0}%` }} />
+                  </div>
+                </div>
+                <div className="student-attendance-bar-column">
+                  <span>{absent === null ? 'N/A' : `${absent}%`}</span>
+                  <div className="student-attendance-bar student-attendance-bar-absent" title={`Absent: ${absent === null ? 'Not available' : `${absent}%`}`}>
+                    <i style={{ height: `${absent || 0}%` }} />
+                  </div>
+                </div>
+              </div>
+              <strong>{present === null ? '—' : `${present}%`} / {absent === null ? '—' : `${absent}%`}</strong>
+              <span>{label}<small>{dateRange}</small></span>
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
 }
 
 export function StudentNewDashboardPage() {
@@ -534,22 +597,6 @@ export function StudentNewDashboardPage() {
  const nextInstallment = installmentRows.find((installment) => !['paid', 'completed', 'success'].includes(String(installment.status).toLowerCase()))
  const qualification = student?.qualification || '-'
  const passedOutYear = student?.passedOutYear ?? student?.yearOfPassing ?? '-'
- const branchId = String(student?.branchId || studentSession?.branchId || '').trim()
- const branchRegistryName = useMemo(() => {
-   if (!branchId) return ''
-   const branch = loadBranchRegistry().find((entry) => [entry.id, entry.branchId].includes(branchId))
-   return branch?.branchName || ''
- }, [branchId])
- const branchName = [
-   student?.branchName,
-   student?.branch?.name,
-   student?.branch?.branchName,
-   typeof student?.branch === 'string' ? student.branch : '',
-   studentSession?.branchName,
-   studentSession?.branch?.name,
-   studentSession?.branch?.branchName,
-   branchRegistryName,
- ].map((value) => String(value || '').trim()).find((value) => value && value !== branchId) || 'CISPRO'
  const batchName = student?.batchName || (typeof student?.batch === 'string' ? student.batch : '') || student?.batch?.name || '-'
  const courseStartDate = student?.courseStartDate || student?.courseStart || student?.startDate || student?.batch?.courseStartDate || student?.batch?.startDate
  const courseProgressValue = student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.courseProgressPercentage
@@ -558,15 +605,8 @@ export function StudentNewDashboardPage() {
  const attendanceProgressNumber = Number(attendanceSourceValue)
  const studentStatus = student?.currentStatus || student?.status || '-'
  const learningProgress = useMemo(() => getModuleProgress(student), [student])
- const attendanceSchedule = String(attendanceOverview?.course?.schedule || student?.classSchedule || '').trim().toLowerCase()
- const attendanceView = (attendanceOverview?.[attendanceTab] || []).filter((item) => {
-   if (attendanceTab !== 'daily') return true
-   const dayIndex = new Date(`${item.date}T00:00:00`).getDay()
-   if (attendanceSchedule.includes('weekend')) return dayIndex === 0 || dayIndex === 6
-   if (attendanceSchedule.includes('weekday') || attendanceSchedule.includes('week day')) return dayIndex >= 1 && dayIndex <= 5
-   return true
- }).map((item) => attendanceTab === 'daily' && attendanceOverview?.course?.startDate && (item.date < attendanceOverview.course.startDate || item.date > attendanceOverview.course.endDate) ? { ...item, status: 'NOT_APPLICABLE' } : item)
- const attendanceTotals = attendanceOverview?.overall || { percentage: 0, present: 0, absent: 0, leave: 0, scheduledSessions: 0, applicableSessions: 0 }
+ const attendanceView = (attendanceOverview?.[attendanceTab] || []).map((item) => attendanceTab === 'daily' && attendanceOverview?.course?.startDate && (item.date < attendanceOverview.course.startDate || item.date > attendanceOverview.course.endDate) ? { ...item, status: 'NOT_APPLICABLE' } : item)
+ const attendanceTotals = attendanceOverview?.overall || null
  const todayAttendance = attendanceOverview?.todayAttendance || null
  const todaySessions = Array.isArray(todayAttendance?.sessions) ? todayAttendance.sessions : []
  const todaySummary = todayAttendance?.summary || { totalSessions: 0, present: 0, absent: 0, late: 0, leave: 0, notMarked: 0, percentage: 0 }
@@ -908,7 +948,7 @@ const handleLogoutConfirm = async () => {
                   <article className="student-dashboard-summary-card"><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE</small><strong>{formatValue(courseName)}</strong><span>{formatValue(batchName)} · Current Course</span></div></article>
                   <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><GraduationCap size={21} /></span><div><small>ASSIGNED FACULTY</small><strong>{formatValue(facultyName)}</strong><span>Current faculty</span></div></article>
                   <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><BarChart3 size={21} /></span><div><small>COURSE PROGRESS</small><strong>{learningProgress.overall === null ? '0%' : `${learningProgress.overall}%`}</strong><span>{learningProgress.totalModules ? `${learningProgress.completedModules} / ${learningProgress.totalModules} Modules` : 'Module completion not available'}</span></div></article>
-                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE</small><strong>{attendanceLoading ? 'Loading...' : `${attendanceTotals.percentage}%`}</strong><span>{attendanceOverview ? `${attendanceTotals.present} Present / ${attendanceTotals.absent} Absent` : 'Attendance records not available'}</span></div></article>
+                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE</small><strong>{attendanceLoading ? 'Loading...' : attendanceTotals?.percentage === undefined ? 'Not available' : `${attendanceTotals.percentage}%`}</strong><span>{attendanceTotals ? `${attendanceTotals.present} Present / ${attendanceTotals.absent} Absent` : 'Attendance records not available'}</span></div></article>
                   <article className="student-dashboard-summary-card"><span className="student-dashboard-icon amber"><CreditCard size={21} /></span><div><small>PAYMENT PROGRESS</small><strong>{totalFee > 0 ? `${paymentProgress}%` : 'Not available'}</strong><span>{totalFee > 0 ? `${formatPaymentAmount(paidAmount)} paid` : 'Payment data not available'}</span></div></article>
                 </section>
 
@@ -918,7 +958,7 @@ const handleLogoutConfirm = async () => {
                   <div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Attendance Overview</h2><p className="student-attendance-period">Course Period: {attendanceOverview?.course?.startDate ? formatDate(attendanceOverview.course.startDate) : 'Not available'} → {attendanceOverview?.course?.endDate ? formatDate(attendanceOverview.course.endDate) : 'Not available'}</p></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Calendar</button></div>
                   {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading attendance...</p></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : attendanceOverview ? <>
                     <div className="student-attendance-tabs" role="tablist" aria-label="Attendance period"><button type="button" className={attendanceTab === 'weekly' ? 'is-active' : ''} onClick={() => setAttendanceTab('weekly')}>Weekly</button><button type="button" className={attendanceTab === 'monthly' ? 'is-active' : ''} onClick={() => setAttendanceTab('monthly')}>Monthly</button></div>
-                    {attendanceView.length ? <div className={`student-attendance-chart is-${attendanceTab}`}>{attendanceView.map((item, index) => { const value = Number(item.percentage || 0); const label = attendanceTab === 'daily' ? `${item.day} ${formatDate(item.date, { day: '2-digit', month: 'short' })}` : attendanceTab === 'weekly' ? `Week ${item.week}` : String(item.month || '').replace(/\s+\d{4}$/, ''); return <div className="student-attendance-chart-row" key={`${label}-${item.date || index}`}><strong>{attendanceTab === 'daily' ? item.status : `${value}%`}</strong><div className="student-attendance-bar"><i style={{ height: `${value}%`, width: '100%' }} /></div><span>{label}<small>{attendanceTab === 'weekly' ? item.dateRange : attendanceTab === 'monthly' ? `${formatDate(item.startDate, { day: '2-digit', month: 'short' })} – ${formatDate(item.endDate, { day: '2-digit', month: 'short' })}` : item.status}</small></span>{attendanceTab === 'daily' && item.status === 'PRESENT' && item.attendanceTime ? <em>{item.attendanceTime}</em> : null}</div> })}</div> : <div className="student-dashboard-empty"><p>No attendance records available for this course period.</p></div>}
+                    {attendanceView.length ? <AttendanceChart items={attendanceView} period={attendanceTab} /> : <div className="student-dashboard-empty"><p>No attendance records available for this course period.</p></div>}
                   </> : null}
                 </section>
 
