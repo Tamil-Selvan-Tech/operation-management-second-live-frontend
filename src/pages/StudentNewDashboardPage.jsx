@@ -39,6 +39,7 @@ import { getBranchStudentLedger } from '../services/branchLedgerService'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import html2pdf from 'html2pdf.js'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
+import { getNotifications, unwrapNotifications } from '../services/notificationService'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -81,6 +82,95 @@ function getPaymentStatus(student) {
 function getAttendance(student) {
   const value = student?.attendancePercentage ?? student?.attendance ?? student?.attendancePercent
   return value === undefined || value === null || value === '' ? 'Not available' : `${value}%`
+}
+
+function firstValue(...values) {
+  return values.find((value) => value !== undefined && value !== null && String(value).trim() !== '') || ''
+}
+
+function formatValue(value, fallback = 'Not available') {
+  return String(value || '').trim() || fallback
+}
+
+function formatDate(value, options = { day: '2-digit', month: 'short', year: 'numeric' }) {
+  if (!value) return 'Date not available'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('en-IN', options)
+}
+
+function formatTime(value) {
+  if (!value) return 'Time not available'
+  const date = new Date(`1970-01-01T${String(value).trim()}`)
+  if (!Number.isNaN(date.getTime()) && String(value).includes(':')) {
+    return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+  }
+  return String(value)
+}
+
+function getAttendanceSummary(student) {
+  const records = [
+    ...(Array.isArray(student?.attendanceRecords) ? student.attendanceRecords : []),
+    ...(Array.isArray(student?.attendance) ? student.attendance : []),
+  ]
+  const byDate = student?.attendanceByDate && typeof student.attendanceByDate === 'object'
+    ? Object.entries(student.attendanceByDate).map(([date, status]) => ({ date, status }))
+    : []
+  const allRecords = [...records, ...byDate]
+  const counts = allRecords.reduce((result, record) => {
+    const status = String(record?.status || record?.attendanceStatus || record?.value || '').trim().toLowerCase()
+    if (status.includes('present')) result.present += 1
+    else if (status.includes('absent')) result.absent += 1
+    else if (status.includes('leave') || status.includes('holiday')) result.leave += 1
+    return result
+  }, { present: 0, absent: 0, leave: 0 })
+  const percentageSource = firstValue(student?.attendancePercentage, student?.attendancePercent, student?.attendance?.percentage)
+  const percentage = percentageSource !== ''
+    ? Number(percentageSource)
+    : counts.present + counts.absent > 0 ? Math.round((counts.present / (counts.present + counts.absent)) * 100) : null
+  return { ...counts, percentage: Number.isFinite(percentage) ? percentage : null, records: allRecords }
+}
+
+function getModules(student) {
+  const candidates = [student?.modules, student?.course?.modules, student?.courseProgress?.modules, student?.learningProgress?.modules]
+  return candidates.find(Array.isArray) || []
+}
+
+function getModuleProgress(student) {
+  const modules = getModules(student)
+  const normalized = modules.map((module) => {
+    const items = [module?.submodules, module?.topics, module?.lessons].find(Array.isArray) || []
+    const completedItems = items.filter((item) => ['completed', 'complete', 'done'].includes(String(item?.status || item?.progressStatus || '').trim().toLowerCase()) || Number(item?.progress) >= 100).length
+    const explicit = Number(module?.progress ?? module?.completionPercentage ?? module?.percentage)
+    const progress = Number.isFinite(explicit) ? Math.max(0, Math.min(100, explicit)) : items.length ? Math.round((completedItems / items.length) * 100) : null
+    return { ...module, items, completedItems, progress }
+  })
+  const totalItems = normalized.reduce((total, module) => total + module.items.length, 0)
+  const completedItems = normalized.reduce((total, module) => total + module.completedItems, 0)
+  const completedModules = normalized.filter((module) => module.progress === 100).length
+  const overallRaw = firstValue(student?.courseProgress, student?.courseCompletionPercentage, student?.courseProgressPercentage, student?.learningProgress?.percentage)
+  const overallSource = overallRaw === '' ? Number.NaN : Number(overallRaw)
+  const overall = Number.isFinite(overallSource) ? overallSource : totalItems ? Math.round((completedItems / totalItems) * 100) : null
+  const activeModule = normalized.find((module) => module.progress !== null && module.progress < 100)
+  const activeItem = activeModule?.items.find((item) => !['completed', 'complete', 'done'].includes(String(item?.status || item?.progressStatus || '').trim().toLowerCase()) && Number(item?.progress || 0) < 100)
+  const completedItemsList = normalized.flatMap((module) => module.items.filter((item) => ['completed', 'complete', 'done'].includes(String(item?.status || item?.progressStatus || '').trim().toLowerCase()) || Number(item?.progress) >= 100))
+  return { modules: normalized, overall: Number.isFinite(overall) ? Math.max(0, Math.min(100, overall)) : null, completedModules, totalModules: normalized.length, totalItems, completedItems, activeModule, activeItem, latestCompleted: completedItemsList.at(-1) }
+}
+
+function getTodayKey() {
+  const date = new Date()
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function getCalendarEvents(student) {
+  return Array.isArray(student?.calendarEvents) ? student.calendarEvents : []
+}
+
+function getEventDate(event) {
+  return firstValue(event?.date, event?.startDate, event?.scheduledDate, event?.classDate)
+}
+
+function getEventTitle(event) {
+  return firstValue(event?.moduleName, event?.topicName, event?.courseName, event?.title, event?.name)
 }
 
 function asAmount(value) {
@@ -161,6 +251,7 @@ export function StudentNewDashboardPage() {
  const [loadError, setLoadError] = useState('')
  const [paymentEntries, setPaymentEntries] = useState([])
  const [paymentLoadError, setPaymentLoadError] = useState('')
+ const [notifications, setNotifications] = useState([])
 
  useEffect(() => {
    if (!student?.studentId) {
@@ -195,6 +286,25 @@ export function StudentNewDashboardPage() {
      window.removeEventListener('focus', refreshPayments)
      window.removeEventListener('cispro:branch-payment-history-changed', refreshPayments)
    }
+ }, [student?.studentId, student?.id])
+
+ useEffect(() => {
+   let isMounted = true
+   const loadNotifications = async () => {
+     try {
+       const result = unwrapNotifications(await getNotifications({ limit: 20, page: 1 }))
+       const identity = String(student?.studentId || student?.id || '').trim().toLowerCase()
+       const scoped = result.data.filter((item) => {
+         const target = String(item?.studentId || item?.recipientStudentId || '').trim().toLowerCase()
+         return !target || !identity || target === identity
+       })
+       if (isMounted) setNotifications(scoped)
+     } catch {
+       if (isMounted) setNotifications([])
+     }
+   }
+   if (student) void loadNotifications()
+   return () => { isMounted = false }
  }, [student?.studentId, student?.id])
 
  useEffect(() => {
@@ -373,6 +483,16 @@ export function StudentNewDashboardPage() {
  const attendanceSourceValue = student?.attendancePercentage ?? student?.attendance ?? student?.attendancePercent
  const attendanceProgressNumber = Number(attendanceSourceValue)
  const studentStatus = student?.currentStatus || student?.status || '-'
+ const attendanceSummary = useMemo(() => getAttendanceSummary(student), [student])
+ const learningProgress = useMemo(() => getModuleProgress(student), [student])
+ const calendarEvents = useMemo(() => getCalendarEvents(student), [student])
+ const todayKey = getTodayKey()
+ const upcomingClasses = calendarEvents.filter((event) => {
+   const status = String(event?.status || event?.attendanceStatus || '').trim().toLowerCase()
+   return getEventDate(event) && String(getEventDate(event)).slice(0, 10) > todayKey && !['no class', 'holiday', 'leave', 'institute leave', 'faculty weekly off'].includes(status)
+ }).sort((a, b) => new Date(getEventDate(a)) - new Date(getEventDate(b))).slice(0, 4)
+ const facultyName = firstValue(student?.facultyName, student?.faculty?.facultyName, student?.faculty?.name, student?.batch?.faculty)
+ const batchTiming = firstValue(student?.batchTiming, student?.batch?.batchTiming, student?.classSchedule, student?.courseSchedule, student?.batch?.startTime && student?.batch?.endTime ? `${student.batch.startTime} - ${student.batch.endTime}` : '')
 
   const handleMenuClick = (section) => {
     setActiveSection(section)
@@ -681,217 +801,25 @@ const handleLogoutConfirm = async () => {
             ) : null}
 
             {!isLoading && !loadError && activeSection === 'dashboard' ? (
-              <div className="student-new-dashboard">
-
-                {/* Dashboard Intro */}
-                <section className="student-new-dashboard-intro">
-                  <div>
-                    <p className="student-new-dashboard-kicker">
-                      Dashboard
-                    </p>
-
-                    <h1>
-                      Student Dashboard
-                    </h1>
-
-                    <p>
-                      Welcome, {displayName}. Here&apos;s an overview of your
-                      learning activities.
-                    </p>
-                  </div>
+              <div className="student-new-dashboard student-dashboard-redesign">
+                <section className="student-dashboard-welcome">
+                  <div><p className="student-new-dashboard-kicker">STUDENT DASHBOARD</p><h1>Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, {displayName}</h1><p>Here&apos;s an overview of your learning progress.</p></div>
                 </section>
 
-                {/* Summary Cards */}
-                <section
-                  className="student-new-stats-grid"
-                  aria-label="Student summary"
-                >
-
-                  {/* Course Card */}
-                  <article className="student-new-stat-card">
-
-                    <span
-                      className="student-new-stat-icon"
-                      aria-hidden="true"
-                    >
-                      <BookOpen
-                        size={22}
-                        strokeWidth={2.1}
-                      />
-                    </span>
-
-                    <div className="student-new-stat-copy">
-                      <span className="student-new-stat-label">
-                        My Course
-                      </span>
-
-                      <strong className="student-new-stat-value">
-                        {courseName}
-                      </strong>
-
-                      <span className="student-new-stat-note">
-                        Current course
-                      </span>
-                    </div>
-
-                  </article>
-
-                  {/* Attendance Card */}
-                  <article className="student-new-stat-card">
-
-                    <span
-                      className="student-new-stat-icon is-success"
-                      aria-hidden="true"
-                    >
-                      <CalendarCheck
-                        size={22}
-                        strokeWidth={2.1}
-                      />
-                    </span>
-
-                    <div className="student-new-stat-copy">
-                      <span className="student-new-stat-label">
-                        Attendance
-                      </span>
-
-                      <strong className="student-new-stat-value">
-                        {attendance}
-                      </strong>
-
-                      <span className="student-new-stat-note">
-                        Overall attendance
-                      </span>
-                    </div>
-
-                  </article>
-
-                  {/* Payments Card */}
-                  <article className="student-new-stat-card">
-
-                    <span
-                      className="student-new-stat-icon is-payment"
-                      aria-hidden="true"
-                    >
-                      <CreditCard
-                        size={22}
-                        strokeWidth={2.1}
-                      />
-                    </span>
-
-                    <div className="student-new-stat-copy">
-                      <span className="student-new-stat-label">
-                        Payments
-                      </span>
-
-                      <strong className="student-new-stat-value">
-                        {paymentStatus}
-                      </strong>
-
-                      <span className="student-new-stat-note">
-                        Payment status
-                      </span>
-                    </div>
-
-                  </article>
-
+                <section className="student-dashboard-summary-grid" aria-label="Student summary">
+                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE</small><strong>{formatValue(courseName)}</strong><span>{formatValue(batchName)} · Current Course</span></div></article>
+                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><GraduationCap size={21} /></span><div><small>ASSIGNED FACULTY</small><strong>{formatValue(facultyName)}</strong><span>Current faculty</span></div></article>
+                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><BarChart3 size={21} /></span><div><small>COURSE PROGRESS</small><strong>{learningProgress.overall === null ? '0%' : `${learningProgress.overall}%`}</strong><span>{learningProgress.totalModules ? `${learningProgress.completedModules} / ${learningProgress.totalModules} Modules` : 'Module completion not available'}</span></div></article>
+                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE</small><strong>{attendanceSummary.percentage === null ? '0%' : `${attendanceSummary.percentage}%`}</strong><span>{attendanceSummary.present || attendanceSummary.absent ? `${attendanceSummary.present} Present / ${attendanceSummary.absent} Absent` : 'Attendance records not available'}</span></div></article>
+                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon amber"><CreditCard size={21} /></span><div><small>PAYMENT PROGRESS</small><strong>{totalFee > 0 ? `${paymentProgress}%` : 'Not available'}</strong><span>{totalFee > 0 ? `${formatPaymentAmount(paidAmount)} paid` : 'Payment data not available'}</span></div></article>
                 </section>
 
-                {/* Recent Information */}
-                <section className="student-new-recent-card">
 
-                  <div className="student-new-section-header">
-                    <div>
-                      <p className="student-new-section-kicker">
-                        INFORMATION
-                      </p>
+                <section className="student-dashboard-panel"><div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Attendance Overview</h2></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Calendar</button></div><div className="student-dashboard-attendance-overview"><div className="student-dashboard-attendance-rate"><strong>{attendanceSummary.percentage === null ? 'Not available' : `${attendanceSummary.percentage}%`}</strong><span>Overall Attendance</span><div className="student-dashboard-progress green"><i style={{ width: `${attendanceSummary.percentage || 0}%` }} /></div></div><div className="student-dashboard-mini-stats"><strong>{attendanceSummary.present}<em>Present</em></strong><strong>{attendanceSummary.absent}<em>Absent</em></strong><strong>{attendanceSummary.leave}<em>Leave</em></strong></div></div>{attendanceSummary.records.length ? <div className="student-dashboard-records">{attendanceSummary.records.slice(-6).reverse().map((record, index) => <span key={`${record.date || record.id || index}-${index}`} className={String(record.status || record.attendanceStatus).toLowerCase().includes('present') ? 'present' : 'absent'}>{String(record.status || record.attendanceStatus || 'Recorded')}</span>)}</div> : <div className="student-dashboard-empty"><CalendarCheck size={22} /><p>Recent attendance records are not available.</p></div>}</section>
 
-                      <h2>
-                        Recent Information
-                      </h2>
-                    </div>
-                  </div>
+                <section className="student-dashboard-panel"><div className="student-dashboard-panel-heading"><div><small>SCHEDULE</small><h2>Upcoming Classes</h2></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Calendar</button></div>{upcomingClasses.length ? <div className="student-dashboard-upcoming-list">{upcomingClasses.map((event, index) => <div key={event.id || `${getEventDate(event)}-${index}`}><strong>{formatDate(getEventDate(event), { day: '2-digit', month: 'short' })}</strong><span>{formatValue(getEventTitle(event))}<small>{formatValue(event.startTime || event.start || event.from)} - {formatValue(event.endTime || event.end || event.to)}</small></span><em>{formatValue(event.facultyName || facultyName)}</em></div>)}</div> : <div className="student-dashboard-empty"><CalendarDays size={22} /><p>No upcoming classes are available.</p></div>}</section>
 
-                  <div className="student-new-recent-list">
-
-                    <div className="student-new-recent-item">
-
-                      <span className="student-new-recent-icon">
-                        <BookOpen
-                          size={18}
-                          strokeWidth={2.1}
-                        />
-                      </span>
-
-                      <div className="student-new-recent-copy">
-                        <strong>
-                        {courseName}
-                        </strong>
-
-                        <span>
-                          {student?.batchName || student?.batch || 'Your assigned course details.'}
-                        </span>
-                      </div>
-
-                      <span className="student-new-recent-status">
-                        Active
-                      </span>
-
-                    </div>
-
-                    <div className="student-new-recent-item">
-
-                      <span className="student-new-recent-icon">
-                        <CalendarCheck
-                          size={18}
-                          strokeWidth={2.1}
-                        />
-                      </span>
-
-                      <div className="student-new-recent-copy">
-                        <strong>
-                          Attendance
-                        </strong>
-
-                        <span>
-                          Your current attendance is {attendance}.
-                        </span>
-                      </div>
-
-                      <span className="student-new-recent-status">
-                        {attendance}
-                      </span>
-
-                    </div>
-
-                    <div className="student-new-recent-item">
-
-                      <span className="student-new-recent-icon">
-                        <CreditCard
-                          size={18}
-                          strokeWidth={2.1}
-                        />
-                      </span>
-
-                      <div className="student-new-recent-copy">
-                        <strong>
-                          Payment
-                        </strong>
-
-                        <span>
-                          Payment status: {paymentStatus}.
-                        </span>
-                      </div>
-
-                      <span className="student-new-recent-status">
-                        {paymentStatus}
-                      </span>
-
-                    </div>
-
-                  </div>
-
-                </section>
-
+                <section className="student-dashboard-panel"><div className="student-dashboard-panel-heading"><div><small>UPDATES</small><h2>Notifications</h2></div><button type="button" onClick={() => navigate('/student-new-dashboard/notifications')}>View All</button></div>{notifications.length ? <div className="student-dashboard-notifications">{notifications.slice(0, 5).map((item, index) => <div key={item.id || index}><span className={item.read ? '' : 'unread'}><Bell size={16} /></span><div><strong>{formatValue(item.title)}</strong><p>{formatValue(item.message)}</p><small>{item.createdAt ? formatDate(item.createdAt) : 'Date not available'} · {item.read ? 'Read' : 'Unread'}</small></div></div>)}</div> : <div className="student-dashboard-empty"><Bell size={22} /><p>No notifications found.</p></div>}</section>
               </div>
             ) : null}
 
