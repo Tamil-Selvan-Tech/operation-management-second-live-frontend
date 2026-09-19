@@ -79,6 +79,12 @@ function normalizeStoredStudentRecord(record = {}) {
     courseCompletedAt: record.courseCompletedAt || null,
     courseCompletionPercentage: record.courseCompletionPercentage,
     progress: record.progress,
+    feeScheduleMode: 'BEFORE_70_PERCENT',
+    feeFirstPaymentDate: record.feeFirstPaymentDate || record.admissionDate || '',
+    fee70ProgressDate: record.fee70ProgressDate || '',
+    fee70TargetHours: record.fee70TargetHours ?? '',
+    feePaymentDeadline: record.feePaymentDeadline || record.fee70ProgressDate || '',
+    feeComplianceStatus: record.feeComplianceStatus || 'PENDING',
     _fromBackend: Boolean(record._fromBackend),
     _isExistingRecord: Boolean(record._isExistingRecord),
   }
@@ -295,6 +301,14 @@ async function syncBranchStudentToBackend(student) {
   }
 }
 
+export async function previewBranchStudentFeePlan(payload = {}) {
+  const response = await request('/branch-students/fee-plan-preview', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return response?.data ?? response
+}
+
 function resolveStudentDeleteCandidates(studentOrId) {
   const candidates = []
 
@@ -503,8 +517,10 @@ export async function saveBranchStudent(student) {
   const savedRecord = normalizeStoredStudentRecord({
     ...mergePreservedStudentFields(
       {
-        ...(backendRecord || {}),
         ...nextStudent,
+        // The backend recalculates fee dates from the selected schedule mode.
+        // Keep that authoritative response instead of re-applying stale form dates.
+        ...(backendRecord || {}),
       },
       existingStudent || {},
     ),
