@@ -4592,6 +4592,8 @@ const nextName = trimmedValue
             type="button"
             className="notification-card is-unread"
             onClick={async () => {
+              setNotificationOpen(false)
+              setActiveSection('notifications')
               try {
                 if (isFacultyProgressNotification(notification)) {
                   markNotificationsAsRead([notification.id])

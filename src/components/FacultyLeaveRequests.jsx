@@ -99,6 +99,7 @@ function fullDayCount(fromDate, toDate) {
 }
 
 export function FacultyLeaveRequests() {
+  const [activeTab, setActiveTab] = useState('leave')
   const [form, setForm] = useState(emptyForm)
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
@@ -352,6 +353,8 @@ export function FacultyLeaveRequests() {
   }
 
   return <section className="faculty-leave-page">
+    <nav className="faculty-leave-tabs" aria-label="Faculty leave sections"><button type="button" className={activeTab === 'leave' ? 'is-active' : ''} aria-selected={activeTab === 'leave'} onClick={() => setActiveTab('leave')}>Leave Requests</button><button type="button" className={activeTab === 'weekoff' ? 'is-active' : ''} aria-selected={activeTab === 'weekoff'} onClick={() => setActiveTab('weekoff')}>Week-Off Requests</button></nav>
+    {activeTab === 'leave' ? <div className="faculty-leave-tab-content">
     <header className="faculty-leave-page-header">
       <div><span className="faculty-leave-eyebrow">FACULTY LEAVE</span><h1>Leave Requests</h1><p>Submit a request and track its status with your Branch Admin.</p></div>
       <div className="faculty-leave-page-header-actions"><span className="faculty-leave-header-icon"><CalendarDays size={24} /></span><button type="button" className="faculty-leave-apply-button" onClick={openCreateForm}><Send size={16} /> Apply Leave</button></div>
@@ -391,6 +394,7 @@ export function FacultyLeaveRequests() {
     {delegatedTarget && delegatedError ? <p className="faculty-delegated-timing-error" role="alert">{delegatedError}</p> : null}
     {delegatedTarget && !delegatedEligible.faculty.length ? <p className="faculty-delegated-no-faculty" role="status">No faculty available</p> : null}
     {delegatedTarget && delegatedMode === 'COMBINED' && delegatedEligible.combineSessions.length ? <div className="faculty-delegated-combine-summary"><strong>Current affected batch progress</strong><span>Module: {delegatedEligible.source?.moduleName || '—'} · Progress: {delegatedEligible.source?.moduleProgress ?? delegatedEligible.source?.courseProgress ?? 0}%</span><label>Select faculty<select value={combineFacultyId} onChange={event => { setCombineFacultyId(event.target.value); setDelegatedForm(current => ({ ...current, targetSessionId: '' })) }}><option value="">Select matching faculty</option>{delegatedEligible.faculty.map(item => <option key={item.facultyId} value={item.facultyId}>{item.name} ({item.facultyId})</option>)}</select></label><label>Matching batch<select value={delegatedForm.targetSessionId} onChange={event => setDelegatedForm(current => ({ ...current, targetSessionId: event.target.value }))}><option value="">Select matching batch</option>{delegatedEligible.combineSessions.filter(item => !combineFacultyId || item.facultyId === combineFacultyId).map(item => <option key={item.id} value={item.id}>{item.batchName} · {item.facultyName || 'Faculty'} · {item.moduleName || 'Module'} · {item.moduleProgress ?? item.courseProgress ?? 0}% · {displayTime(item.originalStartTime)} - {displayTime(item.originalEndTime)}</option>)}</select></label></div> : null}
-    <FacultyWeekOffRequests />
+    </div> : null}
+    {activeTab === 'weekoff' ? <FacultyWeekOffRequests /> : null}
   </section>
 }
