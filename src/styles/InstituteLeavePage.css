@@ -30,7 +30,8 @@
 .institute-action-menu-trigger:hover, .institute-action-menu-trigger:focus-visible { color: #3157d5; border-color: #b8c9f4; background: #f4f7ff; outline: none; }
 .institute-action-menu-dropdown { position: absolute; z-index: 20; right: 0; bottom: calc(100% + 5px); min-width: 128px; padding: 3px; display: grid; gap: 0; background: white; border: 1px solid #dfe5ef; border-radius: 10px; box-shadow: 0 12px 28px rgb(21 37 72 / 16%); }
 .institute-action-menu.opens-down .institute-action-menu-dropdown { top: calc(100% + 5px); bottom: auto; }
-.institute-action-menu-dropdown button { width: 100%; padding: 5px 10px; border: 0; border-radius: 7px; background: transparent; color: #17213b; line-height: 1.2; text-align: left; cursor: pointer; }
+.institute-action-menu-dropdown button { display: flex; align-items: center; justify-content: flex-start; width: 100%; min-width: 170px; box-sizing: border-box; padding: 7px 10px; border: 0; border-radius: 7px; background: transparent; color: #17213b; line-height: 1.2; text-align: left !important; white-space: nowrap; cursor: pointer; }
+.institute-action-menu-dropdown.institute-action-menu-dropdown button { display: flex !important; justify-content: flex-start !important; padding-left: 10px !important; text-align: left !important; }
 .institute-action-menu-dropdown button:hover, .institute-action-menu-dropdown button:focus-visible { background: #f1f5ff; color: #3157d5; outline: none; }
 .institute-action-menu-dropdown button:disabled { color: #9aa4b6; cursor: not-allowed; opacity: .7; }
 .institute-action-menu-dropdown button:disabled:hover { background: transparent; color: #9aa4b6; }
