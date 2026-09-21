@@ -150,6 +150,23 @@ export function getCourseSchedule(student = {}) {
   return 'Weekday'
 }
 
+export function getCourseWeeklyOffDay(student = {}) {
+  const value = [
+    student?.weeklyOffDay,
+    student?.facultyWeeklyOffDay,
+    student?.batchWeeklyOffDay,
+    student?.batch?.weeklyOffDay,
+    student?.faculty?.weeklyOffDay,
+    student?.course?.weeklyOffDay,
+    student?.scheduleSummary?.weeklyOffDay,
+    student?.scheduleSummary?.facultyWeeklyOffDay,
+    student?.scheduleSummary?.batch?.weeklyOffDay,
+  ].find((item) => String(item || '').trim())
+  const normalized = String(value || '').trim().toLowerCase()
+  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+  return days.find((day) => normalized === day || normalized.startsWith(day.slice(0, 3))) || ''
+}
+
 export function getCourseStartDate(student = {}) {
   return (
     parseCalendarDate(student?.courseStartDate) ||
@@ -238,10 +255,34 @@ function buildServerEventMap(student = {}) {
   events.forEach((event) => {
     const key = toCalendarDateKey(event?.date || event?.attendanceDate || event?.day)
     if (!key) return
-    entries.set(key, event)
+    entries.set(key, [...(entries.get(key) || []), event])
   })
 
   return entries
+}
+
+function getCalendarEventType(event = {}) {
+  return String(event?.eventType || event?.assignmentType || event?.sessionType || event?.code || event?.type || event?.status || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[- ]/g, '_')
+}
+
+function isReplacementCalendarEvent(event = {}) {
+  const type = getCalendarEventType(event)
+  return Boolean(event?.isReplacement) || type.includes('REPLAC') || type === 'REASSIGNED' || type === 'COMBINED'
+}
+
+function isKickoffCalendarEvent(event = {}) {
+  const type = getCalendarEventType(event)
+  return type.includes('KICKOFF') || type.includes('KICK_OFF')
+}
+
+function pickCalendarEvent(events = []) {
+  return [...events].sort((left, right) => {
+    const priority = (event) => isReplacementCalendarEvent(event) ? 3 : isKickoffCalendarEvent(event) ? 2 : 1
+    return priority(right) - priority(left)
+  })[0] || null
 }
 
 function formatSessionTime(value) {
@@ -277,7 +318,7 @@ function formatSessionRange(start, end) {
   return startValue && endValue ? `${startValue} - ${endValue}` : startValue || endValue
 }
 
-function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holidayMap, attendanceMap, serverEventMap) {
+function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holidayMap, attendanceMap, serverEventMap, weeklyOffIndex = -1) {
   const firstDate = startOfCalendarMonth(monthDate)
   const lastDate = endOfCalendarMonth(monthDate)
   const cells = []
@@ -292,12 +333,18 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
     const isWithinRange = cursor >= rangeStart && cursor <= rangeEnd
     const holiday = holidayMap.get(dateKey) || null
     const attendance = attendanceMap.get(dateKey) || ''
-    const serverEvent = serverEventMap.get(dateKey) || null
+    const serverEvents = serverEventMap.get(dateKey) || []
+    const serverEvent = pickCalendarEvent(serverEvents)
     const dayOfWeek = cursor.getDay()
     const localCourseDay = isWithinRange
-      ? (schedule === 'Weekend' ? WEEKEND_DAYS.has(dayOfWeek) : WEEKDAY_DAYS.has(dayOfWeek))
+      ? (schedule === 'Weekend' ? WEEKEND_DAYS.has(dayOfWeek) : WEEKDAY_DAYS.has(dayOfWeek)) && dayOfWeek !== weeklyOffIndex
       : false
-    const isCourseDay = serverEvent ? Boolean(serverEvent.isCourseDay) : localCourseDay
+    const isCalendarClassEvent = serverEvent && (
+      isReplacementCalendarEvent(serverEvent)
+      || isKickoffCalendarEvent(serverEvent)
+      || ['CLASS', 'SCHEDULED', 'COMPLETED', 'PRESENT', 'REASSIGNED', 'COMBINED', 'RESCHEDULED', 'RESCHEDULED_ORIGINAL'].includes(getCalendarEventType(serverEvent))
+    )
+    const isCourseDay = isCalendarClassEvent ? true : serverEvent ? Boolean(serverEvent.isCourseDay) : localCourseDay
     const isStartDate = dateKey === toCalendarDateKey(rangeStart)
     const isEndDate = dateKey === toCalendarDateKey(rangeEnd)
 
@@ -313,9 +360,12 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       // same date.
       status = attendance
       tone = attendance.toLowerCase()
-    } else if (serverEvent?.status) {
-      status = serverEvent.status
+    } else if (serverEvent?.status || isReplacementCalendarEvent(serverEvent) || isKickoffCalendarEvent(serverEvent)) {
+      status = serverEvent.status || (isReplacementCalendarEvent(serverEvent) ? 'Replacement' : 'Kickoff')
       tone = getStatusToneKey(status)
+    } else if (weeklyOffIndex >= 0 && dayOfWeek === weeklyOffIndex) {
+      status = 'Faculty Weekly Off'
+      tone = 'holiday'
     } else if (holiday) {
       status = holiday.type === 'Leave' ? 'Leave' : 'General Holiday'
       tone = 'holiday'
@@ -343,13 +393,19 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
         extendedTime: serverEvent.extendedTime || serverEvent.extension || '',
         actualEndTime: serverEvent.actualEndTime || serverEvent.endTime || '',
         totalClassDuration: serverEvent.totalClassDuration || serverEvent.duration || serverEvent.classHours || '',
-        submodule: serverEvent.submodule || serverEvent.submoduleName || '',
+        submodule: serverEvent.submodule || serverEvent.submoduleName || serverEvent.moduleName || serverEvent.topicName || '',
         attendance: serverEvent.attendanceStatus || serverEvent.attendance || attendance,
         course: serverEvent.courseName || '',
         batch: serverEvent.batchName || '',
         faculty: serverEvent.facultyName || serverEvent.replacementFacultyName || serverEvent.combinedFacultyName || '',
         originalFaculty: serverEvent.originalFacultyName || '',
-        assignmentType: serverEvent.assignmentType === 'COMBINED' ? 'Combined Class' : serverEvent.assignmentType === 'REPLACEMENT' ? 'Replacement/Reassignment' : serverEvent.assignmentType === 'RESCHEDULED' ? 'Rescheduled' : '',
+        assignmentType: serverEvent.assignmentType === 'COMBINED' || getCalendarEventType(serverEvent) === 'COMBINED'
+          ? 'Combined Class'
+          : serverEvent.assignmentType === 'REPLACEMENT' || isReplacementCalendarEvent(serverEvent)
+            ? 'Replacement/Reassignment'
+            : serverEvent.assignmentType === 'RESCHEDULED' || getCalendarEventType(serverEvent) === 'RESCHEDULED'
+              ? 'Rescheduled'
+              : isKickoffCalendarEvent(serverEvent) ? 'Faculty Kickoff' : '',
         originalDate: serverEvent.originalDate || '',
         originalTime: serverEvent.originalStartTime && serverEvent.originalEndTime ? formatSessionRange(serverEvent.originalStartTime, serverEvent.originalEndTime) : '',
         rescheduledDate: serverEvent.rescheduledDate || '',
@@ -360,7 +416,8 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       markers: [
         isStartDate ? 'Course Start Date' : '',
         isEndDate ? 'Course End Date' : '',
-        serverEvent?.isReplacement ? 'Replacement Class' : '',
+        isReplacementCalendarEvent(serverEvent) ? 'Replacement Class' : '',
+        isKickoffCalendarEvent(serverEvent) ? 'Faculty Kickoff' : '',
         serverEvent?.code === 'REASSIGNED' ? 'Reassigned Class' : '',
         serverEvent?.code === 'RESCHEDULED' ? 'Rescheduled' : '',
       ].filter(Boolean),
@@ -375,10 +432,10 @@ function getStatusToneKey(status) {
   const normalized = String(status || '').trim().toLowerCase()
   if (normalized === 'present') return 'present'
   if (normalized === 'completed') return 'present'
-  if (normalized === 'class' || normalized === 'scheduled' || normalized === 'reassigned' || normalized === 'replaced' || normalized === 'combined' || normalized === 'rescheduled') return 'course-day'
+  if (normalized === 'class' || normalized === 'scheduled' || normalized === 'reassigned' || normalized === 'replaced' || normalized === 'replacement' || normalized === 'combined' || normalized === 'rescheduled' || normalized.includes('kickoff') || normalized.includes('kick-off')) return 'course-day'
   if (normalized === 'institute leave' || normalized === 'institute_leave') return 'holiday'
   if (normalized === 'absent') return 'absent'
-  if (normalized === 'leave' || normalized === 'holiday' || normalized === 'government holiday') return 'holiday'
+  if (normalized === 'leave' || normalized === 'holiday' || normalized === 'government holiday' || normalized === 'faculty weekly off') return 'holiday'
   if (normalized === 'course day') return 'course-day'
   return 'no-class'
 }
@@ -387,6 +444,8 @@ export function buildStudentCourseCalendar(student = {}) {
   const startDate = getCourseStartDate(student)
   const durationMonths = getCourseDurationMonths(student)
   const schedule = getCourseSchedule(student)
+  const weeklyOffDay = getCourseWeeklyOffDay(student)
+  const weeklyOffIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(weeklyOffDay)
   const totalHours = getCourseTotalHours(student)
   const hoursPerDay = getCourseHoursPerDay(student)
   const requiredTeachingDays = getPositiveNumber(student?.requiredTeachingDays, student?.totalWorkingDays)
@@ -476,13 +535,13 @@ export function buildStudentCourseCalendar(student = {}) {
   }
 
   for (let cursor = new Date(rangeStart); cursor <= rangeEnd; cursor = addCalendarMonths(cursor, 1)) {
-    const monthDays = buildCalendarMonthDays(cursor, startDate, endDate, schedule, holidayMap, attendanceMap, serverEventMap)
+    const monthDays = buildCalendarMonthDays(cursor, startDate, endDate, schedule, holidayMap, attendanceMap, serverEventMap, weeklyOffIndex)
     monthDays.forEach((day) => {
       if (day.isPlaceholder || !day.isWithinRange) return
 
       if (day.isCourseDay) summary.courseDays += 1
       if (day.status === 'No Class') summary.noClassDays += 1
-      if (String(day.status || '').toLowerCase() === 'faculty weekly off') summary.facultyWeeklyOffDays += 1
+      if (String(day.status || '').toLowerCase().replace(/_/g, ' ') === 'faculty weekly off') summary.facultyWeeklyOffDays += 1
       // Count every holiday in the course range. Scheduled holidays are also
       // removed from the Course Day total by the status precedence above.
       const attendanceStatus = day.attendanceStatus || (day.status === 'Completed' ? 'Present' : day.status)
@@ -509,6 +568,7 @@ export function buildStudentCourseCalendar(student = {}) {
     endDate,
     durationMonths,
     schedule,
+    weeklyOffDay,
     courseMode: student?.courseMode || student?.course?.mode || '',
     totalHours,
     hoursPerDay,

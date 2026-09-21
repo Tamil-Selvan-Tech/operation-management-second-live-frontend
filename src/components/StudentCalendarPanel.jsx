@@ -9,7 +9,7 @@ const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 function getStatusTone(status) {
   const normalized = String(status || '').trim().toLowerCase()
   if (normalized === 'course day') return 'tone-course-day'
-  if (normalized === 'class' || normalized === 'scheduled' || normalized === 'reassigned' || normalized === 'replaced' || normalized === 'combined') return 'tone-course-day'
+  if (normalized === 'class' || normalized === 'scheduled' || normalized === 'reassigned' || normalized === 'replaced' || normalized === 'replacement' || normalized === 'combined' || normalized === 'kickoff' || normalized === 'kick-off') return 'tone-course-day'
   if (normalized === 'completed') return 'tone-present'
   if (normalized === 'institute leave' || normalized === 'institute_leave' || normalized.startsWith('institute leave')) return 'tone-holiday'
   if (normalized === 'holiday' || normalized === 'general holiday' || normalized === 'government holiday') return 'tone-holiday'
@@ -55,7 +55,7 @@ function CalendarSummaryCard({ icon: Icon, label, value, note, tone = 'tone-no-c
       </span>
       <div className="student-calendar-summary-copy">
         <span>{label}</span>
-        <strong>{value || '-'}</strong>
+        <strong>{value ?? '-'}</strong>
         {note ? <small>{note}</small> : null}
       </div>
     </article>
