@@ -95,7 +95,7 @@ function CellBatchPreview({ batch, date, onSelect }) {
   </button>
 }
 
-export function FacultyCalendar({ faculty, facultyProfile }) {
+export function FacultyCalendar({ faculty, facultyProfile, assignedBatches }) {
   const [calendar, setCalendar] = useState(null)
   const [leaveRequests, setLeaveRequests] = useState([])
   const [month, setMonth] = useState(null)
@@ -130,6 +130,20 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
     })
     return [...merged.values()]
   }, [calendar, permanentBatches])
+  const assignedBatchCount = useMemo(() => {
+    const source = Array.isArray(assignedBatches) ? assignedBatches : permanentBatches
+    const uniqueBatchIds = new Set()
+
+    source.forEach((batch) => {
+      const batchId = String(
+        batch?.batchId || batch?.batchEntryId || batch?.id ||
+        `${batch?.courseId || batch?.courseName || ''}:${batch?.batchName || batch?.batch || batch?.code || ''}`,
+      ).trim().toLowerCase()
+      if (batchId) uniqueBatchIds.add(batchId)
+    })
+
+    return uniqueBatchIds.size
+  }, [assignedBatches, permanentBatches])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -294,7 +308,7 @@ export function FacultyCalendar({ faculty, facultyProfile }) {
       <SummaryCard icon={Flag} label="Calendar Start Date" value={displayDate(range.start, { day: '2-digit', month: 'short', year: 'numeric' })} note="Earliest assigned batch" tone="purple" />
       <SummaryCard icon={CheckCircle2} label="Calendar End Date" value={displayDate(range.end, { day: '2-digit', month: 'short', year: 'numeric' })} note="Latest assigned batch" tone="green" />
       <SummaryCard icon={Sparkles} label="Assigned Courses" value={hasCalendarData ? courses.size : null} note={hasCalendarData ? `${classCount} scheduled events` : 'Loading schedule…'} />
-      <SummaryCard icon={CheckCircle2} label="Assigned Batches" value={hasCalendarData ? batches.length : null} note="Active teaching batches" tone="green" />
+      <SummaryCard icon={CheckCircle2} label="Assigned Batches" value={hasCalendarData ? assignedBatchCount : null} note="Active teaching batches" tone="green" />
       <SummaryCard icon={Timer} label="General Holidays" value={hasCalendarData ? holidayCount : null} note="Selected month" tone="red" />
       <SummaryCard icon={CalendarOff} label="Weekly Off Days" value={hasCalendarData ? weeklyOffCount : null} note={batches.map((batch) => batch.weeklyOffDay).filter(Boolean).join(', ') || 'No weekly off configured'} tone="red" />
     </div>

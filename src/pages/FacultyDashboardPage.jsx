@@ -5331,7 +5331,11 @@ const nextName = trimmedValue
               ) : null}
 
               {activeSection === 'my-calendar' ? (
-                <FacultyCalendar faculty={facultyDetails} facultyProfile={facultyProfile || currentFacultyIdentity} />
+                <FacultyCalendar
+                  faculty={facultyDetails}
+                  facultyProfile={facultyProfile || currentFacultyIdentity}
+                  assignedBatches={facultyBatchRows}
+                />
               ) : null}
 
               {isStudentCalendarRoute ? (
