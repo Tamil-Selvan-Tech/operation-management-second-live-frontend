@@ -67,7 +67,7 @@ function hydrateStudentCalendarSummary(student) {
   }
 }
 
-export function StudentCalendarPage({ student: initialStudent, studentId, backPath, onBack }) {
+export function StudentCalendarPage({ student: initialStudent, studentId, backPath, onBack, useFacultyCalendar = false }) {
   const [student, setStudent] = useState(() => hydrateStudentCalendarSummary(initialStudent))
   const [facultyCalendar, setFacultyCalendar] = useState(null)
   const [error, setError] = useState('')
@@ -135,7 +135,7 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
 
   useEffect(() => {
     let active = true
-    if (!resolvedId) return undefined
+    if (!useFacultyCalendar || !resolvedId) return undefined
 
     Promise.all([getFacultyCalendar(), getFacultyLeaveRequests()])
       .then(([calendar, requests]) => {
@@ -147,7 +147,7 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
       })
 
     return () => { active = false }
-  }, [resolvedId])
+  }, [resolvedId, useFacultyCalendar])
 
   const back = onBack || (() => { window.location.assign(backPath) })
 

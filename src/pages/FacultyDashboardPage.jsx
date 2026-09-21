@@ -1712,6 +1712,7 @@ function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibilit
         <StudentCalendarPage
           studentId={calendarStudent.studentId || calendarStudent.id || ''}
           student={calendarStudent}
+          useFacultyCalendar
           onBack={() => setCalendarStudent(null)}
         />
       ) : <div className="faculty-my-batches-student-view">
@@ -5361,6 +5362,7 @@ const nextName = trimmedValue
                 <StudentCalendarPage
                   studentId={decodeURIComponent(studentCalendarId)}
                   student={location.state?.temporaryStudent || facultyScopedStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase()))}
+                  useFacultyCalendar
                   backPath="/dashboard/faculty/my-batches"
                   onBack={() => {
                     setActiveSection('students')
