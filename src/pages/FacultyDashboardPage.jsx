@@ -437,6 +437,10 @@ function getTodayWorkStudentId(student = {}) {
   return String(student?.id || student?.studentId || '').trim()
 }
 
+function isAttendanceMarkedStatus(value) {
+  return ['PRESENT', 'ABSENT'].includes(String(value || '').trim().toUpperCase())
+}
+
 function extractStudentAttendanceStatuses(payload = {}) {
   const source = payload?.data ?? payload
   const rows = [
@@ -450,7 +454,7 @@ function extractStudentAttendanceStatuses(payload = {}) {
   rows.forEach((row) => {
     const studentId = normalizeWorkStudentId(row?.studentId || row?.studentCode || row?.id || row?.student?.id)
     const rawStatus = String(row?.attendanceStatus || row?.attendanceStatusLabel || row?.status || '').trim().toUpperCase()
-    if (!studentId || !['PRESENT', 'ABSENT'].includes(rawStatus)) return
+    if (!studentId || !isAttendanceMarkedStatus(rawStatus)) return
     statuses[studentId] = rawStatus
   })
 
@@ -459,7 +463,7 @@ function extractStudentAttendanceStatuses(payload = {}) {
 
 function getCurrentStudentAttendanceStatus(statuses = {}, student = {}) {
   const status = getStudentAttendanceStatus(statuses, student)
-  return ['PRESENT', 'ABSENT'].includes(status) ? status : ''
+  return isAttendanceMarkedStatus(status) ? status : ''
 }
 
 function getStudentAttendanceStatus(statuses = {}, student = {}) {
@@ -4922,6 +4926,21 @@ const nextName = trimmedValue
     attendanceBatchTiming,
     attendanceClock,
   )
+  const hasUnmarkedAttendance = useMemo(() => {
+    const draftAttendance = todayWorkForm.attendanceByStudent || {}
+
+    return studentsFlowVisibleStudents.some((student) => {
+      const studentId = getTodayWorkStudentId(student)
+      if (!studentId) return false
+
+      const hasDraftStatus = isTodayWorkModalOpen && Object.prototype.hasOwnProperty.call(draftAttendance, studentId)
+      const status = hasDraftStatus
+        ? draftAttendance[studentId]
+        : getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
+
+      return !isAttendanceMarkedStatus(status)
+    })
+  }, [isTodayWorkModalOpen, studentAttendanceStatuses, studentsFlowVisibleStudents, todayWorkForm.attendanceByStudent])
   const temporarySessionWindowLocked = Boolean(temporarySessionContext) && !isTemporarySessionEditable(temporarySessionContext.item, attendanceClock)
   const attendanceWindowLocked = temporarySessionWindowLocked || (todayWorkMode === 'attendance' && !todayWorkAttendanceWindow.isEditable)
   const hasTemporaryAttendanceOverride = Boolean(activeTemporaryAttendanceSession)
@@ -4931,8 +4950,8 @@ const nextName = trimmedValue
   )
 
   useEffect(() => {
-    if (!selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder) {
-      if (!todayWorkAttendanceWindow.isReminder) attendanceWarningLevelRef.current = 0
+    if (!selectedStudentsBatchId || !todayWorkAttendanceWindow.isReminder || !hasUnmarkedAttendance) {
+      attendanceWarningLevelRef.current = 0
       setAttendanceWarningPopup(null)
       return
     }
@@ -4944,7 +4963,7 @@ const nextName = trimmedValue
         message: todayWorkAttendanceWindow.reason,
       })
     }
-  }, [selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
+  }, [hasUnmarkedAttendance, selectedStudentsBatchId, todayWorkAttendanceWindow.isReminder, todayWorkAttendanceWindow.warningMinutes, todayWorkAttendanceWindow.reason])
 
   const visibleAttendanceStudents = studentsFlowVisibleStudents.filter((student) => {
     if (!normalizedAttendanceSearch) return true
