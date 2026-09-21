@@ -109,6 +109,18 @@ function getCurrentMonthAttendanceCells(attendanceEntries = []) {
   })
 }
 
+function getCourseProgress(student = {}) {
+  const value = [
+    student.courseProgress,
+    student.courseCompletionPercentage,
+    student.progress,
+    student.course?.courseProgress,
+    student.course?.progress,
+  ].find((candidate) => candidate !== null && candidate !== undefined && String(candidate).trim() !== '')
+  const percentage = Number(value)
+  return Number.isFinite(percentage) ? Math.min(100, Math.max(0, percentage)) : 0
+}
+
 function DetailItem({ label, value, icon: Icon }) {
   return (
     <div className="student360-detail-item">
@@ -121,7 +133,7 @@ function DetailItem({ label, value, icon: Icon }) {
   )
 }
 
-function SectionCard({ title, description, children, className = '', id }) {
+function SectionCard({ title, description, actions, children, className = '', id }) {
   return (
     <section id={id} className={`student360-card ${className}`.trim()}>
       <div className="student360-card-heading">
@@ -129,6 +141,7 @@ function SectionCard({ title, description, children, className = '', id }) {
           <h2>{title}</h2>
           {description ? <p>{description}</p> : null}
         </div>
+        {actions ? <div className="student360-card-actions">{actions}</div> : null}
       </div>
       {children}
     </section>
@@ -142,6 +155,7 @@ export function Student360Page({
   onBack,
   onEdit,
   onViewCalendar,
+  onDownloadAttendance,
   onDownloadPaymentReceipt,
 }) {
   if (!student) {
@@ -164,6 +178,7 @@ export function Student360Page({
   const schedule = getPaymentSchedule(student)
   const attendanceEntries = getAttendanceEntries(student)
   const attendanceCells = getCurrentMonthAttendanceCells(attendanceEntries)
+  const courseProgress = getCourseProgress(student)
   const totalFee = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
   const paidAmount = schedule.length
     ? schedule.reduce((sum, item) => sum + Number(item.paidAmount ?? item.amountPaid ?? 0), 0)
@@ -208,68 +223,55 @@ export function Student360Page({
           <div className="student360-title-row">
             <div>
               <h1>{studentName}</h1>
+              <p className="student360-header-id">{displayValue(student.studentId)}</p>
               <p>{displayValue(student.studentId)} · {displayValue(student.courseInterested || student.courseName, 'Course not assigned')}</p>
             </div>
             <span className="student360-status"><span />{status}</span>
           </div>
-          <div className="student360-meta-row">
-            <span><BookOpen size={15} aria-hidden="true" />{displayValue(student.courseInterested || student.courseName, 'Course not assigned')}</span>
-            <span><GraduationCap size={15} aria-hidden="true" />{displayValue(student.batchName || student.batch, 'Batch not assigned')}</span>
-            <span><UserRound size={15} aria-hidden="true" />{displayValue(student.facultyName, 'Faculty not assigned')}</span>
-            <span><MapPin size={15} aria-hidden="true" />{displayValue(branch?.branchName || branch?.name, 'Current branch')}</span>
-          </div>
         </div>
         <div className="student360-profile-actions">
-          <button type="button" className="student360-secondary-button" onClick={() => onViewCalendar?.(student)}><CalendarDays size={16} /> Calendar</button>
-          <button type="button" className="student360-secondary-button" onClick={() => onDownloadAttendance?.(student)}><Download size={16} /> Attendance</button>
+          <button type="button" className="student360-secondary-button student360-attendance-button" onClick={() => onDownloadAttendance?.(student)}><Download size={16} /> Attendance</button>
           <button type="button" className="student360-primary-button" onClick={() => onEdit?.(student)}><Edit3 size={16} /> Edit Student</button>
         </div>
       </section>
 
-      <div className="student360-tab-strip" role="tablist" aria-label="Student profile sections">
-        <a href="#overview" className="is-active" role="tab">Overview</a>
-        <a href="#personal" role="tab">Personal</a>
-        <a href="#enrollment" role="tab">Enrollment</a>
-        <a href="#payments" role="tab">Fees & Payments</a>
-      </div>
-
       <section id="overview" className="student360-summary-grid">
-        <article className="student360-summary-card"><span className="student360-summary-icon blue"><BookOpen size={19} /></span><div><span>Course</span><strong>{displayValue(student.courseInterested || student.courseName)}</strong><small>{displayValue(student.courseMode, 'Mode not set')}</small></div></article>
+        <article className="student360-summary-card"><span className="student360-summary-icon blue"><BookOpen size={19} /></span><div><span>Course</span><strong>{displayValue(student.courseInterested || student.courseName)}</strong><small className="student360-course-type">{displayValue(student.courseType || student.course?.courseType, 'Course type not set')}</small></div></article>
         <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{displayValue(student.batchName || student.batch)}</strong><small>{displayValue(student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
         <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{displayValue(student.facultyName)}</strong><small>Assigned faculty</small></div></article>
-        <article className="student360-summary-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Admission Date</span><strong>{formatDate(student.admissionDate)}</strong><small>{displayValue(student.source, 'Source not set')}</small></div></article>
+        <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{Math.round(courseProgress)}%</strong><div className="student360-summary-progress-track"><span style={{ width: `${courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
       </section>
 
       <div className="student360-content-grid">
         <div className="student360-main-column">
-          <SectionCard title="Attendance & Lab Engagement Heatmap" description={`${attendanceMonthLabel} attendance overview.`}>
+          <SectionCard title="Attendance & Calendar" actions={<button type="button" className="student360-secondary-button" onClick={() => onViewCalendar?.(student)}><CalendarDays size={15} /> Calendar</button>}>
             <div className="student360-attendance-legend">
               <span className="present"><i />Present ({attendanceSummary.present})</span>
               <span className="absent"><i />Absent ({attendanceSummary.absent})</span>
               <span className="excused"><i />Excused / Leave ({attendanceSummary.excused})</span>
             </div>
             <div className="student360-attendance-grid">{attendanceCells.map((entry) => <div className={`student360-attendance-cell ${entry.status}`} key={entry.date} title={`${entry.date} · ${entry.status}`}><strong>{entry.day}</strong><small>{new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })}</small></div>)}</div>
-            <div className="student360-attendance-actions"><button type="button" className="student360-secondary-button" onClick={() => onViewCalendar?.(student)}><CalendarDays size={15} /> View All</button></div>
           </SectionCard>
           <SectionCard title="Personal Information" description="Contact and identity details recorded for this student." className="student360-anchor-card" id="personal">
             <div className="student360-detail-grid">
-              <DetailItem label="Student ID" value={student.studentId} />
+              <DetailItem label="Parent Name" value={student.parentName} icon={UserRound} />
               <DetailItem label="Email Address" value={student.emailAddress} icon={Mail} />
               <DetailItem label="Mobile Number" value={student.mobileNumber} icon={Phone} />
               <DetailItem label="Parent / Spouse Number" value={student.parentSpouseNumber} icon={Phone} />
+              <DetailItem label="Address" value={student.location || [student.city, student.state].filter(Boolean).join(', ')} icon={MapPin} />
               <DetailItem label="Country" value={student.country} icon={MapPin} />
-              <DetailItem label="Location" value={student.location || [student.city, student.state].filter(Boolean).join(', ')} icon={MapPin} />
             </div>
           </SectionCard>
 
           <SectionCard title="Education & Enrollment" description="Academic background and current learning assignment." className="student360-anchor-card" id="enrollment">
             <div className="student360-detail-grid">
               <DetailItem label="Qualification" value={student.qualification} icon={GraduationCap} />
-              <DetailItem label="Passed Out Year" value={student.passedOutYear} />
-              <DetailItem label="Designation" value={student.designation} />
+              <DetailItem label="Passed Out Year" value={student.passedOutYear} icon={GraduationCap} />
+              {String(student.designation || '').trim() ? <DetailItem label="Designation" value={student.designation} /> : null}
               <DetailItem label="Course Start Date" value={formatDate(student.courseStartDate)} icon={CalendarDays} />
               <DetailItem label="Course End Date" value={formatDate(student.courseEndDate)} icon={CalendarDays} />
               <DetailItem label="Class Schedule" value={student.classSchedule || student.courseSchedule} />
+              <DetailItem label="Course Mode" value={student.courseMode} />
             </div>
           </SectionCard>
         </div>

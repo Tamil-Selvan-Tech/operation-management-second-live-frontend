@@ -152,6 +152,7 @@ function getAllowedCourseModes(courseMode) {
 const STUDENT_FORM_STEP_ONE_FIELDS = [
   'studentIdSuffix',
   'studentName',
+  'parentName',
   'emailAddress',
   'linkedInUrl',
   'mobileNumber',
@@ -407,6 +408,7 @@ function createInitialStudentForm(branchId) {
     originalStudentId: '',
     recordId: '',
     studentName: '',
+    parentName: '',
     emailAddress: '',
     linkedInUrl: '',
     mobileNumber: '',
@@ -466,6 +468,7 @@ function buildStudentFormFromRecord(student = {}) {
     originalStudentId: storedStudentId,
     recordId: String(student.id || student._id || student.recordId || '').trim(),
     studentName: student.studentName || '',
+    parentName: student.parentName || '',
     emailAddress: student.emailAddress || '',
     linkedInUrl: student.linkedInUrl || '',
     mobileNumber: student.mobileNumber || '',
@@ -6762,6 +6765,11 @@ const studentCourseOptions = useMemo(() => {
 
   const allPaymentHistoryRecords = useMemo(() => {
     const records = new Map()
+    const storedPaymentStudentIds = new Set(
+      storedPaymentHistoryRecords
+        .map((record) => String(record.studentId || '').trim().toLowerCase())
+        .filter(Boolean),
+    )
 
     const addRecord = (record = {}) => {
       const id = String(
@@ -6813,6 +6821,12 @@ const studentCourseOptions = useMemo(() => {
     })
 
     branchStudents.forEach((stu) => {
+      // Stored payment history is authoritative. The installment schedule is
+      // only a fallback for students without recorded payment transactions;
+      // otherwise a due/updated schedule row can appear as a fake payment.
+      const studentId = String(stu.studentId || '').trim().toLowerCase()
+      if (studentId && storedPaymentStudentIds.has(studentId)) return
+
       const installments = Array.isArray(stu.installmentSchedule) ? stu.installmentSchedule : []
 
       installments.forEach((inst, index) => {
@@ -14138,6 +14152,16 @@ else {
                 studentName: true,
               }))
             }
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
+
+        <Field label="Parent Name">
+          <input
+            type="text"
+            placeholder="Enter parent name"
+            value={studentForm.parentName}
+            onChange={(e) => updateStudentField('parentName', e.target.value)}
             disabled={studentFormMode === 'view'}
           />
         </Field>
