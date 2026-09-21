@@ -10841,8 +10841,13 @@ else {
       >
 
         {/* PENDING PAYMENTS */}
-        <article className="branch-dashboard-stat-card">
+        <article className="branch-dashboard-stat-card payment-summary-card payment-summary-card--pending">
 
+          <span className="payment-summary-card-icon" aria-hidden="true">
+            <IndianRupee size={22} strokeWidth={2.2} />
+          </span>
+
+          <div className="payment-summary-card-content">
           <span>
             Pending Payments
           </span>
@@ -10854,12 +10859,18 @@ else {
           <small>
             Total pending amount
           </small>
+          </div>
 
         </article>
 
         {/* TODAY'S PAYMENTS */}
-        <article className="branch-dashboard-stat-card">
+        <article className="branch-dashboard-stat-card payment-summary-card payment-summary-card--today">
 
+          <span className="payment-summary-card-icon" aria-hidden="true">
+            <Wallet size={22} strokeWidth={2.2} />
+          </span>
+
+          <div className="payment-summary-card-content">
           <span>
             Today's Payments
           </span>
@@ -10871,12 +10882,18 @@ else {
           <small>
             Amount collected today
           </small>
+          </div>
 
         </article>
 
         {/* FULLY PAID */}
-        <article className="branch-dashboard-stat-card">
+        <article className="branch-dashboard-stat-card payment-summary-card payment-summary-card--paid">
 
+          <span className="payment-summary-card-icon" aria-hidden="true">
+            <CheckCircle2 size={22} strokeWidth={2.2} />
+          </span>
+
+          <div className="payment-summary-card-content">
           <span>
             Fully Paid
           </span>
@@ -10888,6 +10905,7 @@ else {
           <small>
             Students cleared in full
           </small>
+          </div>
 
         </article>
 
