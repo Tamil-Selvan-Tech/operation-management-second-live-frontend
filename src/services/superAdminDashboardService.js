@@ -257,8 +257,13 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
   return result
 }
 
-export async function getSuperAdminOverview(branchId = null) {
-  const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''
+export async function getSuperAdminOverview(branchId = null, performance = {}) {
+  const params = new URLSearchParams()
+  if (branchId) params.set('branchId', branchId)
+  if (performance.period) params.set('period', performance.period)
+  if (performance.startDate) params.set('startDate', performance.startDate)
+  if (performance.endDate) params.set('endDate', performance.endDate)
+  const query = params.toString() ? `?${params.toString()}` : ''
   const response = await request(`/dashboard/super-admin/overview${query}`, { method: 'GET' })
   return response?.data || response
 }

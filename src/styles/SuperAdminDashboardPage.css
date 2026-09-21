@@ -4465,7 +4465,10 @@ body.super-admin-sidebar-open {
 .sa-branch-performance-controls label { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 8px 0 11px; border: 1px solid #dbe4ef; border-radius: 9px; color: #52627a; background: #fff; font-size: 12px; font-weight: 700; }
 .sa-branch-performance-controls label span { color: #7b8ba1; }
 .sa-branch-performance-controls select { min-height: 34px; padding: 0 22px 0 0; border: 0; outline: 0; color: #334b70; background: #fff; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
-.sa-branch-performance-controls select:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96, 165, 250, .12); }
+.sa-branch-performance-date-range { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: #7b8ba1; font-size: 12px; font-weight: 700; }
+.sa-branch-performance-date-range input { min-height: 40px; padding: 0 8px; border: 1px solid #dbe4ef; border-radius: 9px; color: #334b70; background: #fff; font: inherit; font-size: 12px; }
+.sa-branch-performance-controls select:focus, .sa-branch-performance-controls select:focus-visible { border: 0; outline: 0; box-shadow: none; }
+.sa-branch-performance-controls label:focus-within { border-color: #dbe4ef; box-shadow: none; }
 .sa-branch-performance-table-wrap { overflow-x: auto; }
 .sa-branch-performance-table { width: 100%; min-width: 920px; border-collapse: collapse; color: #334155; font-size: 13px; table-layout: fixed; }
 .sa-branch-performance-table .sa-branch-col { width: 27%; }
@@ -4490,6 +4493,9 @@ body.super-admin-sidebar-open {
 .sa-branch-attendance-badge.is-warning { border-color: #efc0b8; color: #b56258; background: #fff7f5; }
 .sa-branch-attendance-badge.is-empty { border-color: #dbe4ef; color: #8a9bb3; background: #f8fafc; }
 .sa-branch-performance-empty { padding: 28px !important; color: #8a9bb3; text-align: center !important; }
+.sa-branch-performance-empty strong, .sa-branch-performance-empty small { display: block; }
+.sa-branch-performance-empty strong { color: #52627a; font-size: 14px; }
+.sa-branch-performance-empty small { margin-top: 5px; color: #8a9bb3; font-size: 12px; }
 .sa-branch-performance-table tfoot th, .sa-branch-performance-table tfoot td { padding: 15px 16px; border-top: 1px solid #dce5ef; border-bottom: 0; color: #334b70; background: #fbfcfe; font-size: 12px; font-weight: 750; }
 .sa-branch-performance-footer { padding: 12px 20px 15px; color: #8a9bb3; font-size: 12px; text-align: right; }
 
