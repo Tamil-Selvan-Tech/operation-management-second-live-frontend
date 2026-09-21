@@ -74,6 +74,9 @@ function CalendarDayCell({ day, externalUi = false, onSelect }) {
     day.details?.extendedTime ? `Extended: ${day.details.extendedTime}` : '',
     day.details?.actualEndTime ? `Actual End Time: ${day.details.actualEndTime}` : '',
     day.details?.totalClassDuration ? `Duration: ${day.details.totalClassDuration}` : '',
+    day.details?.replacementHours ? `Replacement Hours: ${day.details.replacementHours}` : '',
+    day.details?.replacementDate ? `Replacement Date: ${day.details.replacementDate}` : '',
+    day.details?.replacementTime ? `Replacement Time: ${day.details.replacementTime}` : '',
     day.details?.submodule ? `Submodule: ${day.details.submodule}` : '',
     day.details?.originalFaculty ? `Original Faculty: ${day.details.originalFaculty}` : '',
     day.details?.assignmentType ? `Assignment: ${day.details.assignmentType}` : '',
@@ -184,6 +187,8 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
   const attendanceSummary = sourceSummary.attendanceSummary || sourceSummary.attendance || sourceSummary.summary || {}
   const calendarDurationDays = calendar.calendarDurationDays || sourceSummary.calendarDurationDays || 0
   const calendarHolidayCount = calendar.summary.holidays || sourceSummary.summary?.holidays || 0
+  const replacementHours = calendar.replacementHours ?? sourceSummary.replacementHours ?? '-'
+  const replacementSessionCount = calendar.replacementSessionCount ?? sourceSummary.replacementSessionCount ?? sourceSummary.replacementSessionsCount
   const presentCount = calendar.summary.presentDays || sourceSummary.presentDays || sourceSummary.present || attendanceSummary.presentDays || attendanceSummary.present || 0
   const absentCount = calendar.summary.absentDays || sourceSummary.absentDays || sourceSummary.absent || attendanceSummary.absentDays || attendanceSummary.absent || 0
   const [chosenMonthIndex, setSelectedMonthIndex] = useState(null)
@@ -245,7 +250,7 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
         {student?.scheduleSummary || externalUi ? <>
           <CalendarSummaryCard icon={CheckCircle2} label="Completed Hours" value={externalUi ? hoursSummary.completed : student?.scheduleSummary?.completedHours ?? '-'} note="Recorded present class hours" tone="tone-present" />
           <CalendarSummaryCard icon={Clock3} label="Pending Hours" value={externalUi ? hoursSummary.pending : student?.scheduleSummary?.pendingHours ?? '-'} note="Required hours still to complete" />
-          {student?.scheduleSummary || externalUi ? <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={sourceSummary.replacementHours ?? '-'} note={`${sourceSummary.cancelledHours ?? 0} hours affected by Class Cancel`} tone="tone-holiday" /> : null}
+          {student?.scheduleSummary || externalUi ? <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={replacementHours} note={replacementSessionCount !== undefined && replacementSessionCount !== null && replacementSessionCount !== '' ? `${replacementSessionCount} replacement session${Number(replacementSessionCount) === 1 ? '' : 's'}` : `${sourceSummary.cancelledHours ?? 0} hours affected by Class Cancel`} tone="tone-holiday" /> : null}
         </> : null}
         <CalendarSummaryCard
           icon={Clock3}
@@ -376,6 +381,9 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
               {selectedDay.details?.course ? <><dt>Course</dt><dd>{selectedDay.details.course}</dd></> : null}
               {selectedDay.details?.batch ? <><dt>Batch</dt><dd>{selectedDay.details.batch}</dd></> : null}
               {selectedDay.details?.classTime ? <><dt>Time</dt><dd>{selectedDay.details.classTime}</dd></> : null}
+              {selectedDay.details?.replacementHours ? <><dt>Replacement Hours</dt><dd>{selectedDay.details.replacementHours}</dd></> : null}
+              {selectedDay.details?.replacementDate ? <><dt>Replacement Date</dt><dd>{selectedDay.details.replacementDate}</dd></> : null}
+              {selectedDay.details?.replacementTime ? <><dt>Replacement Time</dt><dd>{selectedDay.details.replacementTime}</dd></> : null}
               {selectedDay.details?.originalDate ? <><dt>Original Date</dt><dd>{selectedDay.details.originalDate}</dd></> : null}
               {selectedDay.details?.originalTime ? <><dt>Original Time</dt><dd>{selectedDay.details.originalTime}</dd></> : null}
               {selectedDay.details?.rescheduledDate ? <><dt>New Date</dt><dd>{selectedDay.details.rescheduledDate}</dd></> : null}

@@ -375,6 +375,17 @@ function formatSessionRange(start, end) {
   return startValue && endValue ? `${startValue} - ${endValue}` : startValue || endValue
 }
 
+function getFirstCalendarValue(sources = [], keys = []) {
+  for (const source of sources) {
+    if (!source || typeof source !== 'object') continue
+    for (const key of keys) {
+      const value = source[key]
+      if (value !== undefined && value !== null && value !== '') return value
+    }
+  }
+  return ''
+}
+
 function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holidayMap, attendanceMap, serverEventMap, weeklyOffIndex = -1) {
   const firstDate = startOfCalendarMonth(monthDate)
   const lastDate = endOfCalendarMonth(monthDate)
@@ -402,6 +413,19 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       || ['CLASS', 'SCHEDULED', 'COMPLETED', 'PRESENT', 'REASSIGNED', 'COMBINED', 'RESCHEDULED', 'RESCHEDULED_ORIGINAL'].includes(getCalendarEventType(serverEvent))
     )
     const isCourseDay = isCalendarClassEvent ? true : serverEvent ? Boolean(serverEvent.isCourseDay) : localCourseDay
+    const isReplacement = isReplacementCalendarEvent(serverEvent)
+    const replacementHours = isReplacement
+      ? getFirstCalendarValue([serverEvent], ['replacementHours', 'hours', 'classHours', 'duration'])
+      : ''
+    const replacementDate = isReplacement
+      ? getFirstCalendarValue([serverEvent], ['replacementDate', 'sessionDate', 'date'])
+      : ''
+    const replacementTime = isReplacement
+      ? formatSessionRange(
+        serverEvent.replacementStartTime || serverEvent.startTime,
+        serverEvent.replacementEndTime || serverEvent.endTime,
+      )
+      : ''
     const isStartDate = dateKey === toCalendarDateKey(rangeStart)
     const isEndDate = dateKey === toCalendarDateKey(rangeEnd)
 
@@ -445,11 +469,14 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       attendanceStatus: attendance,
       classHours: Number(serverEvent?.classHours || 0),
       details: serverEvent ? {
-        classTime: serverEvent.classTime || serverEvent.time || serverEvent.schedule || formatSessionRange(serverEvent.startTime, serverEvent.endTime),
+        classTime: serverEvent.classTime || serverEvent.time || serverEvent.schedule || replacementTime || formatSessionRange(serverEvent.startTime, serverEvent.endTime),
         originalClassTime: serverEvent.originalClassTime || serverEvent.classTime || serverEvent.time || '',
         extendedTime: serverEvent.extendedTime || serverEvent.extension || '',
         actualEndTime: serverEvent.actualEndTime || serverEvent.endTime || '',
         totalClassDuration: serverEvent.totalClassDuration || serverEvent.duration || serverEvent.classHours || '',
+        replacementHours,
+        replacementDate,
+        replacementTime,
         submodule: serverEvent.submodule || serverEvent.submoduleName || serverEvent.moduleName || serverEvent.topicName || '',
         attendance: serverEvent.attendanceStatus || serverEvent.attendance || attendance,
         course: serverEvent.courseName || '',
@@ -473,7 +500,7 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
       markers: [
         isStartDate ? 'Course Start Date' : '',
         isEndDate ? 'Course End Date' : '',
-        isReplacementCalendarEvent(serverEvent) ? 'Replacement Class' : '',
+        isReplacement ? (replacementHours ? `Replacement: ${replacementHours} hours` : 'Replacement Class') : '',
         isKickoffCalendarEvent(serverEvent) ? 'Faculty Kickoff' : '',
         serverEvent?.code === 'REASSIGNED' ? 'Reassigned Class' : '',
         serverEvent?.code === 'RESCHEDULED' ? 'Rescheduled' : '',
@@ -508,6 +535,13 @@ export function buildStudentCourseCalendar(student = {}, facultyCalendar = null)
   const calendarStudent = facultyEvents.length
     ? { ...student, calendarEvents: facultyEvents }
     : student
+  const summarySources = [student?.scheduleSummary, student?.calendarSummary, student]
+  const hasReplacementEvent = (Array.isArray(calendarStudent?.calendarEvents) ? calendarStudent.calendarEvents : [])
+    .some((event) => isReplacementCalendarEvent(event))
+  const replacementHours = hasReplacementEvent ? getFirstCalendarValue(summarySources, ['replacementHours']) : null
+  const replacementSessionCount = hasReplacementEvent
+    ? getFirstCalendarValue(summarySources, ['replacementSessionCount', 'replacementSessionsCount'])
+    : null
   const startDate = getCourseStartDate(student)
   const durationMonths = getCourseDurationMonths(student)
   const schedule = getCourseSchedule(student)
@@ -649,5 +683,7 @@ export function buildStudentCourseCalendar(student = {}, facultyCalendar = null)
     months,
     summary,
     holidays,
+    replacementHours,
+    replacementSessionCount,
   }
 }
