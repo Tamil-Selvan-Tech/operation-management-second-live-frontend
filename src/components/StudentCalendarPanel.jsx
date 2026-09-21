@@ -177,8 +177,8 @@ function getCalendarHoursSummary(calendar, student = {}) {
   }
 }
 
-export function StudentCalendarPanel({ student, externalUi = false }) {
-  const calendar = useMemo(() => buildStudentCourseCalendar(student || {}), [student])
+export function StudentCalendarPanel({ student, facultyCalendar = null, externalUi = false }) {
+  const calendar = useMemo(() => buildStudentCourseCalendar(student || {}, facultyCalendar), [facultyCalendar, student])
   const hoursSummary = useMemo(() => getCalendarHoursSummary(calendar, student), [calendar, student])
   const sourceSummary = student?.scheduleSummary || {}
   const attendanceSummary = sourceSummary.attendanceSummary || sourceSummary.attendance || sourceSummary.summary || {}

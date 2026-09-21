@@ -248,8 +248,65 @@ function buildAttendanceMap(student = {}) {
   return entries
 }
 
-function buildServerEventMap(student = {}) {
-  const events = Array.isArray(student?.calendarEvents) ? student.calendarEvents : []
+function normalizeCalendarIdentity(value) {
+  return String(value || '').trim().toLowerCase()
+}
+
+function getFacultyCalendarEventsForStudent(student = {}, facultyCalendar = null) {
+  const events = Array.isArray(facultyCalendar?.events) ? facultyCalendar.events : []
+  if (!events.length) return Array.isArray(student?.calendarEvents) ? student.calendarEvents : []
+
+  const studentBatchIds = new Set([
+    student?.batchId,
+    student?.batchEntryId,
+    student?.batch?.id,
+    student?.batch?.batchId,
+  ].map(normalizeCalendarIdentity).filter(Boolean))
+  const studentBatchNames = new Set([
+    student?.batchName,
+    student?.batch,
+    student?.batch?.name,
+  ].map(normalizeCalendarIdentity).filter(Boolean))
+  const studentCourseIds = new Set([
+    student?.courseId,
+    student?.course?.id,
+  ].map(normalizeCalendarIdentity).filter(Boolean))
+  const studentCourseNames = new Set([
+    student?.courseName,
+    student?.courseInterested,
+    student?.course?.name,
+  ].map(normalizeCalendarIdentity).filter(Boolean))
+
+  const matchingEvents = events.filter((event) => {
+    const eventBatchIds = [event?.batchRecordId, event?.batchId, event?.batchEntryId]
+      .map(normalizeCalendarIdentity)
+      .filter(Boolean)
+    const eventBatchNames = [event?.batchName, event?.batch]
+      .map(normalizeCalendarIdentity)
+      .filter(Boolean)
+    const eventCourseIds = [event?.courseId, event?.course?.id]
+      .map(normalizeCalendarIdentity)
+      .filter(Boolean)
+    const eventCourseNames = [event?.courseName, event?.course]
+      .map(normalizeCalendarIdentity)
+      .filter(Boolean)
+    const hasBatchIdentity = eventBatchIds.length || eventBatchNames.length
+    const hasCourseIdentity = eventCourseIds.length || eventCourseNames.length
+    const batchMatches = eventBatchIds.some((id) => studentBatchIds.has(id))
+      || eventBatchNames.some((name) => studentBatchNames.has(name))
+    const courseMatches = eventCourseIds.some((id) => studentCourseIds.has(id))
+      || eventCourseNames.some((name) => studentCourseNames.has(name))
+
+    if (hasBatchIdentity && studentBatchIds.size + studentBatchNames.size) return batchMatches
+    if (hasCourseIdentity && studentCourseIds.size + studentCourseNames.size) return courseMatches
+    return !hasBatchIdentity && !hasCourseIdentity
+  })
+
+  return matchingEvents.length ? matchingEvents : events
+}
+
+function buildServerEventMap(student = {}, facultyCalendar = null) {
+  const events = getFacultyCalendarEventsForStudent(student, facultyCalendar)
   const entries = new Map()
 
   events.forEach((event) => {
@@ -440,11 +497,24 @@ function getStatusToneKey(status) {
   return 'no-class'
 }
 
-export function buildStudentCourseCalendar(student = {}) {
+export function buildStudentCourseCalendar(student = {}, facultyCalendar = null) {
+  const facultyEvents = getFacultyCalendarEventsForStudent(student, facultyCalendar)
+  const facultyBatch = (Array.isArray(facultyCalendar?.batches) ? facultyCalendar.batches : []).find((batch) => {
+    const batchIds = [batch?.id, batch?.batchId, batch?.batchEntryId].map(normalizeCalendarIdentity).filter(Boolean)
+    const studentBatchIds = [student?.batchId, student?.batchEntryId, student?.batch?.id, student?.batch?.batchId].map(normalizeCalendarIdentity).filter(Boolean)
+    return batchIds.some((id) => studentBatchIds.includes(id))
+      || normalizeCalendarIdentity(batch?.batchName) === normalizeCalendarIdentity(student?.batchName || student?.batch)
+  })
+  const calendarStudent = facultyEvents.length
+    ? { ...student, calendarEvents: facultyEvents }
+    : student
   const startDate = getCourseStartDate(student)
   const durationMonths = getCourseDurationMonths(student)
   const schedule = getCourseSchedule(student)
-  const weeklyOffDay = getCourseWeeklyOffDay(student)
+  const weeklyOffDay = getCourseWeeklyOffDay({
+    ...calendarStudent,
+    weeklyOffDay: facultyBatch?.weeklyOffDay || facultyCalendar?.weeklyOffDay || getCourseWeeklyOffDay(student),
+  })
   const weeklyOffIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(weeklyOffDay)
   const totalHours = getCourseTotalHours(student)
   const hoursPerDay = getCourseHoursPerDay(student)
@@ -522,7 +592,7 @@ export function buildStudentCourseCalendar(student = {}) {
     })
   })
   const attendanceMap = buildAttendanceMap(student)
-  const serverEventMap = buildServerEventMap(student)
+  const serverEventMap = buildServerEventMap(calendarStudent, facultyCalendar)
   const months = []
   const summary = {
     courseDays: 0,
