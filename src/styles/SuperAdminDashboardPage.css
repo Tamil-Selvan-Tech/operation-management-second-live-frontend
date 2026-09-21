@@ -4455,6 +4455,7 @@ body.super-admin-sidebar-open {
 .sa-branch-search-results strong { color: #1e293b; font-size: .88rem; }
 .sa-branch-search-results span, .sa-branch-search-results p { margin: 0; color: #64748b; font-size: .76rem; }
 
+
 @media (max-width: 980px) {
   .sa-overall-actions { flex-wrap: wrap; }
   .sa-branch-search-wrap { flex: 1 1 100%; min-width: 100%; }

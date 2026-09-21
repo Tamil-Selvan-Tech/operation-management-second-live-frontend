@@ -187,7 +187,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
     setMetricLayout({ ...metricLayout, pinned: metricLayout.pinned?.includes(key) ? metricLayout.pinned.filter((item) => item !== key) : [...(metricLayout.pinned || []), key] })
   }
   const resetMetricLayout = () => {
-    if (window.confirm('Reset dashboard widget visibility, order, and pinned settings to default?')) setMetricLayout({ order: DEFAULT_METRIC_ORDER, hidden: [], pinned: [] })
+    persistMetricLayout({ order: DEFAULT_METRIC_ORDER, hidden: [], pinned: [] })
   }
   const saveMetricLayout = () => {
     setIsMetricSaving(true)
@@ -236,7 +236,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
             <GripVertical className="sa-customize-drag" size={18} aria-hidden="true" /><span className={`sa-customize-item-icon ${item.tone}`}><Icon size={17} /></span><span className="sa-customize-item-copy"><strong>{item.label}</strong><small>{item.description}</small></span><button type="button" className={`sa-customize-pin ${isPinned ? 'is-pinned' : ''}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); toggleMetricPin(key) }} aria-label={`${isPinned ? 'Unpin' : 'Pin'} ${item.label}`} title={isPinned ? 'Unpin from top' : 'Pin to top'}><Pin size={15} /></button><input type="checkbox" checked={!isHidden} onChange={() => toggleMetric(key)} aria-label={`Show ${item.label}`} /><span className="sa-customize-check" aria-hidden="true">{!isHidden ? <Check size={14} strokeWidth={3} /> : null}</span>
           </label> })}</div>
         </div>
-        <div className="sa-customize-footer"><button type="button" className="sa-customize-reset" disabled={isMetricSaving} onClick={resetMetricLayout}><RotateCcw size={15} /> Reset to Default</button><button type="button" className="sa-customize-done" disabled={isMetricSaving} onClick={saveMetricLayout}>{isMetricSaving ? 'Saving...' : 'Save Changes'}</button></div>
+        <div className="sa-customize-footer"><button type="button" className="sa-customize-reset" onClick={resetMetricLayout}><RotateCcw size={15} /> Reset to Default</button><button type="button" className="sa-customize-done" disabled={isMetricSaving} onClick={saveMetricLayout}>{isMetricSaving ? 'Saving...' : 'Save Changes'}</button></div>
       </section>
     </div> : null}
   </div>
