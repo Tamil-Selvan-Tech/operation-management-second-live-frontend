@@ -115,9 +115,9 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
 
   const chartData = useMemo(() => {
     if (!overview) return []
-    if (period === 'weekly') return overview.weeklyPaymentData || []
-    if (period === 'monthly') return overview.monthlyPaymentChartData || overview.monthlyPaymentData || []
-    return overview.dailyPaymentData || []
+    if (period === 'weekly') return overview.paymentOverview?.weekly || overview.weeklyPaymentData || []
+    if (period === 'monthly') return overview.paymentOverview?.monthly || overview.monthlyPaymentChartData || overview.monthlyPaymentData || []
+    return overview.paymentOverview?.daily || overview.dailyPaymentData || []
   }, [overview, period])
 
   const getMonthComparison = (items = []) => {
@@ -224,7 +224,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
           <div className="sa-admission-current-summary"><span>This Month</span><strong>{isLoading ? '—' : overview?.admissionsByMonth?.at(-1)?.value || 0}</strong><b>Admissions</b>{admissionsComparison ? <div><em className={admissionsComparison.direction}>{admissionsComparison.value}</em><small>{admissionsComparison.label}</small></div> : <small>All active branches</small>}</div>
         </div>
       </section>
-      <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection · {scopeLabel}</p></div><div className="sa-payment-heading-actions"><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No data available for this branch." />}</section>
+      <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection · {scopeLabel}</p></div><div className="sa-payment-heading-actions"><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment data available for this period." />}</section>
     </div>
     <TrendingCourses courses={overview?.trendingCourses || []} month={overview?.trendingMonth} isLoading={isLoading} />
     {isCustomizeOpen ? <div className="sa-customize-backdrop" role="presentation">
