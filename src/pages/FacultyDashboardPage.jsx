@@ -247,6 +247,12 @@ function formatPaymentPercentage(value) {
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '')
 }
 
+function formatPaidPercentage(value) {
+  if (!Number.isFinite(value)) return '0'
+  const clamped = Math.min(100, Math.max(0, value))
+  return String(Math.ceil(clamped - 0.5))
+}
+
 function formatCourseDuration(value) {
   const normalized = String(value ?? '').trim()
   if (!normalized) return '-'
@@ -5747,7 +5753,7 @@ const nextName = trimmedValue
                                             />
                                           </div>
                                           <span className="branch-student-paid-progress-label">
-                                            {formatPaymentPercentage(paymentProgress.paidInstallmentPercentage)}% Paid
+                                            {formatPaidPercentage(paymentProgress.paidInstallmentPercentage)}% Paid
                                           </span>
                                         </div>
                                       </div>

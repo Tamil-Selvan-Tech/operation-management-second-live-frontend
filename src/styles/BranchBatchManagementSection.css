@@ -1068,7 +1068,7 @@
   max-width: 220px;
 }
 
-.batch-management-identifiers-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.batch-management-identifiers-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .batch-management-identifiers-grid .batch-management-id-top-field { order: -1; }
 
 .batch-management-id-field {

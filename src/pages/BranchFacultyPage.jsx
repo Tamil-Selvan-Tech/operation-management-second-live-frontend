@@ -1157,7 +1157,8 @@ export function BranchFacultyPage({ branchCode = '' }) {
                       onChange={(e) => handleIdDigitsChange(e.target.value)}
                       onBlur={() => setTouched((prev) => ({ ...prev, idDigits: true }))}
                       className="faculty-id-input"
-                      disabled={!!editingId}
+                      readOnly
+                      aria-readonly="true"
 
                     />
                   </div>

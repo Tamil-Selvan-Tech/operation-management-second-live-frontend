@@ -108,6 +108,7 @@ import { BranchAttendanceReportModal } from '../components/BranchAttendanceRepor
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
+import { Student360Page } from './Student360Page'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
 import RecordPayment from '../components/payments/RecordPayment'
@@ -974,6 +975,12 @@ function formatBranchPercentage(value) {
   if (!Number.isFinite(value)) return '0'
   const rounded = Math.round(value * 100) / 100
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '')
+}
+
+function formatPaidPercentage(value) {
+  if (!Number.isFinite(value)) return '0'
+  const clamped = Math.min(100, Math.max(0, value))
+  return String(Math.ceil(clamped - 0.5))
 }
 
 function normalizeBranchStudentLookupKey(student = {}) {
@@ -3023,7 +3030,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
-  const activeSection = getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+  const student360Id = location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || ''
+  const activeSection = student360Id
+    ? 'student-360'
+    : getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
   const studentCalendarId = location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || ''
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: activeSection === 'installments',
@@ -4173,11 +4183,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
-    setStudentDetailsTab('basic')
-    setViewStudentDrawer({
-      ...student,
-      ...resolveStudentBatchDisplay(student, branchBatchGroups),
-    })
+    const studentKey = student?.studentId || student?.id || student?._id || ''
+    navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}`)
   }
 
   const openStudentPaymentDetails = (student) => {
@@ -4188,12 +4195,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
-    setStudentDetailsTab('basic')
-    setViewStudentDrawer({
-      ...student,
-      ...resolveStudentBatchDisplay(student, branchBatchGroups),
-    })
-    setStudentDetailsTab('payment')
+    const studentKey = student?.studentId || student?.id || student?._id || ''
+    navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}#payments`)
   }
 
   const openRecordPaymentConfirmation = (student) => {
@@ -7858,15 +7861,6 @@ useEffect(() => {
       ? (studentFormStepStatus[2] ? 3 : 2)
       : 1
   const shouldShowStudentError = (field) => Boolean(studentFormTouched[field] && studentFormValidationErrors[field])
-  const studentActiveStepFields =
-    studentFormStep === 1
-      ? STUDENT_FORM_STEP_ONE_FIELDS
-      : studentFormStep === 2
-        ? STUDENT_FORM_STEP_TWO_FIELDS
-        : STUDENT_FORM_STEP_THREE_FIELDS
-  const studentActiveStepErrorField =
-    studentActiveStepFields.find((field) => studentFormTouched[field] && studentFormValidationErrors[field]) || ''
-  const studentActiveStepError = studentActiveStepErrorField ? studentFormValidationErrors[studentActiveStepErrorField] : ''
 
   const updateStudentField = (field, value) => {
     setStudentForm((c) => ({
@@ -8511,6 +8505,26 @@ useEffect(() => {
 
           <main className="super-admin-content">
             <div className="branch-dashboard-content">
+              {activeSection === 'student-360' ? (
+                <Student360Page
+                  student={branchStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(student360Id)).trim().toLowerCase()))}
+                  branch={branchProfile || branchData}
+                  paymentHistory={allPaymentHistoryRecords}
+                  onBack={() => navigate('/branch-dashboard?section=students')}
+                  onDownloadAttendance={(student) => setAttendanceReportTarget({ mode: 'student', record: student })}
+                  onDownloadPaymentReceipt={(payment, student) => downloadBranchStudentReceipt(payment, student, {
+                    branchProfile,
+                    branchLocation,
+                    branchEmail,
+                    branchAdminDisplay,
+                  })}
+                  onViewCalendar={(student) => navigate(`/branch-dashboard/students/${encodeURIComponent(student?.studentId || student?.id || '')}/calendar`)}
+                  onEdit={(student) => {
+                    navigate('/branch-dashboard?section=students')
+                    window.setTimeout(() => openEditStudentForm(student), 0)
+                  }}
+                />
+              ) : null}
               {activeSection === 'student-calendar' ? (
                 <StudentCalendarPage
                   studentId={decodeURIComponent(studentCalendarId)}
@@ -9200,7 +9214,7 @@ else {
                       />
                     </div>
                     <span className="branch-student-paid-progress-label">
-                      {formatBranchPercentage(installmentProgress.paidInstallmentPercentage)}% Paid
+                      {formatPaidPercentage(installmentProgress.paidInstallmentPercentage)}% Paid
                     </span>
                   </div>
                 </div>
@@ -14061,12 +14075,6 @@ else {
                 })}
               </div>
 
-              {studentFormMode !== 'view' && studentActiveStepError ? (
-                <div className="course-validation-note course-validation-error" style={{ marginBottom: 12 }}>
-                  <span>{studentActiveStepError}</span>
-                </div>
-              ) : null}
-
              <div className="student-step-panel">
 
   {/* =====================================================
@@ -14099,7 +14107,8 @@ else {
                 handleStudentIdSuffixChange(e.target.value)
               }
               onBlur={handleStudentIdSuffixBlur}
-              disabled={studentFormMode !== 'add'}
+              readOnly
+              aria-readonly="true"
             />
           </div>
         </Field>
