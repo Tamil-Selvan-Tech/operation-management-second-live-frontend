@@ -4,17 +4,18 @@ import {
 } from 'lucide-react'
 import { formatOverviewCurrency, getSuperAdminOverview } from '../services/superAdminDashboardService'
 import { TrendingCourses } from './TrendingCourses'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 const emptyValue = '—'
 const DASHBOARD_LAYOUT_STORAGE_KEY = 'cispro:super-admin-dashboard-layout'
 const DEFAULT_METRIC_ORDER = ['totalBranches', 'totalStudents', 'thisMonthAdmissions', 'totalPayment', 'thisMonthPayment', 'totalOutstanding', 'thisMonthDue', 'todayDue', 'overdueAmount', 'dueStudents', 'todayCollection']
 
-function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null }) {
+function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null, scopeLabel }) {
   return <article className={`sa-overall-metric ${tone} ${variant}`.trim()}>
     <div className="sa-overall-metric-top"><span className="sa-overall-metric-icon"><Icon size={18} strokeWidth={2.1} /></span><span className="sa-overall-metric-label">{label}</span></div>
     <strong className="sa-overall-metric-value">{value}</strong>
     <div className="sa-overall-metric-divider" />
-    <div className="sa-overall-metric-bottom">{comparison ? <><span className={`sa-overall-change ${comparison.direction}`}>{comparison.value}</span><small>{comparison.label}</small></> : <small>All active branches</small>}</div>
+    <div className="sa-overall-metric-bottom">{comparison ? <><span className={`sa-overall-change ${comparison.direction}`}>{comparison.value}</span><small>{comparison.label}</small></> : <small>{scopeLabel}</small>}</div>
   </article>
 }
 
@@ -63,6 +64,13 @@ function BarChart({ title, data, formatter, emptyMessage }) {
 }
 
 export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const branchIdFromUrl = new URLSearchParams(location.search).get('branchId') || ''
+  const activeBranches = useMemo(() => (Array.isArray(branches) ? branches : []).filter((branch) => String(branch?.status || '').toLowerCase() === 'active'), [branches])
+  const selectedBranch = useMemo(() => activeBranches.find((branch) => String(branch.branchId || branch.id) === branchIdFromUrl) || null, [activeBranches, branchIdFromUrl])
+  const [branchQuery, setBranchQuery] = useState('')
+  const [isBranchSearchOpen, setIsBranchSearchOpen] = useState(false)
   const [overview, setOverview] = useState(null)
   const [period, setPeriod] = useState('daily')
   const [isLoading, setIsLoading] = useState(true)
@@ -90,8 +98,9 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
   const load = useCallback(async () => {
     setIsLoading(true)
     setError('')
-    try { setOverview(await getSuperAdminOverview(branches)) } catch (loadError) { setError(loadError?.message || 'Unable to load the overall dashboard.') } finally { setIsLoading(false) }
-  }, [branches])
+    setOverview(null)
+    try { setOverview(await getSuperAdminOverview(selectedBranch?.branchId || branchIdFromUrl || null)) } catch (loadError) { setError(loadError?.status === 404 ? 'No matching branch found.' : 'Unable to load branch dashboard data.') } finally { setIsLoading(false) }
+  }, [branchIdFromUrl, selectedBranch?.branchId])
 
   useEffect(() => {
     const timerId = window.setTimeout(() => { void load() }, 0)
@@ -142,7 +151,8 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
   }
   const todayDueComparison = getDayComparison(overview?.todayDue, overview?.yesterdayDue)
   const todayCollectionComparison = getDayComparison(overview?.todayCollection, overview?.yesterdayCollection)
-  const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => <MetricCard label={label} value={isLoading ? emptyValue : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} />
+  const scopeLabel = selectedBranch ? `${selectedBranch.branchName} Branch` : 'All active branches'
+  const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => <MetricCard label={selectedBranch && label === 'Total branches' ? 'Selected branch' : label} value={isLoading ? emptyValue : selectedBranch && label === 'Total branches' ? `${selectedBranch.branchName}` : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} scopeLabel={scopeLabel} />
   const metricDefinitions = {
     totalBranches: { label: 'Total branches', description: 'Total number of active branches on the dashboard', icon: Building2, tone: 'blue', node: metric('Total branches', overview?.totalBranches, Building2, 'blue', false) },
     totalStudents: { label: 'Total students', description: 'Total number of registered students on the dashboard', icon: Users, tone: 'purple', node: metric('Total students', overview?.totalStudents, Users, 'purple', false) },
@@ -189,8 +199,12 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
   }
   const orderedMetricKeys = [...metricLayout.order].sort((left, right) => Number(metricLayout.pinned?.includes(right)) - Number(metricLayout.pinned?.includes(left)))
 
+  const matchingBranches = activeBranches.filter((branch) => `${branch.branchId} ${branch.branchName} ${branch.branchCity || branch.branchDistrict || ''}`.toLowerCase().includes(branchQuery.trim().toLowerCase())).slice(0, 8)
+  const selectBranch = (branch) => { setBranchQuery(''); setIsBranchSearchOpen(false); navigate(`${location.pathname}?branchId=${encodeURIComponent(branch.branchId)}`) }
+  const clearBranch = () => { setBranchQuery(''); setIsBranchSearchOpen(false); navigate(location.pathname) }
+
   return <div className="sa-overall-dashboard">
-    <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> Consolidated view</p><h1>Overall Dashboard</h1><p>Combined performance across every active branch.</p></div><div className="sa-overall-actions"><span className="sa-overall-scope"><Building2 size={15} /> All active branches</span><button type="button" className="sa-overall-customize" onClick={() => { setMetricLayout(savedMetricLayoutRef.current); setIsCustomizeOpen(true) }}><LayoutGrid size={17} /> Customize Dashboard</button><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
+    <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> {selectedBranch ? 'Branch view' : 'Consolidated view'}</p><h1>Overall Dashboard</h1><p>{selectedBranch ? `Showing complete performance data for ${selectedBranch.branchName} Branch.` : 'Combined performance across every active branch.'}</p></div><div className="sa-overall-actions"><div className="sa-branch-search-wrap"><label className="sa-branch-search"><span className="sa-branch-search-icon" aria-hidden="true"><Search size={16} /></span><input value={selectedBranch ? `${selectedBranch.branchName} Branch • ${selectedBranch.branchId}` : branchQuery} onChange={(event) => { setBranchQuery(event.target.value); setIsBranchSearchOpen(true) }} onFocus={() => setIsBranchSearchOpen(true)} placeholder="Search branch by ID or branch name..." aria-label="Search branch by ID or branch name" />{selectedBranch ? <button type="button" onClick={clearBranch} aria-label="Clear selected branch"><X size={16} /></button> : null}</label>{isBranchSearchOpen && !selectedBranch && branchQuery.trim() ? <div className="sa-branch-search-results">{matchingBranches.length ? matchingBranches.map((branch) => <button type="button" key={branch.id || branch.branchId} onMouseDown={() => selectBranch(branch)}><strong>{branch.branchName} Branch</strong><span>{branch.branchId} · {branch.branchCity || branch.branchDistrict || 'Location unavailable'} · Active</span></button>) : <p>No matching branch found.</p>}</div> : null}</div><span className="sa-overall-scope"><Building2 size={15} /> {selectedBranch ? `${selectedBranch.branchName} Branch` : 'All active branches'}</span><button type="button" className="sa-overall-customize" onClick={() => { setMetricLayout(savedMetricLayoutRef.current); setIsCustomizeOpen(true) }}><LayoutGrid size={17} /> Customize Dashboard</button><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
     {error ? <div className="sa-overall-alert"><AlertCircle size={18} /> <span>{error}</span><button type="button" onClick={() => void load()}>Try again</button></div> : null}
     <div className="sa-overall-metrics sa-overall-summary-grid" aria-label="Overall dashboard summary">
       {orderedMetricKeys.filter((key) => !metricLayout.hidden.includes(key)).map((key) => <div key={key}>{metricDefinitions[key].node}</div>)}
@@ -198,7 +212,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
     <div className="sa-overall-grid">
       <section className="sa-overall-panel sa-overall-admissions">
         <div className="sa-overall-panel-heading">
-          <div><h2>Admission Overview</h2><p>Monthly admissions across all active branches</p></div>
+          <div><h2>Admission Overview</h2><p>Monthly admissions · {scopeLabel}</p></div>
           <span className="sa-overall-panel-icon"><Users size={18} /></span>
         </div>
         <div className="sa-admission-overview-content">
@@ -210,7 +224,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
           <div className="sa-admission-current-summary"><span>This Month</span><strong>{isLoading ? '—' : overview?.admissionsByMonth?.at(-1)?.value || 0}</strong><b>Admissions</b>{admissionsComparison ? <div><em className={admissionsComparison.direction}>{admissionsComparison.value}</em><small>{admissionsComparison.label}</small></div> : <small>All active branches</small>}</div>
         </div>
       </section>
-      <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection across all active branches</p></div><div className="sa-payment-heading-actions"><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No payment collection recorded for this period." />}</section>
+      <section className="sa-overall-panel sa-overall-payments"><div className="sa-overall-panel-heading"><div><h2>Payment overview</h2><p>Expected vs actual collection · {scopeLabel}</p></div><div className="sa-payment-heading-actions"><div className="sa-overall-tabs" role="tablist">{['daily', 'weekly', 'monthly'].map((item) => <button key={item} type="button" className={period === item ? 'is-active' : ''} onClick={() => setPeriod(item)} role="tab" aria-selected={period === item}>{item[0].toUpperCase() + item.slice(1)}</button>)}</div><span className="sa-overall-panel-icon"><IndianRupee size={18} /></span></div></div><div className="sa-payment-legend"><span><i className="is-expected" />Expected</span><span><i className="is-actual" />Actual</span></div>{isLoading ? <div className="sa-overall-skeleton sa-overall-chart-skeleton" /> : <BarChart title={`${period} payment overview`} data={chartData} formatter={formatOverviewCurrency} emptyMessage="No data available for this branch." />}</section>
     </div>
     <TrendingCourses courses={overview?.trendingCourses || []} month={overview?.trendingMonth} isLoading={isLoading} />
     {isCustomizeOpen ? <div className="sa-customize-backdrop" role="presentation">

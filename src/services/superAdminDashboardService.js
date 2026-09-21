@@ -257,28 +257,10 @@ function buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory
   return result
 }
 
-export async function getSuperAdminOverview(branches = []) {
-  // The current backend does not authorize the consolidated Super Admin
-  // endpoint. Aggregate through the existing branch-scoped APIs instead so
-  // the dashboard does not issue a guaranteed 403 request.
-  const activeBranches = branches.filter((branch) => String(branch?.status || '').toLowerCase() === 'active')
-  const studentsByBranch = new Map()
-  const backendPaymentHistory = []
-  // Each request carries its own branch header, so independent branches can
-  // load concurrently without the old shared impersonation state mixing data.
-  const branchResults = await Promise.all(activeBranches.map(async (branch) => {
-    const [students, payments] = await Promise.all([
-      loadAllBranchStudents(branch),
-      loadBranchLedgerPayments(branch).catch(() => []),
-    ])
-    return { branch, students, payments }
-  }))
-
-  branchResults.forEach(({ branch, students, payments }) => {
-    studentsByBranch.set(String(branch.id || branch.branchId), students)
-    backendPaymentHistory.push(...payments)
-  })
-  return buildFallbackOverview(branches, studentsByBranch, backendPaymentHistory)
+export async function getSuperAdminOverview(branchId = null) {
+  const query = branchId ? `?branchId=${encodeURIComponent(branchId)}` : ''
+  const response = await request(`/dashboard/super-admin/overview${query}`, { method: 'GET' })
+  return response?.data || response
 }
 
 export function formatOverviewCurrency(value) {
