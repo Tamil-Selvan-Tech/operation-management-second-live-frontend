@@ -94,6 +94,7 @@ export function normalizeStudent(student) {
     id: student.id || student._id || student.studentId || '',
     studentCode: student.studentCode || '',
     studentName: student.studentName || '',
+    parentName: student.parentName || '',
     mobileNumber: student.mobileNumber || '',
     emailAddress: student.emailAddress || '',
     parentSpouseNumber: student.parentSpouseNumber || '',
