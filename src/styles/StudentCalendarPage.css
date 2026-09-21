@@ -54,17 +54,18 @@
 .student-calendar-external-page .student-new-calendar-legend-item.tone-end::before { background: #16a34a; }
 .student-calendar-external-page .student-new-calendar-grid { gap: 8px; padding-top: 14px; }
 .student-calendar-external-page .student-new-calendar-weekday { color: #29477e; font-size: .75rem; }
-.student-calendar-external-page .student-calendar-day { position: relative; height: 116px; min-height: 116px; align-self: start; justify-content: flex-start; gap: 0; padding: 10px; border: 1px solid #dbeafe; border-radius: 11px; background: #fff; box-shadow: none; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
-.student-calendar-external-page .student-calendar-day.is-placeholder { height: 116px; min-height: 116px; }
+.student-calendar-external-page .student-calendar-day { position: relative; height: auto; min-height: 154px; align-self: start; justify-content: flex-start; gap: 0; padding: 10px; box-sizing: border-box; border: 1px solid #dbeafe; border-radius: 11px; background: #fff; box-shadow: none; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.student-calendar-external-page .student-calendar-day.is-placeholder { height: 154px; min-height: 154px; }
 .student-calendar-external-page .student-calendar-day:hover { z-index: 10; border-color: #93c5fd; box-shadow: 0 8px 18px rgba(30, 64, 175, .12); transform: translateY(-1px); }
 .student-calendar-external-page .student-calendar-day-number { color: #102a63; font-size: 1rem; }
 .student-calendar-external-page .student-calendar-day-weekday { display: none; }
 .student-calendar-external-page .student-calendar-day-status { justify-content: flex-start; margin-top: 14px; }
 .student-calendar-external-page .student-calendar-day-pill { padding: 4px 9px; border-radius: 999px; font-size: .68rem; }
-.student-calendar-external-page .student-calendar-day-foot { display: flex; min-height: 18px; margin-top: 6px; gap: 3px; }
-.student-calendar-external-page .student-calendar-day-note { font-size: .61rem; }
-.student-calendar-external-page .student-calendar-day-markers { display: flex; flex-wrap: wrap; gap: 3px; }
-.student-calendar-external-page .student-calendar-day-marker { padding: 3px 5px; font-size: .57rem; }
+.student-calendar-external-page .student-calendar-day-foot { display: flex; min-width: 0; min-height: 18px; margin-top: 6px; gap: 3px; }
+.student-calendar-external-page .student-calendar-day-note { max-width: 100%; font-size: .61rem; overflow-wrap: anywhere; }
+.student-calendar-external-page .student-calendar-day-markers { display: flex; min-width: 0; flex-wrap: wrap; gap: 3px; }
+.student-calendar-external-page .student-calendar-day-marker { max-width: 100%; padding: 3px 5px; font-size: .57rem; overflow-wrap: anywhere; }
+.student-calendar-external-page .student-calendar-view-details { flex: 0 0 auto; margin-top: auto; padding-top: 6px; line-height: 1.2; }
 .student-calendar-external-page .student-calendar-day--external::after { content: ''; position: absolute; top: 17px; right: 13px; width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
 .student-calendar-external-page .student-calendar-day--external.tone-course-day::after { background: #3b91ee; }
 .student-calendar-external-page .student-calendar-day--external.tone-present::after { background: #2fc28a; }

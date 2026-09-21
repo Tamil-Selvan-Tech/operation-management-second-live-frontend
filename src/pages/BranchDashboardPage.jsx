@@ -1004,6 +1004,96 @@ function getBranchStudentLookupKeys(student = {}) {
   )
 }
 
+function getAssignedBranchFaculty(student = {}, facultyRecords = []) {
+  const studentFacultyId = String(
+    student?.facultyId ||
+    student?.branchFacultyId ||
+    student?.facultyUserId ||
+    student?.faculty?.id ||
+    student?.faculty?.facultyId ||
+    student?.faculty?.facultyUserId ||
+    student?.faculty?.userId ||
+    student?.course?.facultyId ||
+    student?.course?.facultyUserId ||
+    '',
+  ).trim().toLowerCase()
+  const studentFacultyName = String(
+    student?.facultyName ||
+    student?.faculty?.name ||
+    student?.faculty?.facultyName ||
+    student?.course?.facultyName ||
+    '',
+  ).trim().toLowerCase()
+  if (!studentFacultyId && !studentFacultyName) return null
+
+  return (Array.isArray(facultyRecords) ? facultyRecords : []).find((faculty) => {
+    const facultyId = String(
+      faculty?.id ||
+      faculty?.facultyId ||
+      faculty?.facultyUserId ||
+      faculty?.userId ||
+      faculty?.branchFacultyId ||
+      '',
+    ).trim().toLowerCase()
+    const facultyName = String(faculty?.name || faculty?.facultyName || faculty?.fullName || '').trim().toLowerCase()
+    return (studentFacultyId && facultyId && studentFacultyId === facultyId)
+      || (studentFacultyName && facultyName && studentFacultyName === facultyName)
+  }) || null
+}
+
+function getBranchStudentCalendarFaculty(student = {}, facultyRecords = [], batchGroups = []) {
+  const faculty = getAssignedBranchFaculty(student, facultyRecords)
+  const studentBatchId = String(student?.batchId || student?.batchEntryId || '').trim().toLowerCase()
+  const studentBatchName = String(student?.batchName || student?.batch || '').trim().toLowerCase()
+  const studentCourseId = String(student?.courseId || student?.course?.id || '').trim().toLowerCase()
+  const studentFacultyId = String(
+    student?.facultyId ||
+    student?.branchFacultyId ||
+    student?.facultyUserId ||
+    student?.faculty?.id ||
+    student?.faculty?.facultyId ||
+    student?.faculty?.facultyUserId ||
+    student?.faculty?.userId ||
+    student?.course?.facultyId ||
+    student?.course?.facultyUserId ||
+    '',
+  ).trim().toLowerCase()
+  let matchedBatch = null
+
+  for (const group of Array.isArray(batchGroups) ? batchGroups : []) {
+    const groupCourseId = String(group?.courseId || group?.branchCourseId || '').trim().toLowerCase()
+    if (studentCourseId && groupCourseId && studentCourseId !== groupCourseId) continue
+    matchedBatch = (Array.isArray(group?.batches) ? group.batches : []).find((batch) => {
+      const batchId = String(batch?.batchId || batch?.id || '').trim().toLowerCase()
+      const batchName = String(batch?.batchName || batch?.name || '').trim().toLowerCase()
+      const batchFacultyId = String(
+        batch?.facultyId ||
+        batch?.facultyUserId ||
+        batch?.faculty?.id ||
+        batch?.faculty?.facultyId ||
+        '',
+      ).trim().toLowerCase()
+      if (studentFacultyId && batchFacultyId && studentFacultyId !== batchFacultyId) return false
+      return (studentBatchId && batchId === studentBatchId) || (studentBatchName && batchName === studentBatchName)
+    }) || null
+    if (matchedBatch) break
+  }
+
+  if (!faculty && !matchedBatch) return null
+  const facultyBatches = Array.isArray(faculty?.batchEntries) && faculty.batchEntries.length
+    ? faculty.batchEntries
+    : matchedBatch ? [matchedBatch] : []
+
+  return {
+    ...(faculty || {}),
+    weeklyOffDay: faculty?.weeklyOffDay || faculty?.weekOffDay || faculty?.facultyWeeklyOffDay || faculty?.defaultWeeklyOffDay || matchedBatch?.weeklyOffDay || matchedBatch?.weekOffDay || matchedBatch?.facultyWeeklyOffDay || '',
+    batchEntries: facultyBatches.map((batch) => ({
+      ...batch,
+      weeklyOffDay: batch?.weeklyOffDay || batch?.weekOffDay || batch?.facultyWeeklyOffDay || '',
+    })),
+  }
+}
+
 function resolveBranchStudentCourse(student = {}, courses = []) {
   const studentCourseId = String(student?.courseId || student?.course?.id || '').trim()
   const studentCourseCode = String(student?.courseCode || student?.course?.courseCode || '').trim().toLowerCase()
@@ -8529,6 +8619,11 @@ useEffect(() => {
                 <StudentCalendarPage
                   studentId={decodeURIComponent(studentCalendarId)}
                   student={branchStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase()))}
+                  facultyProfile={getBranchStudentCalendarFaculty(
+                    branchStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase())),
+                    branchFacultyRecords,
+                    branchBatchGroups,
+                  )}
                   backPath="/branch-dashboard?section=students"
                   onBack={() => navigate('/branch-dashboard?section=students')}
                 />

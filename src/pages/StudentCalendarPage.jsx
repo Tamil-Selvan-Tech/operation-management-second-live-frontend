@@ -67,7 +67,7 @@ function hydrateStudentCalendarSummary(student) {
   }
 }
 
-export function StudentCalendarPage({ student: initialStudent, studentId, backPath, onBack, useFacultyCalendar = false }) {
+export function StudentCalendarPage({ student: initialStudent, studentId, backPath, onBack, facultyProfile = null, useFacultyCalendar = false }) {
   const [student, setStudent] = useState(() => hydrateStudentCalendarSummary(initialStudent))
   const [facultyCalendar, setFacultyCalendar] = useState(null)
   const [error, setError] = useState('')
@@ -150,6 +150,10 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
   }, [resolvedId, useFacultyCalendar])
 
   const back = onBack || (() => { window.location.assign(backPath) })
+  const calendarFacultySource = facultyCalendar || (facultyProfile ? {
+    weeklyOffDay: facultyProfile.weeklyOffDay || facultyProfile.weekOffDay || facultyProfile.facultyWeeklyOffDay || facultyProfile.defaultWeeklyOffDay || '',
+    batches: Array.isArray(facultyProfile.batchEntries) ? facultyProfile.batchEntries : [],
+  } : null)
 
   if (!student) {
     return <section className="student-calendar-page"><p className="student-calendar-page-error">Student record not found.</p></section>
@@ -169,7 +173,7 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
       </header>
 
       {error ? <p className="student-calendar-page-error">{error}</p> : null}
-      <StudentCalendarPanel student={student} facultyCalendar={facultyCalendar} externalUi />
+      <StudentCalendarPanel student={student} facultyCalendar={calendarFacultySource} externalUi />
     </section>
   )
 }
