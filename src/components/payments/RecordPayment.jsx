@@ -108,7 +108,6 @@ export const buildModernPaymentReceiptHtml = ({
   paymentMode,
   transactionReference,
   collectedBy,
-  notes,
   totalCourseFee,
   previouslyPaid,
   currentPayment,
@@ -117,18 +116,9 @@ export const buildModernPaymentReceiptHtml = ({
   amountInWords,
   installments,
   paymentStatus,
-  studentEmail,
-  studentAddress,
-  facultyName,
-  courseCode,
-  courseType,
-  courseStartDate,
-  branchName,
-  paymentTime,
   discount,
   tax,
   lateFee,
-  compactReceipt = false,
   paymentAlreadyApplied = false,
 }) => {
   const safe = escapeReceiptValue;
@@ -199,8 +189,8 @@ export const buildModernPaymentReceiptHtml = ({
     </section>
 
     <div class="two-column">
-      <section class="card"><div class="section-title">STUDENT DETAILS</div>${detailRowWithColon("Student Name", studentName)}${detailRowWithColon("Student ID", studentId)}${compactReceipt ? "" : detailRowWithColon("Email", studentEmail)}${compactReceipt ? "" : detailRowWithColon("Contact Number", studentPhone)}${compactReceipt ? "" : detailRowWithColon("Address", studentAddress)}${detailRowWithColon("Course", courseName)}${compactReceipt ? "" : detailRowWithColon("Course Code", courseCode)}${compactReceipt ? "" : detailRowWithColon("Course Type", courseType)}${compactReceipt ? "" : detailRowWithColon("Course Start Date", courseStartDate)}${detailRowWithColon("Batch", batchName)}${compactReceipt ? "" : detailRowWithColon("Faculty", facultyName)}${compactReceipt ? "" : detailRowWithColon("Branch", branchName)}${compactReceipt ? detailRowWithColon("Contact Number", studentPhone) : ""}</section>
-      <section class="card"><div class="section-title">PAYMENT DETAILS</div>${detailRowWithColon("Payment For", paymentFor)}${detailRowWithColon("Payment Mode", paymentMode)}${compactReceipt ? "" : detailRowWithColon("Payment Time", paymentTime)}${detailRowWithColon("Transaction Ref", transactionReference)}${detailRowWithColon("Collected By", collectedBy)}${compactReceipt ? "" : detailRowWithColon("Status", paymentStatus)}${compactReceipt ? "" : detailRowWithColon("Remarks", notes)}</section>
+      <section class="card"><div class="section-title">STUDENT DETAILS</div>${detailRowWithColon("Student Name", studentName)}${detailRowWithColon("Student ID", studentId)}${detailRowWithColon("Phone Number", studentPhone)}${detailRowWithColon("Course", courseName)}${detailRowWithColon("Batch", batchName)}</section>
+      <section class="card"><div class="section-title">PAYMENT DETAILS</div>${detailRowWithColon("Payment For", paymentFor)}${detailRowWithColon("Payment Mode", paymentMode)}${detailRowWithColon("Transaction Ref", transactionReference)}${detailRowWithColon("Collected By", collectedBy)}</section>
     </div>
 
     <section class="amount-box"><div class="amount-label">AMOUNT RECEIVED</div><div class="amount">${money(currentPayment)}</div><div class="words">${safe(amountInWords)}</div><span class="received">RECEIVED</span></section>
@@ -305,6 +295,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
   const [errors, setErrors] = useState({});
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showCloseConfirmation, setShowCloseConfirmation] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [isGeneratingReceipt, setIsGeneratingReceipt] = useState(false);
 
@@ -1751,18 +1742,18 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
 
   const handleCloseReceipt = () => {
     if (!paymentSaved) {
-      const confirmClose =
-        window.confirm(
-          "⚠️ Payment has NOT been saved yet!\n\nPlease download the receipt first to save the payment.\n\nAre you sure you want to close without saving?"
-        );
-
-      if (!confirmClose) {
-        return;
-      }
+      setShowCloseConfirmation(true);
+      return;
     }
 
     setShowReceipt(false);
 
+    onClose?.();
+  };
+
+  const handleConfirmCloseReceipt = () => {
+    setShowCloseConfirmation(false);
+    setShowReceipt(false);
     onClose?.();
   };
 
@@ -2821,6 +2812,48 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
 
         </div>
 
+      )}
+
+      {showCloseConfirmation && (
+        <div className="payment-popup-overlay" role="presentation">
+          <div
+            className="payment-confirmation-popup"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="close-payment-title"
+          >
+            <button
+              type="button"
+              className="receipt-popup-close"
+              aria-label="Close confirmation popup"
+              onClick={() => setShowCloseConfirmation(false)}
+            >
+              x
+            </button>
+
+            <h3 id="close-payment-title">Close Payment?</h3>
+            <p className="payment-popup-description">
+              Payment has not been saved yet. Are you sure you want to close?
+            </p>
+
+            <div className="payment-popup-actions">
+              <button
+                type="button"
+                className="popup-cancel-btn"
+                onClick={() => setShowCloseConfirmation(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="popup-confirm-btn"
+                onClick={handleConfirmCloseReceipt}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* =====================================================
