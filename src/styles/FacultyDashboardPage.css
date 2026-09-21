@@ -216,6 +216,63 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-dashboard-progress-card { width: 50%; }
 @media (max-width: 640px) { .faculty-dashboard-progress-card { width: 100%; } }
 
+.faculty-dashboard-dashboard-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(1) { grid-column: 1 / -1; }
+.faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(2) { grid-column: 1; grid-row: 2; }
+.faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(2) .faculty-dashboard-progress-card { width: 100%; height: 360px; box-sizing: border-box; }
+.faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(2) .faculty-dashboard-progress-chart { min-height: 125px; padding-top: 6px; }
+.faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(2) .faculty-dashboard-progress-bar-track { height: 82px; }
+.faculty-dashboard-dashboard-grid > .faculty-dashboard-schedule-sections { display: contents; }
+.faculty-dashboard-schedule-sections { display: contents; }
+.faculty-dashboard-schedule-sections .branch-dashboard-section { margin: 0; }
+.faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(1) { grid-column: 1; grid-row: 3; }
+.faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(2) { grid-column: 2; grid-row: 3; }
+.faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(3) { grid-column: 2; grid-row: 2; }
+.faculty-dashboard-class-list, .faculty-dashboard-assigned-batches { display: grid; gap: 10px; }
+.faculty-dashboard-class-table { overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.faculty-dashboard-class-table-head, .faculty-dashboard-class-item { display: grid; grid-template-columns: 1.05fr 1.25fr 1fr 1.4fr .85fr; gap: 12px; align-items: center; }
+.faculty-dashboard-class-table-head { padding: 11px 14px; color: #64748b; background: #f8fafc; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.faculty-dashboard-class-item, .faculty-dashboard-assigned-batch { padding: 14px 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.faculty-dashboard-class-table .faculty-dashboard-class-item { border-width: 1px 0 0; border-radius: 0; background: #fff; }
+.faculty-dashboard-class-item strong { color: #1d4ed8; font-size: 13px; }
+.faculty-dashboard-class-item span, .faculty-dashboard-assigned-batch strong { color: #0f172a; font-size: 14px; font-weight: 800; }
+.faculty-dashboard-class-item small, .faculty-dashboard-assigned-batch span { color: #64748b; font-size: 12px; }
+.faculty-dashboard-class-item em { width: fit-content; padding: 5px 9px; border-radius: 999px; color: #047857; background: #d1fae5; font-size: 10px; font-style: normal; font-weight: 800; }
+.faculty-dashboard-assigned-batch { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.faculty-dashboard-assigned-batch > div { display: grid; gap: 5px; min-width: 0; }
+.faculty-dashboard-assigned-batch dl { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px 18px; margin: 0; }
+.faculty-dashboard-assigned-batch dl div { min-width: 74px; }
+.faculty-dashboard-assigned-batch dt { color: #94a3b8; font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.faculty-dashboard-assigned-batch dd { margin: 3px 0 0; color: #334155; font-size: 12px; font-weight: 700; }
+.faculty-dashboard-schedule-loading, .faculty-dashboard-schedule-empty { padding: 24px 16px; color: #64748b; font-size: 13px; text-align: center; }
+.faculty-dashboard-schedule-layout { display: grid; grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); gap: 20px; }
+.faculty-dashboard-calendar-card { padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.faculty-dashboard-dashboard-grid .faculty-dashboard-calendar-card { height: 360px; box-sizing: border-box; }
+.faculty-dashboard-calendar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; color: #0f172a; font-size: 13px; }
+.faculty-dashboard-calendar-head button { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #dbe4ee; border-radius: 8px; color: #475569; background: #fff; cursor: pointer; }
+.faculty-dashboard-calendar-weekdays, .faculty-dashboard-calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.faculty-dashboard-calendar-weekdays { margin-bottom: 6px; color: #94a3b8; font-size: 10px; font-weight: 800; text-align: center; }
+.faculty-dashboard-calendar-grid button, .faculty-dashboard-calendar-grid > span { position: relative; min-height: 32px; border: 0; border-radius: 8px; background: transparent; color: #475569; font-size: 12px; cursor: pointer; }
+.faculty-dashboard-dashboard-grid .faculty-dashboard-calendar-grid button, .faculty-dashboard-dashboard-grid .faculty-dashboard-calendar-grid > span { min-height: 40px; }
+.faculty-dashboard-calendar-grid button:hover, .faculty-dashboard-calendar-grid button.is-selected { color: #1d4ed8; background: #dbeafe; }
+.faculty-dashboard-calendar-grid button.is-today { box-shadow: inset 0 0 0 1px #60a5fa; }
+.faculty-dashboard-calendar-grid button i { position: absolute; right: 5px; bottom: 4px; width: 4px; height: 4px; border-radius: 50%; background: #2563eb; }
+.faculty-dashboard-calendar-grid button[data-tooltip]::after { position: absolute; z-index: 20; top: calc(100% + 8px); left: 50%; display: none; width: 190px; padding: 10px 12px; border: 1px solid #dbe4ee; border-radius: 9px; color: #e2e8f0; background: #0f2747; box-shadow: 0 10px 24px rgba(15, 39, 71, .2); content: attr(data-tooltip); font-size: 11px; font-weight: 600; line-height: 1.55; text-align: left; white-space: pre-line; transform: translateX(-50%); pointer-events: none; }
+.faculty-dashboard-calendar-grid button[data-tooltip]:hover::after, .faculty-dashboard-calendar-grid button[data-tooltip]:focus-visible::after { display: block; }
+.faculty-dashboard-schedule-details { min-width: 0; padding: 4px 0; }
+.faculty-dashboard-schedule-details .faculty-dashboard-class-item { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; }
+.faculty-dashboard-schedule-details .faculty-dashboard-class-item strong,
+.faculty-dashboard-schedule-details .faculty-dashboard-class-item span,
+.faculty-dashboard-schedule-details .faculty-dashboard-class-item small { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.faculty-dashboard-schedule-details .faculty-dashboard-class-item strong { font-size: 13px; }
+.faculty-dashboard-schedule-details .faculty-dashboard-class-item span { font-size: 14px; }
+.faculty-dashboard-schedule-details .faculty-dashboard-class-item small { color: #64748b; }
+@media (max-width: 680px) { .faculty-dashboard-assigned-batch, .faculty-dashboard-schedule-layout { grid-template-columns: 1fr; display: grid; }.faculty-dashboard-assigned-batch dl { justify-content: flex-start; } }
+@media (max-width: 760px) { .faculty-dashboard-class-table { overflow-x: auto; }.faculty-dashboard-class-table-head, .faculty-dashboard-class-item { min-width: 680px; } }
+@media (max-width: 900px) { .faculty-dashboard-dashboard-grid { grid-template-columns: 1fr; }.faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(1), .faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(2), .faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(1), .faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(2), .faculty-dashboard-schedule-sections > .branch-dashboard-section:nth-child(3) { grid-column: auto; grid-row: auto; } }
+@media (max-width: 900px) { .faculty-dashboard-dashboard-grid > .branch-dashboard-section:nth-child(2) .faculty-dashboard-progress-card, .faculty-dashboard-dashboard-grid .faculty-dashboard-calendar-card { height: auto; } }
+.faculty-dashboard-calendar-grid button[data-tooltip]::after { display: none !important; }
+
 /* A fully resolved faculty-leave review has only the close action. */
 .faculty-leave-review-detail > .institute-confirm-actions button:only-child { font-size: 0; }
 .faculty-leave-review-detail > .institute-confirm-actions button:only-child::after { content: 'OK'; font-size: 14px; }

@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ChevronUp,
   CircleUserRound,
@@ -1437,6 +1438,127 @@ function FacultyDashboardOverview({ overview, loading, error, onRetry, todayAtte
   const progressStudentsIncluded = selectedProgressBatch?.progress?.studentsIncluded ?? selectedProgressBatch?.studentCount ?? 0
   if (!batches.length) return <FacultyDashboardSection title="Attendance"><div className="faculty-dashboard-overview-empty"><strong>No batches assigned</strong><p>There are no active batches assigned to your faculty account.</p></div></FacultyDashboardSection>
   return <><FacultyDashboardSection title="Attendance" description="Select a batch to view its attendance, or keep All Batches for the combined attendance of every assigned batch."><div className="faculty-dashboard-attendance-dashboard-layout"><div className="faculty-dashboard-single-card faculty-dashboard-single-card--attendance"><FacultyBatchOverviewCard batch={selectedBatch || { studentCount: 0, weekly: [], weeklyByMonth: [], monthlyYear: [] }} batchOptions={batches} selectedBatchId={selectedBatchId} onBatchChange={setSelectedBatchId} /></div>{todayAttendanceLoading ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>Loading today's attendance…</p></aside> : todayAttendanceError ? <aside className="attendance-insights faculty-dashboard-today-attendance-loading"><p>{todayAttendanceError}</p></aside> : todayAttendance ? <BranchAttendanceInsights data={todayAttendance} /> : null}</div></FacultyDashboardSection><FacultyDashboardSection title="Overall Progress" description="Progress across every active student in the selected batch."><div className="faculty-dashboard-single-card"><article className="faculty-dashboard-progress-card"><div className="faculty-dashboard-batch-heading"><div><p className="faculty-dashboard-card-kicker">{selectedProgressBatch?.courseName || (selectedProgressBatchId === 'all' ? 'All assigned courses' : 'Course')}</p><h3>{selectedProgressBatch?.batchName || (selectedProgressBatchId === 'all' ? 'All Batches' : selectedProgressBatch?.batchId || 'Batch')}</h3></div><div className="faculty-dashboard-batch-selector"><label htmlFor="faculty-dashboard-progress-select">Batch</label><select id="faculty-dashboard-progress-select" value={selectedProgressBatchId} onChange={(event) => setSelectedProgressBatchId(event.target.value)}><option value="all">All Batches</option>{batches.map((batch) => <option key={batch.id} value={batch.id}>{batch.batchName || batch.batchId}</option>)}</select></div></div><div className="faculty-dashboard-batch-meta"><span>Students <strong>{selectedProgressBatch?.studentCount ?? '—'}</strong></span>{selectedProgressBatch?.batchId ? <span>Batch ID <strong>{selectedProgressBatch.batchId}</strong></span> : null}</div>{selectedProgressBatch?.studentCount === 0 ? <p className="faculty-dashboard-unmarked">No students assigned to this batch</p> : hasProgressChart ? <div className="faculty-dashboard-progress-chart-wrap"><div className="faculty-dashboard-progress-chart" role="img" aria-label={`Overall progress percentage chart for ${selectedProgressBatchId === 'all' ? 'all assigned batches' : selectedProgressBatch?.batchName || 'selected batch'}`}><div className="faculty-dashboard-progress-axis" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div><div className="faculty-dashboard-progress-bars">{progressBars.map((bar) => { const percentage = Number.isFinite(bar.percentage) ? Math.max(0, Math.min(100, bar.percentage)) : null; return <div key={bar.id} className="faculty-dashboard-progress-bar-item" title={`${bar.label}: ${percentage == null ? 'Progress not recorded' : `${formatPercent(percentage)} overall progress`}`}><strong>{percentage == null ? '—' : formatPercent(percentage)}</strong><div className="faculty-dashboard-progress-bar-track"><span style={{ height: `${percentage || 0}%` }} /></div><small>{bar.label}</small></div> })}</div></div><p className="faculty-dashboard-progress-note">Based on {progressStudentsIncluded} student{progressStudentsIncluded === 1 ? '' : 's'}</p></div> : <p className="faculty-dashboard-unmarked">Progress not recorded</p>}</article></div></FacultyDashboardSection></>
+}
+
+const FACULTY_DASHBOARD_CLASS_STATUSES = new Set([
+  'CLASS', 'SCHEDULED', 'COMPLETED', 'REASSIGNED', 'COMBINED', 'RESCHEDULED', 'RESCHEDULED_ORIGINAL',
+])
+
+function facultyDashboardDateKey(date = new Date()) {
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-')
+}
+
+function facultyDashboardParseDate(value) {
+  const date = new Date(`${String(value || '').slice(0, 10)}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function facultyDashboardEventStatus(event = {}) {
+  return String(event?.code || event?.type || event?.status || '').trim().toUpperCase().replace(/[- ]/g, '_')
+}
+
+function facultyDashboardEventTiming(event = {}) {
+  const start = String(event?.startTime || event?.fromTime || '').trim()
+  const end = String(event?.endTime || event?.toTime || '').trim()
+  return start && end ? `${start} – ${end}` : String(event?.batchTiming || '').trim() || 'Scheduled time'
+}
+
+function facultyDashboardEventModule(event = {}) {
+  return String(event?.moduleName || event?.module || event?.topic || event?.topicName || event?.currentTopic || '').trim()
+}
+
+function FacultyDashboardScheduleSections({ batches = [], facultyProfile = null, loading: batchesLoading = false }) {
+  const today = facultyDashboardDateKey()
+  const [calendar, setCalendar] = useState(null)
+  const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const range = useMemo(() => {
+    const assignedBatches = Array.isArray(facultyProfile?.batchEntries) ? facultyProfile.batchEntries : []
+    const starts = assignedBatches.map((batch) => batch?.courseStartDate || batch?.startDate).filter(Boolean).sort()
+    const ends = assignedBatches.map((batch) => batch?.courseEndDate || batch?.endDate).filter(Boolean).sort()
+    const fallbackEnd = new Date()
+    fallbackEnd.setFullYear(fallbackEnd.getFullYear() + 1)
+    return {
+      start: starts[0] || today,
+      end: ends.at(-1) || facultyDashboardDateKey(fallbackEnd),
+    }
+  }, [facultyProfile, today])
+
+  const load = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const nextCalendar = await getFacultyCalendar({ startDate: range.start, endDate: range.end })
+      setCalendar(nextCalendar || { events: [] })
+    } catch (requestError) {
+      setCalendar(null)
+      setError(requestError?.message || 'Unable to load your schedule.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void load()
+    const refresh = () => void load()
+    window.addEventListener('cispro:faculty-dashboard-refresh', refresh)
+    return () => window.removeEventListener('cispro:faculty-dashboard-refresh', refresh)
+  }, [range.end, range.start])
+
+  const events = useMemo(
+    () => (Array.isArray(calendar?.events) ? calendar.events : []).filter((event) => String(event?.date || '').slice(0, 10)),
+    [calendar],
+  )
+  const classesToday = useMemo(
+    () => events.filter((event) => String(event?.date || '').slice(0, 10) === today && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event))),
+    [events, today],
+  )
+  const selectedEvents = useMemo(
+    () => events.filter((event) => String(event?.date || '').slice(0, 10) === selectedDate && FACULTY_DASHBOARD_CLASS_STATUSES.has(facultyDashboardEventStatus(event))),
+    [events, selectedDate],
+  )
+  const monthDays = useMemo(() => {
+    const first = new Date(month.getFullYear(), month.getMonth(), 1)
+    const last = new Date(month.getFullYear(), month.getMonth() + 1, 0)
+    return [...Array(first.getDay()).fill(null), ...Array.from({ length: last.getDate() }, (_, index) => new Date(month.getFullYear(), month.getMonth(), index + 1))]
+  }, [month])
+  const eventDates = useMemo(() => new Set(events.map((event) => String(event?.date || '').slice(0, 10))), [events])
+  const eventTooltipsByDate = useMemo(() => {
+    const grouped = new Map()
+    events.forEach((event) => {
+      const dateKey = String(event?.date || '').slice(0, 10)
+      if (!dateKey) return
+      const dateLabel = facultyDashboardParseDate(dateKey)?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) || dateKey
+      const details = [
+        dateLabel,
+        facultyDashboardEventTiming(event),
+        event.courseName || event.courseCode || 'Course',
+        `Batch: ${event.batchName || event.batchId || '—'}`,
+      ].join('\n')
+      grouped.set(dateKey, [...(grouped.get(dateKey) || []), details])
+    })
+    return new Map(Array.from(grouped.entries()).map(([dateKey, values]) => [dateKey, values.join('\n\n')]))
+  }, [events])
+  const monthLabel = month.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+
+  return (
+    <div className="faculty-dashboard-schedule-sections">
+      <FacultyDashboardSection title="Today’s Classes" description="Classes scheduled for the current date.">
+        {loading ? <div className="faculty-dashboard-schedule-loading">Loading today’s classes…</div> : error ? <div className="faculty-dashboard-overview-empty"><strong>Today’s classes unavailable</strong><p>{error}</p></div> : classesToday.length ? <div className="faculty-dashboard-class-table"><div className="faculty-dashboard-class-table-head"><span>Time</span><span>Course</span><span>Batch</span><span>Module / Topic</span><span>Status</span></div>{classesToday.map((event, index) => <article className="faculty-dashboard-class-item" key={event.id || `${event.batchId || event.batchName}-${index}`}><strong>{facultyDashboardEventTiming(event)}</strong><span>{event.courseName || event.courseCode || 'Course'}</span><span>{event.batchName || event.batchId || '—'}</span><small>{facultyDashboardEventModule(event) || '—'}</small><em>{event.status || event.code || 'Scheduled'}</em></article>)}</div> : <div className="faculty-dashboard-schedule-empty">No classes scheduled for today</div>}
+      </FacultyDashboardSection>
+
+      <FacultyDashboardSection title="My Batches" description="All batches assigned to you, including weekday and weekend batches.">
+        {batchesLoading ? <div className="faculty-dashboard-schedule-loading">Loading assigned batches…</div> : batches.length ? <div className="faculty-dashboard-assigned-batches">{batches.map((batch) => <article className="faculty-dashboard-assigned-batch" key={batch.id || batch.batchId}><div><strong>{batch.batchName || batch.batchId || 'Batch'}</strong><span>{batch.course || batch.courseName || 'Course'}</span></div><dl><div><dt>Timing</dt><dd>{batch.timing || '—'}</dd></div><div><dt>Schedule</dt><dd>{batch.weekType || '—'}</dd></div><div><dt>Students</dt><dd>{Number.isFinite(Number(batch.students)) ? batch.students : '—'}</dd></div><div><dt>Status</dt><dd>{batch.status || '—'}</dd></div></dl></article>)}</div> : <div className="faculty-dashboard-schedule-empty">No batches assigned</div>}
+      </FacultyDashboardSection>
+
+      <FacultyDashboardSection title="My Schedule" description="Your schedule from the same faculty calendar used by My Calendar.">
+        {loading ? <div className="faculty-dashboard-schedule-loading">Loading schedule…</div> : error ? <div className="faculty-dashboard-overview-empty"><strong>Schedule unavailable</strong><p>{error}</p></div> : <div className="faculty-dashboard-schedule-layout"><div className="faculty-dashboard-calendar-card"><div className="faculty-dashboard-calendar-head"><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1))} aria-label="Previous month"><ChevronLeft size={16} /></button><strong>{monthLabel}</strong><button type="button" onClick={() => setMonth((current) => new Date(current.getFullYear(), current.getMonth() + 1, 1))} aria-label="Next month"><ChevronRight size={16} /></button></div><div className="faculty-dashboard-calendar-weekdays">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}</div><div className="faculty-dashboard-calendar-grid">{monthDays.map((date, index) => { if (!date) return <span key={`empty-${index}`} />; const dateKey = facultyDashboardDateKey(date); const tooltip = eventTooltipsByDate.get(dateKey) || ''; return <button type="button" key={dateKey} className={`${dateKey === selectedDate ? 'is-selected ' : ''}${dateKey === today ? 'is-today' : ''}`} onClick={() => setSelectedDate(dateKey)} data-tooltip={tooltip}>{date.getDate()}{eventDates.has(dateKey) ? <i aria-label="Scheduled event" /> : null}</button> })}</div></div><div className="faculty-dashboard-schedule-details"><span className="faculty-dashboard-card-kicker">{facultyDashboardParseDate(selectedDate)?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>{selectedEvents.length ? <div className="faculty-dashboard-class-list">{selectedEvents.map((event, index) => <article className="faculty-dashboard-class-item" key={event.id || `${event.batchId || event.batchName}-${index}`}><strong>{facultyDashboardEventTiming(event)}</strong><span>{event.courseName || event.courseCode || 'Course'}</span><small>Batch: {event.batchName || event.batchId || '—'}{facultyDashboardEventModule(event) ? ` · Module: ${facultyDashboardEventModule(event)}` : ''}</small></article>)}</div> : <div className="faculty-dashboard-schedule-empty">No classes scheduled</div>}</div></div>}
+      </FacultyDashboardSection>
+    </div>
+  )
 }
 
 function OtherFacultyBatchesSection({ onOpenTemporaryWork, onAssignmentVisibility }) {
@@ -4789,15 +4911,23 @@ const nextName = trimmedValue
                     ))}
                   </div>
 
-                  <FacultyDashboardOverview
-                    overview={dashboardOverview}
-                    loading={dashboardOverviewLoading}
-                    error={dashboardOverviewError}
-                    todayAttendance={todayAttendance}
-                    todayAttendanceLoading={todayAttendanceLoading}
-                    todayAttendanceError={todayAttendanceError}
-                    onRetry={() => window.dispatchEvent(new Event('cispro:faculty-dashboard-refresh'))}
-                  />
+                  <div className="faculty-dashboard-dashboard-grid">
+                    <FacultyDashboardOverview
+                      overview={dashboardOverview}
+                      loading={dashboardOverviewLoading}
+                      error={dashboardOverviewError}
+                      todayAttendance={todayAttendance}
+                      todayAttendanceLoading={todayAttendanceLoading}
+                      todayAttendanceError={todayAttendanceError}
+                      onRetry={() => window.dispatchEvent(new Event('cispro:faculty-dashboard-refresh'))}
+                    />
+
+                    <FacultyDashboardScheduleSections
+                      batches={facultyBatchRows}
+                      facultyProfile={facultyProfile || facultySummaryBackfillRecord}
+                      loading={dashboardOverviewLoading}
+                    />
+                  </div>
 
                 </>
               ) : null}
