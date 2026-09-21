@@ -1464,10 +1464,88 @@ function facultyDashboardEventTiming(event = {}) {
 }
 
 function facultyDashboardEventModule(event = {}) {
-  return String(event?.moduleName || event?.module || event?.topic || event?.topicName || event?.currentTopic || '').trim()
+  const moduleValue = event?.module || event?.currentModule || event?.moduleDetails || event?.batch?.module || event?.course?.module
+  const moduleName = typeof moduleValue === 'object'
+    ? moduleValue?.name || moduleValue?.title || moduleValue?.moduleName || moduleValue?.moduleTitle
+    : moduleValue
+  const topicValue = event?.topic || event?.currentTopic || event?.lesson || event?.currentLesson || event?.submodule || event?.currentSubmodule
+  const topicName = typeof topicValue === 'object'
+    ? topicValue?.name || topicValue?.title || topicValue?.topicName || topicValue?.submoduleName
+    : topicValue
+
+  return String(
+    event?.moduleName
+    || event?.moduleTitle
+    || event?.currentModuleName
+    || moduleName
+    || event?.topicName
+    || topicName
+    || event?.currentSubmoduleName
+    || event?.submoduleName
+    || event?.batch?.moduleName
+    || event?.batch?.moduleTitle
+    || event?.batch?.currentModuleName
+    || event?.batch?.topicName
+    || event?.batch?.currentTopic
+    || event?.courseBatch?.moduleName
+    || event?.session?.moduleName
+    || '',
+  ).trim()
 }
 
-function FacultyDashboardScheduleSections({ batches = [], facultyProfile = null, loading: batchesLoading = false }) {
+function facultyDashboardWorkEntryHasProgress(entry = {}) {
+  const statuses = [
+    entry?.submoduleStatus,
+    entry?.subModuleStatus,
+    entry?.progressStatus,
+    ...(Array.isArray(entry?.submodules) ? entry.submodules.map((item) => item?.status || item?.submoduleStatus || item?.progressStatus) : []),
+    ...(Array.isArray(entry?.submoduleProgress) ? entry.submoduleProgress.map((item) => item?.status || item?.submoduleStatus || item?.progressStatus || item?.completionStatus) : []),
+    ...(Array.isArray(entry?.studentResults) ? entry.studentResults.flatMap((item) => (Array.isArray(item?.submodules) ? item.submodules : []).map((submodule) => submodule?.completionStatus || submodule?.status)) : []),
+  ]
+  const statusMap = entry?.submoduleStatuses && typeof entry.submoduleStatuses === 'object'
+    ? Object.values(entry.submoduleStatuses).flatMap((value) => (value && typeof value === 'object' ? Object.values(value) : [value]))
+    : []
+
+  return [...statuses, ...statusMap].some((value) => ['Completed', 'In Progress'].includes(normalizeSubmoduleProgressStatus(value)))
+}
+
+function facultyDashboardTodayWorkModule(event = {}, entries = []) {
+  const eventBatchId = normalizeWorkStudentId(event?.batchId || event?.batchRecordId || '')
+  const eventBatchName = normalizeWorkStudentId(event?.batchName || '')
+  const eventCourseId = normalizeWorkStudentId(event?.courseId || '')
+  const eventCourseName = normalizeWorkStudentId(event?.courseName || event?.courseCode || '')
+  const eventDate = String(event?.date || '').slice(0, 10)
+
+  const matchingEntries = (Array.isArray(entries) ? entries : [])
+    .filter((entry) => {
+      if (!entry?.moduleName || !facultyDashboardWorkEntryHasProgress(entry)) return false
+      const entryDate = String(entry?.workDate || entry?.date || '').slice(0, 10)
+      if (eventDate && entryDate && eventDate !== entryDate) return false
+
+      const entryBatchId = normalizeWorkStudentId(entry?.batchId || entry?.batchEntryId || '')
+      const entryBatchName = normalizeWorkStudentId(entry?.batchName || '')
+      const entryCourseId = normalizeWorkStudentId(entry?.courseId || '')
+      const entryCourseName = normalizeWorkStudentId(entry?.courseName || '')
+      const batchMatches = (eventBatchId && entryBatchId && eventBatchId === entryBatchId)
+        || (eventBatchName && entryBatchName && eventBatchName === entryBatchName)
+      const courseMatches = !eventCourseId || !entryCourseId || eventCourseId === entryCourseId
+        || (eventCourseName && entryCourseName && eventCourseName === entryCourseName)
+      return batchMatches && courseMatches
+    })
+    .sort((left, right) => new Date(right?.updatedAt || right?.createdAt || 0).getTime() - new Date(left?.updatedAt || left?.createdAt || 0).getTime())
+
+  return String(matchingEntries[0]?.moduleName || '').trim()
+}
+
+function facultyDashboardStatusClass(value = '') {
+  const status = String(value || '').trim().toLowerCase()
+  if (status.includes('complete')) return 'is-completed'
+  if (status.includes('progress')) return 'is-progress'
+  if (status.includes('cancel')) return 'is-cancelled'
+  return 'is-scheduled'
+}
+
+function FacultyDashboardScheduleSections({ batches = [], todayWorkEntries = [], facultyProfile = null, loading: batchesLoading = false, onViewAll }) {
   const today = facultyDashboardDateKey()
   const [calendar, setCalendar] = useState(null)
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
@@ -1546,8 +1624,12 @@ function FacultyDashboardScheduleSections({ batches = [], facultyProfile = null,
 
   return (
     <div className="faculty-dashboard-schedule-sections">
-      <FacultyDashboardSection title="Today’s Classes" description="Classes scheduled for the current date.">
-        {loading ? <div className="faculty-dashboard-schedule-loading">Loading today’s classes…</div> : error ? <div className="faculty-dashboard-overview-empty"><strong>Today’s classes unavailable</strong><p>{error}</p></div> : classesToday.length ? <div className="faculty-dashboard-class-table"><div className="faculty-dashboard-class-table-head"><span>Time</span><span>Course</span><span>Batch</span><span>Module / Topic</span><span>Status</span></div>{classesToday.map((event, index) => <article className="faculty-dashboard-class-item" key={event.id || `${event.batchId || event.batchName}-${index}`}><strong>{facultyDashboardEventTiming(event)}</strong><span>{event.courseName || event.courseCode || 'Course'}</span><span>{event.batchName || event.batchId || '—'}</span><small>{facultyDashboardEventModule(event) || '—'}</small><em>{event.status || event.code || 'Scheduled'}</em></article>)}</div> : <div className="faculty-dashboard-schedule-empty">No classes scheduled for today</div>}
+      <FacultyDashboardSection
+        title={<span className="faculty-dashboard-section-title-with-icon"><CalendarDays size={18} aria-hidden="true" />Today’s Classes</span>}
+        description="Classes scheduled for the current date."
+        actions={<button type="button" className="faculty-dashboard-view-all" onClick={onViewAll}>View All <span aria-hidden="true">→</span></button>}
+      >
+        {loading ? <div className="faculty-dashboard-schedule-loading">Loading today’s classes…</div> : error ? <div className="faculty-dashboard-overview-empty"><strong>Today’s classes unavailable</strong><p>{error}</p></div> : classesToday.length ? <div className="faculty-dashboard-class-table"><div className="faculty-dashboard-class-table-head"><span><Clock3 size={13} aria-hidden="true" />Time</span><span><BookOpen size={13} aria-hidden="true" />Course</span><span><Users size={13} aria-hidden="true" />Batch</span><span><Layers3 size={13} aria-hidden="true" />Module</span><span><CheckCircle2 size={13} aria-hidden="true" />Status</span></div>{classesToday.map((event, index) => { const status = event.status || event.code || 'Scheduled'; const todayWorkModule = facultyDashboardTodayWorkModule(event, todayWorkEntries); return <article className={`faculty-dashboard-class-item faculty-dashboard-class-item--accent-${index % 5}`} key={event.id || `${event.batchId || event.batchName}-${index}`}><strong><Clock3 size={15} aria-hidden="true" />{facultyDashboardEventTiming(event)}</strong><span><BookOpen size={15} aria-hidden="true" />{event.courseName || event.courseCode || 'Course'}</span><span><Users size={15} aria-hidden="true" />{event.batchName || event.batchId || '—'}</span><small><Layers3 size={14} aria-hidden="true" />{todayWorkModule || '—'}</small><em className={facultyDashboardStatusClass(status)}><CheckCircle2 size={13} aria-hidden="true" />{status}</em></article> })}</div> : <div className="faculty-dashboard-schedule-empty">No classes scheduled for today</div>}
       </FacultyDashboardSection>
 
       <FacultyDashboardSection title="My Batches" description="All batches assigned to you, including weekday and weekend batches.">
@@ -4503,8 +4585,8 @@ const nextName = trimmedValue
   )
 
   const stats = [
-    { label: 'Assigned Courses', value: dashboardOverviewLoading ? '—' : String(dashboardOverview?.courseIds?.length ?? new Set(assignedCourseIds).size ?? 0), note: 'Active courses' },
-    { label: 'Total Batches', value: dashboardSummary?.totalBatches ?? '—', note: 'Across all Courses' },
+    { label: 'Assigned Courses', value: dashboardOverviewLoading ? '—' : String(dashboardOverview?.courseIds?.length ?? new Set(assignedCourseIds).size ?? 0), note: 'Active courses', icon: BookOpen, tone: 'blue' },
+    { label: 'Total Batches', value: dashboardSummary?.totalBatches ?? '—', note: 'Across all Courses', icon: Layers3, tone: 'purple' },
   ]
 
   // Close profile dropdown menu on click outside
@@ -4903,8 +4985,11 @@ const nextName = trimmedValue
 
                   <div className="branch-dashboard-stats">
                     {stats.map((stat) => (
-                      <article key={stat.label} className="branch-dashboard-stat-card">
-                        <span>{stat.label}</span>
+                      <article key={stat.label} className={`branch-dashboard-stat-card branch-dashboard-stat-card--${stat.tone}`}>
+                        <div className="branch-dashboard-stat-heading">
+                          <span className="branch-dashboard-stat-icon"><stat.icon size={19} strokeWidth={2.1} aria-hidden="true" /></span>
+                          <span>{stat.label}</span>
+                        </div>
                         <strong style={{ fontSize: '18px' }}>{stat.value}</strong>
                         <small>{stat.note}</small>
                       </article>
@@ -4924,8 +5009,10 @@ const nextName = trimmedValue
 
                     <FacultyDashboardScheduleSections
                       batches={facultyBatchRows}
+                      todayWorkEntries={facultyTodayWorkEntries}
                       facultyProfile={facultyProfile || facultySummaryBackfillRecord}
                       loading={dashboardOverviewLoading}
+                      onViewAll={() => setActiveSection('my-batches')}
                     />
                   </div>
 
