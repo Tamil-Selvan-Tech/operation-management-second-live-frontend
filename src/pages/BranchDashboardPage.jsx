@@ -108,6 +108,7 @@ import { BranchAttendanceReportModal } from '../components/BranchAttendanceRepor
 import { InstituteLeavePage } from './InstituteLeavePage'
 import { FacultyEditRequestsView, ProgressNotificationsView } from '../components/BranchManagementViews'
 import { BranchInstallmentTemplatesPage } from './BranchInstallmentTemplatesPage'
+import { Student360Page } from './Student360Page'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import { StudentCalendarPage } from './StudentCalendarPage'
 import RecordPayment from '../components/payments/RecordPayment'
@@ -3029,7 +3030,10 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
-  const activeSection = getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
+  const student360Id = location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || ''
+  const activeSection = student360Id
+    ? 'student-360'
+    : getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
   const studentCalendarId = location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || ''
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: activeSection === 'installments',
@@ -4179,11 +4183,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
-    setStudentDetailsTab('basic')
-    setViewStudentDrawer({
-      ...student,
-      ...resolveStudentBatchDisplay(student, branchBatchGroups),
-    })
+    const studentKey = student?.studentId || student?.id || student?._id || ''
+    navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}`)
   }
 
   const openStudentPaymentDetails = (student) => {
@@ -4194,12 +4195,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     studentActionMenuHoverCountRef.current = 0
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
-    setStudentDetailsTab('basic')
-    setViewStudentDrawer({
-      ...student,
-      ...resolveStudentBatchDisplay(student, branchBatchGroups),
-    })
-    setStudentDetailsTab('payment')
+    const studentKey = student?.studentId || student?.id || student?._id || ''
+    navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}#payments`)
   }
 
   const openRecordPaymentConfirmation = (student) => {
@@ -8508,6 +8505,26 @@ useEffect(() => {
 
           <main className="super-admin-content">
             <div className="branch-dashboard-content">
+              {activeSection === 'student-360' ? (
+                <Student360Page
+                  student={branchStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(student360Id)).trim().toLowerCase()))}
+                  branch={branchProfile || branchData}
+                  paymentHistory={allPaymentHistoryRecords}
+                  onBack={() => navigate('/branch-dashboard?section=students')}
+                  onDownloadAttendance={(student) => setAttendanceReportTarget({ mode: 'student', record: student })}
+                  onDownloadPaymentReceipt={(payment, student) => downloadBranchStudentReceipt(payment, student, {
+                    branchProfile,
+                    branchLocation,
+                    branchEmail,
+                    branchAdminDisplay,
+                  })}
+                  onViewCalendar={(student) => navigate(`/branch-dashboard/students/${encodeURIComponent(student?.studentId || student?.id || '')}/calendar`)}
+                  onEdit={(student) => {
+                    navigate('/branch-dashboard?section=students')
+                    window.setTimeout(() => openEditStudentForm(student), 0)
+                  }}
+                />
+              ) : null}
               {activeSection === 'student-calendar' ? (
                 <StudentCalendarPage
                   studentId={decodeURIComponent(studentCalendarId)}

@@ -11,7 +11,6 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { courseAccessRoles, roleDashboards, dashboardPathByRole } from '../data/authData'
 import { LoadingPage } from '../pages/LoadingPage'
-import { BranchDashboardPage } from '../pages/BranchDashboardPage'
 import { ProtectedRoute, RoleDashboardRedirect } from './ProtectedRoute'
 import { BranchProtectedRoute } from './BranchRoute'
 import { PublicRoute } from './PublicRoute'
@@ -77,6 +76,10 @@ const BranchNotificationsPage = lazyNamed(
   () => import('../pages/BranchNotificationsPage'),
   'BranchNotificationsPage',
 )
+const BranchDashboardPage = lazyNamed(
+  () => import('../pages/BranchDashboardPage'),
+  'BranchDashboardPage',
+)
 
 const routeChunks = [
   AuthShell,
@@ -102,6 +105,7 @@ const routeChunks = [
   SuperAdminNotificationsPage,
   StudentNewDashboardPage,
   BranchNotificationsPage,
+  BranchDashboardPage,
 ]
 
 function preloadRouteChunks() {
@@ -343,6 +347,7 @@ export function AppRouter() {
 
           <Route element={<BranchProtectedRoute />}>
             <Route path="/branch-dashboard" element={<BranchDashboardPage />} />
+            <Route path="/branch-dashboard/students/:studentId" element={<BranchDashboardPage />} />
             <Route path="/branch-dashboard/students/:studentId/calendar" element={<BranchDashboardPage />} />
             <Route path="/branch-dashboard/notifications" element={<BranchNotificationsPage />} />
           </Route>
