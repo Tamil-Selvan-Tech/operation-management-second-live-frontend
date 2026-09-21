@@ -3,6 +3,7 @@ import {
   AlertCircle, Banknote, CalendarDays, Check, Clock3, GripVertical, IndianRupee, LayoutDashboard, LayoutGrid, Pin, RefreshCcw, RotateCcw, Search, Users, Wallet, Building2, X,
 } from 'lucide-react'
 import { formatOverviewCurrency, getSuperAdminOverview } from '../services/superAdminDashboardService'
+import { request } from '../services/apiClient'
 import { TrendingCourses } from './TrendingCourses'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -63,7 +64,7 @@ function BarChart({ title, data, formatter, emptyMessage }) {
   </div>
 }
 
-export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }) {
+export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', onOpenStudent360 }) {
   const location = useLocation()
   const navigate = useNavigate()
   const branchIdFromUrl = new URLSearchParams(location.search).get('branchId') || ''
@@ -71,6 +72,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
   const selectedBranch = useMemo(() => activeBranches.find((branch) => String(branch.branchId || branch.id) === branchIdFromUrl) || null, [activeBranches, branchIdFromUrl])
   const [branchQuery, setBranchQuery] = useState('')
   const [isBranchSearchOpen, setIsBranchSearchOpen] = useState(false)
+  const [allStudents, setAllStudents] = useState([])
   const [overview, setOverview] = useState(null)
   const [period, setPeriod] = useState('daily')
   const [isLoading, setIsLoading] = useState(true)
@@ -111,6 +113,51 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
     const timerId = window.setTimeout(() => { void load() }, 0)
     return () => window.clearTimeout(timerId)
   }, [load])
+
+  useEffect(() => {
+    if (!Array.isArray(branches) || !branches.length) {
+      setAllStudents([])
+      return undefined
+    }
+
+    let cancelled = false
+    const loadStudents = async () => {
+      const results = await Promise.all(branches.map(async (branch) => {
+        const branchId = branch?.id || branch?.branchId
+        if (!branchId) return []
+
+        try {
+          const response = await request(`/branch-students?page=1&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchId)}`, {
+            impersonateBranchId: branchId,
+          })
+          const payload = response?.data ?? response
+          const rows = Array.isArray(payload)
+            ? payload
+            : Array.isArray(payload?.data)
+              ? payload.data
+              : Array.isArray(payload?.items)
+                ? payload.items
+                : Array.isArray(payload?.records)
+                  ? payload.records
+                  : []
+          return rows.map((student) => ({
+            ...student,
+            branchId: student.branchId || student.branchCode || branchId,
+            branchRecord: branch,
+          }))
+        } catch {
+          return []
+        }
+      }))
+
+      if (!cancelled) setAllStudents(results.flat())
+    }
+
+    void loadStudents()
+    return () => {
+      cancelled = true
+    }
+  }, [branches])
 
   useEffect(() => {
     const handlePaymentHistoryChange = () => { void load() }
@@ -204,8 +251,45 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin' }
   }
   const orderedMetricKeys = [...metricLayout.order].sort((left, right) => Number(metricLayout.pinned?.includes(right)) - Number(metricLayout.pinned?.includes(left)))
 
-  const matchingBranches = activeBranches.filter((branch) => `${branch.branchId} ${branch.branchName} ${branch.branchCity || branch.branchDistrict || ''}`.toLowerCase().includes(branchQuery.trim().toLowerCase())).slice(0, 8)
-  const selectBranch = (branch) => { setBranchQuery(''); setIsBranchSearchOpen(false); navigate(`${location.pathname}?branchId=${encodeURIComponent(branch.branchId)}`) }
+  const matchingStudents = useMemo(() => {
+    const query = branchQuery.trim().toLowerCase()
+    if (!query || selectedBranch) return []
+
+    return allStudents.filter((student) => {
+      const studentId = String(student.studentId || student.studentCode || student.id || '').trim().toLowerCase()
+      const studentName = String(student.studentName || student.name || '').trim().toLowerCase()
+      return studentId.includes(query) || studentName.includes(query)
+    }).slice(0, 8)
+  }, [allStudents, branchQuery, selectedBranch])
+  const matchingBranches = useMemo(() => {
+    const query = branchQuery.trim().toLowerCase()
+    const branchMatches = activeBranches.filter((branch) => `${branch.branchId} ${branch.branchName} ${branch.branchCity || branch.branchDistrict || ''}`.toLowerCase().includes(query))
+    const studentMatches = matchingStudents.map((student) => ({
+      id: `student-${student.id || student.studentId || student.studentCode}`,
+      branchId: student.studentId || student.studentCode || student.id,
+      branchName: student.studentName || student.name || 'Student',
+      branchCity: `${student.branchRecord?.branchName || 'Branch'} · Student 360`,
+      __student: student,
+    }))
+    return [...studentMatches, ...branchMatches].slice(0, 8)
+  }, [activeBranches, branchQuery, matchingStudents])
+  const selectBranch = (branch) => {
+    if (branch.__student) {
+      selectStudent(branch.__student)
+      return
+    }
+    setBranchQuery('')
+    setIsBranchSearchOpen(false)
+    navigate(`${location.pathname}?branchId=${encodeURIComponent(branch.branchId)}`)
+  }
+  const selectStudent = (student) => {
+    setBranchQuery('')
+    setIsBranchSearchOpen(false)
+    onOpenStudent360?.({
+      student,
+      branch: student.branchRecord,
+    })
+  }
   const clearBranch = () => { setBranchQuery(''); setIsBranchSearchOpen(false); navigate(location.pathname) }
   const branchPerformanceRows = useMemo(() => {
     const rows = overview?.branchPerformance || []

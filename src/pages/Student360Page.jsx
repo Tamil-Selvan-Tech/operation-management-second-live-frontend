@@ -153,6 +153,7 @@ export function Student360Page({
   branch = null,
   paymentHistory = [],
   onBack,
+  backLabel = 'Back to Students',
   onEdit,
   onViewCalendar,
   onDownloadAttendance,
@@ -162,7 +163,7 @@ export function Student360Page({
     return (
       <section className="student360-page student360-empty-state">
         <button type="button" className="student360-back-button" onClick={onBack}>
-          <ArrowLeft size={17} aria-hidden="true" /> Back to Students
+          <ArrowLeft size={17} aria-hidden="true" /> {backLabel}
         </button>
         <div className="student360-empty-card">
           <UserRound size={28} aria-hidden="true" />
@@ -211,7 +212,7 @@ export function Student360Page({
     <main className="student360-page">
       <div className="student360-page-toolbar">
         <button type="button" className="student360-back-button" onClick={onBack}>
-          <ArrowLeft size={17} aria-hidden="true" /> Back to Students
+          <ArrowLeft size={17} aria-hidden="true" /> {backLabel}
         </button>
         <span className="student360-breadcrumb">Students / Student 360°</span>
       </div>

@@ -30,7 +30,8 @@ import {
 import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { BranchDashboardPage } from './BranchDashboardPage'
-import { setImpersonateBranchId } from '../services/apiClient'
+import { Student360Page } from './Student360Page'
+import { request, setImpersonateBranchId } from '../services/apiClient'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import '../styles/SuperAdminDashboardPage.css'
 
@@ -237,6 +238,7 @@ export function SuperAdminDashboardPage() {
   const [isBranchesExpanded, setIsBranchesExpanded] = useState(false)
   const [branches, setBranches] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [allBranchStudents, setAllBranchStudents] = useState([])
   const [statusFilter, setStatusFilter] = useState('All')
 const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
 const statusFilterRef = useRef(null)
@@ -255,6 +257,7 @@ const statusFilterRef = useRef(null)
   const [viewDashboardBranch, setViewDashboardBranch] = useState(null)
   const [isViewDashboardConfirmOpen, setIsViewDashboardConfirmOpen] = useState(false)
   const [embeddedBranch, setEmbeddedBranch] = useState(null)
+  const [superAdminStudentView, setSuperAdminStudentView] = useState(null)
   const [isExitDashboardConfirmOpen, setIsExitDashboardConfirmOpen] = useState(false)
 
   const [editingBranchId, setEditingBranchId] = useState(null)
@@ -359,6 +362,66 @@ const statusFilterRef = useRef(null)
 
     return () => window.clearTimeout(timerId)
   }, [loadBranches])
+
+  useEffect(() => {
+    if (!branches.length) {
+      setAllBranchStudents([])
+      return undefined
+    }
+
+    let cancelled = false
+    const loadStudents = async () => {
+      const results = await Promise.all(
+        branches
+          .map(async (branch) => {
+            const branchId = branch.id || branch.branchId
+            if (!branchId) return []
+
+            try {
+              const rows = []
+              let page = 1
+              let totalPages = 1
+
+              do {
+                const response = await request(`/branch-students?page=${page}&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchId)}`, {
+                  impersonateBranchId: branchId,
+                })
+                const payload = response?.data ?? response
+                const pageRows = Array.isArray(payload)
+                  ? payload
+                  : Array.isArray(payload?.data)
+                    ? payload.data
+                    : Array.isArray(payload?.items)
+                      ? payload.items
+                      : Array.isArray(payload?.records)
+                        ? payload.records
+                        : []
+                rows.push(...pageRows)
+                const meta = response?.meta || payload?.meta || payload?.pagination || payload?.pageInfo
+                totalPages = Math.max(1, Number(meta?.totalPages || 1))
+                page += 1
+              } while (page <= totalPages && page <= 100)
+
+              return rows.map((student) => ({
+                ...student,
+                branchId: student.branchId || student.branchCode || branchId,
+                branchCode: student.branchCode || student.branchId || branch.branchCode || branch.branchId,
+                branchRecord: branch,
+              }))
+            } catch {
+              return []
+            }
+          }),
+      )
+
+      if (!cancelled) setAllBranchStudents(results.flat())
+    }
+
+    void loadStudents()
+    return () => {
+      cancelled = true
+    }
+  }, [branches])
 
   useEffect(() => {
   const handleWindowFocus = () => {
@@ -692,7 +755,7 @@ useEffect(() => {
   const totalBranches = branches.length
   const activeBranches = branches.filter((branch) => String(branch?.status || '').trim().toLowerCase() === 'active').length
 
-  const filteredBranches = useMemo(() => {
+const filteredBranches = useMemo(() => {
   const query = searchTerm.trim().toLowerCase()
 
   return branches.filter((branch) => {
@@ -710,6 +773,52 @@ useEffect(() => {
     return matchesSearch && matchesStatus
   })
 }, [branches, searchTerm, statusFilter])
+
+  const matchingStudents = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase()
+    if (!query) return []
+
+    return allBranchStudents
+      .filter((student) => {
+        const studentId = String(student.studentId || student.studentCode || student.id || '').trim().toLowerCase()
+        const studentName = String(student.studentName || student.name || '').trim().toLowerCase()
+        return studentId.includes(query) || studentName.includes(query)
+      })
+      .slice(0, 8)
+  }, [allBranchStudents, searchTerm])
+
+  const openStudent360FromSearch = (student) => {
+    const studentKey = student?.studentId || student?.studentCode || student?.id || student?._id || ''
+    if (!studentKey) return
+
+    const branchKey = String(
+      student?.branchId ||
+      student?.branchCode ||
+      student?.branch?.id ||
+      student?.branch?.branchId ||
+      student?.branchRecord?.id ||
+      student?.branchRecord?.branchId ||
+      '',
+    ).trim().toLowerCase()
+    const branch = branches.find((item) => [item.id, item.branchId, item.branchCode]
+      .map((value) => String(value || '').trim().toLowerCase())
+      .includes(branchKey))
+      || student?.branchRecord
+      || {
+        id: student?.branchId || student?.branchCode,
+        branchId: student?.branchId || student?.branchCode,
+        branchCode: student?.branchCode || student?.branchId,
+        branchName: student?.branch?.branchName || student?.branchName || 'Branch',
+      }
+
+    setSearchTerm('')
+    setEmbeddedBranch(branch)
+    setImpersonateBranchId(branch.id || branch.branchId)
+    navigate({
+      pathname: location.pathname,
+      search: `?section=student-360&student=${encodeURIComponent(studentKey)}`,
+    })
+  }
 
   const totalPages = Math.max(1, Math.ceil(filteredBranches.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -841,6 +950,11 @@ useEffect(() => {
 
   const closeExitDashboardConfirm = () => {
     setIsExitDashboardConfirmOpen(false)
+  }
+
+  const openSuperAdminStudent360 = ({ student, branch }) => {
+    if (!student) return
+    setSuperAdminStudentView({ student, branch })
   }
 
   const handleDeleteBranch = async () => {
@@ -1124,6 +1238,71 @@ useEffect(() => {
     )
   }
 
+  if (superAdminStudentView) {
+    return (
+      <section className="super-admin-page">
+        <div className="super-admin-shell">
+          {isMobileSidebarOpen ? (
+            <button
+              type="button"
+              className="super-admin-sidebar-backdrop"
+              aria-label="Close navigation menu"
+              onClick={closeMobileSidebar}
+            />
+          ) : null}
+          <aside className={`super-admin-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()} aria-label="Super admin navigation">
+            <div className="super-admin-sidebar-brand">
+              <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Elite Admin logo" />
+              <button type="button" className="super-admin-sidebar-close" aria-label="Close navigation menu" onClick={closeMobileSidebar}>
+                <X size={18} strokeWidth={2.6} />
+              </button>
+            </div>
+            <nav className="super-admin-sidebar-nav">
+              <span className="super-admin-sidebar-section-label">MAIN</span>
+              <button type="button" className="super-admin-sidebar-item is-active" onClick={() => { setSuperAdminStudentView(null); navigate('/dashboard/super-admin') }}>
+                <span className="super-admin-sidebar-icon"><LayoutDashboard size={18} strokeWidth={2.2} /></span>
+                <span>Dashboard</span>
+              </button>
+              <span className="super-admin-sidebar-section-label">MANAGEMENT</span>
+              <button type="button" className="super-admin-sidebar-item" onClick={() => { setSuperAdminStudentView(null); setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }}>
+                <span className="super-admin-sidebar-icon"><Building2 size={18} strokeWidth={2.2} /></span>
+                <span>Branch Management</span>
+              </button>
+            </nav>
+          </aside>
+          <main className="super-admin-main">
+            <header className="super-admin-topbar">
+              <div className="super-admin-topbar-left">
+                <button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}>
+                  <Menu size={20} strokeWidth={2.4} />
+                </button>
+                <h1 className="super-admin-header-title">Super Admin Dashboard</h1>
+              </div>
+              <div className="super-admin-topbar-right">
+                <SuperAdminNotificationBell onOpenBranches={() => { setSuperAdminStudentView(null); setActiveSection('branches') }} onViewActivity={() => navigate('/dashboard/super-admin/notifications')} />
+                <div className="super-admin-profile">
+                  <div className="super-admin-profile-trigger"><AvatarBadge /><div className="super-admin-profile-copy"><strong>Super Admin</strong><span>{profileEmail}</span></div></div>
+                </div>
+              </div>
+            </header>
+            <div className="super-admin-content">
+              <Student360Page
+                student={superAdminStudentView.student}
+                branch={superAdminStudentView.branch}
+                backLabel="Back to Dashboard"
+                onBack={() => {
+                  setSuperAdminStudentView(null)
+                  navigate('/dashboard/super-admin')
+                }}
+                onEdit={() => setSuperAdminStudentView(null)}
+              />
+            </div>
+          </main>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <section className="super-admin-page">
       <div className="super-admin-shell">
@@ -1375,6 +1554,7 @@ useEffect(() => {
 <div className="branch-management-toolbar">
   <div className="branch-toolbar-left">
 
+    <div className="branch-search-wrap">
     <div className="branch-search">
       
 
@@ -1382,13 +1562,36 @@ useEffect(() => {
         type="text"
         value={searchTerm}
         onChange={handleSearchChange}
-        placeholder="Search Branch"
-        aria-label="Search branches"
+        placeholder="Search branch or student"
+        aria-label="Search branches or students"
       />
 
       <button type="button" className="branch-search-button">
         Search
       </button>
+    </div>
+    {searchTerm.trim() && matchingStudents.length ? (
+      <div className="super-admin-student-search-results" role="listbox" aria-label="Student search results">
+        {matchingStudents.map((student) => {
+          const branch = branches.find((item) => [item.id, item.branchId, item.branchCode]
+            .map((value) => String(value || '').trim().toLowerCase())
+            .includes(String(student.branchId || '').trim().toLowerCase()))
+          return (
+            <button
+              type="button"
+              key={`${student.branchId || 'branch'}-${student.id || student.studentId || student.studentCode}`}
+              onMouseDown={(event) => {
+                event.preventDefault()
+                openStudent360FromSearch(student)
+              }}
+            >
+              <strong>{student.studentName || student.name || 'Student'}</strong>
+              <span>{student.studentId || student.id || '-'} · {branch?.branchName || 'Branch'}</span>
+            </button>
+          )
+        })}
+      </div>
+    ) : null}
     </div>
 
     <div
@@ -1732,7 +1935,7 @@ useEffect(() => {
               </section>
             ) : (
               <>
-              <SuperAdminOverallDashboard branches={branches} userKey={user?.id || user?.email || 'super-admin'} />
+              <SuperAdminOverallDashboard branches={branches} userKey={user?.id || user?.email || 'super-admin'} onOpenStudent360={openSuperAdminStudent360} />
               {/* Legacy branch summary intentionally replaced by the consolidated overview. */}
               {branches.length < 0 && <div className="super-admin-dashboard-overview">
                 <div className="super-admin-dashboard-intro">

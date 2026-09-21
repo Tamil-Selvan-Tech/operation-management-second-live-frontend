@@ -3123,11 +3123,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
-  const student360Id = location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || ''
+  const branchViewParams = new URLSearchParams(location.search)
+  const branchViewStudentId = embeddedMode ? String(branchViewParams.get('student') || '') : ''
+  const student360Id = location.pathname.match(/^\/branch-dashboard\/students\/([^/]+)\/?$/)?.[1] || (branchViewParams.get('section') === 'student-360' ? branchViewStudentId : '')
+  const studentCalendarId = location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || (branchViewParams.get('section') === 'student-calendar' ? branchViewStudentId : '')
   const activeSection = student360Id
     ? 'student-360'
+    : studentCalendarId
+      ? 'student-calendar'
     : getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
-  const studentCalendarId = location.pathname.match(/\/branch-dashboard\/students\/([^/]+)\/calendar\/?$/)?.[1] || ''
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
     courses: activeSection === 'installments',
     faculty: activeSection === 'batches',
@@ -4277,7 +4281,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
     const studentKey = student?.studentId || student?.id || student?._id || ''
-    navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}`)
+    if (embeddedMode) {
+      navigate({ pathname: location.pathname, search: `?section=student-360&student=${encodeURIComponent(studentKey)}` })
+    } else {
+      navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}`)
+    }
   }
 
   const openStudentPaymentDetails = (student) => {
@@ -4289,7 +4297,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
     const studentKey = student?.studentId || student?.id || student?._id || ''
-    navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}#payments`)
+    if (embeddedMode) {
+      navigate({ pathname: location.pathname, search: `?section=student-360&student=${encodeURIComponent(studentKey)}#payments` })
+    } else {
+      navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}#payments`)
+    }
   }
 
   const openRecordPaymentConfirmation = (student) => {
@@ -8611,10 +8623,10 @@ useEffect(() => {
             <div className="branch-dashboard-content">
               {activeSection === 'student-360' ? (
                 <Student360Page
-                  student={branchStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(student360Id)).trim().toLowerCase()))}
+                  student={branchStudents.find((student) => [student?.studentId, student?.studentCode, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(student360Id)).trim().toLowerCase()))}
                   branch={branchProfile || branchData}
                   paymentHistory={allPaymentHistoryRecords}
-                  onBack={() => navigate('/branch-dashboard?section=students')}
+                  onBack={() => embeddedMode ? goToBranchSection('students') : navigate('/branch-dashboard?section=students')}
                   onDownloadAttendance={(student) => setAttendanceReportTarget({ mode: 'student', record: student })}
                   onDownloadPaymentReceipt={(payment, student) => downloadBranchStudentReceipt(payment, student, {
                     branchProfile,
@@ -8622,9 +8634,20 @@ useEffect(() => {
                     branchEmail,
                     branchAdminDisplay,
                   })}
-                  onViewCalendar={(student) => navigate(`/branch-dashboard/students/${encodeURIComponent(student?.studentId || student?.id || '')}/calendar`)}
+                  onViewCalendar={(student) => {
+                    const studentKey = student?.studentId || student?.id || ''
+                    if (embeddedMode) {
+                      navigate({ pathname: location.pathname, search: `?section=student-calendar&student=${encodeURIComponent(studentKey)}` })
+                    } else {
+                      navigate(`/branch-dashboard/students/${encodeURIComponent(studentKey)}/calendar`)
+                    }
+                  }}
                   onEdit={(student) => {
-                    navigate('/branch-dashboard?section=students')
+                    if (embeddedMode) {
+                      goToBranchSection('students')
+                    } else {
+                      navigate('/branch-dashboard?section=students')
+                    }
                     window.setTimeout(() => openEditStudentForm(student), 0)
                   }}
                 />
@@ -8632,9 +8655,9 @@ useEffect(() => {
               {activeSection === 'student-calendar' ? (
                 <StudentCalendarPage
                   studentId={decodeURIComponent(studentCalendarId)}
-                  student={branchStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase()))}
+                  student={branchStudents.find((student) => [student?.studentId, student?.studentCode, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase()))}
                   facultyProfile={getBranchStudentCalendarFaculty(
-                    branchStudents.find((student) => [student?.studentId, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase())),
+                    branchStudents.find((student) => [student?.studentId, student?.studentCode, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(studentCalendarId)).trim().toLowerCase())),
                     branchFacultyRecords,
                     branchBatchGroups,
                   )}

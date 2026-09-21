@@ -4509,3 +4509,10 @@ body.super-admin-sidebar-open {
   .sa-overall-actions { align-items: stretch; flex-direction: column; }
   .sa-overall-actions > * { width: 100%; justify-content: center; }
 }
+.branch-search-wrap { position: relative; }
+.super-admin-student-search-results { position: absolute; z-index: 30; top: calc(100% + 7px); left: 0; width: min(360px, calc(100vw - 40px)); overflow: hidden; border: 1px solid #dbe4f0; border-radius: 12px; background: #fff; box-shadow: 0 14px 28px rgba(15, 23, 42, .14); }
+.super-admin-student-search-results button { display: grid; width: 100%; gap: 3px; padding: 11px 13px; border: 0; border-bottom: 1px solid #eef2f7; color: #0f172a; background: #fff; text-align: left; cursor: pointer; }
+.super-admin-student-search-results button:last-child { border-bottom: 0; }
+.super-admin-student-search-results button:hover { background: #f0fdfa; }
+.super-admin-student-search-results strong { font-size: 13px; }
+.super-admin-student-search-results span { color: #64748b; font-size: 11px; }
