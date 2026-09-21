@@ -38,7 +38,7 @@ import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
 import { NotificationBell } from '../components/NotificationBell'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { saveStudentCalendarSummary } from '../lib/studentCalendarSummary'
-import { buildStudentCourseCalendar } from '../lib/studentCalendar'
+import { buildStudentCourseCalendar, toCalendarDateKey } from '../lib/studentCalendar'
 import { normalizeStudentAttendanceOverview } from '../lib/studentAttendanceOverview'
 import { getBranchStudentLedger } from '../services/branchLedgerService'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
@@ -119,6 +119,90 @@ function formatDate(value, options = { day: '2-digit', month: 'short', year: 'nu
   if (!value) return 'Date not available'
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('en-IN', options)
+}
+
+function timeToMinutes(value) {
+  const raw = String(value || '').trim().toUpperCase()
+  if (!raw) return Number.MAX_SAFE_INTEGER
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/)
+  if (!match) return Number.MAX_SAFE_INTEGER
+  let hour = Number(match[1])
+  const minute = Number(match[2] || 0)
+  if (match[3] === 'PM' && hour < 12) hour += 12
+  if (match[3] === 'AM' && hour === 12) hour = 0
+  return hour * 60 + minute
+}
+
+function formatSessionTime(value) {
+  if (!value) return ''
+  const raw = String(value).trim()
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?(?:\s*(AM|PM))?$/i)
+  if (!match) return raw
+  let hour = Number(match[1])
+  const minute = Number(match[2] || 0)
+  const period = match[3] ? match[3].toUpperCase() : hour >= 12 ? 'PM' : 'AM'
+  if (!match[3]) hour %= 12
+  if (period === 'PM' && hour < 12) hour += 12
+  if (period === 'AM' && hour === 12) hour = 0
+  const displayHour = hour % 12 || 12
+  return `${displayHour}:${String(minute).padStart(2, '0')} ${period}`
+}
+
+function sessionDateKey(session) {
+  return toCalendarDateKey(session?.date || session?.sessionDate || session?.attendanceDate || session?.day || session?.replacementDate || session?.rescheduledDate)
+}
+
+function getSessionDisplayStatus(session) {
+  const explicit = String(session?.sessionStatus || session?.classStatus || '').trim().toLowerCase()
+  if (['upcoming', 'ongoing', 'completed'].includes(explicit)) return explicit[0].toUpperCase() + explicit.slice(1)
+  const attendanceStatus = String(session?.status || '').trim().toUpperCase()
+  if (['PRESENT', 'ABSENT', 'LATE'].includes(attendanceStatus)) return 'Completed'
+  const now = new Date()
+  const start = timeToMinutes(session?.startTime)
+  const end = timeToMinutes(session?.endTime)
+  const current = now.getHours() * 60 + now.getMinutes()
+  if (start !== Number.MAX_SAFE_INTEGER && current < start) return 'Upcoming'
+  if (end !== Number.MAX_SAFE_INTEGER && current <= end) return 'Ongoing'
+  return 'Completed'
+}
+
+function normalizeTodayClassSession(session = {}) {
+  const replacement = session?.replacementSession || session?.replacement || session?.reassignedSession || {}
+  const combined = session?.combinedSession || {}
+  const startTime = replacement.startTime || replacement.replacementStartTime || session.replacementStartTime || session.rescheduledStartTime || combined.startTime || session.startTime || session.fromTime
+  const endTime = replacement.endTime || replacement.replacementEndTime || session.replacementEndTime || session.rescheduledEndTime || combined.endTime || session.endTime || session.toTime
+  return {
+    ...session,
+    startTime,
+    endTime,
+    moduleName: session.moduleName || session.submoduleName || session.module || session.topicName || combined.moduleName || replacement.moduleName,
+    facultyName: replacement.facultyName || replacement.replacementFacultyName || session.replacementFacultyName || session.combinedFacultyName || combined.facultyName || session.facultyName,
+    room: session.room || session.roomName || session.classroom || replacement.room || combined.room,
+    mode: session.mode || session.courseMode || replacement.mode || combined.mode,
+    batchName: session.batchName || replacement.batchName || combined.batchName,
+    displayStatus: getSessionDisplayStatus(session),
+  }
+}
+
+function getTodayClassSessions(todayAttendance, student) {
+  const today = toCalendarDateKey(new Date())
+  const attendanceDate = toCalendarDateKey(todayAttendance?.date)
+  if (attendanceDate && attendanceDate !== today) return []
+  const apiSessions = Array.isArray(todayAttendance?.sessions) ? todayAttendance.sessions : []
+  const calendarSessions = (Array.isArray(student?.calendarEvents) ? student.calendarEvents : [])
+    .filter((event) => {
+      const type = String(event?.eventType || event?.assignmentType || event?.sessionType || event?.code || event?.type || event?.status || '').toUpperCase().replace(/[- ]/g, '_')
+      const eventDate = toCalendarDateKey(event?.replacementDate || event?.rescheduledDate || event?.date || event?.attendanceDate || event?.day)
+      return eventDate === today && (['CLASS', 'SCHEDULED', 'COMPLETED', 'PRESENT', 'REASSIGNED', 'COMBINED', 'RESCHEDULED'].includes(type) || event?.isReplacement || event?.assignmentType)
+    })
+  const source = calendarSessions.some((event) => event?.isReplacement || event?.assignmentType || event?.replacementFacultyName || event?.combinedFacultyName)
+    ? calendarSessions
+    : apiSessions
+  return source
+    .filter((session) => !sessionDateKey(session) || sessionDateKey(session) === today)
+    .map(normalizeTodayClassSession)
+    .filter((session) => session.startTime || session.endTime || session.moduleName || session.facultyName)
+    .sort((left, right) => timeToMinutes(left.startTime) - timeToMinutes(right.startTime))
 }
 
 function getModules(student) {
@@ -610,6 +694,7 @@ export function StudentNewDashboardPage() {
  const attendanceTotals = attendanceOverview?.overall || null
  const todayAttendance = attendanceOverview?.todayAttendance || null
  const todaySessions = Array.isArray(todayAttendance?.sessions) ? todayAttendance.sessions : []
+ const todayClassSessions = useMemo(() => getTodayClassSessions(todayAttendance, student), [todayAttendance, student])
  const todaySummary = todayAttendance?.summary || { totalSessions: 0, present: 0, absent: 0, late: 0, leave: 0, notMarked: 0, percentage: 0 }
  const facultyName = firstValue(student?.facultyName, student?.faculty?.facultyName, student?.faculty?.name, student?.batch?.faculty)
 
@@ -966,6 +1051,11 @@ const handleLogoutConfirm = async () => {
                 <section className="student-dashboard-panel student-today-attendance-panel">
                   <div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Today&apos;s Attendance</h2><p className="student-attendance-period">{todayAttendance?.date ? formatDate(todayAttendance.date) : 'Date not available'}</p></div></div>
                   {attendanceLoading ? <div className="student-attendance-card-loading" aria-label="Loading today&apos;s attendance"><span /><span /><span /></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load today&apos;s attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : todaySessions.length === 0 ? <div className="student-dashboard-empty"><p>No classes scheduled today</p></div> : todaySessions.length > 1 ? <div className="student-today-attendance-summary"><strong>{todaySummary.totalSessions} Sessions</strong><div><span>Present</span><b>{todaySummary.present}</b></div><div><span>Absent</span><b>{todaySummary.absent}</b></div>{todaySummary.late ? <div><span>Late</span><b>{todaySummary.late}</b></div> : null}{todaySummary.leave ? <div><span>Leave</span><b>{todaySummary.leave}</b></div> : null}{todaySummary.notMarked ? <div><span>Not Marked</span><b>{todaySummary.notMarked}</b></div> : null}<p>Overall Today: <strong>{todaySummary.percentage}%</strong></p></div> : (() => { const session = todaySessions[0]; const status = String(session.status || 'NOT_MARKED').toUpperCase(); const statusLabel = status === 'NOT_MARKED' ? 'Not Marked' : status === 'WEEK_OFF' ? 'Week Off' : status.charAt(0) + status.slice(1).toLowerCase(); const StatusIcon = status === 'PRESENT' ? CheckCircle2 : status === 'ABSENT' ? XCircle : status === 'LATE' ? Clock3 : Info; return <div className={`student-today-attendance-single is-${status.toLowerCase()}`}><div className="student-today-attendance-status"><StatusIcon size={24} aria-hidden="true" /><strong>{statusLabel}</strong></div>{session.courseName ? <strong className="student-today-attendance-course">{session.courseName}</strong> : null}{session.moduleName ? <span>{session.moduleName}</span> : null}{session.batchName ? <span>Batch: {session.batchName}</span> : null}{session.startTime || session.endTime ? <span>{session.startTime || ''}{session.startTime || session.endTime ? ' - ' : ''}{session.endTime || ''}</span> : null}{session.facultyName ? <span>Faculty: {session.facultyName}</span> : null}<small>{status === 'NOT_MARKED' ? 'Attendance not yet marked by Faculty' : 'Marked by Faculty'}</small></div> })()}
+                </section>
+
+                <section className="student-dashboard-panel student-today-class-panel">
+                  <div className="student-dashboard-panel-heading"><div className="student-today-class-heading"><span className="student-today-class-icon"><CalendarDays size={18} /></span><div><small>SCHEDULE</small><h2>Today&apos;s Class</h2></div></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Full Timetable <span aria-hidden="true">→</span></button></div>
+                  {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading today&apos;s classes...</p></div> : todayClassSessions.length ? <div className="student-today-class-list">{todayClassSessions.map((session, index) => <article className="student-today-class-card" key={`${session.id || session.sessionId || session.batchId || 'session'}-${session.startTime || index}`}><div className="student-today-class-timeline" aria-hidden="true"><span /></div><div className="student-today-class-time"><strong>{formatSessionTime(session.startTime) || 'Time not available'}</strong>{session.endTime ? <span>{formatSessionTime(session.endTime)}</span> : null}</div><div className="student-today-class-details"><strong>{formatValue(session.moduleName || session.courseName, 'Class')}</strong>{session.facultyName ? <span>Faculty: {session.facultyName}</span> : null}{session.room ? <span>Room: {session.room}</span> : null}{session.mode ? <span>Mode: {session.mode}</span> : null}{session.batchName ? <span>Batch: {session.batchName}</span> : null}</div><span className={`student-today-class-status is-${session.displayStatus.toLowerCase()}`}>{session.displayStatus}</span></article>)}</div> : <div className="student-dashboard-empty"><p>No classes scheduled for today</p></div>}
                 </section>
                 </div>
 
