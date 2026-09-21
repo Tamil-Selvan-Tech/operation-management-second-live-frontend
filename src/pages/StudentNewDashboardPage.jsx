@@ -39,6 +39,7 @@ import { NotificationBell } from '../components/NotificationBell'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { saveStudentCalendarSummary } from '../lib/studentCalendarSummary'
 import { buildStudentCourseCalendar } from '../lib/studentCalendar'
+import { normalizeStudentAttendanceOverview } from '../lib/studentAttendanceOverview'
 import { getBranchStudentLedger } from '../services/branchLedgerService'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import html2pdf from 'html2pdf.js'
@@ -437,12 +438,12 @@ export function StudentNewDashboardPage() {
      setAttendanceLoading(true)
      setAttendanceError('')
      return getCurrentStudentAttendanceOverview()
-       .then((overview) => { if (isMounted) setAttendanceOverview(overview) })
+       .then((overview) => { if (isMounted) setAttendanceOverview(normalizeStudentAttendanceOverview(overview, student)) })
        .catch((error) => { if (isMounted) setAttendanceError(error?.message || 'Unable to load attendance.') })
        .finally(() => { if (isMounted) setAttendanceLoading(false) })
    })
    return () => { isMounted = false }
- }, [student?.studentId, student?.id])
+ }, [student])
 
  useEffect(() => {
    let isMounted = true
@@ -627,7 +628,7 @@ const reloadAttendance = () => {
   setAttendanceError('')
   setAttendanceLoading(true)
   getCurrentStudentAttendanceOverview()
-    .then(setAttendanceOverview)
+    .then((overview) => setAttendanceOverview(normalizeStudentAttendanceOverview(overview, student)))
     .catch((error) => setAttendanceError(error?.message || 'Unable to load attendance.'))
     .finally(() => setAttendanceLoading(false))
 }
