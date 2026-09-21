@@ -450,6 +450,11 @@ function extractStudentAttendanceStatuses(payload = {}) {
   return statuses
 }
 
+function getCurrentStudentAttendanceStatus(statuses = {}, student = {}) {
+  const status = getStudentAttendanceStatus(statuses, student)
+  return ['PRESENT', 'ABSENT'].includes(status) ? status : ''
+}
+
 function getStudentAttendanceStatus(statuses = {}, student = {}) {
   const keys = [student?.id, student?.studentId, student?.studentCode, student?.emailAddress]
     .map((value) => normalizeWorkStudentId(value))
@@ -2745,10 +2750,10 @@ export function FacultyDashboardPage() {
     const loadStudentAttendance = async () => {
       try {
         const overview = await getCurrentFacultyAttendanceOverview({
-          date: getAttendanceDateKey(),
+          date: attendanceDate,
           facultyId: currentFacultyIdentity.facultyId,
           courseId: selectedStudentsCourse?.id || selectedStudentsCourse?.courseId || '',
-          batchId: selectedStudentsBatch?.batchId || selectedStudentsBatch?.id || '',
+          batchId: selectedStudentsBatch?.batchId || selectedStudentsBatch?.batchEntryId || selectedStudentsBatch?.id || '',
         })
         if (active) setStudentAttendanceStatuses(extractStudentAttendanceStatuses(overview))
       } catch {
@@ -2756,11 +2761,16 @@ export function FacultyDashboardPage() {
       }
     }
 
+    const refresh = () => void loadStudentAttendance()
     void loadStudentAttendance()
+    window.addEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, refresh)
+    window.addEventListener('cispro:faculty-dashboard-refresh', refresh)
     return () => {
       active = false
+      window.removeEventListener(FACULTY_ATTENDANCE_SYNC_EVENT, refresh)
+      window.removeEventListener('cispro:faculty-dashboard-refresh', refresh)
     }
-  }, [currentFacultyIdentity.facultyId, selectedStudentsBatch, selectedStudentsCourse, selectedStudentsCourse?.courseId, selectedStudentsCourse?.id])
+  }, [attendanceDate, currentFacultyIdentity.facultyId, selectedStudentsBatch, selectedStudentsCourse, selectedStudentsCourse?.courseId, selectedStudentsCourse?.id])
 
   const selectedBatchStudents = useMemo(() => {
     if (temporarySessionContext?.students?.length && selectedStudentsBatch?.batchId === temporarySessionContext.item?.batchId) return temporarySessionContext.students
@@ -3209,7 +3219,7 @@ export function FacultyDashboardPage() {
       progressPercentage: 0,
       attendanceByStudent: Object.fromEntries(statusStudentIds.map((studentId) => {
         const student = studentsFlowVisibleStudents.find((item) => getTodayWorkStudentId(item) === studentId)
-        return [studentId, getStudentAttendanceStatus(studentAttendanceStatuses, student) || String(student?.attendanceStatus || student?.attendance || '').trim().toUpperCase()]
+        return [studentId, getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)]
       })),
       submoduleStatuses: initialSubmoduleStatuses,
       submoduleStatusById: initialSubmoduleStatusById,
@@ -3582,8 +3592,7 @@ export function FacultyDashboardPage() {
     }
 
     const unmarkedStudent = selectedStudents.find((student) => {
-      const studentId = getTodayWorkStudentId(student)
-      return !todayWorkForm.attendanceByStudent?.[studentId]
+      return !getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
     })
 
     if (unmarkedStudent) {
@@ -3646,7 +3655,7 @@ export function FacultyDashboardPage() {
         return {
           studentId,
           studentName: String(student?.studentName || student?.name || '').trim(),
-          status: String(todayWorkForm.attendanceByStudent?.[studentId] || 'ABSENT').toUpperCase(),
+          status: getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student),
         }
       })
       const presentStudentIds = new Set(
@@ -3710,7 +3719,7 @@ export function FacultyDashboardPage() {
       const presentSubmoduleProgress = submoduleProgress.filter((entry) => progressStudents.some((student) => getTodayWorkStudentId(student) === entry.studentId))
       const studentResults = selectedStudents.map((student) => {
         const studentId = getTodayWorkStudentId(student)
-        const attendanceStatus = attendanceStudents.find((item) => item.studentId === studentId)?.status || 'ABSENT'
+        const attendanceStatus = attendanceStudents.find((item) => item.studentId === studentId)?.status || ''
         return {
           studentId,
           attendanceStatus,
