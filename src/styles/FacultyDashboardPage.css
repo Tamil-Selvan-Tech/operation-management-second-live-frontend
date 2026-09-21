@@ -5451,3 +5451,86 @@ body.faculty-notification-menu-open .super-admin-content {
 .super-admin-sidebar-nav::-webkit-scrollbar {
   display: none;
 }
+.faculty-today-work-student-status-panel {
+  gap: 12px;
+}
+
+.faculty-today-work-pending-students {
+  display: grid;
+  gap: 10px;
+}
+
+.faculty-today-work-pending-student {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.faculty-today-work-pending-student.is-selected {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.faculty-today-work-pending-student .faculty-today-work-student-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.faculty-today-work-pending-student .faculty-today-work-student-copy span {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.faculty-today-work-pending-action {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #2563eb;
+  border-radius: 9px;
+  color: #2563eb;
+  background: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.faculty-today-work-pending-action:hover,
+.faculty-today-work-pending-action:focus-visible {
+  color: #fff;
+  background: #2563eb;
+}
+
+.faculty-today-work-all-complete,
+.faculty-today-work-added-students {
+  padding: 11px 12px;
+  border-radius: 12px;
+  color: #166534;
+  background: #f0fdf4;
+  font-size: 0.82rem;
+}
+
+.faculty-today-work-added-students {
+  display: grid;
+  gap: 3px;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.faculty-today-work-added-students strong {
+  color: #166534;
+}
+
+@media (max-width: 640px) {
+  .faculty-today-work-pending-student {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .faculty-today-work-pending-action {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

@@ -674,6 +674,16 @@ function getFacultyTodayWorkEntriesForStudent(entries = [], student = {}, course
   })
 }
 
+function isTodayFacultyWorkEntry(entry = {}) {
+  return String(entry?.workDate || '').trim() === getAttendanceDateKey()
+}
+
+function hasTodayFacultyWorkForStudent(entries = [], student = {}, courseId = '', batch = null) {
+  return getFacultyTodayWorkEntriesForStudent(entries, student, courseId).some((entry) => (
+    isTodayFacultyWorkEntry(entry) && (!batch || doesWorkEntryMatchBatch(entry, batch))
+  ))
+}
+
 function getCompletedTodayWorkSubmoduleIdsForModule(
   entries = [],
   facultyIdentity = {},
@@ -3188,6 +3198,19 @@ export function FacultyDashboardPage() {
     () => getCourseSubmodules(todayWorkSelectedModule),
     [todayWorkSelectedModule],
   )
+  const todayWorkStudentsWithWork = useMemo(() => (
+    studentsFlowVisibleStudents.filter((student) => hasTodayFacultyWorkForStudent(
+      facultyTodayWorkEntries,
+      student,
+      todayWorkCourse?.id || '',
+      selectedStudentsBatch,
+    ))
+  ), [facultyTodayWorkEntries, selectedStudentsBatch, studentsFlowVisibleStudents, todayWorkCourse?.id])
+  const todayWorkPendingStudents = useMemo(() => (
+    studentsFlowVisibleStudents.filter((student) => !todayWorkStudentsWithWork.some((savedStudent) => (
+      getTodayWorkStudentId(savedStudent) === getTodayWorkStudentId(student)
+    )))
+  ), [studentsFlowVisibleStudents, todayWorkStudentsWithWork])
   const todayWorkSelectedModuleIndex = Math.max(
     0,
     todayWorkCourseModules.findIndex((module, index) => (
@@ -3250,10 +3273,13 @@ export function FacultyDashboardPage() {
       return studentKeys.some((studentKey) => selectedIds.has(studentKey))
     })
 
-    // With no student selector in the modal, all visible students are the
-    // default scope. A pending-work click can still narrow it to one student.
-    return selectedStudents.length ? selectedStudents : studentsFlowVisibleStudents
-  }, [studentsFlowVisibleStudents, todayWorkForm.selectedStudentIds])
+    // Progress work is scoped to students who have not received today's work.
+    // Attendance keeps its existing whole-batch fallback.
+    const fallbackStudents = todayWorkMode === 'progress'
+      ? todayWorkPendingStudents
+      : studentsFlowVisibleStudents
+    return selectedStudents.length ? selectedStudents : fallbackStudents
+  }, [studentsFlowVisibleStudents, todayWorkForm.selectedStudentIds, todayWorkMode, todayWorkPendingStudents])
 
   const todayWorkMissedItems = useMemo(() => {
     const visibleStudents = todayWorkSelectedStudents.length ? todayWorkSelectedStudents : studentsFlowVisibleStudents
@@ -3801,12 +3827,24 @@ export function FacultyDashboardPage() {
       ? studentsFlowVisibleStudents
       : todayWorkSelectedStudents
 
-    if (!todayWorkForm.applyToAllStudents && !selectedStudents.length) {
+    const studentsWithoutTodayWork = selectedStudents.filter((student) => !hasTodayFacultyWorkForStudent(
+      facultyTodayWorkEntries,
+      student,
+      todayWorkCourse?.id || '',
+      selectedStudentsBatch,
+    ))
+
+    if (!todayWorkForm.applyToAllStudents && !studentsWithoutTodayWork.length) {
+      setTodayWorkError("Today's work is already added for the selected student(s).")
+      return null
+    }
+
+    if (!studentsWithoutTodayWork.length) {
       setTodayWorkError('Please select at least one student.')
       return null
     }
 
-    const unmarkedStudent = selectedStudents.find((student) => {
+    const unmarkedStudent = studentsWithoutTodayWork.find((student) => {
       return !getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
     })
 
@@ -3815,7 +3853,7 @@ export function FacultyDashboardPage() {
       return null
     }
 
-    const unselectedSubmoduleStatus = selectedStudents.some((student) => {
+    const unselectedSubmoduleStatus = studentsWithoutTodayWork.some((student) => {
       const studentId = getTodayWorkStudentId(student)
       return selectedSubmoduleIds.some((submoduleId) => {
         const status = todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId]
@@ -3840,7 +3878,7 @@ export function FacultyDashboardPage() {
 
     return {
       selectedSubmoduleIds,
-      selectedStudents,
+      selectedStudents: studentsWithoutTodayWork,
       submoduleLookup,
     }
   }
@@ -6274,6 +6312,52 @@ const nextName = trimmedValue
                   <small className="faculty-today-work-field-note">First module is auto-selected</small>
                 </label>
               </div>
+
+              <section className="faculty-today-work-panel faculty-today-work-student-status-panel">
+                <div className="faculty-today-work-panel-heading">
+                  <div>
+                    <h4>Students Pending Today's Work</h4>
+                    <p>Today's work is tracked separately for each student in this batch.</p>
+                  </div>
+                </div>
+                {todayWorkPendingStudents.length ? (
+                  <div className="faculty-today-work-pending-students">
+                    {todayWorkPendingStudents.map((student) => {
+                      const studentId = getTodayWorkStudentId(student)
+                      const isSelected = todayWorkForm.selectedStudentIds.includes(studentId)
+                      return (
+                        <div key={studentId} className={`faculty-today-work-pending-student${isSelected ? ' is-selected' : ''}`}>
+                          <div className="faculty-avatar">{getInitials(student?.studentName || student?.name)}</div>
+                          <div className="faculty-today-work-student-copy">
+                            <strong>{student?.studentName || student?.name || 'Student'}</strong>
+                            <span>Course Progress: {Math.round(Math.min(100, Math.max(0, Number(student?.courseProgress) || 0)))}%</span>
+                            <span>Today's Work: Not Added</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="faculty-today-work-pending-action"
+                            onClick={() => setTodayWorkForm((current) => ({
+                              ...current,
+                              selectedStudentIds: [studentId],
+                              applyToAllStudents: false,
+                            }))}
+                          >
+                            {isSelected ? 'Selected' : "Add Today's Work"}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="faculty-today-work-all-complete">All students have today's work added.</div>
+                )}
+                {todayWorkStudentsWithWork.length ? (
+                  <div className="faculty-today-work-added-students">
+                    <strong>Today's Work Already Added</strong>
+                    <span>{todayWorkStudentsWithWork.map((student) => student?.studentName || student?.name || 'Student').join(', ')}</span>
+                  </div>
+                ) : null}
+              </section>
 
               {todayWorkMissedItems.length ? (
                 <section className="faculty-today-work-panel faculty-today-work-missed-panel">

@@ -145,6 +145,10 @@ function createEmptyForm() {
     remarks: '',
     parentSpouseNumber: '',
     admissionDate: getTodayValue(),
+    // Progress belongs to the student record. A newly created student starts
+    // at zero and must never inherit the batch's existing progress.
+    courseProgress: 0,
+    progress: 0,
   }
 }
 
