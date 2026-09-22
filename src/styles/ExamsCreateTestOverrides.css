@@ -11,3 +11,91 @@
 .exam-modal-backdrop{z-index:1000!important;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 .exam-submissions-modal{max-width:1100px}.exam-submissions-modal .exam-table-wrap{overflow:auto}.exam-submissions-modal table{min-width:760px}.exam-submissions-modal td small{display:block;margin-top:3px;color:#64748b;font-size:11px}
 .exam-page:has(.exam-submissions-modal)> .exam-card{display:none}.exam-page:has(.exam-submissions-modal)> .exam-modal-backdrop{position:static;inset:auto;display:block;padding:0;background:transparent;overflow:visible;z-index:auto;backdrop-filter:none;-webkit-backdrop-filter:none}.exam-page:has(.exam-submissions-modal) .exam-submissions-modal{width:auto;max-width:none;max-height:none;margin-top:18px}
+
+/* Faculty exam creation form: visual-only refinement */
+.exam-modal{
+  width:min(980px,100%);
+  padding:0;
+  border:1px solid #e2e8f0;
+  border-radius:14px;
+  box-shadow:0 18px 48px rgba(15,23,42,.18);
+  scrollbar-color:#bfdbfe transparent;
+}
+.exam-modal > .exam-card-heading:first-child{
+  position:sticky;
+  top:0;
+  z-index:3;
+  margin:0;
+  padding:22px 28px 18px;
+  background:#fff;
+  border-bottom:1px solid #eef2f7;
+}
+.exam-modal > .exam-card-heading:first-child h2{font-size:19px;color:#0f172a;margin:4px 0 0}
+.exam-modal > .exam-card-heading:first-child .exam-secondary{border:1px solid #dbe4ef;background:#f1f5f9;padding:9px 15px}
+.exam-modal > .exam-form-grid,
+.exam-modal > fieldset,
+.exam-modal > .exam-modal-error,
+.exam-modal > .exam-save{margin-left:28px;margin-right:28px}
+.exam-modal > .exam-form-grid{margin-top:22px}
+.exam-test-details-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.exam-test-details-grid label:last-child{grid-column:1}
+.exam-modal label{gap:7px;color:#334155;font-size:12px;line-height:1.35}
+.exam-modal input,.exam-modal select,.exam-modal textarea{
+  min-height:42px;
+  border-color:#d5dfeb;
+  border-radius:8px;
+  background:#fff;
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+.exam-modal input:focus,.exam-modal select:focus,.exam-modal textarea:focus{
+  outline:0;
+  border-color:#60a5fa;
+  box-shadow:0 0 0 3px rgba(96,165,250,.15);
+}
+.exam-modal fieldset{
+  margin-top:22px;
+  padding:18px 16px 16px;
+  border-color:#dbe4ef;
+  border-radius:12px;
+}
+.exam-modal legend{font-size:15px;color:#1e293b;letter-spacing:-.01em}
+.batch-selection-list{gap:12px}
+.batch-selection-card{min-width:0;padding:15px;border-radius:10px;transition:border-color .15s ease,background .15s ease,box-shadow .15s ease}
+.batch-selection-card:hover{border-color:#93c5fd;box-shadow:0 3px 12px rgba(37,99,235,.08)}
+.batch-selection-card.is-selected{border-color:#60a5fa;background:#eff6ff;box-shadow:inset 3px 0 0 #2563eb}
+.batch-selection-main input{accent-color:#2563eb}
+.batch-selection-main strong{font-size:14px}
+.batch-selection-main small{font-size:12px;line-height:1.4}
+.batch-schedule-fields{margin-top:14px;padding-top:13px!important;border-top:1px solid #dbeafe}
+.batch-schedule-fields label{margin:0!important}
+.batch-schedule-fields input,.exam-time-picker{min-height:42px!important;font-size:13px!important}
+.exam-time-picker select{min-height:34px!important;font-size:13px!important}
+.question-builder{padding:18px;border-color:#dbe4ef;border-radius:10px;box-shadow:0 2px 8px rgba(15,23,42,.03)}
+.question-builder-header{padding-bottom:12px;border-bottom:1px solid #eef2f7}
+.question-builder-header strong{font-size:16px}
+.question-builder textarea{min-height:96px}
+.question-options{margin-top:18px;padding-top:14px}
+.question-options label{grid-template-columns:24px minmax(0,1fr)!important;gap:10px!important}
+.question-options label b{color:#475569}
+.question-finished{padding:18px;border-radius:10px}
+.exam-summary{gap:12px;flex-wrap:wrap}
+.exam-summary span,.exam-summary strong{padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc}
+.exam-save{
+  position:sticky;
+  bottom:0;
+  z-index:2;
+  align-self:flex-end;
+  margin-top:18px!important;
+  margin-bottom:22px!important;
+  box-shadow:0 -10px 18px rgba(255,255,255,.92);
+}
+.exam-batch-error{margin:10px 0 0 2px}
+@media(max-width:850px){
+  .exam-test-details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .exam-test-details-grid label:last-child{grid-column:auto}
+}
+@media(max-width:700px){
+  .exam-modal > .exam-form-grid,.exam-modal > fieldset,.exam-modal > .exam-modal-error,.exam-modal > .exam-save{margin-left:18px;margin-right:18px}
+  .exam-modal > .exam-card-heading:first-child{padding-left:18px;padding-right:18px}
+  .exam-test-details-grid{grid-template-columns:1fr}
+}
