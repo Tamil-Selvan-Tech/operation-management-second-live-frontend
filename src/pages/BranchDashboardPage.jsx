@@ -3201,7 +3201,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   useEffect(() => {
     if (!openSidebarFlyout || !isSidebarFlyoutMode) return undefined
     const closeOnOutsideClick = (event) => {
-      if (event.target.closest?.('.branch-dashboard-sidebar-group')) return
+      const sidebarGroup = event.target.closest?.('.branch-dashboard-sidebar-group')
+      if (sidebarGroup?.classList.contains('has-open-flyout')) return
       setOpenSidebarFlyout('')
     }
     document.addEventListener('pointerdown', closeOnOutsideClick)
@@ -8453,6 +8454,11 @@ useEffect(() => {
                 cancelSidebarFlyoutClose()
                 setOpenSidebarFlyout(item.id)
               }}
+              onFocus={() => {
+                if (!isSidebarFlyoutMode || !children.length) return
+                cancelSidebarFlyoutClose()
+                setOpenSidebarFlyout(item.id)
+              }}
               onMouseLeave={() => {
                 if (!isSidebarFlyoutMode || !children.length) return
                 scheduleSidebarFlyoutClose()
@@ -8460,9 +8466,8 @@ useEffect(() => {
             >
               <button
                 type="button"
-                className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
+                className={`super-admin-sidebar-item ${children.length ? 'has-submenu' : ''} ${isActive ? 'is-active' : ''}`.trim()}
                 data-tooltip={item.label}
-                title={isSidebarFlyoutMode ? item.label : undefined}
                 onClick={() => {
                   if (children.length) {
                     if (isSidebarFlyoutMode) {
@@ -8479,7 +8484,7 @@ useEffect(() => {
                   }
                   goToBranchSection(item.id)
                 }}
-                aria-expanded={children.length ? isExpanded : undefined}
+                aria-expanded={children.length ? (isExpanded || isFlyoutOpen) : undefined}
               >
                 <span className="super-admin-sidebar-icon" aria-hidden="true">
                   <Icon size={18} strokeWidth={2.15} />

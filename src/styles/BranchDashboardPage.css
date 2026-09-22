@@ -13057,6 +13057,11 @@ body.branch-notification-menu-open .main-area {
     z-index: 1;
   }
 
+  /* Let collapsed parent flyouts escape the narrow navigation column. */
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-nav {
+    overflow: visible;
+  }
+
   .branch-dashboard-sidebar-group {
     position: relative;
   }
@@ -13066,7 +13071,7 @@ body.branch-notification-menu-open .main-area {
     top: -4px;
     left: calc(100% + 8px);
     z-index: 1120;
-    width: 238px;
+    width: 220px;
     padding: 9px;
     border: 1px solid #dbe4f0;
     border-radius: 13px;
@@ -13089,13 +13094,6 @@ body.branch-notification-menu-open .main-area {
   }
 
   .branch-dashboard-sidebar-group.has-open-flyout .branch-dashboard-sidebar-flyout {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(0);
-  }
-
-  .branch-dashboard-sidebar-group:hover .branch-dashboard-sidebar-flyout,
-  .branch-dashboard-sidebar-group:focus-within .branch-dashboard-sidebar-flyout {
     opacity: 1;
     pointer-events: auto;
     transform: translateX(0);
@@ -13129,6 +13127,23 @@ body.branch-notification-menu-open .main-area {
 
   .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip] {
     position: relative;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item.has-submenu::before {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #94a3b8;
+    content: '';
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item.has-submenu.is-active::before,
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item.has-submenu:hover::before,
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item.has-submenu:focus-visible::before {
+    background: #2563eb;
   }
 
   .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]::after {
