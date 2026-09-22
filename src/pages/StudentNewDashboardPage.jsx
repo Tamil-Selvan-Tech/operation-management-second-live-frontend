@@ -855,7 +855,7 @@ const handleLogoutConfirm = async () => {
                   />
                 </span>
 
-                <span>My Course</span>
+                <span>Course</span>
               </button>
 
               <button
@@ -889,7 +889,7 @@ const handleLogoutConfirm = async () => {
                   />
                 </span>
 
-                <span>Payments</span>
+                <span>Fees &amp; Payments</span>
               </button>
 
               <button

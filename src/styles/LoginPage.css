@@ -996,7 +996,7 @@
   object-position: center center;
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .auth-card.login-shell.login-page {
     width: min(980px, calc(100vw - 24px));
     min-height: auto;

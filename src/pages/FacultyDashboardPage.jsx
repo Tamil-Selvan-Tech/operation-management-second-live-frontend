@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   Bell,
+  BarChart3,
   BookOpen,
   Check,
   CalendarDays,
@@ -24,6 +25,7 @@ import {
   Phone,
   Search,
   Dot,
+  FileText,
   ShieldCheck,
   Trash2,
   UserRound,
@@ -1782,6 +1784,7 @@ export function FacultyDashboardPage() {
   const isStudentCalendarRoute = Boolean(studentCalendarId)
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState('dashboard')
+  const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({ courses: true, 'leave-management': true })
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
@@ -4682,17 +4685,21 @@ const nextName = trimmedValue
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'my-courses', label: 'My Courses', icon: BookOpen },
-          { id: 'my-batches', label: 'My Batches', icon: Layers3 },
-          { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays },
+          { id: 'courses', label: 'Course', icon: BookOpen, children: [
+            { id: 'my-batches', label: 'Batches', icon: Layers3 },
+            { id: 'course-progress', label: 'Course Progress', icon: BarChart3, route: 'my-courses' },
+          ] },
           { id: 'other-faculty-batches', label: 'Other Faculty Batches', icon: Layers3 },
           { id: 'students', label: 'Students', icon: Users },
-          { id: 'leave-requests', label: 'Leave Requests', icon: CalendarDays },
+          { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
+            { id: 'leave-requests', label: 'Leave Requests', icon: FileText },
+            { id: 'my-calendar', label: 'Calendar', icon: CalendarDays },
+          ] },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].filter((item) => item.id !== 'other-faculty-batches' || hasTemporaryAssignments).map((item) => {
           const Icon = item.icon
-          const isActive = activeSection === item.id
+          const isActive = activeSection === (item.route || item.id)
           const studentNavigation = (
             <>
               <div className="super-admin-sidebar-parent-row">
@@ -4719,12 +4726,47 @@ const nextName = trimmedValue
             return <div key={item.id} className="super-admin-sidebar-item-group">{studentNavigation}</div>
           }
 
+          if (item.children) {
+            const isGroupActive = item.children.some((entry) => activeSection === (entry.route || entry.id))
+            const isExpanded = Boolean(expandedSidebarGroups[item.id])
+            return (
+              <div key={item.id} className="super-admin-sidebar-item-group">
+                <button
+                  type="button"
+                  className={`super-admin-sidebar-item ${isGroupActive ? 'is-active' : ''}`.trim()}
+                  aria-expanded={isExpanded}
+                  onClick={() => setExpandedSidebarGroups((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                >
+                  <span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span>
+                  <span>{item.label}</span>
+                  <ChevronDown size={16} strokeWidth={2.2} className={isExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+                </button>
+                {isExpanded ? <div className="super-admin-sidebar-submenu">
+                  {item.children.map((entry) => {
+                    const ChildIcon = entry.icon
+                    return (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        className={`super-admin-sidebar-subitem ${activeSection === (entry.route || entry.id) ? 'is-active' : ''}`.trim()}
+                        onClick={() => handleSidebarSectionChange(entry.route || entry.id)}
+                      >
+                        <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
+                        <span>{entry.label}</span>
+                      </button>
+                    )
+                  })}
+                </div> : null}
+              </div>
+            )
+          }
+
           return (
             <button
               key={item.id}
               type="button"
               className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
-              onClick={() => handleSidebarSectionChange(item.id)}
+              onClick={() => handleSidebarSectionChange(item.route || item.id)}
             >
               <span className="super-admin-sidebar-icon" aria-hidden="true">
                 <Icon size={18} strokeWidth={2.15} />

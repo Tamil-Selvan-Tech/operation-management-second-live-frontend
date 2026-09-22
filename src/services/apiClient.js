@@ -30,6 +30,7 @@ export const API_BASE_URL =
 let accessToken = null
 let refreshToken = null
 let refreshInFlight = null
+let backendWarmupInFlight = null
 let sessionExpiredHandler = null
 let sessionExpiredNotified = false
 export let impersonateBranchId = null
@@ -359,17 +360,26 @@ export async function changePassword(password) {
 }
 
 export async function warmBackendConnection() {
-  try {
-    await fetch(`${API_BASE_URL}/health`, {
-      method: 'GET',
-      credentials: 'include',
-      cache: 'no-store',
-    })
-  } catch {
-    return null
-  }
+  if (backendWarmupInFlight) return backendWarmupInFlight
 
-  return true
+  backendWarmupInFlight = (async () => {
+    try {
+      await fetch(`${API_BASE_URL}/health`, {
+        method: 'GET',
+        credentials: 'include',
+        cache: 'no-store',
+      })
+    } catch {
+      return null
+    }
+    return true
+  })()
+
+  try {
+    return await backendWarmupInFlight
+  } finally {
+    backendWarmupInFlight = null
+  }
 }
 
 export async function requestBlob(path, options = {}, retryCount = 0) {

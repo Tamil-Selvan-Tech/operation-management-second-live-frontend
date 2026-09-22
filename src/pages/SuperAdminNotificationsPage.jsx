@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   Shield,
+  UserRound,
+  Users,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -28,6 +30,7 @@ import {
   subscribeNotifications,
 } from '../lib/notificationStore'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
+import { PaginationBar } from '../components/PaginationBar'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -223,10 +226,13 @@ export function SuperAdminNotificationsPage() {
   const [notifications, setNotifications] = useState([])
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isLeaveManagementExpanded, setIsLeaveManagementExpanded] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [notificationPage, setNotificationPage] = useState(1)
+  const notificationsPerPage = 10
   const refreshTimerRef = useRef(null)
 
   const profileEmail = user?.email || 'superadmin.manager@cispro.com'
@@ -344,7 +350,17 @@ export function SuperAdminNotificationsPage() {
     })
   }, [dateFilter, searchTerm, statusFilter, visibleNotifications])
 
-  const groupedNotifications = useMemo(() => groupNotifications(filteredNotifications), [filteredNotifications])
+  const notificationTotalPages = Math.max(1, Math.ceil(filteredNotifications.length / notificationsPerPage))
+  const safeNotificationPage = Math.min(notificationPage, notificationTotalPages)
+  const paginatedNotifications = useMemo(
+    () => filteredNotifications.slice((safeNotificationPage - 1) * notificationsPerPage, safeNotificationPage * notificationsPerPage),
+    [filteredNotifications, safeNotificationPage],
+  )
+  const groupedNotifications = useMemo(() => groupNotifications(paginatedNotifications), [paginatedNotifications])
+
+  useEffect(() => {
+    setNotificationPage(1)
+  }, [searchTerm, dateFilter, statusFilter])
 
   const markAllAsRead = async () => {
     const visibleIds = visibleNotifications.map((item) => item.id)
@@ -433,7 +449,6 @@ export function SuperAdminNotificationsPage() {
 
           <nav className="super-admin-sidebar-nav">
             <div className="super-admin-sidebar-section">
-              <span className="super-admin-sidebar-section-label">MAIN</span>
               <button
                 type="button"
                 className="super-admin-sidebar-item"
@@ -450,19 +465,44 @@ export function SuperAdminNotificationsPage() {
             </div>
 
             <div className="super-admin-sidebar-section">
-              <span className="super-admin-sidebar-section-label">MANAGEMENT</span>
-              <button
-                type="button"
-                className="super-admin-sidebar-item"
-                onClick={() => {
-                  setIsMobileSidebarOpen(false)
-                  navigate('/dashboard/super-admin?section=branches')
-                }}
-              >
-                <span className="super-admin-sidebar-icon" aria-hidden="true">
-                  <Building2 size={18} strokeWidth={2.2} />
-                </span>
-                <span>Branches</span>
+              <span className="super-admin-sidebar-section-label">USER &amp; ROLE MANAGEMENT</span>
+              <button type="button" className="super-admin-sidebar-item" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=branch-admin') }}>
+                <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
+                <span>Branch Management</span>
+              </button>
+            </div>
+
+            <div className="super-admin-sidebar-section">
+              <span className="super-admin-sidebar-section-label">ACADEMIC OPERATIONS</span>
+              <button type="button" className="super-admin-sidebar-item" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=students') }}>
+                <span className="super-admin-sidebar-icon" aria-hidden="true"><Users size={18} strokeWidth={2.2} /></span>
+                <span>Student Management</span>
+              </button>
+              <button type="button" className="super-admin-sidebar-item" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty') }}>
+                <span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span>
+                <span>Faculty Management</span>
+              </button>
+              <div className="super-admin-sidebar-branch-nav">
+                <div className="super-admin-sidebar-item">
+                  <button type="button" className="super-admin-sidebar-branch-link" onClick={() => { setIsLeaveManagementExpanded((current) => !current) }}>
+                    <span className="super-admin-sidebar-icon" aria-hidden="true"><CalendarDays size={18} strokeWidth={2.2} /></span>
+                    <span>Leave Management</span>
+                  </button>
+                  <button type="button" className="super-admin-sidebar-branch-toggle" aria-label="Toggle leave management" aria-expanded={isLeaveManagementExpanded} onClick={() => setIsLeaveManagementExpanded((current) => !current)}>
+                    <ChevronDown size={16} strokeWidth={2.3} className={isLeaveManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+                  </button>
+                </div>
+                {isLeaveManagementExpanded ? <div className="super-admin-sidebar-branch-list" aria-label="Leave management">
+                  <button type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty-leave') }}><span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Faculty Leave Request</span></button>
+                </div> : null}
+              </div>
+            </div>
+
+            <div className="super-admin-sidebar-section">
+              <span className="super-admin-sidebar-section-label">SYSTEM</span>
+              <button type="button" className="super-admin-sidebar-item is-active" onClick={() => setIsMobileSidebarOpen(false)}>
+                <span className="super-admin-sidebar-icon" aria-hidden="true"><Bell size={18} strokeWidth={2.2} /></span>
+                <span>Notifications</span>
               </button>
             </div>
           </nav>
@@ -621,6 +661,17 @@ export function SuperAdminNotificationsPage() {
                   </div>
                 </div>
               )}
+              {filteredNotifications.length > notificationsPerPage ? (
+                <PaginationBar
+                  className="super-admin-pagination"
+                  currentPage={safeNotificationPage}
+                  totalPages={notificationTotalPages}
+                  onPageChange={setNotificationPage}
+                  label="Notification pagination"
+                  previousLabel="Prev"
+                  nextLabel="Next"
+                />
+              ) : null}
             </section>
           </main>
         </div>

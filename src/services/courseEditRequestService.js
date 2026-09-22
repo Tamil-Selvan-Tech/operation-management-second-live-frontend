@@ -1,5 +1,7 @@
 import { request } from './apiClient'
 
+const courseEditRequestsInflight = new Map()
+
 function unwrapData(response) {
   if (!response) return null
   return response.data ?? response
@@ -75,11 +77,21 @@ export async function listCourseEditRequests(query = {}) {
     }
   })
 
-  const response = await request(`/course-edit-requests?${params.toString()}`)
-  const data = Array.isArray(response?.data) ? response.data : []
-  return {
-    data: data.map(normalizeRequest),
-    meta: response?.meta || null,
+  const path = `/course-edit-requests?${params.toString()}`
+  if (courseEditRequestsInflight.has(path)) return courseEditRequestsInflight.get(path)
+
+  const pending = request(path).then((response) => {
+    const data = Array.isArray(response?.data) ? response.data : []
+    return {
+      data: data.map(normalizeRequest),
+      meta: response?.meta || null,
+    }
+  })
+  courseEditRequestsInflight.set(path, pending)
+  try {
+    return await pending
+  } finally {
+    courseEditRequestsInflight.delete(path)
   }
 }
 

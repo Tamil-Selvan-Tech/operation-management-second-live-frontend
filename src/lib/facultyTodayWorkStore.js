@@ -3,6 +3,7 @@ import { request } from '../services/apiClient'
 export const FACULTY_TODAY_WORK_SYNC_EVENT = 'cispro:faculty-today-work-changed'
 export const FACULTY_TODAY_WORK_SYNC_KEY = 'cispro:faculty-today-work-sync'
 const FACULTY_TODAY_WORK_CACHE_KEY = 'cispro:faculty-today-work-cache'
+let facultyTodayWorkRequest = null
 
 function normalizeText(value = '') {
   return String(value || '').trim().toLowerCase()
@@ -182,13 +183,20 @@ function upsertLocalCacheEntry(entry = {}) {
 }
 
 export async function listFacultyTodayWorkEntries() {
-  const response = await request('/faculty-today-work')
-  const remoteEntries = extractEntries(response).map((entry) => normalizeTodayWorkEntry(entry))
+  if (facultyTodayWorkRequest) return facultyTodayWorkRequest
 
-  // The API is the source of truth. Do not resurrect deleted work entries
-  // from the browser cache after a successful database read.
-  writeLocalCache(remoteEntries)
-  return remoteEntries
+  facultyTodayWorkRequest = request('/faculty-today-work')
+    .then((response) => {
+      const remoteEntries = extractEntries(response).map((entry) => normalizeTodayWorkEntry(entry))
+
+      // The API is the source of truth. Do not resurrect deleted work entries
+      // from the browser cache after a successful database read.
+      writeLocalCache(remoteEntries)
+      return remoteEntries
+    })
+    .finally(() => { facultyTodayWorkRequest = null })
+
+  return facultyTodayWorkRequest
 }
 
 export function getFacultyTodayWorkEntriesByFaculty(

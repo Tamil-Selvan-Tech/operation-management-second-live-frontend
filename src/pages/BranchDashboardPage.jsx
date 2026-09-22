@@ -3137,11 +3137,12 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       ? 'student-calendar'
     : getBranchDashboardSectionFromPath(location.pathname, location.search) || initialSection
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState(() => ({
-    courses: activeSection === 'installments',
+    courses: false,
     faculty: activeSection === 'batches',
-    students: activeSection === 'payments',
+    students: ['students', 'courses', 'batches', 'installments', 'progress-notifications', 'institute-leave', 'faculty-leave'].includes(activeSection),
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests'].includes(activeSection),
   }))
+  const [expandedSidebarNestedGroups, setExpandedSidebarNestedGroups] = useState({})
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false
     try {
@@ -3198,23 +3199,6 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode])
 
   useEffect(() => {
-    if (!isSidebarFlyoutMode) return
-    const parentByChild = {
-      installments: 'courses',
-      batches: 'faculty',
-      payments: 'students',
-      'institute-leave': 'management',
-      'faculty-leave': 'management',
-      'progress-notifications': 'management',
-      'faculty-edit-requests': 'management',
-    }
-    const activeParent = parentByChild[activeSection] || (
-      ['courses', 'faculty', 'students', 'management'].includes(activeSection) ? activeSection : ''
-    )
-    if (activeParent) setOpenSidebarFlyout(activeParent)
-  }, [activeSection, isSidebarFlyoutMode])
-
-  useEffect(() => {
     if (!openSidebarFlyout || !isSidebarFlyoutMode) return undefined
     const closeOnOutsideClick = (event) => {
       const sidebarGroup = event.target.closest?.('.branch-dashboard-sidebar-group')
@@ -3226,10 +3210,19 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { installments: 'courses', batches: 'faculty', payments: 'students', 'institute-leave': 'management', 'faculty-leave': 'management', 'progress-notifications': 'management', 'faculty-edit-requests': 'management' }
+    const parentByChild = { faculty: 'faculty', students: 'students', courses: 'students', batches: 'students', installments: 'students', payments: 'payments', 'institute-leave': 'students', 'faculty-leave': 'students', 'progress-notifications': 'students', 'faculty-edit-requests': 'management' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
+  }, [activeSection])
+
+  useEffect(() => {
+    if (activeSection === 'progress-notifications') {
+      setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
+    }
+    if (activeSection === 'institute-leave' || activeSection === 'faculty-leave') {
+      setExpandedSidebarNestedGroups((current) => ({ ...current, 'leave-management': true }))
+    }
   }, [activeSection])
 
   useEffect(() => {
@@ -8473,25 +8466,74 @@ useEffect(() => {
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'courses', label: 'Courses', icon: BookOpen, child: { id: 'installments', label: 'Installments', icon: Wallet } },
-          { id: 'faculty', label: 'Faculty', icon: UserRound, child: { id: 'batches', label: 'Batches', icon: Layers3 } },
-          { id: 'students', label: 'Students', icon: Users, child: { id: 'payments', label: 'Payments', icon: Wallet } },
-          { id: 'management', label: 'Management', icon: LayoutGrid, children: [
-            { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
-            { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
-            { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
-            { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
+          { id: 'faculty', label: 'User & Role Management', icon: Shield, child: { id: 'faculty', label: 'Faculty', icon: UserRound } },
+          { id: 'students', label: 'Academic Management', icon: LayoutGrid, children: [
+            { id: 'installments', label: 'Installment Templates', icon: Wallet },
+            { id: 'courses', label: 'Course Management', icon: BookOpen },
+            { id: 'batches', label: 'Batch Management', icon: Layers3 },
+            { id: 'students', label: 'Student Management', icon: Users },
+            { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
+              { id: 'progress-notifications', label: 'Course Progress Request', icon: Bell },
+              { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
+              { id: 'faculty-leave', label: 'Faculty Leave Request', icon: CalendarDays },
+            ] },
           ] },
+          { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
           { id: 'notifications', label: 'Notifications', icon: Bell },
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].map((item) => {
           const Icon = item.icon
           const child = item.child
           const children = item.children || (child ? [child] : [])
-          const isChildActive = children.some((entry) => activeSection === entry.id)
+          const hasActiveEntry = (entry) => activeSection === entry.id || (entry.children || []).some(hasActiveEntry)
+          const isChildActive = children.some(hasActiveEntry)
           const isActive = activeSection === item.id || isChildActive
           const isExpanded = Boolean(expandedSidebarGroups[item.id])
           const isFlyoutOpen = isSidebarFlyoutMode && children.length > 0 && openSidebarFlyout === item.id
+          const renderNestedEntries = (entries, mode = 'inline') => entries.map((entry) => {
+            const ChildIcon = entry.icon
+            const entryHasChildren = Array.isArray(entry.children) && entry.children.length > 0
+            if (entryHasChildren) {
+              const isNestedExpanded = Boolean(expandedSidebarNestedGroups[entry.id])
+              return (
+                <div key={entry.id} className={`branch-sidebar-nested-group ${mode === 'flyout' ? 'is-flyout' : ''}`.trim()}>
+                  <button
+                    type="button"
+                    className={`super-admin-sidebar-subitem branch-sidebar-nested-heading ${hasActiveEntry(entry) ? 'is-active' : ''}`.trim()}
+                    aria-expanded={isNestedExpanded}
+                    onClick={() => setExpandedSidebarNestedGroups((current) => ({ ...current, [entry.id]: !current[entry.id] }))}
+                  >
+                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
+                    <span>{entry.label}</span>
+                    <ChevronDown className={isNestedExpanded ? 'is-expanded' : ''} size={14} strokeWidth={2.2} aria-hidden="true" />
+                  </button>
+                  {isNestedExpanded ? (
+                    <div className="branch-sidebar-nested-items">
+                      {renderNestedEntries(entry.children, mode)}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            }
+            return (
+              <button
+                key={entry.id}
+                type="button"
+                role={mode === 'flyout' ? 'menuitem' : undefined}
+                className={`super-admin-sidebar-subitem ${activeSection === entry.id ? 'is-active' : ''}`.trim()}
+                onClick={() => {
+                  if (mode === 'flyout') {
+                    cancelSidebarFlyoutClose()
+                    setOpenSidebarFlyout('')
+                  }
+                  goToBranchSection(entry.id)
+                }}
+              >
+                <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
+                <span>{entry.label}</span>
+              </button>
+            )
+          })
 
           return (
             <div
@@ -8544,7 +8586,7 @@ useEffect(() => {
               </button>
               {children.length && isExpanded ? (
                 <div className="super-admin-sidebar-submenu">
-                  {children.map((entry) => { const ChildIcon = entry.icon; return <button key={entry.id} type="button" className={`super-admin-sidebar-subitem ${activeSection === entry.id ? 'is-active' : ''}`.trim()} onClick={() => goToBranchSection(entry.id)}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span><span>{entry.label}</span></button> })}
+                  {renderNestedEntries(children)}
                 </div>
               ) : null}
               {isSidebarFlyoutMode && children.length ? (
@@ -8557,25 +8599,7 @@ useEffect(() => {
                 >
                   <div className="branch-dashboard-sidebar-flyout-title">{item.label}</div>
                   <div className="branch-dashboard-sidebar-flyout-items">
-                    {children.map((entry) => {
-                      const ChildIcon = entry.icon
-                      return (
-                        <button
-                          key={entry.id}
-                          type="button"
-                          role="menuitem"
-                          className={`super-admin-sidebar-subitem ${activeSection === entry.id ? 'is-active' : ''}`.trim()}
-                          onClick={() => {
-                            cancelSidebarFlyoutClose()
-                            setOpenSidebarFlyout('')
-                            goToBranchSection(entry.id)
-                          }}
-                        >
-                          <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
-                          <span>{entry.label}</span>
-                        </button>
-                      )
-                    })}
+                    {renderNestedEntries(children, 'flyout')}
                   </div>
                 </div>
               ) : null}

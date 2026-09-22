@@ -3,6 +3,7 @@ import { request } from './apiClient'
 const DASHBOARD_CACHE_TTL_MS = Number(import.meta.env.VITE_DASHBOARD_CACHE_TTL_MS || 30000)
 const dashboardCache = new Map()
 const dashboardInflight = new Map()
+const facultyDashboardInflight = new Map()
 
 function getCachedValue(key) {
   const entry = dashboardCache.get(key)
@@ -59,11 +60,17 @@ export async function getRevenueInsights() {
 export async function getFacultyMyBatchesSummary() {
   // This response is user-scoped. A shared module cache can leak the previous
   // faculty's batches after logout/login or after switching branch accounts.
-  const response = await request('/dashboard/faculty/my-batches-summary')
-  return response?.data ?? response ?? null
+  const key = 'faculty-my-batches-summary'
+  if (facultyDashboardInflight.has(key)) return facultyDashboardInflight.get(key)
+  const pending = request('/dashboard/faculty/my-batches-summary').then((response) => response?.data ?? response ?? null)
+  facultyDashboardInflight.set(key, pending)
+  try { return await pending } finally { facultyDashboardInflight.delete(key) }
 }
 
 export async function getFacultyDashboardOverview() {
-  const response = await request('/dashboard/faculty/overview')
-  return response?.data ?? response ?? null
+  const key = 'faculty-dashboard-overview'
+  if (facultyDashboardInflight.has(key)) return facultyDashboardInflight.get(key)
+  const pending = request('/dashboard/faculty/overview').then((response) => response?.data ?? response ?? null)
+  facultyDashboardInflight.set(key, pending)
+  try { return await pending } finally { facultyDashboardInflight.delete(key) }
 }
