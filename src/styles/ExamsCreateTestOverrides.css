@@ -5,3 +5,9 @@
 .batch-schedule-fields{padding-top:0!important}.batch-schedule-fields::before,.batch-schedule-fields::after{display:none!important}
 .exam-page-embedded{min-height:0!important;padding:0!important;background:transparent!important}.exam-page-embedded .exam-page-header{padding-top:4px}
 .exam-link:disabled{opacity:.5;cursor:not-allowed;background:#f1f5f9;color:#94a3b8}
+.exam-modal-error{margin:0 0 14px;padding:10px 12px}
+.exam-test-details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.exam-test-details-grid label{min-width:0}
+@media(max-width:700px){.exam-test-details-grid{grid-template-columns:1fr}}
+.exam-modal-backdrop{z-index:1000!important;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.exam-submissions-modal{max-width:1100px}.exam-submissions-modal .exam-table-wrap{overflow:auto}.exam-submissions-modal table{min-width:760px}.exam-submissions-modal td small{display:block;margin-top:3px;color:#64748b;font-size:11px}
+.exam-page:has(.exam-submissions-modal)> .exam-card{display:none}.exam-page:has(.exam-submissions-modal)> .exam-modal-backdrop{position:static;inset:auto;display:block;padding:0;background:transparent;overflow:visible;z-index:auto;backdrop-filter:none;-webkit-backdrop-filter:none}.exam-page:has(.exam-submissions-modal) .exam-submissions-modal{width:auto;max-width:none;max-height:none;margin-top:18px}

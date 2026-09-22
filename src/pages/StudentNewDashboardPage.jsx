@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import {
   LayoutDashboard,
@@ -44,6 +44,7 @@ import { getBranchStudentLedger } from '../services/branchLedgerService'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import html2pdf from 'html2pdf.js'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
+import StudentExamsPage from './StudentExamsPage'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -444,8 +445,10 @@ function AttendanceChart({ items, period }) {
 
 export function StudentNewDashboardPage() {
  const navigate = useNavigate()
+ const location = useLocation()
  const { session, signOut } = useAuth()
- const [activeSection, setActiveSection] = useState('dashboard')
+ const isExamsRoute = location.pathname === '/student-new-dashboard/exams'
+ const [activeSection, setActiveSection] = useState(isExamsRoute ? 'exams' : 'dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
@@ -894,7 +897,7 @@ const handleLogoutConfirm = async () => {
 
               <button
                 type="button"
-                className={`student-new-sidebar-item ${activeSection === 'exams' ? 'is-active' : ''}`.trim()}
+                className={`student-new-sidebar-item ${activeSection === 'exams' || isExamsRoute ? 'is-active' : ''}`.trim()}
                 onClick={() => navigate('/student-new-dashboard/exams')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true"><BookOpen size={18} strokeWidth={2.2} /></span>
@@ -1033,7 +1036,9 @@ const handleLogoutConfirm = async () => {
               </section>
             ) : null}
 
-            {!isLoading && !loadError && activeSection === 'dashboard' ? (
+            {isExamsRoute ? <StudentExamsPage embedded /> : null}
+
+            {!isExamsRoute && !isLoading && !loadError && activeSection === 'dashboard' ? (
               <div className="student-new-dashboard student-dashboard-redesign">
                 <section className="student-dashboard-welcome">
                   <div><p className="student-new-dashboard-kicker">STUDENT DASHBOARD</p><h1>Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, {displayName}</h1><p>Here&apos;s an overview of your learning progress.</p></div>

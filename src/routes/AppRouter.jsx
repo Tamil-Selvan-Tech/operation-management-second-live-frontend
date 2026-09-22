@@ -368,7 +368,7 @@ export function AppRouter() {
     path="/student-new-dashboard/notifications"
     element={<StudentNotificationsPage />}
   />
-  <Route path="/student-new-dashboard/exams" element={<StudentExamsPage />} />
+  <Route path="/student-new-dashboard/exams" element={<StudentNewDashboardPage />} />
 </Route>
           <Route
             element={
