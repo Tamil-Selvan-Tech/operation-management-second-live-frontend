@@ -894,6 +894,15 @@ const handleLogoutConfirm = async () => {
 
               <button
                 type="button"
+                className={`student-new-sidebar-item ${activeSection === 'exams' ? 'is-active' : ''}`.trim()}
+                onClick={() => navigate('/student-new-dashboard/exams')}
+              >
+                <span className="student-new-sidebar-icon" aria-hidden="true"><BookOpen size={18} strokeWidth={2.2} /></span>
+                <span>Exam Test &amp; Assessment</span>
+              </button>
+
+              <button
+                type="button"
                 className={`student-new-sidebar-item ${activeSection === 'notifications' ? 'is-active' : ''}`.trim()}
                 onClick={() => navigate('/student-new-dashboard/notifications')}
               >

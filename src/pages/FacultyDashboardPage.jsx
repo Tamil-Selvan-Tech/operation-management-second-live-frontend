@@ -4665,6 +4665,10 @@ const nextName = trimmedValue
   }
 
   const handleSidebarSectionChange = (section) => {
+    if (section === 'exams') {
+      navigate('/dashboard/faculty/exams')
+      return
+    }
     // The calendar is rendered from the student-calendar route. Leave that
     // route before switching sections so it cannot remain below the new view.
     if (isStudentCalendarRoute) {
@@ -4685,6 +4689,7 @@ const nextName = trimmedValue
           { id: 'my-courses', label: 'My Courses', icon: BookOpen },
           { id: 'my-batches', label: 'My Batches', icon: Layers3 },
           { id: 'my-calendar', label: 'My Calendar', icon: CalendarDays },
+          { id: 'exams', label: 'Exams', icon: BookOpen },
           { id: 'other-faculty-batches', label: 'Other Faculty Batches', icon: Layers3 },
           { id: 'students', label: 'Students', icon: Users },
           { id: 'leave-requests', label: 'Leave Requests', icon: CalendarDays },
