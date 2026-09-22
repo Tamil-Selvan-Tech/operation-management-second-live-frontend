@@ -13036,3 +13036,388 @@ body.branch-notification-menu-open .main-area {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.branch-dashboard-app-shell .super-admin-sidebar,
+.branch-dashboard-app-shell .super-admin-main {
+  transition: width 220ms ease-in-out, margin-left 220ms ease-in-out;
+}
+
+/* Collapsed desktop navigation uses a real flyout instead of squeezing child labels. */
+@media (min-width: 992px) {
+  .branch-dashboard-app-shell .super-admin-shell {
+    overflow: visible;
+  }
+
+  .branch-dashboard-app-shell .super-admin-sidebar {
+    overflow: visible;
+    z-index: 1100;
+  }
+
+  .branch-dashboard-app-shell .super-admin-sidebar-nav {
+    position: relative;
+    z-index: 1;
+  }
+
+  .branch-dashboard-sidebar-group {
+    position: relative;
+  }
+
+  .branch-dashboard-sidebar-flyout {
+    position: absolute;
+    top: -4px;
+    left: calc(100% + 8px);
+    z-index: 1120;
+    width: 238px;
+    padding: 9px;
+    border: 1px solid #dbe4f0;
+    border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14), 0 3px 10px rgba(37, 99, 235, 0.06);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(-4px);
+    transform-origin: left center;
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+
+  .branch-dashboard-sidebar-flyout::before {
+    position: absolute;
+    top: 0;
+    left: -10px;
+    width: 10px;
+    height: 100%;
+    content: '';
+  }
+
+  .branch-dashboard-sidebar-group.has-open-flyout .branch-dashboard-sidebar-flyout {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  .branch-dashboard-sidebar-group:hover .branch-dashboard-sidebar-flyout,
+  .branch-dashboard-sidebar-group:focus-within .branch-dashboard-sidebar-flyout {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
+  }
+
+  .branch-dashboard-sidebar-flyout-title {
+    padding: 7px 9px 8px;
+    color: #1e3a5f;
+    font-size: 0.74rem;
+    font-weight: 850;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .branch-dashboard-sidebar-flyout-items {
+    display: grid;
+    gap: 2px;
+  }
+
+  .branch-dashboard-sidebar-flyout .super-admin-sidebar-subitem {
+    min-height: 36px;
+    margin: 0;
+    padding: 7px 9px;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item.is-active {
+    background: #eaf2ff;
+    color: #1557b0;
+    box-shadow: inset 3px 0 0 #2563eb;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip] {
+    position: relative;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]::after {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 12px);
+    z-index: 1140;
+    padding: 6px 9px;
+    border-radius: 7px;
+    color: #fff;
+    background: #0f172a;
+    content: attr(data-tooltip);
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-4px, -50%);
+    transition: opacity 150ms ease, transform 150ms ease;
+    white-space: nowrap;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]:hover::after,
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .branch-dashboard-sidebar-group.has-open-flyout .super-admin-sidebar-item[data-tooltip]::after {
+    opacity: 0;
+    transform: translate(-4px, -50%);
+  }
+}
+
+.branch-dashboard-app-shell .super-admin-sidebar {
+  width: 248px;
+  padding: 16px 12px 14px;
+}
+
+.branch-dashboard-app-shell .super-admin-main {
+  margin-left: 248px;
+}
+
+.branch-dashboard-sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid #dbe4f0;
+  border-radius: 11px;
+  color: #475569;
+  background: #f8fafc;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.branch-dashboard-sidebar-toggle:hover,
+.branch-dashboard-sidebar-toggle:focus-visible {
+  border-color: #bfdbfe;
+  color: #2563eb;
+  background: #eff6ff;
+  outline: none;
+}
+
+.branch-dashboard-app-shell .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  min-height: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  padding: 0;
+  border-radius: 10px;
+  border-color: transparent;
+  color: #64748b;
+  background: transparent;
+}
+
+.branch-dashboard-sidebar-toggle-icon {
+  display: block;
+  color: currentColor;
+  flex: 0 0 auto;
+}
+
+.branch-dashboard-app-shell .super-admin-sidebar-brand {
+  padding-right: 0;
+}
+
+.branch-dashboard-app-shell .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle:hover,
+.branch-dashboard-app-shell .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle:focus-visible {
+  border-color: transparent;
+  color: #334155;
+  background: transparent;
+}
+
+@media (min-width: 992px) {
+  .branch-dashboard-app-shell:not(.is-sidebar-collapsed) .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle {
+    position: absolute;
+    top: 50%;
+    right: -24px;
+    transform: translateY(-50%);
+  }
+}
+
+.branch-dashboard-app-shell .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle::after {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 70;
+  padding: 5px 8px;
+  border-radius: 6px;
+  color: #fff;
+  background: #0f172a;
+  content: attr(data-tooltip);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -3px);
+  transition: opacity 160ms ease, transform 160ms ease;
+  white-space: nowrap;
+}
+
+.branch-dashboard-app-shell .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle:hover::after,
+.branch-dashboard-app-shell .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar {
+  width: 70px;
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-main {
+  margin-left: 70px;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-brand {
+  gap: 4px;
+  justify-content: center;
+  margin-right: -15px;
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-brand-logo {
+  width: 29px;
+  height: 34px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 0;
+  padding-right: 6px;
+  padding-left: 6px;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item > span:not(.super-admin-sidebar-icon),
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item > svg,
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-submenu,
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-profile-copy,
+.branch-dashboard-app-shell.is-sidebar-collapsed .branch-dashboard-sidebar-toggle span {
+  display: none;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-icon {
+  margin: 0;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-profile-card {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 8px;
+  padding: 9px 5px;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-logout-button {
+  width: 34px;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .branch-dashboard-sidebar-toggle {
+  width: 30px;
+  height: 30px;
+  flex-basis: 30px;
+  justify-content: center;
+  padding: 0;
+}
+
+.branch-dashboard-mobile-menu {
+  display: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  color: #2563eb;
+  background: #fff;
+  cursor: pointer;
+}
+
+.branch-dashboard-mobile-menu:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, .2);
+  outline-offset: 2px;
+}
+
+.branch-dashboard-topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.branch-dashboard-app-shell .branch-dashboard-content {
+  min-width: 0;
+  width: 100%;
+}
+
+.branch-dashboard-app-shell .branch-dashboard-stats,
+.branch-dashboard-app-shell .branch-dashboard-finance-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.branch-dashboard-app-shell .branch-dashboard-activity-grid,
+.branch-dashboard-app-shell .branch-dashboard-dashboard-table-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 1180px) {
+  .branch-dashboard-app-shell .super-admin-sidebar { width: 228px; }
+  .branch-dashboard-app-shell .super-admin-main { margin-left: 228px; }
+  .branch-dashboard-app-shell .branch-dashboard-stats,
+  .branch-dashboard-app-shell .branch-dashboard-finance-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 991px) {
+  .branch-dashboard-app-shell .super-admin-sidebar {
+    width: min(84vw, 300px);
+    transform: translateX(calc(-100% - 18px));
+    transition: transform 220ms ease-in-out;
+  }
+
+  .branch-dashboard-app-shell .super-admin-sidebar.is-open { transform: translateX(0); }
+  .branch-dashboard-app-shell .super-admin-main,
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-main { margin-left: 0; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar { width: min(84vw, 300px); padding: 16px 12px 14px; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item { grid-template-columns: 24px minmax(0, 1fr) auto; justify-items: stretch; gap: 12px; padding-right: 10px; padding-left: 10px; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item > span:not(.super-admin-sidebar-icon),
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-item > svg,
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-submenu,
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-profile-copy,
+  .branch-dashboard-app-shell.is-sidebar-collapsed .branch-dashboard-sidebar-toggle span { display: initial; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-submenu { display: grid; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-profile-card { grid-template-columns: 42px minmax(0, 1fr) 34px; justify-items: stretch; gap: 10px; padding: 11px 12px; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .branch-dashboard-sidebar-toggle { justify-content: flex-start; padding: 0 11px; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-brand { justify-content: space-between; padding-right: 4px; padding-left: 4px; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-brand { margin-right: 0; }
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-brand-logo { width: auto; height: 40px; object-fit: contain; }
+  .branch-dashboard-mobile-menu { display: grid; }
+  .branch-dashboard-sidebar-flyout { display: none; }
+  .branch-dashboard-app-shell .branch-dashboard-stats,
+  .branch-dashboard-app-shell .branch-dashboard-finance-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .branch-dashboard-app-shell .branch-dashboard-activity-grid,
+  .branch-dashboard-app-shell .branch-dashboard-dashboard-table-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .branch-dashboard-app-shell .branch-dashboard-stats,
+  .branch-dashboard-app-shell .branch-dashboard-finance-stats { grid-template-columns: 1fr; }
+  .branch-dashboard-app-shell .branch-dashboard-topbar-title h1 { min-width: 0; overflow: hidden; font-size: 1.25rem; text-overflow: ellipsis; white-space: nowrap; }
+  .branch-dashboard-app-shell .super-admin-topbar-right { min-width: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .branch-dashboard-app-shell .super-admin-sidebar,
+  .branch-dashboard-app-shell .super-admin-main,
+  .branch-dashboard-sidebar-toggle,
+  .branch-dashboard-mobile-menu { transition: none; }
+}

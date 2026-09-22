@@ -13,6 +13,9 @@ import {
   ChevronLeft,
   LayoutDashboard,
   LayoutGrid,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Layers3,
   LogOut,
   MoreVertical,
@@ -3138,6 +3141,72 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     students: activeSection === 'payments',
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests'].includes(activeSection),
   }))
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isMobileViewport, setIsMobileViewport] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 991px)').matches
+  ))
+  const [openSidebarFlyout, setOpenSidebarFlyout] = useState('')
+  const sidebarFlyoutCloseTimerRef = useRef(null)
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 991px)')
+    const handleViewportChange = (event) => setIsMobileViewport(event.matches)
+    setIsMobileViewport(mediaQuery.matches)
+    mediaQuery.addEventListener?.('change', handleViewportChange)
+    return () => mediaQuery.removeEventListener?.('change', handleViewportChange)
+  }, [])
+
+  useEffect(() => () => {
+    if (sidebarFlyoutCloseTimerRef.current) window.clearTimeout(sidebarFlyoutCloseTimerRef.current)
+  }, [])
+
+  const isSidebarFlyoutMode = isSidebarCollapsed && !isMobileViewport
+
+  const scheduleSidebarFlyoutClose = useCallback(() => {
+    if (sidebarFlyoutCloseTimerRef.current) window.clearTimeout(sidebarFlyoutCloseTimerRef.current)
+    sidebarFlyoutCloseTimerRef.current = window.setTimeout(() => {
+      setOpenSidebarFlyout('')
+      sidebarFlyoutCloseTimerRef.current = null
+    }, 140)
+  }, [])
+
+  const cancelSidebarFlyoutClose = useCallback(() => {
+    if (!sidebarFlyoutCloseTimerRef.current) return
+    window.clearTimeout(sidebarFlyoutCloseTimerRef.current)
+    sidebarFlyoutCloseTimerRef.current = null
+  }, [])
+
+  useEffect(() => {
+    if (!isSidebarFlyoutMode) setOpenSidebarFlyout('')
+  }, [isSidebarFlyoutMode])
+
+  useEffect(() => {
+    if (!isSidebarFlyoutMode) return
+    const parentByChild = {
+      installments: 'courses',
+      batches: 'faculty',
+      payments: 'students',
+      'institute-leave': 'management',
+      'faculty-leave': 'management',
+      'progress-notifications': 'management',
+      'faculty-edit-requests': 'management',
+    }
+    const activeParent = parentByChild[activeSection] || (
+      ['courses', 'faculty', 'students', 'management'].includes(activeSection) ? activeSection : ''
+    )
+    if (activeParent) setOpenSidebarFlyout(activeParent)
+  }, [activeSection, isSidebarFlyoutMode])
+
+  useEffect(() => {
+    if (!openSidebarFlyout || !isSidebarFlyoutMode) return undefined
+    const closeOnOutsideClick = (event) => {
+      if (event.target.closest?.('.branch-dashboard-sidebar-group')) return
+      setOpenSidebarFlyout('')
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
     const parentByChild = { installments: 'courses', batches: 'faculty', payments: 'students', 'institute-leave': 'management', 'faculty-leave': 'management', 'progress-notifications': 'management', 'faculty-edit-requests': 'management' }
@@ -3166,6 +3235,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       const isNotifications = nextSection === 'notifications'
 
       if (embeddedMode) {
+        setIsMobileSidebarOpen(false)
         navigate(
           {
             pathname: location.pathname,
@@ -3177,15 +3247,18 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       }
 
       if (isNotifications) {
+        setIsMobileSidebarOpen(false)
         navigate('/branch-dashboard/notifications', { replace })
         return
       }
 
       if (isDashboard) {
+        setIsMobileSidebarOpen(false)
         navigate('/branch-dashboard', { replace })
         return
       }
 
+      setIsMobileSidebarOpen(false)
       navigate(`/branch-dashboard?section=${encodeURIComponent(nextSection)}`, { replace })
     },
     [embeddedMode, location.pathname, navigate],
@@ -8326,9 +8399,27 @@ useEffect(() => {
   )
 
   const renderSidebar = () => (
-    <aside className="super-admin-sidebar" aria-label="Branch navigation">
+    <aside className={`super-admin-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()} aria-label="Branch navigation">
       <div className="super-admin-sidebar-brand">
         <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="CISPRO logo" />
+        <button
+          type="button"
+          className="branch-dashboard-sidebar-toggle"
+          onClick={() => {
+            cancelSidebarFlyoutClose()
+            setOpenSidebarFlyout('')
+            setIsSidebarCollapsed((current) => !current)
+          }}
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+          data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+        >
+          {isSidebarCollapsed ? (
+            <PanelLeftOpen className="branch-dashboard-sidebar-toggle-icon" size={20} strokeWidth={2.35} />
+          ) : (
+            <PanelLeftClose className="branch-dashboard-sidebar-toggle-icon" size={20} strokeWidth={2.35} />
+          )}
+        </button>
       </div>
 
       <nav className="super-admin-sidebar-nav">
@@ -8352,14 +8443,38 @@ useEffect(() => {
           const isChildActive = children.some((entry) => activeSection === entry.id)
           const isActive = activeSection === item.id || isChildActive
           const isExpanded = Boolean(expandedSidebarGroups[item.id])
+          const isFlyoutOpen = isSidebarFlyoutMode && children.length > 0 && openSidebarFlyout === item.id
 
           return (
-            <div key={item.id} className="super-admin-sidebar-group">
+            <div
+              key={item.id}
+              className={`super-admin-sidebar-group branch-dashboard-sidebar-group ${isFlyoutOpen ? 'has-open-flyout' : ''}`.trim()}
+              onMouseEnter={() => {
+                if (!isSidebarFlyoutMode || !children.length) return
+                cancelSidebarFlyoutClose()
+                setOpenSidebarFlyout(item.id)
+              }}
+              onMouseLeave={() => {
+                if (!isSidebarFlyoutMode || !children.length) return
+                scheduleSidebarFlyoutClose()
+              }}
+            >
               <button
                 type="button"
                 className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
+                data-tooltip={item.label}
+                title={isSidebarFlyoutMode ? item.label : undefined}
                 onClick={() => {
                   if (children.length) {
+                    if (isSidebarFlyoutMode) {
+                      cancelSidebarFlyoutClose()
+                      setOpenSidebarFlyout((current) => current === item.id ? '' : item.id)
+                      setExpandedSidebarGroups((current) => ({ ...current, [item.id]: true }))
+                      // Preserve parent navigation for single-child groups.
+                      if (item.children) return
+                      goToBranchSection(item.id)
+                      return
+                    }
                     setExpandedSidebarGroups((current) => ({ ...current, [item.id]: !current[item.id] }))
                     if (item.children) return
                   }
@@ -8378,6 +8493,38 @@ useEffect(() => {
               {children.length && isExpanded ? (
                 <div className="super-admin-sidebar-submenu">
                   {children.map((entry) => { const ChildIcon = entry.icon; return <button key={entry.id} type="button" className={`super-admin-sidebar-subitem ${activeSection === entry.id ? 'is-active' : ''}`.trim()} onClick={() => goToBranchSection(entry.id)}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span><span>{entry.label}</span></button> })}
+                </div>
+              ) : null}
+              {isSidebarFlyoutMode && children.length ? (
+                <div
+                  className="branch-dashboard-sidebar-flyout"
+                  role="menu"
+                  aria-label={`${item.label} submenu`}
+                  onMouseEnter={cancelSidebarFlyoutClose}
+                  onMouseLeave={scheduleSidebarFlyoutClose}
+                >
+                  <div className="branch-dashboard-sidebar-flyout-title">{item.label}</div>
+                  <div className="branch-dashboard-sidebar-flyout-items">
+                    {children.map((entry) => {
+                      const ChildIcon = entry.icon
+                      return (
+                        <button
+                          key={entry.id}
+                          type="button"
+                          role="menuitem"
+                          className={`super-admin-sidebar-subitem ${activeSection === entry.id ? 'is-active' : ''}`.trim()}
+                          onClick={() => {
+                            cancelSidebarFlyoutClose()
+                            setOpenSidebarFlyout('')
+                            goToBranchSection(entry.id)
+                          }}
+                        >
+                          <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
+                          <span>{entry.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -8409,6 +8556,14 @@ useEffect(() => {
   const renderTopbar = () => (
     <header className="super-admin-topbar">
       <div className="branch-dashboard-topbar-title">
+        <button
+          type="button"
+          className="branch-dashboard-mobile-menu"
+          aria-label="Open navigation menu"
+          onClick={() => setIsMobileSidebarOpen(true)}
+        >
+          <Menu size={20} strokeWidth={2.2} />
+        </button>
         <h1>Branch Dashboard</h1>
       </div>
       <div className="super-admin-topbar-right">
@@ -8612,8 +8767,9 @@ useEffect(() => {
   )
 
   return (
-    <section className="super-admin-page">
+    <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
       <div className="super-admin-shell">
+        {isMobileSidebarOpen ? <button type="button" className="super-admin-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)} /> : null}
         {renderSidebar()}
 
         <div className="super-admin-main">
