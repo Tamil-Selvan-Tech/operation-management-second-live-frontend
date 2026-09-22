@@ -7,6 +7,7 @@ export const listFacultyExamBatches = (courseId) => request(`/exams/faculty/cour
 export const listFacultyExamModules = (courseId) => request(`/exams/faculty/courses/${courseId}/modules`).then(data)
 export const listFacultyTests = () => request('/exams/faculty/tests').then(data)
 export const createFacultyTest = (payload) => request('/exams/faculty/tests', { method: 'POST', body: JSON.stringify(payload) }).then(data)
+export const updateFacultyTest = (testId, payload) => request(`/exams/faculty/tests/${testId}`, { method: 'PUT', body: JSON.stringify(payload) }).then(data)
 export const getFacultyTest = (testId) => request(`/exams/faculty/tests/${testId}`).then(data)
 export const downloadFacultyQuestionPaper = (testId) => requestBlob(`/exams/faculty/tests/${testId}/pdf`)
 export const listTestSubmissions = (testId, scheduleId) => request(`/exams/faculty/tests/${testId}/schedules/${scheduleId}/submissions`).then(data)

@@ -376,7 +376,7 @@ export function AppRouter() {
             }
           >
             <Route path="/dashboard/faculty/my-batches" element={<FacultyMyBatchesPage />} />
-            <Route path="/dashboard/faculty/exams" element={<FacultyExamsPage />} />
+            <Route path="/dashboard/faculty/exams" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/my-batches/students/:studentId/calendar" element={<FacultyMyBatchesPage />} />
           </Route>
 

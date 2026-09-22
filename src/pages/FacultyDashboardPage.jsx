@@ -98,6 +98,7 @@ import {
   syncProgressComparisonNotifications,
 } from '../lib/progressComparisonNotification'
 import { getCourseStatusFromProgress, getCourseStatusLabel } from '../lib/courseStatus'
+import FacultyExamsPage from './FacultyExamsPage'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -1780,6 +1781,7 @@ export function FacultyDashboardPage() {
   const navigate = useNavigate()
   const studentCalendarId = location.pathname.match(/\/dashboard\/faculty\/my-batches\/students\/([^/]+)\/calendar\/?$/)?.[1] || ''
   const isStudentCalendarRoute = Boolean(studentCalendarId)
+  const isExamsRoute = location.pathname === '/dashboard/faculty/exams'
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState('dashboard')
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
@@ -1787,6 +1789,12 @@ export function FacultyDashboardPage() {
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const profileMenuRef = useRef(null)
   const notificationRef = useRef(null)
+
+  useEffect(() => {
+    if (isExamsRoute) {
+      setActiveSection('exams')
+    }
+  }, [isExamsRoute])
 
   useEffect(() => {
     let active = true
@@ -4697,7 +4705,7 @@ const nextName = trimmedValue
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].filter((item) => item.id !== 'other-faculty-batches' || hasTemporaryAssignments).map((item) => {
           const Icon = item.icon
-          const isActive = activeSection === item.id
+          const isActive = activeSection === item.id || (item.id === 'exams' && isExamsRoute)
           const studentNavigation = (
             <>
               <div className="super-admin-sidebar-parent-row">
@@ -5046,7 +5054,9 @@ const nextName = trimmedValue
                 </section>
               ) : null}
 
-              {activeSection === 'dashboard' ? (
+              {isExamsRoute ? <FacultyExamsPage embedded /> : null}
+
+              {!isExamsRoute && activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
                     <p style={{ marginTop: '12px' }}>Welcome back, {facultyName}! Here&apos;s an overview of your active courses, batches, and student attendance metrics.</p>
