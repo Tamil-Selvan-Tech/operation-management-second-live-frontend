@@ -12080,8 +12080,8 @@ body.branch-notification-menu-open .main-area {
 .super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-icon {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
+  width: 42px;
+  height: 42px;
   border-radius: 13px;
   color: var(--tone-color, #2563eb);
   background: var(--tone-bg, #ecf3ff);
@@ -12089,8 +12089,8 @@ body.branch-notification-menu-open .main-area {
 }
 
 .super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-icon svg {
-  width: 26px;
-  height: 26px;
+  width: 23px;
+  height: 23px;
 }
 
 .super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-copy {
@@ -12107,6 +12107,26 @@ body.branch-notification-menu-open .main-area {
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+.super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-copy span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+.super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card.is-admissions-card .branch-dashboard-stat-card-copy span {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+/* Give the dashboard cards enough room at the compact desktop viewport size. */
+@media (min-width: 992px) and (max-width: 1180px) {
+  .super-admin-page .branch-dashboard-finance-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
 }
 
 .super-admin-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-copy strong {
@@ -12272,7 +12292,7 @@ body.branch-notification-menu-open .main-area {
 .dashboard-widget-side-tip { padding-top:20px; border-top:1px solid #dbe6f7; }
 .dashboard-widget-customize-main { min-width:0; display:flex; flex-direction:column; }
 .dashboard-widget-search { display:flex; align-items:center; gap:9px; min-height:40px; padding:0 12px; border:1px solid #e2e8f0; border-radius:11px; color:#64748b; background:#fff; flex:1; }
-.dashboard-widget-search:focus-within { border-color:#60a5fa; box-shadow:0 0 0 3px #dbeafe; }
+.dashboard-widget-search:focus-within { border-color:#e2e8f0; box-shadow:none; }
 .dashboard-widget-search input { width:100%; border:0; outline:0; color:#1e293b; font:inherit; font-size:12px; background:transparent; }
 .dashboard-widget-selected-count { padding:9px 11px; border-radius:999px; color:#2563eb; background:#dbeafe; font-size:11px; font-weight:800; white-space:nowrap; }
 .dashboard-widget-customize-card-icon { display:grid; place-items:center; width:38px; height:38px; flex:0 0 38px; border-radius:12px; color:#2563eb; background:#dbeafe; }
@@ -12309,7 +12329,7 @@ body.branch-notification-menu-open .main-area {
 .dashboard-widget-select-all-control > span { margin:0; color:#2563eb; }
 .dashboard-widget-customize-toolbar .dashboard-widget-selected-count { margin:0; color:#1d4ed8; background:#dbeafe; opacity:1; cursor:default; user-select:none; }
 .dashboard-widget-customize-modal .dashboard-widget-customize-toolbar { gap:10px; }
-.dashboard-widget-search { flex:1 1 auto; max-width:560px; }
+.dashboard-widget-search { flex:1 1 auto; max-width:360px; }
 .dashboard-widget-customize-modal > .branch-modal-actions { position:relative !important; top:auto !important; right:auto !important; bottom:auto !important; left:auto !important; z-index:1; flex:0 0 auto; width:auto !important; margin:14px -30px -30px; padding:14px 30px 16px; transform:none !important; }
 .dashboard-widget-customize-modal > .branch-modal-actions { min-height:0; }
 .dashboard-widget-customize-modal > .branch-modal-actions button { min-height:36px; padding-top:7px; padding-bottom:7px; }
@@ -12626,6 +12646,12 @@ body.branch-notification-menu-open .main-area {
 .dashboard-widget-customize-item:hover { border-color: #4f94ff; background: #f6f9ff; transform: none; }
 .dashboard-widget-customize-card-icon { width: 42px; height: 42px; flex-basis: 42px; border-radius: 12px; }
 .dashboard-widget-customize-item-copy strong { font-size: 14px; }
+.dashboard-widget-customize-item-copy strong {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  line-height: 1.25;
+}
 .dashboard-widget-customize-item-copy small { margin-top: 5px; color: #71839d; font-size: 11px; line-height: 1.35; white-space: normal; }
 .dashboard-widget-customize-check { width: 21px; height: 21px; flex-basis: 21px; border-radius: 6px; }
 .dashboard-widget-customize-modal > .branch-modal-actions { display: flex; justify-content: space-between; align-items: center; min-height: 82px; margin: 0 -34px; padding: 16px 34px; border-top: 1px solid #e3eaf3; background: #fff; }
@@ -13267,7 +13293,7 @@ body.branch-notification-menu-open .main-area {
 
 .branch-dashboard-app-shell .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle::after {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 1px);
   left: 50%;
   z-index: 70;
   padding: 5px 8px;
@@ -13341,6 +13367,10 @@ body.branch-notification-menu-open .main-area {
   justify-items: center;
   gap: 8px;
   padding: 9px 5px;
+}
+
+.branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-profile-card > .super-admin-sidebar-user-avatar {
+  display: none;
 }
 
 .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-logout-button {
@@ -13445,4 +13475,30 @@ body.branch-notification-menu-open .main-area {
   .branch-dashboard-app-shell .super-admin-main,
   .branch-dashboard-sidebar-toggle,
   .branch-dashboard-mobile-menu { transition: none; }
+}
+
+/* Final compact-desktop override: keep summary text clear of the card icons. */
+@media (min-width: 992px) and (max-width: 1200px) {
+  .super-admin-page .branch-dashboard-finance-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .super-admin-page .branch-dashboard-feature-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .super-admin-page .branch-dashboard-feature-grid > * {
+    min-width: 0;
+  }
+
+  .super-admin-page .batch-availability-overview {
+    box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .super-admin-page .batch-availability-guide {
+    flex-wrap: wrap;
+    gap: 18px;
+  }
 }

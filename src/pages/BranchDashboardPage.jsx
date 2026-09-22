@@ -2231,6 +2231,7 @@ function buildFallbackBranchProfile(user, session) {
 const formatBranchCourseAmount = formatBranchCourseMoney
 const COURSE_CODE_PREFIX = 'CIS-'
 const COURSE_DRAFT_STORAGE_PREFIX = 'branch-course-draft:'
+const BRANCH_SIDEBAR_COLLAPSED_STORAGE_KEY = 'branch-admin-sidebar-collapsed'
 const COURSE_BASIC_FIELDS = [
   'courseCode',
   'courseType',
@@ -3141,7 +3142,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     students: activeSection === 'payments',
     management: ['institute-leave', 'faculty-leave', 'progress-notifications', 'faculty-edit-requests'].includes(activeSection),
   }))
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    try {
+      return window.localStorage.getItem(BRANCH_SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true'
+    } catch {
+      return false
+    }
+  })
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(() => (
     typeof window !== 'undefined' && window.matchMedia('(max-width: 991px)').matches
@@ -3160,6 +3168,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   useEffect(() => () => {
     if (sidebarFlyoutCloseTimerRef.current) window.clearTimeout(sidebarFlyoutCloseTimerRef.current)
   }, [])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(BRANCH_SIDEBAR_COLLAPSED_STORAGE_KEY, String(isSidebarCollapsed))
+    } catch {
+      // Ignore storage restrictions and keep the in-memory sidebar state.
+    }
+  }, [isSidebarCollapsed])
 
   const isSidebarFlyoutMode = isSidebarCollapsed && !isMobileViewport
 
@@ -3361,13 +3377,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }
   const defaultDashboardWidgets = [
     ['this_month_admissions', 'This Month Admissions', 'Student Management'],
-    ['batch_availability', 'Batch Availability', 'Batch Management'],
     ['total_revenue', 'Total Revenue', 'Fees'],
     ['total_collected', 'Total Collected', 'Fees'],
     ['outstanding', 'Outstanding', 'Fees'],
     ['due_today', 'Due Today', 'Fees'],
     ['due_this_week', 'Due This Week', 'Fees'],
     ['overdue_amount', 'Overdue Amount', 'Fees'],
+    ['batch_availability', 'Batch Availability', 'Batch Management'],
     ['collection_percentage', 'Collection %', 'Fees'],
   ].map(([widgetKey, widgetName, category], index) => ({
     widgetKey,
@@ -3382,7 +3398,18 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
     const widget = dashboardWidgets.find((item) => item.widgetKey === dashboardWidgetKeyByLabel[label])
     return widget ? widget.isVisible !== false : true
   }
-  const normalizeDashboardWidgets = (widgets) => (Array.isArray(widgets) ? [...widgets].sort((left, right) => Number(right.isPinned === true) - Number(left.isPinned === true) || Number(left.displayOrder || 0) - Number(right.displayOrder || 0)).map((widget, index) => ({ ...widget, displayOrder: index + 1, isPinned: widget.isPinned === true })) : [])
+  const normalizeDashboardWidgets = (widgets) => {
+    if (!Array.isArray(widgets)) return []
+    const orderedWidgets = [...widgets].sort((left, right) => Number(left.displayOrder || 0) - Number(right.displayOrder || 0))
+    const pinnedWidgets = orderedWidgets.filter((widget) => widget.isPinned === true)
+    const unpinnedWidgets = orderedWidgets.filter((widget) => widget.isPinned !== true)
+    return [...pinnedWidgets, ...unpinnedWidgets].map((widget, index) => ({
+      ...widget,
+      displayOrder: index + 1,
+      isPinned: widget.isPinned === true,
+    }))
+  }
+  const withDashboardWidgetOrder = (widgets) => widgets.map((widget, index) => ({ ...widget, displayOrder: index + 1 }))
   const toggleDashboardWidget = (widgetKey) => setDashboardWidgets((current) => current.map((widget) => widget.widgetKey === widgetKey ? { ...widget, isVisible: !widget.isVisible } : widget))
   const visibleDashboardWidgetCount = dashboardWidgets.filter((widget) => widget.isVisible !== false).length
   const areAllDashboardWidgetsVisible = dashboardWidgets.length > 0 && visibleDashboardWidgetCount === dashboardWidgets.length
@@ -3393,14 +3420,35 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       const order = [...current]
       const fromIndex = order.findIndex((widget) => widget.widgetKey === draggedDashboardWidget)
       const toIndex = order.findIndex((widget) => widget.widgetKey === targetKey)
+      if (fromIndex < 0 || toIndex < 0 || order[fromIndex].isPinned !== order[toIndex].isPinned) return current
       const [moved] = order.splice(fromIndex, 1)
       order.splice(toIndex, 0, moved)
-      return order.map((widget, index) => ({ ...widget, displayOrder: index + 1 }))
+      return withDashboardWidgetOrder(order)
     })
     setDraggedDashboardWidget(null)
   }
   const toggleDashboardWidgetPin = (widgetKey) => {
-    setDashboardWidgets((current) => current.map((widget) => widget.widgetKey === widgetKey ? { ...widget, isPinned: widget.isPinned !== true } : widget))
+    setDashboardWidgets((current) => {
+      const target = current.find((widget) => widget.widgetKey === widgetKey)
+      if (!target) return current
+      const shouldPin = target.isPinned !== true
+      const remainingPinned = current.filter((widget) => widget.widgetKey !== widgetKey && widget.isPinned === true)
+      const remainingUnpinned = current.filter((widget) => widget.widgetKey !== widgetKey && widget.isPinned !== true)
+
+      if (shouldPin) {
+        return withDashboardWidgetOrder([
+          ...remainingPinned,
+          { ...target, isPinned: true },
+          ...remainingUnpinned,
+        ])
+      }
+
+      return withDashboardWidgetOrder([
+        ...remainingPinned,
+        ...remainingUnpinned,
+        { ...target, isPinned: false },
+      ])
+    })
   }
   const dashboardWidgetIconByKey = {
     this_month_admissions: Users,
@@ -8950,14 +8998,6 @@ useEffect(() => {
                         onClick: () => goToBranchSection('students'),
                       },
                       {
-                        label: 'Collection %',
-                        value: `${formatBranchPercentage(dashboardData.collectionPercentage)}%`,
-                        note: 'Collected / Total Due',
-                        Icon: BadgePercent,
-                        TrailIcon: PieChart,
-                        tone: 'green',
-                      },
-                      {
                         label: 'Batch Availability',
                         value: availableBatchRecords.length,
                         note: 'Batches ending',
@@ -8966,10 +9006,18 @@ useEffect(() => {
                         tone: 'sky',
                         onClick: () => goToBranchSection('batches'),
                       },
+                      {
+                        label: 'Collection %',
+                        value: `${formatBranchPercentage(dashboardData.collectionPercentage)}%`,
+                        note: 'Collected / Total Due',
+                        Icon: BadgePercent,
+                        TrailIcon: PieChart,
+                        tone: 'green',
+                      },
                     ].sort((left, right) => { const leftWidget = dashboardWidgets.find((widget) => widget.widgetKey === dashboardWidgetKeyByLabel[left.label]); const rightWidget = dashboardWidgets.find((widget) => widget.widgetKey === dashboardWidgetKeyByLabel[right.label]); return Number(rightWidget?.isPinned === true) - Number(leftWidget?.isPinned === true) || Number(leftWidget?.displayOrder || 0) - Number(rightWidget?.displayOrder || 0) }).filter(({ label }) => isDashboardWidgetVisible(label)).map(({ label, value, note, Icon, TrailIcon, tone, onClick }) => (
                       <article
                         key={label}
-                        className={`branch-dashboard-stat-card tone-${tone}${onClick ? ' is-clickable' : ''}`}
+                        className={`branch-dashboard-stat-card tone-${tone}${onClick ? ' is-clickable' : ''}${label === 'This Month Admissions' ? ' is-admissions-card' : ''}`}
                         onClick={onClick}
                         role={onClick ? 'button' : undefined}
                         tabIndex={onClick ? 0 : undefined}
@@ -15596,7 +15644,7 @@ else {
                 </section>
               </div>
               <div className="branch-modal-actions">
-                <button type="button" className="branch-modal-cancel dashboard-widget-reset-button" disabled={isWidgetSaving} onClick={() => { if (window.confirm('Reset dashboard widget visibility, order, and pinned settings to default?')) setDashboardWidgets(defaultDashboardWidgets) }}><RefreshCcw size={15} /> Reset to Default</button>
+                <button type="button" className="branch-modal-cancel dashboard-widget-reset-button" disabled={isWidgetSaving} onClick={() => setDashboardWidgets(defaultDashboardWidgets)}><RefreshCcw size={15} /> Reset to Default</button>
                 <button type="button" className="branch-modal-submit" disabled={isWidgetSaving || !dashboardWidgets.length} onClick={saveDashboardWidgetChanges}>{isWidgetSaving ? 'Saving...' : 'Save Changes'}</button>
               </div>
             </div>
