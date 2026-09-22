@@ -12705,6 +12705,16 @@ body.branch-notification-menu-open .main-area {
   padding-left: 0;
 }
 
+/* Keep the expanded inline submenu icon and label aligned with the flyout. */
+.branch-dashboard-app-shell:not(.is-sidebar-collapsed) .super-admin-sidebar-submenu .super-admin-sidebar-subitem-icon {
+  display: grid;
+}
+
+.branch-dashboard-app-shell:not(.is-sidebar-collapsed) .super-admin-sidebar-submenu .super-admin-sidebar-subitem {
+  gap: 7px;
+  padding-left: 8px;
+}
+
 /* Let the module outline use the complete drawer content area. */
 .branch-course-view-content.is-modules-view {
   padding: 0 !important;
