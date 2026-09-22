@@ -8411,7 +8411,6 @@ useEffect(() => {
             setIsSidebarCollapsed((current) => !current)
           }}
           aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
           data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
         >
           {isSidebarCollapsed ? (
