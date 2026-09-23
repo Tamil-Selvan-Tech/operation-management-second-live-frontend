@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react'
 import { getStudentTest, getStudentTestResult, listStudentTests, startStudentTest, submitStudentTest } from '../services/examService'
@@ -31,7 +32,11 @@ export function StudentExamsPage({ embedded = false }) {
   const [tests, setTests] = useState([])
   const [active, setActive] = useState(null)
   const [answers, setAnswers] = useState({})
-  const [result, setResult] = useState(null)
+  const [selectedResult, setSelectedResult] = useState(null)
+  const [selectedResultTest, setSelectedResultTest] = useState(null)
+  const [resultCache, setResultCache] = useState({})
+  const [resultLoading, setResultLoading] = useState(false)
+  const [resultError, setResultError] = useState('')
   const [error, setError] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState(null)
@@ -81,11 +86,34 @@ export function StudentExamsPage({ embedded = false }) {
     refresh()
   }
 
+  const viewResult = async (test) => {
+    setResultError('')
+    setSelectedResultTest(test)
+    if (resultCache[test.id]) {
+      setSelectedResult(resultCache[test.id])
+      return
+    }
+    setResultLoading(true)
+    try {
+      const nextResult = await getStudentTestResult(test.id)
+      setResultCache((current) => ({ ...current, [test.id]: nextResult }))
+      setSelectedResult(nextResult)
+    } catch (e) {
+      setResultError(e.message || 'Unable to load this test result.')
+    } finally {
+      setResultLoading(false)
+    }
+  }
+
   const submit = async () => {
     setSubmitting(true)
     try {
       await submitStudentTest(active.id, answers)
-      setResult(await getStudentTestResult(active.id))
+      const submittedResult = await getStudentTestResult(active.id)
+      setResultCache((current) => ({ ...current, [active.id]: submittedResult }))
+      setTests((current) => current.map((test) => test.id === active.id
+        ? { ...test, attempt: { ...(test.attempt || {}), ...submittedResult, status: 'SUBMITTED' } }
+        : test))
       exitTest()
     } catch (e) { setError(e.message) } finally {
       setSubmitting(false)
@@ -142,16 +170,42 @@ export function StudentExamsPage({ embedded = false }) {
       </div>
     </div>
 
-    {showSubmitConfirm && <div className="student-submit-backdrop"><div className="student-submit-modal"><div className="student-submit-icon"><CheckCircle2 size={24} /></div><h2>Submit Test?</h2><p>You have answered {answeredCount} of {active.questions.length} questions. Are you sure you want to submit your test?</p><div><button className="exam-secondary" onClick={() => setShowSubmitConfirm(false)} disabled={submitting}>Cancel</button><button className="exam-primary" onClick={submit} disabled={submitting}>{submitting ? 'Submitting...' : 'Submit Test'}</button></div></div></div>}
+    {showSubmitConfirm && createPortal(
+      <div className="student-submit-backdrop">
+        <div className="student-submit-modal">
+          <div className="student-submit-icon"><CheckCircle2 size={24} /></div>
+          <h2>Submit Test?</h2>
+          <p>You have answered {answeredCount} of {active.questions.length} questions. Are you sure you want to submit your test?</p>
+          <div>
+            <button className="exam-secondary" onClick={() => setShowSubmitConfirm(false)} disabled={submitting}>Cancel</button>
+            <button className="exam-primary" onClick={submit} disabled={submitting}>{submitting ? 'Submitting...' : 'Submit Test'}</button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    )}
   </section>
 
   return <section className={`exam-page ${embedded ? 'exam-page-embedded' : ''}`}>
     <header className="exam-page-header"><button className="exam-back" onClick={() => navigate('/student-new-dashboard')}><ArrowLeft size={18} /> Dashboard</button><div><p className="exam-kicker">STUDENT LEARNING</p><h1>Exam Test &amp; Assessment</h1><p>Only tests assigned to your enrolled batch are shown.</p></div></header>
     {error && <div className="exam-error">{error}</div>}
-    {result && <div className="exam-card result-card"><h2>Test result</h2><p>Score: <strong>{result.obtainedMarks}/{result.totalMarks}</strong> · {Number(result.percentage || 0).toFixed(2)}%</p><p>Correct {result.correctAnswers} · Wrong {result.wrongAnswers} · Unanswered {result.unansweredQuestions}</p></div>}
-    <div className="exam-card"><div className="exam-table-wrap"><table><thead><tr><th>Test</th><th>Course</th><th>Module</th><th>Date</th><th>Timing</th><th>Total</th><th>Status</th><th>Action</th></tr></thead><tbody>{tableRows.length ? tableRows.map((test) => <tr key={test.id}><td>MCQ Test</td><td>{test.course?.name}</td><td>{test.module?.title}</td><td>{dateLabel(test.testDate)}</td><td>{test.startTime} - {test.endTime}</td><td>{test.totalMarks}</td><td>{test.attempt?.status === 'SUBMITTED' ? 'Submitted' : test.status}</td><td><button className="exam-link" disabled={test.status !== 'AVAILABLE' || test.attempt?.status === 'SUBMITTED'} onClick={() => open(test)}>{test.attempt?.status === 'SUBMITTED' ? 'Completed' : test.status === 'AVAILABLE' ? 'Start Test' : test.status === 'EXPIRED' ? 'Expired' : 'Upcoming'}</button></td></tr>) : <tr><td colSpan="8" className="exam-empty">No tests available</td></tr>}</tbody></table></div></div>
+    {resultError && <div className="exam-error">{resultError}</div>}
+    <div className="exam-card"><div className="exam-table-wrap"><table><thead><tr><th>Test</th><th>Course</th><th>Module</th><th>Date</th><th>Timing</th><th>Total</th><th>Status</th><th>Action</th></tr></thead><tbody>{tableRows.length ? tableRows.map((test) => {
+      const submitted = test.attempt?.status === 'SUBMITTED'
+      return <tr key={test.id}><td>{test.title || test.name || 'MCQ Test'}</td><td>{test.course?.name}</td><td>{test.module?.title}</td><td>{dateLabel(test.testDate)}</td><td>{test.startTime} - {test.endTime}</td><td>{test.totalMarks}</td><td>{submitted ? 'Submitted' : test.status}</td><td>{submitted ? <button className="exam-link" onClick={() => viewResult(test)} disabled={resultLoading && selectedResultTest?.id === test.id}>{resultLoading && selectedResultTest?.id === test.id ? 'Loading...' : 'View Result'}</button> : <button className="exam-link" disabled={test.status !== 'AVAILABLE'} onClick={() => open(test)}>{test.status === 'AVAILABLE' ? 'Start Test' : test.status === 'EXPIRED' ? 'Expired' : 'Upcoming'}</button>}</td></tr>
+    }) : <tr><td colSpan="8" className="exam-empty">No tests available</td></tr>}</tbody></table></div></div>
+    {selectedResult && createPortal(
+      <div className="exam-modal-backdrop student-result-modal-backdrop">
+        <div className="exam-modal student-result-modal" onClick={(event) => event.stopPropagation()}>
+          <div className="exam-card-heading"><div><h2>{selectedResult.exam?.title || selectedResultTest?.title || selectedResultTest?.name || 'MCQ Test'}</h2><p>{selectedResult.exam?.branchCourse?.name || selectedResultTest?.course?.name || '-'} · {selectedResult.exam?.module?.title || selectedResultTest?.module?.title || '-'}</p><p>{dateLabel(selectedResult.schedule?.testDate || selectedResultTest?.testDate)} · {selectedResult.schedule?.startTime || selectedResultTest?.startTime || '-'} - {selectedResult.schedule?.endTime || selectedResultTest?.endTime || '-'}</p></div><button className="exam-icon-button" onClick={() => setSelectedResult(null)} aria-label="Close result">×</button></div>
+          <div className="student-result-grid"><div><span>Total Questions</span><strong>{selectedResult.totalQuestions ?? selectedResultTest?.totalQuestions ?? 0}</strong></div><div><span>Answered</span><strong>{selectedResult.attemptedQuestions ?? 0}</strong></div><div><span>Unanswered</span><strong>{selectedResult.unansweredQuestions ?? 0}</strong></div><div><span>Correct</span><strong>{selectedResult.correctAnswers ?? 0}</strong></div><div><span>Wrong</span><strong>{selectedResult.wrongAnswers ?? 0}</strong></div><div><span>Total Marks</span><strong>{selectedResult.totalMarks ?? selectedResultTest?.totalMarks ?? 0}</strong></div></div>
+          <div className="student-result-score"><span>Score</span><strong>{selectedResult.obtainedMarks ?? 0} / {selectedResult.totalMarks ?? selectedResultTest?.totalMarks ?? 0}</strong><b>{Number(selectedResult.percentage || 0).toFixed(2)}%</b></div>
+          <p className="student-result-status">Status: <strong>{selectedResult.status === 'SUBMITTED' ? 'Submitted' : selectedResult.status || 'Submitted'}</strong></p>
+        </div>
+      </div>,
+      document.body,
+    )}
   </section>
 }
 
 export default StudentExamsPage
-
