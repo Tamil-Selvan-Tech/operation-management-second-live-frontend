@@ -413,10 +413,14 @@ function AttendanceChart({ items, period }) {
           const absent = getAttendancePercentage(item, 'absent', period)
           const label = period === 'weekly'
             ? `Week ${item.week}`
-            : String(item.month || '').replace(/\s+\d{4}$/, '')
+            : period === 'daily'
+              ? formatDate(item.date || item.startDate, { day: '2-digit', month: 'short' })
+              : String(item.month || '').replace(/\s+\d{4}$/, '')
           const dateRange = period === 'weekly'
             ? item.dateRange
-            : `${formatDate(item.startDate, { day: '2-digit', month: 'short' })} – ${formatDate(item.endDate, { day: '2-digit', month: 'short' })}`
+            : period === 'daily'
+              ? (item.status || 'Attendance')
+              : `${formatDate(item.startDate, { day: '2-digit', month: 'short' })} – ${formatDate(item.endDate, { day: '2-digit', month: 'short' })}`
 
           return (
             <div className="student-attendance-chart-row" key={`${label}-${item.startDate || index}`}>
@@ -465,7 +469,7 @@ export function StudentNewDashboardPage() {
  const [paymentEntries, setPaymentEntries] = useState([])
  const [paymentLoadError, setPaymentLoadError] = useState('')
  const [attendanceOverview, setAttendanceOverview] = useState(null)
- const [attendanceTab, setAttendanceTab] = useState('weekly')
+ const [attendanceTab, setAttendanceTab] = useState('daily')
  const [attendanceLoading, setAttendanceLoading] = useState(false)
  const [attendanceError, setAttendanceError] = useState('')
  const [courseDetails, setCourseDetails] = useState(null)
@@ -536,7 +540,7 @@ export function StudentNewDashboardPage() {
        .finally(() => { if (isMounted) setAttendanceLoading(false) })
    })
    return () => { isMounted = false }
- }, [student])
+ }, [student?.studentId, student?.id])
 
  useEffect(() => {
    let isMounted = true
@@ -1058,9 +1062,11 @@ const handleLogoutConfirm = async () => {
 
                 <div className="student-attendance-panels-grid">
                 <section className="student-dashboard-panel student-attendance-overview-panel">
-                  <div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Attendance Overview</h2><p className="student-attendance-period">Course Period: {attendanceOverview?.course?.startDate ? formatDate(attendanceOverview.course.startDate) : 'Not available'} → {attendanceOverview?.course?.endDate ? formatDate(attendanceOverview.course.endDate) : 'Not available'}</p></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Calendar</button></div>
+                  <div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Attendance</h2><p className="student-attendance-period">Course Period: {attendanceOverview?.course?.startDate ? formatDate(attendanceOverview.course.startDate) : 'Not available'} → {attendanceOverview?.course?.endDate ? formatDate(attendanceOverview.course.endDate) : 'Not available'}</p></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Calendar</button></div>
                   {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading attendance...</p></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : attendanceOverview ? <>
-                    <div className="student-attendance-tabs" role="tablist" aria-label="Attendance period"><button type="button" className={attendanceTab === 'weekly' ? 'is-active' : ''} onClick={() => setAttendanceTab('weekly')}>Weekly</button><button type="button" className={attendanceTab === 'monthly' ? 'is-active' : ''} onClick={() => setAttendanceTab('monthly')}>Monthly</button></div>
+                    <div className="student-attendance-course-bar"><div><small>ALL ASSIGNED COURSES</small><strong>{courseName}</strong></div><div className="student-attendance-batch-field"><small>BATCH</small><span>{batchName || 'All Batches'}<ChevronDown size={15} aria-hidden="true" /></span></div></div>
+                    <div className="student-attendance-student-count"><span>Students</span><strong>1</strong></div>
+                    <div className="student-attendance-tabs" role="tablist" aria-label="Attendance period"><button type="button" className={attendanceTab === 'daily' ? 'is-active' : ''} onClick={() => setAttendanceTab('daily')}>Daily</button><button type="button" className={attendanceTab === 'weekly' ? 'is-active' : ''} onClick={() => setAttendanceTab('weekly')}>Weekly</button><button type="button" className={attendanceTab === 'monthly' ? 'is-active' : ''} onClick={() => setAttendanceTab('monthly')}>Monthly</button></div>
                     {attendanceView.length ? <AttendanceChart items={attendanceView} period={attendanceTab} /> : <div className="student-dashboard-empty"><p>No attendance records available for this course period.</p></div>}
                   </> : null}
                 </section>
