@@ -81,6 +81,8 @@ const BranchDashboardPage = lazyNamed(
   'BranchDashboardPage',
 )
 const FacultyExamsPage = lazyNamed(() => import('../pages/FacultyExamsPage'), 'FacultyExamsPage')
+const FacultyExamReportsPage = lazyNamed(() => import('../pages/FacultyExamReportsPage'), 'FacultyExamReportsPage')
+const FacultyStudentExamReportPage = lazyNamed(() => import('../pages/FacultyStudentExamReportPage'), 'FacultyStudentExamReportPage')
 const StudentExamsPage = lazyNamed(() => import('../pages/StudentExamsPage'), 'StudentExamsPage')
 
 const routeChunks = [
@@ -109,6 +111,8 @@ const routeChunks = [
   BranchNotificationsPage,
   BranchDashboardPage,
   FacultyExamsPage,
+  FacultyExamReportsPage,
+  FacultyStudentExamReportPage,
   StudentExamsPage,
 ]
 
@@ -377,6 +381,8 @@ export function AppRouter() {
           >
             <Route path="/dashboard/faculty/my-batches" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/exams" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/exams/reports" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/exams/reports/:moduleId/:batchId" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/my-batches/students/:studentId/calendar" element={<FacultyMyBatchesPage />} />
           </Route>
 

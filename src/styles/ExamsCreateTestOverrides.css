@@ -88,8 +88,12 @@
   z-index:2;
   align-self:flex-end;
   margin-top:18px!important;
+  margin-left:auto!important;
+  margin-right:28px!important;
   margin-bottom:22px!important;
-  box-shadow:0 -10px 18px rgba(255,255,255,.92);
+  width:max-content;
+  box-shadow:0 -12px 20px rgba(255,255,255,.98);
+  border-top:10px solid #fff;
 }
 .exam-batch-error{margin:10px 0 0 2px}
 @media(max-width:850px){
@@ -98,6 +102,7 @@
 }
 @media(max-width:700px){
   .exam-modal > .exam-form-grid,.exam-modal > fieldset,.exam-modal > .exam-modal-error,.exam-modal > .exam-save{margin-left:18px;margin-right:18px}
+  .exam-modal > .exam-save{margin-left:auto!important;margin-right:18px!important}
   .exam-modal > .exam-card-heading:first-child{padding-left:18px;padding-right:18px}
   .exam-test-details-grid{grid-template-columns:1fr}
 }
