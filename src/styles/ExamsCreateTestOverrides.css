@@ -166,6 +166,20 @@
   border-radius:10px;
   background:#eff6ff;
 }
+.exam-page:has(.exam-back){
+  padding-top:0;
+  padding-left:24px;
+  padding-right:24px;
+  transform:translateY(-20px);
+}
+.exam-page:has(.exam-back) .exam-page-header{
+  flex-direction:column;
+  align-items:flex-start;
+}
+.exam-page:has(.exam-back) .exam-page-header>div{
+  width:100%;
+  min-width:0;
+}
 .exam-reuse-question{margin:0 0 12px;color:#1e3a8a;font-size:13px;font-weight:700}
 .exam-reuse-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:8px}
 .exam-reuse-list{display:grid;gap:10px}
