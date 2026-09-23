@@ -166,7 +166,7 @@ async function request(path, options = {}, retryCount = 0) {
     headers.set('X-Impersonate-Branch-Id', branchIdForRequest)
   }
 
-  if (body && !headers.has('Content-Type')) {
+  if (body && !(typeof FormData !== 'undefined' && body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 

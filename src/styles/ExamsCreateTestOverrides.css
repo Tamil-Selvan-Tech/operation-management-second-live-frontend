@@ -188,3 +188,4 @@
 .exam-reuse-item strong{color:#0f172a;font-size:13px}
 .exam-reuse-item small{color:#64748b;font-size:11px}
 @media(max-width:700px){.exam-reuse-panel{margin-left:18px;margin-right:18px}.exam-reuse-item{align-items:stretch;flex-direction:column}.exam-reuse-item button{align-self:flex-start}}
+.exam-time-picker{border-color:#2563eb!important;box-shadow:0 0 0 1px #2563eb33}.exam-time-picker:focus-within{border-color:#2563eb!important;box-shadow:0 0 0 3px #2563eb26}

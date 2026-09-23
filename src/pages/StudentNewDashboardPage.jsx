@@ -1089,7 +1089,7 @@ const handleLogoutConfirm = async () => {
               </section>
             ) : null}
 
-            {!isLoading && loadError ? (
+            {!isLoading && loadError && !isExamsRoute ? (
               <section className="student-new-placeholder-page">
                 <p className="student-new-dashboard-kicker">STUDENT</p>
                 <h1>Student details unavailable</h1>

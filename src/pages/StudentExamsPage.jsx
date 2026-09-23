@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react'
-import { getStudentTest, getStudentTestResult, listStudentTests, startStudentTest, submitStudentTest } from '../services/examService'
+import { getStudentTest, getStudentTestResult, listStudentAssessmentReports, listStudentTests, startStudentTest, submitStudentTest } from '../services/examService'
 import '../styles/ExamsPage.css'
 
 const dateLabel = (value) => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : '-'
@@ -27,10 +27,22 @@ function formatRemaining(seconds) {
   return [hours, minutes, secs].map((part) => String(part).padStart(2, '0')).join(':')
 }
 
+function StudentAssessmentReportTableView({ embedded, student, navigate, loading, error, reports, selectedModuleId, onSelectModule }) {
+  const module = reports?.modules?.find((item) => item.moduleId === selectedModuleId) || reports?.modules?.[0]
+  return <section className={`exam-page ${embedded ? 'exam-page-embedded' : ''}`}>
+    <header className="exam-page-header"><button className="exam-back" onClick={() => navigate('/student-new-dashboard')}><ArrowLeft size={18} /> Dashboard</button><div><p className="exam-kicker">STUDENT LEARNING</p><h1>Exam Test &amp; Assessment</h1><p>Only tests assigned to your enrolled batch are shown.</p></div></header>
+    <div className="student-report-tabs"><button type="button" onClick={() => navigate('/student-new-dashboard/exams?tab=reports&report=tests')}>Test Report</button><button type="button" className="is-active">Assessment Report</button></div>
+    {error && <div className="exam-error">{error}</div>}
+    <div className="exam-card student-reports-card"><div className="exam-card-heading"><div><h2>Assessment Report</h2><p>Module-wise results for evaluated assessments.</p></div></div>{loading ? <div className="exam-muted">Loading assessment reports...</div> : reports?.modules?.length ? <><div className="student-assessment-module-tabs">{reports.modules.map((item) => <button type="button" key={item.moduleId} className={item.moduleId === module?.moduleId ? 'is-active' : ''} onClick={() => onSelectModule(item.moduleId)}>{item.moduleName}</button>)}</div>{module && <div className="exam-table-wrap"><table className="student-module-report-table student-assessment-report-table"><thead><tr><th>Student Name</th><th>Batch Name</th><th>Course Name</th><th>Module Name</th><th>Total Assessments</th>{module.assessments.map((item, index) => <th key={item.assessmentId}>{item.assessmentName || `Assessment ${index + 1}`}<small>{item.totalMarks} marks</small></th>)}<th>Overall Marks</th><th>Overall Percentage</th></tr></thead><tbody><tr><td>{reports.student?.name || student?.studentName || 'Student'}</td><td>{module.batchName || '-'}</td><td>{module.courseName || '-'}</td><td><strong>{module.moduleName}</strong></td><td><strong>{module.totalAssessments}</strong></td>{module.assessments.map((item) => <td key={item.assessmentId}>{item.status === 'EVALUATED' ? <div className="student-module-test-cell"><strong>{item.marksObtained} / {item.totalMarks}</strong><b>{Number(item.percentage || 0).toFixed(2)}%</b></div> : <span className="exam-muted-cell">{item.status === 'PENDING_EVALUATION' ? 'Pending Evaluation' : 'Not Submitted'}</span>}</td>)}<td>{module.overallTotalMarks ? `${module.overallMarksObtained} / ${module.overallTotalMarks}` : 'Pending Evaluation'}</td><td>{module.overallPercentage != null ? <strong className="student-module-overall">{module.overallPercentage.toFixed(2)}%</strong> : <span className="exam-muted-cell">Pending Evaluation</span>}</td></tr></tbody></table></div>}</> : <div className="exam-muted">No assessment reports available.</div>}</div>
+  </section>
+}
+
 export function StudentExamsPage({ embedded = false, student = null }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const requestedTab = new URLSearchParams(location.search).get('tab') === 'reports' ? 'reports' : 'tests'
+  const query = new URLSearchParams(location.search)
+  const requestedTab = query.get('tab') === 'reports' ? 'reports' : 'tests'
+  const requestedReportTab = query.get('report') === 'assessments' ? 'assessments' : 'tests'
   const [tests, setTests] = useState([])
   const [active, setActive] = useState(null)
   const [answers, setAnswers] = useState({})
@@ -49,6 +61,10 @@ export function StudentExamsPage({ embedded = false, student = null }) {
   const [reportError, setReportError] = useState('')
   const [reportPage, setReportPage] = useState(1)
   const [testsPage, setTestsPage] = useState(1)
+  const [assessmentReports, setAssessmentReports] = useState(null)
+  const [assessmentReportLoading, setAssessmentReportLoading] = useState(false)
+  const [assessmentReportError, setAssessmentReportError] = useState('')
+  const [selectedAssessmentModuleId, setSelectedAssessmentModuleId] = useState('')
 
   const refresh = async () => {
     try { setTests(await listStudentTests()) } catch (e) { setError(e.message) }
@@ -80,6 +96,19 @@ export function StudentExamsPage({ embedded = false, student = null }) {
     loadReports()
     return () => { mounted = false }
   }, [examTab, tests])
+
+  useEffect(() => {
+    if (examTab !== 'reports' || requestedReportTab !== 'assessments') return undefined
+    let mounted = true
+    setAssessmentReportLoading(true)
+    setAssessmentReportError('')
+    listStudentAssessmentReports().then((data) => {
+      if (!mounted) return
+      setAssessmentReports(data)
+      setSelectedAssessmentModuleId((current) => current && data.modules.some((item) => item.moduleId === current) ? current : data.modules[0]?.moduleId || '')
+    }).catch((e) => { if (mounted) setAssessmentReportError(e.message || 'Unable to load assessment reports.') }).finally(() => { if (mounted) setAssessmentReportLoading(false) })
+    return () => { mounted = false }
+  }, [examTab, requestedReportTab])
 
   useEffect(() => {
     if (!active) return undefined
@@ -182,6 +211,14 @@ export function StudentExamsPage({ embedded = false, student = null }) {
   const currentReportPage = Math.min(reportPage, reportPageCount)
   const pagedModuleReports = moduleReports.slice((currentReportPage - 1) * 5, currentReportPage * 5)
 
+  if (examTab === 'reports' && requestedReportTab === 'assessments') return <StudentAssessmentReportTableView embedded={embedded} student={student} navigate={navigate} loading={assessmentReportLoading} error={assessmentReportError} reports={assessmentReports} selectedModuleId={selectedAssessmentModuleId} onSelectModule={setSelectedAssessmentModuleId} />
+  if (examTab === 'reports' && requestedReportTab === 'assessments') return <section className={`exam-page ${embedded ? 'exam-page-embedded' : ''}`}>
+    <header className="exam-page-header"><button className="exam-back" onClick={() => navigate('/student-new-dashboard')}><ArrowLeft size={18} /> Dashboard</button><div><p className="exam-kicker">STUDENT LEARNING</p><h1>Exam Test &amp; Assessment</h1><p>Only tests assigned to your enrolled batch are shown.</p></div></header>
+    <div className="student-report-tabs"><button type="button" onClick={() => navigate('/student-new-dashboard/exams?tab=reports&report=tests')}>Test Report</button><button type="button" className="is-active">Assessment Report</button></div>
+    {assessmentReportError && <div className="exam-error">{assessmentReportError}</div>}
+    <div className="exam-card student-reports-card"><div className="exam-card-heading"><div><h2>Assessment Report</h2><p>Separate module-wise assessment results.</p></div></div>{assessmentReportLoading ? <div className="exam-muted">Loading assessment reports...</div> : assessmentReports?.modules?.length ? assessmentReports.modules.map((module) => <section className="student-assessment-module-section" key={module.moduleId}><div className="student-assessment-module-heading"><h3>{module.moduleName}</h3><span>{module.totalAssessments} Assessment{module.totalAssessments === 1 ? '' : 's'}</span></div><div className="student-assessment-module-context">{assessmentReports.student?.name || student?.studentName || 'Student'} · {module.batchName || '-'} · {module.courseName || '-'}</div><div className="exam-table-wrap"><table className="student-assessment-row-table"><thead><tr><th>Assessment Name</th><th>Total Marks</th><th>Marks Obtained</th><th>Percentage</th><th>Status</th></tr></thead><tbody>{module.assessments.map((item, index) => <tr key={item.assessmentId}><td><strong>{item.assessmentName || `Assessment ${index + 1}`}</strong></td><td>{item.totalMarks}</td><td>{item.status === 'EVALUATED' ? `${item.marksObtained} / ${item.totalMarks}` : '-'}</td><td>{item.status === 'EVALUATED' ? `${Number(item.percentage || 0).toFixed(2)}%` : '-'}</td><td>{item.status === 'EVALUATED' ? 'Evaluated' : item.status === 'PENDING_EVALUATION' ? 'Pending Evaluation' : 'Not Submitted'}</td></tr>)}</tbody><tfoot><tr><th>Overall</th><th>{module.overallTotalMarks || '-'}</th><th>{module.overallTotalMarks ? `${module.overallMarksObtained} / ${module.overallTotalMarks}` : '-'}</th><th>{module.overallPercentage != null ? `${module.overallPercentage.toFixed(2)}%` : '-'}</th><th>{module.overallPercentage != null ? 'Evaluated' : 'Pending Evaluation'}</th></tr></tfoot></table></div></section>) : <div className="exam-muted">No assessment reports available.</div>}</div>
+  </section>
+
   if (active) return <section className={`exam-page student-test-page ${embedded ? 'exam-page-embedded' : ''}`}>
     <div className="student-test-shell">
       <header className="student-test-header">
@@ -245,6 +282,7 @@ export function StudentExamsPage({ embedded = false, student = null }) {
     <header className="exam-page-header"><button className="exam-back" onClick={() => navigate('/student-new-dashboard')}><ArrowLeft size={18} /> Dashboard</button><div><p className="exam-kicker">STUDENT LEARNING</p><h1>Exam Test &amp; Assessment</h1><p>Only tests assigned to your enrolled batch are shown.</p></div></header>
     {error && <div className="exam-error">{error}</div>}
     {resultError && <div className="exam-error">{resultError}</div>}
+    {examTab === 'reports' && <div className="student-report-tabs"><button type="button" className={requestedReportTab === 'tests' ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports&report=tests')}>Test Report</button><button type="button" onClick={() => navigate('/student-new-dashboard/exams?tab=reports&report=assessments')}>Assessment Report</button></div>}
     {examTab === 'tests' ? <div className="exam-card"><div className="exam-table-wrap"><table><thead><tr><th>Test</th><th>Course</th><th>Module</th><th>Date</th><th>Timing</th><th>Total</th><th>Status</th><th>Action</th></tr></thead><tbody>{tableRows.length ? pagedTableRows.map((test) => {
       const submitted = test.attempt?.status === 'SUBMITTED'
       return <tr key={test.id}><td>{test.title || test.name || 'MCQ Test'}</td><td>{test.course?.name}</td><td>{test.module?.title}</td><td>{dateLabel(test.testDate)}</td><td>{test.startTime} - {test.endTime}</td><td>{test.totalMarks}</td><td>{submitted ? 'Submitted' : test.status}</td><td>{submitted ? <button className="exam-link" onClick={() => viewResult(test)} disabled={resultLoading && selectedResultTest?.id === test.id}>{resultLoading && selectedResultTest?.id === test.id ? 'Loading...' : 'View Result'}</button> : <button className="exam-link" disabled={test.status !== 'AVAILABLE'} onClick={() => open(test)}>{test.status === 'AVAILABLE' ? 'Start Test' : test.status === 'EXPIRED' ? 'Expired' : 'Upcoming'}</button>}</td></tr>

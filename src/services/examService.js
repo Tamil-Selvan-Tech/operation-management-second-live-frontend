@@ -1,4 +1,4 @@
-import { request, requestBlob } from './apiClient'
+import { API_BASE_URL, request, requestBlob } from './apiClient'
 
 const data = (response) => response?.data ?? response ?? []
 
@@ -31,5 +31,8 @@ export const listAssessmentStudents = (id) => request(`/exams/faculty/assessment
 export const evaluateAssessmentSubmission = (assessmentId, studentId, payload) => request(`/exams/faculty/assessments/${assessmentId}/submissions/${studentId}`, { method: 'PATCH', body: JSON.stringify(payload) }).then(data)
 export const listStudentAssessments = () => request('/exams/student/assessments').then(data)
 export const getStudentAssessment = (id) => request(`/exams/student/assessments/${id}`).then(data)
-export const submitStudentAssessment = (id, response) => request(`/exams/student/assessments/${id}/submit`, { method: 'POST', body: JSON.stringify({ response }) }).then(data)
+export const submitStudentAssessment = (id, response, screenshot) => { const body = new FormData(); body.append('response', response); body.append('screenshot', screenshot); return request(`/exams/student/assessments/${id}/submit`, { method: 'POST', body }).then(data) }
+export const assessmentScreenshotUrl = (url) => url ? (url.startsWith('http') ? url : `${API_BASE_URL}${url}`) : ''
+export const getAssessmentScreenshotBlob = (url) => requestBlob(url).then(({ blob }) => URL.createObjectURL(blob))
 export const getStudentAssessmentSubmission = (id) => request(`/exams/student/assessments/${id}/submission`).then(data)
+export const listStudentAssessmentReports = () => request('/exams/student/assessment-reports').then(data)
