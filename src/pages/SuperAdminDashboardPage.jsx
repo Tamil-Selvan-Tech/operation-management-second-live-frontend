@@ -26,7 +26,6 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { createBranch, deleteBranch, listBranches, resendBranchInvitation, updateBranch } from '../services/branchService'
 import {
-  addBranchInvitationResentNotification,
   addBranchLoginNotification,
   hasBranchNotification,
 } from '../lib/notificationStore'
@@ -247,11 +246,13 @@ export function SuperAdminDashboardPage() {
   const [allBranchLeaves, setAllBranchLeaves] = useState([])
   const [globalFacultyPage, setGlobalFacultyPage] = useState(1)
   const [globalStudentPage, setGlobalStudentPage] = useState(1)
+  const [globalLeavePage, setGlobalLeavePage] = useState(1)
   const [isGlobalManagementLoading, setIsGlobalManagementLoading] = useState(false)
   const [globalManagementError, setGlobalManagementError] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
-const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
 const statusFilterRef = useRef(null)
+  const [isBranchManagementExpanded, setIsBranchManagementExpanded] = useState(false)
   const [countryOptions, setCountryOptions] = useState([])
   const [stateOptions, setStateOptions] = useState([])
   const [cityOptions, setCityOptions] = useState([])
@@ -318,11 +319,6 @@ const statusFilterRef = useRef(null)
             addBranchLoginNotification(branch)
           }
 
-          const nextResendMailStatus = getNormalizedResendMailStatus(branch)
-          const previousResendMailStatus = previousBranch.resendMailStatus
-          if (previousResendMailStatus !== 'Active' && nextResendMailStatus === 'Active') {
-            addBranchInvitationResentNotification(branch)
-          }
         })
       }
 
@@ -334,9 +330,6 @@ const statusFilterRef = useRef(null)
           addBranchLoginNotification(branch)
         }
 
-        if (getNormalizedResendMailStatus(branch) === 'Active' && !hasBranchNotification('branch-mail', branch)) {
-          addBranchInvitationResentNotification(branch)
-        }
       })
 
       previousBranchSnapshotRef.current = new Map(
@@ -852,10 +845,13 @@ const filteredBranches = useMemo(() => {
   const globalRowsPerPage = 10
   const globalFacultyTotalPages = Math.max(1, Math.ceil(allBranchFaculty.length / globalRowsPerPage))
   const globalStudentTotalPages = Math.max(1, Math.ceil(allBranchStudents.length / globalRowsPerPage))
+  const globalLeaveTotalPages = Math.max(1, Math.ceil(allBranchLeaves.length / globalRowsPerPage))
   const safeGlobalFacultyPage = Math.min(globalFacultyPage, globalFacultyTotalPages)
   const safeGlobalStudentPage = Math.min(globalStudentPage, globalStudentTotalPages)
+  const safeGlobalLeavePage = Math.min(globalLeavePage, globalLeaveTotalPages)
   const paginatedGlobalFaculty = allBranchFaculty.slice((safeGlobalFacultyPage - 1) * globalRowsPerPage, safeGlobalFacultyPage * globalRowsPerPage)
   const paginatedGlobalStudents = allBranchStudents.slice((safeGlobalStudentPage - 1) * globalRowsPerPage, safeGlobalStudentPage * globalRowsPerPage)
+  const paginatedGlobalLeaves = allBranchLeaves.slice((safeGlobalLeavePage - 1) * globalRowsPerPage, safeGlobalLeavePage * globalRowsPerPage)
 
   const openStudent360FromSearch = (student) => {
     const studentKey = student?.studentId || student?.studentCode || student?.id || student?._id || ''
@@ -996,6 +992,12 @@ const filteredBranches = useMemo(() => {
     setActionMenuBranchId(null)
   }
 
+  const handleActiveBranchView = (branch) => {
+    setActiveSection('branch-admin')
+    setIsMobileSidebarOpen(false)
+    openViewDashboardConfirm(branch)
+  }
+
   const handleConfirmViewDashboard = () => {
     setEmbeddedBranch(viewDashboardBranch)
     setImpersonateBranchId(viewDashboardBranch?.id || viewDashboardBranch?.branchId || null)
@@ -1063,7 +1065,6 @@ const filteredBranches = useMemo(() => {
           resendMailStatus: getNormalizedResendMailStatus(result.branch),
         })
       }
-      addBranchInvitationResentNotification(result?.branch || resendTargetBranch)
       setIsResendConfirmOpen(false)
       setSuccessTitle('Mail sent successfully')
       setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
@@ -1428,14 +1429,45 @@ const filteredBranches = useMemo(() => {
 
             <div className="super-admin-sidebar-section">
               <span className="super-admin-sidebar-section-label">USER &amp; ROLE MANAGEMENT</span>
-              <button
-                type="button"
-                className={`super-admin-sidebar-item ${['branches', 'branch-admin'].includes(activeSection) ? 'is-active' : ''}`.trim()}
-                onClick={() => { setActiveSection('branch-admin'); setIsMobileSidebarOpen(false) }}
-              >
-                <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
-                <span>Branch Management</span>
-              </button>
+              <div className="super-admin-sidebar-branch-nav">
+                <div className={`super-admin-sidebar-item ${['branches', 'branch-admin'].includes(activeSection) ? 'is-active' : ''}`.trim()}>
+                  <button
+                    type="button"
+                    className="super-admin-sidebar-branch-link"
+                    onClick={() => setIsBranchManagementExpanded((current) => !current)}
+                  >
+                    <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
+                    <span>Branch Management</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="super-admin-sidebar-branch-toggle"
+                    aria-label={`${isBranchManagementExpanded ? 'Collapse' : 'Expand'} branch management`}
+                    aria-expanded={isBranchManagementExpanded}
+                    onClick={() => setIsBranchManagementExpanded((current) => !current)}
+                  >
+                    <ChevronDown size={16} strokeWidth={2.3} className={isBranchManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+                  </button>
+                </div>
+                {isBranchManagementExpanded ? (
+                  <div className="super-admin-sidebar-branch-list" aria-label="Active branches">
+                    {branches.filter((branch) => getNormalizedBranchStatus(branch) === 'Active').map((branch) => (
+                      <button
+                        key={branch.id || branch.branchId}
+                        type="button"
+                        className="super-admin-sidebar-branch-name"
+                        onClick={() => handleActiveBranchView(branch)}
+                      >
+                        <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
+                        <span>{branch.branchName || branch.branchId || 'Active branch'}</span>
+                      </button>
+                    ))}
+                    {!branches.some((branch) => getNormalizedBranchStatus(branch) === 'Active') ? (
+                      <span className="super-admin-sidebar-branch-empty">No active branches</span>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
             </div>
 
             <div className="super-admin-sidebar-section">
@@ -1457,11 +1489,11 @@ const filteredBranches = useMemo(() => {
                 <span>Faculty Management</span>
               </button>
               <div className="super-admin-sidebar-branch-nav">
-                <div className={`super-admin-sidebar-item ${activeSection === 'leave-management' ? 'is-active' : ''}`.trim()}>
+                <div className={`super-admin-sidebar-item ${['leave-management', 'faculty-leave'].includes(activeSection) ? 'is-active' : ''}`.trim()}>
                   <button
                     type="button"
                     className="super-admin-sidebar-branch-link"
-                    onClick={() => { setActiveSection('leave-management'); setIsMobileSidebarOpen(false) }}
+                    onClick={() => setIsBranchesExpanded((current) => !current)}
                   >
                     <span className="super-admin-sidebar-icon" aria-hidden="true"><CalendarDays size={18} strokeWidth={2.2} /></span>
                     <span>Leave Management</span>
@@ -2055,9 +2087,10 @@ const filteredBranches = useMemo(() => {
               <section className="super-admin-global-panel">
                 <div className="super-admin-global-header"><div><p className="branch-management-kicker">Academic Operations</p><h1>Faculty Leave Management</h1><p>Faculty leave requests across every active branch.</p></div><span className="super-admin-global-count">{allBranchLeaves.length} requests</span></div>
                 <div className="super-admin-global-table-wrap"><table className="super-admin-global-table"><thead><tr><th>S.No</th><th>Type</th><th>Person / Reason</th><th>Branch</th><th>Date</th><th>Status</th></tr></thead><tbody>
-                  {allBranchLeaves.map((item, index) => <tr key={item.id || `${item.leaveCategory}-${index}`}><td>{index + 1}</td><td><strong>{item.leaveCategory}</strong></td><td><strong>{item.facultyName || item.reason || 'Leave'}</strong><small>{item.facultyId || item.leaveDate || item.fromDate || '-'}</small></td><td><strong>{item.branchRecord?.branchName || '-'}</strong><small>{item.branchRecord?.branchId || '-'}</small></td><td>{item.leaveDate || item.fromDate || '-'}{item.toDate && item.toDate !== item.fromDate ? ` to ${item.toDate}` : ''}</td><td><span className="super-admin-global-status">{item.status || '-'}</span></td></tr>)}
+                  {paginatedGlobalLeaves.map((item, index) => <tr key={item.id || `${item.leaveCategory}-${index}`}><td>{(safeGlobalLeavePage - 1) * globalRowsPerPage + index + 1}</td><td><strong>{item.leaveCategory}</strong></td><td><strong>{item.facultyName || item.reason || 'Leave'}</strong><small>{item.facultyId || item.leaveDate || item.fromDate || '-'}</small></td><td><strong>{item.branchRecord?.branchName || '-'}</strong><small>{item.branchRecord?.branchId || '-'}</small></td><td>{item.leaveDate || item.fromDate || '-'}{item.toDate && item.toDate !== item.fromDate ? ` to ${item.toDate}` : ''}</td><td><span className="super-admin-global-status">{item.status || '-'}</span></td></tr>)}
                   {!allBranchLeaves.length ? <tr><td colSpan="6" className="super-admin-global-empty">No leave records found.</td></tr> : null}
                 </tbody></table></div>
+                {allBranchLeaves.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalLeavePage} totalPages={globalLeaveTotalPages} onPageChange={setGlobalLeavePage} label="Faculty leave pagination" previousLabel="Prev" nextLabel="Next" /> : null}
               </section>
             ) : (
               <>

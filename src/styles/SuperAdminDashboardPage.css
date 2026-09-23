@@ -125,6 +125,14 @@
   min-height: 42px;
 }
 
+/* Keep long navigation titles readable on one line across admin and faculty sidebars. */
+.super-admin-sidebar-item > span:not(.super-admin-sidebar-icon) {
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  letter-spacing: -0.012em;
+}
+
 .super-admin-sidebar-item:hover,
 .super-admin-sidebar-logout:hover {
   background: #f7f7f7;
@@ -214,6 +222,14 @@
   cursor: pointer;
 }
 
+.super-admin-sidebar-branch-link > span:not(.super-admin-sidebar-icon),
+.super-admin-sidebar-branch-name > span:last-child {
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  letter-spacing: -0.012em;
+}
+
 .super-admin-sidebar-branch-toggle {
   display: grid;
   grid-column: 3;
@@ -271,6 +287,13 @@
   background: #f1f6ff;
   color: #1557b0;
   outline: none;
+}
+
+.super-admin-sidebar-branch-empty {
+  padding: 8px;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  white-space: nowrap;
 }
 
 .super-admin-sidebar-branch-name span:last-child {

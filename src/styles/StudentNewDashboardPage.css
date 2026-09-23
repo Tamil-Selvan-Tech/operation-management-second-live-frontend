@@ -152,6 +152,8 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   font-weight: 600;
   text-align: left;
   cursor: pointer;
+  white-space: nowrap;
+  font-size: 13px;
   transition:
     background-color 0.18s ease,
     color 0.18s ease,

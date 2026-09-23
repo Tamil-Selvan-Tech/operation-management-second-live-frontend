@@ -13246,6 +13246,14 @@ body.branch-notification-menu-open .main-area {
   padding: 16px 12px 14px;
 }
 
+/* Keep long parent labels readable on one line in the live sidebar. */
+.branch-dashboard-app-shell:not(.is-sidebar-collapsed) .super-admin-sidebar-item > span:not(.super-admin-sidebar-icon) {
+  min-width: 0;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  letter-spacing: -0.012em;
+}
+
 .branch-dashboard-app-shell .super-admin-main {
   margin-left: 248px;
 }
