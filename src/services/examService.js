@@ -36,3 +36,6 @@ export const assessmentScreenshotUrl = (url) => url ? (url.startsWith('http') ? 
 export const getAssessmentScreenshotBlob = (url) => requestBlob(url).then(({ blob }) => URL.createObjectURL(blob))
 export const getStudentAssessmentSubmission = (id) => request(`/exams/student/assessments/${id}/submission`).then(data)
 export const listStudentAssessmentReports = () => request('/exams/student/assessment-reports').then(data)
+export const sendFacultyReport = (payload) => request('/exams/faculty/report-shares', { method: 'POST', body: JSON.stringify(payload) }).then(data)
+export const listBranchReportShares = () => request('/exams/branch-admin/report-shares').then(data)
+export const getBranchReportShare = (shareId) => request(`/exams/branch-admin/report-shares/${shareId}`).then(data)

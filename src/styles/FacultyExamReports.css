@@ -10,3 +10,72 @@
 .assessment-reports-pagination{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px;color:#64748b;font-size:13px}.assessment-reports-pagination>div{display:flex;align-items:center;gap:10px}.assessment-reports-pagination button{border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;color:#334155;background:#fff;font:inherit;font-weight:700;cursor:pointer}.assessment-reports-pagination button:hover:not(:disabled){border-color:#2563eb;color:#2563eb;background:#eff6ff}.assessment-reports-pagination button:disabled{cursor:not-allowed;opacity:.5}.assessment-reports-pagination strong{color:#334155;white-space:nowrap}@media(max-width:650px){.assessment-reports-pagination{align-items:flex-start;flex-direction:column}.assessment-reports-pagination>div{width:100%;justify-content:space-between}}
 .exam-reports-page:has(.faculty-reports-tabs button:first-child.is-active) .exam-reports-search>div{position:relative}.exam-reports-page:has(.faculty-reports-tabs button:first-child.is-active) .exam-reports-search>div::after{content:'Batch name or batch ID';position:absolute;top:50%;left:10px;transform:translateY(-50%);pointer-events:none;color:#94a3b8;font-size:14px;font-weight:500}.exam-reports-page:has(.faculty-reports-tabs button:first-child.is-active) .exam-reports-search input:focus~div::after{display:none}
 .exam-reports-page:has(.faculty-reports-tabs button:first-child.is-active) .exam-reports-search>div:has(input:not(:placeholder-shown))::after{display:none}
+.faculty-report-send-button{margin-left:auto;display:inline-flex;align-items:center;gap:8px}
+.faculty-reports-tabs button.faculty-report-send-button{color:#fff;background:#2563eb;border-radius:9px;border-bottom:0;padding:10px 14px;margin-top:4px;margin-bottom:4px}
+.faculty-reports-tabs button.faculty-report-send-button:hover{background:#1d4ed8;color:#fff}
+.faculty-report-modal{max-width:760px;width:calc(100% - 32px);padding:0;display:flex;flex-direction:column;overflow:hidden}
+.faculty-report-modal{margin-top:42px}
+.faculty-report-modal .exam-modal-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:24px 28px 18px;border-bottom:1px solid #e8eef6}
+.faculty-report-modal .exam-modal-header h2{margin:5px 0 0;font-size:22px;color:#14243d}
+.faculty-report-modal .exam-modal-header .exam-kicker{margin:0}
+.faculty-report-modal .exam-modal-body{padding:18px 28px 22px;overflow:auto}
+.faculty-report-modal .exam-modal-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px}
+.faculty-report-modal .exam-modal-body>.faculty-report-module-groups,.faculty-report-modal .exam-modal-body>.exam-error{grid-column:1/-1}
+.faculty-report-modal .exam-modal-body>label{margin:0 0 15px}
+.faculty-report-modal .exam-modal-body select,.faculty-report-modal .exam-modal-body input{min-height:44px;background:#fff}
+.faculty-report-modal .exam-modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 28px;background:#f8fafc;border-top:1px solid #e8eef6}
+.faculty-report-modal .exam-icon-button{width:40px;height:40px;justify-content:center;border-radius:10px}
+.faculty-report-modal .exam-icon-button{background:#f1f5f9;color:#64748b}
+.faculty-report-modal .exam-icon-button:hover{background:#e2e8f0;color:#475569}
+.faculty-report-module-groups{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.faculty-report-module-groups fieldset{border:1px solid #dbe4f0;border-radius:12px;padding:14px 16px;display:grid;gap:10px;margin:0;min-height:105px}
+.faculty-report-module-groups legend{padding:0 6px;font-weight:700;color:#385474}
+.faculty-report-module-groups label{display:flex;flex-direction:row;align-items:center;gap:9px;margin:0;font-size:13px;color:#334155;line-height:1.35}
+.faculty-report-module-groups input{accent-color:#2864e8}
+.faculty-report-module-groups input[type="checkbox"]{width:16px;height:16px;min-height:0;padding:0;border:0;border-radius:3px;box-shadow:none!important;outline:0}
+.faculty-report-module-groups input[type="checkbox"]:focus{box-shadow:none!important;outline:0}
+.faculty-report-module-empty{color:#94a3b8;font-size:13px;margin:2px 0}
+.exam-success{margin:14px 0;padding:12px 16px;border-radius:8px;background:#e9f9ef;color:#13733a;font-weight:600}
+.branch-student-report-modal{max-width:860px;width:calc(100% - 32px)}
+.branch-student-report-modal{padding:0;display:flex;flex-direction:column;overflow:hidden}
+.branch-student-report-modal .exam-modal-header{display:flex;align-items:center;justify-content:space-between;padding:24px 28px 18px;border-bottom:1px solid #e8eef6}
+.branch-student-report-modal .exam-modal-header h2{margin:5px 0 0;font-size:22px;color:#14243d}
+.branch-student-report-modal .exam-modal-body{padding:18px 28px 26px;overflow:auto}
+.branch-student-report-modal .exam-icon-button{width:40px;height:40px;justify-content:center;border-radius:10px}
+.branch-student-report-table{min-width:1250px!important}
+.branch-report-section{margin-bottom:24px}
+.branch-report-section h3{margin:0 0 12px;color:#17335b;font-size:17px}
+.branch-student-report-table th,.branch-student-report-table td{vertical-align:top;white-space:normal!important}
+.branch-student-report-table th{line-height:1.35}
+.branch-student-report-table th small,.branch-student-report-table td small{display:block;margin-top:4px;color:#64748b;font-weight:500}
+.branch-report-detail-cell{white-space:pre-line!important;line-height:1.7;color:#536b87;min-width:250px}
+.branch-report-percentage{color:#2563eb}
+.branch-student-reports-view{padding-top:2px}
+.branch-exam-results-page{padding-left:0!important;padding-right:0!important}
+.branch-exam-results-page{padding-top:0!important}
+.branch-exam-results-page{background:#fff!important}
+.branch-exam-results-page>.exam-reports-header{padding-left:0;padding-right:0}
+.branch-exam-results-page>.exam-card{margin-left:0;margin-right:0;border-radius:0}
+.branch-exam-results-page .exam-table-wrap th{background:#fff}
+.branch-student-reports-back{margin-bottom:18px}
+.branch-selected-report-info{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:20px}
+.branch-selected-report-info>div{display:grid;gap:5px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;min-width:0}
+.branch-selected-report-info span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#64748b;font-weight:800}
+.branch-selected-report-info strong{font-size:13px;color:#1e3555;overflow-wrap:anywhere}
+.branch-student-report-tabs{margin-bottom:18px}
+.branch-inline-student-table{min-width:1180px!important}
+.branch-inline-student-table th,.branch-inline-student-table td{vertical-align:top;white-space:normal!important;padding:10px 8px!important}
+.branch-inline-student-table td small{display:block;margin-top:4px;color:#64748b;font-weight:500}
+.branch-report-cell{display:grid;gap:4px;min-width:145px;line-height:1.35;color:#536b87}
+.branch-report-cell div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px dashed #e2e8f0;padding-bottom:4px}
+.branch-report-cell small{color:#2563eb!important;white-space:nowrap}
+.branch-report-cell strong{font-size:12px;color:#1e3555}
+.branch-report-active-cell{background:#f7fbff}
+.branch-student-pagination{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:16px;color:#64748b;font-size:13px}
+.branch-student-pagination>div{display:flex;gap:8px}
+.branch-student-pagination button{border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#334155;padding:8px 12px;font-weight:700;cursor:pointer}
+.branch-student-pagination button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:900px){.branch-selected-report-info{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.branch-selected-report-info{grid-template-columns:1fr}}
+@media (max-width:700px){.faculty-report-module-groups{grid-template-columns:1fr}.faculty-report-send-button{margin-left:0}}
+@media (max-width:700px){.faculty-report-modal .exam-modal-body{grid-template-columns:1fr}.faculty-report-modal .exam-modal-body>.faculty-report-module-groups,.faculty-report-modal .exam-modal-body>.exam-error{grid-column:auto}}

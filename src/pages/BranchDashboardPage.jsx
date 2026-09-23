@@ -54,6 +54,7 @@ import { Button } from '../components/Button'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
+import BranchExamResultsPage from './BranchExamResultsPage'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import { getBranchStudentLedger } from '../services/branchLedgerService'
 import {
@@ -1789,6 +1790,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
+  if (section === 'exams-results') return 'exams-results'
 
   return ''
 }
@@ -8325,6 +8327,7 @@ useEffect(() => {
           { id: 'courses', label: 'Courses', icon: BookOpen, child: { id: 'installments', label: 'Installments', icon: Wallet } },
           { id: 'faculty', label: 'Faculty', icon: UserRound, child: { id: 'batches', label: 'Batches', icon: Layers3 } },
           { id: 'students', label: 'Students', icon: Users, child: { id: 'payments', label: 'Payments', icon: Wallet } },
+          { id: 'exams-results', label: 'Exams & Results', icon: FileText },
           { id: 'management', label: 'Management', icon: LayoutGrid, children: [
             { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
             { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
@@ -8929,6 +8932,7 @@ useEffect(() => {
               {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage key={activeSection} initialViewMode={activeSection === 'faculty-leave' ? 'faculty' : 'institute'} /> : null}
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
+              {activeSection === 'exams-results' ? <BranchExamResultsPage /> : null}
               {activeSection === 'notifications' ? (
                 <section className="notifications-page branch-notifications-page">
                   <header className="notifications-page-header">

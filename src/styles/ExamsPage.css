@@ -60,6 +60,8 @@
 .student-question-actions{margin-top:12px;padding-top:8px;justify-content:flex-end}
 @media(max-width:800px){.student-test-layout{display:grid;grid-template-columns:1fr}.student-question-navigator{position:static;width:100%}}
 .exam-page.student-test-page{transform:none;margin-top:-20px}
+.exam-page:has(.student-report-tabs) .exam-page-header,.exam-page:has(.student-tests-pagination) .exam-page-header{flex-direction:column;align-items:flex-start}
+.exam-page:has(.student-report-tabs) .exam-page-header>div,.exam-page:has(.student-tests-pagination) .exam-page-header>div{width:100%;min-width:0}
 .student-result-modal{position:relative;width:min(620px,100%)!important;padding:24px!important;box-sizing:border-box;overflow:auto}
 .student-result-modal>.exam-card-heading:first-child{padding-right:48px}
 .student-result-modal>.exam-card-heading:first-child>.exam-icon-button{position:absolute;top:-4px;right:2px;margin:0;flex-shrink:0}
