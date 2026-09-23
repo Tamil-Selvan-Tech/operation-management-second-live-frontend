@@ -29,7 +29,7 @@
   top: 10px;
   left: 10px;
   z-index: 30;
-  width: 216px;
+  width: 246px;
   height: calc(100vh - 20px);
   border-right: 1px solid #e5e7eb;
   background: #fff;
@@ -297,9 +297,12 @@
 }
 
 .super-admin-sidebar-branch-name span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 
 .super-admin-sidebar-branch-dot {
@@ -409,7 +412,7 @@
   gap: 0;
   background: #fff;
   padding: 0;
-  margin-left: 216px;
+  margin-left: 246px;
   min-height: calc(100vh - 20px);
   height: calc(100vh - 20px);
   overflow: hidden;
@@ -988,11 +991,11 @@ body.super-admin-notification-menu-open .super-admin-content {
 
 @media (max-width: 1199px) {
   .super-admin-sidebar {
-    width: 220px;
+    width: 238px;
   }
 
   .super-admin-main {
-    margin-left: 220px;
+    margin-left: 238px;
   }
 
   .super-admin-content {
