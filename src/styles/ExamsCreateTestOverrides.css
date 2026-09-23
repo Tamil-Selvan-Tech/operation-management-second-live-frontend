@@ -159,3 +159,18 @@
 .exam-modal:not(.exam-submissions-modal){
   width:min(820px,100%);
 }
+.exam-reuse-panel{
+  margin:18px 28px 0;
+  padding:16px;
+  border:1px solid #bfdbfe;
+  border-radius:10px;
+  background:#eff6ff;
+}
+.exam-reuse-question{margin:0 0 12px;color:#1e3a8a;font-size:13px;font-weight:700}
+.exam-reuse-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:8px}
+.exam-reuse-list{display:grid;gap:10px}
+.exam-reuse-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px;border:1px solid #dbe4ef;border-radius:8px;background:#fff}
+.exam-reuse-item > div{display:grid;gap:3px;min-width:0}
+.exam-reuse-item strong{color:#0f172a;font-size:13px}
+.exam-reuse-item small{color:#64748b;font-size:11px}
+@media(max-width:700px){.exam-reuse-panel{margin-left:18px;margin-right:18px}.exam-reuse-item{align-items:stretch;flex-direction:column}.exam-reuse-item button{align-self:flex-start}}
