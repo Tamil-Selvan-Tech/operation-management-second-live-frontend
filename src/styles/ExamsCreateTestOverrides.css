@@ -75,7 +75,8 @@
 .question-builder{padding:18px;border-color:#dbe4ef;border-radius:10px;box-shadow:0 2px 8px rgba(15,23,42,.03)}
 .question-builder-header{padding-bottom:12px;border-bottom:1px solid #eef2f7}
 .question-builder-header strong{font-size:16px}
-.question-builder textarea{min-height:96px}
+.question-builder textarea{min-height:58px;height:58px}
+.question-builder label:last-of-type select{width:180px;max-width:100%}
 .question-options{margin-top:18px;padding-top:14px}
 .question-options label{grid-template-columns:24px minmax(0,1fr)!important;gap:10px!important}
 .question-options label b{color:#475569}
@@ -105,4 +106,41 @@
   .exam-modal > .exam-save{margin-left:auto!important;margin-right:18px!important}
   .exam-modal > .exam-card-heading:first-child{padding-left:18px;padding-right:18px}
   .exam-test-details-grid{grid-template-columns:1fr}
+}
+.exam-test-details-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.exam-test-details-grid label:last-child{grid-column:auto}@media(max-width:700px){.exam-test-details-grid{grid-template-columns:1fr}}
+.exam-modal:not(.exam-submissions-modal) > .exam-card-heading:first-child > .exam-secondary{
+  width:40px;
+  height:40px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:0;
+  border:0;
+  border-radius:8px;
+  background:#f1f5f9;
+}
+.exam-modal:not(.exam-submissions-modal) > .exam-card-heading:first-child > .exam-secondary::before{
+  content:'✕';
+  font-size:20px;
+  font-weight:400;
+  line-height:1;
+}
+.exam-modal:not(.exam-submissions-modal) .exam-card-heading button.exam-secondary{
+  width:40px!important;
+  height:40px!important;
+  padding:0!important;
+  color:transparent!important;
+  font-size:0!important;
+  border:0!important;
+  background:#f1f5f9!important;
+}
+.exam-modal:not(.exam-submissions-modal) .exam-card-heading button.exam-secondary::before{
+  content:'✕'!important;
+  color:#0f172a;
+  font-size:20px!important;
+  line-height:1;
+}
+.exam-modal:not(.exam-submissions-modal){
+  width:min(820px,100%);
 }

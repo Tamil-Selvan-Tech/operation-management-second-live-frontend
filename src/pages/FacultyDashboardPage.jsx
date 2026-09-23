@@ -1786,8 +1786,9 @@ export function FacultyDashboardPage() {
   const isExamsRoute = location.pathname === '/dashboard/faculty/exams'
   const isExamReportsRoute = location.pathname.startsWith('/dashboard/faculty/exams/reports')
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
+  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isExamReportsRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
-  const [activeSection, setActiveSection] = useState('dashboard')
+  const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
@@ -1795,10 +1796,8 @@ export function FacultyDashboardPage() {
   const notificationRef = useRef(null)
 
   useEffect(() => {
-    if (isExamsRoute || isExamReportsRoute) {
-      setActiveSection('exams')
-    }
-  }, [isExamsRoute, isExamReportsRoute])
+    if (facultyRouteSection) setActiveSection(facultyRouteSection)
+  }, [facultyRouteSection])
 
   useEffect(() => {
     let active = true
@@ -4677,8 +4676,9 @@ const nextName = trimmedValue
   }
 
   const handleSidebarSectionChange = (section) => {
-    if (section === 'exams') {
-      navigate('/dashboard/faculty/exams')
+    const routeBySection = { dashboard: '/dashboard/faculty/dashboard', 'my-courses': '/dashboard/faculty/courses', 'my-batches': '/dashboard/faculty/batches', 'my-calendar': '/dashboard/faculty/calendar', exams: '/dashboard/faculty/exams', students: '/dashboard/faculty/students', 'leave-requests': '/dashboard/faculty/leave-requests', notifications: '/dashboard/faculty/notifications', profile: '/dashboard/faculty/profile' }
+    if (routeBySection[section]) {
+      navigate(routeBySection[section])
       return
     }
     // The calendar is rendered from the student-calendar route. Leave that

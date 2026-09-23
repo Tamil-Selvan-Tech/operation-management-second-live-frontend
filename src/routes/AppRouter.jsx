@@ -380,9 +380,17 @@ export function AppRouter() {
             }
           >
             <Route path="/dashboard/faculty/my-batches" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/dashboard" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/courses" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/batches" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/calendar" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/exams" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/exams/reports" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/exams/reports/:moduleId/:batchId" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/students" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/leave-requests" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/notifications" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/profile" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/my-batches/students/:studentId/calendar" element={<FacultyMyBatchesPage />} />
           </Route>
 
