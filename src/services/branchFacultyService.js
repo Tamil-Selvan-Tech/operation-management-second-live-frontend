@@ -13,6 +13,7 @@ export async function listBranchFaculty(params = {}) {
   
   return request(`/branch-faculty?${searchParams.toString()}`, {
     method: 'GET',
+    ...(params.impersonateBranchId ? { impersonateBranchId: params.impersonateBranchId } : {}),
   })
 }
 

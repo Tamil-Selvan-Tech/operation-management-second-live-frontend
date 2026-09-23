@@ -60,7 +60,7 @@ function displayAttendanceStatus(attendance) {
   return attendance?.status || 'NOT_LOGGED_IN'
 }
 
-export function BranchFacultyPage({ branchCode = '' }) {
+export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
   const facultyIdPrefix = getBranchEntityPrefix(branchCode, 'FC')
   const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -180,6 +180,9 @@ export function BranchFacultyPage({ branchCode = '' }) {
         limit: 100,
         sortBy: 'createdAt',
         sortOrder: 'desc',
+        // Embedded Super Admin views must scope the request immediately,
+        // before the shared impersonation context has been initialized.
+        impersonateBranchId: branchId,
       })
       if (res?.data) {
         // Map backend representation to UI expectation
@@ -216,7 +219,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
 
   useEffect(() => {
     fetchFaculty()
-  }, [])
+  }, [branchId])
 
   useEffect(() => {
     if (!viewFaculty) {
