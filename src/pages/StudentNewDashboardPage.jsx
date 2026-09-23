@@ -25,6 +25,8 @@ import {
   XCircle,
   Clock3,
   Info,
+  PanelLeftOpen,
+  PanelLeftClose,
 } from 'lucide-react'
 
 import '../styles/StudentNewDashboardPage.css'
@@ -447,6 +449,13 @@ export function StudentNewDashboardPage() {
  const { session, signOut } = useAuth()
  const [activeSection, setActiveSection] = useState('dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+ const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+   try { return window.localStorage.getItem('cispro.student-sidebar-collapsed') === 'true' } catch { return false }
+ })
+
+ useEffect(() => {
+   try { window.localStorage.setItem('cispro.student-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* ignore storage failures */ }
+ }, [isSidebarCollapsed])
  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
  const [studentSession] = useState(() => readStudentSession())
@@ -745,7 +754,7 @@ const handleLogoutConfirm = async () => {
 
   return (
     <section className="student-new-page">
-      <div className="student-new-shell">
+      <div className={`student-new-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
 
         {/* ─────────────────────────────────────────────
             MOBILE SIDEBAR BACKDROP
@@ -763,9 +772,7 @@ const handleLogoutConfirm = async () => {
             SIDEBAR
         ───────────────────────────────────────────── */}
         <aside
-          className={`student-new-sidebar ${
-            isMobileSidebarOpen ? 'is-open' : ''
-          }`.trim()}
+          className={`student-new-sidebar ${isMobileSidebarOpen ? 'is-open' : ''} ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}
           aria-label="Student navigation"
         >
           {/* Sidebar Brand */}
@@ -775,6 +782,10 @@ const handleLogoutConfirm = async () => {
               src="/logo1.png"
               alt="Elite Admin logo"
             />
+
+            <button type="button" className="student-new-sidebar-collapse-toggle" data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setIsSidebarCollapsed((current) => !current)}>
+              {isSidebarCollapsed ? <PanelLeftOpen size={19} strokeWidth={2.3} /> : <PanelLeftClose size={19} strokeWidth={2.3} />}
+            </button>
 
             <button
               type="button"
@@ -805,6 +816,7 @@ const handleLogoutConfirm = async () => {
                 className={`student-new-sidebar-item ${
                   activeSection === 'dashboard' ? 'is-active' : ''
                 }`.trim()}
+                data-tooltip="Dashboard"
                 onClick={() => handleMenuClick('dashboard')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true">
@@ -829,6 +841,7 @@ const handleLogoutConfirm = async () => {
                 className={`student-new-sidebar-item ${
                   activeSection === 'profile' ? 'is-active' : ''
                 }`.trim()}
+                data-tooltip="My Profile"
                 onClick={() => handleMenuClick('profile')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true">
@@ -846,6 +859,7 @@ const handleLogoutConfirm = async () => {
                 className={`student-new-sidebar-item ${
                   activeSection === 'course' ? 'is-active' : ''
                 }`.trim()}
+                data-tooltip="Course"
                 onClick={() => handleMenuClick('course')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true">
@@ -863,6 +877,7 @@ const handleLogoutConfirm = async () => {
                 className={`student-new-sidebar-item ${
                   activeSection === 'calendar' ? 'is-active' : ''
                 }`.trim()}
+                data-tooltip="Calendar"
                 onClick={() => handleMenuClick('calendar')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true">
@@ -880,6 +895,7 @@ const handleLogoutConfirm = async () => {
                 className={`student-new-sidebar-item ${
                   activeSection === 'payments' ? 'is-active' : ''
                 }`.trim()}
+                data-tooltip="Fees & Payments"
                 onClick={() => handleMenuClick('payments')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true">
@@ -895,6 +911,7 @@ const handleLogoutConfirm = async () => {
               <button
                 type="button"
                 className={`student-new-sidebar-item ${activeSection === 'notifications' ? 'is-active' : ''}`.trim()}
+                data-tooltip="Notifications"
                 onClick={() => navigate('/student-new-dashboard/notifications')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true"><Bell size={18} strokeWidth={2.2} /></span>

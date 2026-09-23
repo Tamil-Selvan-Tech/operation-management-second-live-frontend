@@ -13098,6 +13098,16 @@ body.branch-notification-menu-open .main-area {
     overflow: visible;
   }
 
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-group {
+    position: relative;
+    z-index: 1;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-group:hover,
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-group:focus-within {
+    z-index: 1130;
+  }
+
   .branch-dashboard-sidebar-group {
     position: relative;
   }

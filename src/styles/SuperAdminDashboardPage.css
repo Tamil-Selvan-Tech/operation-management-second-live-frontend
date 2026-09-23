@@ -35,6 +35,7 @@
   background: #fff;
   padding: 14px 10px 16px;
   overflow: hidden;
+  transition: width 220ms ease-in-out, padding 220ms ease-in-out, box-shadow 220ms ease-in-out;
 }
 
 .super-admin-sidebar-brand {
@@ -52,6 +53,68 @@
   height: 40px;
   max-width: 100%;
   object-fit: contain;
+  transition: width 220ms ease-in-out, height 220ms ease-in-out, opacity 160ms ease;
+}
+
+.super-admin-sidebar-collapse-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 0;
+  border-radius: 9px;
+  padding: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.super-admin-sidebar-collapse-toggle:hover,
+.super-admin-sidebar-collapse-toggle:focus-visible {
+  background: #eff6ff;
+  color: #2563eb;
+  outline: none;
+}
+
+@media (min-width: 769px) {
+  .super-admin-sidebar {
+    overflow: visible;
+  }
+
+  .super-admin-page:not(.is-sidebar-collapsed) .super-admin-sidebar-brand .super-admin-sidebar-collapse-toggle {
+    position: absolute;
+    top: 50%;
+    right: -16px;
+    transform: translateY(-50%);
+  }
+
+  .super-admin-sidebar-collapse-toggle[data-tooltip]::after {
+    position: absolute;
+    top: calc(100% + 7px);
+    left: 50%;
+    z-index: 1250;
+    padding: 6px 9px;
+    border-radius: 7px;
+    color: #fff;
+    background: #0f172a;
+    content: attr(data-tooltip);
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -4px);
+    transition: opacity 150ms ease, transform 150ms ease;
+    white-space: nowrap;
+  }
+
+  .super-admin-sidebar-collapse-toggle[data-tooltip]:hover::after,
+  .super-admin-sidebar-collapse-toggle[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .super-admin-sidebar-close {
@@ -170,6 +233,10 @@
   border-left: 1px solid #dbe4f0;
 }
 
+.super-admin-sidebar-submenu-title {
+  display: none;
+}
+
 .super-admin-sidebar-subitem {
   display: flex;
   align-items: center;
@@ -264,6 +331,10 @@
   margin-left: 22px;
   padding: 3px 0 2px 16px;
   border-left: 1px solid #dbe4f0;
+}
+
+.super-admin-sidebar-branch-list-title {
+  display: none;
 }
 
 .super-admin-sidebar-branch-name {
@@ -416,6 +487,7 @@
   min-height: calc(100vh - 20px);
   height: calc(100vh - 20px);
   overflow: hidden;
+  transition: margin-left 220ms ease-in-out;
 }
 
 body.super-admin-notification-menu-open {
@@ -483,6 +555,234 @@ body.super-admin-notification-menu-open .super-admin-content {
   color: #1d4ed8;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
   cursor: pointer;
+}
+
+@media (min-width: 769px) {
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar,
+  .super-admin-sidebar.is-sidebar-collapsed {
+    width: 70px;
+    padding-left: 8px;
+    padding-right: 8px;
+    overflow: visible;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-main {
+    margin-left: 70px;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-brand,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-brand {
+    justify-content: center;
+    gap: 4px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-brand-logo,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-brand-logo {
+    width: 30px;
+    height: 34px;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-brand .super-admin-sidebar-collapse-toggle,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-brand .super-admin-sidebar-collapse-toggle {
+    width: 30px;
+    flex-basis: 30px;
+    position: static;
+    transform: none;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-nav,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-nav {
+    overflow: visible;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-section-label,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item > span:not(.super-admin-sidebar-icon),
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item > svg,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-link > span:not(.super-admin-sidebar-icon),
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-toggle,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-profile-copy,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-section-label,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item > span:not(.super-admin-sidebar-icon),
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item > svg,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-link > span:not(.super-admin-sidebar-icon),
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-toggle,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-profile-copy {
+    display: none;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item {
+    box-sizing: border-box;
+    grid-template-columns: 1fr;
+    width: 54px;
+    min-width: 54px;
+    max-width: 54px;
+    margin-right: auto;
+    margin-left: auto;
+    justify-items: center;
+    gap: 0;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-icon,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-icon {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-link,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-link {
+    grid-column: auto;
+    grid-template-columns: 24px;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item-group,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item-group,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-nav,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-nav {
+    position: relative;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-submenu,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-submenu,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-list,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-list {
+    display: none;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item-group:hover > .super-admin-sidebar-submenu,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item-group:hover > .super-admin-sidebar-submenu,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-nav:not(.is-flyout-dismissed):hover > .super-admin-sidebar-branch-list,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-nav:not(.is-flyout-dismissed):hover > .super-admin-sidebar-branch-list {
+    position: absolute;
+    top: -4px;
+    left: calc(100% + 8px);
+    z-index: 1200;
+    display: grid;
+    width: 230px;
+    margin: 0;
+    padding: 8px;
+    border: 1px solid #dbe5f0;
+    border-left: 1px solid #dbe5f0;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.16);
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item-group.is-flyout-dismissed:hover > .super-admin-sidebar-submenu,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item-group.is-flyout-dismissed:hover > .super-admin-sidebar-submenu {
+    display: none;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item-group:hover > .super-admin-sidebar-submenu::before,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item-group:hover > .super-admin-sidebar-submenu::before {
+    position: absolute;
+    top: 0;
+    left: -10px;
+    width: 10px;
+    height: 100%;
+    content: '';
+  }
+
+  /* Keep the flyout open while the pointer crosses the gap from the icon. */
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-nav:not(.is-flyout-dismissed):hover > .super-admin-sidebar-branch-list::before,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-nav:not(.is-flyout-dismissed):hover > .super-admin-sidebar-branch-list::before {
+    position: absolute;
+    top: 0;
+    left: -10px;
+    width: 10px;
+    height: 100%;
+    content: '';
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-subitem,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-subitem,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-name,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-name {
+    white-space: nowrap;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-branch-list-title,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-branch-list-title {
+    display: block;
+    padding: 7px 9px 8px;
+    color: #1e3a5f;
+    font-size: 0.74rem;
+    font-weight: 850;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-submenu-title,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-submenu-title {
+    display: block;
+    padding: 7px 9px 8px;
+    color: #1e3a5f;
+    font-size: 0.74rem;
+    font-weight: 850;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-profile-card,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-profile-card {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 8px;
+    padding: 9px 5px;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-profile-card > .super-admin-sidebar-user-avatar,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-profile-card > .super-admin-sidebar-user-avatar {
+    display: none;
+  }
+
+  /* Keep collapsed navigation labels visible without expanding the sidebar. */
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip],
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip] {
+    position: relative;
+    z-index: 1;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]::after,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]::after {
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 12px);
+    z-index: 1250;
+    padding: 6px 9px;
+    border-radius: 7px;
+    color: #fff;
+    background: #0f172a;
+    content: attr(data-tooltip);
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-4px, -50%);
+    transition: opacity 150ms ease, transform 150ms ease;
+    white-space: nowrap;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]:hover::after,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]:focus-visible::after,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]:hover::after,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-item[data-tooltip]:focus-visible::after {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+
 }
 
 .super-admin-sidebar-toggle:hover,
@@ -1288,6 +1588,10 @@ body.super-admin-notification-menu-open .super-admin-content {
 }
 
 @media (max-width: 767px) {
+  .super-admin-sidebar-collapse-toggle {
+    display: none;
+  }
+
   .super-admin-sidebar {
     width: min(84vw, 292px);
     height: calc(100vh - 16px);
