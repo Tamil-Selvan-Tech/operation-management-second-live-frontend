@@ -448,6 +448,7 @@ export function StudentNewDashboardPage() {
  const location = useLocation()
  const { session, signOut } = useAuth()
  const isExamsRoute = location.pathname === '/student-new-dashboard/exams'
+ const isExamReportsRoute = isExamsRoute && new URLSearchParams(location.search).get('tab') === 'reports'
  const [activeSection, setActiveSection] = useState(isExamsRoute ? 'exams' : 'dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
@@ -898,11 +899,12 @@ const handleLogoutConfirm = async () => {
               <button
                 type="button"
                 className={`student-new-sidebar-item ${activeSection === 'exams' || isExamsRoute ? 'is-active' : ''}`.trim()}
-                onClick={() => navigate('/student-new-dashboard/exams')}
+                onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true"><BookOpen size={18} strokeWidth={2.2} /></span>
                 <span>Exam Test &amp; Assessment</span>
               </button>
+              {isExamsRoute ? <div className="student-new-sidebar-subnav"><button type="button" className={!isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
 
               <button
                 type="button"
@@ -1036,7 +1038,7 @@ const handleLogoutConfirm = async () => {
               </section>
             ) : null}
 
-            {isExamsRoute ? <StudentExamsPage embedded /> : null}
+            {isExamsRoute ? <StudentExamsPage embedded student={student} /> : null}
 
             {!isExamsRoute && !isLoading && !loadError && activeSection === 'dashboard' ? (
               <div className="student-new-dashboard student-dashboard-redesign">

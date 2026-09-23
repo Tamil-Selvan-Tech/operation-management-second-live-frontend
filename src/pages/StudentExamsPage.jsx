@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react'
 import { getStudentTest, getStudentTestResult, listStudentTests, startStudentTest, submitStudentTest } from '../services/examService'
 import '../styles/ExamsPage.css'
@@ -27,8 +27,10 @@ function formatRemaining(seconds) {
   return [hours, minutes, secs].map((part) => String(part).padStart(2, '0')).join(':')
 }
 
-export function StudentExamsPage({ embedded = false }) {
+export function StudentExamsPage({ embedded = false, student = null }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const requestedTab = new URLSearchParams(location.search).get('tab') === 'reports' ? 'reports' : 'tests'
   const [tests, setTests] = useState([])
   const [active, setActive] = useState(null)
   const [answers, setAnswers] = useState({})
@@ -42,6 +44,11 @@ export function StudentExamsPage({ embedded = false }) {
   const [timeRemaining, setTimeRemaining] = useState(null)
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const examTab = requestedTab
+  const [reportLoading, setReportLoading] = useState(false)
+  const [reportError, setReportError] = useState('')
+  const [reportPage, setReportPage] = useState(1)
+  const [testsPage, setTestsPage] = useState(1)
 
   const refresh = async () => {
     try { setTests(await listStudentTests()) } catch (e) { setError(e.message) }
@@ -52,6 +59,27 @@ export function StudentExamsPage({ embedded = false }) {
     listStudentTests().then((items) => { if (mounted) setTests(items) }).catch((e) => { if (mounted) setError(e.message) })
     return () => { mounted = false }
   }, [])
+
+  useEffect(() => {
+    if (examTab !== 'reports' || !tests.length) return undefined
+    const submittedTests = tests.filter((test) => test.attempt?.status === 'SUBMITTED')
+    if (!submittedTests.length) return undefined
+    let mounted = true
+    const loadReports = async () => {
+      setReportLoading(true)
+      setReportError('')
+      try {
+        const items = await Promise.all(submittedTests.map((test) => getStudentTestResult(test.id)))
+        if (mounted) setResultCache((current) => submittedTests.reduce((next, test, index) => ({ ...next, [test.id]: items[index] }), current))
+      } catch (e) {
+        if (mounted) setReportError(e.message || 'Unable to load test reports.')
+      } finally {
+        if (mounted) setReportLoading(false)
+      }
+    }
+    loadReports()
+    return () => { mounted = false }
+  }, [examTab, tests])
 
   useEffect(() => {
     if (!active) return undefined
@@ -126,6 +154,33 @@ export function StudentExamsPage({ embedded = false }) {
   const progress = active?.questions.length ? ((currentIndex + 1) / active.questions.length) * 100 : 0
   const timerClass = timeRemaining != null && timeRemaining <= 300 ? 'is-warning' : ''
   const tableRows = useMemo(() => tests, [tests])
+  const testsPageCount = Math.max(1, Math.ceil(tableRows.length / 5))
+  const currentTestsPage = Math.min(testsPage, testsPageCount)
+  const pagedTableRows = tableRows.slice((currentTestsPage - 1) * 5, currentTestsPage * 5)
+  const moduleReports = useMemo(() => {
+    const groups = new Map()
+    tests.filter((test) => test.attempt?.status === 'SUBMITTED').forEach((test) => {
+      const resultItem = resultCache[test.id]
+      if (!resultItem) return
+      const module = resultItem.exam?.module || test.module || {}
+      const course = resultItem.exam?.branchCourse || test.course || {}
+      const batch = resultItem.schedule?.branchBatch || test.batch || {}
+      const moduleName = module.title || module.name || '-'
+      const key = `${course.id || course.name || '-'}:${module.id || moduleName}:${batch.id || batch.name || '-'}`
+      if (!groups.has(key)) groups.set(key, { courseName: course.name || '-', moduleName, batchName: batch.name || batch.batchName || batch.batchId || student?.batchName || '-', tests: [], obtained: 0, maximum: 0 })
+      const group = groups.get(key)
+      const obtained = Number(resultItem.obtainedMarks || 0)
+      const maximum = Number(resultItem.totalMarks || test.totalMarks || 0)
+      group.tests.push({ name: resultItem.exam?.title || test.title || test.name || 'MCQ Test', obtained, maximum, percentage: maximum ? (obtained / maximum) * 100 : 0 })
+      group.obtained += obtained
+      group.maximum += maximum
+    })
+    return Array.from(groups.values()).map((group) => ({ ...group, overall: group.maximum ? (group.obtained / group.maximum) * 100 : 0 }))
+  }, [resultCache, student, tests])
+  const reportTestColumns = useMemo(() => Array.from({ length: Math.max(0, ...moduleReports.map((group) => group.tests.length)) }, (_, index) => index + 1), [moduleReports])
+  const reportPageCount = Math.max(1, Math.ceil(moduleReports.length / 5))
+  const currentReportPage = Math.min(reportPage, reportPageCount)
+  const pagedModuleReports = moduleReports.slice((currentReportPage - 1) * 5, currentReportPage * 5)
 
   if (active) return <section className={`exam-page student-test-page ${embedded ? 'exam-page-embedded' : ''}`}>
     <div className="student-test-shell">
@@ -190,10 +245,11 @@ export function StudentExamsPage({ embedded = false }) {
     <header className="exam-page-header"><button className="exam-back" onClick={() => navigate('/student-new-dashboard')}><ArrowLeft size={18} /> Dashboard</button><div><p className="exam-kicker">STUDENT LEARNING</p><h1>Exam Test &amp; Assessment</h1><p>Only tests assigned to your enrolled batch are shown.</p></div></header>
     {error && <div className="exam-error">{error}</div>}
     {resultError && <div className="exam-error">{resultError}</div>}
-    <div className="exam-card"><div className="exam-table-wrap"><table><thead><tr><th>Test</th><th>Course</th><th>Module</th><th>Date</th><th>Timing</th><th>Total</th><th>Status</th><th>Action</th></tr></thead><tbody>{tableRows.length ? tableRows.map((test) => {
+    {examTab === 'tests' ? <div className="exam-card"><div className="exam-table-wrap"><table><thead><tr><th>Test</th><th>Course</th><th>Module</th><th>Date</th><th>Timing</th><th>Total</th><th>Status</th><th>Action</th></tr></thead><tbody>{tableRows.length ? pagedTableRows.map((test) => {
       const submitted = test.attempt?.status === 'SUBMITTED'
       return <tr key={test.id}><td>{test.title || test.name || 'MCQ Test'}</td><td>{test.course?.name}</td><td>{test.module?.title}</td><td>{dateLabel(test.testDate)}</td><td>{test.startTime} - {test.endTime}</td><td>{test.totalMarks}</td><td>{submitted ? 'Submitted' : test.status}</td><td>{submitted ? <button className="exam-link" onClick={() => viewResult(test)} disabled={resultLoading && selectedResultTest?.id === test.id}>{resultLoading && selectedResultTest?.id === test.id ? 'Loading...' : 'View Result'}</button> : <button className="exam-link" disabled={test.status !== 'AVAILABLE'} onClick={() => open(test)}>{test.status === 'AVAILABLE' ? 'Start Test' : test.status === 'EXPIRED' ? 'Expired' : 'Upcoming'}</button>}</td></tr>
-    }) : <tr><td colSpan="8" className="exam-empty">No tests available</td></tr>}</tbody></table></div></div>
+    }) : <tr><td colSpan="8" className="exam-empty">No tests available</td></tr>}</tbody></table></div></div> : <div className="exam-card student-reports-card"><div className="exam-card-heading"><div><h2>Reports</h2><p>Module-wise results for submitted tests.</p></div></div>{reportError && <div className="exam-error">{reportError}</div>}{reportLoading ? <div className="exam-muted">Loading reports...</div> : moduleReports.length ? <><div className="exam-table-wrap"><table className="student-module-report-table"><thead><tr><th>Student Name</th><th>Batch Name</th><th>Course Name</th><th>Module Name</th><th>Total Tests</th>{reportTestColumns.map((number) => <th key={number}>Test {number}</th>)}<th>Overall Percentage</th></tr></thead><tbody>{pagedModuleReports.map((group) => <tr key={`${group.courseName}-${group.moduleName}-${group.batchName}`}><td>{student?.studentName || student?.name || 'Student'}</td><td>{group.batchName}</td><td>{group.courseName}</td><td><strong>{group.moduleName}</strong></td><td><strong>{group.tests.length}</strong></td>{reportTestColumns.map((number) => { const test = group.tests[number - 1]; return <td key={number}>{test ? <div className="student-module-test-cell"><strong>{test.obtained} / {test.maximum}</strong><b>{test.percentage.toFixed(2)}%</b></div> : <span className="exam-muted-cell">—</span>}</td> })}<td><strong className="student-module-overall">{group.overall.toFixed(2)}%</strong></td></tr>)}</tbody></table></div><div className="student-report-pagination"><span>Page {currentReportPage} of {reportPageCount}</span><button className="exam-secondary" disabled={currentReportPage === 1} onClick={() => setReportPage((page) => Math.max(1, page - 1))}>Previous</button><button className="exam-primary" disabled={currentReportPage === reportPageCount} onClick={() => setReportPage((page) => Math.min(reportPageCount, page + 1))}>Next</button></div></> : <div className="exam-muted">No submitted test reports available.</div>}</div>}
+    {examTab === 'tests' && tableRows.length ? <div className="student-report-pagination student-tests-pagination"><span>Page {currentTestsPage} of {testsPageCount}</span><button className="exam-secondary" disabled={currentTestsPage === 1} onClick={() => setTestsPage((page) => Math.max(1, page - 1))}>Previous</button><button className="exam-primary" disabled={currentTestsPage === testsPageCount} onClick={() => setTestsPage((page) => Math.min(testsPageCount, page + 1))}>Next</button></div> : null}
     {selectedResult && createPortal(
       <div className="exam-modal-backdrop student-result-modal-backdrop">
         <div className="exam-modal student-result-modal" onClick={(event) => event.stopPropagation()}>
