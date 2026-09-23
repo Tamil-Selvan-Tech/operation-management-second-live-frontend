@@ -99,6 +99,7 @@ import {
 } from '../lib/progressComparisonNotification'
 import { getCourseStatusFromProgress, getCourseStatusLabel } from '../lib/courseStatus'
 import FacultyExamsPage from './FacultyExamsPage'
+import FacultyAssessmentsPage from './FacultyAssessmentsPage'
 import FacultyExamReportsPage from './FacultyExamReportsPage'
 import FacultyStudentExamReportPage from './FacultyStudentExamReportPage'
 
@@ -1784,9 +1785,10 @@ export function FacultyDashboardPage() {
   const studentCalendarId = location.pathname.match(/\/dashboard\/faculty\/my-batches\/students\/([^/]+)\/calendar\/?$/)?.[1] || ''
   const isStudentCalendarRoute = Boolean(studentCalendarId)
   const isExamsRoute = location.pathname === '/dashboard/faculty/exams'
+  const isAssessmentsRoute = location.pathname === '/dashboard/faculty/exams/assessments'
   const isExamReportsRoute = location.pathname.startsWith('/dashboard/faculty/exams/reports')
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
-  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isExamReportsRoute ? 'exams' : ''
+  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
@@ -4709,7 +4711,7 @@ const nextName = trimmedValue
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].filter((item) => item.id !== 'other-faculty-batches' || hasTemporaryAssignments).map((item) => {
           const Icon = item.icon
-          const isActive = activeSection === item.id || (item.id === 'exams' && isExamsRoute)
+          const isActive = activeSection === item.id || (item.id === 'exams' && (isExamsRoute || isAssessmentsRoute || isExamReportsRoute))
           const studentNavigation = (
             <>
               <div className="super-admin-sidebar-parent-row">
@@ -4737,7 +4739,7 @@ const nextName = trimmedValue
           }
 
           if (item.id === 'exams') {
-            return <div key={item.id} className="super-admin-sidebar-item-group"><button type="button" className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()} onClick={() => handleSidebarSectionChange('exams')}><span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span><span>Exams</span></button><div className="super-admin-sidebar-submenu"><button type="button" className={`super-admin-sidebar-subitem ${isExamsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams')}><span />Tests</button><button type="button" className={`super-admin-sidebar-subitem ${isExamReportsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/reports')}><span />Reports</button></div></div>
+            return <div key={item.id} className="super-admin-sidebar-item-group"><button type="button" className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()} onClick={() => handleSidebarSectionChange('exams')}><span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span><span>Exams</span></button><div className="super-admin-sidebar-submenu"><button type="button" className={`super-admin-sidebar-subitem ${isExamsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams')}><span />Tests</button><button type="button" className={`super-admin-sidebar-subitem ${isAssessmentsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/assessments')}><span />Assessments</button><button type="button" className={`super-admin-sidebar-subitem ${isExamReportsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/reports')}><span />Reports</button></div></div>
           }
 
           return (
@@ -5062,9 +5064,9 @@ const nextName = trimmedValue
                 </section>
               ) : null}
 
-              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isExamsRoute ? <FacultyExamsPage embedded /> : null}
+              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isExamsRoute ? <FacultyExamsPage embedded /> : null}
 
-              {!isExamsRoute && !isExamReportsRoute && activeSection === 'dashboard' ? (
+              {!isExamsRoute && !isAssessmentsRoute && !isExamReportsRoute && activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
                     <p style={{ marginTop: '12px' }}>Welcome back, {facultyName}! Here&apos;s an overview of your active courses, batches, and student attendance metrics.</p>

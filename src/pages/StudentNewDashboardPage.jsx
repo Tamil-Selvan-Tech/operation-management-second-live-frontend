@@ -45,6 +45,7 @@ import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStor
 import html2pdf from 'html2pdf.js'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import StudentExamsPage from './StudentExamsPage'
+import StudentAssessmentsPage from './StudentAssessmentsPage'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -449,6 +450,7 @@ export function StudentNewDashboardPage() {
  const { session, signOut } = useAuth()
  const isExamsRoute = location.pathname === '/student-new-dashboard/exams'
  const isExamReportsRoute = isExamsRoute && new URLSearchParams(location.search).get('tab') === 'reports'
+ const isAssessmentRoute = isExamsRoute && new URLSearchParams(location.search).get('tab') === 'assessments'
  const [activeSection, setActiveSection] = useState(isExamsRoute ? 'exams' : 'dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
@@ -904,7 +906,7 @@ const handleLogoutConfirm = async () => {
                 <span className="student-new-sidebar-icon" aria-hidden="true"><BookOpen size={18} strokeWidth={2.2} /></span>
                 <span>Exam Test &amp; Assessment</span>
               </button>
-              {isExamsRoute ? <div className="student-new-sidebar-subnav"><button type="button" className={!isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
+              {isExamsRoute ? <div className="student-new-sidebar-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessments</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
 
               <button
                 type="button"
@@ -1038,7 +1040,7 @@ const handleLogoutConfirm = async () => {
               </section>
             ) : null}
 
-            {isExamsRoute ? <StudentExamsPage embedded student={student} /> : null}
+            {isExamsRoute && isAssessmentRoute ? <StudentAssessmentsPage embedded /> : isExamsRoute ? <StudentExamsPage embedded student={student} /> : null}
 
             {!isExamsRoute && !isLoading && !loadError && activeSection === 'dashboard' ? (
               <div className="student-new-dashboard student-dashboard-redesign">
