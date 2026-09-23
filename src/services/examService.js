@@ -14,6 +14,8 @@ export const listTestSubmissions = (testId, scheduleId) => request(`/exams/facul
 export const getTestSubmission = (testId, scheduleId, attemptId) => request(`/exams/faculty/tests/${testId}/schedules/${scheduleId}/submissions/${attemptId}`).then(data)
 export const getFacultyExamReports = (filters = {}) => { const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value)); return request(`/exams/faculty/exam-reports${params.toString() ? `?${params}` : ''}`).then(data) }
 export const getFacultyStudentExamReport = (moduleId, batchId) => request(`/exams/faculty/exam-reports/${moduleId}/${batchId}`).then(data)
+export const listFacultyAssessmentReports = () => request('/exams/faculty/assessment-reports').then(data)
+export const getFacultyAssessmentStudentReport = (courseId, batchId, moduleId) => request(`/exams/faculty/assessment-reports/${courseId}/${batchId}/${moduleId}`).then(data)
 
 export const listStudentTests = () => request('/exams/student/tests').then(data)
 export const getStudentTest = (scheduleId) => request(`/exams/student/tests/${scheduleId}`).then(data)

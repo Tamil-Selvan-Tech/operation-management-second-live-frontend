@@ -2,6 +2,9 @@
 .student-test-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.student-test-actions .exam-save{margin-left:0}
 
 .student-test-page{background:#f8fafc;padding:24px clamp(16px,3vw,40px);color:#0f172a}
+.exam-link:disabled{cursor:not-allowed;opacity:.5}
+.student-result-grid>div:nth-child(6){display:grid}.student-details-card strong{font-size:14px!important;font-weight:500;line-height:1.45;color:#475569!important}
+.student-result-grid+p{margin:16px 0;padding:14px 16px;border:1px solid #dbe5f0;border-radius:10px;background:#f8fafc;color:#475569!important;line-height:1.5}
 .student-test-page.exam-page-embedded{min-height:calc(100vh - 72px)!important;padding:24px clamp(16px,3vw,40px)!important;background:#f8fafc!important}
 .student-test-shell{width:100%;max-width:1180px;margin:0 auto}
 .student-test-header{position:sticky;top:12px;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:20px 22px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
