@@ -12,6 +12,8 @@ export const getFacultyTest = (testId) => request(`/exams/faculty/tests/${testId
 export const downloadFacultyQuestionPaper = (testId) => requestBlob(`/exams/faculty/tests/${testId}/pdf`)
 export const listTestSubmissions = (testId, scheduleId) => request(`/exams/faculty/tests/${testId}/schedules/${scheduleId}/submissions`).then(data)
 export const getTestSubmission = (testId, scheduleId, attemptId) => request(`/exams/faculty/tests/${testId}/schedules/${scheduleId}/submissions/${attemptId}`).then(data)
+export const getFacultyExamReports = (filters = {}) => { const params = new URLSearchParams(Object.entries(filters).filter(([, value]) => value)); return request(`/exams/faculty/exam-reports${params.toString() ? `?${params}` : ''}`).then(data) }
+export const getFacultyStudentExamReport = (moduleId, batchId) => request(`/exams/faculty/exam-reports/${moduleId}/${batchId}`).then(data)
 
 export const listStudentTests = () => request('/exams/student/tests').then(data)
 export const getStudentTest = (scheduleId) => request(`/exams/student/tests/${scheduleId}`).then(data)
