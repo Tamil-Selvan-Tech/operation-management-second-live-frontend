@@ -1434,7 +1434,15 @@ const filteredBranches = useMemo(() => {
                   <button
                     type="button"
                     className="super-admin-sidebar-branch-link"
-                    onClick={() => setIsBranchManagementExpanded((current) => !current)}
+                    onClick={() => {
+                      if (activeSection !== 'branch-admin') {
+                        setActiveSection('branch-admin')
+                        setIsBranchManagementExpanded(false)
+                      } else {
+                        setIsBranchManagementExpanded((current) => !current)
+                      }
+                      setIsMobileSidebarOpen(false)
+                    }}
                   >
                     <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
                     <span>Branch Management</span>
