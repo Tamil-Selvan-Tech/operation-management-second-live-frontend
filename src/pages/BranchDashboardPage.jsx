@@ -57,6 +57,7 @@ import { Button } from '../components/Button'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
+import BranchExamResultsPage from './BranchExamResultsPage'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import { getBranchStudentLedger } from '../services/branchLedgerService'
 import {
@@ -1792,6 +1793,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'batches') return 'batches'
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
+  if (section === 'exams-results') return 'exams-results'
 
   return ''
 }
@@ -8466,12 +8468,25 @@ useEffect(() => {
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'faculty', label: 'User & Role Management', icon: Shield, child: { id: 'faculty', label: 'Faculty', icon: UserRound } },
-          { id: 'students', label: 'Academic Management', icon: LayoutGrid, children: [
-            { id: 'installments', label: 'Installment Templates', icon: Wallet },
+          { id: 'courses', label: 'Courses', icon: BookOpen, children: [
+            { id: 'installments', label: 'Installments', icon: Wallet },
             { id: 'courses', label: 'Course Management', icon: BookOpen },
-            { id: 'batches', label: 'Batch Management', icon: Layers3 },
+          ] },
+          { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
+            { id: 'faculty', label: 'Faculty', icon: UserRound },
+            { id: 'batches', label: 'Batches', icon: Layers3 },
+          ] },
+          { id: 'students', label: 'Academic Management', icon: LayoutGrid, children: [
             { id: 'students', label: 'Student Management', icon: Users },
+            { id: 'payments', label: 'Payments', icon: Wallet },
+            { id: 'batches', label: 'Batch Management', icon: Layers3 },
+          ] },
+          { id: 'exams-results', label: 'Exams & Results', icon: FileText },
+          { id: 'management', label: 'Management', icon: LayoutGrid, children: [
+            { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
+            { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
+            { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
+            { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
             { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
               { id: 'progress-notifications', label: 'Course Progress Request', icon: Bell },
               { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
@@ -9184,6 +9199,7 @@ useEffect(() => {
               {activeSection === 'institute-leave' || activeSection === 'faculty-leave' ? <InstituteLeavePage key={activeSection} initialViewMode={activeSection === 'faculty-leave' ? 'faculty' : 'institute'} /> : null}
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
+              {activeSection === 'exams-results' ? <BranchExamResultsPage /> : null}
               {activeSection === 'notifications' ? (
                 <section className="notifications-page branch-notifications-page">
                   <header className="notifications-page-header">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import {
   LayoutDashboard,
@@ -44,6 +44,8 @@ import { getBranchStudentLedger } from '../services/branchLedgerService'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import html2pdf from 'html2pdf.js'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
+import StudentExamsPage from './StudentExamsPage'
+import StudentAssessmentsPage from './StudentAssessmentsPage'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -444,8 +446,12 @@ function AttendanceChart({ items, period }) {
 
 export function StudentNewDashboardPage() {
  const navigate = useNavigate()
+ const location = useLocation()
  const { session, signOut } = useAuth()
- const [activeSection, setActiveSection] = useState('dashboard')
+ const isExamsRoute = location.pathname === '/student-new-dashboard/exams'
+ const isExamReportsRoute = isExamsRoute && new URLSearchParams(location.search).get('tab') === 'reports'
+ const isAssessmentRoute = isExamsRoute && new URLSearchParams(location.search).get('tab') === 'assessments'
+ const [activeSection, setActiveSection] = useState(isExamsRoute ? 'exams' : 'dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
@@ -894,6 +900,16 @@ const handleLogoutConfirm = async () => {
 
               <button
                 type="button"
+                className={`student-new-sidebar-item ${activeSection === 'exams' || isExamsRoute ? 'is-active' : ''}`.trim()}
+                onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}
+              >
+                <span className="student-new-sidebar-icon" aria-hidden="true"><BookOpen size={18} strokeWidth={2.2} /></span>
+                <span>Exam Test &amp; Assessment</span>
+              </button>
+              {isExamsRoute ? <div className="student-new-sidebar-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessments</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
+
+              <button
+                type="button"
                 className={`student-new-sidebar-item ${activeSection === 'notifications' ? 'is-active' : ''}`.trim()}
                 onClick={() => navigate('/student-new-dashboard/notifications')}
               >
@@ -1024,7 +1040,9 @@ const handleLogoutConfirm = async () => {
               </section>
             ) : null}
 
-            {!isLoading && !loadError && activeSection === 'dashboard' ? (
+            {isExamsRoute && isAssessmentRoute ? <StudentAssessmentsPage embedded /> : isExamsRoute ? <StudentExamsPage embedded student={student} /> : null}
+
+            {!isExamsRoute && !isLoading && !loadError && activeSection === 'dashboard' ? (
               <div className="student-new-dashboard student-dashboard-redesign">
                 <section className="student-dashboard-welcome">
                   <div><p className="student-new-dashboard-kicker">STUDENT DASHBOARD</p><h1>Good {new Date().getHours() < 12 ? 'Morning' : new Date().getHours() < 17 ? 'Afternoon' : 'Evening'}, {displayName}</h1><p>Here&apos;s an overview of your learning progress.</p></div>
@@ -1071,7 +1089,7 @@ const handleLogoutConfirm = async () => {
               </section>
             ) : null}
 
-            {!isLoading && loadError ? (
+            {!isLoading && loadError && !isExamsRoute ? (
               <section className="student-new-placeholder-page">
                 <p className="student-new-dashboard-kicker">STUDENT</p>
                 <h1>Student details unavailable</h1>

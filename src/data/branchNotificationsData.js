@@ -68,6 +68,7 @@ export function normalizeBranchNotification(notification = {}) {
     kind === 'branch-course-edit-updated' || kind === 'course-edit-module-updated'
   const isProgressStatus =
     kind === 'faculty-progress-status' || kind === 'branch-progress-status'
+  const isFacultyReportShared = kind === 'faculty-report-shared'
   const branchId = String(notification.branchId || notification.targetBranchId || '').trim()
   const branchEmail = String(notification.targetBranchEmail || '').trim().toLowerCase()
 
@@ -89,7 +90,9 @@ export function normalizeBranchNotification(notification = {}) {
               ? `${notification.courseName || 'Course'} updated`
               : isProgressStatus
                 ? 'Progress Status Notification'
-        : 'Notification'),
+        : isFacultyReportShared
+          ? 'Faculty report shared'
+          : 'Notification'),
     message:
       message ||
       (isFacultyLogin
@@ -100,10 +103,12 @@ export function normalizeBranchNotification(notification = {}) {
           ? `Open Edit is now available for ${notification.courseName || 'the course'}.`
           : isCourseEditRejected
             ? `${notification.requestDescription || notification.message || 'The edit request was rejected.'}`
-            : isCourseEditUpdated
-              ? `${notification.facultyName || 'Faculty'} saved module and submodule changes for ${notification.courseName || 'the course'}.`
+              : isCourseEditUpdated
+                ? `${notification.facultyName || 'Faculty'} saved module and submodule changes for ${notification.courseName || 'the course'}.`
               : isProgressStatus
                 ? notification.summary || notification.message || ''
+                : isFacultyReportShared
+                  ? message || 'A faculty report is ready to view.'
         : ''),
     time: formatNotificationTime(createdAt),
     categoryLabel:
@@ -121,7 +126,9 @@ export function normalizeBranchNotification(notification = {}) {
               ? 'Updated'
               : isProgressStatus
                 ? String(notification.statusLabel || 'Progress Status').trim() || 'Progress Status'
-                : isFacultyLogin
+                : isFacultyReportShared
+                  ? 'Faculty report'
+                  : isFacultyLogin
                   ? 'Faculty'
                   : String(notification.actionLabel || '').trim() || 'View',
     unread: !notification.read,
@@ -132,6 +139,8 @@ export function normalizeBranchNotification(notification = {}) {
       String(notification.targetSection || '').trim() ||
       (isCourseEditRequest || isCourseEditAccepted || isCourseEditUpdated
         ? 'courses'
+        : isFacultyReportShared
+          ? 'exams-results'
         : isFacultyLogin
           ? 'faculty'
           : 'batches'),

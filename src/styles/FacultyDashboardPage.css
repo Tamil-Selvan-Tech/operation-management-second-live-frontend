@@ -5439,6 +5439,12 @@ body.faculty-notification-menu-open .super-admin-content {
   border-radius: 999px;
   background: currentColor;
 }
+.super-admin-sidebar-submenu {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 7px;
+  padding-left: 8px;
+}
 .super-admin-sidebar-nav {
   flex: 1 1 auto;
   min-height: 0;

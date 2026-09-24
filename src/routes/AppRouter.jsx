@@ -80,6 +80,10 @@ const BranchDashboardPage = lazyNamed(
   () => import('../pages/BranchDashboardPage'),
   'BranchDashboardPage',
 )
+const FacultyExamsPage = lazyNamed(() => import('../pages/FacultyExamsPage'), 'FacultyExamsPage')
+const FacultyExamReportsPage = lazyNamed(() => import('../pages/FacultyExamReportsPage'), 'FacultyExamReportsPage')
+const FacultyStudentExamReportPage = lazyNamed(() => import('../pages/FacultyStudentExamReportPage'), 'FacultyStudentExamReportPage')
+const StudentExamsPage = lazyNamed(() => import('../pages/StudentExamsPage'), 'StudentExamsPage')
 
 const routeChunks = [
   AuthShell,
@@ -106,6 +110,10 @@ const routeChunks = [
   StudentNewDashboardPage,
   BranchNotificationsPage,
   BranchDashboardPage,
+  FacultyExamsPage,
+  FacultyExamReportsPage,
+  FacultyStudentExamReportPage,
+  StudentExamsPage,
 ]
 
 function preloadRouteChunks() {
@@ -364,6 +372,7 @@ export function AppRouter() {
     path="/student-new-dashboard/notifications"
     element={<StudentNotificationsPage />}
   />
+  <Route path="/student-new-dashboard/exams" element={<StudentNewDashboardPage />} />
 </Route>
           <Route
             element={
@@ -371,6 +380,18 @@ export function AppRouter() {
             }
           >
             <Route path="/dashboard/faculty/my-batches" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/dashboard" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/courses" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/batches" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/calendar" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/exams" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/exams/assessments" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/exams/reports" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/exams/reports/:moduleId/:batchId" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/students" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/leave-requests" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/notifications" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/profile" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/my-batches/students/:studentId/calendar" element={<FacultyMyBatchesPage />} />
           </Route>
 
