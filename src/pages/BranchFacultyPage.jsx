@@ -14,6 +14,7 @@ import { getCitiesOfState, getCountries, getStatesOfCountry } from '@countrystat
 import '../styles/BranchFacultyPage.css'
 import {
   listBranchFaculty,
+  checkBranchFacultyPhone,
   createBranchFaculty,
   updateBranchFaculty,
   deleteBranchFaculty,
@@ -60,7 +61,7 @@ function displayAttendanceStatus(attendance) {
   return attendance?.status || 'NOT_LOGGED_IN'
 }
 
-export function BranchFacultyPage({ branchCode = '' }) {
+export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
   const facultyIdPrefix = getBranchEntityPrefix(branchCode, 'FC')
   const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -180,6 +181,9 @@ export function BranchFacultyPage({ branchCode = '' }) {
         limit: 100,
         sortBy: 'createdAt',
         sortOrder: 'desc',
+        // Embedded Super Admin views must scope the request immediately,
+        // before the shared impersonation context has been initialized.
+        impersonateBranchId: branchId,
       })
       if (res?.data) {
         // Map backend representation to UI expectation
@@ -216,7 +220,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
 
   useEffect(() => {
     fetchFaculty()
-  }, [])
+  }, [branchId])
 
   useEffect(() => {
     if (!viewFaculty) {
@@ -433,7 +437,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
     )
 
     if (isDuplicate) {
-      return 'Phone number already exists.'
+      return 'Please check this number. It is already registered.'
     }
 
     return ''
@@ -516,7 +520,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
 
     setErrors((prev) => ({
       ...prev,
-      phone: isDuplicate ? 'Phone number already exists.' : '',
+      phone: isDuplicate ? 'Please check this number. It is already registered.' : '',
     }))
   } else {
     setErrors((prev) => ({
@@ -782,7 +786,13 @@ export function BranchFacultyPage({ branchCode = '' }) {
         ...prev,
         idDigits: message.toLowerCase().includes('faculty id') ? message : prev.idDigits,
         email: message.toLowerCase().includes('email') ? message : prev.email,
+        phone: message.toLowerCase().includes('phone')
+          ? 'Please check this number. It is already registered.'
+          : prev.phone,
       }))
+      if (message.toLowerCase().includes('phone')) {
+        setTouched((prev) => ({ ...prev, phone: true }))
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -1264,7 +1274,7 @@ export function BranchFacultyPage({ branchCode = '' }) {
     value={modalForm.phone}
     maxLength={10}
     onChange={(e) => handlePhoneChange(e.target.value)}
-    onBlur={() => {
+    onBlur={async () => {
       const phone = modalForm.phone.trim()
 
       // Mark field as touched
@@ -1301,9 +1311,24 @@ export function BranchFacultyPage({ branchCode = '' }) {
       setErrors((prev) => ({
         ...prev,
         phone: isDuplicate
-          ? 'Phone number already exists.'
+          ? 'Please check this number. It is already registered.'
           : '',
       }))
+
+      if (!isDuplicate && !editingId) {
+        try {
+          const response = await checkBranchFacultyPhone(phone)
+          if (response?.data?.exists) {
+            setErrors((prev) => ({
+              ...prev,
+              phone: 'Please check this number. It is already registered.',
+            }))
+          }
+        } catch (error) {
+          // The submit request remains the final source of truth if this check fails.
+          console.warn('Unable to check faculty phone availability:', error)
+        }
+      }
     }}
     className="faculty-text-input"
   />

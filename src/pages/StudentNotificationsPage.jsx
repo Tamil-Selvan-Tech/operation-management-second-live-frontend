@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Bell, BookOpen, CalendarDays, CheckCheck, CircleAlert, CircleUserRound, CreditCard, LayoutDashboard, LogOut, Menu, UserRound, X } from 'lucide-react'
+import { ArrowLeft, Bell, BookOpen, CalendarDays, CheckCheck, CircleAlert, CircleUserRound, CreditCard, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { request } from '../services/apiClient'
@@ -15,12 +15,19 @@ export function StudentNotificationsPage() {
   const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try { return window.localStorage.getItem('cispro.student-sidebar-collapsed') === 'true' } catch { return false }
+  })
   const [items, setItems] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('all')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    try { window.localStorage.setItem('cispro.student-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* Ignore storage failures. */ }
+  }, [isSidebarCollapsed])
 
   const handleLogout = async () => {
     try { window.sessionStorage.removeItem('cispro.student-session') } catch { /* Ignore storage errors. */ }
@@ -70,30 +77,33 @@ export function StudentNotificationsPage() {
     } catch (err) { setError(err.message || 'Unable to update notifications') }
   }
 
-  return <div className="student-notifications-layout">
+  return <div className={`student-notifications-layout student-new-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
     {isMobileSidebarOpen ? <button type="button" className="student-new-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)} /> : null}
-    <aside className={`student-new-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()} aria-label="Student navigation">
+    <aside className={`student-new-sidebar ${isMobileSidebarOpen ? 'is-open' : ''} ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()} aria-label="Student navigation">
       <div className="student-new-sidebar-brand">
         <img className="student-new-sidebar-brand-logo" src="/logo1.png" alt="CISPRO logo" />
+        <button type="button" className="student-new-sidebar-collapse-toggle" data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setIsSidebarCollapsed((current) => !current)}>
+          {isSidebarCollapsed ? <PanelLeftOpen size={19} strokeWidth={2.3} /> : <PanelLeftClose size={19} strokeWidth={2.3} />}
+        </button>
         <button type="button" className="student-new-sidebar-close" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)}><X size={18} strokeWidth={2.6} /></button>
       </div>
       <nav className="student-new-sidebar-nav">
         <div className="student-new-sidebar-section">
           <span className="student-new-sidebar-section-label">MAIN</span>
-          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><LayoutDashboard size={18} strokeWidth={2.2} /></span><span>Dashboard</span></button>
+          <button type="button" className="student-new-sidebar-item" data-tooltip="Dashboard" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><LayoutDashboard size={18} strokeWidth={2.2} /></span><span>Dashboard</span></button>
         </div>
         <div className="student-new-sidebar-section">
           <span className="student-new-sidebar-section-label">STUDENT</span>
-          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><UserRound size={18} strokeWidth={2.2} /></span><span>My Profile</span></button>
-          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><BookOpen size={18} strokeWidth={2.2} /></span><span>My Course</span></button>
-          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CalendarDays size={18} strokeWidth={2.2} /></span><span>Calendar</span></button>
-          <button type="button" className="student-new-sidebar-item" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CreditCard size={18} strokeWidth={2.2} /></span><span>Payments</span></button>
-          <button type="button" className="student-new-sidebar-item is-active" aria-current="page"><span className="student-new-sidebar-icon"><Bell size={18} strokeWidth={2.2} /></span><span>Notifications</span></button>
+          <button type="button" className="student-new-sidebar-item" data-tooltip="My Profile" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><UserRound size={18} strokeWidth={2.2} /></span><span>My Profile</span></button>
+          <button type="button" className="student-new-sidebar-item" data-tooltip="My Course" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><BookOpen size={18} strokeWidth={2.2} /></span><span>My Course</span></button>
+          <button type="button" className="student-new-sidebar-item" data-tooltip="Calendar" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CalendarDays size={18} strokeWidth={2.2} /></span><span>Calendar</span></button>
+          <button type="button" className="student-new-sidebar-item" data-tooltip="Payments" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CreditCard size={18} strokeWidth={2.2} /></span><span>Payments</span></button>
+          <button type="button" className="student-new-sidebar-item is-active" data-tooltip="Notifications" aria-current="page"><span className="student-new-sidebar-icon"><Bell size={18} strokeWidth={2.2} /></span><span>Notifications</span></button>
         </div>
       </nav>
       <div className="student-new-sidebar-footer"><div className="student-new-sidebar-profile-card"><span className="student-new-sidebar-user-avatar"><CircleUserRound size={28} strokeWidth={1.9} /><span className="student-new-sidebar-user-status" /></span><div className="student-new-sidebar-profile-copy"><strong>Student</strong><span>Student Profile</span></div><button type="button" className="student-new-sidebar-logout-button" aria-label="Logout" onClick={handleLogout}><LogOut size={21} strokeWidth={2.15} /></button></div></div>
     </aside>
-    <main className="student-notifications-page">
+    <main className="student-notifications-page student-new-main">
       <header className="student-notifications-topbar">
         <button type="button" className="student-new-sidebar-toggle" aria-label="Open navigation menu" aria-expanded={isMobileSidebarOpen} onClick={() => setIsMobileSidebarOpen(true)}><Menu size={20} strokeWidth={2.4} /></button>
         <h2>Student Dashboard</h2>

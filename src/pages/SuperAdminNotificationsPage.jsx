@@ -12,6 +12,8 @@ import {
   LogOut,
   Mail,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   X,
   Shield,
   UserRound,
@@ -226,7 +228,15 @@ export function SuperAdminNotificationsPage() {
   const [notifications, setNotifications] = useState([])
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem('cispro.super-admin-sidebar-collapsed') === 'true'
+    } catch {
+      return false
+    }
+  })
   const [isLeaveManagementExpanded, setIsLeaveManagementExpanded] = useState(false)
+  const [isSidebarFlyoutDismissed, setIsSidebarFlyoutDismissed] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
@@ -317,6 +327,14 @@ export function SuperAdminNotificationsPage() {
       document.body.classList.remove('super-admin-sidebar-open')
     }
   }, [isMobileSidebarOpen])
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('cispro.super-admin-sidebar-collapsed', String(isSidebarCollapsed))
+    } catch {
+      // Ignore storage failures; the sidebar still works for the current session.
+    }
+  }, [isSidebarCollapsed])
 
   const unreadCount = useMemo(() => visibleNotifications.filter((item) => !item.read).length, [visibleNotifications])
   const totalCount = visibleNotifications.length
@@ -420,7 +438,7 @@ export function SuperAdminNotificationsPage() {
   }
 
   return (
-    <section className="super-admin-page">
+    <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
       <div className="super-admin-shell">
         {isMobileSidebarOpen ? (
           <button
@@ -439,6 +457,15 @@ export function SuperAdminNotificationsPage() {
             <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Elite Admin logo" />
             <button
               type="button"
+              className="super-admin-sidebar-collapse-toggle"
+              data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+              aria-label={isSidebarCollapsed ? 'Expand navigation menu' : 'Collapse navigation menu'}
+              onClick={() => setIsSidebarCollapsed((current) => !current)}
+            >
+              {isSidebarCollapsed ? <PanelLeftOpen size={18} strokeWidth={2.2} aria-hidden="true" /> : <PanelLeftClose size={18} strokeWidth={2.2} aria-hidden="true" />}
+            </button>
+            <button
+              type="button"
               className="super-admin-sidebar-close"
               aria-label="Close navigation menu"
               onClick={() => setIsMobileSidebarOpen(false)}
@@ -450,8 +477,9 @@ export function SuperAdminNotificationsPage() {
           <nav className="super-admin-sidebar-nav">
             <div className="super-admin-sidebar-section">
               <button
-                type="button"
-                className="super-admin-sidebar-item"
+              type="button"
+              className="super-admin-sidebar-item"
+              data-tooltip="Dashboard"
                 onClick={() => {
                   setIsMobileSidebarOpen(false)
                   navigate('/dashboard/super-admin')
@@ -466,7 +494,7 @@ export function SuperAdminNotificationsPage() {
 
             <div className="super-admin-sidebar-section">
               <span className="super-admin-sidebar-section-label">USER &amp; ROLE MANAGEMENT</span>
-              <button type="button" className="super-admin-sidebar-item" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=branch-admin') }}>
+              <button type="button" className="super-admin-sidebar-item" data-tooltip="Branch Management" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=branch-admin') }}>
                 <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
                 <span>Branch Management</span>
               </button>
@@ -474,17 +502,20 @@ export function SuperAdminNotificationsPage() {
 
             <div className="super-admin-sidebar-section">
               <span className="super-admin-sidebar-section-label">ACADEMIC OPERATIONS</span>
-              <button type="button" className="super-admin-sidebar-item" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=students') }}>
+              <button type="button" className="super-admin-sidebar-item" data-tooltip="Student Management" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=students') }}>
                 <span className="super-admin-sidebar-icon" aria-hidden="true"><Users size={18} strokeWidth={2.2} /></span>
                 <span>Student Management</span>
               </button>
-              <button type="button" className="super-admin-sidebar-item" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty') }}>
+              <button type="button" className="super-admin-sidebar-item" data-tooltip="Faculty Management" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty') }}>
                 <span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span>
                 <span>Faculty Management</span>
               </button>
-              <div className="super-admin-sidebar-branch-nav">
-                <div className="super-admin-sidebar-item">
-                  <button type="button" className="super-admin-sidebar-branch-link" onClick={() => { setIsLeaveManagementExpanded((current) => !current) }}>
+              <div
+                className={`super-admin-sidebar-branch-nav ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
+                onMouseLeave={() => setIsSidebarFlyoutDismissed(false)}
+              >
+                <div className="super-admin-sidebar-item" data-tooltip="Leave Management">
+                  <button type="button" className="super-admin-sidebar-branch-link" title={isSidebarCollapsed ? 'Leave Management' : undefined} onClick={() => { setIsLeaveManagementExpanded((current) => !current) }}>
                     <span className="super-admin-sidebar-icon" aria-hidden="true"><CalendarDays size={18} strokeWidth={2.2} /></span>
                     <span>Leave Management</span>
                   </button>
@@ -492,15 +523,16 @@ export function SuperAdminNotificationsPage() {
                     <ChevronDown size={16} strokeWidth={2.3} className={isLeaveManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
                   </button>
                 </div>
-                {isLeaveManagementExpanded ? <div className="super-admin-sidebar-branch-list" aria-label="Leave management">
-                  <button type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty-leave') }}><span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Faculty Leave Request</span></button>
+                {isLeaveManagementExpanded || isSidebarCollapsed ? <div className="super-admin-sidebar-branch-list" aria-label="Leave management">
+                  <div className="super-admin-sidebar-branch-list-title">Leave Management</div>
+                  <button type="button" className="super-admin-sidebar-branch-name" title={isSidebarCollapsed ? 'Faculty Leave Request' : undefined} onClick={() => { setIsSidebarFlyoutDismissed(true); setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty-leave') }}><span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Faculty Leave Request</span></button>
                 </div> : null}
               </div>
             </div>
 
             <div className="super-admin-sidebar-section">
               <span className="super-admin-sidebar-section-label">SYSTEM</span>
-              <button type="button" className="super-admin-sidebar-item is-active" onClick={() => setIsMobileSidebarOpen(false)}>
+              <button type="button" className="super-admin-sidebar-item is-active" data-tooltip="Notifications" onClick={() => setIsMobileSidebarOpen(false)}>
                 <span className="super-admin-sidebar-icon" aria-hidden="true"><Bell size={18} strokeWidth={2.2} /></span>
                 <span>Notifications</span>
               </button>

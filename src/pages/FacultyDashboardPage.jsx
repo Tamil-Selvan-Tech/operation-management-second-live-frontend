@@ -32,6 +32,8 @@ import {
   Users,
   Lock,
   X,
+  PanelLeftOpen,
+  PanelLeftClose,
 } from 'lucide-react'
 import {
   FACULTY_ATTENDANCE_SYNC_EVENT,
@@ -1794,6 +1796,10 @@ export function FacultyDashboardPage() {
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({ courses: true, 'leave-management': true })
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try { return window.localStorage.getItem('cispro.faculty-sidebar-collapsed') === 'true' } catch { return false }
+  })
+  const [dismissedSidebarGroup, setDismissedSidebarGroup] = useState('')
   const [hasTemporaryAssignments, setHasTemporaryAssignments] = useState(false)
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
@@ -4694,10 +4700,17 @@ const nextName = trimmedValue
     setActiveSection(section)
   }
 
+  useEffect(() => {
+    try { window.localStorage.setItem('cispro.faculty-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* ignore storage failures */ }
+  }, [isSidebarCollapsed])
+
   const renderSidebar = () => (
-    <aside className="super-admin-sidebar" aria-label="Faculty navigation">
+    <aside className={`super-admin-sidebar ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()} aria-label="Faculty navigation">
       <div className="super-admin-sidebar-brand">
         <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="CISPRO logo" />
+        <button type="button" className="super-admin-sidebar-collapse-toggle" data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setIsSidebarCollapsed((current) => !current)}>
+          {isSidebarCollapsed ? <PanelLeftOpen size={19} strokeWidth={2.3} /> : <PanelLeftClose size={19} strokeWidth={2.3} />}
+        </button>
       </div>
 
       <nav className="super-admin-sidebar-nav">
@@ -4725,6 +4738,7 @@ const nextName = trimmedValue
                 <button
                   type="button"
                   className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
+                  data-tooltip={item.label}
                   onClick={() => {
                     handleSidebarSectionChange('students')
                     setStudentsViewMode('active')
@@ -4749,18 +4763,28 @@ const nextName = trimmedValue
             const isGroupActive = item.children.some((entry) => activeSection === (entry.route || entry.id))
             const isExpanded = Boolean(expandedSidebarGroups[item.id])
             return (
-              <div key={item.id} className="super-admin-sidebar-item-group">
+              <div
+                key={item.id}
+                className={`super-admin-sidebar-item-group ${dismissedSidebarGroup === item.id ? 'is-flyout-dismissed' : ''}`.trim()}
+                onMouseLeave={() => setDismissedSidebarGroup('')}
+              >
                 <button
                   type="button"
                   className={`super-admin-sidebar-item ${isGroupActive ? 'is-active' : ''}`.trim()}
+                  data-tooltip={item.label}
                   aria-expanded={isExpanded}
-                  onClick={() => setExpandedSidebarGroups((current) => ({ ...current, [item.id]: !current[item.id] }))}
+                  onClick={() => {
+                    setDismissedSidebarGroup(isSidebarCollapsed ? item.id : '')
+                    if (item.id === 'courses') handleSidebarSectionChange('my-courses')
+                    setExpandedSidebarGroups((current) => ({ ...current, [item.id]: !current[item.id] }))
+                  }}
                 >
                   <span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span>
                   <span>{item.label}</span>
                   <ChevronDown size={16} strokeWidth={2.2} className={isExpanded ? 'is-expanded' : ''} aria-hidden="true" />
                 </button>
-                {isExpanded ? <div className="super-admin-sidebar-submenu">
+                {(isExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-submenu">
+                  <div className="super-admin-sidebar-submenu-title">{item.label}</div>
                   {item.children.map((entry) => {
                     const ChildIcon = entry.icon
                     return (
@@ -4768,7 +4792,7 @@ const nextName = trimmedValue
                         key={entry.id}
                         type="button"
                         className={`super-admin-sidebar-subitem ${activeSection === (entry.route || entry.id) ? 'is-active' : ''}`.trim()}
-                        onClick={() => handleSidebarSectionChange(entry.route || entry.id)}
+                        onClick={() => { setDismissedSidebarGroup(item.id); handleSidebarSectionChange(entry.route || entry.id) }}
                       >
                         <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
                         <span>{entry.label}</span>
@@ -4789,6 +4813,7 @@ const nextName = trimmedValue
               key={item.id}
               type="button"
               className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()}
+              data-tooltip={item.label}
               onClick={() => handleSidebarSectionChange(item.route || item.id)}
             >
               <span className="super-admin-sidebar-icon" aria-hidden="true">
@@ -5083,7 +5108,7 @@ const nextName = trimmedValue
   ))
 
   return (
-    <section className="super-admin-page">
+    <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
       <div className="super-admin-shell">
         {renderSidebar()}
 

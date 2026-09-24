@@ -81,8 +81,6 @@ export function FacultyWeekOffAdminRequests() {
     <section className="faculty-request-readonly-panel">
       <header className="institute-leave-header">
         <div>
-          <p className="section-kicker">BRANCH ADMIN</p>
-          <h2>Week-Off Requests</h2>
           <p>Review temporary, week-specific overrides. The recurring faculty weekly-off is never changed.</p>
         </div>
         <select aria-label="Week-off request status" value={status} onChange={(event) => setStatus(event.target.value)}>

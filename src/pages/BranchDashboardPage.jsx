@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   Layers3,
   LogOut,
+  Loader2,
   MoreVertical,
   RefreshCcw,
   Shield,
@@ -3304,6 +3305,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseDeleteTarget, setCourseDeleteTarget] = useState(null)
   const [courseModuleDeleteTarget, setCourseModuleDeleteTarget] = useState(null)
   const [courseSubmoduleDeleteTarget, setCourseSubmoduleDeleteTarget] = useState(null)
+  const [isCourseHierarchyNextConfirmOpen, setIsCourseHierarchyNextConfirmOpen] = useState(false)
   const [inlineSubmoduleEdit, setInlineSubmoduleEdit] = useState(null)
   const [viewCourse, setViewCourse] = useState(null)
   const [viewCourseTab, setViewCourseTab] = useState('basic')
@@ -3338,6 +3340,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
 
   // ── Student state ──
   const [branchStudents, setBranchStudents] = useState([])
+  const [isBranchStudentsLoading, setIsBranchStudentsLoading] = useState(true)
+  const branchStudentReloadRequestRef = useRef(0)
   const [attendanceReportTarget, setAttendanceReportTarget] = useState(null)
   const [dashboardWidgets, setDashboardWidgets] = useState([])
   const [isWidgetCustomizerOpen, setIsWidgetCustomizerOpen] = useState(false)
@@ -6191,6 +6195,35 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setSelectedSavedSubmodelIndex(0)
   }
 
+  const continueToCoursePaymentPlan = () => {
+    setAddCourseError('')
+    setAddCoursePaymentPlanSaveAttempted(false)
+    setAddCourseStep(3)
+    setCourseEditorStage('closed')
+    setIsSubmoduleDraftOpen(false)
+    setIsBulkSubmoduleDraftOpen(false)
+    setSelectedSavedModelIndex(0)
+    setSelectedSavedSubmodelIndex(0)
+  }
+
+  const saveCourseHierarchyAndContinue = () => {
+    setSavedCourseHierarchy(addCourseHierarchy.map((model) => ({
+      ...model,
+      submodels: (model.submodels || []).map((submodel) => ({ ...submodel })),
+    })))
+    setIsCourseHierarchyNextConfirmOpen(false)
+    continueToCoursePaymentPlan()
+  }
+
+  const discardCourseHierarchyAndContinue = () => {
+    setAddCourseForm((current) => ({
+      ...current,
+      models: normalizeBranchCourseModels(savedCourseHierarchy),
+    }))
+    setIsCourseHierarchyNextConfirmOpen(false)
+    continueToCoursePaymentPlan()
+  }
+
   const handleCourseModulesNext = () => {
     const nextTouched = { ...addCourseTouched }
     normalizeBranchCourseModels(addCourseForm.models).forEach((model, modelIndex) => {
@@ -6231,13 +6264,16 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       return
     }
 
-    setAddCourseError('')
-    setAddCoursePaymentPlanSaveAttempted(false)
-    setAddCourseStep(3)
-    setCourseEditorStage('closed')
-    setIsSubmoduleDraftOpen(false)
-    setSelectedSavedModelIndex(0)
-    setSelectedSavedSubmodelIndex(0)
+    const currentHierarchy = normalizeBranchCourseModels(addCourseForm.models)
+    const committedHierarchy = normalizeBranchCourseModels(savedCourseHierarchy)
+    const hasUnsavedHierarchyChanges = JSON.stringify(currentHierarchy) !== JSON.stringify(committedHierarchy)
+
+    if (hasUnsavedHierarchyChanges) {
+      setIsCourseHierarchyNextConfirmOpen(true)
+      return
+    }
+
+    continueToCoursePaymentPlan()
   }
 
   useEffect(() => {
@@ -6336,6 +6372,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     branchId,
     branchCode,
   }), [branchId, branchCode])
+  const branchStudentScopeKey = `${branchStudentScope.id || ''}:${branchStudentScope.branchCode || ''}`
+  const [loadedBranchStudentScopeKey, setLoadedBranchStudentScopeKey] = useState('')
   const storedPaymentHistoryRecords = useMemo(() => {
     const scopedRecords = loadBranchPaymentHistoryEntries(branchStudentScope)
     if (scopedRecords.length > 0) {
@@ -6353,18 +6391,37 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }, [branchStudentScope, branchStudents])
 
   const reloadBranchStudents = useCallback(async () => {
-    if (!branchStudentScope.id && !branchStudentScope.branchCode) return []
+    const requestId = branchStudentReloadRequestRef.current + 1
+    branchStudentReloadRequestRef.current = requestId
 
+    if (!branchStudentScope.id && !branchStudentScope.branchCode) {
+      if (requestId === branchStudentReloadRequestRef.current) {
+        setIsBranchStudentsLoading(false)
+        setLoadedBranchStudentScopeKey(branchStudentScopeKey)
+      }
+      return []
+    }
+
+    setIsBranchStudentsLoading(true)
     try {
       const freshRecords = await refreshBranchStudents(branchStudentScope)
-      setBranchStudents(freshRecords)
+      if (requestId === branchStudentReloadRequestRef.current) {
+        setBranchStudents(freshRecords)
+      }
       return freshRecords
     } catch (error) {
       console.error('Failed to refresh branch students from backend:', error)
-      setBranchStudents([])
+      if (requestId === branchStudentReloadRequestRef.current) {
+        setBranchStudents([])
+      }
       return []
+    } finally {
+      if (requestId === branchStudentReloadRequestRef.current) {
+        setIsBranchStudentsLoading(false)
+        setLoadedBranchStudentScopeKey(branchStudentScopeKey)
+      }
     }
-  }, [branchStudentScope])
+  }, [branchStudentScope, branchStudentScopeKey])
 
   useEffect(() => {
     void loadFacultyTodayWorkEntries()
@@ -7332,12 +7389,12 @@ const studentCourseOptions = useMemo(() => {
   }, [dashboardData.students])
 
   const paymentModeFilterOptions = useMemo(() => {
-    const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque', 'Installment']
+    const presetModes = ['Cash', 'UPI', 'Card', 'Bank', 'Cheque']
     const uniqueModes = new Set(presetModes)
 
     allPaymentHistoryRecords.forEach((record) => {
       const mode = formatBranchPaymentMode(record)
-      if (mode && mode !== '-') {
+      if (mode && mode !== '-' && !/^installment(s)?$/i.test(mode)) {
         uniqueModes.add(mode)
       }
     })
@@ -7820,6 +7877,36 @@ const branchTodayWorkEntriesByStudent = useMemo(() => {
     setLedgerLoading(false)
     setLedgerError('')
   }, [])
+
+  useEffect(() => {
+    if (!ledgerStudent || typeof document === 'undefined') return undefined
+
+    const html = document.documentElement
+    const body = document.body
+    const scrollY = window.scrollY
+    const previousHtmlOverflow = html.style.overflow
+    const previousBodyStyles = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+    }
+
+    html.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
+
+    return () => {
+      html.style.overflow = previousHtmlOverflow
+      body.style.overflow = previousBodyStyles.overflow
+      body.style.position = previousBodyStyles.position
+      body.style.top = previousBodyStyles.top
+      body.style.width = previousBodyStyles.width
+      window.scrollTo(0, scrollY)
+    }
+  }, [ledgerStudent])
 
 useEffect(() => {
   setPaymentHistoryPage(1)
@@ -9385,7 +9472,17 @@ useEffect(() => {
     </thead>
 
     <tbody>
-      {visibleBranchStudents.length ? (
+      {isBranchStudentsLoading ||
+      loadedBranchStudentScopeKey !== branchStudentScopeKey ||
+      (!branchStudentScope.id && !branchStudentScope.branchCode) ? (
+        Array.from({ length: BRANCH_STUDENTS_PER_PAGE }, (_, rowIndex) => (
+          <tr key={`student-loading-${rowIndex}`} className="branch-student-loading-row" aria-hidden="true">
+            {Array.from({ length: 10 }, (_, cellIndex) => (
+              <td key={`student-loading-${rowIndex}-${cellIndex}`}><span /></td>
+            ))}
+          </tr>
+        ))
+      ) : visibleBranchStudents.length ? (
         visibleBranchStudents.map((stu) => {
 
           // -----------------------------
@@ -10873,30 +10970,24 @@ else {
 
               </div>
 
-              <div className="branch-ledger-summary-grid">
+              <div className="branch-ledger-summary-grid" aria-busy={ledgerLoading}>
                 <article className="branch-ledger-summary-card">
                   <span>Total Debit</span>
-                  <strong>{formatBranchRupees(ledgerView.summary?.totalDebit ?? 0)}</strong>
+                  {ledgerLoading ? <span className="branch-ledger-value-skeleton" aria-label="Loading total debit" /> : <strong>{formatBranchRupees(ledgerView.summary?.totalDebit ?? 0)}</strong>}
                 </article>
                 <article className="branch-ledger-summary-card">
                   <span>Total Credit</span>
-                  <strong>{formatBranchRupees(ledgerView.summary?.totalCredit ?? 0)}</strong>
+                  {ledgerLoading ? <span className="branch-ledger-value-skeleton" aria-label="Loading total credit" /> : <strong>{formatBranchRupees(ledgerView.summary?.totalCredit ?? 0)}</strong>}
                 </article>
                 <article className="branch-ledger-summary-card branch-ledger-summary-card-emphasis">
                   <span>Outstanding Balance</span>
-                  <strong>{formatBranchRupees(ledgerView.summary?.outstandingBalance ?? 0)}</strong>
+                  {ledgerLoading ? <span className="branch-ledger-value-skeleton" aria-label="Loading outstanding balance" /> : <strong>{formatBranchRupees(ledgerView.summary?.outstandingBalance ?? 0)}</strong>}
                 </article>
                 <article className="branch-ledger-summary-card">
                   <span>Entries</span>
-                  <strong>{ledgerView.summary?.entryCount ?? ledgerView.entries.length ?? 0}</strong>
+                  {ledgerLoading ? <span className="branch-ledger-value-skeleton" aria-label="Loading entry count" /> : <strong>{ledgerView.summary?.entryCount ?? ledgerView.entries.length ?? 0}</strong>}
                 </article>
               </div>
-
-              {ledgerLoading ? (
-                <div className="branch-ledger-loading">
-                  Loading ledger...
-                </div>
-              ) : null}
 
               {ledgerError ? (
                 <div className="branch-ledger-note">
@@ -10905,6 +10996,15 @@ else {
               ) : null}
 
               <div className="branch-ledger-table-shell">
+                {ledgerLoading ? (
+                  <div className="branch-ledger-loading" role="status" aria-live="polite">
+                    <span className="branch-ledger-spinner" aria-hidden="true" />
+                    <div>
+                      <strong>Loading student ledger</strong>
+                      <span>Fetching the latest fee and payment entries...</span>
+                    </div>
+                  </div>
+                ) : null}
                 <table className="branch-ledger-table">
                   <thead>
                     <tr>
@@ -10916,7 +11016,13 @@ else {
                     </tr>
                   </thead>
                   <tbody>
-                    {ledgerView.entries.length ? (
+                    {ledgerLoading ? (
+                      Array.from({ length: 4 }, (_, index) => (
+                        <tr key={`ledger-loading-${index}`} className="branch-ledger-skeleton-row">
+                          {Array.from({ length: 5 }, (_, cellIndex) => <td key={`ledger-loading-${index}-${cellIndex}`}><span /></td>)}
+                        </tr>
+                      ))
+                    ) : ledgerView.entries.length ? (
                       ledgerView.entries.map((entry) => (
                         <tr key={entry.id}>
                           <td>{formatBranchPaymentDate(entry.dateRaw || entry.paymentDateRaw || entry.createdAt || entry.date)}</td>
@@ -11545,7 +11651,10 @@ else {
               ) : null}
 
               {activeSection === 'faculty' ? (
-                <BranchFacultyPage branchCode={branchProfile?.branchId || branchData?.branchId || ''} />
+                <BranchFacultyPage
+                  branchCode={branchProfile?.branchId || branchProfile?.branchCode || branchData?.branchId || branchData?.branchCode || ''}
+                  branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
+                />
               ) : null}
             </div>
           </main>
@@ -11795,13 +11904,11 @@ else {
                 </button>
               </div>
 
-              <div className="course-step-caption">
-                {addCourseStep === 1
-                  ? 'Fill the course basics first. Then move to module setup.'
-                  : addCourseStep === 2
-                    ? 'Add modules and submodules. Continue when the hierarchy is complete.'
-                    : 'Choose one or more payment plans. The installment amounts are split automatically from the final fee.'}
-              </div>
+              {addCourseStep === 1 ? (
+                <div className="course-step-caption">
+                  Fill the course basics first. Then move to module setup.
+                </div>
+              ) : null}
 
               {addCourseStep === 1 ? (
                 <div className="course-form-grid">
@@ -12256,9 +12363,7 @@ else {
                                         onClick={addBulkSubmodulesToCurrentModule}
                                         disabled={!bulkSubmodulePreview.newNames.length}
                                       >
-                                        {bulkSubmodulePreview.newNames.length
-                                          ? `Add ${bulkSubmodulePreview.newNames.length} Submodule${bulkSubmodulePreview.newNames.length === 1 ? '' : 's'}`
-                                          : 'Add Submodules'}
+                                        Add Submodules
                                       </button>
                                     </div>
                                   </div>
@@ -12482,7 +12587,7 @@ else {
                         </div>
                       ) : (
                         <div className="course-added-modules-empty">
-                          <p>No modules added yet. Click "Add Module" to create your first module.</p>
+                          <p>Click Add Module to add your first module.</p>
                         </div>
                       )}
 
@@ -12502,7 +12607,6 @@ else {
 
                     <Field
                       label="Installment Plans"
-                      hint="Choose one or more templates"
                       error={addCoursePaymentPlanVisibleError}
                     >
                       <div
@@ -12523,11 +12627,7 @@ else {
                                 ? `${addCoursePaymentPlanSelectedIds.length} selected`
                                 : 'Select Payment Plan'}
                             </strong>
-                            <small>
-                              {addCoursePaymentPlanSelectedIds.length
-                                ? 'Plans selected'
-                                : 'Choose one or more plans'}
-                            </small>
+                            {addCoursePaymentPlanSelectedIds.length ? <small>Plans selected</small> : null}
                           </span>
                           <ChevronDown size={18} strokeWidth={2.2} className={isPaymentPlanDropdownOpen ? 'is-open' : ''} aria-hidden="true" />
                         </button>
@@ -12715,8 +12815,8 @@ else {
                       </div>
                     </div>
                   ) : (
-                    <div className="course-added-modules-empty">
-                      <p>Click Save to show selected payment plans. After that, click a plan to view its installment table.</p>
+                    <div className="course-added-modules-empty course-payment-plan-empty-state">
+                      <p><strong>Select a payment plan</strong> to view its details.</p>
                     </div>
                   )}
                 </div>
@@ -12729,9 +12829,6 @@ else {
               ) : null}
 
               <div className="course-form-actions">
-                <button type="button" className="button button-ghost" onClick={resetAddCourseForm} disabled={isAddCourseSaving}>
-                  Reset
-                </button>
                 {addCourseStep === 1 ? (
                   <button type="button" className="button button-solid" onClick={handleCourseBasicNext} disabled={isAddCourseSaving}>
                     Next
@@ -12747,11 +12844,17 @@ else {
                   </div>
                 ) : (
                   <div className="course-form-actions-group">
+                    <button type="button" className="button button-ghost" onClick={resetAddCourseForm} disabled={isAddCourseSaving}>
+                      Reset
+                    </button>
                     <button type="button" className="button button-ghost" onClick={() => setAddCourseStep(2)} disabled={isAddCourseSaving}>
                       Back
                     </button>
                     <button type="button" className="button button-solid" onClick={triggerAddCourseSubmit} disabled={isAddCourseSaving}>
-                      {editingCourseId ? 'Update Course' : 'Save Course'}
+                      <span className="course-save-button-content">
+                        {isAddCourseSaving ? <Loader2 size={16} className="course-save-spinner" aria-hidden="true" /> : null}
+                        {isAddCourseSaving ? (editingCourseId ? 'Updating...' : 'Saving...') : editingCourseId ? 'Update Course' : 'Save Course'}
+                      </span>
                     </button>
                   </div>
                 )}
@@ -13485,6 +13588,45 @@ else {
                 </button>
                 <button type="button" className="branch-success-primary" onClick={closeCourseSaveSuccess}>
                   OK
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {isCourseHierarchyNextConfirmOpen ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <div
+              className="course-module-delete-modal course-hierarchy-next-confirm-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="course-hierarchy-next-confirm-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close module save confirmation"
+                onClick={() => setIsCourseHierarchyNextConfirmOpen(false)}
+              >
+                <X size={22} strokeWidth={2} />
+              </button>
+              <p className="course-module-delete-kicker">Module not saved</p>
+              <h2 id="course-hierarchy-next-confirm-title">Save this module before moving on?</h2>
+              <div className="branch-modal-actions">
+                <button
+                  type="button"
+                  className="branch-modal-cancel"
+                  onClick={discardCourseHierarchyAndContinue}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="branch-modal-submit"
+                  onClick={saveCourseHierarchyAndContinue}
+                >
+                  Save
                 </button>
               </div>
             </div>

@@ -659,6 +659,8 @@ export function BranchBatchManagementSection({
   const [draft, setDraft] = useState(() => createInitialDraft(1, 1))
   const [courseSearch, setCourseSearch] = useState('')
   const [facultySearch, setFacultySearch] = useState('')
+  const [isCourseSearchFocused, setIsCourseSearchFocused] = useState(false)
+  const [isFacultySearchFocused, setIsFacultySearchFocused] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [batchTablePage, setBatchTablePage] = useState(1)
   const [actionMenuOpenId, setActionMenuOpenId] = useState('')
@@ -896,16 +898,16 @@ export function BranchBatchManagementSection({
 
   const courseSearchResults = useMemo(() => {
     const query = courseSearch.trim().toLowerCase()
-    if (!query || draft.courseId) return []
+    if (draft.courseId) return []
     return activeCourses
       .filter((course) => [course.id, course.code, course.name]
-        .some((value) => String(value || '').toLowerCase().includes(query)))
+        .some((value) => !query || String(value || '').toLowerCase().includes(query)))
       .slice(0, 8)
   }, [activeCourses, courseSearch, draft.courseId])
 
   const facultySearchResults = useMemo(() => {
     const query = facultySearch.trim().toLowerCase()
-    if (!query || !draft.courseId || resolvedDraftFacultyId) return []
+    if (!draft.courseId || resolvedDraftFacultyId) return []
 
     const isFacultyIdSearch = /^fc(?:[-_ ]?\d+)?$/i.test(query) || /^\d+$/.test(query)
     const normalizedQueryId = query.replace(/^fc[-_ ]?/i, '').replace(/^0+(?=\d)/, '')
@@ -918,7 +920,7 @@ export function BranchBatchManagementSection({
           return facultyCodeId === normalizedQueryId
         }
 
-        return String(faculty.name || '').toLowerCase().includes(query)
+        return !query || String(faculty.name || '').toLowerCase().includes(query)
       })
       .slice(0, 8)
   }, [availableFacultyOptions, draft.courseId, facultySearch, resolvedDraftFacultyId])
@@ -999,6 +1001,8 @@ export function BranchBatchManagementSection({
     setEditingGroup(null)
     setCourseSearch('')
     setFacultySearch('')
+    setIsCourseSearchFocused(false)
+    setIsFacultySearchFocused(false)
     setActionMenuOpenId('')
     setActionMenuPosition(null)
     setIsCreateOpen(true)
@@ -1014,6 +1018,8 @@ export function BranchBatchManagementSection({
       setDraft(nextDraft)
       setCourseSearch(String(group?.courseName || nextDraft.courseId || '').trim())
       setFacultySearch(String(group?.facultyName || nextDraft.facultyName || '').trim())
+      setIsCourseSearchFocused(false)
+      setIsFacultySearchFocused(false)
       setIsCreateOpen(true)
       setActionMenuOpenId('')
       setActionMenuPosition(null)
@@ -1240,6 +1246,8 @@ export function BranchBatchManagementSection({
     if (allowedModes.length === 1) setDraft((current) => ({ ...current, mode: allowedModes[0] }))
     setCourseSearch(course.name)
     setFacultySearch('')
+    setIsCourseSearchFocused(false)
+    setIsFacultySearchFocused(false)
   }, [handleDraftChange])
 
   const handleFacultySearchChange = useCallback((value) => {
@@ -1254,6 +1262,7 @@ export function BranchBatchManagementSection({
   const selectFacultyFromSearch = useCallback((faculty) => {
     handleDraftChange('facultyId', faculty.id)
     setFacultySearch(faculty.name)
+    setIsFacultySearchFocused(false)
   }, [handleDraftChange])
 
   const handleRowChange = useCallback((index, field, value) => {
@@ -1613,12 +1622,15 @@ export function BranchBatchManagementSection({
                     type="search"
                     value={courseSearch}
                     onChange={(event) => handleCourseSearchChange(event.target.value)}
-                    onBlur={() => window.setTimeout(() => setFieldErrors((current) => ({ ...current, courseId: current.courseId })), 120)}
+                    onFocus={() => setIsCourseSearchFocused(true)}
+                    onBlur={() => window.setTimeout(() => setIsCourseSearchFocused(false), 120)}
                     placeholder={activeCourses.length ? 'Search by course ID or name' : 'No courses available'}
                     disabled={!activeCourses.length}
                     autoComplete="off"
+                    aria-autocomplete="list"
+                    aria-expanded={isCourseSearchFocused && courseSearchResults.length > 0}
                   />
-                  {courseSearchResults.length ? (
+                  {isCourseSearchFocused && courseSearchResults.length ? (
                     <div role="listbox" className="batch-search-results">
                       {courseSearchResults.map((course) => (
                         <button
@@ -1644,11 +1656,15 @@ export function BranchBatchManagementSection({
                     type="search"
                     value={facultySearch}
                     onChange={(event) => handleFacultySearchChange(event.target.value)}
+                    onFocus={() => setIsFacultySearchFocused(true)}
+                    onBlur={() => window.setTimeout(() => setIsFacultySearchFocused(false), 120)}
                     placeholder={draft.courseId ? 'Search by faculty ID or name' : 'Select course first'}
                     disabled={!draft.courseId}
                     autoComplete="off"
+                    aria-autocomplete="list"
+                    aria-expanded={isFacultySearchFocused && facultySearchResults.length > 0}
                   />
-                  {facultySearchResults.length ? (
+                  {isFacultySearchFocused && facultySearchResults.length ? (
                     <div role="listbox" className="batch-search-results">
                       {facultySearchResults.map((faculty) => (
                         <button

@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Mail,
   LayoutDashboard,
+  LayoutGrid,
   LogOut,
   MoreVertical,
   ChevronRight,
@@ -21,12 +22,13 @@ import {
   UserRound,
   Users,
   ChevronDown,
+  PanelLeftOpen,
+  PanelLeftClose,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
 import { createBranch, deleteBranch, listBranches, resendBranchInvitation, updateBranch } from '../services/branchService'
 import {
-  addBranchInvitationResentNotification,
   addBranchLoginNotification,
   hasBranchNotification,
 } from '../lib/notificationStore'
@@ -106,6 +108,48 @@ function pickFirstNonEmpty(...values) {
   }
 
   return ''
+}
+
+function getBranchFilterWidth(value, branches = []) {
+  if (value === 'all') return 175
+  const selectedBranch = branches.find((branch) => String(branch.id || branch.branchId) === String(value))
+  const labelLength = String(selectedBranch?.branchName || selectedBranch?.branchId || '').length
+  return Math.min(320, Math.max(175, Math.round(labelLength * 7.4 + 58)))
+}
+
+function BranchFilterSelect({ value, branches, onChange, ariaLabel }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+  const selectedBranch = branches.find((branch) => String(branch.id || branch.branchId) === String(value))
+  const selectedLabel = value === 'all' ? 'All branches' : (selectedBranch?.branchName || selectedBranch?.branchId || 'Select branch')
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [isOpen])
+
+  return (
+    <div ref={containerRef} className={`super-admin-branch-filter ${isOpen ? 'is-open' : ''}`.trim()} style={{ width: `${getBranchFilterWidth(value, branches)}px` }}>
+      <button type="button" className="super-admin-branch-filter-trigger" aria-label={ariaLabel} aria-expanded={isOpen} onClick={() => setIsOpen((current) => !current)}>
+        <span>{selectedLabel}</span>
+        <ChevronDown size={15} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+      {isOpen ? (
+        <div className="super-admin-branch-filter-menu" role="listbox" aria-label={ariaLabel}>
+          <button type="button" role="option" aria-selected={value === 'all'} className={`super-admin-branch-filter-option ${value === 'all' ? 'is-selected' : ''}`.trim()} onClick={() => { onChange('all'); setIsOpen(false) }}>All branches</button>
+          {branches.map((branch) => {
+            const branchValue = branch.id || branch.branchId
+            const isSelected = String(branchValue) === String(value)
+            return <button key={branchValue} type="button" role="option" aria-selected={isSelected} className={`super-admin-branch-filter-option ${isSelected ? 'is-selected' : ''}`.trim()} onClick={() => { onChange(String(branchValue)); setIsOpen(false) }}>{branch.branchName || branch.branchId || 'Unnamed branch'}</button>
+          })}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 const DEFAULT_BRANCH_COUNTRY_NAME = 'India'
@@ -239,6 +283,9 @@ export function SuperAdminDashboardPage() {
   const { signOut, user } = useAuth()
   const [activeSection, setActiveSection] = useState(() => getInitialSuperAdminSection(location.search))
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try { return window.localStorage.getItem('cispro.super-admin-sidebar-collapsed') === 'true' } catch { return false }
+  })
   const [isBranchesExpanded, setIsBranchesExpanded] = useState(false)
   const [branches, setBranches] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -247,11 +294,18 @@ export function SuperAdminDashboardPage() {
   const [allBranchLeaves, setAllBranchLeaves] = useState([])
   const [globalFacultyPage, setGlobalFacultyPage] = useState(1)
   const [globalStudentPage, setGlobalStudentPage] = useState(1)
+  const [globalLeavePage, setGlobalLeavePage] = useState(1)
+  const [globalFacultyBranchFilter, setGlobalFacultyBranchFilter] = useState('all')
+  const [globalStudentBranchFilter, setGlobalStudentBranchFilter] = useState('all')
   const [isGlobalManagementLoading, setIsGlobalManagementLoading] = useState(false)
   const [globalManagementError, setGlobalManagementError] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
-const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
+  const [isStatusFilterOpen, setIsStatusFilterOpen] = useState(false)
 const statusFilterRef = useRef(null)
+  const [isBranchManagementExpanded, setIsBranchManagementExpanded] = useState(false)
+  const [isUserRoleManagementExpanded, setIsUserRoleManagementExpanded] = useState(true)
+  const [isAcademicOperationsExpanded, setIsAcademicOperationsExpanded] = useState(true)
+  const [isSidebarFlyoutDismissed, setIsSidebarFlyoutDismissed] = useState(false)
   const [countryOptions, setCountryOptions] = useState([])
   const [stateOptions, setStateOptions] = useState([])
   const [cityOptions, setCityOptions] = useState([])
@@ -318,11 +372,6 @@ const statusFilterRef = useRef(null)
             addBranchLoginNotification(branch)
           }
 
-          const nextResendMailStatus = getNormalizedResendMailStatus(branch)
-          const previousResendMailStatus = previousBranch.resendMailStatus
-          if (previousResendMailStatus !== 'Active' && nextResendMailStatus === 'Active') {
-            addBranchInvitationResentNotification(branch)
-          }
         })
       }
 
@@ -334,9 +383,6 @@ const statusFilterRef = useRef(null)
           addBranchLoginNotification(branch)
         }
 
-        if (getNormalizedResendMailStatus(branch) === 'Active' && !hasBranchNotification('branch-mail', branch)) {
-          addBranchInvitationResentNotification(branch)
-        }
       })
 
       previousBranchSnapshotRef.current = new Map(
@@ -466,7 +512,9 @@ const statusFilterRef = useRef(null)
         if (!cancelled) {
           setAllBranchFaculty(facultyRows.map((item) => ({
             ...item,
-            branchRecord: branches.find((branch) => String(branch.id) === String(item.branchId)) || null,
+            branchRecord: branches.find((branch) => [branch.id, branch.branchId, branch.branchCode]
+              .map((value) => String(value || '').trim().toLowerCase())
+              .includes(String(item.branchId || item.branchCode || item.branch?.id || item.branch?.branchId || '').trim().toLowerCase())) || null,
           })))
           setAllBranchLeaves(leaveResults.flat())
         }
@@ -850,12 +898,44 @@ const filteredBranches = useMemo(() => {
   }, [allBranchStudents, searchTerm])
 
   const globalRowsPerPage = 10
-  const globalFacultyTotalPages = Math.max(1, Math.ceil(allBranchFaculty.length / globalRowsPerPage))
-  const globalStudentTotalPages = Math.max(1, Math.ceil(allBranchStudents.length / globalRowsPerPage))
+  const globalBranchFilterOptions = useMemo(() => (
+    [...branches].sort((first, second) => String(first.branchName || first.branchId || '').localeCompare(String(second.branchName || second.branchId || '')))
+  ), [branches])
+  const filteredGlobalFaculty = useMemo(() => {
+    if (globalFacultyBranchFilter === 'all') return allBranchFaculty
+    const selectedBranchKey = String(globalFacultyBranchFilter).trim().toLowerCase()
+    return allBranchFaculty.filter((faculty) => [
+      faculty.branchId,
+      faculty.branchCode,
+      faculty.branch?.id,
+      faculty.branch?.branchId,
+      faculty.branchRecord?.id,
+      faculty.branchRecord?.branchId,
+      faculty.branchRecord?.branchCode,
+    ].map((value) => String(value || '').trim().toLowerCase()).includes(selectedBranchKey))
+  }, [allBranchFaculty, globalFacultyBranchFilter])
+  const filteredGlobalStudents = useMemo(() => {
+    if (globalStudentBranchFilter === 'all') return allBranchStudents
+    const selectedBranchKey = String(globalStudentBranchFilter).trim().toLowerCase()
+    return allBranchStudents.filter((student) => [
+      student.branchId,
+      student.branchCode,
+      student.branch?.id,
+      student.branch?.branchId,
+      student.branchRecord?.id,
+      student.branchRecord?.branchId,
+      student.branchRecord?.branchCode,
+    ].map((value) => String(value || '').trim().toLowerCase()).includes(selectedBranchKey))
+  }, [allBranchStudents, globalStudentBranchFilter])
+  const globalFacultyTotalPages = Math.max(1, Math.ceil(filteredGlobalFaculty.length / globalRowsPerPage))
+  const globalStudentTotalPages = Math.max(1, Math.ceil(filteredGlobalStudents.length / globalRowsPerPage))
+  const globalLeaveTotalPages = Math.max(1, Math.ceil(allBranchLeaves.length / globalRowsPerPage))
   const safeGlobalFacultyPage = Math.min(globalFacultyPage, globalFacultyTotalPages)
   const safeGlobalStudentPage = Math.min(globalStudentPage, globalStudentTotalPages)
-  const paginatedGlobalFaculty = allBranchFaculty.slice((safeGlobalFacultyPage - 1) * globalRowsPerPage, safeGlobalFacultyPage * globalRowsPerPage)
-  const paginatedGlobalStudents = allBranchStudents.slice((safeGlobalStudentPage - 1) * globalRowsPerPage, safeGlobalStudentPage * globalRowsPerPage)
+  const safeGlobalLeavePage = Math.min(globalLeavePage, globalLeaveTotalPages)
+  const paginatedGlobalFaculty = filteredGlobalFaculty.slice((safeGlobalFacultyPage - 1) * globalRowsPerPage, safeGlobalFacultyPage * globalRowsPerPage)
+  const paginatedGlobalStudents = filteredGlobalStudents.slice((safeGlobalStudentPage - 1) * globalRowsPerPage, safeGlobalStudentPage * globalRowsPerPage)
+  const paginatedGlobalLeaves = allBranchLeaves.slice((safeGlobalLeavePage - 1) * globalRowsPerPage, safeGlobalLeavePage * globalRowsPerPage)
 
   const openStudent360FromSearch = (student) => {
     const studentKey = student?.studentId || student?.studentCode || student?.id || student?._id || ''
@@ -996,6 +1076,12 @@ const filteredBranches = useMemo(() => {
     setActionMenuBranchId(null)
   }
 
+  const handleActiveBranchView = (branch) => {
+    setActiveSection('branch-admin')
+    setIsMobileSidebarOpen(false)
+    openViewDashboardConfirm(branch)
+  }
+
   const handleConfirmViewDashboard = () => {
     setEmbeddedBranch(viewDashboardBranch)
     setImpersonateBranchId(viewDashboardBranch?.id || viewDashboardBranch?.branchId || null)
@@ -1063,7 +1149,6 @@ const filteredBranches = useMemo(() => {
           resendMailStatus: getNormalizedResendMailStatus(result.branch),
         })
       }
-      addBranchInvitationResentNotification(result?.branch || resendTargetBranch)
       setIsResendConfirmOpen(false)
       setSuccessTitle('Mail sent successfully')
       setSuccessMessage(`Invitation mail has been sent to ${resendTargetBranch.branchEmail}.`)
@@ -1260,6 +1345,10 @@ const filteredBranches = useMemo(() => {
   const selectedBranch = viewTargetBranch
   const closeMobileSidebar = () => setIsMobileSidebarOpen(false)
 
+  useEffect(() => {
+    try { window.localStorage.setItem('cispro.super-admin-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* ignore storage failures */ }
+  }, [isSidebarCollapsed])
+
   if (embeddedBranch) {
     return (
       <div className="sa-embedded-wrapper">
@@ -1382,7 +1471,7 @@ const filteredBranches = useMemo(() => {
   }
 
   return (
-    <section className="super-admin-page">
+    <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
       <div className="super-admin-shell">
         {isMobileSidebarOpen ? (
           <button
@@ -1399,6 +1488,9 @@ const filteredBranches = useMemo(() => {
         >
           <div className="super-admin-sidebar-brand">
             <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Elite Admin logo" />
+            <button type="button" className="super-admin-sidebar-collapse-toggle" data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setIsSidebarCollapsed((current) => !current)}>
+              {isSidebarCollapsed ? <PanelLeftOpen size={19} strokeWidth={2.3} /> : <PanelLeftClose size={19} strokeWidth={2.3} />}
+            </button>
             <button
               type="button"
               className="super-admin-sidebar-close"
@@ -1414,6 +1506,7 @@ const filteredBranches = useMemo(() => {
               <button
                 type="button"
                 className={`super-admin-sidebar-item ${activeSection === 'dashboard' ? 'is-active' : ''}`.trim()}
+                data-tooltip="Dashboard"
                 onClick={() => {
                   setActiveSection('dashboard')
                   setIsMobileSidebarOpen(false)
@@ -1426,42 +1519,206 @@ const filteredBranches = useMemo(() => {
               </button>
             </div>
 
-            <div className="super-admin-sidebar-section">
-              <span className="super-admin-sidebar-section-label">USER &amp; ROLE MANAGEMENT</span>
+            <div className="super-admin-sidebar-section super-admin-sidebar-section-user-role">
+              <div
+                className={`super-admin-sidebar-collapsed-group ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
+                onMouseEnter={() => setIsSidebarFlyoutDismissed(false)}
+              >
+                <button
+                  type="button"
+                  className="super-admin-sidebar-collapsed-group-trigger"
+                  data-tooltip="User & Role Management"
+                  aria-label="User & Role Management"
+                >
+                  <Shield size={18} strokeWidth={2.2} aria-hidden="true" />
+                </button>
+                <div className="super-admin-sidebar-collapsed-group-flyout">
+                  <div className="super-admin-sidebar-collapsed-group-title">User &amp; Role Management</div>
+                  <div className="super-admin-sidebar-collapsed-group-nested">
+                    <button
+                      type="button"
+                      className="super-admin-sidebar-subitem super-admin-sidebar-collapsed-group-nested-toggle"
+                      aria-expanded={isBranchManagementExpanded}
+                      onClick={() => {
+                        setActiveSection('branch-admin')
+                        setIsBranchManagementExpanded((current) => !current)
+                      }}
+                    >
+                      <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><Shield size={15} strokeWidth={2.1} /></span>
+                      <span>Branch Management</span>
+                      <ChevronDown size={14} className={isBranchManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+                    </button>
+                    {isBranchManagementExpanded ? (
+                      <div className="super-admin-sidebar-collapsed-group-nested-items">
+                        {branches.filter((branch) => getNormalizedBranchStatus(branch) === 'Active').map((branch) => (
+                          <button
+                            key={branch.id || branch.branchId}
+                            type="button"
+                            className="super-admin-sidebar-branch-name"
+                            onClick={() => { setIsSidebarFlyoutDismissed(true); handleActiveBranchView(branch) }}
+                          >
+                            <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
+                            <span>{branch.branchName || branch.branchId || 'Active branch'}</span>
+                          </button>
+                        ))}
+                        {!branches.some((branch) => getNormalizedBranchStatus(branch) === 'Active') ? (
+                          <span className="super-admin-sidebar-branch-empty">No active branches</span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button type="button" className="super-admin-sidebar-subitem" onClick={() => { setIsSidebarFlyoutDismissed(true); setIsBranchManagementExpanded(false); setActiveSection('faculty'); setIsMobileSidebarOpen(false) }}>
+                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><UserRound size={15} strokeWidth={2.1} /></span>
+                    <span>Faculty Management</span>
+                  </button>
+                </div>
+              </div>
               <button
                 type="button"
-                className={`super-admin-sidebar-item ${['branches', 'branch-admin'].includes(activeSection) ? 'is-active' : ''}`.trim()}
-                onClick={() => { setActiveSection('branch-admin'); setIsMobileSidebarOpen(false) }}
+                className="super-admin-sidebar-section-toggle"
+                aria-expanded={isUserRoleManagementExpanded}
+                onClick={() => setIsUserRoleManagementExpanded((current) => !current)}
               >
-                <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
-                <span>Branch Management</span>
+                <span>USER &amp; ROLE MANAGEMENT</span>
+                <ChevronDown size={15} strokeWidth={2.4} className={isUserRoleManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
               </button>
+              {(isUserRoleManagementExpanded || isSidebarCollapsed) ? (
+                <>
+                  <div
+                    className={`super-admin-sidebar-branch-nav ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
+                    onMouseLeave={() => setIsSidebarFlyoutDismissed(false)}
+                  >
+                  <div className={`super-admin-sidebar-item ${['branches', 'branch-admin'].includes(activeSection) ? 'is-active' : ''}`.trim()} data-tooltip="Branch Management">
+                  <button
+                    type="button"
+                    className="super-admin-sidebar-branch-link"
+                    onClick={() => {
+                      if (activeSection !== 'branch-admin') {
+                        setActiveSection('branch-admin')
+                        setIsBranchManagementExpanded(false)
+                      } else {
+                        setIsBranchManagementExpanded((current) => !current)
+                      }
+                      setIsMobileSidebarOpen(false)
+                    }}
+                  >
+                    <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
+                    <span>Branch Management</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="super-admin-sidebar-branch-toggle"
+                    aria-label={`${isBranchManagementExpanded ? 'Collapse' : 'Expand'} branch management`}
+                    aria-expanded={isBranchManagementExpanded}
+                    onClick={() => setIsBranchManagementExpanded((current) => !current)}
+                  >
+                    <ChevronDown size={16} strokeWidth={2.3} className={isBranchManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+                  </button>
+                </div>
+                {(isBranchManagementExpanded || isSidebarCollapsed) ? (
+                  <div className="super-admin-sidebar-branch-list" aria-label="Active branches">
+                    <div className="super-admin-sidebar-branch-list-title">Branch Management</div>
+                    {branches.filter((branch) => getNormalizedBranchStatus(branch) === 'Active').map((branch) => (
+                      <button
+                        key={branch.id || branch.branchId}
+                        type="button"
+                        className="super-admin-sidebar-branch-name"
+                        onClick={() => { setIsSidebarFlyoutDismissed(true); handleActiveBranchView(branch) }}
+                      >
+                        <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
+                        <span>{branch.branchName || branch.branchId || 'Active branch'}</span>
+                      </button>
+                    ))}
+                    {!branches.some((branch) => getNormalizedBranchStatus(branch) === 'Active') ? (
+                      <span className="super-admin-sidebar-branch-empty">No active branches</span>
+                    ) : null}
+                  </div>
+                ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className={`super-admin-sidebar-item super-admin-sidebar-user-role-faculty ${activeSection === 'faculty' ? 'is-active' : ''}`.trim()}
+                    data-tooltip="Faculty Management"
+                    onClick={() => { setIsSidebarFlyoutDismissed(true); setIsBranchManagementExpanded(false); setActiveSection('faculty'); setIsMobileSidebarOpen(false) }}
+                  >
+                    <span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span>
+                    <span>Faculty Management</span>
+                  </button>
+                </>
+              ) : null}
             </div>
 
-            <div className="super-admin-sidebar-section">
-              <span className="super-admin-sidebar-section-label">ACADEMIC OPERATIONS</span>
+            <div className="super-admin-sidebar-section super-admin-sidebar-section-academic">
+              <div
+                className={`super-admin-sidebar-collapsed-group ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
+                onMouseEnter={() => setIsSidebarFlyoutDismissed(false)}
+              >
+                <button
+                  type="button"
+                  className="super-admin-sidebar-collapsed-group-trigger"
+                  data-tooltip="Academic Operations"
+                  aria-label="Academic Operations"
+                >
+                  <LayoutGrid size={18} strokeWidth={2.2} aria-hidden="true" />
+                </button>
+                <div className="super-admin-sidebar-collapsed-group-flyout">
+                  <div className="super-admin-sidebar-collapsed-group-title">Academic Operations</div>
+                  <button type="button" className="super-admin-sidebar-subitem" onClick={() => { setIsSidebarFlyoutDismissed(true); setActiveSection('students'); setIsMobileSidebarOpen(false) }}>
+                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><Users size={15} strokeWidth={2.1} /></span>
+                    <span>Student Management</span>
+                  </button>
+                  <div className="super-admin-sidebar-collapsed-group-nested">
+                    <button
+                      type="button"
+                      className="super-admin-sidebar-subitem super-admin-sidebar-collapsed-group-nested-toggle"
+                      aria-expanded={isBranchesExpanded}
+                      onClick={() => {
+                        setIsBranchesExpanded((current) => !current)
+                      }}
+                    >
+                      <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><CalendarDays size={15} strokeWidth={2.1} /></span>
+                      <span>Leave Management</span>
+                      <ChevronDown size={14} className={isBranchesExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+                    </button>
+                    {isBranchesExpanded ? (
+                      <div className="super-admin-sidebar-collapsed-group-nested-items">
+                        <button type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsSidebarFlyoutDismissed(true); setActiveSection('faculty-leave'); setIsMobileSidebarOpen(false) }}>
+                          <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
+                          <span>Faculty Leave Request</span>
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
-                className={`super-admin-sidebar-item ${activeSection === 'students' ? 'is-active' : ''}`.trim()}
+                className="super-admin-sidebar-section-toggle"
+                aria-expanded={isAcademicOperationsExpanded}
+                onClick={() => setIsAcademicOperationsExpanded((current) => !current)}
+              >
+                <span>ACADEMIC OPERATIONS</span>
+                <ChevronDown size={15} strokeWidth={2.4} className={isAcademicOperationsExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+              </button>
+              {(isAcademicOperationsExpanded || isSidebarCollapsed) ? <>
+              <button
+                type="button"
+                className={`super-admin-sidebar-item super-admin-sidebar-academic-students ${activeSection === 'students' ? 'is-active' : ''}`.trim()}
+                data-tooltip="Student Management"
                 onClick={() => { setActiveSection('students'); setIsMobileSidebarOpen(false) }}
               >
                 <span className="super-admin-sidebar-icon" aria-hidden="true"><Users size={18} strokeWidth={2.2} /></span>
                 <span>Student Management</span>
               </button>
-              <button
-                type="button"
-                className={`super-admin-sidebar-item ${activeSection === 'faculty' ? 'is-active' : ''}`.trim()}
-                onClick={() => { setActiveSection('faculty'); setIsMobileSidebarOpen(false) }}
+              <div
+                className={`super-admin-sidebar-branch-nav super-admin-sidebar-academic-leave ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
+                onMouseLeave={() => setIsSidebarFlyoutDismissed(false)}
               >
-                <span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span>
-                <span>Faculty Management</span>
-              </button>
-              <div className="super-admin-sidebar-branch-nav">
-                <div className={`super-admin-sidebar-item ${activeSection === 'leave-management' ? 'is-active' : ''}`.trim()}>
+                <div className={`super-admin-sidebar-item ${['leave-management', 'faculty-leave'].includes(activeSection) ? 'is-active' : ''}`.trim()} data-tooltip="Leave Management">
                   <button
                     type="button"
                     className="super-admin-sidebar-branch-link"
-                    onClick={() => { setActiveSection('leave-management'); setIsMobileSidebarOpen(false) }}
+                    onClick={() => setIsBranchesExpanded((current) => !current)}
                   >
                     <span className="super-admin-sidebar-icon" aria-hidden="true"><CalendarDays size={18} strokeWidth={2.2} /></span>
                     <span>Leave Management</span>
@@ -1476,21 +1733,23 @@ const filteredBranches = useMemo(() => {
                     <ChevronDown size={16} strokeWidth={2.3} className={isBranchesExpanded ? 'is-expanded' : ''} aria-hidden="true" />
                   </button>
                 </div>
-                {isBranchesExpanded ? (
+                {(isBranchesExpanded || isSidebarCollapsed) ? (
                   <div className="super-admin-sidebar-branch-list" aria-label="Leave management">
-                    <button type="button" className="super-admin-sidebar-branch-name" onClick={() => { setActiveSection('faculty-leave'); setIsMobileSidebarOpen(false) }}>
+                    <div className="super-admin-sidebar-branch-list-title">Leave Management</div>
+                    <button type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsSidebarFlyoutDismissed(true); setActiveSection('faculty-leave'); setIsMobileSidebarOpen(false) }}>
                       <span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Faculty Leave Request</span>
                     </button>
                   </div>
                 ) : null}
               </div>
+              </> : null}
             </div>
 
             <div className="super-admin-sidebar-section">
-              <span className="super-admin-sidebar-section-label">SYSTEM</span>
               <button
                 type="button"
                 className="super-admin-sidebar-item"
+                data-tooltip="Notifications"
                 onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin/notifications') }}
               >
                 <span className="super-admin-sidebar-icon" aria-hidden="true"><Bell size={18} strokeWidth={2.2} /></span>
@@ -2032,32 +2291,33 @@ const filteredBranches = useMemo(() => {
               <section className="super-admin-global-panel">
                 <div className="super-admin-global-header">
                   <div><p className="branch-management-kicker">Academic Operations</p><h1>Faculty Management</h1><p>All faculty members across every active branch.</p></div>
-                  <span className="super-admin-global-count">{allBranchFaculty.length} faculty</span>
+                  <div className="super-admin-global-header-actions"><div className="super-admin-global-filter-field"><BranchFilterSelect value={globalFacultyBranchFilter} branches={globalBranchFilterOptions} onChange={(nextValue) => { setGlobalFacultyBranchFilter(nextValue); setGlobalFacultyPage(1) }} ariaLabel="Filter faculty by branch" /></div><span className="super-admin-global-count">{filteredGlobalFaculty.length} faculty</span></div>
                 </div>
                 {isGlobalManagementLoading ? <div className="super-admin-global-state">Loading faculty records...</div> : globalManagementError ? <div className="super-admin-global-state is-error">{globalManagementError}</div> : (
                   <><div className="super-admin-global-table-wrap"><table className="super-admin-global-table"><thead><tr><th>S.No</th><th>Faculty</th><th>Faculty ID</th><th>Branch</th><th>Branch Admin</th><th>Courses</th><th>Status</th></tr></thead><tbody>
                     {paginatedGlobalFaculty.map((faculty, index) => <tr key={faculty.id || `${faculty.branchId}-${faculty.facultyId}`}><td>{(safeGlobalFacultyPage - 1) * globalRowsPerPage + index + 1}</td><td><strong>{faculty.name || '-'}</strong><small>{faculty.email || '-'}</small></td><td>{faculty.facultyId || '-'}</td><td><strong>{faculty.branch?.branchName || faculty.branchName || faculty.branchRecord?.branchName || '-'}</strong><small>{faculty.branch?.branchId || faculty.branchRecord?.branchId || '-'}</small></td><td>{faculty.branch?.branchAdminName || faculty.branchAdminName || faculty.branchRecord?.branchAdminName || '-'}</td><td>{(faculty.courses || []).map((course) => course.name).filter(Boolean).join(', ') || faculty.course?.name || '-'}</td><td><span className={`super-admin-global-status ${String(faculty.status || '').toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`}>{faculty.status || '-'}</span></td></tr>)}
-                    {!allBranchFaculty.length ? <tr><td colSpan="7" className="super-admin-global-empty">No faculty records found.</td></tr> : null}
+                    {!filteredGlobalFaculty.length ? <tr><td colSpan="7" className="super-admin-global-empty">No faculty records found for this branch.</td></tr> : null}
                   </tbody></table></div>
-                  {allBranchFaculty.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalFacultyPage} totalPages={globalFacultyTotalPages} onPageChange={setGlobalFacultyPage} label="Faculty pagination" previousLabel="Prev" nextLabel="Next" /> : null}</>
+                  {filteredGlobalFaculty.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalFacultyPage} totalPages={globalFacultyTotalPages} onPageChange={setGlobalFacultyPage} label="Faculty pagination" previousLabel="Prev" nextLabel="Next" /> : null}</>
                 )}
               </section>
             ) : activeSection === 'students' ? (
               <section className="super-admin-global-panel">
-                <div className="super-admin-global-header"><div><p className="branch-management-kicker">Academic Operations</p><h1>Student Management</h1><p>All students registered across every active branch.</p></div><span className="super-admin-global-count">{allBranchStudents.length} students</span></div>
+                <div className="super-admin-global-header"><div><p className="branch-management-kicker">Academic Operations</p><h1>Student Management</h1><p>All students registered across every active branch.</p></div><div className="super-admin-global-header-actions"><div className="super-admin-global-filter-field"><BranchFilterSelect value={globalStudentBranchFilter} branches={globalBranchFilterOptions} onChange={(nextValue) => { setGlobalStudentBranchFilter(nextValue); setGlobalStudentPage(1) }} ariaLabel="Filter students by branch" /></div><span className="super-admin-global-count">{filteredGlobalStudents.length} students</span></div></div>
                 <div className="super-admin-global-table-wrap"><table className="super-admin-global-table"><thead><tr><th>S.No</th><th>Student</th><th>Student ID</th><th>Branch</th><th>Course</th><th>Batch</th><th>Status</th></tr></thead><tbody>
                   {paginatedGlobalStudents.map((student, index) => <tr key={student.id || `${student.branchId}-${student.studentId}`}><td>{(safeGlobalStudentPage - 1) * globalRowsPerPage + index + 1}</td><td><strong>{student.studentName || student.name || '-'}</strong><small>{student.emailAddress || student.email || '-'}</small></td><td>{student.studentId || student.studentCode || '-'}</td><td><strong>{student.branchRecord?.branchName || student.branchName || '-'}</strong><small>{student.branchRecord?.branchId || student.branchId || '-'}</small></td><td>{student.courseName || student.course?.name || student.courseInterested || '-'}</td><td>{student.batchName || '-'}</td><td><span className={`super-admin-global-status ${String(student.recordStatus || student.currentStatus || '').toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`}>{student.recordStatus || student.currentStatus || '-'}</span></td></tr>)}
-                  {!allBranchStudents.length ? <tr><td colSpan="7" className="super-admin-global-empty">No student records found.</td></tr> : null}
+                  {!filteredGlobalStudents.length ? <tr><td colSpan="7" className="super-admin-global-empty">No student records found for this branch.</td></tr> : null}
                 </tbody></table></div>
-                {allBranchStudents.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalStudentPage} totalPages={globalStudentTotalPages} onPageChange={setGlobalStudentPage} label="Student pagination" previousLabel="Prev" nextLabel="Next" /> : null}
+                {filteredGlobalStudents.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalStudentPage} totalPages={globalStudentTotalPages} onPageChange={setGlobalStudentPage} label="Student pagination" previousLabel="Prev" nextLabel="Next" /> : null}
               </section>
             ) : ['leave-management', 'faculty-leave'].includes(activeSection) ? (
               <section className="super-admin-global-panel">
                 <div className="super-admin-global-header"><div><p className="branch-management-kicker">Academic Operations</p><h1>Faculty Leave Management</h1><p>Faculty leave requests across every active branch.</p></div><span className="super-admin-global-count">{allBranchLeaves.length} requests</span></div>
                 <div className="super-admin-global-table-wrap"><table className="super-admin-global-table"><thead><tr><th>S.No</th><th>Type</th><th>Person / Reason</th><th>Branch</th><th>Date</th><th>Status</th></tr></thead><tbody>
-                  {allBranchLeaves.map((item, index) => <tr key={item.id || `${item.leaveCategory}-${index}`}><td>{index + 1}</td><td><strong>{item.leaveCategory}</strong></td><td><strong>{item.facultyName || item.reason || 'Leave'}</strong><small>{item.facultyId || item.leaveDate || item.fromDate || '-'}</small></td><td><strong>{item.branchRecord?.branchName || '-'}</strong><small>{item.branchRecord?.branchId || '-'}</small></td><td>{item.leaveDate || item.fromDate || '-'}{item.toDate && item.toDate !== item.fromDate ? ` to ${item.toDate}` : ''}</td><td><span className="super-admin-global-status">{item.status || '-'}</span></td></tr>)}
+                  {paginatedGlobalLeaves.map((item, index) => <tr key={item.id || `${item.leaveCategory}-${index}`}><td>{(safeGlobalLeavePage - 1) * globalRowsPerPage + index + 1}</td><td><strong>{item.leaveCategory}</strong></td><td><strong>{item.facultyName || item.reason || 'Leave'}</strong><small>{item.facultyId || item.leaveDate || item.fromDate || '-'}</small></td><td><strong>{item.branchRecord?.branchName || '-'}</strong><small>{item.branchRecord?.branchId || '-'}</small></td><td>{item.leaveDate || item.fromDate || '-'}{item.toDate && item.toDate !== item.fromDate ? ` to ${item.toDate}` : ''}</td><td><span className="super-admin-global-status">{item.status || '-'}</span></td></tr>)}
                   {!allBranchLeaves.length ? <tr><td colSpan="6" className="super-admin-global-empty">No leave records found.</td></tr> : null}
                 </tbody></table></div>
+                {allBranchLeaves.length > globalRowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeGlobalLeavePage} totalPages={globalLeaveTotalPages} onPageChange={setGlobalLeavePage} label="Faculty leave pagination" previousLabel="Prev" nextLabel="Next" /> : null}
               </section>
             ) : (
               <>

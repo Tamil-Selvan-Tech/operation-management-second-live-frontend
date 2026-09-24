@@ -13,6 +13,14 @@ export async function listBranchFaculty(params = {}) {
   
   return request(`/branch-faculty?${searchParams.toString()}`, {
     method: 'GET',
+    ...(params.impersonateBranchId ? { impersonateBranchId: params.impersonateBranchId } : {}),
+  })
+}
+
+export async function checkBranchFacultyPhone(phone) {
+  const searchParams = new URLSearchParams({ phone: String(phone || '').trim() })
+  return request(`/branch-faculty/phone-availability?${searchParams.toString()}`, {
+    method: 'GET',
   })
 }
 
