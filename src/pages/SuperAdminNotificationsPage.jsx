@@ -36,6 +36,7 @@ import {
 } from '../lib/notificationStore'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { PaginationBar } from '../components/PaginationBar'
+import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -493,7 +494,8 @@ export function SuperAdminNotificationsPage() {
             </button>
           </div>
 
-          <nav className="super-admin-sidebar-nav">
+          <SuperAdminSidebarNav branches={branches} isSidebarCollapsed={isSidebarCollapsed} onCloseMobile={() => setIsMobileSidebarOpen(false)} />
+          <nav className="super-admin-sidebar-nav super-admin-sidebar-nav-legacy">
             <div className="super-admin-sidebar-section">
               <button
               type="button"
@@ -768,15 +770,32 @@ export function SuperAdminNotificationsPage() {
       </div>
 
       {isLogoutConfirmOpen ? (
-        <div className="super-admin-logout-modal" role="dialog" aria-modal="true" aria-labelledby="super-admin-logout-title">
-          <h2 id="super-admin-logout-title">Are you sure you want to logout?</h2>
-          <div className="super-admin-logout-actions">
-            <button type="button" className="super-admin-logout-cancel" onClick={() => setIsLogoutConfirmOpen(false)}>
-              Cancel
+        <div className="branch-modal-backdrop" role="presentation">
+          <div
+            className="super-admin-logout-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="super-admin-logout-title"
+            aria-describedby="super-admin-logout-description"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="super-admin-logout-close"
+              aria-label="Close logout confirmation"
+              onClick={() => setIsLogoutConfirmOpen(false)}
+            >
+              <X size={22} strokeWidth={2.5} aria-hidden="true" />
             </button>
-            <button type="button" className="super-admin-logout-submit" onClick={handleConfirmLogout}>
-              Logout
-            </button>
+            <h2 id="super-admin-logout-title">Are you sure you want to logout?</h2>
+            <div className="super-admin-logout-actions">
+              <button type="button" className="super-admin-logout-cancel" onClick={() => setIsLogoutConfirmOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="super-admin-logout-submit" onClick={handleConfirmLogout}>
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

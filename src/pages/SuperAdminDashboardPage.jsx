@@ -38,6 +38,7 @@ import { BranchDashboardPage } from './BranchDashboardPage'
 import { Student360Page } from './Student360Page'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
+import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
 import '../styles/SuperAdminDashboardPage.css'
 
 function AvatarBadge() {
@@ -1504,7 +1505,8 @@ const filteredBranches = useMemo(() => {
             </button>
           </div>
 
-          <nav className="super-admin-sidebar-nav">
+          <SuperAdminSidebarNav branches={branches} isSidebarCollapsed={isSidebarCollapsed} onCloseMobile={() => setIsMobileSidebarOpen(false)} onOpenBranch={handleActiveBranchView} />
+          <nav className="super-admin-sidebar-nav super-admin-sidebar-nav-legacy">
             <div className="super-admin-sidebar-section">
               <button
                 type="button"

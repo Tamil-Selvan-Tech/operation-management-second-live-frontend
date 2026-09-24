@@ -144,6 +144,10 @@
   align-content: start;
 }
 
+.super-admin-sidebar-nav-legacy {
+  display: none;
+}
+
 .super-admin-sidebar-section {
   display: grid;
   gap: 6px;
