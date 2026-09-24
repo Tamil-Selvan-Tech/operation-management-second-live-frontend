@@ -4724,6 +4724,12 @@ const nextName = trimmedValue
     setIsProfileMenuOpen(false)
   }
 
+  const openForgotPassword = () => {
+    const email = String(facultyDetails.email || '').trim()
+    const suffix = email ? `?email=${encodeURIComponent(email)}` : ''
+    navigate(`/forgot-password${suffix}`)
+  }
+
   const handleSidebarSectionChange = (section) => {
     const routeBySection = { dashboard: '/dashboard/faculty/dashboard', 'my-courses': '/dashboard/faculty/courses', 'my-batches': '/dashboard/faculty/batches', 'my-calendar': '/dashboard/faculty/calendar', exams: '/dashboard/faculty/exams', students: '/dashboard/faculty/students', 'leave-requests': '/dashboard/faculty/leave-requests', notifications: '/dashboard/faculty/notifications', profile: '/dashboard/faculty/profile' }
     if (routeBySection[section]) {
@@ -6312,59 +6318,54 @@ const nextName = trimmedValue
               ) : null}
 
               {activeSection === 'profile' ? (
-                <FacultyDashboardSection title="Faculty Profile" description="Your dynamic workspace details loaded directly from branch registry.">
-                  <div className="faculty-profile-details-card bg-white rounded-2xl border border-slate-200 p-6 max-w-3xl shadow-sm">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="w-16 h-16 rounded-full bg-sky-100 text-sky-700 font-bold text-2xl flex items-center justify-center border border-sky-200">
-                        {initials}
-                      </div>
+                <FacultyDashboardSection title="Faculty Profile" description="Manage your faculty account and professional information.">
+                  <article className="faculty-profile-identity-card">
+                    <div className="faculty-profile-identity">
+                      <div className="faculty-profile-avatar" aria-hidden="true">{initials}</div>
                       <div>
-                        <h2 className="text-[1.35rem] font-bold text-slate-900">{facultyName}</h2>
-                        <p className="text-slate-500 text-sm flex items-center gap-1.5 mt-0.5">
-                          <UserRound size={14} /> Faculty Instructor
-                        </p>
+                        <h2>{facultyName}</h2>
+                        <p>Faculty Instructor</p>
+                        <small>Faculty ID: {facultyDetails.id}</small>
                       </div>
                     </div>
+                  </article>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6">
-                      <div className="border-b border-slate-100 pb-3">
-                        <span className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Faculty ID</span>
-                        <strong className="text-slate-800 text-[1rem]">{facultyDetails.id}</strong>
-                      </div>
-                      <div className="border-b border-slate-100 pb-3">
-                        <span className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Contact Number</span>
-                        <strong className="text-slate-800 text-[1rem] flex items-center gap-1">
-                          <Phone size={14} className="text-slate-400" /> {facultyDetails.phone}
-                        </strong>
-                      </div>
-                      <div className="border-b border-slate-100 pb-3">
-                        <span className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Email Address</span>
-                        <strong className="text-slate-800 text-[1rem] flex items-center gap-1">
-                          <Mail size={14} className="text-slate-400" /> {facultyDetails.email}
-                        </strong>
-                      </div>
-                      <div className="border-b border-slate-100 pb-3">
-                        <span className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Account Status</span>
-                        <strong className="text-slate-800 text-[1rem] flex items-center">
-                          <span className={`branch-course-status-pill ${String(facultyDetails.status).toLowerCase()}`}>
-                            {facultyDetails.status}
-                          </span>
-                        </strong>
-                      </div>
-                      <div className="border-b border-slate-100 pb-3 md:col-span-2">
-                        <span className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Location</span>
-                        <strong className="text-slate-800 text-[1rem] flex items-center gap-1">
-                          <MapPin size={14} className="text-slate-400" /> {facultyDetails.city}, {facultyDetails.state}, {facultyDetails.country}
-                        </strong>
-                      </div>
-                      <div className="md:col-span-2 pb-1">
-                        <span className="block text-xs uppercase tracking-wider text-slate-400 font-semibold mb-0.5">Residential Address</span>
-                        <strong className="text-slate-800 text-[1rem] block font-normal leading-relaxed text-slate-600">
-                          {facultyDetails.address}
-                        </strong>
+                  <section className="faculty-profile-section" aria-labelledby="faculty-contact-heading">
+                    <div className="faculty-profile-section-heading">
+                      <h3 id="faculty-contact-heading">Contact Information</h3>
+                    </div>
+                    <div className="faculty-profile-information-card">
+                      <div className="faculty-profile-information-grid">
+                        <div className="faculty-profile-information-field">
+                          <span>Email Address</span>
+                          <strong><Mail size={15} /> {facultyDetails.email}</strong>
+                        </div>
+                        <div className="faculty-profile-information-field">
+                          <span>Contact Number</span>
+                          <strong><Phone size={15} /> {facultyDetails.phone}</strong>
+                        </div>
+                        <div className="faculty-profile-information-field">
+                          <span>Location</span>
+                          <strong><MapPin size={15} /> {facultyDetails.city}, {facultyDetails.state}, {facultyDetails.country}</strong>
+                        </div>
+                        <div className="faculty-profile-information-field">
+                          <span>Account Status</span>
+                          <strong><span className="faculty-profile-status-badge">{facultyDetails.status}</span></strong>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </section>
+
+                  <section className="faculty-profile-section" aria-labelledby="faculty-security-heading">
+                    <h3 id="faculty-security-heading">Account &amp; Security</h3>
+                    <div className="faculty-profile-security-card">
+                      <div className="faculty-profile-security-email">
+                        <span>Email</span>
+                        <strong>{facultyDetails.email}</strong>
+                      </div>
+                      <button type="button" onClick={openForgotPassword}>Change Password</button>
+                    </div>
+                  </section>
                 </FacultyDashboardSection>
               ) : null}
             </div>
