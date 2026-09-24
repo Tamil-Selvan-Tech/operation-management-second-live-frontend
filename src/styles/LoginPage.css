@@ -905,6 +905,18 @@
   transform: translateX(-6px);
 }
 
+/* Nudge only the password lock icon slightly to the right. */
+.login-page .password-field .field-icon {
+  transform: translateX(6px);
+}
+
+/* Align both input values slightly closer to their leading icons. */
+.login-page .password-field .login-input,
+.login-page .field-with-icon:not(.password-field) .login-input {
+  padding-left: 0 !important;
+  transform: translateX(-6px);
+}
+
 /* Match Login fields to the Reset Password field treatment while keeping
    Login's existing leading icons and behavior. */
 .login-page .field-with-icon {
