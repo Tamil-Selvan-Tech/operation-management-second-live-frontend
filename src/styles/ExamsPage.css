@@ -131,3 +131,27 @@
 .student-submitted-card .student-result-score{display:grid;grid-template-columns:auto auto 1fr;align-items:center;column-gap:16px;row-gap:3px}.student-submitted-card .student-result-score>span{grid-column:1;grid-row:1 / span 2}.student-submitted-card .student-result-score>strong{grid-column:2;grid-row:1}.student-submitted-card .student-result-score>b{grid-column:2;grid-row:2;margin-left:0}.student-submitted-card .student-result-score>div{grid-column:3;grid-row:1 / span 2;margin-left:auto}
 @media(max-width:560px){.student-submitted-card .student-result-score{display:flex;align-items:flex-start;flex-direction:column;gap:5px}.student-submitted-card .student-result-score>span,.student-submitted-card .student-result-score>strong,.student-submitted-card .student-result-score>b,.student-submitted-card .student-result-score>div{grid-column:auto;grid-row:auto;margin-left:0}}
 .faculty-table-pagination{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:16px}.faculty-table-pagination span{margin-right:auto;color:#64748b;font-size:13px;font-weight:600}.faculty-table-pagination .exam-primary,.faculty-table-pagination .exam-secondary{padding:8px 12px}
+.exam-retest-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid #cfe0f8;
+  border-radius: 10px;
+  background: #f7faff;
+  color: #49627f;
+}
+
+.exam-retest-context strong {
+  width: 100%;
+  color: #142b4a;
+}
+
+.exam-retest-context span {
+  font-size: 14px;
+}
+
+.exam-retests-card {
+  margin-top: 20px;
+}
