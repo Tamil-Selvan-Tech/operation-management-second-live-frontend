@@ -135,6 +135,10 @@ function buildBranchSessionFromCredentials(credentials) {
   const matchedBranch = findBranchByCredentials(email, password)
   if (!matchedBranch) return null
 
+  if (String(matchedBranch.status || 'Active').trim().toLowerCase() === 'inactive') {
+    throw new Error('This branch is inactive. Branch admin login is not allowed.')
+  }
+
   if (String(matchedBranch.resendMailStatus || '').trim().toLowerCase() !== 'active') {
     markBranchWelcomeMailSent(email)
   }

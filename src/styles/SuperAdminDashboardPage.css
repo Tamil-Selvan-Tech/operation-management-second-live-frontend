@@ -144,13 +144,17 @@
   align-content: start;
 }
 
+.super-admin-sidebar-nav-legacy {
+  display: none;
+}
+
 .super-admin-sidebar-section {
   display: grid;
   gap: 6px;
 }
 
 .super-admin-sidebar-section-label {
-  padding: 0 6px;
+  padding: 0 10px;
   color: #111827;
   font-size: 0.7rem;
   font-weight: 800;
@@ -163,13 +167,14 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 0 6px;
+  min-height: 42px;
+  padding: 7px 10px;
   border: 0;
   background: transparent;
   color: #111827;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
   text-align: left;
   cursor: pointer;
   transition: color 160ms ease;
@@ -320,6 +325,29 @@
 .super-admin-sidebar-branch-nav {
   display: grid;
   gap: 4px;
+}
+
+.super-admin-sidebar-section-toggle-label {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  white-space: nowrap;
+}
+
+.super-admin-sidebar-section-toggle-label svg {
+  flex: 0 0 auto;
+  color: currentColor;
+}
+
+.super-admin-sidebar-branch-admin-nav .super-admin-sidebar-branch-toggle,
+.super-admin-sidebar-branch-admin-nav .super-admin-sidebar-branch-list {
+  display: none;
 }
 
 .super-admin-sidebar-branch-link {
@@ -5115,6 +5143,8 @@ body.super-admin-sidebar-open {
 .super-admin-global-table thead { background: #f7faff; }
 .super-admin-global-table th { color: #60738f; font-size: 11px; font-weight: 850; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
 .super-admin-global-table tbody tr:hover { background: #fbfdff; }
+.super-admin-global-table-row-action { cursor: pointer; }
+.super-admin-global-table-row-action:focus-visible { outline: 2px solid #4b8ff5; outline-offset: -2px; }
 .super-admin-global-table tbody tr:last-child td { border-bottom: 0; }
 .super-admin-global-table td strong, .super-admin-global-table td small { display: block; }
 .super-admin-global-table td strong { color: #172b4d; font-weight: 750; }
