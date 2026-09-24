@@ -139,10 +139,18 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
    ========================================================= */
 
 .student-new-sidebar-nav {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   order: 1;
+  min-height: 0;
   padding: 22px 14px;
-  overflow-y: visible;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.student-new-sidebar-nav::-webkit-scrollbar {
+  display: none;
 }
 
 .student-new-sidebar-section {
@@ -207,6 +215,20 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 
 .student-new-sidebar-item.is-active .student-new-sidebar-icon {
   color: #0f4fb8;
+}
+
+.student-new-sidebar-chevron {
+  margin-left: auto;
+  color: #64748b;
+  transition: transform 160ms ease, color 160ms ease;
+}
+
+.student-new-sidebar-item.is-active .student-new-sidebar-chevron {
+  color: #2563eb;
+}
+
+.student-new-sidebar-chevron.is-expanded {
+  transform: rotate(180deg);
 }
 
 .student-new-sidebar-subnav {
@@ -345,7 +367,7 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 
 @media (min-width: 769px) {
   .student-new-sidebar {
-    overflow: visible;
+    overflow: hidden;
   }
 
   .student-new-shell.is-sidebar-collapsed .student-new-sidebar {

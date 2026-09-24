@@ -462,6 +462,11 @@ export function StudentNewDashboardPage() {
  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
    try { return window.localStorage.getItem('cispro.student-sidebar-collapsed') === 'true' } catch { return false }
  })
+ const [isExamsExpanded, setIsExamsExpanded] = useState(isExamsRoute)
+
+ useEffect(() => {
+   setIsExamsExpanded(isExamsRoute)
+ }, [isExamsRoute])
 
  useEffect(() => {
    try { window.localStorage.setItem('cispro.student-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* ignore storage failures */ }
@@ -921,12 +926,15 @@ const handleLogoutConfirm = async () => {
               <button
                 type="button"
                 className={`student-new-sidebar-item ${activeSection === 'exams' || isExamsRoute ? 'is-active' : ''}`.trim()}
-                onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}
+                data-tooltip="Exams & Results"
+                aria-expanded={isExamsExpanded}
+                onClick={() => setIsExamsExpanded((current) => !current)}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true"><BookOpen size={18} strokeWidth={2.2} /></span>
                 <span>Exams &amp; Results</span>
+                <ChevronDown className={`student-new-sidebar-chevron ${isExamsExpanded ? 'is-expanded' : ''}`.trim()} size={16} strokeWidth={2.2} aria-hidden="true" />
               </button>
-              {isExamsRoute ? <div className="student-new-sidebar-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessments</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
+              {isExamsExpanded ? <div className="student-new-sidebar-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessments</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
 
               <button
                 type="button"
