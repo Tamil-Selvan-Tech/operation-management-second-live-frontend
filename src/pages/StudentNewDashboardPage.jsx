@@ -924,7 +924,7 @@ const handleLogoutConfirm = async () => {
                 onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true"><BookOpen size={18} strokeWidth={2.2} /></span>
-                <span>Exam Test &amp; Assessment</span>
+                <span>Exams &amp; Results</span>
               </button>
               {isExamsRoute ? <div className="student-new-sidebar-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessments</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
 

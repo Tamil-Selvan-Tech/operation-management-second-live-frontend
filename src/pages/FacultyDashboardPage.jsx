@@ -1795,7 +1795,11 @@ export function FacultyDashboardPage() {
   const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
-  const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({ courses: true, 'leave-management': true })
+  const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({
+    courses: true,
+    'leave-management': true,
+    exams: isExamsRoute || isAssessmentsRoute || isExamReportsRoute,
+  })
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try { return window.localStorage.getItem('cispro.faculty-sidebar-collapsed') === 'true' } catch { return false }
   })
@@ -4805,7 +4809,8 @@ const nextName = trimmedValue
           }
 
           if (item.id === 'exams') {
-            return <div key={item.id} className="super-admin-sidebar-item-group"><button type="button" className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()} onClick={() => handleSidebarSectionChange('exams')}><span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span><span>Exams</span></button><div className="super-admin-sidebar-submenu"><button type="button" className={`super-admin-sidebar-subitem ${isExamsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams')}><span />Tests</button><button type="button" className={`super-admin-sidebar-subitem ${isAssessmentsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/assessments')}><span />Assessments</button><button type="button" className={`super-admin-sidebar-subitem ${isExamReportsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/reports')}><span />Reports</button></div></div>
+            const isExpanded = Boolean(expandedSidebarGroups.exams)
+            return <div key={item.id} className="super-admin-sidebar-item-group"><button type="button" className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()} data-tooltip="Exams & Results" aria-expanded={isExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, exams: !current.exams }))}><span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span><span>Exams &amp; Results</span><ChevronDown size={16} strokeWidth={2.2} className={isExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-submenu"><button type="button" className={`super-admin-sidebar-subitem ${isExamsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><CheckCircle2 size={15} strokeWidth={2.1} /></span><span>Tests</span></button><button type="button" className={`super-admin-sidebar-subitem ${isAssessmentsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/assessments')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Assessments</span></button><button type="button" className={`super-admin-sidebar-subitem ${isExamReportsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/reports')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><BarChart3 size={15} strokeWidth={2.1} /></span><span>Reports</span></button></div> : null}</div>
           }
 
           return (
