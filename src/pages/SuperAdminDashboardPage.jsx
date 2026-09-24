@@ -340,6 +340,7 @@ const statusFilterRef = useRef(null)
   const [form, setForm] = useState({
     branchId: '',
     branchName: '',
+    status: 'Active',
     branchAdminName: '',
     branchEmail: '',
     branchPhone: '',
@@ -989,6 +990,7 @@ const filteredBranches = useMemo(() => {
     setForm({
       branchId: '',
       branchName: '',
+      status: 'Active',
       branchAdminName: '',
       branchEmail: '',
       branchPhone: '',
@@ -1011,6 +1013,7 @@ const filteredBranches = useMemo(() => {
     setForm({
       branchId: branch.branchId || '',
       branchName: branch.branchName || '',
+      status: branch.status ? getNormalizedBranchStatus(branch) : 'Active',
       branchAdminName: branch.branchAdminName || '',
       branchEmail: branch.branchEmail || '',
       branchPhone: String(branch.branchPhone || '').replace(/\D+/g, '').slice(0, 10),
@@ -1273,6 +1276,7 @@ const filteredBranches = useMemo(() => {
     const nextBranchData = {
       branchId,
       branchName: nextForm.branchName.trim(),
+      status: nextForm.status === 'Inactive' ? 'Inactive' : 'Active',
       branchAdminName: nextForm.branchAdminName.trim(),
       branchEmail: nextForm.branchEmail.trim(),
       branchPhone: cleanedPhone,
@@ -1305,7 +1309,6 @@ const filteredBranches = useMemo(() => {
 
       const nextBranch = await createBranch({
         ...nextBranchData,
-        status: 'Active',
         createdAt: formatToday(),
       })
 
@@ -1421,12 +1424,12 @@ const filteredBranches = useMemo(() => {
                 <span className="super-admin-sidebar-icon"><LayoutDashboard size={18} strokeWidth={2.2} /></span>
                 <span>Dashboard</span>
               </button>
-              <span className="super-admin-sidebar-section-label">USER &amp; ROLE MANAGEMENT</span>
+              <span className="super-admin-sidebar-section-label">User &amp; Role Management</span>
               <button type="button" className="super-admin-sidebar-item" onClick={() => { setSuperAdminStudentView(null); setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }}>
                 <span className="super-admin-sidebar-icon"><Building2 size={18} strokeWidth={2.2} /></span>
                 <span>Branch Management</span>
               </button>
-              <span className="super-admin-sidebar-section-label">ACADEMIC OPERATIONS</span>
+              <span className="super-admin-sidebar-section-label">Academic Operations</span>
               <button type="button" className="super-admin-sidebar-item" onClick={() => { setSuperAdminStudentView(null); setActiveSection('students'); navigate('/dashboard/super-admin?section=students') }}>
                 <span className="super-admin-sidebar-icon"><Users size={18} strokeWidth={2.2} /></span>
                 <span>Student Management</span>
@@ -1519,82 +1522,18 @@ const filteredBranches = useMemo(() => {
               </button>
             </div>
 
-            <div className="super-admin-sidebar-section super-admin-sidebar-section-user-role">
+            <div className="super-admin-sidebar-section">
               <div
-                className={`super-admin-sidebar-collapsed-group ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
-                onMouseEnter={() => setIsSidebarFlyoutDismissed(false)}
+                className={`super-admin-sidebar-branch-nav ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
+                onMouseLeave={() => setIsSidebarFlyoutDismissed(false)}
               >
-                <button
-                  type="button"
-                  className="super-admin-sidebar-collapsed-group-trigger"
-                  data-tooltip="User & Role Management"
-                  aria-label="User & Role Management"
-                >
-                  <Shield size={18} strokeWidth={2.2} aria-hidden="true" />
-                </button>
-                <div className="super-admin-sidebar-collapsed-group-flyout">
-                  <div className="super-admin-sidebar-collapsed-group-title">User &amp; Role Management</div>
-                  <div className="super-admin-sidebar-collapsed-group-nested">
-                    <button
-                      type="button"
-                      className="super-admin-sidebar-subitem super-admin-sidebar-collapsed-group-nested-toggle"
-                      aria-expanded={isBranchManagementExpanded}
-                      onClick={() => {
-                        setActiveSection('branch-admin')
-                        setIsBranchManagementExpanded((current) => !current)
-                      }}
-                    >
-                      <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><Shield size={15} strokeWidth={2.1} /></span>
-                      <span>Branch Management</span>
-                      <ChevronDown size={14} className={isBranchManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
-                    </button>
-                    {isBranchManagementExpanded ? (
-                      <div className="super-admin-sidebar-collapsed-group-nested-items">
-                        {branches.filter((branch) => getNormalizedBranchStatus(branch) === 'Active').map((branch) => (
-                          <button
-                            key={branch.id || branch.branchId}
-                            type="button"
-                            className="super-admin-sidebar-branch-name"
-                            onClick={() => { setIsSidebarFlyoutDismissed(true); handleActiveBranchView(branch) }}
-                          >
-                            <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
-                            <span>{branch.branchName || branch.branchId || 'Active branch'}</span>
-                          </button>
-                        ))}
-                        {!branches.some((branch) => getNormalizedBranchStatus(branch) === 'Active') ? (
-                          <span className="super-admin-sidebar-branch-empty">No active branches</span>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </div>
-                  <button type="button" className="super-admin-sidebar-subitem" onClick={() => { setIsSidebarFlyoutDismissed(true); setIsBranchManagementExpanded(false); setActiveSection('faculty'); setIsMobileSidebarOpen(false) }}>
-                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><UserRound size={15} strokeWidth={2.1} /></span>
-                    <span>Faculty Management</span>
-                  </button>
-                </div>
-              </div>
-              <button
-                type="button"
-                className={`super-admin-sidebar-section-toggle ${['branches', 'branch-admin', 'faculty'].includes(activeSection) ? 'is-active' : ''}`.trim()}
-                aria-expanded={isUserRoleManagementExpanded}
-                onClick={() => setIsUserRoleManagementExpanded((current) => !current)}
-              >
-                <span>USER &amp; ROLE MANAGEMENT</span>
-                <ChevronDown size={15} strokeWidth={2.4} className={isUserRoleManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
-              </button>
-              {(isUserRoleManagementExpanded || isSidebarCollapsed) ? (
-                <>
-                  <div
-                    className={`super-admin-sidebar-branch-nav ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
-                    onMouseLeave={() => setIsSidebarFlyoutDismissed(false)}
-                  >
-                  <div className={`super-admin-sidebar-item ${['branches', 'branch-admin'].includes(activeSection) ? 'is-active' : ''}`.trim()} data-tooltip="Branch Management">
+                <div className={`super-admin-sidebar-item ${activeSection === 'branches' ? 'is-active' : ''}`.trim()} data-tooltip="Branch Management">
                   <button
                     type="button"
                     className="super-admin-sidebar-branch-link"
                     onClick={() => {
-                      if (activeSection !== 'branch-admin') {
-                        setActiveSection('branch-admin')
+                      if (activeSection !== 'branches') {
+                        setActiveSection('branches')
                         setIsBranchManagementExpanded(false)
                       } else {
                         setIsBranchManagementExpanded((current) => !current)
@@ -1604,6 +1543,75 @@ const filteredBranches = useMemo(() => {
                   >
                     <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
                     <span>Branch Management</span>
+                  </button>
+                  <button type="button" className="super-admin-sidebar-branch-toggle" aria-label={`${isBranchManagementExpanded ? 'Collapse' : 'Expand'} branch management`} aria-expanded={isBranchManagementExpanded} onClick={() => setIsBranchManagementExpanded((current) => !current)}>
+                    <ChevronDown size={16} strokeWidth={2.3} className={isBranchManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+                  </button>
+                </div>
+                {(isBranchManagementExpanded || isSidebarCollapsed) ? (
+                  <div className="super-admin-sidebar-branch-list" aria-label="Active branches">
+                    <div className="super-admin-sidebar-branch-list-title">Branch Management</div>
+                    {branches.filter((branch) => getNormalizedBranchStatus(branch) === 'Active').map((branch) => (
+                      <button key={branch.id || branch.branchId} type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsSidebarFlyoutDismissed(true); handleActiveBranchView(branch) }}>
+                        <span className="super-admin-sidebar-branch-dot" aria-hidden="true" />
+                        <span>{branch.branchName || branch.branchId || 'Active branch'}</span>
+                      </button>
+                    ))}
+                    {!branches.some((branch) => getNormalizedBranchStatus(branch) === 'Active') ? <span className="super-admin-sidebar-branch-empty">No active branches</span> : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="super-admin-sidebar-section super-admin-sidebar-section-user-role">
+              <div
+                className={`super-admin-sidebar-collapsed-group ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
+                onMouseEnter={() => setIsSidebarFlyoutDismissed(false)}
+                onMouseLeave={() => setIsSidebarFlyoutDismissed(true)}
+              >
+                <button
+                  type="button"
+                  className="super-admin-sidebar-collapsed-group-trigger"
+                  data-tooltip="User & Role Management"
+                  aria-label="User & Role Management"
+                >
+                  <Users size={18} strokeWidth={2.2} aria-hidden="true" />
+                </button>
+                <div className="super-admin-sidebar-collapsed-group-flyout">
+                  <div className="super-admin-sidebar-collapsed-group-title">User &amp; Role Management</div>
+                  <button type="button" className="super-admin-sidebar-subitem" onClick={() => { setIsSidebarFlyoutDismissed(true); setIsBranchManagementExpanded(false); setActiveSection('branch-admin'); setIsMobileSidebarOpen(false) }}>
+                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><Shield size={15} strokeWidth={2.1} /></span>
+                    <span>Branch Admin</span>
+                  </button>
+                  <button type="button" className="super-admin-sidebar-subitem" onClick={() => { setIsSidebarFlyoutDismissed(true); setIsBranchManagementExpanded(false); setActiveSection('faculty'); setIsMobileSidebarOpen(false) }}>
+                    <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><UserRound size={15} strokeWidth={2.1} /></span>
+                    <span>Faculty Management</span>
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={`super-admin-sidebar-section-toggle ${['branch-admin', 'faculty'].includes(activeSection) ? 'is-active' : ''}`.trim()}
+                aria-expanded={isUserRoleManagementExpanded}
+                onClick={() => setIsUserRoleManagementExpanded((current) => !current)}
+              >
+                <span className="super-admin-sidebar-section-toggle-label"><Users size={16} strokeWidth={2.2} aria-hidden="true" /><span>User &amp; Role Management</span></span>
+                <ChevronDown size={15} strokeWidth={2.4} className={isUserRoleManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
+              </button>
+              {(isUserRoleManagementExpanded || isSidebarCollapsed) ? (
+                <>
+                  <div
+                    className={`super-admin-sidebar-branch-nav super-admin-sidebar-branch-admin-nav ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
+                    onMouseLeave={() => setIsSidebarFlyoutDismissed(false)}
+                  >
+                  <div className={`super-admin-sidebar-item ${activeSection === 'branch-admin' ? 'is-active' : ''}`.trim()} data-tooltip="Branch Admin">
+                  <button
+                    type="button"
+                    className="super-admin-sidebar-branch-link"
+                    onClick={() => { setActiveSection('branch-admin'); setIsBranchManagementExpanded(false); setIsMobileSidebarOpen(false) }}
+                  >
+                    <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
+                    <span>Branch Admin</span>
                   </button>
                   <button
                     type="button"
@@ -1652,6 +1660,7 @@ const filteredBranches = useMemo(() => {
               <div
                 className={`super-admin-sidebar-collapsed-group ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
                 onMouseEnter={() => setIsSidebarFlyoutDismissed(false)}
+                onMouseLeave={() => setIsSidebarFlyoutDismissed(true)}
               >
                 <button
                   type="button"
@@ -1697,7 +1706,7 @@ const filteredBranches = useMemo(() => {
                 aria-expanded={isAcademicOperationsExpanded}
                 onClick={() => setIsAcademicOperationsExpanded((current) => !current)}
               >
-                <span>ACADEMIC OPERATIONS</span>
+                <span className="super-admin-sidebar-section-toggle-label"><LayoutGrid size={16} strokeWidth={2.2} aria-hidden="true" /><span>Academic Operations</span></span>
                 <ChevronDown size={15} strokeWidth={2.4} className={isAcademicOperationsExpanded ? 'is-expanded' : ''} aria-hidden="true" />
               </button>
               {(isAcademicOperationsExpanded || isSidebarCollapsed) ? <>
@@ -1885,7 +1894,7 @@ const filteredBranches = useMemo(() => {
           </header>
 
           <main className="super-admin-content">
-            {['branches', 'branch-admin'].includes(activeSection) ? (
+            {activeSection === 'branches' ? (
               <section className="branch-management-panel">
                 <div className="branch-management-header">
                   <div className="branch-management-title-block">
@@ -2287,6 +2296,23 @@ const filteredBranches = useMemo(() => {
                   </div>
                 </div>
               </section>
+            ) : activeSection === 'branch-admin' ? (
+              <section className="super-admin-global-panel">
+                <div className="super-admin-global-header">
+                  <div><p className="branch-management-kicker">User &amp; Role Management</p><h1>Branch Admin</h1></div>
+                  <span className="super-admin-global-count">{filteredBranches.length} branch admins</span>
+                </div>
+                <div className="super-admin-global-table-wrap">
+                  <table className="super-admin-global-table">
+                    <thead><tr><th>S.No</th><th>Branch ID</th><th>Admin Name</th><th>Mobile Number</th><th>Branch</th><th>Branch Address</th></tr></thead>
+                    <tbody>
+                      {paginatedBranches.map((branch, index) => <tr key={branch.id || branch.branchId} role="button" tabIndex={0} className="super-admin-global-table-row-action" aria-label={`View ${branch.branchName || branch.branchId || 'branch'} details`} onClick={() => openViewBranch(branch)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openViewBranch(branch) } }}><td>{(safeCurrentPage - 1) * rowsPerPage + index + 1}</td><td><strong>{branch.branchId || '-'}</strong></td><td><strong>{branch.branchAdminName || 'Branch admin not set'}</strong><small>{branch.branchAdminEmail || branch.branchEmail || '-'}</small></td><td>{branch.branchAdminPhone || branch.adminPhone || branch.branchPhone || '-'}</td><td><strong>{branch.branchName || '-'}</strong></td><td>{branch.branchAddress || '-'}</td></tr>)}
+                      {!filteredBranches.length ? <tr><td colSpan="6" className="super-admin-global-empty">No branch admin records found.</td></tr> : null}
+                    </tbody>
+                  </table>
+                </div>
+                {filteredBranches.length > rowsPerPage ? <PaginationBar className="super-admin-pagination" currentPage={safeCurrentPage} totalPages={totalPages} onPageChange={setCurrentPage} label="Branch admin pagination" previousLabel="Prev" nextLabel="Next" /> : null}
+              </section>
             ) : activeSection === 'faculty' ? (
               <section className="super-admin-global-panel">
                 <div className="super-admin-global-header">
@@ -2532,6 +2558,18 @@ const filteredBranches = useMemo(() => {
               </label>
 
               <label className="branch-field">
+                <span>Status</span>
+                <select
+                  value={form.status}
+                  onChange={(event) => setForm((current) => ({ ...current, status: event.target.value }))}
+                  className="branch-location-select"
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </label>
+
+              <label className="branch-field">
                 <span>Branch Admin Name</span>
                 <input
                   type="text"
@@ -2636,7 +2674,7 @@ const filteredBranches = useMemo(() => {
                 {branchErrors.branchDistrict ? <small className="branch-field-error">{branchErrors.branchDistrict}</small> : null}
               </label>
 
-              <label className="branch-field branch-field-full">
+              <label className="branch-field">
                 <span>Address</span>
                 <input
                   type="text"

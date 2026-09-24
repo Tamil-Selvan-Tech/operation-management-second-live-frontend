@@ -512,9 +512,9 @@ export function SuperAdminNotificationsPage() {
             </div>
 
             <div className="super-admin-sidebar-section super-admin-sidebar-section-user-role">
-              <div className="super-admin-sidebar-collapsed-group">
+              <div className="super-admin-sidebar-collapsed-group" onMouseEnter={() => setIsSidebarFlyoutDismissed(false)} onMouseLeave={() => setIsSidebarFlyoutDismissed(true)}>
                 <button type="button" className="super-admin-sidebar-collapsed-group-trigger" data-tooltip="User & Role Management" aria-label="User & Role Management">
-                  <Shield size={18} strokeWidth={2.2} aria-hidden="true" />
+                  <Users size={18} strokeWidth={2.2} aria-hidden="true" />
                 </button>
                 <div className="super-admin-sidebar-collapsed-group-flyout">
                   <div className="super-admin-sidebar-collapsed-group-title">User &amp; Role Management</div>
@@ -529,7 +529,7 @@ export function SuperAdminNotificationsPage() {
                 </div>
               </div>
               <button type="button" className="super-admin-sidebar-section-toggle" aria-expanded={isUserRoleManagementExpanded} onClick={() => setIsUserRoleManagementExpanded((current) => !current)}>
-                <span>USER &amp; ROLE MANAGEMENT</span>
+                <span className="super-admin-sidebar-section-toggle-label"><Users size={16} strokeWidth={2.2} aria-hidden="true" /><span>User &amp; Role Management</span></span>
                 <ChevronDown size={15} strokeWidth={2.4} className={isUserRoleManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
               </button>
               {isUserRoleManagementExpanded || isSidebarCollapsed ? <>
@@ -545,7 +545,7 @@ export function SuperAdminNotificationsPage() {
             </div>
 
             <div className="super-admin-sidebar-section super-admin-sidebar-section-academic">
-              <div className="super-admin-sidebar-collapsed-group">
+              <div className="super-admin-sidebar-collapsed-group" onMouseEnter={() => setIsSidebarFlyoutDismissed(false)} onMouseLeave={() => setIsSidebarFlyoutDismissed(true)}>
                 <button type="button" className="super-admin-sidebar-collapsed-group-trigger" data-tooltip="Academic Operations" aria-label="Academic Operations">
                   <LayoutGrid size={18} strokeWidth={2.2} aria-hidden="true" />
                 </button>
@@ -559,7 +559,7 @@ export function SuperAdminNotificationsPage() {
                 </div>
               </div>
               <button type="button" className="super-admin-sidebar-section-toggle" aria-expanded={isAcademicOperationsExpanded} onClick={() => setIsAcademicOperationsExpanded((current) => !current)}>
-                <span>ACADEMIC OPERATIONS</span>
+                <span className="super-admin-sidebar-section-toggle-label"><LayoutGrid size={16} strokeWidth={2.2} aria-hidden="true" /><span>Academic Operations</span></span>
                 <ChevronDown size={15} strokeWidth={2.4} className={isAcademicOperationsExpanded ? 'is-expanded' : ''} aria-hidden="true" />
               </button>
               {isAcademicOperationsExpanded || isSidebarCollapsed ? <>
