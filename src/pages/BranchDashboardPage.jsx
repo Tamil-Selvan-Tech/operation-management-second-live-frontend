@@ -8555,29 +8555,20 @@ useEffect(() => {
       <nav className="super-admin-sidebar-nav">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'courses', label: 'Courses', icon: BookOpen, children: [
-            { id: 'installments', label: 'Installments', icon: Wallet },
-            { id: 'courses', label: 'Course Management', icon: BookOpen },
-          ] },
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
-            { id: 'faculty', label: 'Faculty', icon: UserRound },
-            { id: 'batches', label: 'Batches', icon: Layers3 },
+            { id: 'faculty', label: 'Faculty Management', icon: UserRound },
           ] },
-          { id: 'students', label: 'Academic Management', icon: LayoutGrid, children: [
-            { id: 'students', label: 'Student Management', icon: Users },
-            { id: 'payments', label: 'Payments', icon: Wallet },
+          { id: 'academic', label: 'Academic Operations', icon: LayoutGrid, children: [
+            { id: 'installments', label: 'Installment Templates', icon: Wallet },
+            { id: 'courses', label: 'Course Management', icon: BookOpen },
             { id: 'batches', label: 'Batch Management', icon: Layers3 },
-          ] },
-          { id: 'exams-results', label: 'Exams & Results', icon: FileText },
-          { id: 'management', label: 'Management', icon: LayoutGrid, children: [
-            { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
-            { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
-            { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
-            { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
+            { id: 'students', label: 'Student Management', icon: Users },
+            { id: 'exams-results', label: 'Exams & Results', icon: FileText },
             { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
-              { id: 'progress-notifications', label: 'Course Progress Request', icon: Bell },
               { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
-              { id: 'faculty-leave', label: 'Faculty Leave Request', icon: CalendarDays },
+              { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },
+              { id: 'progress-notifications', label: 'Progress Alerts', icon: Bell },
+              { id: 'faculty-edit-requests', label: 'Faculty Edit Requests', icon: FileText },
             ] },
           ] },
           { id: 'payments', label: 'Fee & Accounts Management', icon: Wallet },
