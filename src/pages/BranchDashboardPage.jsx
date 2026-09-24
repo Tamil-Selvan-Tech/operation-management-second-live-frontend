@@ -6374,6 +6374,9 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }), [branchId, branchCode])
   const branchStudentScopeKey = `${branchStudentScope.id || ''}:${branchStudentScope.branchCode || ''}`
   const [loadedBranchStudentScopeKey, setLoadedBranchStudentScopeKey] = useState('')
+  const isPaymentSummaryLoading = isBranchStudentsLoading
+    || loadedBranchStudentScopeKey !== branchStudentScopeKey
+    || (!branchStudentScope.id && !branchStudentScope.branchCode)
   const storedPaymentHistoryRecords = useMemo(() => {
     const scopedRecords = loadBranchPaymentHistoryEntries(branchStudentScope)
     if (scopedRecords.length > 0) {
@@ -11225,16 +11228,16 @@ else {
           </span>
 
           <div className="payment-summary-card-content">
-          <span>
-            Pending Payments
+          <span className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-label' : ''}>
+            {isPaymentSummaryLoading ? '' : 'Pending Payments'}
           </span>
 
-          <strong>
-            {formatBranchCourseAmount(branchPaymentStats.totalPending ?? 0)}
+          <strong className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-value' : ''}>
+            {isPaymentSummaryLoading ? '' : formatBranchCourseAmount(branchPaymentStats.totalPending ?? 0)}
           </strong>
 
-          <small>
-            Total pending amount
+          <small className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-note' : ''}>
+            {isPaymentSummaryLoading ? '' : 'Total pending amount'}
           </small>
           </div>
 
@@ -11248,16 +11251,16 @@ else {
           </span>
 
           <div className="payment-summary-card-content">
-          <span>
-            Today's Payments
+          <span className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-label' : ''}>
+            {isPaymentSummaryLoading ? '' : "Today's Payments"}
           </span>
 
-          <strong>
-            {formatBranchCourseAmount(todaysPaymentAmount ?? 0)}
+          <strong className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-value' : ''}>
+            {isPaymentSummaryLoading ? '' : formatBranchCourseAmount(todaysPaymentAmount ?? 0)}
           </strong>
 
-          <small>
-            Amount collected today
+          <small className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-note' : ''}>
+            {isPaymentSummaryLoading ? '' : 'Amount collected today'}
           </small>
           </div>
 
@@ -11271,16 +11274,16 @@ else {
           </span>
 
           <div className="payment-summary-card-content">
-          <span>
-            Fully Paid
+          <span className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-label' : ''}>
+            {isPaymentSummaryLoading ? '' : 'Fully Paid'}
           </span>
 
-          <strong>
-            {branchPaymentStats.paidCount}
+          <strong className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-value' : ''}>
+            {isPaymentSummaryLoading ? '' : branchPaymentStats.paidCount}
           </strong>
 
-          <small>
-            Students cleared in full
+          <small className={isPaymentSummaryLoading ? 'payment-summary-skeleton payment-summary-skeleton-note' : ''}>
+            {isPaymentSummaryLoading ? '' : 'Students cleared in full'}
           </small>
           </div>
 
@@ -11391,7 +11394,17 @@ else {
 
           <tbody>
 
-            {visibleBranchPaymentRows.length ? (
+            {isBranchStudentsLoading || loadedBranchStudentScopeKey !== branchStudentScopeKey || (!branchStudentScope.id && !branchStudentScope.branchCode) ? (
+
+              Array.from({ length: BRANCH_PAYMENTS_PER_PAGE }, (_, rowIndex) => (
+                <tr key={`payment-loading-${rowIndex}`} className="branch-student-loading-row" aria-hidden="true">
+                  {Array.from({ length: 9 }, (_, cellIndex) => (
+                    <td key={`payment-loading-${rowIndex}-${cellIndex}`}><span /></td>
+                  ))}
+                </tr>
+              ))
+
+            ) : visibleBranchPaymentRows.length ? (
 
               visibleBranchPaymentRows.map(
                 ({ student, summary }) => (

@@ -11544,6 +11544,85 @@ body.branch-notification-menu-open .main-area {
   border-spacing: 0;
 }
 
+/* The payment summary should fit the available dashboard width without
+   forcing a horizontal scroll that hides the first column. */
+.branch-payment-table-shell {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.branch-payment-table-shell .branch-course-table,
+.branch-payment-table-shell table {
+  width: 100%;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.branch-payment-table-shell .branch-course-table th:first-child,
+.branch-payment-table-shell .branch-course-table td:first-child {
+  width: 12%;
+  min-width: 0;
+}
+
+.branch-payment-table-shell .branch-course-table th:nth-child(1),
+.branch-payment-table-shell .branch-course-table td:nth-child(1) { width: 11%; }
+.branch-payment-table-shell .branch-course-table th:nth-child(2),
+.branch-payment-table-shell .branch-course-table td:nth-child(2) { width: 14%; }
+.branch-payment-table-shell .branch-course-table th:nth-child(3),
+.branch-payment-table-shell .branch-course-table td:nth-child(3) { width: 16%; }
+.branch-payment-table-shell .branch-course-table th:nth-child(4),
+.branch-payment-table-shell .branch-course-table td:nth-child(4) { width: 10%; }
+.branch-payment-table-shell .branch-course-table th:nth-child(5),
+.branch-payment-table-shell .branch-course-table td:nth-child(5) { width: 9%; }
+.branch-payment-table-shell .branch-course-table th:nth-child(6),
+.branch-payment-table-shell .branch-course-table td:nth-child(6) { width: 10%; }
+.branch-payment-table-shell .branch-course-table th:nth-child(7),
+.branch-payment-table-shell .branch-course-table td:nth-child(7) { width: 13%; }
+.branch-payment-table-shell .branch-course-table th:nth-child(8),
+.branch-payment-table-shell .branch-course-table td:nth-child(8) { width: 9%; }
+.branch-payment-table-shell .branch-course-table th:nth-child(9),
+.branch-payment-table-shell .branch-course-table td:nth-child(9) { width: 8%; }
+
+.branch-payment-table-shell .branch-course-table td:last-child .branch-student-payment-status {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+}
+
+.branch-payment-table-shell .branch-course-table th:last-child,
+.branch-payment-table-shell .branch-course-table td:last-child {
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+.payment-summary-skeleton {
+  display: block !important;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #edf2f7 25%, #f8fafc 50%, #edf2f7 75%);
+  background-size: 200% 100%;
+  animation: branch-student-table-shimmer 1.2s ease-in-out infinite;
+}
+
+.payment-summary-skeleton-label {
+  width: 72%;
+  height: 11px;
+}
+
+.payment-summary-skeleton-value {
+  width: 82%;
+  height: 32px;
+  margin-top: 3px !important;
+}
+
+.payment-summary-skeleton-note {
+  width: 88%;
+  height: 10px;
+  margin-top: 4px !important;
+}
+
 /* Horizontal scrollbar directly below table */
 .branch-course-table-scroll {
   width: 100%;

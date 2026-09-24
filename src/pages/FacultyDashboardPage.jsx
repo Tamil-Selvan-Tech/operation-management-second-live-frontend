@@ -686,12 +686,6 @@ function isTodayFacultyWorkEntry(entry = {}) {
   return String(entry?.workDate || '').trim() === getAttendanceDateKey()
 }
 
-function hasTodayFacultyWorkForStudent(entries = [], student = {}, courseId = '', batch = null) {
-  return getFacultyTodayWorkEntriesForStudent(entries, student, courseId).some((entry) => (
-    isTodayFacultyWorkEntry(entry) && (!batch || doesWorkEntryMatchBatch(entry, batch))
-  ))
-}
-
 function getCompletedTodayWorkSubmoduleIdsForModule(
   entries = [],
   facultyIdentity = {},
@@ -1818,8 +1812,8 @@ export function FacultyDashboardPage() {
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({
-    courses: true,
-    'leave-management': true,
+    courses: false,
+    'leave-management': false,
     exams: isExamsRoute || isAssessmentsRoute || isExamReportsRoute,
   })
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -3246,19 +3240,6 @@ export function FacultyDashboardPage() {
     () => getCourseSubmodules(todayWorkSelectedModule),
     [todayWorkSelectedModule],
   )
-  const todayWorkStudentsWithWork = useMemo(() => (
-    studentsFlowVisibleStudents.filter((student) => hasTodayFacultyWorkForStudent(
-      facultyTodayWorkEntries,
-      student,
-      todayWorkCourse?.id || '',
-      selectedStudentsBatch,
-    ))
-  ), [facultyTodayWorkEntries, selectedStudentsBatch, studentsFlowVisibleStudents, todayWorkCourse?.id])
-  const todayWorkPendingStudents = useMemo(() => (
-    studentsFlowVisibleStudents.filter((student) => !todayWorkStudentsWithWork.some((savedStudent) => (
-      getTodayWorkStudentId(savedStudent) === getTodayWorkStudentId(student)
-    )))
-  ), [studentsFlowVisibleStudents, todayWorkStudentsWithWork])
   const todayWorkSelectedModuleIndex = Math.max(
     0,
     todayWorkCourseModules.findIndex((module, index) => (
@@ -3321,13 +3302,43 @@ export function FacultyDashboardPage() {
       return studentKeys.some((studentKey) => selectedIds.has(studentKey))
     })
 
-    // Progress work is scoped to students who have not received today's work.
-    // Attendance keeps its existing whole-batch fallback.
-    const fallbackStudents = todayWorkMode === 'progress'
-      ? todayWorkPendingStudents
-      : studentsFlowVisibleStudents
-    return selectedStudents.length ? selectedStudents : fallbackStudents
-  }, [studentsFlowVisibleStudents, todayWorkForm.selectedStudentIds, todayWorkMode, todayWorkPendingStudents])
+    return selectedStudents
+  }, [studentsFlowVisibleStudents, todayWorkForm.selectedStudentIds])
+
+  const todayWorkSelectedModuleCompleteForSelectedStudents = useMemo(() => {
+    if (!todayWorkSelectedStudents.length || !todayWorkSelectedModuleSubmodules.length) return false
+
+    const persistedStatuses = getPersistedTodayWorkSubmoduleStatuses(
+      facultyTodayWorkEntries,
+      currentFacultyIdentity,
+      '',
+      todayWorkSelectedModule?.id || '',
+      selectedStudentsBatch,
+      todayWorkSelectedStudents,
+      todayWorkSelectedModuleSubmodules,
+    )
+
+    return todayWorkSelectedStudents.every((student) => {
+      const studentId = getTodayWorkStudentId(student)
+      return todayWorkSelectedModuleSubmodules.every((submodule, submoduleIndex) => {
+        const submoduleId = String(
+          submodule?.id || submodule?.submoduleId || `${todayWorkSelectedModule?.id || 'module'}-submodule-${submoduleIndex}`,
+        ).trim()
+        const status = todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId]
+          || persistedStatuses?.[studentId]?.[submoduleId]
+          || ''
+        return normalizeSubmoduleProgressStatus(status) === 'Completed'
+      })
+    })
+  }, [
+    currentFacultyIdentity,
+    facultyTodayWorkEntries,
+    selectedStudentsBatch,
+    todayWorkForm.submoduleStatuses,
+    todayWorkSelectedModule,
+    todayWorkSelectedModuleSubmodules,
+    todayWorkSelectedStudents,
+  ])
 
   const todayWorkMissedItems = useMemo(() => {
     const visibleStudents = todayWorkSelectedStudents.length ? todayWorkSelectedStudents : studentsFlowVisibleStudents
@@ -3479,10 +3490,12 @@ export function FacultyDashboardPage() {
     const persistedSubmoduleIds = Array.from(new Set(
       Object.values(persistedSubmoduleStatuses).flatMap((studentStatuses) => Object.keys(studentStatuses || {})),
     ))
-    const initialSubmoduleIds = Array.from(new Set([
-      ...persistedSubmoduleIds,
-      ...(Array.isArray(nextSelection.submoduleIds) ? nextSelection.submoduleIds : []),
-    ]))
+    const initialSubmoduleIds = mode === 'progress'
+      ? []
+      : Array.from(new Set([
+          ...persistedSubmoduleIds,
+          ...(Array.isArray(nextSelection.submoduleIds) ? nextSelection.submoduleIds : []),
+        ]))
     const statusStudentIds = studentsFlowVisibleStudents
       .map((student) => String(student?.id || student?.studentId || '').trim())
       .filter(Boolean)
@@ -3493,7 +3506,7 @@ export function FacultyDashboardPage() {
         persistedSubmoduleStatuses[studentId]?.[submoduleId] || '',
       ])),
     ]))
-    const initialSubmoduleStatusById = Object.fromEntries(initialSubmoduleIds.map((submoduleId) => {
+    const initialSubmoduleStatusById = mode === 'progress' ? {} : Object.fromEntries(initialSubmoduleIds.map((submoduleId) => {
       const statuses = statusStudentIds
         .map((studentId) => persistedSubmoduleStatuses[studentId]?.[submoduleId])
         .filter(Boolean)
@@ -3623,24 +3636,7 @@ export function FacultyDashboardPage() {
     const currentSelectedIds = Array.isArray(todayWorkForm.selectedStudentIds)
       ? todayWorkForm.selectedStudentIds
       : []
-    const persistedStatuses = getPersistedTodayWorkSubmoduleStatuses(
-      facultyTodayWorkEntries,
-      currentFacultyIdentity,
-      '',
-      todayWorkSelectedModule?.id || '',
-      selectedStudentsBatch,
-      studentsFlowVisibleStudents,
-      todayWorkSelectedModuleSubmodules,
-    )
-    const targetStudents = currentSelectedIds.length
-      ? todayWorkSelectedStudents
-      : studentsFlowVisibleStudents.filter((student) => {
-          const studentId = getTodayWorkStudentId(student)
-          const savedStatus = todayWorkForm.submoduleStatuses?.[studentId]?.[normalizedSubmoduleId]
-            || persistedStatuses?.[studentId]?.[normalizedSubmoduleId]
-            || ''
-          return normalizeSubmoduleProgressStatus(savedStatus) !== 'Completed'
-        })
+    const targetStudents = currentSelectedIds.length ? todayWorkSelectedStudents : []
     const targetStudentIds = targetStudents.map(getTodayWorkStudentId).filter(Boolean)
     const nextStatuses = Object.fromEntries(
       targetStudentIds.map((studentId) => [
@@ -3708,6 +3704,34 @@ export function FacultyDashboardPage() {
         [normalizedStudentId]: status,
       },
     }))
+  }
+
+  const toggleTodayWorkStudent = (studentId) => {
+    const normalizedStudentId = String(studentId || '').trim()
+    if (!normalizedStudentId) return
+
+    setTodayWorkForm((current) => ({
+      ...current,
+      selectedStudentIds: current.selectedStudentIds.includes(normalizedStudentId)
+        ? current.selectedStudentIds.filter((id) => id !== normalizedStudentId)
+        : [...current.selectedStudentIds, normalizedStudentId],
+    }))
+  }
+
+  const toggleSelectAllTodayWorkStudents = () => {
+    const visibleStudentIds = studentsFlowVisibleStudents.map(getTodayWorkStudentId).filter(Boolean)
+    if (!visibleStudentIds.length) return
+
+    setTodayWorkForm((current) => {
+      const selectedIds = Array.isArray(current.selectedStudentIds) ? current.selectedStudentIds : []
+      const allSelected = visibleStudentIds.every((studentId) => selectedIds.includes(studentId))
+      return {
+        ...current,
+        selectedStudentIds: allSelected
+          ? selectedIds.filter((studentId) => !visibleStudentIds.includes(studentId))
+          : Array.from(new Set([...selectedIds, ...visibleStudentIds])),
+      }
+    })
   }
 
   const markAllTodayWorkStudentsPresent = () => {
@@ -3875,24 +3899,12 @@ export function FacultyDashboardPage() {
       ? studentsFlowVisibleStudents
       : todayWorkSelectedStudents
 
-    const studentsWithoutTodayWork = selectedStudents.filter((student) => !hasTodayFacultyWorkForStudent(
-      facultyTodayWorkEntries,
-      student,
-      todayWorkCourse?.id || '',
-      selectedStudentsBatch,
-    ))
-
-    if (!todayWorkForm.applyToAllStudents && !studentsWithoutTodayWork.length) {
-      setTodayWorkError("Today's work is already added for the selected student(s).")
-      return null
-    }
-
-    if (!studentsWithoutTodayWork.length) {
+    if (!selectedStudents.length) {
       setTodayWorkError('Please select at least one student.')
       return null
     }
 
-    const unmarkedStudent = studentsWithoutTodayWork.find((student) => {
+    const unmarkedStudent = selectedStudents.find((student) => {
       return !getCurrentStudentAttendanceStatus(studentAttendanceStatuses, student)
     })
 
@@ -3901,7 +3913,7 @@ export function FacultyDashboardPage() {
       return null
     }
 
-    const unselectedSubmoduleStatus = studentsWithoutTodayWork.some((student) => {
+    const unselectedSubmoduleStatus = selectedStudents.some((student) => {
       const studentId = getTodayWorkStudentId(student)
       return selectedSubmoduleIds.some((submoduleId) => {
         const status = todayWorkForm.submoduleStatuses?.[studentId]?.[submoduleId]
@@ -3926,7 +3938,7 @@ export function FacultyDashboardPage() {
 
     return {
       selectedSubmoduleIds,
-      selectedStudents: studentsWithoutTodayWork,
+      selectedStudents,
       submoduleLookup,
     }
   }
@@ -6413,7 +6425,7 @@ const nextName = trimmedValue
                     className="faculty-today-work-select"
                     value={todayWorkForm.moduleId || ''}
                     onChange={(event) => updateTodayWorkModule(event.target.value)}
-                    disabled={!todayWorkCourseModules.length}
+                    disabled={!todayWorkCourseModules.length || todayWorkSelectedModuleCompleteForSelectedStudents}
                   >
                     {todayWorkCourseModules.length ? (
                       todayWorkCourseModules.map((module, index) => {
@@ -6431,52 +6443,6 @@ const nextName = trimmedValue
                   <small className="faculty-today-work-field-note">First module is auto-selected</small>
                 </label>
               </div>
-
-              <section className="faculty-today-work-panel faculty-today-work-student-status-panel">
-                <div className="faculty-today-work-panel-heading">
-                  <div>
-                    <h4>Students Pending Today's Work</h4>
-                    <p>Today's work is tracked separately for each student in this batch.</p>
-                  </div>
-                </div>
-                {todayWorkPendingStudents.length ? (
-                  <div className="faculty-today-work-pending-students">
-                    {todayWorkPendingStudents.map((student) => {
-                      const studentId = getTodayWorkStudentId(student)
-                      const isSelected = todayWorkForm.selectedStudentIds.includes(studentId)
-                      return (
-                        <div key={studentId} className={`faculty-today-work-pending-student${isSelected ? ' is-selected' : ''}`}>
-                          <div className="faculty-avatar">{getInitials(student?.studentName || student?.name)}</div>
-                          <div className="faculty-today-work-student-copy">
-                            <strong>{student?.studentName || student?.name || 'Student'}</strong>
-                            <span>Course Progress: {Math.round(Math.min(100, Math.max(0, Number(student?.courseProgress) || 0)))}%</span>
-                            <span>Today's Work: Not Added</span>
-                          </div>
-                          <button
-                            type="button"
-                            className="faculty-today-work-pending-action"
-                            onClick={() => setTodayWorkForm((current) => ({
-                              ...current,
-                              selectedStudentIds: [studentId],
-                              applyToAllStudents: false,
-                            }))}
-                          >
-                            {isSelected ? 'Selected' : "Add Today's Work"}
-                          </button>
-                        </div>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <div className="faculty-today-work-all-complete">All students have today's work added.</div>
-                )}
-                {todayWorkStudentsWithWork.length ? (
-                  <div className="faculty-today-work-added-students">
-                    <strong>Today's Work Already Added</strong>
-                    <span>{todayWorkStudentsWithWork.map((student) => student?.studentName || student?.name || 'Student').join(', ')}</span>
-                  </div>
-                ) : null}
-              </section>
 
               {todayWorkMissedItems.length ? (
                 <section className="faculty-today-work-panel faculty-today-work-missed-panel">
@@ -6542,7 +6508,7 @@ const nextName = trimmedValue
                         selectAllTodayWorkSubmodules()
                       }
                     }}
-                    disabled={!todayWorkPendingSubmoduleIds.length}
+                    disabled={!todayWorkPendingSubmoduleIds.length || todayWorkSelectedModuleCompleteForSelectedStudents}
                   >
                     {todayWorkPendingSubmoduleIds.length
                       ? todayWorkPendingSubmoduleIds.every((submoduleId) => todayWorkForm.submoduleIds.includes(submoduleId))
@@ -6575,7 +6541,9 @@ const nextName = trimmedValue
                         const selectedWorkStudents = todayWorkForm.applyToAllStudents
                           ? studentsFlowVisibleStudents
                           : todayWorkSelectedStudents
-                        const statusStudents = selectedWorkStudents.length ? selectedWorkStudents : studentsFlowVisibleStudents
+                        const statusStudents = todayWorkMode === 'progress'
+                          ? selectedWorkStudents
+                          : selectedWorkStudents.length ? selectedWorkStudents : studentsFlowVisibleStudents
                         const persistedModuleStatuses = getPersistedTodayWorkSubmoduleStatuses(
                           facultyTodayWorkEntries,
                           currentFacultyIdentity,
@@ -6698,7 +6666,14 @@ const nextName = trimmedValue
               <section className="faculty-today-work-panel">
                 <div className="faculty-today-work-panel-heading">
                   <div>
-                    <h4>{todayWorkMode === 'attendance' ? 'Student Attendance' : 'Select Students'}</h4>
+                    <h4>
+                      {todayWorkMode === 'attendance' ? 'Student Attendance' : 'Select Students'}
+                      {todayWorkMode === 'progress' ? (
+                        <span className="faculty-today-work-selected-count">
+                          ({studentsFlowVisibleStudents.filter((student) => todayWorkForm.selectedStudentIds.includes(getTodayWorkStudentId(student))).length} selected)
+                        </span>
+                      ) : null}
+                    </h4>
                     {todayWorkMode === 'attendance' ? (
                       todayWorkAttendanceWindow.isReminder ? null : (
                         <p
@@ -6726,7 +6701,17 @@ const nextName = trimmedValue
                       />
                       <span>Mark All Present</span>
                     </label>
-                  ) : null}
+                  ) : (
+                    <label className="faculty-today-work-select-all">
+                      <input
+                        type="checkbox"
+                        checked={studentsFlowVisibleStudents.length > 0 && studentsFlowVisibleStudents.every((student) => todayWorkForm.selectedStudentIds.includes(getTodayWorkStudentId(student)))}
+                        onChange={toggleSelectAllTodayWorkStudents}
+                        disabled={!studentsFlowVisibleStudents.length}
+                      />
+                      <span>Select All</span>
+                    </label>
+                  )}
                 </div>
 
                 {todayWorkMode === 'attendance' ? (
@@ -6742,7 +6727,7 @@ const nextName = trimmedValue
                   </label>
                 ) : null}
 
-                <div className={`faculty-today-work-student-list${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-list' : ''}`}>
+                <div className={`faculty-today-work-student-list${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-list' : ' faculty-today-work-progress-list'}`}>
                   {(todayWorkMode === 'attendance' ? visibleAttendanceStudents : studentsFlowVisibleStudents).map((student, index) => {
                     const studentId = getTodayWorkStudentId(student)
                     const studentName = String(student?.studentName || student?.name || `Student ${index + 1}`).trim()
@@ -6750,7 +6735,15 @@ const nextName = trimmedValue
                     const checked = todayWorkForm.selectedStudentIds.includes(studentId)
 
                     return (
-                      <div key={studentId || `${studentName}-${index}`} className={`faculty-today-work-student-item${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-item' : ''}${checked ? ' is-selected' : ''}`.trim()} style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: '12px' }}>
+                      <div key={studentId || `${studentName}-${index}`} className={`faculty-today-work-student-item${todayWorkMode === 'attendance' ? ' faculty-today-work-attendance-item' : ' faculty-today-work-progress-item'}${checked ? ' is-selected' : ''}`.trim()} style={{ display: 'grid', gridTemplateColumns: todayWorkMode === 'progress' ? 'auto auto minmax(0, 1fr) auto' : 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: '12px' }}>
+                        {todayWorkMode === 'progress' ? (
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleTodayWorkStudent(studentId)}
+                            aria-label={`Select ${studentName} for today's work`}
+                          />
+                        ) : null}
                         <div className="faculty-avatar">{getInitials(studentName)}</div>
                         <div className="faculty-today-work-student-copy">
                           <strong>{studentName}</strong>
@@ -6779,6 +6772,7 @@ const nextName = trimmedValue
                           </div>
                         ) : (
                           <span className={`faculty-student-attendance-pill faculty-student-attendance-pill--${status.toLowerCase() || 'unmarked'}`}>
+                            <i className="faculty-student-attendance-dot" aria-hidden="true" />
                             {status === 'PRESENT' ? 'Present' : status === 'ABSENT' ? 'Absent' : 'Unmarked'}
                           </span>
                         )}
