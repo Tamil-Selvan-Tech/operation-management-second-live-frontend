@@ -23,9 +23,9 @@ import {
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
-import { listBranches } from '../services/branchService'
 import { SearchBar } from '../components/SearchBar'
 import { request } from '../services/apiClient'
+import { listBranches } from '../services/branchService'
 import { unwrapNotifications } from '../services/notificationService'
 import {
   loadNotifications,
@@ -241,8 +241,8 @@ export function SuperAdminNotificationsPage() {
   })
   const [isLeaveManagementExpanded, setIsLeaveManagementExpanded] = useState(false)
   const [isBranchManagementExpanded, setIsBranchManagementExpanded] = useState(false)
-  const [isUserRoleManagementExpanded, setIsUserRoleManagementExpanded] = useState(false)
-  const [isAcademicOperationsExpanded, setIsAcademicOperationsExpanded] = useState(false)
+  const [isUserRoleManagementExpanded, setIsUserRoleManagementExpanded] = useState(true)
+  const [isAcademicOperationsExpanded, setIsAcademicOperationsExpanded] = useState(true)
   const [isSidebarFlyoutDismissed, setIsSidebarFlyoutDismissed] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -354,6 +354,14 @@ export function SuperAdminNotificationsPage() {
       // Ignore storage failures; the sidebar still works for the current session.
     }
   }, [isSidebarCollapsed])
+
+  useEffect(() => {
+    let mounted = true
+    listBranches({ page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' })
+      .then((result) => { if (mounted) setBranches(Array.isArray(result?.data) ? result.data : []) })
+      .catch(() => { if (mounted) setBranches([]) })
+    return () => { mounted = false }
+  }, [])
 
   const unreadCount = useMemo(() => visibleNotifications.filter((item) => !item.read).length, [visibleNotifications])
   const totalCount = visibleNotifications.length
@@ -511,63 +519,39 @@ export function SuperAdminNotificationsPage() {
               </button>
             </div>
 
-            <div className="super-admin-sidebar-section super-admin-sidebar-section-user-role">
-              <div className="super-admin-sidebar-collapsed-group">
-                <button type="button" className="super-admin-sidebar-collapsed-group-trigger" data-tooltip="User & Role Management" aria-label="User & Role Management">
-                  <Shield size={18} strokeWidth={2.2} aria-hidden="true" />
-                </button>
-                <div className="super-admin-sidebar-collapsed-group-flyout">
-                  <div className="super-admin-sidebar-collapsed-group-title">User &amp; Role Management</div>
-                  <div className="super-admin-sidebar-collapsed-group-nested">
-                    <button type="button" className="super-admin-sidebar-subitem super-admin-sidebar-collapsed-group-nested-toggle" aria-expanded={isBranchManagementExpanded} onClick={() => setIsBranchManagementExpanded((current) => !current)}><span className="super-admin-sidebar-subitem-icon"><Shield size={15} /></span><span>Branch Management</span><ChevronDown size={14} className={isBranchManagementExpanded ? 'is-expanded' : ''} /></button>
-                    {isBranchManagementExpanded ? <div className="super-admin-sidebar-collapsed-group-nested-items">
-                      {branches.filter((branch) => String(branch.status || '').toLowerCase() === 'active').map((branch) => <button key={branch.id || branch.branchId} type="button" className="super-admin-sidebar-branch-name" onClick={() => navigate(`/dashboard/super-admin?section=branch-admin&branch=${encodeURIComponent(branch.id || branch.branchId || '')}`)}><span className="super-admin-sidebar-branch-dot" /><span>{branch.branchName || branch.branchId || 'Active branch'}</span></button>)}
-                      {!branches.some((branch) => String(branch.status || '').toLowerCase() === 'active') ? <span className="super-admin-sidebar-branch-empty">No active branches</span> : null}
-                    </div> : null}
-                  </div>
-                  <button type="button" className="super-admin-sidebar-subitem" onClick={() => navigate('/dashboard/super-admin?section=faculty')}><span className="super-admin-sidebar-subitem-icon"><UserRound size={15} /></span><span>Faculty Management</span></button>
-                </div>
-              </div>
+            <div className="super-admin-sidebar-section">
               <button type="button" className="super-admin-sidebar-section-toggle" aria-expanded={isUserRoleManagementExpanded} onClick={() => setIsUserRoleManagementExpanded((current) => !current)}>
                 <span>USER &amp; ROLE MANAGEMENT</span>
                 <ChevronDown size={15} strokeWidth={2.4} className={isUserRoleManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" />
               </button>
-              {isUserRoleManagementExpanded || isSidebarCollapsed ? <>
-              <button type="button" className="super-admin-sidebar-item" data-tooltip="Branch Management" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=branch-admin') }}>
+              {isUserRoleManagementExpanded ? <button type="button" className="super-admin-sidebar-item" data-tooltip="Branch Management" aria-expanded={isBranchManagementExpanded} onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=branch-admin') }}>
                 <span className="super-admin-sidebar-icon" aria-hidden="true"><Shield size={18} strokeWidth={2.2} /></span>
                 <span>Branch Management</span>
-              </button>
-              <button type="button" className="super-admin-sidebar-item" data-tooltip="Faculty Management" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty') }}>
-                <span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span>
-                <span>Faculty Management</span>
-              </button>
-              </> : null}
+                <ChevronDown size={16} strokeWidth={2.3} className={isBranchManagementExpanded ? 'is-expanded' : ''} aria-hidden="true" onClick={(event) => { event.stopPropagation(); setIsBranchManagementExpanded((current) => !current) }} />
+              </button> : null}
+              {isUserRoleManagementExpanded && isBranchManagementExpanded ? <div className="super-admin-sidebar-branch-list" aria-label="Active branches">
+                <div className="super-admin-sidebar-branch-list-title">Branch Management</div>
+                {branches.map((branch) => <button key={branch.id || branch.branchId} type="button" className="super-admin-sidebar-branch-name" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=branch-admin') }}><span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>{branch.branchName || branch.branchId || 'Unnamed branch'}</span></button>)}
+                {!branches.length ? <span className="super-admin-sidebar-branch-empty">No branches available</span> : null}
+              </div> : null}
             </div>
 
-            <div className="super-admin-sidebar-section super-admin-sidebar-section-academic">
-              <div className="super-admin-sidebar-collapsed-group">
-                <button type="button" className="super-admin-sidebar-collapsed-group-trigger" data-tooltip="Academic Operations" aria-label="Academic Operations">
-                  <LayoutGrid size={18} strokeWidth={2.2} aria-hidden="true" />
-                </button>
-                <div className="super-admin-sidebar-collapsed-group-flyout">
-                  <div className="super-admin-sidebar-collapsed-group-title">Academic Operations</div>
-                  <button type="button" className="super-admin-sidebar-subitem" onClick={() => navigate('/dashboard/super-admin?section=students')}><span className="super-admin-sidebar-subitem-icon"><Users size={15} /></span><span>Student Management</span></button>
-                  <div className="super-admin-sidebar-collapsed-group-nested">
-                    <button type="button" className="super-admin-sidebar-subitem super-admin-sidebar-collapsed-group-nested-toggle" aria-expanded={isLeaveManagementExpanded} onClick={() => setIsLeaveManagementExpanded((current) => !current)}><span className="super-admin-sidebar-subitem-icon"><CalendarDays size={15} /></span><span>Leave Management</span><ChevronDown size={14} className={isLeaveManagementExpanded ? 'is-expanded' : ''} /></button>
-                    {isLeaveManagementExpanded ? <div className="super-admin-sidebar-collapsed-group-nested-items"><button type="button" className="super-admin-sidebar-branch-name" onClick={() => navigate('/dashboard/super-admin?section=faculty-leave')}><span className="super-admin-sidebar-branch-dot" /><span>Faculty Leave Request</span></button></div> : null}
-                  </div>
-                </div>
-              </div>
+            <div className="super-admin-sidebar-section">
               <button type="button" className="super-admin-sidebar-section-toggle" aria-expanded={isAcademicOperationsExpanded} onClick={() => setIsAcademicOperationsExpanded((current) => !current)}>
                 <span>ACADEMIC OPERATIONS</span>
                 <ChevronDown size={15} strokeWidth={2.4} className={isAcademicOperationsExpanded ? 'is-expanded' : ''} aria-hidden="true" />
               </button>
-              {isAcademicOperationsExpanded || isSidebarCollapsed ? <>
-              <button type="button" className="super-admin-sidebar-item" data-tooltip="Student Management" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=students') }}>
-                <span className="super-admin-sidebar-icon" aria-hidden="true"><Users size={18} strokeWidth={2.2} /></span>
-                <span>Student Management</span>
-              </button>
-              <div
+              {isAcademicOperationsExpanded ? <>
+                <button type="button" className="super-admin-sidebar-item" data-tooltip="Student Management" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=students') }}>
+                  <span className="super-admin-sidebar-icon" aria-hidden="true"><Users size={18} strokeWidth={2.2} /></span>
+                  <span>Student Management</span>
+                </button>
+                <button type="button" className="super-admin-sidebar-item" data-tooltip="Faculty Management" onClick={() => { setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty') }}>
+                  <span className="super-admin-sidebar-icon" aria-hidden="true"><UserRound size={18} strokeWidth={2.2} /></span>
+                  <span>Faculty Management</span>
+                </button>
+              </> : null}
+              {isAcademicOperationsExpanded ? <div
                 className={`super-admin-sidebar-branch-nav ${isSidebarFlyoutDismissed ? 'is-flyout-dismissed' : ''}`.trim()}
                 onMouseLeave={() => setIsSidebarFlyoutDismissed(false)}
               >
@@ -584,9 +568,7 @@ export function SuperAdminNotificationsPage() {
                   <div className="super-admin-sidebar-branch-list-title">Leave Management</div>
                   <button type="button" className="super-admin-sidebar-branch-name" title={isSidebarCollapsed ? 'Faculty Leave Request' : undefined} onClick={() => { setIsSidebarFlyoutDismissed(true); setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty-leave') }}><span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Faculty Leave Request</span></button>
                 </div> : null}
-              </div>
-              </>
-              : null}
+               </div> : null}
             </div>
 
             <div className="super-admin-sidebar-section">
