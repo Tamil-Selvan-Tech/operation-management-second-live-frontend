@@ -1485,10 +1485,32 @@ function facultyDashboardEventStatus(event = {}) {
   return String(event?.code || event?.type || event?.status || '').trim().toUpperCase().replace(/[- ]/g, '_')
 }
 
+function formatFacultyDashboardTime(value, period = '') {
+  const raw = String(value || '').trim().toUpperCase()
+  const match = raw.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/)
+  if (!match) return String(value || '').trim()
+
+  let hour = Number(match[1])
+  const minutes = match[2] || '00'
+  const meridiem = match[3] || String(period || '').trim().toUpperCase()
+
+  if (meridiem === 'AM' || meridiem === 'PM') {
+    hour = hour % 12 || 12
+  } else {
+    const inferredMeridiem = hour >= 12 ? 'PM' : 'AM'
+    return `${String(hour % 12 || 12).padStart(2, '0')}:${minutes} ${inferredMeridiem}`
+  }
+
+  return `${String(hour).padStart(2, '0')}:${minutes} ${meridiem}`
+}
+
 function facultyDashboardEventTiming(event = {}) {
   const start = String(event?.startTime || event?.fromTime || '').trim()
   const end = String(event?.endTime || event?.toTime || '').trim()
-  return start && end ? `${start} – ${end}` : String(event?.batchTiming || '').trim() || 'Scheduled time'
+  if (start && end) {
+    return `${formatFacultyDashboardTime(start, event?.startPeriod)} – ${formatFacultyDashboardTime(end, event?.endPeriod)}`
+  }
+  return String(event?.batchTiming || '').trim() || 'Scheduled time'
 }
 
 function facultyDashboardEventModule(event = {}) {

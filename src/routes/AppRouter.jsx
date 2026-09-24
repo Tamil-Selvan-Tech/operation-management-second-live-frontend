@@ -418,7 +418,7 @@ export function AppRouter() {
                 element={<FacultyManagementPage />}
               />
               <Route path="/dashboard/hr" element={<DashboardPage role="hr" />} />
-              <Route path="/dashboard/faculty" element={<Navigate to="/dashboard/faculty/my-batches" replace />} />
+              <Route path="/dashboard/faculty" element={<Navigate to="/dashboard/faculty/dashboard" replace />} />
               {/* <Route path="/dashboard/student" element={<DashboardPage role="student" />} /> */}
     
               <Route path="/notifications" element={<NotificationsPage />} />
