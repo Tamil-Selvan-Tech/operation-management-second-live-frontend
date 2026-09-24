@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, Bell, BookOpen, CalendarDays, CheckCheck, CircleAlert, CircleUserRound, CreditCard, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from 'lucide-react'
+import { ArrowLeft, Bell, BookOpen, CalendarDays, CheckCheck, ChevronDown, CircleAlert, CircleUserRound, CreditCard, LayoutDashboard, LogOut, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { request } from '../services/apiClient'
@@ -18,6 +18,7 @@ export function StudentNotificationsPage() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try { return window.localStorage.getItem('cispro.student-sidebar-collapsed') === 'true' } catch { return false }
   })
+  const [isExamsExpanded, setIsExamsExpanded] = useState(false)
   const [items, setItems] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [query, setQuery] = useState('')
@@ -95,9 +96,11 @@ export function StudentNotificationsPage() {
         <div className="student-new-sidebar-section">
           <span className="student-new-sidebar-section-label">STUDENT</span>
           <button type="button" className="student-new-sidebar-item" data-tooltip="My Profile" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><UserRound size={18} strokeWidth={2.2} /></span><span>My Profile</span></button>
-          <button type="button" className="student-new-sidebar-item" data-tooltip="My Course" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><BookOpen size={18} strokeWidth={2.2} /></span><span>My Course</span></button>
+          <button type="button" className="student-new-sidebar-item" data-tooltip="Course" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><BookOpen size={18} strokeWidth={2.2} /></span><span>Course</span></button>
           <button type="button" className="student-new-sidebar-item" data-tooltip="Calendar" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CalendarDays size={18} strokeWidth={2.2} /></span><span>Calendar</span></button>
-          <button type="button" className="student-new-sidebar-item" data-tooltip="Payments" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CreditCard size={18} strokeWidth={2.2} /></span><span>Payments</span></button>
+          <button type="button" className="student-new-sidebar-item" data-tooltip="Fees & Payments" onClick={() => navigate('/student-new-dashboard')}><span className="student-new-sidebar-icon"><CreditCard size={18} strokeWidth={2.2} /></span><span>Fees &amp; Payments</span></button>
+          <button type="button" className="student-new-sidebar-item" data-tooltip="Exams & Results" aria-expanded={isExamsExpanded} onClick={() => setIsExamsExpanded((current) => !current)}><span className="student-new-sidebar-icon"><BookOpen size={18} strokeWidth={2.2} /></span><span>Exams &amp; Results</span><ChevronDown className={`student-new-sidebar-chevron ${isExamsExpanded ? 'is-expanded' : ''}`.trim()} size={16} strokeWidth={2.2} aria-hidden="true" /></button>
+          {isExamsExpanded ? <div className="student-new-sidebar-subnav"><button type="button" onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessments</button><button type="button" onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
           <button type="button" className="student-new-sidebar-item is-active" data-tooltip="Notifications" aria-current="page"><span className="student-new-sidebar-icon"><Bell size={18} strokeWidth={2.2} /></span><span>Notifications</span></button>
         </div>
       </nav>
