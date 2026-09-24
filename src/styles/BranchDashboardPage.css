@@ -2116,6 +2116,349 @@ body.branch-notification-menu-open .main-area {
   word-break: break-word;
 }
 
+/* Branch profile page */
+.branch-profile-identity-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 24px;
+  border: 1px solid #dbe4f0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+}
+
+.branch-profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.branch-profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  border-radius: 50%;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.branch-profile-identity > div:last-child {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.branch-profile-identity strong {
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.branch-profile-identity span,
+.branch-profile-identity small {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.branch-profile-identity small {
+  font-size: 0.84rem;
+}
+
+.branch-profile-identity small:not(.branch-profile-meta-clean) {
+  display: none;
+}
+
+.branch-profile-meta-clean {
+  display: block;
+}
+
+.branch-profile-edit-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+  color: #2563eb;
+  background: #eff6ff;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.branch-profile-details-section,
+.branch-profile-security-section {
+  display: grid;
+  gap: 14px;
+}
+
+.branch-profile-details-section h3,
+.branch-profile-security-section h3 {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 1.08rem;
+  letter-spacing: -0.02em;
+}
+
+.branch-profile-details-section .branch-dashboard-profile-grid {
+  gap: 14px;
+}
+
+.branch-profile-details-section .branch-dashboard-profile-panel {
+  min-height: 94px;
+  align-content: center;
+  padding: 18px 20px;
+  box-shadow: none;
+}
+
+.branch-profile-details-section .branch-dashboard-profile-panel span {
+  font-size: 0.76rem;
+  letter-spacing: 0.03em;
+  text-transform: none;
+}
+
+.branch-profile-details-section .branch-dashboard-profile-panel strong {
+  font-size: 0.98rem;
+}
+
+.branch-profile-security-card {
+  overflow: hidden;
+  border: 1px solid #dbe4f0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.05);
+}
+
+.branch-profile-security-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 22px;
+}
+
+.branch-profile-security-row + .branch-profile-security-row {
+  border-top: 1px solid #e5eaf1;
+}
+
+.branch-profile-security-row > div {
+  display: grid;
+  gap: 4px;
+}
+
+.branch-profile-security-row strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.branch-profile-security-row span {
+  color: #64748b;
+  font-size: 0.84rem;
+}
+
+.branch-profile-security-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  border: 0;
+  color: #2563eb;
+  background: transparent;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .branch-profile-identity-card,
+  .branch-profile-security-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .branch-profile-edit-button,
+  .branch-profile-security-row button {
+    align-self: flex-start;
+  }
+
+  .branch-profile-details-section .branch-dashboard-profile-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Premium ERP profile layout */
+.branch-profile-identity-card,
+.branch-profile-information-card,
+.branch-profile-security-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.branch-profile-identity-card {
+  min-height: 0;
+  padding: 12px 18px;
+}
+
+.branch-profile-avatar {
+  width: 40px;
+  height: 40px;
+  flex-basis: 40px;
+  color: #1d4ed8;
+  background: #eff6ff;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.branch-profile-edit-button {
+  padding: 9px 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1d4ed8;
+  background: #fff;
+}
+
+.branch-profile-details-section,
+.branch-profile-security-section {
+  gap: 12px;
+}
+
+.branch-profile-details-section h3,
+.branch-profile-security-section h3 {
+  margin-top: 4px;
+  font-size: 1.05rem;
+}
+
+.branch-profile-information-card {
+  padding: 14px 20px;
+  background: #fff;
+}
+
+.branch-profile-information-card > p {
+  margin: 0 0 8px;
+  color: #6b7280;
+  font-size: 0.88rem;
+}
+
+.branch-profile-information-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.branch-profile-information-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px 20px;
+}
+
+.branch-profile-information-field:nth-child(odd) {
+  padding-left: 0;
+  border-right: 1px solid #e5e7eb;
+}
+
+.branch-profile-information-field:nth-child(even) {
+  padding-right: 0;
+  padding-left: 24px;
+}
+
+.branch-profile-information-field:nth-child(n + 3) {
+  border-top: 1px solid #e5e7eb;
+}
+
+.branch-profile-information-field span {
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.branch-profile-information-field strong {
+  overflow-wrap: anywhere;
+  color: #111827;
+  font-size: 0.96rem;
+  font-weight: 650;
+}
+
+.branch-profile-information-field-full {
+  grid-column: 1 / -1;
+  border-top: 1px solid #e5e7eb;
+  border-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+.branch-profile-security-card {
+  background: #fff;
+}
+
+.branch-profile-security-row {
+  min-height: 68px;
+  padding: 16px 20px;
+}
+
+.branch-profile-security-row strong {
+  font-size: 0.92rem;
+}
+
+.branch-profile-security-row span {
+  color: #6b7280;
+}
+
+.branch-profile-security-row button {
+  padding: 4px 0;
+  color: #1d4ed8;
+}
+
+.branch-profile-security-row:last-child > div > span:not(.branch-profile-password-mask) {
+  display: none;
+}
+
+/* Keep the password value private; show only the change action. */
+.branch-profile-security-row:last-child > div > .branch-profile-password-mask,
+.branch-profile-security-row:last-child > div > span {
+  display: none;
+}
+
+.branch-profile-security-row:last-child > div {
+  display: none;
+}
+
+.branch-profile-security-row:last-child > button {
+  margin-left: auto;
+}
+
+/* Keep Change Password in the Email row on the compact security card. */
+.branch-profile-security-row:last-child {
+  display: none;
+}
+
+.branch-profile-security-row:first-child > button {
+  margin-left: auto;
+}
+
+@media (max-width: 640px) {
+  .branch-profile-information-card {
+    padding: 16px;
+  }
+
+  .branch-profile-information-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .branch-profile-information-field:nth-child(odd),
+  .branch-profile-information-field:nth-child(even) {
+    padding: 14px 0;
+    border-right: 0;
+  }
+
+  .branch-profile-information-field + .branch-profile-information-field {
+    border-top: 1px solid #e5e7eb;
+  }
+}
+
 @media (max-width: 1100px) {
   .branch-dashboard-stats {
     grid-template-columns: repeat(2, minmax(0, 1fr));

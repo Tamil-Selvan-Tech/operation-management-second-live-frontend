@@ -11632,25 +11632,64 @@ else {
 ) : null}
               
               {activeSection === 'profile' ? (
-                <BranchDashboardSection title="Profile" description="Branch profile and login details.">
-                  <div className="branch-dashboard-profile-grid">
-                    <article className="branch-dashboard-profile-panel">
-                      <span>Branch Name</span>
-                      <strong>{branchTitle}</strong>
-                    </article>
-                    <article className="branch-dashboard-profile-panel">
-                      <span>Branch Admin</span>
-                      <strong>{branchAdminDisplay}</strong>
-                    </article>
-                    <article className="branch-dashboard-profile-panel">
-                      <span>Email</span>
-                      <strong>{branchEmail}</strong>
-                    </article>
-                    <article className="branch-dashboard-profile-panel">
-                      <span>Location</span>
-                      <strong>{branchLocation}</strong>
-                    </article>
-                  </div>
+                <BranchDashboardSection title="Profile" description="Manage your branch profile and account information.">
+                  <article className="branch-profile-identity-card">
+                    <div className="branch-profile-identity">
+                      <div className="branch-profile-avatar" aria-hidden="true">{String(branchAdminDisplay || 'A').trim().charAt(0).toUpperCase()}</div>
+                      <div>
+                        <strong>{branchAdminDisplay}</strong>
+                        <span>Branch Administrator</span>
+                        <small className="branch-profile-meta-clean">{branchTitle} - {branchLocation}</small>
+                        <small>{branchTitle} • {branchLocation}</small>
+                      </div>
+                    </div>
+                  </article>
+
+                  <section className="branch-profile-details-section" aria-labelledby="branch-information-heading">
+                    <h3 id="branch-information-heading">Branch Information</h3>
+                    <div className="branch-profile-information-card">
+                      <p>Basic information about this branch.</p>
+                      <div className="branch-profile-information-grid">
+                        <div className="branch-profile-information-field">
+                          <span>Branch ID</span>
+                          <strong>{branchProfile?.branchId || branchProfile?.branchCode || branchData?.branchId || branchData?.branchCode || '-'}</strong>
+                        </div>
+                        <div className="branch-profile-information-field">
+                          <span>Branch Admin</span>
+                          <strong>{branchAdminDisplay}</strong>
+                        </div>
+                        <div className="branch-profile-information-field">
+                          <span>Branch Name</span>
+                          <strong>{branchTitle}</strong>
+                        </div>
+                        <div className="branch-profile-information-field">
+                          <span>Location</span>
+                          <strong>{branchLocation}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="branch-profile-security-section" aria-labelledby="account-security-heading">
+                    <h3 id="account-security-heading">Account &amp; Security</h3>
+                    <div className="branch-profile-security-card">
+                      <div className="branch-profile-security-row">
+                        <div>
+                          <strong>Email</strong>
+                          <span>{branchEmail}</span>
+                        </div>
+                        <button type="button" onClick={openForgotPassword}>Change Password <ChevronRight size={17} /></button>
+                      </div>
+                      <div className="branch-profile-security-row">
+                        <div>
+                          <strong>Password</strong>
+                          <span className="branch-profile-password-mask">&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;</span>
+                          <span>••••••••</span>
+                        </div>
+                        <button type="button" onClick={openForgotPassword}>Change Password <ChevronRight size={17} /></button>
+                      </div>
+                    </div>
+                  </section>
                 </BranchDashboardSection>
               ) : null}
 
