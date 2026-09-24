@@ -832,6 +832,292 @@
   text-indent: 0;
 }
 
+/* Final override: the eye button must stay white even after the shared
+   login-form hover styles are loaded. */
+.login-page .login-form .password-field .password-toggle,
+.login-page .login-form .password-field .password-toggle:hover,
+.login-page .login-form .password-field .password-toggle:focus,
+.login-page .login-form .password-field .password-toggle:focus-visible,
+.login-page .login-form .password-field .password-toggle:active {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Keep the email field white, including browser autofill state. */
+.login-page .field-with-icon:not(.password-field),
+.login-page .field-with-icon:not(.password-field) .field-icon,
+.login-page .field-with-icon:not(.password-field) .login-input,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:hover,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:focus,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:active {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:hover,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:focus,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #0f4fb8 !important;
+}
+
+/* Password text should use the Login page blue text color. */
+.login-page .password-field .login-input,
+.login-page .password-field .login-input:focus,
+.login-page .password-field .login-input:-webkit-autofill,
+.login-page .password-field .login-input:-webkit-autofill:hover,
+.login-page .password-field .login-input:-webkit-autofill:focus,
+.login-page .password-field .login-input:-webkit-autofill:active {
+  color: #0f4fb8 !important;
+  -webkit-text-fill-color: #0f4fb8 !important;
+}
+
+/* Email text should also use the Login page blue text color. */
+.login-page .field-with-icon:not(.password-field) .login-input,
+.login-page .field-with-icon:not(.password-field) .login-input:focus,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:hover,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:focus,
+.login-page .field-with-icon:not(.password-field) .login-input:-webkit-autofill:active {
+  color: #0f4fb8 !important;
+  -webkit-text-fill-color: #0f4fb8 !important;
+}
+
+/* Use the same blue for both Login field icons. */
+.login-page .field-with-icon .field-icon {
+  color: #0f4fb8 !important;
+}
+
+.login-page .field-with-icon .field-icon svg {
+  color: #0f4fb8 !important;
+  stroke: #0f4fb8 !important;
+}
+
+/* Nudge only the password eye icon slightly to the left. */
+.login-page .password-field .password-toggle svg {
+  transform: translateX(-6px);
+}
+
+/* Match Login fields to the Reset Password field treatment while keeping
+   Login's existing leading icons and behavior. */
+.login-page .field-with-icon {
+  position: relative;
+  min-height: 52px;
+  height: 52px;
+  padding: 0 14px;
+  gap: 10px;
+  overflow: visible;
+  border: 1px solid #d7e2f0;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 8px 16px rgba(15, 23, 42, 0.04);
+}
+
+.login-page .field-with-icon:focus-within {
+  border-color: #d7e2f0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 8px 16px rgba(15, 23, 42, 0.04);
+}
+
+.login-page .password-field {
+  position: relative;
+  padding: 0 58px 0 14px;
+}
+
+.login-page .login-input,
+.login-page .password-field .login-input {
+  min-height: 50px;
+  height: 50px;
+  padding: 0;
+  line-height: normal;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #334155;
+  font-size: 1rem;
+  box-shadow: none;
+}
+
+.login-page .login-input::placeholder,
+.login-page .login-input::-webkit-input-placeholder,
+.login-page .login-input::-moz-placeholder {
+  color: #93a7c7;
+  opacity: 1;
+}
+
+.login-page .login-input:focus,
+.login-page .login-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.login-page .login-form .password-toggle {
+  position: absolute;
+  top: 50% !important;
+  right: 12px !important;
+  bottom: auto !important;
+  transform: translateY(-50%) !important;
+  display: grid !important;
+  place-items: center;
+  width: 34px;
+  min-width: 0;
+  height: 34px;
+  min-height: 0;
+  max-height: 34px;
+  margin: 0 !important;
+  align-self: center;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid #d8e2ef;
+  border-radius: 999px;
+  background: #f4f7fb !important;
+  color: #2563eb;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.96),
+    0 4px 10px rgba(15, 23, 42, 0.05);
+  flex: 0 0 34px;
+}
+
+.login-page .login-form .password-toggle:hover {
+  transform: translateY(-50%) !important;
+  background: #eef2f7 !important;
+  border-color: #d0dbe8;
+  color: #1d4ed8;
+}
+
+.login-page .login-form .password-toggle:focus-visible {
+  transform: translateY(-50%) !important;
+  outline: 2px solid rgba(37, 99, 235, 0.2);
+  outline-offset: 2px;
+  background: #eef2f7 !important;
+  border-color: #d0dbe8;
+}
+
+/* Keep the eye control as a full-height blue section inside the field. */
+.login-page .login-form .password-toggle {
+  top: 0 !important;
+  right: 0 !important;
+  transform: none !important;
+  width: 58px;
+  min-width: 58px;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-left: 1px solid #d7e2f0;
+  border-radius: 0 16px 16px 0;
+  background: #eaf2ff !important;
+  box-shadow: none;
+  flex: 0 0 58px;
+}
+
+.login-page .login-form .password-toggle:hover,
+.login-page .login-form .password-toggle:focus-visible {
+  transform: none !important;
+  background: #dceaff !important;
+}
+
+/* Fill the remaining space between the password input and eye control too. */
+.login-page .password-field {
+  background: #eaf2ff;
+}
+
+.login-page .password-field .login-input {
+  background: transparent !important;
+}
+
+/* Use one consistent blue across every section of the password field. */
+.login-page .password-field,
+.login-page .password-field .field-icon,
+.login-page .password-field .login-input,
+.login-page .password-field .login-input:-webkit-autofill,
+.login-page .password-field .login-input:-webkit-autofill:hover,
+.login-page .password-field .login-input:-webkit-autofill:focus,
+.login-page .password-field .login-input:-webkit-autofill:active {
+  background: #eaf2ff !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+.login-page .password-field .password-toggle {
+  background: #eaf2ff !important;
+}
+
+.login-page .password-field .password-toggle:hover,
+.login-page .password-field .password-toggle:focus-visible {
+  background: #eaf2ff !important;
+}
+
+/* Final Login password field treatment: keep the entire field white. */
+.login-page .password-field,
+.login-page .password-field .field-icon,
+.login-page .password-field .login-input,
+.login-page .password-field .login-input:-webkit-autofill,
+.login-page .password-field .login-input:-webkit-autofill:hover,
+.login-page .password-field .login-input:-webkit-autofill:focus,
+.login-page .password-field .login-input:-webkit-autofill:active,
+.login-page .password-field .password-toggle,
+.login-page .password-field .password-toggle:hover,
+.login-page .password-field .password-toggle:focus-visible {
+  background: #ffffff !important;
+}
+
+.login-page .password-field .login-input:-webkit-autofill,
+.login-page .password-field .login-input:-webkit-autofill:hover,
+.login-page .password-field .login-input:-webkit-autofill:focus,
+.login-page .password-field .login-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+}
+
+.login-page .password-field .password-toggle:hover,
+.login-page .password-field .password-toggle:focus,
+.login-page .password-field .password-toggle:focus-visible,
+.login-page .password-field .password-toggle:active {
+  background: #ffffff !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none;
+}
+
+/* Force a white password field in every interaction state. */
+.login-page .password-field,
+.login-page .password-field .field-icon,
+.login-page .password-field .login-input,
+.login-page .password-field .password-toggle,
+.login-page .password-field .password-toggle:hover,
+.login-page .password-field .password-toggle:focus,
+.login-page .password-field .password-toggle:focus-visible,
+.login-page .password-field .password-toggle:active {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+.login-page .login-form .password-toggle svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.4;
+}
+
+.login-page .login-input:-webkit-autofill,
+.login-page .login-input:-webkit-autofill:hover,
+.login-page .login-input:-webkit-autofill:focus,
+.login-page .login-input:-webkit-autofill:active {
+  -webkit-text-fill-color: #334155 !important;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  border-radius: 0 !important;
+}
+
 .login-page .login-input::placeholder {
   color: #7a98c7;
   opacity: 1;

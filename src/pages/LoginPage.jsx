@@ -109,7 +109,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
         </div>
 
         <form className="form login-form" onSubmit={onSubmit}>
-          <FormField label="Student ID or Email">
+          <FormField label="Email">
             <div className="field-with-icon">
               <span className="field-icon" aria-hidden="true">
                 <EmailIcon />
@@ -129,7 +129,7 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
   autoCorrect="off"
   spellCheck={false}
   name="email"
-  placeholder="Enter Student ID or Email"
+  placeholder="Enter your email"
 />
             </div>
             {fieldErrors.email ? (
