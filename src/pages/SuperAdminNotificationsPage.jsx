@@ -569,7 +569,6 @@ export function SuperAdminNotificationsPage() {
                   <button type="button" className="super-admin-sidebar-branch-name" title={isSidebarCollapsed ? 'Faculty Leave Request' : undefined} onClick={() => { setIsSidebarFlyoutDismissed(true); setIsMobileSidebarOpen(false); navigate('/dashboard/super-admin?section=faculty-leave') }}><span className="super-admin-sidebar-branch-dot" aria-hidden="true" /><span>Faculty Leave Request</span></button>
                 </div> : null}
                </div> : null}
-              </div> : null}
             </div>
 
             <div className="super-admin-sidebar-section">
