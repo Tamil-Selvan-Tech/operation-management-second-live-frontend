@@ -484,6 +484,26 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   background: #f8fafc;
 }
 
+.student-new-exams-intro {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto 26px;
+}
+
+.student-new-exams-intro h1 {
+  margin: 0 0 8px;
+  color: #071a3d;
+  font-size: 38px;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.student-new-exams-intro p:last-child {
+  margin: 0;
+  color: #64748b;
+  font-size: 17px;
+}
+
 .student-new-dashboard {
   width: 100%;
   max-width: 1400px;

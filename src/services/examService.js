@@ -28,12 +28,13 @@ export const getStudentTestResult = (scheduleId) => request(`/exams/student/test
 export const listFacultyAssessments = () => request('/exams/faculty/assessments').then(data)
 export const getFacultyAssessment = (id) => request(`/exams/faculty/assessments/${id}`).then(data)
 export const createFacultyAssessment = (payload) => request('/exams/faculty/assessments', { method: 'POST', body: JSON.stringify(payload) }).then(data)
+export const createFacultyReassessment = (assessmentId, payload) => request(`/exams/faculty/assessments/${assessmentId}/reassessments`, { method: 'POST', body: JSON.stringify(payload) }).then(data)
 export const updateFacultyAssessment = (id, payload) => request(`/exams/faculty/assessments/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }).then(data)
 export const listAssessmentStudents = (id) => request(`/exams/faculty/assessments/${id}/students`).then(data)
 export const evaluateAssessmentSubmission = (assessmentId, studentId, payload) => request(`/exams/faculty/assessments/${assessmentId}/submissions/${studentId}`, { method: 'PATCH', body: JSON.stringify(payload) }).then(data)
 export const listStudentAssessments = () => request('/exams/student/assessments').then(data)
 export const getStudentAssessment = (id) => request(`/exams/student/assessments/${id}`).then(data)
-export const submitStudentAssessment = (id, response, screenshot) => { const body = new FormData(); body.append('response', response); body.append('screenshot', screenshot); return request(`/exams/student/assessments/${id}/submit`, { method: 'POST', body }).then(data) }
+export const submitStudentAssessment = (id, response, screenshots) => { const body = new FormData(); body.append('response', response); screenshots.forEach((screenshot) => body.append('screenshots', screenshot)); return request(`/exams/student/assessments/${id}/submit`, { method: 'POST', body }).then(data) }
 export const assessmentScreenshotUrl = (url) => url ? (url.startsWith('http') ? url : `${API_BASE_URL}${url}`) : ''
 export const getAssessmentScreenshotBlob = (url) => requestBlob(url).then(({ blob }) => URL.createObjectURL(blob))
 export const getStudentAssessmentSubmission = (id) => request(`/exams/student/assessments/${id}/submission`).then(data)
