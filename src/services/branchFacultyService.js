@@ -17,6 +17,13 @@ export async function listBranchFaculty(params = {}) {
   })
 }
 
+export async function checkBranchFacultyPhone(phone) {
+  const searchParams = new URLSearchParams({ phone: String(phone || '').trim() })
+  return request(`/branch-faculty/phone-availability?${searchParams.toString()}`, {
+    method: 'GET',
+  })
+}
+
 export async function createBranchFaculty(payload) {
   const response = await request('/branch-faculty', {
     method: 'POST',
