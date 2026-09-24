@@ -1575,7 +1575,7 @@ const filteredBranches = useMemo(() => {
               </div>
               <button
                 type="button"
-                className="super-admin-sidebar-section-toggle"
+                className={`super-admin-sidebar-section-toggle ${['branches', 'branch-admin', 'faculty'].includes(activeSection) ? 'is-active' : ''}`.trim()}
                 aria-expanded={isUserRoleManagementExpanded}
                 onClick={() => setIsUserRoleManagementExpanded((current) => !current)}
               >
@@ -1693,7 +1693,7 @@ const filteredBranches = useMemo(() => {
               </div>
               <button
                 type="button"
-                className="super-admin-sidebar-section-toggle"
+                className={`super-admin-sidebar-section-toggle ${['students', 'leave-management', 'faculty-leave'].includes(activeSection) ? 'is-active' : ''}`.trim()}
                 aria-expanded={isAcademicOperationsExpanded}
                 onClick={() => setIsAcademicOperationsExpanded((current) => !current)}
               >

@@ -151,7 +151,7 @@
 
 .super-admin-sidebar-section-label {
   padding: 0 6px;
-  color: #9ca3af;
+  color: #111827;
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -166,7 +166,7 @@
   padding: 0 6px;
   border: 0;
   background: transparent;
-  color: #9ca3af;
+  color: #111827;
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -179,6 +179,20 @@
 .super-admin-sidebar-section-toggle:focus-visible {
   color: #2563eb;
   outline: none;
+}
+
+.super-admin-sidebar-section-toggle.is-active {
+  color: #2563eb;
+}
+
+.super-admin-sidebar-section-user-role > .super-admin-sidebar-section-toggle,
+.super-admin-sidebar-section-academic > .super-admin-sidebar-section-toggle {
+  color: #111827;
+}
+
+.super-admin-sidebar-section-user-role > .super-admin-sidebar-section-toggle.is-active,
+.super-admin-sidebar-section-academic > .super-admin-sidebar-section-toggle.is-active {
+  color: #2563eb;
 }
 
 .super-admin-sidebar-section-toggle svg {
@@ -694,6 +708,15 @@ body.super-admin-notification-menu-open .super-admin-content {
   .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-section-academic > .super-admin-sidebar-academic-students,
   .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-section-academic > .super-admin-sidebar-academic-leave,
   .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-section-academic > .super-admin-sidebar-academic-leave {
+    display: none;
+  }
+
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-section-user-role > .super-admin-sidebar-item,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-section-user-role > .super-admin-sidebar-item,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-section-academic > .super-admin-sidebar-item,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-section-academic > .super-admin-sidebar-item,
+  .super-admin-page.is-sidebar-collapsed .super-admin-sidebar-section-academic > .super-admin-sidebar-branch-nav,
+  .super-admin-sidebar.is-sidebar-collapsed .super-admin-sidebar-section-academic > .super-admin-sidebar-branch-nav {
     display: none;
   }
 
