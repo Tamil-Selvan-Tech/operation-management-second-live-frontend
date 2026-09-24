@@ -1599,6 +1599,29 @@ body.faculty-notification-menu-open .super-admin-content {
   letter-spacing: -0.02em;
 }
 
+.faculty-today-work-selected-count {
+  margin-left: 4px;
+  color: #2563eb;
+  font-weight: 800;
+}
+
+.faculty-today-work-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.faculty-today-work-select-all input {
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: #2563eb;
+}
+
 .faculty-today-work-panel-heading p {
   margin: 5px 0 0;
   color: #64748b;
@@ -1993,6 +2016,30 @@ body.faculty-notification-menu-open .super-admin-content {
   transform: none;
   border-color: #dbe4f0;
   box-shadow: none;
+}
+
+.faculty-today-work-progress-list {
+  gap: 6px;
+  max-height: 280px;
+}
+
+.faculty-today-work-student-item.faculty-today-work-progress-item {
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid #e7eef7;
+  border-radius: 9px;
+  box-shadow: none;
+}
+
+.faculty-today-work-student-item.faculty-today-work-progress-item:hover {
+  transform: none;
+  border-color: #bfdbfe;
+  box-shadow: none;
+}
+
+.faculty-today-work-student-item.faculty-today-work-progress-item.is-selected {
+  border-color: #60a5fa;
+  background: #eff6ff;
 }
 
 .faculty-today-work-attendance-buttons {

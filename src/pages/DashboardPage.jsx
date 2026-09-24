@@ -1657,7 +1657,7 @@ export function DashboardPage({ role }) {
   }
 
   if (role === 'faculty') {
-    return <Navigate to="/dashboard/faculty/my-batches" replace />
+    return <Navigate to="/dashboard/faculty/dashboard" replace />
   }
 
   return <GenericDashboard role={role} />
