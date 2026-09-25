@@ -131,6 +131,19 @@
 .student-submitted-card .student-result-score{display:grid;grid-template-columns:auto auto 1fr;align-items:center;column-gap:16px;row-gap:3px}.student-submitted-card .student-result-score>span{grid-column:1;grid-row:1 / span 2}.student-submitted-card .student-result-score>strong{grid-column:2;grid-row:1}.student-submitted-card .student-result-score>b{grid-column:2;grid-row:2;margin-left:0}.student-submitted-card .student-result-score>div{grid-column:3;grid-row:1 / span 2;margin-left:auto}
 @media(max-width:560px){.student-submitted-card .student-result-score{display:flex;align-items:flex-start;flex-direction:column;gap:5px}.student-submitted-card .student-result-score>span,.student-submitted-card .student-result-score>strong,.student-submitted-card .student-result-score>b,.student-submitted-card .student-result-score>div{grid-column:auto;grid-row:auto;margin-left:0}}
 .faculty-table-pagination{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:16px}.faculty-table-pagination span{margin-right:auto;color:#64748b;font-size:13px;font-weight:600}.faculty-table-pagination .exam-primary,.faculty-table-pagination .exam-secondary{padding:8px 12px}
+
+.assessment-actions-menu-wrap{position:relative;display:inline-flex;align-items:center}
+.assessment-actions-trigger{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:1px solid #dbe4ef;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;transition:background .15s ease,color .15s ease,border-color .15s ease}
+.assessment-actions-trigger:hover,.assessment-actions-trigger:focus-visible{border-color:#93c5fd;background:#eff6ff;color:#2563eb;outline:0}
+.assessment-actions-menu{position:fixed;top:0;left:0;right:auto;z-index:1000;display:none;min-width:145px;padding:5px;border:1px solid #dbe4ef;border-radius:10px;background:#fff;box-shadow:0 12px 28px rgba(15,23,42,.14)}
+.exam-card:has(.assessment-actions-menu-wrap),.exam-card:has(.assessment-actions-menu-wrap) .exam-table-wrap{overflow:visible}
+.assessment-actions-menu-wrap:hover .assessment-actions-menu,.assessment-actions-menu.is-open{display:grid;gap:2px}
+.assessment-actions-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:#334155;font:inherit;font-size:13px;font-weight:700;text-align:left;cursor:pointer}
+.assessment-actions-menu button:hover:not(:disabled),.assessment-actions-menu button:focus-visible{background:#eff6ff;color:#2563eb;outline:0}
+.assessment-actions-menu button.is-danger{color:#dc2626}
+.assessment-actions-menu button.is-danger:hover:not(:disabled),.assessment-actions-menu button.is-danger:focus-visible{background:#fef2f2;color:#b91c1c}
+.assessment-actions-menu button:disabled{cursor:not-allowed;opacity:.45}
+.exam-inline-actions{display:flex;align-items:center;gap:7px}.exam-inline-actions .exam-secondary{padding:8px 10px;white-space:nowrap}.exam-inline-actions .exam-action-danger{color:#b91c1c;background:#fef2f2}.exam-inline-actions .exam-action-danger:hover:not(:disabled){background:#fee2e2}
 .exam-retest-context {
   display: flex;
   flex-wrap: wrap;
@@ -251,3 +264,101 @@
 .student-add-image-button input{display:none}
 .student-delete-image-button{width:32px;height:32px;padding:0!important;justify-content:center}
 .student-delete-image-button svg{width:15px;height:15px}
+.exam-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.exam-status-badge.is-cancelled {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
+.exam-action-danger {
+  color: #b91c1c !important;
+}
+
+.exam-cancelled-action {
+  color: #b91c1c !important;
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.exam-confirmation-modal {
+  max-width: 520px;
+}
+
+.exam-modal-backdrop:has(.exam-confirmation-modal) {
+  align-items: center;
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+
+.exam-modal-backdrop:has(.exam-confirmation-modal) .exam-confirmation-modal {
+  transform: translateY(120px);
+}
+
+.exam-confirmation-modal .exam-icon-button {
+  background: #e2e8f0;
+  color: #64748b;
+  transform: translate(8px, -16px);
+}
+
+.exam-confirmation-modal .exam-icon-button:hover {
+  background: #cbd5e1;
+  color: #475569;
+}
+
+.exam-confirmation-modal > p {
+  margin: 14px 20px 16px;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.exam-confirmation-details {
+  display: grid;
+  gap: 5px;
+  margin: 20px 20px 16px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.exam-confirmation-details strong {
+  color: #0f172a;
+}
+
+.exam-confirmation-details span {
+  color: #64748b;
+  font-size: 0.86rem;
+}
+
+.exam-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 28px;
+  margin-bottom: 20px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.exam-confirmation-modal .exam-modal-actions {
+  justify-content: flex-end;
+}
+
+.exam-danger {
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  padding: 9px 14px;
+  color: #fff;
+  background: #dc2626;
+  font-weight: 700;
+}
