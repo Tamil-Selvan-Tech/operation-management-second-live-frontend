@@ -33,6 +33,7 @@ let refreshInFlight = null
 let backendWarmupInFlight = null
 let sessionExpiredHandler = null
 let sessionExpiredNotified = false
+let lastRefreshFailureStatus = null
 export let impersonateBranchId = null
 
 export function setImpersonateBranchId(id) {
@@ -59,6 +60,7 @@ function parseFileNameFromContentDisposition(headerValue = '') {
 export function setAuthTokens(nextAccessToken, nextRefreshToken = null) {
   accessToken = nextAccessToken || null
   refreshToken = nextRefreshToken || null
+  lastRefreshFailureStatus = null
   sessionExpiredNotified = false
 }
 
@@ -66,6 +68,7 @@ export function clearAuthTokens() {
   accessToken = null
   refreshToken = null
   refreshInFlight = null
+  lastRefreshFailureStatus = null
   sessionExpiredNotified = false
 }
 
@@ -196,7 +199,7 @@ async function request(path, options = {}, retryCount = 0) {
       }
     }
 
-    if (response.status === 401) {
+    if (response.status === 401 && (!refreshToken || lastRefreshFailureStatus === 401 || lastRefreshFailureStatus === 403)) {
       notifySessionExpiredOnce()
     }
 
@@ -267,6 +270,7 @@ export async function refreshAccessToken() {
 
 async function refreshAccessTokenInternal() {
   hydrateAuthTokensFromSessionStorage()
+  lastRefreshFailureStatus = null
   const headers = {
     'Content-Type': 'application/json',
     'Cache-Control': 'no-cache',
@@ -289,11 +293,17 @@ async function refreshAccessTokenInternal() {
       credentials: 'include',
       cache: 'no-store',
       headers,
+      body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,
       signal: controller.signal,
     })
 
     if (!response.ok) {
-      notifySessionExpiredOnce()
+      lastRefreshFailureStatus = response.status
+      // Only an invalid/expired refresh token means the session is over. Keep the
+      // session during transient backend failures so the next retry can recover.
+      if (response.status === 401 || response.status === 403) {
+        notifySessionExpiredOnce()
+      }
       return null
     }
 
@@ -429,7 +439,7 @@ export async function requestBlob(path, options = {}, retryCount = 0) {
       }
     }
 
-    if (response.status === 401) {
+    if (response.status === 401 && (!refreshToken || lastRefreshFailureStatus === 401 || lastRefreshFailureStatus === 403)) {
       notifySessionExpiredOnce()
     }
 

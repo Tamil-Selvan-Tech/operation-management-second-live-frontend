@@ -503,6 +503,8 @@ export function SuperAdminNotificationsPage() {
           </div>
 
           <SuperAdminSidebarNav branches={branches} isSidebarCollapsed={isSidebarCollapsed} onCloseMobile={() => setIsMobileSidebarOpen(false)} />
+          {/* Legacy duplicate navigation retained temporarily for reference; shared navigation above is the only rendered sidebar. */}
+          {/*
           <nav className="super-admin-sidebar-nav super-admin-sidebar-nav-legacy">
             <div className="super-admin-sidebar-section">
               <button
@@ -609,6 +611,7 @@ export function SuperAdminNotificationsPage() {
               </button>
             </div>
           </nav>
+          */}
 
           <div className="super-admin-sidebar-footer">
             <div className="super-admin-sidebar-profile-card">
