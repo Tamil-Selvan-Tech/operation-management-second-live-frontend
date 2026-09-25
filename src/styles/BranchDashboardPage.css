@@ -1962,6 +1962,81 @@ body.branch-notification-menu-open .main-area {
   line-height: 1.5;
 }
 
+.inactive-branch-action-modal {
+  position: relative;
+  width: min(420px, calc(100vw - 32px));
+  padding: 32px 30px 28px;
+  border: 1px solid #dbe5f1;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 35, 65, 0.22);
+  text-align: center;
+  animation: inactive-branch-modal-in 180ms ease-out;
+}
+
+.inactive-branch-action-modal .branch-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.inactive-branch-action-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 16px;
+  border-radius: 16px;
+  color: #b45309;
+  background: #fff7ed;
+}
+
+.inactive-branch-action-kicker {
+  margin: 0 0 7px;
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.inactive-branch-action-modal h2 {
+  margin: 0;
+  color: #102a4c;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.inactive-branch-action-modal > p:not(.inactive-branch-action-kicker) {
+  margin: 12px auto 22px;
+  max-width: 330px;
+  color: #5d708a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.inactive-branch-action-ok {
+  min-width: 118px;
+  padding: 11px 20px;
+  border: 0;
+  border-radius: 10px;
+  color: #ffffff;
+  background: #2563eb;
+  font-weight: 750;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.inactive-branch-action-ok:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+@keyframes inactive-branch-modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .course-module-delete-modal {
   position: relative;
   width: 420px;

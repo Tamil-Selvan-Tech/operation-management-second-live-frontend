@@ -2853,6 +2853,117 @@ body.super-admin-notification-menu-open .super-admin-content {
   pointer-events: auto;
 }
 
+.branch-view-status-action {
+  min-width: 0;
+  justify-content: flex-start;
+  border: 0;
+  background: transparent !important;
+  padding: 0;
+  height: auto;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.branch-view-status-action:hover {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.branch-view-status-action::before {
+  display: none;
+}
+
+.branch-status-switch-track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 30px;
+  height: 18px;
+  margin-left: 8px;
+  padding: 2px;
+  border-radius: 999px;
+  background: #94a3b8;
+  transition: background 160ms ease;
+}
+
+.branch-status-switch-thumb {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transform: translateX(0);
+  transition: transform 160ms ease;
+}
+
+.branch-view-status-action.is-active {
+  color: #16a34a;
+  background: transparent !important;
+}
+
+.branch-view-status-action.is-active .branch-status-switch-track {
+  background: #22c55e;
+}
+
+.branch-view-status-action.is-active .branch-status-switch-thumb {
+  transform: translateX(12px);
+}
+
+.branch-view-status-action.is-inactive {
+  color: #64748b;
+  background: transparent !important;
+}
+
+/* The switch has its own indicator; do not render the legacy status-chip dot. */
+.branch-view-status-chip.branch-view-status-action::before,
+.branch-view-status-action::before {
+  content: none !important;
+  display: none !important;
+}
+
+.branch-status-confirm-modal {
+  text-align: center;
+}
+
+.branch-status-confirm-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  border-radius: 16px;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.branch-status-confirm-modal h2 {
+  margin: 0;
+  color: #102a4c;
+}
+
+.branch-status-confirm-modal p {
+  max-width: 350px;
+  margin: 12px auto 22px;
+  color: #64748b;
+  line-height: 1.55;
+}
+
+.branch-status-confirm-button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  background: #2563eb;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.branch-status-confirm-button:hover {
+  background: #1d4ed8;
+}
+
 .branch-success-hero {
   position: relative;
   width: 72px;

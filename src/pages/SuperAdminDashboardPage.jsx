@@ -24,6 +24,7 @@ import {
   ChevronDown,
   PanelLeftOpen,
   PanelLeftClose,
+  ShieldCheck,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/useAuth'
@@ -313,6 +314,8 @@ const statusFilterRef = useRef(null)
   const [isAddBranchOpen, setIsAddBranchOpen] = useState(false)
   const [isSuccessOpen, setIsSuccessOpen] = useState(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [statusChangeTarget, setStatusChangeTarget] = useState(null)
+  const [isStatusChanging, setIsStatusChanging] = useState(false)
   const [isResendConfirmOpen, setIsResendConfirmOpen] = useState(false)
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
   const [isSuperAdminProfileOpen, setIsSuperAdminProfileOpen] = useState(false)
@@ -406,6 +409,7 @@ const statusFilterRef = useRef(null)
     isAddBranchOpen ||
     isSuccessOpen ||
     isDeleteConfirmOpen ||
+    Boolean(statusChangeTarget) ||
     isResendConfirmOpen ||
     isLogoutConfirmOpen ||
     Boolean(viewTargetBranch) ||
@@ -1058,6 +1062,43 @@ const filteredBranches = useMemo(() => {
   const closeDeleteConfirm = () => {
     setIsDeleteConfirmOpen(false)
     setDeleteTargetBranch(null)
+  }
+
+  const openStatusChangeConfirm = (branch) => {
+    setStatusChangeTarget(branch)
+    setActionMenuBranchId(null)
+  }
+
+  const closeStatusChangeConfirm = () => {
+    if (isStatusChanging) return
+    setStatusChangeTarget(null)
+  }
+
+  const handleStatusChangeConfirm = async () => {
+    if (!statusChangeTarget) return
+
+    const nextStatus = getNormalizedBranchStatus(statusChangeTarget) === 'Active' ? 'Inactive' : 'Active'
+    try {
+      setIsStatusChanging(true)
+      const updatedBranch = await updateBranch(statusChangeTarget.id, { status: nextStatus })
+      setBranches((current) => current.map((branch) => (
+        branch.id === statusChangeTarget.id ? updatedBranch : branch
+      )))
+      setViewTargetBranch((current) => (
+        current?.id === statusChangeTarget.id ? updatedBranch : current
+      ))
+      setStatusChangeTarget(null)
+      setSuccessTitle(`Branch ${nextStatus.toLowerCase()} successfully`)
+      setSuccessMessage(`${updatedBranch.branchName || statusChangeTarget.branchName} is now ${nextStatus.toLowerCase()}.`)
+      setIsSuccessOpen(true)
+    } catch (error) {
+      setStatusChangeTarget(null)
+      setSuccessTitle('Status update failed')
+      setSuccessMessage(error?.body?.message || error?.message || 'Unable to update branch status right now.')
+      setIsSuccessOpen(true)
+    } finally {
+      setIsStatusChanging(false)
+    }
   }
 
   const closeResendConfirm = () => {
@@ -2023,6 +2064,8 @@ const filteredBranches = useMemo(() => {
                         const isUpwardMenu = index >= paginatedBranches.length - 2
                         const resendMailStatus = getResendMailStatus(branch)
                         const isResendMailActiveBranch = resendMailStatus === 'Active'
+                        const branchStatus = getNormalizedBranchStatus(branch)
+                        const isBranchActive = branchStatus === 'Active'
                         const openBranchDetails = () => openViewBranch(branch)
 
                         return (
@@ -2044,16 +2087,16 @@ const filteredBranches = useMemo(() => {
                             <td className="branch-table-col-id">
                               <div className="branch-inline-view-cell">
                                 <span
-                                  className={`branch-status-badge ${isResendMailActiveBranch ? 'is-active' : 'is-inactive'}`.trim()}
-                                  aria-label={`Resend mail ${resendMailStatus}`}
+                                  className={`branch-status-badge ${isBranchActive ? 'is-active' : 'is-inactive'}`.trim()}
+                                  aria-label={`Branch status ${branchStatus}`}
                                   role="img"
                                 >
                                   <span className="branch-status-dot" aria-hidden="true" />
                                   <span
-                                    className={`branch-status-tooltip ${isResendMailActiveBranch ? 'is-active' : 'is-inactive'}`.trim()}
+                                    className={`branch-status-tooltip ${isBranchActive ? 'is-active' : 'is-inactive'}`.trim()}
                                     aria-hidden="true"
                                   >
-                                    {resendMailStatus}
+                                    {branchStatus}
                                   </span>
                                 </span>
                                 <strong>{branch.branchId}</strong>
@@ -2439,9 +2482,16 @@ const filteredBranches = useMemo(() => {
               </div>
 
               <div className="branch-view-drawer-header-actions">
-                <span className={`branch-view-status-chip ${String(selectedBranch.status || '').trim().toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`.trim()}>
-                  {selectedBranch.status || 'Unknown'}
-                </span>
+                <button
+                  type="button"
+                  className={`branch-view-status-chip branch-view-status-action ${String(selectedBranch.status || '').trim().toLowerCase() === 'active' ? 'is-active' : 'is-inactive'}`.trim()}
+                  onClick={() => openStatusChangeConfirm(selectedBranch)}
+                >
+                  <span>{selectedBranch.status || 'Unknown'}</span>
+                  <span className="branch-status-switch-track" aria-hidden="true">
+                    <span className="branch-status-switch-thumb" />
+                  </span>
+                </button>
                 <button
   type="button"
   className="branch-view-close"
@@ -2799,6 +2849,47 @@ const filteredBranches = useMemo(() => {
               </button>
               <button type="button" className="branch-delete-danger" onClick={handleDeleteBranch} disabled={isDeleting}>
                 {isDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {statusChangeTarget ? (
+        <div className="branch-modal-backdrop" role="presentation" onClick={closeStatusChangeConfirm}>
+          <div
+            className="branch-delete-modal branch-status-confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="branch-status-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="branch-modal-close"
+              aria-label="Close status confirmation"
+              onClick={closeStatusChangeConfirm}
+              disabled={isStatusChanging}
+            >
+              <X size={22} strokeWidth={2.5} aria-hidden="true" />
+            </button>
+            <div className="branch-status-confirm-icon" aria-hidden="true">
+              <ShieldCheck size={24} strokeWidth={2.1} />
+            </div>
+            <h2 id="branch-status-confirm-title">
+              {getNormalizedBranchStatus(statusChangeTarget) === 'Active' ? 'Make branch inactive?' : 'Activate branch?'}
+            </h2>
+            <p>
+              {getNormalizedBranchStatus(statusChangeTarget) === 'Active'
+                ? `${statusChangeTarget.branchName} will become view-only. Branch admin cannot create, edit, or delete data.`
+                : `${statusChangeTarget.branchName} will be allowed to create, edit, and delete data again.`}
+            </p>
+            <div className="branch-delete-actions">
+              <button type="button" className="branch-delete-cancel" onClick={closeStatusChangeConfirm} disabled={isStatusChanging}>
+                Cancel
+              </button>
+              <button type="button" className="branch-status-confirm-button" onClick={handleStatusChangeConfirm} disabled={isStatusChanging}>
+                {isStatusChanging ? 'Updating...' : getNormalizedBranchStatus(statusChangeTarget) === 'Active' ? 'Make Inactive' : 'Activate'}
               </button>
             </div>
           </div>

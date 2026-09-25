@@ -3530,6 +3530,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [viewStudentDrawer, setViewStudentDrawer] = useState(null)
   const [studentDetailsTab, setStudentDetailsTab] = useState('basic')
   const [studentSuccessPopup, setStudentSuccessPopup] = useState(null)
+  const [inactiveBranchActionPopup, setInactiveBranchActionPopup] = useState(false)
   const [studentFormError, setStudentFormError] = useState('')
   const [instituteLeaves, setInstituteLeaves] = useState([])
   const [isStudentSaving, setIsStudentSaving] = useState(false)
@@ -8532,6 +8533,25 @@ useEffect(() => {
     ),
   )
 
+  const isInactiveBranch = String(branchProfile?.status || '').trim().toLowerCase() === 'inactive'
+  const handleInactiveBranchActionClick = useCallback((event) => {
+    if (!isInactiveBranch) return
+
+    const button = event.target.closest?.('button, [role="button"]')
+    if (!button || button.closest('[role="dialog"]')) return
+
+    const label = `${button.textContent || ''} ${button.getAttribute('aria-label') || ''} ${button.getAttribute('title') || ''}`
+      .trim()
+      .toLowerCase()
+    const isWriteAction = /\b(add|create|edit|delete|save|update|submit|assign|approve|reject|resolve|record payment|resend)\b/.test(label)
+    if (!isWriteAction) return
+
+    event.preventDefault()
+    event.stopPropagation()
+    event.nativeEvent?.stopImmediatePropagation?.()
+    setInactiveBranchActionPopup(true)
+  }, [isInactiveBranch])
+
   const renderSidebar = () => (
     <aside className={`super-admin-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()} aria-label="Branch navigation">
       <div className="super-admin-sidebar-brand">
@@ -8939,7 +8959,7 @@ useEffect(() => {
   )
 
   return (
-    <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
+    <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()} onClickCapture={handleInactiveBranchActionClick}>
       <div className="super-admin-shell">
         {isMobileSidebarOpen ? <button type="button" className="super-admin-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)} /> : null}
         {renderSidebar()}
@@ -15942,6 +15962,39 @@ else {
           branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''}
           onClose={() => setAttendanceReportTarget(null)}
         />
+        {inactiveBranchActionPopup ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <div
+              className="inactive-branch-action-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="inactive-branch-action-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close inactive branch message"
+                onClick={() => setInactiveBranchActionPopup(false)}
+              >
+                <X size={21} strokeWidth={2.2} />
+              </button>
+              <div className="inactive-branch-action-icon" aria-hidden="true">
+                <Shield size={25} strokeWidth={2.1} />
+              </div>
+              <p className="inactive-branch-action-kicker">View-only access</p>
+              <h2 id="inactive-branch-action-title">Branch is inactive</h2>
+              <p>This branch is inactive, so new changes cannot be created, edited, or deleted.</p>
+              <button
+                type="button"
+                className="inactive-branch-action-ok"
+                onClick={() => setInactiveBranchActionPopup(false)}
+              >
+                Okay
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   )
