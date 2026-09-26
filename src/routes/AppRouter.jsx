@@ -60,6 +60,10 @@ const FacultyMyBatchesPage = lazyNamed(
   () => import('../pages/FacultyDashboardPage'),
   'FacultyMyBatchesPage',
 )
+const AcademicTestPreparationPage = lazyNamed(
+  () => import('../pages/AcademicTestPreparationPage'),
+  'default',
+)
 const SuperAdminDashboardPage = lazyNamed(
   () => import('../pages/SuperAdminDashboardPage'),
   'SuperAdminDashboardPage',
@@ -388,6 +392,7 @@ export function AppRouter() {
             <Route path="/dashboard/faculty/exams/assessments" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/exams/reports" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/exams/academic-tests" element={<FacultyMyBatchesPage />} />
+            <Route path="/dashboard/faculty/exams/academic-tests/:itemId/:batchId" element={<AcademicTestPreparationPage />} />
             <Route path="/dashboard/faculty/exams/reports/:moduleId/:batchId" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/students" element={<FacultyMyBatchesPage />} />
             <Route path="/dashboard/faculty/leave-requests" element={<FacultyMyBatchesPage />} />
