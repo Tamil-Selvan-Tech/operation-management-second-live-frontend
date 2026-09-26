@@ -79,7 +79,7 @@
 .institute-detail-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .institute-detail-meta span { padding: 8px 12px; border: 1px solid #e2eaf4; border-radius: 9px; background: #f8fbff; color: #53627b; font-size: 12px; }
 .institute-detail-meta strong { color: #17345f; font-size: 14px; }
-.institute-detail-loading { display: grid; justify-items: center; gap: 10px; min-height: 230px; align-content: center; margin-top: 22px; border: 1px solid #e2eaf4; border-radius: 14px; background: linear-gradient(135deg, #fbfdff, #f4f8ff); color: #53627b; }
+.institute-detail-loading { display: grid; justify-items: center; gap: 10px; box-sizing: border-box; width: 100%; min-height: 230px; align-content: center; margin-top: 22px; padding: 28px 20px; border: 1px solid #e2eaf4; border-radius: 14px; background: linear-gradient(135deg, #fbfdff, #f4f8ff); color: #53627b; text-align: center; }
 .institute-detail-loading strong { color: #17345f; font-size: 15px; }
 .institute-detail-loading > span:last-child { font-size: 13px; }
 .institute-detail-spinner { width: 28px; height: 28px; border: 3px solid #cfe0ff; border-top-color: #3157d5; border-radius: 50%; animation: institute-detail-spin .8s linear infinite; }

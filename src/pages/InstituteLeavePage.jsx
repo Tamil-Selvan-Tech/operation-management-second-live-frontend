@@ -302,7 +302,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
       window.removeEventListener('open-institute-leave', openInstituteLeave)
     }
   }, [])
-  const open = Boolean(form || detail || cancel)
+  const open = Boolean(form || detail || detailLoading || cancel)
   useEffect(() => {
     if (open) dialog.current?.showModal()
     else dialog.current?.close()
@@ -322,7 +322,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     document.addEventListener('mousedown', closeOnOutsideClick)
     return () => document.removeEventListener('mousedown', closeOnOutsideClick)
   }, [])
-  const close = () => { if (!busy) { setForm(null); setDetail(null); setFacultyDetail(null); setApproveTarget(null); setApprovalMode('approve'); setRejectTarget(null); setRejectReason(''); setResolutionTarget(null); setResolutionType(''); setReplacementFaculty([]); setCombineSessions([]); setCombineSource(null); setCancel(null) } }
+  const close = () => { if (!busy) { setForm(null); setDetail(null); setDetailLoading(false); setFacultyDetail(null); setApproveTarget(null); setApprovalMode('approve'); setRejectTarget(null); setRejectReason(''); setResolutionTarget(null); setResolutionType(''); setReplacementFaculty([]); setCombineSessions([]); setCombineSource(null); setCancel(null) } }
   async function save(event) {
     event.preventDefault()
     if (form) {
@@ -529,7 +529,7 @@ export function InstituteLeavePage({ initialViewMode = 'institute' }) {
     <dialog ref={dialog} className={`institute-dialog ${cancel ? 'is-confirmation' : ''} ${detail || detailLoading ? 'is-detail' : ''}`.trim()} onCancel={event => { event.preventDefault(); close() }}>
       {detailLoading ? <div className="institute-detail-loading" role="status" aria-live="polite"><span className="institute-detail-spinner" aria-hidden="true" /><strong>Loading leave details</strong><span>Preparing affected batch information...</span></div> : null}
       {detail ? <div className="institute-custom-detail"><div className="institute-detail-summary"><div className="institute-detail-date-row"><strong>{formatLeaveDate(detail.leaveDate)}</strong><span className={`institute-detail-status ${detail.status === 'ACTIVE' ? 'is-active' : 'is-cancelled'}`}>{detail.status === 'ACTIVE' ? 'Active' : 'Cancelled'}</span></div><p className="institute-detail-reason">{detail.reason}</p><div className="institute-detail-meta"><span><strong>{detail.affectedClassCount}</strong> classes</span><span><strong>{detail.affectedFacultyCount}</strong> faculty</span><span>Declared {formatDeclaredAt(detail.declaredAt, data?.timezone)}</span></div></div><div className="institute-table-scroll institute-detail-table-scroll"><table><thead><tr><th>Affected Batch</th><th>Class Time</th><th>Students</th><th>Hours</th></tr></thead><tbody>{affectedBatches.map((item, index) => <tr key={`main-custom-${item.batchRecordId || item.batchName}-${item.startTime}-${index}`}><td><strong>{item.batchName || item.batchId || 'Batch'}</strong></td><td>{formatClassTime(item.startTime)} - {formatClassTime(item.endTime)}</td><td>{item.affectedStudents}</td><td>{item.scheduledHours}</td></tr>)}</tbody></table></div>{!detail.affectedClassCount ? <p className="institute-detail-empty">No scheduled batches affected.</p> : null}</div> : null}
-      <div className="institute-leave-header"><h3>{facultyDetail ? 'Faculty Leave Review' : detail ? 'Leave Impact Summary' : cancel ? 'Cancel Institute Leave' : form?.id ? 'Edit Institute Leave' : 'Declare Leave'}</h3><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div>
+      <div className="institute-leave-header"><h3>{facultyDetail ? 'Faculty Leave Review' : detail || detailLoading ? 'Leave Impact Summary' : cancel ? 'Cancel Institute Leave' : form?.id ? 'Edit Institute Leave' : 'Declare Leave'}</h3><button type="button" aria-label="Close" onClick={close} disabled={busy}><X size={20} /></button></div>
       {error ? <p role="alert" className="institute-error">{error}</p> : null}
       {form ? <form onSubmit={save} noValidate><label>Leave Date *<input type="date" min={form.id ? undefined : data?.today} value={form.leaveDate} onChange={e => { setForm({ ...form, leaveDate: e.target.value }); setFieldErrors(current => ({ ...current, leaveDate: '' })) }} />{fieldErrors.leaveDate ? <small className="institute-field-error">{fieldErrors.leaveDate}</small> : null}</label><label>Reason *<textarea maxLength={1000} value={form.reason} onChange={e => { setForm({ ...form, reason: e.target.value }); setFieldErrors(current => ({ ...current, reason: '' })) }} />{fieldErrors.reason ? <small className="institute-field-error">{fieldErrors.reason}</small> : null}</label><button className="institute-primary" disabled={busy}>{busy ? 'Saving…' : 'Save Leave'}</button></form> : null}
       {cancel ? <form onSubmit={save}><p className="institute-confirm-question">Are you sure you want to cancel this leave?</p><p>Leave date: <strong>{formatLeaveDate(cancel.leaveDate)}</strong></p><p>This will restore the affected future classes and recalculate schedules.</p><div className="institute-confirm-actions"><button type="button" onClick={close} disabled={busy}>Keep Leave</button><button className="institute-primary" disabled={busy}>{busy ? 'Cancelling…' : 'Confirm Cancel'}</button></div></form> : null}
