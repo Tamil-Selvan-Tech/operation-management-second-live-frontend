@@ -13713,6 +13713,28 @@ body.branch-notification-menu-open .main-area {
     right: -24px;
     transform: translateY(-50%);
   }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle {
+    display: none;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .branch-dashboard-mobile-menu.is-desktop-expand-toggle {
+    display: grid;
+    width: 28px;
+    height: 32px;
+    flex: 0 0 28px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-topbar {
+    padding-left: 0;
+  }
+
+  .branch-dashboard-app-shell.is-sidebar-collapsed .branch-dashboard-topbar-title {
+    gap: 8px;
+  }
 }
 
 .branch-dashboard-app-shell .super-admin-sidebar-brand .branch-dashboard-sidebar-toggle::after {
@@ -13760,8 +13782,8 @@ body.branch-notification-menu-open .main-area {
 }
 
 .branch-dashboard-app-shell.is-sidebar-collapsed .super-admin-sidebar-brand-logo {
-  width: 29px;
-  height: 34px;
+  width: 54px;
+  height: 46px;
   object-fit: contain;
   object-position: center;
 }

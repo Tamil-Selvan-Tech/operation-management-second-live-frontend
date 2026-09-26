@@ -299,11 +299,9 @@ async function refreshAccessTokenInternal() {
 
     if (!response.ok) {
       lastRefreshFailureStatus = response.status
-      // Only an invalid/expired refresh token means the session is over. Keep the
-      // session during transient backend failures so the next retry can recover.
-      if (response.status === 401 || response.status === 403) {
-        notifySessionExpiredOnce()
-      }
+      // Do not clear the session from the background refresh timer. A refresh
+      // response can race with another tab/request, and the protected request
+      // will decide whether the session is truly unusable after its retry.
       return null
     }
 

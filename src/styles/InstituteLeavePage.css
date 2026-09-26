@@ -22,6 +22,18 @@
 .leave-stat-copy span { color: #60708b; font-size: 14px; font-weight: 750; text-transform: uppercase; }
 .leave-stat-copy strong { color: #14284c; font-size: 30px; line-height: 1; }
 .leave-stat-copy small { color: #60708b; font-size: 14px; }
+.leave-stat-card.is-loading .leave-stat-icon { opacity: .72; }
+.institute-skeleton { display: block; border-radius: 6px; background: linear-gradient(90deg, #e8eef7 25%, #f8fbff 50%, #e8eef7 75%); background-size: 200% 100%; animation: institute-skeleton-shimmer 1.35s ease-in-out infinite; }
+.institute-stat-skeleton-value { width: 46px; height: 30px; border-radius: 7px; }
+.institute-leave-skeleton-row td { height: 54px; }
+.institute-cell-skeleton { height: 13px; }
+.institute-cell-skeleton.short { width: 24px; }
+.institute-cell-skeleton.date { width: 88px; }
+.institute-cell-skeleton.reason { width: 70%; max-width: 160px; }
+.institute-cell-skeleton.status { width: 68px; }
+.institute-cell-skeleton.count { width: 22px; }
+.institute-cell-skeleton.action { width: 36px; height: 36px; border-radius: 9px; }
+@keyframes institute-skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 .leave-stat-watermark { position: absolute; right: 14px; color: currentColor; opacity: .16; }
 .tone-red .leave-stat-watermark { color: #ef5555; }.tone-blue .leave-stat-watermark { color: #4381e8; }.tone-green .leave-stat-watermark { color: #19b77a; }.tone-purple .leave-stat-watermark { color: #805ce5; }
 .institute-leave-filters, .institute-row-actions { display: flex; gap: 10px; flex-wrap: wrap; }

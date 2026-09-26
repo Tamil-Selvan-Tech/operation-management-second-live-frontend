@@ -1,6 +1,15 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
-function buildPageList(totalPages, currentPage) {
+function buildPageList(totalPages, currentPage, visiblePageCount = 7) {
+  if (visiblePageCount < 7) {
+    const pageCount = Math.max(1, Math.min(visiblePageCount, totalPages))
+    const start = Math.min(
+      Math.max(1, currentPage - Math.floor((pageCount - 1) / 2)),
+      Math.max(1, totalPages - pageCount + 1),
+    )
+    return Array.from({ length: pageCount }, (_, index) => start + index)
+  }
+
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, index) => index + 1)
   }
@@ -26,10 +35,13 @@ export function PaginationBar({
   previousLabel = 'Back',
   nextLabel = 'Next',
   showSummary = true,
+  visiblePageCount = 7,
 }) {
   const safeTotalPages = Math.max(1, Number(totalPages) || 1)
   const safeCurrentPage = Math.min(Math.max(1, Number(currentPage) || 1), safeTotalPages)
-  const pageList = Array.isArray(pageListProp) && pageListProp.length ? pageListProp : buildPageList(safeTotalPages, safeCurrentPage)
+  const pageList = Array.isArray(pageListProp) && pageListProp.length
+    ? pageListProp
+    : buildPageList(safeTotalPages, safeCurrentPage, visiblePageCount)
 
   if (safeTotalPages <= 1) return null
 

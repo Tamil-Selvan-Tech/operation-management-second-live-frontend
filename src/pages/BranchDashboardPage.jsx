@@ -8750,11 +8750,11 @@ useEffect(() => {
       <div className="branch-dashboard-topbar-title">
         <button
           type="button"
-          className="branch-dashboard-mobile-menu"
-          aria-label="Open navigation menu"
-          onClick={() => setIsMobileSidebarOpen(true)}
+          className={`branch-dashboard-mobile-menu ${isSidebarCollapsed ? 'is-desktop-expand-toggle' : ''}`.trim()}
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Open navigation menu'}
+          onClick={() => isSidebarCollapsed ? setIsSidebarCollapsed(false) : setIsMobileSidebarOpen(true)}
         >
-          <Menu size={20} strokeWidth={2.2} />
+          {isSidebarCollapsed ? <PanelLeftOpen size={18} strokeWidth={2.3} /> : <Menu size={20} strokeWidth={2.2} />}
         </button>
         <h1>Branch Dashboard</h1>
       </div>

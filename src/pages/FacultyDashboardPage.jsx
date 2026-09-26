@@ -32,6 +32,7 @@ import {
   Users,
   Lock,
   X,
+  Menu,
   PanelLeftOpen,
   PanelLeftClose,
 } from 'lucide-react'
@@ -4886,6 +4887,14 @@ const nextName = trimmedValue
   const renderTopbar = () => (
     <header className="super-admin-topbar">
       <div className="super-admin-topbar-left">
+        <button
+          type="button"
+          className={`super-admin-sidebar-toggle ${isSidebarCollapsed ? 'is-desktop-expand-toggle' : ''}`.trim()}
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Open navigation menu'}
+          onClick={() => isSidebarCollapsed ? setIsSidebarCollapsed(false) : setIsMobileSidebarOpen(true)}
+        >
+          {isSidebarCollapsed ? <PanelLeftOpen size={18} strokeWidth={2.3} /> : <Menu size={20} strokeWidth={2.4} />}
+        </button>
         <h2 className="super-admin-topbar-title" style={{ margin: 0, fontSize: '1.25rem', color: '#1e293b', fontWeight: 600 }}>Faculty Dashboard</h2>
       </div>
       <div className="super-admin-topbar-right">
