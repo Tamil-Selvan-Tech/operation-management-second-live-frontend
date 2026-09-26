@@ -58,14 +58,13 @@ export function AuthProvider({ children }) {
       }
     }
 
+    // API requests already refresh an expiring access token before they run.
+    // Keep one background refresh timer, but do not refresh on every tab focus;
+    // focus can fire repeatedly while moving between browser tabs and windows.
     const intervalId = window.setInterval(refresh, 10 * 60 * 1000)
-    window.addEventListener('focus', refresh)
-    document.addEventListener('visibilitychange', refresh)
 
     return () => {
       window.clearInterval(intervalId)
-      window.removeEventListener('focus', refresh)
-      document.removeEventListener('visibilitychange', refresh)
     }
   }, [session?.refreshToken])
 

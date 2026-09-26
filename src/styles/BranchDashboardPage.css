@@ -12001,7 +12001,12 @@ body.branch-notification-menu-open .main-area {
 .branch-payment-table-shell .branch-course-table th:nth-child(8),
 .branch-payment-table-shell .branch-course-table td:nth-child(8) { width: 9%; }
 .branch-payment-table-shell .branch-course-table th:nth-child(9),
-.branch-payment-table-shell .branch-course-table td:nth-child(9) { width: 8%; }
+.branch-payment-table-shell .branch-course-table td:nth-child(9) {
+  width: 12%;
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+}
 
 .branch-payment-table-shell .branch-course-table td:last-child .branch-student-payment-status {
   display: flex;
@@ -12012,8 +12017,16 @@ body.branch-notification-menu-open .main-area {
 
 .branch-payment-table-shell .branch-course-table th:last-child,
 .branch-payment-table-shell .branch-course-table td:last-child {
-  width: auto !important;
+  width: 12% !important;
   min-width: 0 !important;
+}
+
+.branch-payment-table-shell .branch-course-table td:last-child .branch-student-payment-status {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .payment-summary-skeleton {
