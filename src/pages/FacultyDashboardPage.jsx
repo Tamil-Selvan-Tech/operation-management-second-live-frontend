@@ -106,6 +106,7 @@ import FacultyExamsPage from './FacultyExamsPage'
 import FacultyAssessmentsPage from './FacultyAssessmentsPage'
 import FacultyExamReportsPage from './FacultyExamReportsPage'
 import FacultyStudentExamReportPage from './FacultyStudentExamReportPage'
+import AcademicTestPage from './AcademicTestPage'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -1807,14 +1808,15 @@ export function FacultyDashboardPage() {
   const isExamsRoute = location.pathname === '/dashboard/faculty/exams'
   const isAssessmentsRoute = location.pathname === '/dashboard/faculty/exams/assessments'
   const isExamReportsRoute = location.pathname.startsWith('/dashboard/faculty/exams/reports')
+  const isAcademicTestRoute = location.pathname === '/dashboard/faculty/exams/academic-tests'
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
-  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute ? 'exams' : ''
+  const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
   const [activeSection, setActiveSection] = useState(facultyRouteSection || 'dashboard')
   const [expandedSidebarGroups, setExpandedSidebarGroups] = useState({
     courses: false,
     'leave-management': false,
-    exams: isExamsRoute || isAssessmentsRoute || isExamReportsRoute,
+    exams: isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute,
     'syllabus-test': isExamsRoute || isAssessmentsRoute || isExamReportsRoute,
   })
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -4776,7 +4778,7 @@ const nextName = trimmedValue
           { id: 'profile', label: 'Profile', icon: CircleUserRound },
         ].filter((item) => item.id !== 'other-faculty-batches' || hasTemporaryAssignments).map((item) => {
           const Icon = item.icon
-          const isActive = activeSection === item.id || (item.id === 'exams' && (isExamsRoute || isAssessmentsRoute || isExamReportsRoute))
+          const isActive = activeSection === item.id || (item.id === 'exams' && (isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute))
           const studentNavigation = (
             <>
               <div className="super-admin-sidebar-parent-row">
@@ -4852,7 +4854,7 @@ const nextName = trimmedValue
           if (item.id === 'exams') {
             const isExpanded = Boolean(expandedSidebarGroups.exams)
             const isSyllabusTestExpanded = Boolean(expandedSidebarGroups['syllabus-test'])
-            return <div key={item.id} className="super-admin-sidebar-item-group"><button type="button" className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()} data-tooltip="Exams and Result" aria-expanded={isExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, exams: !current.exams }))}><span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span><span>Exams and Result</span><ChevronDown size={16} strokeWidth={2.2} className={isExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-submenu"><button type="button" className={`super-admin-sidebar-subitem super-admin-sidebar-nested-toggle ${isActive ? 'is-active' : ''}`.trim()} aria-expanded={isSyllabusTestExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, 'syllabus-test': !current['syllabus-test'] }))}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Syllabus Test</span><ChevronDown size={14} strokeWidth={2.1} className={isSyllabusTestExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isSyllabusTestExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-nested-submenu"><button type="button" className={`super-admin-sidebar-subitem ${isExamsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><CheckCircle2 size={15} strokeWidth={2.1} /></span><span>Test</span></button><button type="button" className={`super-admin-sidebar-subitem ${isAssessmentsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/assessments')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Assessment</span></button><button type="button" className={`super-admin-sidebar-subitem ${isExamReportsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/reports')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><BarChart3 size={15} strokeWidth={2.1} /></span><span>Report</span></button></div> : null}</div> : null}</div>
+            return <div key={item.id} className="super-admin-sidebar-item-group"><button type="button" className={`super-admin-sidebar-item ${isActive ? 'is-active' : ''}`.trim()} data-tooltip="Exams and Result" aria-expanded={isExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, exams: !current.exams }))}><span className="super-admin-sidebar-icon" aria-hidden="true"><Icon size={18} strokeWidth={2.15} /></span><span>Exams and Result</span><ChevronDown size={16} strokeWidth={2.2} className={isExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-submenu"><button type="button" className={`super-admin-sidebar-subitem super-admin-sidebar-nested-toggle ${isExamsRoute || isAssessmentsRoute || isExamReportsRoute ? 'is-active' : ''}`.trim()} aria-expanded={isSyllabusTestExpanded} onClick={() => setExpandedSidebarGroups((current) => ({ ...current, 'syllabus-test': !current['syllabus-test'] }))}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Syllabus Test</span><ChevronDown size={14} strokeWidth={2.1} className={isSyllabusTestExpanded ? 'is-expanded' : ''} aria-hidden="true" /></button>{(isSyllabusTestExpanded || isSidebarCollapsed) ? <div className="super-admin-sidebar-nested-submenu"><button type="button" className={`super-admin-sidebar-subitem ${isExamsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><CheckCircle2 size={15} strokeWidth={2.1} /></span><span>Test</span></button><button type="button" className={`super-admin-sidebar-subitem ${isAssessmentsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/assessments')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Assessment</span></button><button type="button" className={`super-admin-sidebar-subitem ${isExamReportsRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/reports')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><BarChart3 size={15} strokeWidth={2.1} /></span><span>Report</span></button></div> : null}<button type="button" className={`super-admin-sidebar-subitem ${isAcademicTestRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/dashboard/faculty/exams/academic-tests')}><span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><FileText size={15} strokeWidth={2.1} /></span><span>Academic Test</span></button></div> : null}</div>
           }
 
           return (
@@ -5178,9 +5180,9 @@ const nextName = trimmedValue
                 </section>
               ) : null}
 
-              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isExamsRoute ? <FacultyExamsPage embedded /> : null}
+              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isAcademicTestRoute ? <AcademicTestPage mode="faculty" /> : isExamsRoute ? <FacultyExamsPage embedded /> : null}
 
-              {!isExamsRoute && !isAssessmentsRoute && !isExamReportsRoute && activeSection === 'dashboard' ? (
+              {!isExamsRoute && !isAssessmentsRoute && !isExamReportsRoute && !isAcademicTestRoute && activeSection === 'dashboard' ? (
                 <>
                   <div className="branch-dashboard-overview-intro">
                     <p style={{ marginTop: '12px' }}>Welcome back, {facultyName}! Here&apos;s an overview of your active courses, batches, and student attendance metrics.</p>

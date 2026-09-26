@@ -59,6 +59,7 @@ import { request, setImpersonateBranchId } from '../services/apiClient'
 import { unwrapNotifications } from '../services/notificationService'
 import { getCurrentBranchProfile } from '../services/branchService'
 import BranchExamResultsPage from './BranchExamResultsPage'
+import AcademicTestPage from './AcademicTestPage'
 import { listBranchFaculty } from '../services/branchFacultyService'
 import { getBranchStudentLedger } from '../services/branchLedgerService'
 import {
@@ -1795,6 +1796,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'payments') return 'payments'
   if (section === 'profile') return 'profile'
   if (section === 'exams-results') return 'exams-results'
+  if (section === 'academic-tests') return 'academic-tests'
 
   return ''
 }
@@ -2245,6 +2247,7 @@ const COURSE_BASIC_FIELDS = [
   'actualFees',
   'registrationFees',
   'discount',
+  'academicTestCount',
   'status',
 ]
 
@@ -2654,6 +2657,7 @@ function createBranchCourseErrors(form) {
   if (!String(form.registrationFees || '').trim()) basic.registrationFees = 'Registration Fee is required.'
   if (!String(form.status || '').trim()) basic.status = 'Status is required.'
   if (String(form.discount || '').trim() && Number(form.discount) < 0) basic.discount = 'Discount must be zero or greater.'
+  if (String(form.academicTestCount || '').trim() && (!Number.isInteger(Number(form.academicTestCount)) || Number(form.academicTestCount) < 0)) basic.academicTestCount = 'Academic Test Count must be a whole number of zero or greater.'
 
   const normalizedModels = normalizeBranchCourseModels(form.models)
   if (!normalizedModels.length) {
@@ -2943,6 +2947,7 @@ function normalizeBranchCourseRecord(course = {}, index = 0) {
     actualFees: String(course.actualFees ?? '').trim(),
     registrationFees: String(course.registrationFees ?? '').trim(),
     discount: String(course.discount ?? '').trim(),
+    academicTestCount: String(course.academicTestCount ?? 0).trim(),
     status: String(course.status || 'Active').trim(),
     batches: Number(course.batches || 0),
     students: Number(course.students || 0),
@@ -2988,6 +2993,7 @@ function buildBranchCoursePayload(form) {
     actualFees: form.actualFees,
     registrationFees: form.registrationFees,
     discount: form.discount || '0',
+    academicTestCount: form.academicTestCount,
     status: form.status,
     models,
     courseModels: models,
@@ -3008,6 +3014,7 @@ function createInitialBranchCourseForm() {
     actualFees: '0',
     registrationFees: '',
     discount: '',
+    academicTestCount: '0',
     status: 'Active',
     models: [],
     paymentPlans: [],
@@ -3065,6 +3072,7 @@ function buildBranchCourseFormFromRecord(course = {}) {
     actualFees: String(course.actualFees ?? '').trim(),
     registrationFees: String(course.registrationFees ?? '').trim(),
     discount: String(course.discount ?? '').trim(),
+    academicTestCount: String(course.academicTestCount ?? 0).trim(),
     status: String(course.status || 'Active').trim() || 'Active',
     installmentTemplate,
     assignedFaculty: Array.isArray(course.assignedFaculty)
@@ -3213,7 +3221,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   }, [isSidebarFlyoutMode, openSidebarFlyout])
 
   useEffect(() => {
-    const parentByChild = { faculty: 'faculty', students: 'students', courses: 'students', batches: 'students', installments: 'students', payments: 'payments', 'institute-leave': 'students', 'faculty-leave': 'students', 'progress-notifications': 'students', 'faculty-edit-requests': 'management' }
+    const parentByChild = { faculty: 'faculty', students: 'students', courses: 'students', batches: 'students', installments: 'students', payments: 'payments', 'exams-results': 'academic', 'academic-tests': 'academic', 'institute-leave': 'students', 'faculty-leave': 'students', 'progress-notifications': 'students', 'faculty-edit-requests': 'management' }
     const parent = parentByChild[activeSection]
     if (!parent) return
     setExpandedSidebarGroups((current) => current[parent] ? current : { ...current, [parent]: true })
@@ -8588,6 +8596,7 @@ useEffect(() => {
             { id: 'students', label: 'Student Management', icon: Users },
             { id: 'exams-results', label: 'Exams and Result', icon: FileText, children: [
               { id: 'exams-results', label: 'Syllabus Test', icon: FileText },
+              { id: 'academic-tests', label: 'Academic Test', icon: FileText },
             ] },
             { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
               { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
@@ -9303,6 +9312,7 @@ useEffect(() => {
               {activeSection === 'progress-notifications' ? <ProgressNotificationsView branch={branchScope} /> : null}
               {activeSection === 'faculty-edit-requests' ? <FacultyEditRequestsView /> : null}
               {activeSection === 'exams-results' ? <BranchExamResultsPage branchId={branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || ''} /> : null}
+              {activeSection === 'academic-tests' ? <AcademicTestPage /> : null}
               {activeSection === 'notifications' ? (
                 <section className="notifications-page branch-notifications-page">
                   <header className="notifications-page-header">
@@ -12193,6 +12203,22 @@ else {
                       onChange={(event) => updateAddCourseNumericField('discount', event.target.value)}
                       onBlur={() => markAddCourseTouched('discount')}
                       aria-invalid={Boolean(shouldShowBasicAddCourseError('discount'))}
+                    />
+                  </Field>
+
+                  <Field
+                    label="Academic Test Count"
+                    hint="Whole number; 0 means not configured"
+                    error={shouldShowBasicAddCourseError('academicTestCount') ? addCourseValidationErrors.basic.academicTestCount : ''}
+                  >
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={addCourseForm.academicTestCount}
+                      onChange={(event) => updateAddCourseNumericField('academicTestCount', event.target.value)}
+                      onBlur={() => markAddCourseTouched('academicTestCount')}
+                      aria-invalid={Boolean(shouldShowBasicAddCourseError('academicTestCount'))}
                     />
                   </Field>
 
