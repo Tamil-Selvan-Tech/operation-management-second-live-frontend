@@ -1808,7 +1808,7 @@ export function FacultyDashboardPage() {
   const isExamsRoute = location.pathname === '/dashboard/faculty/exams'
   const isAssessmentsRoute = location.pathname === '/dashboard/faculty/exams/assessments'
   const isExamReportsRoute = location.pathname.startsWith('/dashboard/faculty/exams/reports')
-  const isAcademicTestRoute = location.pathname === '/dashboard/faculty/exams/academic-tests'
+  const isAcademicTestRoute = location.pathname === '/dashboard/faculty/exams/academic-tests' || location.pathname.startsWith('/dashboard/faculty/exams/academic-tests/')
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
   const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
