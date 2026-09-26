@@ -5767,6 +5767,28 @@ body.faculty-notification-menu-open .super-admin-content {
   margin: 0 0 7px;
   padding-left: 8px;
 }
+
+.super-admin-sidebar-nested-submenu {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 3px 18px;
+  padding-left: 14px;
+  border-left: 1px solid #e5edf7;
+}
+
+.super-admin-sidebar-nested-toggle {
+  justify-content: flex-start;
+}
+
+.super-admin-sidebar-nested-toggle > svg {
+  margin-left: auto;
+  color: #64748b;
+  transition: transform 160ms ease, color 160ms ease;
+}
+
+.super-admin-sidebar-nested-toggle > svg.is-expanded {
+  transform: rotate(180deg);
+}
 .super-admin-sidebar-nav {
   flex: 1 1 auto;
   min-height: 0;
