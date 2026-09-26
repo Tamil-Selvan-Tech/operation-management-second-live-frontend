@@ -390,8 +390,29 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   }
 
   .student-new-shell.is-sidebar-collapsed .student-new-sidebar-brand-logo {
-    width: 30px;
-    height: 34px;
+    width: 54px;
+    height: 46px;
+  }
+
+  .student-new-shell.is-sidebar-collapsed .student-new-sidebar-brand .student-new-sidebar-collapse-toggle {
+    display: none;
+  }
+
+  .student-new-shell.is-sidebar-collapsed .student-new-sidebar-toggle.is-desktop-expand-toggle {
+    display: inline-flex;
+    width: 28px;
+    height: 32px;
+    min-width: 28px;
+    border: 0;
+    background: transparent;
+  }
+
+  .student-new-shell.is-sidebar-collapsed .student-new-topbar {
+    padding-left: 0;
+  }
+
+  .student-new-shell.is-sidebar-collapsed .student-new-topbar-left {
+    gap: 8px;
   }
 
   .student-new-shell:not(.is-sidebar-collapsed) .student-new-sidebar-brand .student-new-sidebar-collapse-toggle {

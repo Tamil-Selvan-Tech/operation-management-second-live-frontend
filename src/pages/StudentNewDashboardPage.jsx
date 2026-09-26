@@ -999,17 +999,12 @@ const handleLogoutConfirm = async () => {
 
               <button
                 type="button"
-                className="student-new-sidebar-toggle"
-                aria-label="Open navigation menu"
-                aria-expanded={isMobileSidebarOpen}
-                onClick={() => setIsMobileSidebarOpen(true)}
+                className={`student-new-sidebar-toggle ${isSidebarCollapsed ? 'is-desktop-expand-toggle' : ''}`.trim()}
+                aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Open navigation menu'}
+                aria-expanded={isSidebarCollapsed ? !isSidebarCollapsed : isMobileSidebarOpen}
+                onClick={() => isSidebarCollapsed ? setIsSidebarCollapsed(false) : setIsMobileSidebarOpen(true)}
               >
-                <Menu
-                  size={20}
-                  strokeWidth={2.4}
-                  aria-hidden="true"
-                  focusable="false"
-                />
+                {isSidebarCollapsed ? <PanelLeftOpen size={18} strokeWidth={2.3} aria-hidden="true" focusable="false" /> : <Menu size={20} strokeWidth={2.4} aria-hidden="true" focusable="false" />}
               </button>
 
               <h1 className="student-new-header-title">

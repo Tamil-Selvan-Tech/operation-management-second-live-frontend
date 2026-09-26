@@ -62,6 +62,23 @@ function isCourseAssignedNotification(notification = {}) {
   return kind.includes('assigned')
 }
 
+function NotificationDropdownSkeleton() {
+  return (
+    <div className="notification-dropdown-skeleton" role="status" aria-label="Loading notifications">
+      {[1, 2].map((item) => (
+        <div className="notification-dropdown-skeleton-item" key={item}>
+          <span className="notification-dropdown-skeleton-icon" />
+          <span className="notification-dropdown-skeleton-copy">
+            <span className="notification-dropdown-skeleton-line notification-dropdown-skeleton-line--title" />
+            <span className="notification-dropdown-skeleton-line notification-dropdown-skeleton-line--body" />
+            <span className="notification-dropdown-skeleton-line notification-dropdown-skeleton-line--time" />
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function SuperAdminNotificationBell({
   onOpenBranches,
   onViewActivity,
@@ -304,7 +321,9 @@ const handleMarkAllAsRead = () => {
           </div>
 
           <div className="notification-dropdown-list">
-            {visibleDropdownNotifications.length ? (
+            {isLoading ? (
+              <NotificationDropdownSkeleton />
+            ) : visibleDropdownNotifications.length ? (
               visibleDropdownNotifications.map((notification) => {
                 const Icon = getNotificationIcon(notification.kind)
                 return (
@@ -357,7 +376,7 @@ const handleMarkAllAsRead = () => {
               navigate('/dashboard/super-admin/notifications')
             }}
           >
-            View all Notification
+            View Notification
           </button>
         </div>
       ) : null}
