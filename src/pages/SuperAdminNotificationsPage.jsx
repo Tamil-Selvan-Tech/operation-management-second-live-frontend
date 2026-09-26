@@ -232,6 +232,7 @@ export function SuperAdminNotificationsPage() {
   const [notifications, setNotifications] = useState([])
   const [branches, setBranches] = useState([])
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false)
+  const [isSuperAdminProfileOpen, setIsSuperAdminProfileOpen] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try {
@@ -658,10 +659,67 @@ export function SuperAdminNotificationsPage() {
               />
 
               <div className="super-admin-profile">
-                <AvatarBadge />
-                <div className="super-admin-profile-copy">
-                  <strong>Super Admin</strong>
-                </div>
+                <button
+                  type="button"
+                  className="super-admin-profile-trigger"
+                  onClick={() => setIsSuperAdminProfileOpen((current) => !current)}
+                  aria-haspopup="dialog"
+                  aria-expanded={isSuperAdminProfileOpen}
+                >
+                  <AvatarBadge />
+                  <div className="super-admin-profile-copy">
+                    <strong>Super Admin</strong>
+                    <span>{profileEmail}</span>
+                  </div>
+                </button>
+
+                {isSuperAdminProfileOpen ? (
+                  <div className="super-admin-profile-dropdown">
+                    <button
+                      type="button"
+                      className="super-admin-profile-close"
+                      aria-label="Close profile"
+                      onClick={() => setIsSuperAdminProfileOpen(false)}
+                    >
+                      <X size={18} strokeWidth={2.4} />
+                    </button>
+                    <div className="super-admin-profile-dropdown-header">
+                      <AvatarBadge />
+                      <div>
+                        <strong>Super Admin</strong>
+                        <span>Administrator</span>
+                      </div>
+                    </div>
+                    <div className="super-admin-profile-details">
+                      <div className="super-admin-profile-detail">
+                        <Mail size={16} strokeWidth={2} />
+                        <div>
+                          <span>Email</span>
+                          <strong>{profileEmail}</strong>
+                        </div>
+                      </div>
+                      <div className="super-admin-profile-detail">
+                        <Shield size={16} strokeWidth={2} />
+                        <div>
+                          <span>Role</span>
+                          <strong>Super Admin</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="super-admin-profile-dropdown-actions">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsSuperAdminProfileOpen(false)
+                          setIsLogoutConfirmOpen(true)
+                        }}
+                      >
+                        <LogOut size={16} strokeWidth={2.2} />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </header>

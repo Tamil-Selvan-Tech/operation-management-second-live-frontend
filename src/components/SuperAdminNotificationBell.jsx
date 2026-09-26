@@ -357,7 +357,7 @@ const handleMarkAllAsRead = () => {
               navigate('/dashboard/super-admin/notifications')
             }}
           >
-            View branch activity
+            View all Notification
           </button>
         </div>
       ) : null}
