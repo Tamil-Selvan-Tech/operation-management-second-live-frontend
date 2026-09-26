@@ -186,6 +186,7 @@ export function normalizeBranchCourse(course) {
     id: resolvedId || '',
     courseCode: normalizeText(course.courseCode),
     courseType: normalizeText(course.courseType || course.type),
+    academicTestCount: Number(course.academicTestCount || 0),
     name: normalizeText(course.name || course.courseName),
     description: normalizeText(course.description),
     mode: normalizeText(course.mode),
