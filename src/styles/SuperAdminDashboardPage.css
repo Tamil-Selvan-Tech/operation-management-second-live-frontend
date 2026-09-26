@@ -2816,7 +2816,8 @@ body.super-admin-notification-menu-open .super-admin-content {
 .branch-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 1400;
+  /* Status/delete confirmations must sit above the branch details drawer. */
+  z-index: 1600;
   display: grid;
   place-items: center;
   background: rgba(17, 24, 39, 0.35);
@@ -5036,7 +5037,8 @@ body.super-admin-sidebar-open {
 /* Admission Overview redesign */
 .sa-admission-heading-actions { display: flex; align-items: center; gap: 9px; }
 .sa-admission-heading-actions select { height: 32px; padding: 0 25px 0 10px; border: 1px solid #e1e8f1; border-radius: 7px; background: #fff; color: #6e7d92; font-size: 11px; font-weight: 650; outline: none; }
-.sa-admission-overview-content { display: grid; grid-template-columns: 132px minmax(120px, 1fr) 126px; align-items: center; gap: 18px; min-height: 210px; margin-top: 17px; }
+.sa-admission-overview-content { display: grid; grid-template-columns: minmax(84px, .8fr) minmax(112px, 1.15fr) minmax(108px, .9fr); align-items: center; gap: 12px; min-width: 0; min-height: 210px; margin-top: 17px; }
+.sa-admission-overview-content > * { min-width: 0; }
 .sa-admission-donut-wrap { display: grid; place-items: center; }
 .sa-admission-donut { display: grid; place-items: center; width: 126px; height: 126px; border-radius: 50%; transform: rotate(-18deg); }
 .sa-admission-donut-hole { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: #fff; transform: rotate(18deg); box-shadow: 0 0 0 1px #f2f5f8; }
@@ -5057,11 +5059,11 @@ body.super-admin-sidebar-open {
 .sa-admission-breakdown-row strong { color: #273850; font-size: 12px; }
 .sa-admission-dot { width: 7px; height: 7px; border-radius: 50%; }
 .sa-admission-empty { color: #8c98a8; font-size: 11px; }
-.sa-admission-current-summary { display: grid; align-content: center; gap: 5px; min-height: 137px; padding: 17px 14px; border: 1px solid #e2edf8; border-radius: 11px; background: #f5faff; }
-.sa-admission-current-summary > span { color: #69809a; font-size: 10px; font-weight: 650; }
+.sa-admission-current-summary { display: grid; align-content: center; gap: 5px; box-sizing: border-box; min-width: 0; min-height: 137px; padding: 17px 14px; border: 1px solid #e2edf8; border-radius: 11px; background: #f5faff; }
+.sa-admission-current-summary > span { min-width: 0; color: #69809a; font-size: 10px; font-weight: 650; line-height: 1.25; overflow-wrap: anywhere; }
 .sa-admission-current-summary strong { color: #172b45; font-size: 27px; line-height: 1; }
-.sa-admission-current-summary b { color: #5c718a; font-size: 11px; font-weight: 600; }
-.sa-admission-current-summary > small { color: #91a0b2; font-size: 10px; }
+.sa-admission-current-summary b { min-width: 0; color: #5c718a; font-size: 11px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.sa-admission-current-summary > small { min-width: 0; color: #91a0b2; font-size: 10px; line-height: 1.25; overflow-wrap: anywhere; }
 .sa-admission-current-summary div { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
 .sa-admission-current-summary em { padding: 4px 6px; border-radius: 6px; font-size: 10px; font-style: normal; font-weight: 750; }
 .sa-admission-current-summary em.positive { background: #e8f8f0; color: #138a5b; }
