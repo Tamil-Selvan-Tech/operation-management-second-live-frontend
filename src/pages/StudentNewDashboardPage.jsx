@@ -463,9 +463,11 @@ export function StudentNewDashboardPage() {
    try { return window.localStorage.getItem('cispro.student-sidebar-collapsed') === 'true' } catch { return false }
  })
  const [isExamsExpanded, setIsExamsExpanded] = useState(isExamsRoute)
+ const [isSyllabusTestExpanded, setIsSyllabusTestExpanded] = useState(isExamsRoute)
 
  useEffect(() => {
    setIsExamsExpanded(isExamsRoute)
+   setIsSyllabusTestExpanded(isExamsRoute)
  }, [isExamsRoute])
 
  useEffect(() => {
@@ -926,15 +928,15 @@ const handleLogoutConfirm = async () => {
               <button
                 type="button"
                 className={`student-new-sidebar-item ${activeSection === 'exams' || isExamsRoute ? 'is-active' : ''}`.trim()}
-                data-tooltip="Exams & Results"
+                data-tooltip="Exams and Result"
                 aria-expanded={isExamsExpanded}
                 onClick={() => setIsExamsExpanded((current) => !current)}
               >
                 <span className="student-new-sidebar-icon" aria-hidden="true"><BookOpen size={18} strokeWidth={2.2} /></span>
-                <span>Exams &amp; Results</span>
+                <span>Exams and Result</span>
                 <ChevronDown className={`student-new-sidebar-chevron ${isExamsExpanded ? 'is-expanded' : ''}`.trim()} size={16} strokeWidth={2.2} aria-hidden="true" />
               </button>
-              {isExamsExpanded ? <div className="student-new-sidebar-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Tests</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessments</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Reports</button></div> : null}
+              {isExamsExpanded ? <div className="student-new-sidebar-subnav"><button type="button" className={`student-new-sidebar-subnav-parent ${isExamsRoute ? 'is-active' : ''}`.trim()} aria-expanded={isSyllabusTestExpanded} onClick={() => setIsSyllabusTestExpanded((current) => !current)}><span>Syllabus Test</span><ChevronDown className={isSyllabusTestExpanded ? 'is-expanded' : ''} size={14} strokeWidth={2.1} aria-hidden="true" /></button>{isSyllabusTestExpanded ? <div className="student-new-sidebar-subnav student-new-sidebar-nested-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Test</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessment</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Report</button></div> : null}</div> : null}
 
               <button
                 type="button"

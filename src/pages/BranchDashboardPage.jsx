@@ -8581,12 +8581,14 @@ useEffect(() => {
           { id: 'faculty', label: 'User & Role Management', icon: Shield, children: [
             { id: 'faculty', label: 'Faculty Management', icon: UserRound },
           ] },
-          { id: 'academic', label: 'Academic Operations', icon: LayoutGrid, children: [
+          { id: 'academic', label: 'Academic Operation', icon: LayoutGrid, children: [
             { id: 'installments', label: 'Installment Templates', icon: Wallet },
             { id: 'courses', label: 'Course Management', icon: BookOpen },
             { id: 'batches', label: 'Batch Management', icon: Layers3 },
             { id: 'students', label: 'Student Management', icon: Users },
-            { id: 'exams-results', label: 'Exams & Results', icon: FileText },
+            { id: 'exams-results', label: 'Exams and Result', icon: FileText, children: [
+              { id: 'exams-results', label: 'Syllabus Test', icon: FileText },
+            ] },
             { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
               { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
               { id: 'faculty-leave', label: 'Faculty Leave', icon: CalendarDays },

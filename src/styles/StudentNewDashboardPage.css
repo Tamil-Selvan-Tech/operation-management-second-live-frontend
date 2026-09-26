@@ -259,6 +259,28 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   color: #2563eb;
 }
 
+.student-new-sidebar-subnav-parent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.student-new-sidebar-subnav-parent > svg {
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+
+.student-new-sidebar-subnav-parent > svg.is-expanded {
+  transform: rotate(180deg);
+}
+
+.student-new-sidebar-nested-subnav {
+  margin: 0 0 2px 14px;
+  padding-left: 10px;
+  border-left-color: #e5edf7;
+}
+
 
 /* =========================================================
    SIDEBAR FOOTER
