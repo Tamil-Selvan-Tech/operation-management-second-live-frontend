@@ -108,6 +108,7 @@ import FacultyAssessmentsPage from './FacultyAssessmentsPage'
 import FacultyExamReportsPage from './FacultyExamReportsPage'
 import FacultyStudentExamReportPage from './FacultyStudentExamReportPage'
 import AcademicTestPage from './AcademicTestPage'
+import AcademicTestPreparationPage from './AcademicTestPreparationPage'
 
 function getInitials(name) {
   const value = String(name || '').trim()
@@ -5189,7 +5190,7 @@ const nextName = trimmedValue
                 </section>
               ) : null}
 
-              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isAcademicTestRoute ? <AcademicTestPage mode="faculty" /> : isExamsRoute ? <FacultyExamsPage embedded /> : null}
+              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isAcademicTestRoute ? (location.pathname === '/dashboard/faculty/exams/academic-tests' ? <AcademicTestPage mode="faculty" /> : <AcademicTestPreparationPage embedded />) : isExamsRoute ? <FacultyExamsPage embedded /> : null}
 
               {!isExamsRoute && !isAssessmentsRoute && !isExamReportsRoute && !isAcademicTestRoute && activeSection === 'dashboard' ? (
                 <>
