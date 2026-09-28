@@ -391,10 +391,15 @@ function getExactFacultyStudents(students = [], facultyId = '', facultyName = ''
     const studentFacultyName = String(student?.facultyName || '').trim().toLowerCase()
     const studentFacultyEmail = String(student?.facultyEmail || '').trim().toLowerCase()
 
+    // A stale student row can retain a reused/public faculty id while its
+    // faculty name still points to the previous faculty. Treat the id and
+    // name as one assignment when both are available; otherwise those rows
+    // leak into the current faculty's student list.
     const matchesFacultyId =
       normalizedFacultyId &&
       studentFacultyId &&
-      studentFacultyId === normalizedFacultyId
+      studentFacultyId === normalizedFacultyId &&
+      (!normalizedFacultyName || !studentFacultyName || studentFacultyName === normalizedFacultyName)
 
     const matchesFacultyEmail =
       normalizedFacultyEmail &&
@@ -1022,10 +1027,11 @@ function getFacultyBatchProgressStudents(batch = {}, course = {}, students = [],
       (!courseName || !studentCourseName || studentCourseName === courseName)
     if (!matchesCourse) return false
 
-    return Boolean(
-      (batchId && studentBatchId === batchId) ||
-      (batchName && studentBatchName && studentBatchName === batchName),
-    )
+    // Once a real batch ID exists, it is the only valid relationship. A
+    // duplicate batch name must never make a student appear in another batch.
+    if (batchId) return studentBatchId === batchId
+
+    return Boolean(batchName && studentBatchName && studentBatchName === batchName)
   }))
 }
 
@@ -3072,7 +3078,7 @@ export function FacultyDashboardPage() {
         facultyScopedStudents,
         facultyBackfillRecords,
       )
-      const progressValues = batchStudents.map((student) => {
+      const progressTotals = batchStudents.reduce((totals, student) => {
         // Resolve work against the current batch row, not only the global
         // student map. This keeps progress visible when old student records
         // do not contain a batch ID.
@@ -3090,23 +3096,26 @@ export function FacultyDashboardPage() {
         // Today Work API is the source of truth for faculty progress. A stale
         // value on the student record must not appear as completed work when
         // no matching database entry exists for this batch and course.
-        if (!workEntry) return 0
+        if (!workEntry) return totals
 
         const progressSummary = buildFacultyTodayWorkProgressSummary(
           facultyTodayWorkEntries,
           selectedStudentsCourse,
           progressStudent,
         )
-        const calculatedProgress = Number(progressSummary?.courseProgress)
-        return Number.isFinite(calculatedProgress)
-          ? Math.min(100, Math.max(0, calculatedProgress))
-          : 0
-      })
-      const averageProgress = progressValues.length
-        ? progressValues.reduce((total, value) => total + value, 0) / progressValues.length
+        if (!progressSummary) return totals
+
+        progressSummary.moduleSummaries.forEach((moduleSummary) => {
+          totals.completed += Number(moduleSummary?.completedCount || 0)
+          totals.total += Number(moduleSummary?.totalSubmodules || 0)
+        })
+        return totals
+      }, { completed: 0, total: 0 })
+      const batchProgress = progressTotals.total > 0
+        ? Math.min(100, Math.max(0, (progressTotals.completed / progressTotals.total) * 100))
         : 0
 
-      progressByBatch.set(getFacultyFlowBatchKey(batch), Math.round(averageProgress))
+      progressByBatch.set(getFacultyFlowBatchKey(batch), Math.round(batchProgress))
     })
 
     return progressByBatch
@@ -5753,13 +5762,13 @@ const nextName = trimmedValue
                                 <th>Students</th>
                                 <th>Present</th>
                                 <th>Absent</th>
-                                {/* <th>Module Percentage</th> */}
+                                <th>Course Progress</th>
                                 <th>Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {selectedStudentsCourseBatches.map((batch, index) => {
-                                // const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
+                                const batchProgress = selectedCourseBatchProgress.get(getFacultyFlowBatchKey(batch)) || 0
                                 const batchStudents = getFacultyBatchProgressStudents(
                                   batch,
                                   selectedStudentsCourse,
@@ -5794,7 +5803,6 @@ const nextName = trimmedValue
                                   <td>{batchStudents.length}</td>
                                   <td><span className="faculty-batch-attendance-count faculty-batch-attendance-count--present">{batchAttendanceCounts.present}</span></td>
                                   <td><span className="faculty-batch-attendance-count faculty-batch-attendance-count--absent">{batchAttendanceCounts.absent}</span></td>
-                                  {/*
                                   <td>
                                     <div className="faculty-batch-progress-cell">
                                       <div className="faculty-batch-progress-bar" aria-hidden="true">
@@ -5803,7 +5811,6 @@ const nextName = trimmedValue
                                       <strong>{batchProgress}% Complete</strong>
                                     </div>
                                   </td>
-                                  */}
                                   <td>
                                     <button
                                       type="button"

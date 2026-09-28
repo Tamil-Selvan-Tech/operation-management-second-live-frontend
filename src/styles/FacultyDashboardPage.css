@@ -1092,6 +1092,11 @@ body.faculty-notification-menu-open .super-admin-content {
   width: 170px;
 }
 
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table th:nth-child(8),
+.super-admin-page .faculty-students-batches-shell .branch-dashboard-table td:nth-child(8) {
+  width: 170px;
+}
+
 .super-admin-page .faculty-students-flow-stage {
   display: grid;
   gap: 16px;
