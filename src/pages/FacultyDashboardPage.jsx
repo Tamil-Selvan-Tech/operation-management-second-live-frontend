@@ -1817,6 +1817,7 @@ export function FacultyDashboardPage() {
   const isAssessmentsRoute = location.pathname === '/dashboard/faculty/exams/assessments'
   const isExamReportsRoute = location.pathname.startsWith('/dashboard/faculty/exams/reports')
   const isAcademicTestRoute = location.pathname === '/dashboard/faculty/exams/academic-tests' || location.pathname.startsWith('/dashboard/faculty/exams/academic-tests/')
+  const isAcademicTestListRoute = isAcademicTestRoute && new URLSearchParams(location.search).get('view') === 'list'
   const isStudentExamReportRoute = /^\/dashboard\/faculty\/exams\/reports\/[^/]+\/[^/]+$/.test(location.pathname)
   const facultyRouteSection = location.pathname === '/dashboard/faculty/dashboard' ? 'dashboard' : location.pathname === '/dashboard/faculty/courses' ? 'my-courses' : ['/dashboard/faculty/batches', '/dashboard/faculty/my-batches'].includes(location.pathname) ? 'my-batches' : location.pathname === '/dashboard/faculty/calendar' ? 'my-calendar' : location.pathname === '/dashboard/faculty/students' ? 'students' : location.pathname === '/dashboard/faculty/leave-requests' ? 'leave-requests' : location.pathname === '/dashboard/faculty/notifications' ? 'notifications' : location.pathname === '/dashboard/faculty/profile' ? 'profile' : isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute ? 'exams' : ''
   const userRole = String(user?.role || '').trim().toLowerCase()
@@ -5013,7 +5014,11 @@ const nextName = trimmedValue
             className="notification-card is-unread"
             onClick={async () => {
               setNotificationOpen(false)
-              setActiveSection('notifications')
+              if (notification.kind === 'FACULTY_REPORT_SHARED' && notification.academicTestId) {
+                navigate('/dashboard/faculty/exams/academic-tests')
+              } else {
+                setActiveSection('notifications')
+              }
               try {
                 if (isFacultyProgressNotification(notification)) {
                   markNotificationsAsRead([notification.id])
@@ -5199,7 +5204,7 @@ const nextName = trimmedValue
                 </section>
               ) : null}
 
-              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isAcademicTestRoute ? (location.pathname === '/dashboard/faculty/exams/academic-tests' ? <AcademicTestPage mode="faculty" /> : <AcademicTestPreparationPage embedded />) : isExamsRoute ? <FacultyExamsPage embedded /> : null}
+              {isStudentExamReportRoute ? <FacultyStudentExamReportPage embedded /> : isExamReportsRoute ? <FacultyExamReportsPage embedded /> : isAssessmentsRoute ? <FacultyAssessmentsPage embedded /> : isAcademicTestRoute ? (isAcademicTestListRoute || location.pathname.replace(/\/+$/, '') === '/dashboard/faculty/exams/academic-tests' ? <AcademicTestPage mode="faculty" /> : <AcademicTestPreparationPage embedded />) : isExamsRoute ? <FacultyExamsPage embedded /> : null}
 
               {!isExamsRoute && !isAssessmentsRoute && !isExamReportsRoute && !isAcademicTestRoute && activeSection === 'dashboard' ? (
                 <>
@@ -6302,6 +6307,9 @@ const nextName = trimmedValue
                           label={group.label}
                           items={group.items}
                           onViewNotification={async (notification) => {
+                            if (notification.kind === 'FACULTY_REPORT_SHARED' && notification.academicTestId) {
+                              navigate('/dashboard/faculty/exams/academic-tests')
+                            }
                             if (!notification.read) {
                               try {
                                 if (isFacultyProgressNotification(notification)) {
