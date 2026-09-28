@@ -8,6 +8,15 @@ export const getAcademicTest = (id) => request(`/academic-tests/${encodeURICompo
 export const createAcademicTest = (payload) => request('/academic-tests', { method: 'POST', body: JSON.stringify(payload) }).then(unwrap)
 export const updateAcademicTest = (id, payload) => request(`/academic-tests/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) }).then(unwrap)
 export const deleteAcademicTest = (id) => request(`/academic-tests/${encodeURIComponent(id)}`, { method: 'DELETE' }).then(unwrap)
+export const getAcademicTestCreateOptions = () => request('/academic-tests/create-options').then(unwrap)
+export const createScheduledAcademicTest = (payload) => request('/academic-tests/scheduled', { method: 'POST', body: JSON.stringify(payload) }).then(unwrap)
+export const listFacultyScheduledAcademicTests = () => request('/academic-tests/faculty/scheduled').then(unwrap)
+export const getFacultyAcademicTestResults = (id) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(id)}/results`).then(unwrap)
+export const listStudentAcademicTests = () => request('/academic-tests/student/scheduled').then(unwrap)
+export const getStudentAcademicTest = (id) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}`).then(unwrap)
+export const startStudentAcademicTest = (id) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}/start`, { method: 'POST' }).then(unwrap)
+export const submitStudentAcademicTest = (id, answers) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}/submit`, { method: 'POST', body: JSON.stringify({ answers }) }).then(unwrap)
+export const getStudentAcademicTestResult = (id) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}/result`).then(unwrap)
 
 export const getAcademicTestPreparation = (academicTestItemId, branchBatchId) =>
   request(`/academic-test-preparation/items/${encodeURIComponent(academicTestItemId)}?branchBatchId=${encodeURIComponent(branchBatchId)}`).then(unwrap)

@@ -22,6 +22,13 @@
 .academic-test-item-row:last-child { border-bottom: 0; }
 .academic-test-type-badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 10px; background: #eff6ff; color: #2563eb; font-size: .75rem; font-weight: 700; white-space: nowrap; }
 .academic-test-primary { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 8px; padding: 10px 14px; background: #2563eb; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.academic-test-primary:disabled { cursor: not-allowed; opacity: .55; }
+.academic-test-create-modal { min-height: 0; }
+.academic-test-validation { margin: 8px 0 14px; border: 1px solid #fed7aa; border-radius: 8px; padding: 10px 12px; background: #fff7ed; color: #c2410c; font-size: .82rem; line-height: 1.45; }
+.academic-test-time-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.academic-test-time-picker { margin: 0 !important; }
+.academic-test-time-picker > div { display: grid; grid-template-columns: 1fr auto 1fr 1.15fr; align-items: center; gap: 6px; }
+.academic-test-time-picker > div b { color: #64748b; }
 .academic-test-actions { display: flex; gap: 6px; }
 .academic-test-actions button, .academic-test-modal-heading > button { display: inline-grid; place-items: center; border: 1px solid #dbe4f0; border-radius: 7px; padding: 7px; background: #fff; color: #475569; cursor: pointer; }
 .academic-test-action-menu { position: relative; display: inline-flex; }
@@ -91,3 +98,4 @@
 .academic-test-faculty-row{cursor:pointer}.academic-test-faculty-row:hover{background:#f5f9ff}
 .academic-test-view-button{border:1px solid #2563eb;background:#2563eb;color:#fff;border-radius:7px;padding:8px 14px;font-weight:700;cursor:pointer;white-space:nowrap}.academic-test-view-button:hover{background:#1d4ed8}
 .academic-test-progress-cell{display:grid;gap:6px;min-width:150px;max-width:190px}.academic-test-progress-bar{height:8px;overflow:hidden;border-radius:999px;background:#dbe5f1}.academic-test-progress-bar span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#2563eb,#3b82f6);transition:width 260ms ease}.academic-test-progress-cell strong{color:#334155;font-size:.78rem;font-weight:800;white-space:nowrap}
+.academic-test-scheduled-card{margin-top:18px}.academic-test-scheduled-heading{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #edf2f7}.academic-test-scheduled-heading h2{margin:0;color:#17345f;font-size:1rem}.academic-test-scheduled-heading span{color:#64748b;font-size:.8rem}.academic-test-result-modal{width:min(1200px,96vw);min-height:0}.academic-test-result-modal .academic-test-table-wrap{max-height:65vh;overflow:auto}

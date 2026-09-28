@@ -281,6 +281,11 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   border-left-color: #e5edf7;
 }
 
+.student-new-sidebar-nested-subnav button {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
 
 /* =========================================================
    SIDEBAR FOOTER

@@ -48,6 +48,7 @@ import html2pdf from 'html2pdf.js'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import StudentExamsPage from './StudentExamsPage'
 import StudentAssessmentsPage from './StudentAssessmentsPage'
+import StudentAcademicTestsPage from './StudentAcademicTestsPage'
 
 function readStudentSession() {
   if (typeof window === 'undefined') return null
@@ -457,6 +458,7 @@ export function StudentNewDashboardPage() {
  const isExamsRoute = location.pathname === '/student-new-dashboard/exams'
  const isExamReportsRoute = isExamsRoute && new URLSearchParams(location.search).get('tab') === 'reports'
  const isAssessmentRoute = isExamsRoute && new URLSearchParams(location.search).get('tab') === 'assessments'
+ const isAcademicTestRoute = isExamsRoute && new URLSearchParams(location.search).get('tab') === 'academic'
  const [activeSection, setActiveSection] = useState(isExamsRoute ? 'exams' : 'dashboard')
  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -936,7 +938,7 @@ const handleLogoutConfirm = async () => {
                 <span>Exams and Result</span>
                 <ChevronDown className={`student-new-sidebar-chevron ${isExamsExpanded ? 'is-expanded' : ''}`.trim()} size={16} strokeWidth={2.2} aria-hidden="true" />
               </button>
-              {isExamsExpanded ? <div className="student-new-sidebar-subnav"><button type="button" className={`student-new-sidebar-subnav-parent ${isExamsRoute ? 'is-active' : ''}`.trim()} aria-expanded={isSyllabusTestExpanded} onClick={() => setIsSyllabusTestExpanded((current) => !current)}><span>Syllabus Test</span><ChevronDown className={isSyllabusTestExpanded ? 'is-expanded' : ''} size={14} strokeWidth={2.1} aria-hidden="true" /></button>{isSyllabusTestExpanded ? <div className="student-new-sidebar-subnav student-new-sidebar-nested-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Test</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessment</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Report</button></div> : null}</div> : null}
+              {isExamsExpanded ? <div className="student-new-sidebar-subnav"><button type="button" className={`student-new-sidebar-subnav-parent ${isExamsRoute ? 'is-active' : ''}`.trim()} aria-expanded={isSyllabusTestExpanded} onClick={() => setIsSyllabusTestExpanded((current) => !current)}><span>Syllabus Test</span><ChevronDown className={isSyllabusTestExpanded ? 'is-expanded' : ''} size={14} strokeWidth={2.1} aria-hidden="true" /></button>{isSyllabusTestExpanded ? <div className="student-new-sidebar-subnav student-new-sidebar-nested-subnav"><button type="button" className={!isExamReportsRoute && !isAssessmentRoute && !isAcademicTestRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=tests')}>Test</button><button type="button" className={isAssessmentRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=assessments')}>Assessment</button><button type="button" className={isExamReportsRoute ? 'is-active' : ''} onClick={() => navigate('/student-new-dashboard/exams?tab=reports')}>Report</button></div> : null}<button type="button" className={`student-new-sidebar-subitem ${isAcademicTestRoute ? 'is-active' : ''}`.trim()} onClick={() => navigate('/student-new-dashboard/exams?tab=academic')}>Academic Test</button></div> : null}
 
               <button
                 type="button"
@@ -1066,7 +1068,7 @@ const handleLogoutConfirm = async () => {
               </section>
             ) : null}
 
-            {isExamsRoute && isAssessmentRoute ? <StudentAssessmentsPage embedded /> : isExamsRoute ? <StudentExamsPage embedded student={student} /> : null}
+            {isExamsRoute && isAcademicTestRoute ? <StudentAcademicTestsPage embedded /> : isExamsRoute && isAssessmentRoute ? <StudentAssessmentsPage embedded /> : isExamsRoute ? <StudentExamsPage embedded student={student} /> : null}
 
             {!isExamsRoute && !isLoading && !loadError && activeSection === 'dashboard' ? (
               <div className="student-new-dashboard student-dashboard-redesign">
