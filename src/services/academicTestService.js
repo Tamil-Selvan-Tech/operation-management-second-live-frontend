@@ -24,6 +24,9 @@ export const getFacultyProjectFile = (scheduleId, studentId) => requestBlob(`/ac
 export const getFacultyProjectPreview = (scheduleId, studentId) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(scheduleId)}/project-submissions/${encodeURIComponent(studentId)}/preview`)
 export const gradeFacultyProject = (scheduleId, studentId, marks) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(scheduleId)}/project-submissions/${encodeURIComponent(studentId)}`, { method: 'PUT', body: JSON.stringify({ marks }) }).then(unwrap)
 export const getStudentAcademicTestResult = (id) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}/result`).then(unwrap)
+export const listAcademicReportBatches = () => request('/academic-tests/reports/batches').then(unwrap)
+export const getAcademicBatchReport = (batchId) => request(`/academic-tests/reports/batches/${encodeURIComponent(batchId)}/students`).then(unwrap)
+export const getMyAcademicReport = () => request('/academic-tests/reports/my-report').then(unwrap)
 
 export const getAcademicTestPreparation = (academicTestItemId, branchBatchId) =>
   request(`/academic-test-preparation/items/${encodeURIComponent(academicTestItemId)}?branchBatchId=${encodeURIComponent(branchBatchId)}`).then(unwrap)
