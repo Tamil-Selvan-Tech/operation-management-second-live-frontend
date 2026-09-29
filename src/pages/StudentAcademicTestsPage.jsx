@@ -1,11 +1,19 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CheckCircle2 } from 'lucide-react'
-import { getStudentAcademicTest, getStudentAcademicTestResult, listStudentAcademicTests, startStudentAcademicTest, submitStudentAcademicTest } from '../services/academicTestService'
+import { getStudentAcademicTest, getStudentAcademicTestResult, listStudentAcademicTests, startStudentAcademicTest, submitStudentAcademicProject, submitStudentAcademicTest } from '../services/academicTestService'
 import '../styles/ExamsPage.css'
 import '../styles/StudentAcademicTestsPage.css'
 
 const dateLabel = (value) => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : '-'
+const projectStatus = (test) => {
+  if (test.status === 'CANCELLED') return 'CANCELLED'
+  if (!test.projectStartDate || !test.projectEndDate) return 'NOT_AVAILABLE'
+  const today = new Date().toISOString().slice(0, 10)
+  if (today < test.projectStartDate) return 'UPCOMING'
+  if (today > test.projectEndDate) return 'EXPIRED'
+  return 'AVAILABLE'
+}
 
 export default function StudentAcademicTestsPage({ embedded = false }) {
   const [tests, setTests] = useState([])
@@ -19,6 +27,12 @@ export default function StudentAcademicTestsPage({ embedded = false }) {
   const [loading, setLoading] = useState(true)
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [activeTab, setActiveTab] = useState('test')
+  const [projectSubmittingId, setProjectSubmittingId] = useState('')
+  const [selectedProject, setSelectedProject] = useState(null)
+  const [projectSubmitTarget, setProjectSubmitTarget] = useState(null)
+  const [projectFile, setProjectFile] = useState(null)
+  const [projectLink, setProjectLink] = useState('')
 
   const load = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true)
@@ -70,9 +84,22 @@ export default function StudentAcademicTestsPage({ embedded = false }) {
     } catch (e) { setError(e.message || 'Unable to submit test.') } finally { setSubmitting(false) }
   }
 
+  const submitProject = async (test) => {
+    if (!projectFile) { setError('Project file is required.'); return }
+    setProjectSubmittingId(test.id)
+    setError('')
+    try {
+      const submission = await submitStudentAcademicProject(test.id, projectFile, projectLink)
+      setTests((current) => current.map((item) => item.id === test.id ? { ...item, projectSubmission: submission } : item))
+      setProjectSubmitTarget(null); setProjectFile(null); setProjectLink('')
+    } catch (e) { setError(e.message || 'Unable to submit project.') } finally { setProjectSubmittingId('') }
+  }
+
   const answeredCount = active ? active.questions.filter((question) => Boolean(answers[question.id])).length : 0
   const resultTest = selectedResultTest
   const resultTotalMarks = selectedResult?.totalMarks ?? resultTest?.totalMarks ?? 0
+  const testRows = tests.filter((test) => ['TEST', 'TEST_AND_PROJECT'].includes(test.testType))
+  const projectRows = tests.filter((test) => ['PROJECT', 'TEST_AND_PROJECT'].includes(test.testType))
 
   if (active) return <section className={`academic-student-page ${embedded ? 'academic-student-page-embedded' : ''}`}>
     <div className="academic-student-test-heading"><h1>{active.testName} · {active.course?.name || '-'}</h1><p>{active.totalQuestions} Questions · {active.totalMarks} Marks · {active.startTime} - {active.endTime}</p></div>
@@ -91,13 +118,29 @@ export default function StudentAcademicTestsPage({ embedded = false }) {
     <header><p>EXAM CENTER & RESULT</p><h1>Academic Test</h1><span>Only tests assigned to your batch are shown.</span></header>
     {error && <div className="academic-student-error">{error}</div>}
     {resultError && <div className="academic-student-error">{resultError}</div>}
-    <div className="academic-student-card"><div className="academic-student-table-wrap"><table><thead><tr><th>Test Name</th><th>Course</th><th>Date</th><th>Timing</th><th>Total Questions</th><th>Total Marks</th><th>Status</th><th>Action</th></tr></thead><tbody>
-      {loading ? <tr><td colSpan="8">Loading Academic Tests...</td></tr> : tests.length ? tests.map((test) => {
+    {projectRows.length > 0 && <div className="academic-student-tabs" role="tablist" aria-label="Academic test type"><button type="button" className={activeTab === 'test' ? 'active' : ''} onClick={() => setActiveTab('test')}>Test</button><button type="button" className={activeTab === 'project' ? 'active' : ''} onClick={() => setActiveTab('project')}>Project</button></div>}
+    <div className="academic-student-card"><div className="academic-student-table-wrap"><table>{activeTab === 'project' ? <><thead><tr><th>Test Name</th><th>Course</th><th>Project Start Date</th><th>Project End Date</th><th>Total Project Mark</th><th>Status</th><th>Project Details</th><th>Action</th></tr></thead><tbody>
+      {loading ? <tr><td colSpan="8">Loading Academic Tests...</td></tr> : projectRows.length ? projectRows.map((test) => {
+        const submitted = ['SUBMITTED', 'GRADED'].includes(test.projectSubmission?.status)
+        const status = submitted ? 'Submitted' : projectStatus(test)
+        const available = status === 'AVAILABLE' && test.projectStatus === 'PREPARED'
+        return <tr key={test.id}><td>{test.testName || 'Academic Test'}</td><td>{test.course?.name || '-'}</td><td>{dateLabel(test.projectStartDate)}</td><td>{dateLabel(test.projectEndDate)}</td><td>{test.projectMarks ?? 0}</td><td>{status === 'CANCELLED' ? 'Cancelled' : status === 'EXPIRED' ? 'Expired' : status === 'UPCOMING' ? 'Upcoming' : status === 'NOT_AVAILABLE' ? 'Not Available' : status}</td><td><button type="button" className="academic-student-link academic-student-view-project" onClick={() => setSelectedProject(test)}>View Project</button></td><td>{submitted ? <button type="button" className="academic-student-link" disabled>Submitted</button> : <button type="button" className="academic-student-link" disabled={!available || projectSubmittingId === test.id} onClick={() => { setProjectSubmitTarget(test); setError('') }}>{available ? 'Submit Project' : status === 'EXPIRED' ? 'Expired' : status === 'CANCELLED' ? 'Project Cancelled' : 'Upcoming'}</button>}</td></tr>
+      }) : <tr><td colSpan="8">No Projects available.</td></tr>}
+    </tbody></> : <><thead><tr><th>Test Name</th><th>Course</th><th>Date</th><th>Timing</th><th>Total Questions</th><th>Total Marks</th><th>Status</th><th>Action</th></tr></thead><tbody>
+      {loading ? <tr><td colSpan="8">Loading Academic Tests...</td></tr> : testRows.length ? testRows.map((test) => {
         const submitted = test.submission?.status === 'SUBMITTED'
         const actionDisabled = !submitted && test.status !== 'AVAILABLE'
         return <tr key={test.id}><td>{test.testName || 'Academic Test'}</td><td>{test.course?.name || '-'}</td><td>{dateLabel(test.testDate)}</td><td>{test.startTime} - {test.endTime}</td><td>{test.totalQuestions}</td><td>{test.totalMarks}</td><td>{submitted ? 'Submitted' : test.status === 'CANCELLED' ? 'Cancelled' : test.status === 'EXPIRED' ? 'Expired' : test.status}</td><td>{submitted ? <button type="button" className="academic-student-link" onClick={() => viewResult(test)}>{resultLoading && selectedResultTest?.id === test.id ? 'Loading...' : 'View Result'}</button> : <button type="button" className="academic-student-link" disabled={actionDisabled} onClick={() => start(test)}>{test.status === 'AVAILABLE' ? 'Start Test' : test.status === 'CANCELLED' ? 'Test Cancelled' : test.status === 'EXPIRED' ? 'Expired' : 'Upcoming'}</button>}</td></tr>
       }) : <tr><td colSpan="8">No Academic Tests available.</td></tr>}
-    </tbody></table></div></div>
+    </tbody></>}</table></div></div>
+    {projectSubmitTarget && createPortal(<div className="exam-modal-backdrop student-project-modal-backdrop"><div className="exam-modal student-project-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="exam-card-heading"><div><p className="exam-kicker">SUBMIT PROJECT</p><h2>{projectSubmitTarget.projectTitle || projectSubmitTarget.testName}</h2><p>Upload your project file. File is required; link is optional.</p></div><button type="button" className="exam-icon-button" onClick={() => { setProjectSubmitTarget(null); setProjectFile(null); setProjectLink('') }} aria-label="Close project submission">×</button></div>
+      <div className="student-project-submit-form"><label>Project file <input type="file" accept=".pdf,.doc,.docx,.zip,.jpg,.jpeg,.png" required onChange={(event) => setProjectFile(event.target.files?.[0] || null)} /></label><small>Maximum file size: 20 MB</small><label>Project link (optional) <input type="url" value={projectLink} onChange={(event) => setProjectLink(event.target.value)} placeholder="https://..." /></label><button type="button" className="academic-student-primary" disabled={!projectFile || projectSubmittingId === projectSubmitTarget.id} onClick={() => submitProject(projectSubmitTarget)}>{projectSubmittingId === projectSubmitTarget.id ? 'Uploading...' : 'Submit Project'}</button></div>
+    </div></div>, document.body)}
+    {selectedProject && createPortal(<div className="exam-modal-backdrop student-project-modal-backdrop"><div className="exam-modal student-project-modal" onClick={(event) => event.stopPropagation()}>
+      <div className="exam-card-heading"><div><p className="exam-kicker">PROJECT DETAILS</p><h2>{selectedProject.projectTitle || selectedProject.testName || 'Project'}</h2><p>{selectedProject.course?.name || '-'} · {dateLabel(selectedProject.projectStartDate)} - {dateLabel(selectedProject.projectEndDate)}</p></div><button type="button" className="exam-icon-button" onClick={() => setSelectedProject(null)} aria-label="Close project details">×</button></div>
+      <div className="student-project-details"><div><span>Project Marks</span><strong>{selectedProject.projectMarks ?? 0}</strong></div><section><h3>Description</h3><p>{selectedProject.projectDescription || 'No description provided.'}</p></section><section><h3>Requirements</h3><p>{selectedProject.projectRequirements || 'No requirements provided.'}</p></section></div>
+    </div></div>, document.body)}
     {selectedResult && createPortal(<div className="exam-modal-backdrop student-result-modal-backdrop" onClick={() => setSelectedResult(null)}><div className="exam-modal student-result-modal" onClick={(event) => event.stopPropagation()}>
       <div className="exam-card-heading"><div><p className="exam-kicker">ACADEMIC TEST RESULT</p><h2>{resultTest?.testName || 'Academic Test'}</h2><p>{resultTest?.course?.name || '-'} · {dateLabel(resultTest?.testDate)} · {resultTest?.startTime || '-'} - {resultTest?.endTime || '-'}</p></div><button type="button" className="exam-icon-button" onClick={() => setSelectedResult(null)} aria-label="Close result">×</button></div>
       <div className="student-result-grid"><div><span>Total Questions</span><strong>{selectedResult.totalQuestions ?? resultTest?.totalQuestions ?? 0}</strong></div><div><span>Answered</span><strong>{selectedResult.attemptedCount ?? 0}</strong></div><div><span>Unanswered</span><strong>{selectedResult.unmarkedCount ?? 0}</strong></div><div><span>Correct</span><strong>{selectedResult.correctCount ?? 0}</strong></div><div><span>Wrong</span><strong>{selectedResult.wrongCount ?? 0}</strong></div><div><span>Total Marks</span><strong>{resultTotalMarks}</strong></div></div>
