@@ -16,13 +16,13 @@ const typeClass = (value) => `academic-test-type-badge academic-test-type-${Stri
 function TestTypeBadge({ test }) { return test ? <strong className={typeClass(test.testType)}>{labelType(test.testType)}</strong> : <span className="academic-test-muted">-</span> }
 function TestDetails({ item }) { return <div className="academic-test-items">{(item?.items || []).map((test) => <div className="academic-test-item-row" key={test.sequence}><span>Test {test.sequence}</span><TestTypeBadge test={test} /></div>)}</div> }
 function BatchSelector({ batches, selectedIds, onToggle, onToggleAll }) { const allSelected = batches.length > 0 && batches.every((batch) => selectedIds.includes(batch.id)); return <fieldset className="academic-test-batch-selector"><legend>Select Batches</legend><label className="academic-test-checkbox academic-test-select-all"><input type="checkbox" checked={allSelected} onChange={onToggleAll} /><strong>Select All</strong></label>{batches.length ? batches.map((batch) => <label className="academic-test-checkbox" key={batch.id}><input type="checkbox" checked={selectedIds.includes(batch.id)} onChange={() => onToggle(batch.id)} /><span>{batch.batchName || batch.batchId}</span></label>) : <p className="academic-test-muted">No new batches found for this course.</p>}</fieldset> }
-const emptyItem = () => ({ testType: 'TEST', testDate: '', testStartTime: '10:00', testEndTime: '11:00', projectStartDate: '', projectEndDate: '' })
+const defaultTestDate = () => { const date = new Date(); date.setDate(date.getDate() + 1); return date.toISOString().slice(0, 10) }
+const emptyItem = () => ({ testType: 'TEST', testDate: defaultTestDate(), testStartTime: '10:00', testEndTime: '11:00', projectStartDate: '', projectEndDate: '' })
 function ItemScheduleFields({ item, index, onChange }) {
   const update = (field, value) => onChange(index, { ...item, [field]: value })
   const hasTest = item.testType === 'TEST' || item.testType === 'TEST_AND_PROJECT'
   const hasProject = item.testType === 'PROJECT' || item.testType === 'TEST_AND_PROJECT'
   return <div className="academic-test-schedule-fields">
-    {hasTest && <div className="academic-test-schedule-section"><strong>Test</strong><label>Test Date<input type="date" value={item.testDate || ''} onChange={(event) => update('testDate', event.target.value)} /></label><div className="academic-test-time-grid"><AcademicTimePicker label="Start Time" value={item.testStartTime || '10:00'} onChange={(value) => update('testStartTime', value)} /><AcademicTimePicker label="End Time" value={item.testEndTime || '11:00'} onChange={(value) => update('testEndTime', value)} /></div></div>}
     {hasProject && <div className="academic-test-schedule-section"><strong>Project</strong><div className="academic-test-project-date-grid"><label>Project Start Date<input type="date" value={item.projectStartDate || ''} onChange={(event) => update('projectStartDate', event.target.value)} /></label><label>Project End Date<input type="date" value={item.projectEndDate || ''} onChange={(event) => update('projectEndDate', event.target.value)} /></label></div></div>}
   </div>
 }
