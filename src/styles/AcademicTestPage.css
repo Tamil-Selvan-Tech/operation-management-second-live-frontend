@@ -1,9 +1,13 @@
-.academic-test-page { padding: 24px; color: #17345f; }
+.academic-test-page { margin-top: -10px; margin-left: -20px; padding: 0 24px 24px; color: #17345f; }
 .academic-test-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .academic-test-header h1, .academic-test-modal h2 { margin: 0; color: #17345f; }
 .academic-test-header p { margin: 6px 0 0; color: #64748b; }
 .academic-test-kicker { color: #2563eb !important; font-size: .7rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
 .academic-test-card { overflow: hidden; border: 1px solid #dbe4f0; border-radius: 12px; background: #fff; box-shadow: 0 8px 22px rgba(15, 23, 42, .05); }
+.academic-test-pagination { display: flex; justify-content: flex-end; align-items: center; gap: 6px; padding: 12px 15px; border-top: 1px solid #edf2f7; }
+.academic-test-pagination button { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #dbe4f0; border-radius: 7px; background: #fff; color: #31527f; cursor: pointer; font-weight: 600; }
+.academic-test-pagination button:hover:not(:disabled), .academic-test-pagination button.is-active { border-color: #2563eb; background: #2563eb; color: #fff; }
+.academic-test-pagination button:disabled { cursor: not-allowed; opacity: .5; }
 .academic-test-card tbody tr[role="button"] { cursor: pointer; }
 .academic-test-card tbody tr[role="button"]:hover { background: #f8fbff; }
 .academic-test-card tbody tr[role="button"]:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; }
