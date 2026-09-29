@@ -11,12 +11,12 @@ const emptyValue = '—'
 const DASHBOARD_LAYOUT_STORAGE_KEY = 'cispro:super-admin-dashboard-layout'
 const DEFAULT_METRIC_ORDER = ['totalBranches', 'totalStudents', 'thisMonthAdmissions', 'totalPayment', 'thisMonthPayment', 'totalOutstanding', 'thisMonthDue', 'todayDue', 'overdueAmount', 'dueStudents', 'todayCollection']
 
-function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null, scopeLabel }) {
-  return <article className={`sa-overall-metric ${tone} ${variant}`.trim()}>
+function MetricCard({ label, value, icon: Icon, tone = '', variant = '', comparison = null, scopeLabel, isLoading = false }) {
+  return <article className={`sa-overall-metric ${tone} ${variant} ${isLoading ? 'is-loading' : ''}`.trim()}>
     <div className="sa-overall-metric-top"><span className="sa-overall-metric-icon"><Icon size={18} strokeWidth={2.1} /></span><span className="sa-overall-metric-label">{label}</span></div>
-    <strong className="sa-overall-metric-value">{value}</strong>
+    <strong className="sa-overall-metric-value">{isLoading ? <span className="sa-metric-skeleton-value" /> : value}</strong>
     <div className="sa-overall-metric-divider" />
-    <div className="sa-overall-metric-bottom">{comparison ? <><span className={`sa-overall-change ${comparison.direction}`}>{comparison.value}</span><small>{comparison.label}</small></> : <small>{scopeLabel}</small>}</div>
+    <div className="sa-overall-metric-bottom">{isLoading ? <span className="sa-metric-skeleton-meta" /> : comparison ? <><span className={`sa-overall-change ${comparison.direction}`}>{comparison.value}</span><small>{comparison.label}</small></> : <small>{scopeLabel}</small>}</div>
   </article>
 }
 
@@ -24,6 +24,10 @@ function AdmissionBarChart({ data, isLoading }) {
   const total = data.reduce((sum, item) => sum + Number(item.value || 0), 0)
   const colors = ['#2f80ed', '#8b5cf6', '#10a978', '#f59e0b', '#ef6c78', '#4f9cf9']
   const max = Math.max(...data.map((item) => Number(item.value) || 0), 1)
+
+  if (isLoading) {
+    return <div className="sa-admission-bar-wrap sa-section-skeleton" aria-label="Loading admissions overview"><div className="sa-admission-bars-skeleton">{[1, 2, 3, 4, 5, 6].map((item) => <span key={item} />)}</div></div>
+  }
 
   return <div className="sa-admission-bar-wrap">
     <div className={`sa-admission-bars ${isLoading ? 'is-loading' : ''}`} aria-label={`Total ${total} admissions`}>
@@ -64,6 +68,10 @@ function BarChart({ title, data, formatter, emptyMessage }) {
   </div>
 }
 
+function BranchPerformanceSkeletonRows() {
+  return <>{[1, 2, 3, 4].map((row) => <tr className="sa-branch-performance-skeleton-row" key={row}>{[1, 2, 3, 4, 5, 6, 7].map((cell) => <td key={cell}><span /></td>)}</tr>)}</>
+}
+
 export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', onOpenStudent360 }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -74,8 +82,11 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const [isBranchSearchOpen, setIsBranchSearchOpen] = useState(false)
   const [allStudents, setAllStudents] = useState([])
   const [overview, setOverview] = useState(null)
+  const [branchPerformance, setBranchPerformance] = useState([])
+  const [branchPerformanceHasData, setBranchPerformanceHasData] = useState(true)
   const [period, setPeriod] = useState('daily')
   const [isLoading, setIsLoading] = useState(true)
+  const [isPerformanceLoading, setIsPerformanceLoading] = useState(true)
   const [error, setError] = useState('')
   const [isCustomizeOpen, setIsCustomizeOpen] = useState(false)
   const [branchPerformanceSort, setBranchPerformanceSort] = useState('branchName')
@@ -102,17 +113,48 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   const [draggedMetric, setDraggedMetric] = useState(null)
 
   const load = useCallback(async () => {
-    if (branchPerformancePeriod === 'customRange' && (!branchPerformanceStartDate || !branchPerformanceEndDate || branchPerformanceStartDate > branchPerformanceEndDate)) return
     setIsLoading(true)
     setError('')
     setOverview(null)
-    try { setOverview(await getSuperAdminOverview(selectedBranch?.branchId || branchIdFromUrl || null, { period: branchPerformancePeriod, startDate: branchPerformanceStartDate, endDate: branchPerformanceEndDate })) } catch (loadError) { setError(loadError?.status === 404 ? 'No matching branch found.' : 'Unable to load branch dashboard data.') } finally { setIsLoading(false) }
+    try {
+      const nextOverview = await getSuperAdminOverview(selectedBranch?.branchId || branchIdFromUrl || null)
+      setOverview(nextOverview)
+    } catch (loadError) {
+      setError(loadError?.status === 404 ? 'No matching branch found.' : 'Unable to load branch dashboard data.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [branchIdFromUrl, selectedBranch?.branchId])
+
+  const loadBranchPerformance = useCallback(async () => {
+    if (branchPerformancePeriod === 'customRange' && (!branchPerformanceStartDate || !branchPerformanceEndDate || branchPerformanceStartDate > branchPerformanceEndDate)) return
+    setIsPerformanceLoading(true)
+    try {
+      const nextOverview = await getSuperAdminOverview(selectedBranch?.branchId || branchIdFromUrl || null, {
+        period: branchPerformancePeriod,
+        startDate: branchPerformanceStartDate,
+        endDate: branchPerformanceEndDate,
+      })
+      setBranchPerformance(nextOverview?.branchPerformance || [])
+      setBranchPerformanceHasData(nextOverview?.branchPerformanceHasData !== false)
+    } catch (loadError) {
+      setBranchPerformance([])
+      setBranchPerformanceHasData(false)
+      setError(loadError?.status === 404 ? 'No matching branch found.' : 'Unable to load branch performance.')
+    } finally {
+      setIsPerformanceLoading(false)
+    }
   }, [branchIdFromUrl, branchPerformanceEndDate, branchPerformancePeriod, branchPerformanceStartDate, selectedBranch?.branchId])
 
   useEffect(() => {
     const timerId = window.setTimeout(() => { void load() }, 0)
     return () => window.clearTimeout(timerId)
   }, [load])
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => { void loadBranchPerformance() }, 0)
+    return () => window.clearTimeout(timerId)
+  }, [loadBranchPerformance])
 
   useEffect(() => {
     if (!Array.isArray(branches) || !branches.length) {
@@ -203,8 +245,8 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   }
   const todayDueComparison = getDayComparison(overview?.todayDue, overview?.yesterdayDue)
   const todayCollectionComparison = getDayComparison(overview?.todayCollection, overview?.yesterdayCollection)
-  const scopeLabel = selectedBranch ? `${selectedBranch.branchName} Branch` : 'All active branches'
-  const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => <MetricCard label={selectedBranch && label === 'Total branches' ? 'Selected branch' : label} value={isLoading ? emptyValue : selectedBranch && label === 'Total branches' ? `${selectedBranch.branchName}` : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} scopeLabel={scopeLabel} />
+  const scopeLabel = selectedBranch ? `${selectedBranch.branchName} Branch` : ''
+  const metric = (label, value, icon, tone, currency = true, variant = '', comparison = null) => <MetricCard label={selectedBranch && label === 'Total branches' ? 'Selected branch' : label} value={isLoading ? emptyValue : selectedBranch && label === 'Total branches' ? `${selectedBranch.branchName}` : currency ? formatOverviewCurrency(value) : (value ?? 0)} icon={icon} tone={tone} variant={variant} comparison={comparison} scopeLabel={scopeLabel} isLoading={isLoading} />
   const metricDefinitions = {
     totalBranches: { label: 'Total branches', description: 'Total number of active branches on the dashboard', icon: Building2, tone: 'blue', node: metric('Total branches', overview?.totalBranches, Building2, 'blue', false) },
     totalStudents: { label: 'Total students', description: 'Total number of registered students on the dashboard', icon: Users, tone: 'purple', node: metric('Total students', overview?.totalStudents, Users, 'purple', false) },
@@ -292,13 +334,13 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
   }
   const clearBranch = () => { setBranchQuery(''); setIsBranchSearchOpen(false); navigate(location.pathname) }
   const branchPerformanceRows = useMemo(() => {
-    const rows = overview?.branchPerformance || []
+    const rows = branchPerformance
     return [...rows].sort((left, right) => {
       if (branchPerformanceSort === 'branchName') return left.branchName.localeCompare(right.branchName)
       const value = branchPerformanceSort === 'admissions' ? 'thisMonthAdmissions' : branchPerformanceSort === 'collection' ? 'collection' : branchPerformanceSort
       return Number(right[value] ?? -1) - Number(left[value] ?? -1)
     })
-  }, [branchPerformanceSort, overview?.branchPerformance])
+  }, [branchPerformance, branchPerformanceSort])
 
   return <div className="sa-overall-dashboard">
     <div className="sa-overall-intro"><div><p className="sa-overall-kicker"><LayoutDashboard size={15} /> {selectedBranch ? 'Branch view' : 'Consolidated view'}</p><h1>Overall Dashboard</h1><p>{selectedBranch ? `Showing complete performance data for ${selectedBranch.branchName} Branch.` : 'Combined performance across every active branch.'}</p></div><div className="sa-overall-actions"><div className="sa-branch-search-wrap"><label className="sa-branch-search"><span className="sa-branch-search-icon" aria-hidden="true"><Search size={16} /></span><input value={selectedBranch ? `${selectedBranch.branchName} Branch • ${selectedBranch.branchId}` : branchQuery} onChange={(event) => { setBranchQuery(event.target.value); setIsBranchSearchOpen(true) }} onFocus={() => setIsBranchSearchOpen(true)} placeholder="Search branch by ID or branch name..." aria-label="Search branch by ID or branch name" />{selectedBranch ? <button type="button" onClick={clearBranch} aria-label="Clear selected branch"><X size={16} /></button> : null}</label>{isBranchSearchOpen && !selectedBranch && branchQuery.trim() ? <div className="sa-branch-search-results">{matchingBranches.length ? matchingBranches.map((branch) => <button type="button" key={branch.id || branch.branchId} onMouseDown={() => selectBranch(branch)}><strong>{branch.branchName} Branch</strong><span>{branch.branchId} · {branch.branchCity || branch.branchDistrict || 'Location unavailable'} · Active</span></button>) : <p>No matching branch found.</p>}</div> : null}</div><span className="sa-overall-scope"><Building2 size={15} /> {selectedBranch ? `${selectedBranch.branchName} Branch` : 'All active branches'}</span><button type="button" className="sa-overall-customize" onClick={() => { setMetricLayout(savedMetricLayoutRef.current); setIsCustomizeOpen(true) }}><LayoutGrid size={17} /> Customize Dashboard</button><button type="button" className="sa-overall-refresh" onClick={() => void load()} disabled={isLoading}><RefreshCcw size={15} className={isLoading ? 'is-spinning' : ''} /> Refresh</button></div></div>
@@ -326,7 +368,7 @@ export function SuperAdminOverallDashboard({ branches, userKey = 'super-admin', 
     <TrendingCourses courses={overview?.trendingCourses || []} month={overview?.trendingMonth} isLoading={isLoading} />
     <section className="sa-branch-performance" aria-labelledby="branch-performance-title">
       <div className="sa-branch-performance-header"><div><h2 id="branch-performance-title">Branch Performance</h2><p>Detailed performance across all active branches</p></div><div className="sa-branch-performance-controls"><label><span>Period:</span><select aria-label="Branch performance period" value={branchPerformancePeriod} onChange={(event) => setBranchPerformancePeriod(event.target.value)}><option value="thisMonth">This Month</option><option value="previousMonth">Previous Month</option><option value="last3Months">Last 3 Months</option><option value="last6Months">Last 6 Months</option><option value="thisYear">This Year</option><option value="customRange">Custom Range</option></select></label><label><span>Sort:</span><select aria-label="Sort branch performance" value={branchPerformanceSort} onChange={(event) => setBranchPerformanceSort(event.target.value)}><option value="branchName">Branch Name</option><option value="totalStudents">Total Students</option><option value="admissions">This Month Admissions</option><option value="collection">Revenue / Collection</option><option value="due">Due</option><option value="outstanding">Outstanding</option><option value="attendance">Attendance</option></select></label>{branchPerformancePeriod === 'customRange' ? <div className="sa-branch-performance-date-range"><input type="date" aria-label="Performance start date" value={branchPerformanceStartDate} onChange={(event) => setBranchPerformanceStartDate(event.target.value)} /><span>to</span><input type="date" aria-label="Performance end date" value={branchPerformanceEndDate} onChange={(event) => setBranchPerformanceEndDate(event.target.value)} /></div> : null}</div></div>
-      <div className="sa-branch-performance-table-wrap"><table className="sa-branch-performance-table"><colgroup><col className="sa-branch-col" /><col /><col /><col /><col /><col /><col /></colgroup><thead><tr><th>Branch</th><th>Total Students</th><th>This Month Admissions</th><th>Revenue</th><th>Due</th><th>Outstanding</th><th>Attendance</th></tr></thead><tbody>{isLoading ? <tr><td colSpan="7" className="sa-branch-performance-empty">Loading branch performance...</td></tr> : overview?.branchPerformanceHasData === false ? <tr><td colSpan="7" className="sa-branch-performance-empty"><strong>No Data Available</strong><small>No performance data found for this period.</small></td></tr> : branchPerformanceRows.length ? branchPerformanceRows.map((branch) => <tr key={branch.branchId}><th scope="row" title={branch.branchName}><span className="sa-branch-name-line"><i className="sa-branch-status-dot" /> <strong>{branch.branchName}</strong></span><small>{branch.branchId}</small></th><td>{branch.totalStudents}</td><td>{branch.thisMonthAdmissions}</td><td className="sa-branch-performance-money">{formatOverviewCurrency(branch.collection)}</td><td className="sa-branch-performance-money"><span className="sa-performance-value">{formatOverviewCurrency(branch.due)}</span></td><td className="sa-branch-performance-money"><span className="sa-performance-value">{formatOverviewCurrency(branch.outstanding)}</span></td><td><span className={`sa-branch-attendance-badge ${branch.attendance == null ? 'is-empty' : branch.attendance >= 90 ? 'is-good' : branch.attendance >= 75 ? 'is-neutral' : 'is-warning'}`}>{branch.attendance == null ? '—' : `${branch.attendance}%`}</span></td></tr>) : <tr><td colSpan="7" className="sa-branch-performance-empty">No active branches available</td></tr>}</tbody></table></div>{overview?.branchPerformanceHasData !== false ? <div className="sa-branch-performance-footer">Showing {branchPerformanceRows.length} active {branchPerformanceRows.length === 1 ? 'branch' : 'branches'}</div> : null}
+      <div className="sa-branch-performance-table-wrap"><table className="sa-branch-performance-table"><colgroup><col className="sa-branch-col" /><col /><col /><col /><col /><col /><col /></colgroup><thead><tr><th>Branch</th><th>Total Students</th><th>This Month Admissions</th><th>Revenue</th><th>Due</th><th>Outstanding</th><th>Attendance</th></tr></thead><tbody>{isPerformanceLoading ? <BranchPerformanceSkeletonRows /> : branchPerformanceHasData === false ? <tr><td colSpan="7" className="sa-branch-performance-empty"><strong>No Data Available</strong><small>No performance data found for this period.</small></td></tr> : branchPerformanceRows.length ? branchPerformanceRows.map((branch) => <tr key={branch.branchId}><th scope="row" title={branch.branchName}><span className="sa-branch-name-line"><i className="sa-branch-status-dot" /> <strong>{branch.branchName}</strong></span><small>{branch.branchId}</small></th><td>{branch.totalStudents}</td><td>{branch.thisMonthAdmissions}</td><td className="sa-branch-performance-money">{formatOverviewCurrency(branch.collection)}</td><td className="sa-branch-performance-money"><span className="sa-performance-value">{formatOverviewCurrency(branch.due)}</span></td><td className="sa-branch-performance-money"><span className="sa-performance-value">{formatOverviewCurrency(branch.outstanding)}</span></td><td><span className={`sa-branch-attendance-badge ${branch.attendance == null ? 'is-empty' : branch.attendance >= 90 ? 'is-good' : branch.attendance >= 75 ? 'is-neutral' : 'is-warning'}`}>{branch.attendance == null ? '—' : `${branch.attendance}%`}</span></td></tr>) : <tr><td colSpan="7" className="sa-branch-performance-empty">No active branches available</td></tr>}</tbody></table></div>{branchPerformanceHasData !== false ? <div className="sa-branch-performance-footer">Showing {branchPerformanceRows.length} active {branchPerformanceRows.length === 1 ? 'branch' : 'branches'}</div> : null}
     </section>
     {isCustomizeOpen ? <div className="sa-customize-backdrop" role="presentation">
       <section className="sa-customize-modal" role="dialog" aria-modal="true" aria-labelledby="sa-customize-title" onClick={(event) => event.stopPropagation()}>

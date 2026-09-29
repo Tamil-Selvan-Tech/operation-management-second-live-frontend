@@ -226,6 +226,26 @@ function NotificationItem({ item, onView }) {
   )
 }
 
+function NotificationFeedSkeleton() {
+  return (
+    <div className="notifications-feed notifications-feed-skeleton" role="status" aria-label="Loading notifications">
+      {[1, 2, 3, 4].map((item) => (
+        <div className="notifications-skeleton-group" key={item}>
+          <span className="notifications-skeleton-label" />
+          <div className="notifications-skeleton-card">
+            <span className="notifications-skeleton-icon" />
+            <span className="notifications-skeleton-copy">
+              <span className="notifications-skeleton-line notifications-skeleton-line--title" />
+              <span className="notifications-skeleton-line notifications-skeleton-line--body" />
+            </span>
+            <span className="notifications-skeleton-meta" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function SuperAdminNotificationsPage() {
   const navigate = useNavigate()
   const { signOut, user } = useAuth()
@@ -797,7 +817,7 @@ export function SuperAdminNotificationsPage() {
                 </div>
               </div>
 
-              {groupedNotifications.length ? (
+              {isRefreshing ? <NotificationFeedSkeleton /> : groupedNotifications.length ? (
                 <div className="notifications-feed">
                   {groupedNotifications.map((group) => (
                     <section key={group.label} className="notifications-group">

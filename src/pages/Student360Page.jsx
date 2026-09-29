@@ -32,6 +32,10 @@ function formatDate(value) {
   })
 }
 
+function getPaymentDateValue(payment = {}) {
+  return payment.dateRaw || payment.date || payment.paymentDate || payment.paymentDateRaw || payment.paidDate || payment.createdAt || ''
+}
+
 function formatCurrency(value) {
   const amount = Number(value || 0)
   if (!Number.isFinite(amount) || amount <= 0) return '-'
@@ -292,7 +296,7 @@ export function Student360Page({
 
           <SectionCard title="Fee Ledger & Invoices" description="Recorded payments and downloadable receipts." className="student360-fee-ledger-card" id="payments">
             <div className="student360-ledger-heading"><div><span>Total: {formatCurrency(totalFee)} ({feeProgress >= 100 ? '100% Cleared' : `${Math.round(feeProgress)}% Cleared`})</span><strong>{feeProgress >= 100 ? 'Paid in Full' : 'Payment in Progress'}</strong></div><span className={`student360-ledger-pill ${feeProgress >= 100 ? 'is-paid' : ''}`}>{feeProgress >= 100 ? 'Paid in Full' : 'Pending'}</span></div>
-            {ledgerEntries.length ? <div className="student360-payment-list">{ledgerEntries.slice(0, 6).map((payment, index) => <div className="student360-payment-row student360-ledger-row" key={payment.id || `${payment.date}-${payment.amount}`}><div className="student360-ledger-number">{payment.installmentNumber || index + 1}</div><div><strong>{formatDate(payment.dateRaw || payment.date)}</strong><span>{displayValue(payment.paymentMode || payment.mode, 'Payment')}</span></div><strong>{formatCurrency(payment.amount)} <b className="student360-payment-check">✓</b></strong><button type="button" className="student360-receipt-icon" title="Download receipt" aria-label="Download receipt" onClick={() => onDownloadPaymentReceipt?.(payment, student)}><Download size={15} /></button></div>)}</div> : <div className="student360-no-data">No payment history found.</div>}
+            {ledgerEntries.length ? <div className="student360-payment-list">{ledgerEntries.slice(0, 6).map((payment, index) => <div className="student360-payment-row student360-ledger-row" key={payment.id || `${payment.date}-${payment.amount}`}><div className="student360-ledger-number">{payment.installmentNumber || index + 1}</div><div><strong>{formatDate(getPaymentDateValue(payment))}</strong><span>{displayValue(payment.paymentMode || payment.mode, 'Payment')}</span></div><strong>{formatCurrency(payment.amount)} <b className="student360-payment-check">✓</b></strong><button type="button" className="student360-receipt-icon" title="Download receipt" aria-label="Download receipt" onClick={() => onDownloadPaymentReceipt?.(payment, student)}><Download size={15} /></button></div>)}</div> : <div className="student360-no-data">No payment history found.</div>}
             {ledgerEntries.length ? <button type="button" className="student360-invoice-button" onClick={() => onDownloadPaymentReceipt?.(ledgerEntries[0], student)}><FileText size={16} /> Download Tax Invoice Receipts</button> : null}
           </SectionCard>
         </aside>
