@@ -19,6 +19,10 @@ export const listStudentAcademicTests = () => request('/academic-tests/student/s
 export const getStudentAcademicTest = (id) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}`).then(unwrap)
 export const startStudentAcademicTest = (id) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}/start`, { method: 'POST' }).then(unwrap)
 export const submitStudentAcademicTest = (id, answers) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}/submit`, { method: 'POST', body: JSON.stringify({ answers }) }).then(unwrap)
+export const submitStudentAcademicProject = (id, file, link = '') => { const body = new FormData(); body.append('projectFile', file); if (link.trim()) body.append('link', link.trim()); return request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}/submit-project`, { method: 'POST', body }).then(unwrap) }
+export const getFacultyProjectFile = (scheduleId, studentId) => requestBlob(`/academic-tests/faculty/scheduled/${encodeURIComponent(scheduleId)}/project-submissions/${encodeURIComponent(studentId)}/file`)
+export const getFacultyProjectPreview = (scheduleId, studentId) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(scheduleId)}/project-submissions/${encodeURIComponent(studentId)}/preview`)
+export const gradeFacultyProject = (scheduleId, studentId, marks) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(scheduleId)}/project-submissions/${encodeURIComponent(studentId)}`, { method: 'PUT', body: JSON.stringify({ marks }) }).then(unwrap)
 export const getStudentAcademicTestResult = (id) => request(`/academic-tests/student/scheduled/${encodeURIComponent(id)}/result`).then(unwrap)
 
 export const getAcademicTestPreparation = (academicTestItemId, branchBatchId) =>
