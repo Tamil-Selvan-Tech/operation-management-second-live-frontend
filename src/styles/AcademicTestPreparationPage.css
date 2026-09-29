@@ -28,3 +28,4 @@
 .academic-project-preview-actions>button:last-child{bottom:34px}
 .academic-project-preview-actions>button:last-child{bottom:26px}
 .academic-project-evaluation-actions>div+button{display:none}
+.academic-preparation-header-controls{display:flex;align-items:flex-end;gap:14px}.academic-preparation-pass-mark{display:flex;flex-direction:column;gap:5px;color:#52647e;font-size:13px;font-weight:700}.academic-preparation-pass-mark input{width:100px;border:1px solid #cbd8e8;border-radius:8px;padding:9px 10px;font:inherit;color:#1e293b;background:#fff}

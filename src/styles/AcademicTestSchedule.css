@@ -24,7 +24,7 @@
 .academic-preparation-modal-actions .academic-evaluation-cancel{background:#be123c;border-color:#be123c;color:#fff}
 .academic-preparation-result-modal{width:min(1120px,100%)}
 .academic-preparation-result-actions-overlay{position:fixed;z-index:1001;left:50%;top:calc(50% - 196px);transform:translateX(-50%);width:min(1120px,calc(100% - 40px));display:flex;justify-content:flex-end;padding:0 70px 0 24px;box-sizing:border-box;pointer-events:none}.academic-preparation-result-actions-overlay button{pointer-events:auto}.academic-preparation-result-menu-button,.academic-preparation-row-menu-button{display:grid;place-items:center;border:1px solid #cbd8e8;background:#fff;color:#31527f;border-radius:8px;width:36px;height:36px;cursor:pointer}.academic-preparation-result-menu,.academic-schedule-menu-popover{position:absolute;right:24px;top:42px;display:flex;flex-direction:column;min-width:150px;padding:6px;background:#fff;border:1px solid #dbe5f1;border-radius:10px;box-shadow:0 12px 28px rgba(15,23,42,.16);z-index:1002}.academic-preparation-result-menu button,.academic-schedule-menu-popover button{border:0;background:#fff;color:#31527f;text-align:left;border-radius:7px;padding:9px 10px;font-weight:700;cursor:pointer}.academic-preparation-result-menu button:hover,.academic-schedule-menu-popover button:hover{background:#eff6ff}.academic-preparation-result-menu button.is-danger,.academic-schedule-menu-popover button.is-danger{color:#be123c}.academic-schedule-actions{position:relative;min-width:180px}.academic-schedule-menu{position:relative;display:inline-flex}.academic-schedule-menu-popover{right:0;top:42px}.academic-preparation-result-menu button:disabled{opacity:.45;cursor:not-allowed;background:#f8fafc}
-.academic-preparation-result-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:18px}
+.academic-preparation-result-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:18px}
 .academic-preparation-result-summary>div{border:1px solid #e1eaf4;background:#f8fafc;border-radius:10px;padding:12px 14px}
 .academic-preparation-result-summary span{display:block;color:#64748b;font-size:12px;font-weight:700}
 .academic-preparation-result-summary strong{display:block;margin-top:4px;color:#172554;font-size:20px}
@@ -38,6 +38,7 @@
 .academic-preparation-result-status.is-submitted{background:#dcfce7;color:#15803d}
 .academic-preparation-result-status.is-not-attended{background:#fee2e2;color:#b91c1c}
 .academic-preparation-result-status.is-not-started{background:#f1f5f9;color:#64748b}
+.academic-preparation-result-value{font-weight:800}.academic-preparation-result-value.is-pass{color:#15803d}.academic-preparation-result-value.is-fail{color:#dc2626}
 .academic-preparation-confirm-modal{width:min(480px,100%)}
 @media(max-width:700px){.academic-preparation-schedule-grid,.academic-preparation-result-summary{grid-template-columns:1fr 1fr}.academic-preparation-modal{padding:18px}.academic-preparation-modal-actions{flex-wrap:wrap}.academic-preparation-modal-actions button{flex:1}.academic-schedule-actions{min-width:220px}}
 .academic-preparation-result-menu{right:70px}
