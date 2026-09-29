@@ -2200,3 +2200,12 @@ aside.branch-course-view-drawer .branch-course-view-edit {
   .branch-faculty-attendance-status { margin-inline: 16px; }
   .branch-faculty-attendance-metrics { grid-template-columns: 1fr; }
 }
+
+.branch-faculty-skeleton-row td { height: 58px; }
+.branch-faculty-skeleton-row td span { display: block; width: 72%; height: 13px; border-radius: 5px; background: linear-gradient(90deg, #edf2f7 25%, #f8fafc 50%, #edf2f7 75%); background-size: 200% 100%; animation: branch-faculty-table-shimmer 1.2s ease-in-out infinite; }
+.branch-faculty-skeleton-row td:nth-child(2) span,
+.branch-faculty-skeleton-row td:nth-child(3) span,
+.branch-faculty-skeleton-row td:nth-child(5) span { width: 86%; }
+.branch-faculty-skeleton-row td:nth-child(4) span,
+.branch-faculty-skeleton-row td:nth-child(6) span { width: 58%; }
+@keyframes branch-faculty-table-shimmer { to { background-position: -200% 0; } }

@@ -84,3 +84,93 @@
 @media (max-width:700px){.faculty-report-module-groups{grid-template-columns:1fr}.faculty-report-send-button{margin-left:0}}
 @media (max-width:700px){.faculty-report-modal .exam-modal-body{grid-template-columns:1fr}.faculty-report-modal .exam-modal-body>.faculty-report-module-groups,.faculty-report-modal .exam-modal-body>.exam-error{grid-column:auto}}
 .faculty-report-selection-summary{display:grid;gap:6px;margin-top:16px;padding:12px 14px;border:1px solid #cfe0f8;border-radius:10px;background:#f7faff;color:#334155;font-size:13px}.faculty-report-selection-summary strong{color:#1e3a8a}
+.branch-report-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.branch-report-toolbar .branch-report-search {
+  flex: 0 1 360px;
+  margin: 0;
+}
+
+.branch-report-search-button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.branch-report-filter {
+  display: grid;
+  gap: 5px;
+  min-width: 138px;
+}
+
+.branch-report-filter span,
+.branch-report-search span {
+  color: #64748b;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.branch-report-filter select {
+  min-height: 42px;
+  padding: 0 32px 0 11px;
+  border: 1px solid #cbd9ea;
+  border-radius: 10px;
+  background: #fff;
+  color: #172b4d;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.branch-report-filter select:focus,
+.branch-report-search input:focus {
+  border-color: #4b8ff5;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.branch-report-type-filter {
+  flex: 0 0 auto;
+}
+
+.branch-report-skeleton-row td {
+  height: 58px;
+}
+
+.branch-report-skeleton-row td span {
+  display: block;
+  width: 76%;
+  height: 13px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #edf2f7 25%, #f8fafc 50%, #edf2f7 75%);
+  background-size: 200% 100%;
+  animation: branch-report-table-shimmer 1.2s ease-in-out infinite;
+}
+
+.branch-report-skeleton-row td:nth-child(2) span,
+.branch-report-skeleton-row td:nth-child(3) span { width: 88%; }
+
+.branch-report-skeleton-row td:nth-child(4) span,
+.branch-report-skeleton-row td:nth-child(5) span { width: 62%; }
+
+@keyframes branch-report-table-shimmer {
+  to { background-position: -200% 0; }
+}
+
+@media (max-width: 720px) {
+  .branch-report-toolbar .branch-report-search,
+  .branch-report-search-button,
+  .branch-report-filter {
+    width: 100%;
+    flex-basis: 100%;
+  }
+
+  .branch-report-type-filter {
+    width: 100% !important;
+  }
+}

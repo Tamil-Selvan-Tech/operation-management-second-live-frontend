@@ -142,6 +142,135 @@ import {
 import '../styles/SuperAdminDashboardPage.css'
 import '../styles/BranchDashboardPage.css'
 
+function BranchCourseFilterSelect({ value, options, onChange, ariaLabel, width = 150 }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+  const selectedOption = options.find((option) => String(option.value) === String(value)) || options[0]
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const closeOnOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [isOpen])
+
+  return (
+    <div ref={containerRef} className={`super-admin-branch-filter branch-course-custom-filter ${isOpen ? 'is-open' : ''}`.trim()} style={{ width: `${width}px` }}>
+      <button
+        type="button"
+        className="super-admin-branch-filter-trigger"
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <span>{selectedOption?.label || 'Select'}</span>
+        <ChevronDown size={15} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+      {isOpen ? (
+        <div className="super-admin-branch-filter-menu" role="listbox" aria-label={ariaLabel}>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={String(option.value) === String(value)}
+              className={`super-admin-branch-filter-option ${String(option.value) === String(value) ? 'is-selected' : ''}`.trim()}
+              onClick={() => {
+                onChange(option.value)
+                setIsOpen(false)
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function BranchNotificationDropdownSkeleton() {
+  return <div className="branch-notification-dropdown-skeleton" role="status" aria-label="Loading notifications">{[1, 2, 3].map(item => <div className="branch-notification-skeleton-item" key={item}><span className="branch-notification-skeleton-icon" /><span className="branch-notification-skeleton-copy"><span className="branch-notification-skeleton-line title" /><span className="branch-notification-skeleton-line body" /><span className="branch-notification-skeleton-line time" /></span></div>)}</div>
+}
+
+function BranchNotificationPageSkeleton() {
+  return <div className="branch-notification-page-skeleton" role="status" aria-label="Loading notifications">{[1, 2, 3, 4].map(item => <div className="branch-notification-page-skeleton-card" key={item}><span className="branch-notification-skeleton-icon" /><span className="branch-notification-skeleton-copy"><span className="branch-notification-skeleton-line title" /><span className="branch-notification-skeleton-line body" /></span><span className="branch-notification-skeleton-line time" /></div>)}</div>
+}
+
+function BranchProfileSkeleton() {
+  return <div className="branch-profile-skeleton" role="status" aria-label="Loading profile"><div className="branch-profile-skeleton-identity"><span className="branch-profile-skeleton-avatar" /><span><i /><i /><i /></span></div><div className="branch-profile-skeleton-heading" /><div className="branch-profile-skeleton-card"><i /><i /><i /><i /></div><div className="branch-profile-skeleton-heading short" /><div className="branch-profile-skeleton-card security"><i /><i /></div></div>
+}
+
+function BranchStudentCourseFilter({ value, options, onChange, ariaLabel, width = 170 }) {
+  const [query, setQuery] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+  const selectedOption = options.find((option) => String(option.value) === String(value))
+
+  useEffect(() => {
+    if (value === 'all') setQuery('')
+    else if (selectedOption?.label && !isOpen) setQuery(selectedOption.label)
+  }, [isOpen, selectedOption?.label, value])
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const closeOnOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [isOpen])
+
+  const normalizedQuery = query.trim().toLowerCase()
+  const visibleOptions = options.filter((option) => {
+    if (!normalizedQuery) return true
+    return `${option.label} ${option.value}`.toLowerCase().includes(normalizedQuery)
+  })
+
+  return (
+    <div ref={containerRef} className="branch-student-course-filter" style={{ width: `${width}px` }}>
+      <input
+        type="search"
+        value={query}
+        placeholder="All courses"
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        autoComplete="off"
+        onFocus={() => setIsOpen(true)}
+        onChange={(event) => {
+          setQuery(event.target.value)
+          setIsOpen(true)
+          if (!event.target.value.trim()) onChange('all')
+        }}
+      />
+      <ChevronDown className={`branch-student-course-filter-icon ${isOpen ? 'is-open' : ''}`.trim()} size={15} strokeWidth={2.2} aria-hidden="true" />
+      {isOpen ? (
+        <div className="branch-student-course-filter-menu" role="listbox" aria-label={ariaLabel}>
+          {visibleOptions.length ? visibleOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={String(option.value) === String(value)}
+              className={String(option.value) === String(value) ? 'is-selected' : ''}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onChange(option.value)
+                setQuery(option.value === 'all' ? '' : option.label)
+                setIsOpen(false)
+              }}
+            >
+              {option.label}
+            </button>
+          )) : <span className="branch-student-course-filter-empty">No courses found</span>}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 const BRANCH_STUDENTS_PER_PAGE = 5
 const STUDENT_ID_PREFIX = 'STU-'
 
@@ -3304,8 +3433,14 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [selectedSavedSubmodelIndex, setSelectedSavedSubmodelIndex] = useState(0)
   const [savedCourseHierarchy, setSavedCourseHierarchy] = useState([])
   const [branchCourseCards, setBranchCourseCards] = useState([])
+  const [isBranchCoursesLoading, setIsBranchCoursesLoading] = useState(true)
   const [branchBatchGroups, setBranchBatchGroups] = useState([])
   const [courseSearchTerm, setCourseSearchTerm] = useState('')
+  const [appliedCourseSearchTerm, setAppliedCourseSearchTerm] = useState('')
+  const [courseStatusFilter, setCourseStatusFilter] = useState('all')
+  const [courseTypeFilter, setCourseTypeFilter] = useState('all')
+  const [courseSortBy, setCourseSortBy] = useState('createdAt')
+  const [courseSortOrder, setCourseSortOrder] = useState('desc')
   const [branchCoursePage, setBranchCoursePage] = useState(1)
   const [editingCourseId, setEditingCourseId] = useState('')
   const [openCourseActionMenuId, setOpenCourseActionMenuId] = useState('')
@@ -3491,7 +3626,13 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [dashboardDateFromDraft, setDashboardDateFromDraft] = useState('')
   const [dashboardDateToDraft, setDashboardDateToDraft] = useState('')
   const [dashboardTrendMode, setDashboardTrendMode] = useState('daily')
+  const [isDashboardRefreshing, setIsDashboardRefreshing] = useState(false)
   const [studentSearchTerm, setStudentSearchTerm] = useState('')
+  const [appliedStudentSearchTerm, setAppliedStudentSearchTerm] = useState('')
+  const [studentCourseFilter, setStudentCourseFilter] = useState('all')
+  const [studentStatusFilter, setStudentStatusFilter] = useState('all')
+  const [studentSortBy, setStudentSortBy] = useState('createdAt')
+  const [studentSortOrder, setStudentSortOrder] = useState('desc')
   const [studentPage, setStudentPage] = useState(1)
   const [isStudentFormOpen, setIsStudentFormOpen] = useState(false)
   const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
@@ -3518,6 +3659,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [paymentHistoryActionMenuPosition, setPaymentHistoryActionMenuPosition] = useState({ top: 0, left: 0 });
   const [selectedPaymentHistory, setSelectedPaymentHistory] = useState(null);
   const [paymentHistorySearch, setPaymentHistorySearch] = useState('');
+  const [appliedPaymentHistorySearch, setAppliedPaymentHistorySearch] = useState('');
   const [ledgerStudent, setLedgerStudent] = useState(null)
   const [ledgerView, setLedgerView] = useState({ entries: [], summary: null, source: 'local' })
   const [ledgerLoading, setLedgerLoading] = useState(false)
@@ -3549,6 +3691,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [processingBranchNotification, setProcessingBranchNotification] = useState({ id: '', action: '' })
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
+  const [isBranchNotificationsLoading, setIsBranchNotificationsLoading] = useState(true)
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
   const [branchNotificationMonthFilter, setBranchNotificationMonthFilter] = useState(() => {
     const today = new Date()
@@ -3656,10 +3799,12 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const branchNotificationsRefreshTimerRef = useRef(null)
 
   const loadBranchCourses = useCallback(async (fallbackCourses = null, branchScopeId = '') => {
-    const result = await listAllBranchCourses({
+    setIsBranchCoursesLoading(true)
+    try {
+      const result = await listAllBranchCourses({
       sortBy: 'createdAt',
       sortOrder: 'desc',
-    })
+      })
 
     const activeBranchId = String(
       branchScopeId || branchData?.id || branchData?.branchId || '',
@@ -3698,7 +3843,10 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
         )
       })
     })
-    return result
+      return result
+    } finally {
+      setIsBranchCoursesLoading(false)
+    }
   }, [branchData?.branchId, branchData?.id])
 
   const loadBranchBatches = useCallback(async (branchScopeId = '') => {
@@ -3809,6 +3957,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 }, [])
 
   const loadBranchNotifications = useCallback(async () => {
+    setIsBranchNotificationsLoading(true)
     if (branchNotificationsRequestRef.current) {
       return branchNotificationsRequestRef.current
     }
@@ -3857,6 +4006,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
         setBranchNotificationRecords(fallbackNotifications)
       } finally {
+        setIsBranchNotificationsLoading(false)
         branchNotificationsRequestRef.current = null
       }
     })()
@@ -4624,7 +4774,6 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     [normalizedBranchNotifications],
   )
   const branchNotificationTotalCount = branchNotificationItems.length
-  const totalBranchStudents = branchStudents.length
   const openResetPassword = () => {
     setIsProfileMenuOpen(false)
     navigate('/reset-password?branchReset=1')
@@ -4642,10 +4791,11 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const openBranchNotifications = async () => {
-    await loadBranchNotifications()
     markNotificationsAsDropdownViewed()
     setIsNotificationMenuOpen(false)
+    setIsBranchNotificationsLoading(true)
     goToBranchSection('notifications')
+    void loadBranchNotifications()
   }
 
   const openBranchNotificationTarget = async (notification) => {
@@ -4847,13 +4997,27 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
   }
 
   const filteredBranchCourseCards = useMemo(() => {
-    const q = courseSearchTerm.trim().toLowerCase()
-    if (!q) return branchCourseCards
-    return branchCourseCards.filter((c) =>
-      String(c.name || '').toLowerCase().includes(q) ||
-      String(c.courseCode || '').toLowerCase().includes(q)
-    )
-  }, [branchCourseCards, courseSearchTerm])
+    const q = appliedCourseSearchTerm.trim().toLowerCase()
+    const filtered = branchCourseCards.filter((course) => {
+      const matchesSearch = !q || [course.name, course.courseCode, course.courseType].some((value) => String(value || '').toLowerCase().includes(q))
+      const matchesStatus = courseStatusFilter === 'all' || String(course.status || 'Active').toLowerCase() === courseStatusFilter
+      const matchesType = courseTypeFilter === 'all' || String(course.courseType || '').trim().toLowerCase() === courseTypeFilter
+      return matchesSearch && matchesStatus && matchesType
+    })
+
+    return [...filtered].sort((left, right) => {
+      let comparison = 0
+      if (courseSortBy === 'name') comparison = String(left.name || '').localeCompare(String(right.name || ''))
+      else if (courseSortBy === 'courseCode') comparison = String(left.courseCode || '').localeCompare(String(right.courseCode || ''))
+      else if (courseSortBy === 'fee') comparison = Number(getBranchCourseFinalFeeValue(left) || 0) - Number(getBranchCourseFinalFeeValue(right) || 0)
+      else comparison = new Date(left.createdAt || 0).getTime() - new Date(right.createdAt || 0).getTime()
+      return courseSortOrder === 'asc' ? comparison : -comparison
+    })
+  }, [appliedCourseSearchTerm, branchCourseCards, courseSortBy, courseSortOrder, courseStatusFilter, courseTypeFilter])
+
+  useEffect(() => {
+    setBranchCoursePage(1)
+  }, [appliedCourseSearchTerm, courseStatusFilter, courseTypeFilter, courseSortBy, courseSortOrder])
 
   const courseTypeOptions = useMemo(() => {
     const uniqueTypes = new Map()
@@ -6435,6 +6599,38 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
   }, [branchStudentScope, branchStudentScopeKey])
 
+  const refreshBranchDashboard = useCallback(async () => {
+    if (isDashboardRefreshing) return
+
+    setIsDashboardRefreshing(true)
+    try {
+      const scopeId = String(
+        branchProfile?.id || branchProfile?.branchId || branchData?.id || branchData?.branchId || '',
+      ).trim()
+
+      await Promise.allSettled([
+        reloadBranchStudents(),
+        loadBranchCourses(),
+        loadBranchBatches(scopeId),
+        loadFacultyList(),
+        loadFacultyTodayWorkEntries(),
+      ])
+    } finally {
+      setIsDashboardRefreshing(false)
+    }
+  }, [
+    branchData?.branchId,
+    branchData?.id,
+    branchProfile?.branchId,
+    branchProfile?.id,
+    isDashboardRefreshing,
+    loadBranchBatches,
+    loadBranchCourses,
+    loadFacultyList,
+    loadFacultyTodayWorkEntries,
+    reloadBranchStudents,
+  ])
+
   useEffect(() => {
     void loadFacultyTodayWorkEntries()
 
@@ -7454,7 +7650,7 @@ const studentCourseOptions = useMemo(() => {
     .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 
   const filteredPaymentHistoryRecords = useMemo(() => {
-    const q = paymentHistorySearch.trim().toLowerCase()
+    const q = appliedPaymentHistorySearch.trim().toLowerCase()
     const todayStr = getTodayValue()
     const now = new Date()
 
@@ -7489,7 +7685,7 @@ const studentCourseOptions = useMemo(() => {
 
       return matchesSearch && matchesDate && matchesMode && matchesQuickFilter
     })
-  }, [allPaymentHistoryRecords, paymentHistorySearch, paymentHistoryDate, paymentHistoryFilter, paymentModeFilter])
+  }, [allPaymentHistoryRecords, appliedPaymentHistorySearch, paymentHistoryDate, paymentHistoryFilter, paymentModeFilter])
 
 const branchPaymentStats = useMemo(() => branchPaymentRows.reduce(
   (acc, row) => {
@@ -7569,10 +7765,11 @@ const visibleBranchPaymentRows = useMemo(() => {
 
 const totalPaymentHistoryPages = Math.max(1, Math.ceil(filteredPaymentHistoryRecords.length / BRANCH_PAYMENT_HISTORY_PER_PAGE))
 const safePaymentHistoryPage = Math.min(paymentHistoryPage, totalPaymentHistoryPages)
-  const visiblePaymentHistoryRecords = useMemo(() => {
+const visiblePaymentHistoryRecords = useMemo(() => {
     const start = (safePaymentHistoryPage - 1) * BRANCH_PAYMENT_HISTORY_PER_PAGE
     return filteredPaymentHistoryRecords.slice(start, start + BRANCH_PAYMENT_HISTORY_PER_PAGE)
   }, [filteredPaymentHistoryRecords, safePaymentHistoryPage])
+const isPaymentHistoryLoading = isBranchStudentsLoading
 
   const activePaymentHistoryActionRecord = useMemo(
     () =>
@@ -7922,16 +8119,64 @@ const branchTodayWorkEntriesByStudent = useMemo(() => {
 
 useEffect(() => {
   setPaymentHistoryPage(1)
-}, [paymentHistorySearch, paymentHistoryDate, paymentHistoryFilter])
+}, [appliedPaymentHistorySearch, paymentHistoryDate, paymentHistoryFilter, paymentModeFilter])
+
+  const studentFilterOptions = useMemo(() => {
+    const courses = new Map()
+    const statuses = new Map()
+
+    branchStudentsForDisplay.forEach((student) => {
+      const courseValue = String(student?.courseId || student?.branchCourseId || student?.courseName || student?.courseInterested || student?.course?.name || '').trim()
+      const courseLabel = String(student?.courseName || student?.courseInterested || student?.course?.name || courseValue).trim()
+      const statusValue = String(student?.status || student?.recordStatus || student?.studentStatus || 'Active').trim()
+
+      if (courseValue && courseLabel) courses.set(courseValue, courseLabel)
+      if (statusValue) statuses.set(statusValue.toLowerCase(), statusValue)
+    })
+
+    return {
+      courses: [...courses.entries()].sort((left, right) => left[1].localeCompare(right[1])),
+      statuses: [...statuses.entries()].sort((left, right) => left[1].localeCompare(right[1])),
+    }
+  }, [branchStudentsForDisplay])
 
   const filteredBranchStudents = useMemo(() => {
-    const q = studentSearchTerm.trim().toLowerCase()
-    if (!q) return branchStudentsForDisplay
-    return branchStudentsForDisplay.filter((s) =>
-      String(s.studentId || '').toLowerCase().includes(q) ||
-      String(s.studentName || '').toLowerCase().includes(q)
-    )
-  }, [branchStudentsForDisplay, studentSearchTerm])
+    const q = appliedStudentSearchTerm.trim().toLowerCase()
+    return branchStudentsForDisplay
+      .filter((student) => {
+        if (!q) return true
+        return [student?.studentId, student?.studentName, student?.email, student?.phone]
+          .some((value) => String(value || '').toLowerCase().includes(q))
+      })
+      .filter((student) => {
+        if (studentCourseFilter === 'all') return true
+        const courseValue = String(student?.courseId || student?.branchCourseId || student?.courseName || student?.courseInterested || student?.course?.name || '').trim()
+        return courseValue.toLowerCase() === String(studentCourseFilter).toLowerCase()
+      })
+      .filter((student) => {
+        if (studentStatusFilter === 'all') return true
+        const statusValue = String(student?.status || student?.recordStatus || student?.studentStatus || 'Active').trim().toLowerCase()
+        return statusValue === String(studentStatusFilter).toLowerCase()
+      })
+      .sort((left, right) => {
+        const leftValue = studentSortBy === 'name'
+          ? (left?.studentName || '')
+          : studentSortBy === 'course'
+            ? (left?.courseName || left?.courseInterested || left?.course?.name || '')
+            : studentSortBy === 'status'
+              ? (left?.status || left?.recordStatus || left?.studentStatus || 'Active')
+              : (left?.createdAt || left?.admissionDate || '')
+        const rightValue = studentSortBy === 'name'
+          ? (right?.studentName || '')
+          : studentSortBy === 'course'
+            ? (right?.courseName || right?.courseInterested || right?.course?.name || '')
+            : studentSortBy === 'status'
+              ? (right?.status || right?.recordStatus || right?.studentStatus || 'Active')
+              : (right?.createdAt || right?.admissionDate || '')
+        const comparison = String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' })
+        return studentSortOrder === 'asc' ? comparison : -comparison
+      })
+  }, [appliedStudentSearchTerm, branchStudentsForDisplay, studentCourseFilter, studentSortBy, studentSortOrder, studentStatusFilter])
 
   const totalStudentPages = Math.max(1, Math.ceil(filteredBranchStudents.length / BRANCH_STUDENTS_PER_PAGE))
   const safeStudentPage = Math.min(studentPage, totalStudentPages)
@@ -8566,6 +8811,14 @@ useEffect(() => {
         <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="CISPRO logo" />
         <button
           type="button"
+          className="super-admin-sidebar-close branch-dashboard-sidebar-close"
+          aria-label="Close navigation menu"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        >
+          <X size={18} strokeWidth={2.6} aria-hidden="true" focusable="false" />
+        </button>
+        <button
+          type="button"
           className="branch-dashboard-sidebar-toggle"
           onClick={() => {
             cancelSidebarFlyoutClose()
@@ -8788,7 +9041,7 @@ useEffect(() => {
               {branchUnreadNotificationCount > 0 ? <b>{branchUnreadNotificationCount}</b> : null}
             </button>
 
-            {isNotificationMenuOpen ? (
+            {isNotificationMenuOpen && !isProfileMenuOpen ? (
               <div className="notification-dropdown" role="menu" aria-label="Notifications">
                 <div className="notification-dropdown-head">
                   <strong>Notifications</strong>
@@ -8808,7 +9061,7 @@ useEffect(() => {
                 </div>
 
                 <div className="notification-dropdown-list">
-                  {branchNotificationPreviewItems.length ? (
+                  {isBranchNotificationsLoading ? <BranchNotificationDropdownSkeleton /> : branchNotificationPreviewItems.length ? (
                     branchNotificationPreviewItems.map((item) => {
                       const Icon = item.icon
                       const isCourseEditRequest =
@@ -8912,7 +9165,10 @@ useEffect(() => {
             <button
               type="button"
               className="super-admin-profile branch-dashboard-profile-trigger"
-              onClick={() => setIsProfileMenuOpen((current) => !current)}
+              onClick={() => {
+                setIsNotificationMenuOpen(false)
+                setIsProfileMenuOpen((current) => !current)
+              }}
               aria-haspopup="menu"
               aria-expanded={isProfileMenuOpen}
             >
@@ -9030,10 +9286,22 @@ useEffect(() => {
                     <div className="branch-dashboard-overview-intro-heading">
                       <h1>Dashboard</h1>
                       {(!embeddedMode && role === 'branch-admin') || embeddedMode ? (
-                        <button type="button" className="branch-dashboard-customize-button" onClick={() => { setDashboardWidgets(savedDashboardWidgets); setIsWidgetCustomizerOpen(true) }}>
-                          <LayoutGrid size={17} strokeWidth={2.4} />
-                          <span>Customize Dashboard</span>
-                        </button>
+                        <div className="branch-dashboard-header-actions">
+                          <button type="button" className="branch-dashboard-customize-button" onClick={() => { setDashboardWidgets(savedDashboardWidgets); setIsWidgetCustomizerOpen(true) }}>
+                            <LayoutGrid size={17} strokeWidth={2.4} />
+                            <span>Customize Dashboard</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="branch-dashboard-refresh-button"
+                            onClick={() => void refreshBranchDashboard()}
+                            disabled={isDashboardRefreshing}
+                            aria-label={isDashboardRefreshing ? 'Refreshing dashboard' : 'Refresh dashboard'}
+                            title={isDashboardRefreshing ? 'Refreshing dashboard' : 'Refresh dashboard'}
+                          >
+                            <RefreshCcw size={17} strokeWidth={2.2} className={isDashboardRefreshing ? 'is-spinning' : ''} />
+                          </button>
+                        </div>
                       ) : null}
                     </div>
                     <p>{branchTitle} collection and fee overview</p>
@@ -9320,7 +9588,7 @@ useEffect(() => {
                       <p className="eyebrow">Notifications</p>
                       <h2>Notifications</h2>
                       <p>
-                        You have <strong>{branchNotificationTotalCount}</strong> notifications to go through
+                        You have <strong>{isBranchNotificationsLoading ? '...' : branchNotificationTotalCount}</strong> notifications to go through
                         {branchPageUnreadNotificationCount ? (
                           <span> and {branchPageUnreadNotificationCount} unread items</span>
                         ) : null}{' '}
@@ -9338,7 +9606,7 @@ useEffect(() => {
                         Back to dashboard
                       </button>
 
-                      <button type="button" className="notifications-mark-read" onClick={markAllBranchNotificationsAsRead}>
+                      <button type="button" className="notifications-mark-read" onClick={markAllBranchNotificationsAsRead} disabled={isBranchNotificationsLoading}>
                         <CheckCircle2 size={16} strokeWidth={2.2} aria-hidden="true" focusable="false" />
                         Mark all as read
                       </button>
@@ -9391,7 +9659,7 @@ useEffect(() => {
                   </div>
 
                   <div className="notifications-feed">
-                    {branchNotificationSections.length ? (
+                    {isBranchNotificationsLoading ? <BranchNotificationPageSkeleton /> : branchNotificationSections.length ? (
                       branchNotificationSections.map((section) => (
                         <BranchNotificationGroup
                           key={section.label}
@@ -9434,12 +9702,12 @@ useEffect(() => {
                       </button>
                       <div className="branch-dashboard-section-summary">
                         <span>Total students:</span>
-                        <strong>{totalBranchStudents}</strong>
+                        <strong>{filteredBranchStudents.length}</strong>
                       </div>
                     </>
                   )}
                 >
-                  <div className="faculty-search-filter-bar" style={{ marginBottom: '16px' }}>
+                  <div className="faculty-search-filter-bar branch-student-management-toolbar" style={{ marginBottom: '16px' }}>
                     <div
                       className="faculty-search-wrapper"
                       style={{
@@ -9453,8 +9721,18 @@ useEffect(() => {
                         placeholder="Search Student"
                         value={studentSearchTerm}
                         onChange={(e) => {
-                          setStudentSearchTerm(e.target.value);
-                          setStudentPage(1);
+                          const nextValue = e.target.value
+                          setStudentSearchTerm(nextValue)
+                          if (!nextValue.trim() && appliedStudentSearchTerm) {
+                            setAppliedStudentSearchTerm('')
+                            setStudentPage(1)
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            setAppliedStudentSearchTerm(studentSearchTerm.trim())
+                            setStudentPage(1)
+                          }
                         }}
                         className="faculty-search-input"
                         style={{
@@ -9466,6 +9744,10 @@ useEffect(() => {
                       <button
                         type="button"
                         className="button button-solid"
+                        onClick={() => {
+                          setAppliedStudentSearchTerm(studentSearchTerm.trim())
+                          setStudentPage(1)
+                        }}
                         style={{
                           height: '46px',
                           padding: '0 20px',
@@ -9477,6 +9759,47 @@ useEffect(() => {
                       >
                         Search
                       </button>
+                    </div>
+                    <div className="branch-student-filter-controls" aria-label="Student filters">
+                      <BranchStudentCourseFilter
+                        value={studentCourseFilter}
+                        width={170}
+                        ariaLabel="Filter students by course"
+                        options={[
+                          { value: 'all', label: 'All courses' },
+                          ...studentFilterOptions.courses.map(([value, label]) => ({ value, label })),
+                        ]}
+                        onChange={(value) => { setStudentCourseFilter(value); setStudentPage(1) }}
+                      />
+                      <BranchCourseFilterSelect
+                        value={studentStatusFilter}
+                        width={132}
+                        ariaLabel="Filter students by status"
+                        options={[
+                          { value: 'all', label: 'All status' },
+                          ...studentFilterOptions.statuses.map(([value, label]) => ({ value, label })),
+                        ]}
+                        onChange={(value) => { setStudentStatusFilter(value); setStudentPage(1) }}
+                      />
+                      <BranchCourseFilterSelect
+                        value={`${studentSortBy}:${studentSortOrder}`}
+                        width={146}
+                        ariaLabel="Sort students"
+                        options={[
+                          { value: 'createdAt:desc', label: 'Newest first' },
+                          { value: 'createdAt:asc', label: 'Oldest first' },
+                          { value: 'name:asc', label: 'Name A-Z' },
+                          { value: 'name:desc', label: 'Name Z-A' },
+                          { value: 'course:asc', label: 'Course A-Z' },
+                          { value: 'status:asc', label: 'Status A-Z' },
+                        ]}
+                        onChange={(value) => {
+                          const [sortBy, sortOrder] = value.split(':')
+                          setStudentSortBy(sortBy)
+                          setStudentSortOrder(sortOrder)
+                          setStudentPage(1)
+                        }}
+                      />
                     </div>
                   </div>
 
@@ -9915,7 +10238,9 @@ else {
       ) : (
         <tr>
           <td colSpan="10" className="branch-course-empty-state">
-            No students yet. Use + Add Student to add the first one.
+            {appliedStudentSearchTerm || studentCourseFilter !== 'all' || studentStatusFilter !== 'all'
+              ? 'No students match the selected search or filters.'
+              : 'No students yet. Use + Add Student to add the first one.'}
           </td>
         </tr>
       )}
@@ -9992,7 +10317,20 @@ else {
                         type="text"
                         placeholder="Search Courses"
                         value={courseSearchTerm}
-                        onChange={(e) => setCourseSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                          const nextValue = e.target.value
+                          setCourseSearchTerm(nextValue)
+                          if (!nextValue.trim() && appliedCourseSearchTerm) {
+                            setAppliedCourseSearchTerm('')
+                            setBranchCoursePage(1)
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            setAppliedCourseSearchTerm(courseSearchTerm.trim())
+                            setBranchCoursePage(1)
+                          }
+                        }}
                         className="faculty-search-input"
                         style={{
                           flex: 1,
@@ -10003,6 +10341,10 @@ else {
                       <button
                         type="button"
                         className="button button-solid"
+                        onClick={() => {
+                          setAppliedCourseSearchTerm(courseSearchTerm.trim())
+                          setBranchCoursePage(1)
+                        }}
                         style={{
                           height: '46px',
                           padding: '0 20px',
@@ -10014,6 +10356,48 @@ else {
                       >
                         Search
                       </button>
+                    </div>
+                    <div className="branch-course-filter-controls">
+                      <BranchCourseFilterSelect
+                        value={courseStatusFilter}
+                        onChange={setCourseStatusFilter}
+                        ariaLabel="Filter courses by status"
+                        width={142}
+                        options={[
+                          { value: 'all', label: 'All statuses' },
+                          { value: 'active', label: 'Active' },
+                          { value: 'inactive', label: 'Inactive' },
+                        ]}
+                      />
+                      <BranchCourseFilterSelect
+                        value={courseTypeFilter}
+                        onChange={setCourseTypeFilter}
+                        ariaLabel="Filter courses by type"
+                        width={132}
+                        options={[
+                          { value: 'all', label: 'All types' },
+                          ...courseTypeOptions.map((type) => ({ value: type.toLowerCase(), label: type })),
+                        ]}
+                      />
+                      <BranchCourseFilterSelect
+                        value={`${courseSortBy}:${courseSortOrder}`}
+                        onChange={(nextValue) => {
+                          const [nextSortBy, nextSortOrder] = nextValue.split(':')
+                          setCourseSortBy(nextSortBy)
+                          setCourseSortOrder(nextSortOrder)
+                        }}
+                        ariaLabel="Sort courses"
+                        width={150}
+                        options={[
+                          { value: 'createdAt:desc', label: 'Newest first' },
+                          { value: 'createdAt:asc', label: 'Oldest first' },
+                          { value: 'name:asc', label: 'Name A-Z' },
+                          { value: 'name:desc', label: 'Name Z-A' },
+                          { value: 'courseCode:asc', label: 'Course code A-Z' },
+                          { value: 'fee:desc', label: 'Fee high-low' },
+                          { value: 'fee:asc', label: 'Fee low-high' },
+                        ]}
+                      />
                     </div>
                   </div>
                   <div className="branch-course-table-shell branch-courses-table-shell">
@@ -10035,7 +10419,13 @@ else {
                         </tr>
                       </thead>
                       <tbody>
-                        {visibleBranchCourses.length ? (
+                        {isBranchCoursesLoading ? (
+                          Array.from({ length: 5 }, (_, rowIndex) => (
+                            <tr key={`course-loading-${rowIndex}`} className="branch-management-skeleton-row" aria-hidden="true">
+                              {Array.from({ length: 5 }, (_, cellIndex) => <td key={`course-loading-${rowIndex}-${cellIndex}`}><span /></td>)}
+                            </tr>
+                          ))
+                        ) : visibleBranchCourses.length ? (
                           visibleBranchCourses.map((course, index) => {
                             const normalizedStatus = String(course.status || 'Active').toLowerCase()
                             const statusTone = normalizedStatus === 'active' ? 'is-active' : normalizedStatus === 'inactive' ? 'is-inactive' : ''
@@ -10187,7 +10577,9 @@ else {
                         ) : (
                           <tr>
                             <td colSpan="5" className="branch-course-empty-state">
-                              No courses saved yet. Use Add Course to create the first one.
+                              {appliedCourseSearchTerm || courseStatusFilter !== 'all' || courseTypeFilter !== 'all'
+                                ? 'No courses found for the selected search and filters.'
+                                : 'No courses saved yet. Use Add Course to create the first one.'}
                             </td>
                           </tr>
                         )}
@@ -10195,7 +10587,7 @@ else {
                     </table>
                   </div>
 
-                  {branchCourseCards.length > BRANCH_COURSES_PER_PAGE ? (
+                  {filteredBranchCourseCards.length > BRANCH_COURSES_PER_PAGE ? (
                     <div className="branch-course-pagination">
                       <button
                         type="button"
@@ -10345,15 +10737,29 @@ else {
               type="text"
               placeholder="Search student, ID or course"
               value={paymentHistorySearch}
-              onChange={(e) =>
-                setPaymentHistorySearch(e.target.value)
-              }
+              onChange={(e) => setPaymentHistorySearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  setAppliedPaymentHistorySearch(paymentHistorySearch.trim())
+                  setPaymentHistoryPage(1)
+                }
+              }}
               className="faculty-search-input"
               style={{
                 flex: 1,
                 minWidth: 0,
               }}
             />
+            <button
+              type="button"
+              className="button button-solid payment-history-search-button"
+              onClick={() => {
+                setAppliedPaymentHistorySearch(paymentHistorySearch.trim())
+                setPaymentHistoryPage(1)
+              }}
+            >
+              Search
+            </button>
           </div>
 
           {/* DATE */}
@@ -10371,27 +10777,19 @@ else {
             }}
           />
 
-          <select
+          <BranchCourseFilterSelect
             value={paymentModeFilter}
-            onChange={(e) => {
-              setPaymentModeFilter(e.target.value)
+            width={180}
+            ariaLabel="Filter payment history by payment mode"
+            options={paymentModeFilterOptions.map((mode) => ({
+              value: mode,
+              label: mode === 'all' ? 'All Payment Modes' : mode,
+            }))}
+            onChange={(value) => {
+              setPaymentModeFilter(value)
               setPaymentHistoryPage(1)
             }}
-            style={{
-              height: '46px',
-              padding: '0 12px',
-              borderRadius: '8px',
-              border: '1px solid #d1d5db',
-              minWidth: '180px',
-              backgroundColor: '#fff',
-            }}
-          >
-            {paymentModeFilterOptions.map((mode) => (
-              <option key={mode} value={mode}>
-                {mode === 'all' ? 'All Payment Modes' : mode}
-              </option>
-            ))}
-          </select>
+          />
 
         </div>
 
@@ -10513,7 +10911,13 @@ else {
             </thead>
 
             <tbody>
-              {visiblePaymentHistoryRecords.length ? (
+              {isPaymentHistoryLoading ? (
+                Array.from({ length: 5 }, (_, rowIndex) => (
+                  <tr key={`payment-history-loading-${rowIndex}`} className="payment-history-skeleton-row" aria-hidden="true">
+                    {Array.from({ length: 7 }, (_, cellIndex) => <td key={cellIndex}><span className={`payment-history-skeleton-cell cell-${cellIndex}`} /></td>)}
+                  </tr>
+                ))
+              ) : visiblePaymentHistoryRecords.length ? (
                 visiblePaymentHistoryRecords.map((record) => (
                   <tr
                     key={record.id}
@@ -11356,36 +11760,21 @@ else {
         </div>
 
 
-        <select
+        <BranchCourseFilterSelect
           value={paymentStatusFilter}
-          onChange={(e) => {
-            setPaymentStatusFilter(e.target.value);
-            setPaymentPage(1);
+          width={170}
+          ariaLabel="Filter payment summary by status"
+          options={[
+            { value: 'all', label: 'All Statuses' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'partially-paid', label: 'Partially Paid' },
+            { value: 'pending', label: 'Pending' },
+          ]}
+          onChange={(value) => {
+            setPaymentStatusFilter(value)
+            setPaymentPage(1)
           }}
-          style={{
-            height: '46px',
-            padding: '0 12px',
-            borderRadius: '8px',
-          }}
-        >
-
-          <option value="all">
-            All Statuses
-          </option>
-
-          <option value="completed">
-            Completed
-          </option>
-
-          <option value="partially-paid">
-            Partially Paid
-          </option>
-
-          <option value="pending">
-            Pending
-          </option>
-
-        </select>
+        />
 
       </div>
 
@@ -11665,6 +12054,7 @@ else {
               
               {activeSection === 'profile' ? (
                 <BranchDashboardSection title="Profile" description="Manage your branch profile and account information.">
+                  {!branchProfile && !branchData ? <BranchProfileSkeleton /> : <>
                   <article className="branch-profile-identity-card">
                     <div className="branch-profile-identity">
                       <div className="branch-profile-avatar" aria-hidden="true">{String(branchAdminDisplay || 'A').trim().charAt(0).toUpperCase()}</div>
@@ -11722,6 +12112,7 @@ else {
                       </div>
                     </div>
                   </section>
+                  </>}
                 </BranchDashboardSection>
               ) : null}
 

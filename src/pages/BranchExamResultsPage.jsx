@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { listBranchReportShares } from '../services/examService'
 import { request } from '../services/apiClient'
 import '../styles/FacultyExamReports.css'
+import '../styles/SuperAdminDashboardPage.css'
 
 function parseMarks(value) {
   const match = String(value || '').match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/)
@@ -19,6 +20,31 @@ function reportSummary(items = [], type) {
 
 function ReportCell({ items, type }) {
   return <div className="branch-report-cell">{items.length ? items.map((item, index) => { const evaluated = ['SUBMITTED', 'EVALUATED'].includes(item.status); const notAttended = ['NOT_ATTEMPTED', 'NOT_SUBMITTED'].includes(item.status); return <div key={`${item.module}-${index}`}><span>{type === 'test' ? item.testName : item.assessmentName}: {notAttended ? 'Not Attended' : evaluated ? item.marks : '-'}</span>{evaluated && <small>{item.percentage != null ? `${Number(item.percentage).toFixed(2)}%` : '-'}</small>}</div> }) : <span>-</span>}</div>
+}
+
+function ReportTypeFilterSelect({ value, options, onChange, ariaLabel, width = 145 }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+  const selectedOption = options.find((option) => option.value === value) || options[0]
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const closeOnOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [isOpen])
+
+  return (
+    <div ref={containerRef} className={`super-admin-branch-filter branch-report-type-filter ${isOpen ? 'is-open' : ''}`.trim()} style={{ width: `${width}px` }}>
+      <button type="button" className="super-admin-branch-filter-trigger" aria-label={ariaLabel} aria-expanded={isOpen} onClick={() => setIsOpen((current) => !current)}>
+        <span>{selectedOption?.label || 'Select'}</span>
+        <ChevronDown size={15} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+      {isOpen ? <div className="super-admin-branch-filter-menu" role="listbox" aria-label={ariaLabel}>{options.map((option) => <button key={option.value} type="button" role="option" aria-selected={option.value === value} className={`super-admin-branch-filter-option ${option.value === value ? 'is-selected' : ''}`.trim()} onClick={() => { onChange(option.value); setIsOpen(false) }}>{option.label}</button>)}</div> : null}
+    </div>
+  )
 }
 
 function StudentReportsView({ share, branchId, onBack }) {
@@ -44,12 +70,49 @@ export default function BranchExamResultsPage({ branchId = '' }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
+  const [reportTypeFilter, setReportTypeFilter] = useState('all')
   useEffect(() => {
     listBranchReportShares(branchId).then(setShares).catch((e) => setError(e.message)).finally(() => setLoading(false))
   }, [branchId])
   const sharePageSize = 5
-  const filteredShares = shares.filter((share) => { const query = search.trim().toLowerCase(); if (!query) return true; return `${share.batch?.batchName || ''} ${share.batch?.batchId || ''}`.toLowerCase().includes(query) })
+  const filteredShares = useMemo(() => shares
+    .filter((share) => {
+      const query = appliedSearch.trim().toLowerCase()
+      if (!query) return true
+      return `${share.batch?.batchName || ''} ${share.batch?.batchId || ''} ${share.course?.name || ''}`.toLowerCase().includes(query)
+    })
+    .filter((share) => reportTypeFilter === 'all' || String(share.reportType || share.type || 'test').toLowerCase() === reportTypeFilter)
+    .sort((left, right) => {
+      return String(right.sentAt || '').localeCompare(String(left.sentAt || ''))
+    }), [appliedSearch, reportTypeFilter, shares])
   const shareTotalPages = Math.max(1, Math.ceil(filteredShares.length / sharePageSize))
   const visibleShares = filteredShares.slice((sharePage - 1) * sharePageSize, sharePage * sharePageSize)
-  return <section className="exam-reports-page branch-exam-results-page"><div className="exam-reports-header"><div><p className="exam-kicker">BRANCH ADMIN WORKSPACE</p><h1>Exams &amp; Results</h1><p>Faculty-shared test and assessment reports for your branch.</p></div></div>{error && <div className="exam-error">{error}</div>}<div className="exam-card exam-reports-table-card"><div className="exam-card-heading"><h2>{selected ? 'Student Reports' : 'Shared Reports'}</h2></div>{selected ? <StudentReportsView share={selected} branchId={branchId} onBack={() => setSelected(null)} /> : loading ? <p className="exam-muted">Loading shared reports...</p> : <><label className="branch-report-search"><span>Search Batch</span><input value={search} onChange={(event) => { setSearch(event.target.value); setSharePage(1) }} placeholder="Batch name or batch ID" /></label><div className="exam-table-wrap"><table><thead><tr><th>Batch</th><th>Course</th><th>Module</th><th>Sent By</th><th>Sent At</th><th>Action</th></tr></thead><tbody>{filteredShares.length ? visibleShares.map((share) => <tr key={share.id}><td>{share.batch?.batchName || '-'}</td><td>{share.course?.name || '-'}</td><td>{share.moduleNames?.join(', ') || '-'}</td><td>{share.faculty?.fullName || '-'}</td><td>{share.sentAt ? new Date(share.sentAt).toLocaleString() : '-'}</td><td><button type="button" className="exam-link" onClick={() => setSelected(share)}>View Students</button></td></tr>) : <tr><td colSpan="6" className="exam-empty">No reports shared yet.</td></tr>}</tbody></table></div>{filteredShares.length > sharePageSize && <div className="branch-student-pagination"><span>Page {sharePage} of {shareTotalPages}</span><div><button type="button" disabled={sharePage === 1} onClick={() => setSharePage((page) => page - 1)}>Previous</button><button type="button" disabled={sharePage === shareTotalPages} onClick={() => setSharePage((page) => page + 1)}>Next</button></div></div>}</>}</div></section>
+  return (
+    <section className="exam-reports-page branch-exam-results-page">
+      <div className="exam-reports-header"><div><p className="exam-kicker">BRANCH ADMIN WORKSPACE</p><h1>Exams &amp; Results</h1><p>Faculty-shared test and assessment reports for your branch.</p></div></div>
+      {error && <div className="exam-error">{error}</div>}
+      <div className="exam-card exam-reports-table-card">
+        <div className="exam-card-heading"><h2>{selected ? 'Student Reports' : 'Shared Reports'}</h2></div>
+        {selected ? <StudentReportsView share={selected} branchId={branchId} onBack={() => setSelected(null)} /> : (
+          <>
+            <div className="branch-report-toolbar">
+              <label className="branch-report-search"><span>Search Batch</span><input value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { setAppliedSearch(search.trim()); setSharePage(1) } }} placeholder="Batch name or batch ID" /></label>
+              <button type="button" className="button button-solid branch-report-search-button" onClick={() => { setAppliedSearch(search.trim()); setSharePage(1) }}>Search</button>
+              <div className="branch-report-filter"><ReportTypeFilterSelect value={reportTypeFilter} ariaLabel="Filter reports by type" options={[{ value: 'all', label: 'All types' }, { value: 'test', label: 'Test' }, { value: 'assessment', label: 'Assessment' }]} onChange={(value) => { setReportTypeFilter(value); setSharePage(1) }} /></div>
+            </div>
+            <div className="exam-table-wrap">
+              <table>
+                <thead><tr><th>Batch</th><th>Course</th><th>Module</th><th>Sent By</th><th>Sent At</th><th>Action</th></tr></thead>
+                <tbody>
+                  {loading ? Array.from({ length: 5 }, (_, index) => <tr key={`report-loading-${index}`} className="branch-report-skeleton-row" aria-hidden="true">{Array.from({ length: 6 }, (_, cellIndex) => <td key={cellIndex}><span /></td>)}</tr>) : filteredShares.length ? visibleShares.map((share) => <tr key={share.id}><td>{share.batch?.batchName || '-'}</td><td>{share.course?.name || '-'}</td><td>{share.moduleNames?.join(', ') || '-'}</td><td>{share.faculty?.fullName || '-'}</td><td>{share.sentAt ? new Date(share.sentAt).toLocaleString() : '-'}</td><td><button type="button" className="exam-link" onClick={() => setSelected(share)}>View Students</button></td></tr>) : <tr><td colSpan="6" className="exam-empty">{appliedSearch || reportTypeFilter !== 'all' ? 'No reports match the selected search or filters.' : 'No reports shared yet.'}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            {filteredShares.length > sharePageSize && <div className="branch-student-pagination"><span>Page {sharePage} of {shareTotalPages}</span><div><button type="button" disabled={sharePage === 1} onClick={() => setSharePage((page) => page - 1)}>Previous</button><button type="button" disabled={sharePage === shareTotalPages} onClick={() => setSharePage((page) => page + 1)}>Next</button></div></div>}
+          </>
+        )}
+      </div>
+    </section>
+  )
 }

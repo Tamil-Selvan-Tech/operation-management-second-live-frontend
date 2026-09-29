@@ -65,6 +65,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
   const facultyIdPrefix = getBranchEntityPrefix(branchCode, 'FC')
   const [facultyList, setFacultyList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState('')
   const [isFacultyLoading, setIsFacultyLoading] = useState(true)
   
   const [currentPage, setCurrentPage] = useState(1)
@@ -189,10 +190,10 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
         // Map backend representation to UI expectation
         const mapped = res.data.map((f) => ({
           dbId: f.id,
-          id: f.facultyId,
-          name: f.name,
-          email: f.email,
-          phone: f.phone,
+          id: f.facultyId || f.facultyCode || f.id,
+          name: f.name || f.facultyName || f.fullName || f.user?.name || '',
+          email: f.email || f.user?.email || '',
+          phone: f.phone || f.mobile || f.mobileNumber || '',
           country: f.country,
           countryCode: f.countryCode,
           state: f.state,
@@ -202,7 +203,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
           courseId: f.courseId,
           weeklyOffDay: f.weeklyOffDay || '',
           courses: Array.isArray(f.courses) ? f.courses : [],
-          courseName: (Array.isArray(f.courses) && f.courses.length ? f.courses.map((course) => course.name).filter(Boolean).join(', ') : '') || f.branchCourse?.name || f.course?.name || '-',
+          courseName: (Array.isArray(f.courses) && f.courses.length ? f.courses.map((course) => course.name || course.courseName).filter(Boolean).join(', ') : '') || f.branchCourse?.name || f.course?.name || f.courseName || '-',
           status: f.status,
           batchCount: Number(f._count?.branchBatches || 0),
         }))
@@ -329,7 +330,7 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
 
   // Filtered list
   const filteredFaculty = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
+    const query = appliedSearchQuery.trim().toLowerCase()
 
     return facultyList.filter((faculty) => {
       return (
@@ -343,13 +344,18 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
           faculty.state || '',
           faculty.city || '',
           faculty.address || '',
+          faculty.courseName || '',
+          faculty.status || '',
+          faculty.facultyName || '',
+          faculty.fullName || '',
+          ...(Array.isArray(faculty.courses) ? faculty.courses.map((course) => course?.name || '') : []),
         ]
           .join(' ')
           .toLowerCase()
           .includes(query)
       )
     })
-  }, [facultyList, searchQuery])
+  }, [appliedSearchQuery, facultyList])
 
   const totalPages = Math.max(1, Math.ceil(filteredFaculty.length / rowsPerPage))
   const safeCurrentPage = Math.min(currentPage, totalPages)
@@ -858,18 +864,34 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
 
     <div className="faculty-search-filter-bar">
   <div className="faculty-search-wrapper">
-    <input
-      type="text"
-      placeholder="Search faculty"
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      className="faculty-search-input"
-    />
+      <input
+        type="text"
+        placeholder="Search faculty"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            setAppliedSearchQuery(searchQuery.trim())
+            setCurrentPage(1)
+          }
+        }}
+        onChangeCapture={(e) => {
+          if (!e.target.value.trim() && appliedSearchQuery) {
+            setAppliedSearchQuery('')
+            setCurrentPage(1)
+          }
+        }}
+        aria-label="Search faculty by ID, name, email, phone, course, or status"
+        className="faculty-search-input"
+      />
 
     <button
       type="button"
       className="faculty-search-button"
-      onClick={() => setCurrentPage(1)}
+      onClick={() => {
+        setAppliedSearchQuery(searchQuery.trim())
+        setCurrentPage(1)
+      }}
     >
       Search
     </button>
@@ -905,11 +927,11 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
           </thead>
           <tbody>
             {isFacultyLoading ? (
-              <tr>
-                <td colSpan="7" className="branch-course-empty-state">
-                  Loading faculty records...
-                </td>
-              </tr>
+              Array.from({ length: 6 }, (_, rowIndex) => (
+                <tr key={`faculty-loading-${rowIndex}`} className="branch-faculty-skeleton-row" aria-hidden="true">
+                  {Array.from({ length: 7 }, (_, cellIndex) => <td key={`faculty-loading-${rowIndex}-${cellIndex}`}><span /></td>)}
+                </tr>
+              ))
             ) : paginatedFaculty.length > 0 ? (
               paginatedFaculty.map((faculty, index) => {
                 const normStatus = String(faculty.status || 'Active').toLowerCase()
@@ -1074,8 +1096,10 @@ export function BranchFacultyPage({ branchCode = '', branchId = '' }) {
               })
             ) : (
               <tr>
-                <td colSpan="7" className="branch-course-empty-state">
-                  No faculty found matching search criteria.
+                <td colSpan="7" className="branch-course-empty-state" role="status" aria-live="polite">
+                  {appliedSearchQuery
+                    ? <>No faculty found for <strong>“{appliedSearchQuery}”</strong>. Try another keyword.</>
+                    : 'No faculty records available for this branch.'}
                 </td>
               </tr>
             )}

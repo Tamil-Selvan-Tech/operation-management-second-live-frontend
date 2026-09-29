@@ -18,6 +18,7 @@ import {
   Shield,
   LayoutDashboard,
   LayoutGrid,
+  LoaderCircle,
   UserRound,
   Users,
 } from 'lucide-react'
@@ -202,7 +203,7 @@ function isCourseAssignedNotification(notification = {}) {
   return kind.includes('assigned')
 }
 
-function NotificationItem({ item, onView }) {
+function NotificationItem({ item, onView, isLoading }) {
   return (
     <article className={`notifications-item ${item.read ? '' : 'is-unread'}`.trim()}>
       <span className={`notifications-item-icon tone-${item.tone}`} aria-hidden="true">
@@ -218,8 +219,15 @@ function NotificationItem({ item, onView }) {
 
       <div className="notifications-item-meta">
         <small className="notifications-item-time">{formatNotificationTime(item.createdAt)}</small>
-        <button type="button" className="notifications-item-view-button" onClick={() => onView(item)}>
-          View
+        <button
+          type="button"
+          className="notifications-item-view-button"
+          onClick={() => onView(item)}
+          disabled={isLoading}
+          aria-busy={isLoading}
+        >
+          {isLoading ? <LoaderCircle size={15} className="notifications-view-spinner" aria-hidden="true" /> : null}
+          {isLoading ? 'Loading...' : 'View'}
         </button>
       </div>
     </article>
@@ -267,6 +275,8 @@ export function SuperAdminNotificationsPage() {
   const [isAcademicOperationsExpanded, setIsAcademicOperationsExpanded] = useState(true)
   const [isSidebarFlyoutDismissed, setIsSidebarFlyoutDismissed] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(true)
+  const [viewLoadingId, setViewLoadingId] = useState('')
+  const [selectedNotification, setSelectedNotification] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -429,6 +439,20 @@ export function SuperAdminNotificationsPage() {
     setNotificationPage(1)
   }, [searchTerm, dateFilter, statusFilter])
 
+  useEffect(() => {
+    if (!selectedNotification) return undefined
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setSelectedNotification(null)
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [selectedNotification])
+
   const markAllAsRead = async () => {
     const visibleIds = visibleNotifications.map((item) => item.id)
     if (!visibleIds.length) return
@@ -470,10 +494,14 @@ export function SuperAdminNotificationsPage() {
   }
 
   const handleViewNotification = async (notification) => {
-    await markSingleAsRead(notification)
+    if (!notification?.id || viewLoadingId) return
 
-    if (notification.kind?.startsWith('branch-')) {
-      navigate('/dashboard/super-admin?section=branches')
+    setViewLoadingId(notification.id)
+    try {
+      await markSingleAsRead(notification)
+      setSelectedNotification({ ...notification, read: true })
+    } finally {
+      setViewLoadingId('')
     }
   }
 
@@ -694,7 +722,14 @@ export function SuperAdminNotificationsPage() {
                 </button>
 
                 {isSuperAdminProfileOpen ? (
-                  <div className="super-admin-profile-dropdown">
+                  <>
+                    <button
+                      type="button"
+                      className="super-admin-profile-backdrop"
+                      aria-label="Close profile popup"
+                      onClick={() => setIsSuperAdminProfileOpen(false)}
+                    />
+                    <div className="super-admin-profile-dropdown">
                     <button
                       type="button"
                       className="super-admin-profile-close"
@@ -738,7 +773,8 @@ export function SuperAdminNotificationsPage() {
                         Logout
                       </button>
                     </div>
-                  </div>
+                    </div>
+                  </>
                 ) : null}
               </div>
             </div>
@@ -824,7 +860,12 @@ export function SuperAdminNotificationsPage() {
                       <p className="notifications-group-label">{group.label}</p>
                       <div className="notifications-group-list">
                         {group.items.map((item) => (
-                          <NotificationItem key={item.id} item={item} onView={handleViewNotification} />
+                          <NotificationItem
+                            key={item.id}
+                            item={item}
+                            onView={handleViewNotification}
+                            isLoading={viewLoadingId === item.id}
+                          />
                         ))}
                       </div>
                     </section>
@@ -887,6 +928,66 @@ export function SuperAdminNotificationsPage() {
               <button type="button" className="super-admin-logout-submit" onClick={handleConfirmLogout}>
                 Logout
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {selectedNotification ? (
+        <div
+          className="super-admin-notification-modal-backdrop"
+          role="presentation"
+          onClick={() => setSelectedNotification(null)}
+        >
+          <div
+            className="super-admin-notification-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="super-admin-notification-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="super-admin-notification-modal-close"
+              aria-label="Close notification details"
+              onClick={() => setSelectedNotification(null)}
+            >
+              <X size={20} strokeWidth={2.4} aria-hidden="true" />
+            </button>
+            <div className={`super-admin-notification-modal-icon tone-${selectedNotification.tone}`} aria-hidden="true">
+              <NotificationIcon kind={selectedNotification.kind} />
+            </div>
+            <p className="super-admin-notification-modal-eyebrow">Notification details</p>
+            <h2 id="super-admin-notification-modal-title">{selectedNotification.title}</h2>
+            <p className="super-admin-notification-modal-message">
+              {selectedNotification.message || 'No additional details are available for this notification.'}
+            </p>
+            <div className="super-admin-notification-modal-meta">
+              <div>
+                <span>Date and time</span>
+                <strong>
+                  {new Intl.DateTimeFormat('en-GB', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  }).format(new Date(selectedNotification.createdAt))}
+                </strong>
+              </div>
+              <div>
+                <span>Status</span>
+                <strong>{selectedNotification.read ? 'Read' : 'Unread'}</strong>
+              </div>
+              {selectedNotification.targetBranchName || selectedNotification.targetBranchEmail ? (
+                <div>
+                  <span>Branch</span>
+                  <strong>{selectedNotification.targetBranchName || selectedNotification.targetBranchEmail}</strong>
+                </div>
+              ) : null}
+              {selectedNotification.facultyName || selectedNotification.facultyEmail ? (
+                <div>
+                  <span>Faculty</span>
+                  <strong>{selectedNotification.facultyName || selectedNotification.facultyEmail}</strong>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

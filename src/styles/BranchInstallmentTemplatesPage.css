@@ -1283,6 +1283,15 @@
   }
 }
 
+.installment-skeleton-list { display: grid; gap: 1px; background: #e5edf6; }
+.installment-skeleton-row { min-height: 72px; display: grid; grid-template-columns: minmax(220px, 2fr) minmax(120px, 1fr) minmax(100px, .8fr) 70px; align-items: center; gap: 18px; padding: 0 18px; background: #fff; }
+.installment-skeleton-row span { display: block; height: 13px; border-radius: 5px; background: linear-gradient(90deg, #edf2f7 25%, #f8fafc 50%, #edf2f7 75%); background-size: 200% 100%; animation: installment-table-shimmer 1.2s ease-in-out infinite; }
+.installment-skeleton-row .installment-skeleton-name { width: 72%; }
+.installment-skeleton-row .installment-skeleton-value { width: 58%; }
+.installment-skeleton-row .installment-skeleton-status { width: 78px; height: 26px; border-radius: 999px; }
+.installment-skeleton-row .installment-skeleton-action { width: 36px; height: 32px; border-radius: 7px; }
+@keyframes installment-table-shimmer { to { background-position: -200% 0; } }
+
 @media (max-width: 640px) {
   .installment-page-hero {
     padding: 0;
@@ -1603,6 +1612,23 @@
 
 .installment-action-dropdown {
   display: none;
+}
+
+/* Actions should open on click only, without a hover highlight or hover menu. */
+.installment-action-menu:hover .installment-action-dropdown {
+  display: none;
+}
+
+.installment-action-menu[open] .installment-action-dropdown {
+  display: block;
+}
+
+.installment-action-menu summary:hover,
+.installment-action-menu:hover summary {
+  background: #ffffff;
+  border-color: #dbe4f0;
+  color: #64748b;
+  box-shadow: none;
 }
 
 .installment-table-state {
