@@ -19,7 +19,7 @@ function TestDetails({ item }) { return <div className="academic-test-items">{(i
 function BatchSelector({ batches, selectedIds, onToggle, onToggleAll }) { const allSelected = batches.length > 0 && batches.every((batch) => selectedIds.includes(batch.id)); return <fieldset className="academic-test-batch-selector"><legend>Select Batches</legend><label className="academic-test-checkbox academic-test-select-all"><input type="checkbox" checked={allSelected} onChange={onToggleAll} /><strong>Select All</strong></label>{batches.length ? batches.map((batch) => <label className="academic-test-checkbox" key={batch.id}><input type="checkbox" checked={selectedIds.includes(batch.id)} onChange={() => onToggle(batch.id)} /><span>{batch.batchName || batch.batchId}</span></label>) : <p className="academic-test-muted">No new batches found for this course.</p>}</fieldset> }
 const defaultTestDate = () => { const date = new Date(); date.setDate(date.getDate() + 1); return date.toISOString().slice(0, 10) }
 const emptyItem = () => ({ testType: 'TEST', testDate: defaultTestDate(), testStartTime: '10:00', testEndTime: '11:00' })
-function ItemScheduleFields({ item, index, onChange }) {
+function ItemScheduleFields() {
   return <div className="academic-test-schedule-fields" />
 }
 function RequiredDateField({ label, value, onChange, showError }) { return <label>{label}<input type="date" value={value || ''} onChange={(event) => onChange(event.target.value)} />{showError && <small className="academic-test-required-message">This field is required</small>}</label> }
