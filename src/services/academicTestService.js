@@ -27,6 +27,10 @@ export const getStudentAcademicTestResult = (id) => request(`/academic-tests/stu
 export const listAcademicReportBatches = () => request('/academic-tests/reports/batches').then(unwrap)
 export const getAcademicBatchReport = (batchId) => request(`/academic-tests/reports/batches/${encodeURIComponent(batchId)}/students`).then(unwrap)
 export const getMyAcademicReport = () => request('/academic-tests/reports/my-report').then(unwrap)
+export const listFacultyAcademicReportTests = (batchId) => request(`/academic-tests/reports/faculty/batches/${encodeURIComponent(batchId)}/completed-tests`).then(unwrap)
+export const sendAcademicTestReport = (payload) => request('/academic-tests/reports/send', { method: 'POST', body: JSON.stringify(payload) }).then(unwrap)
+export const listBranchAcademicTestReports = () => request('/academic-tests/reports/branch-admin').then(unwrap)
+export const getBranchAcademicTestReport = (reportId) => request(`/academic-tests/reports/branch-admin/${encodeURIComponent(reportId)}/students`).then(unwrap)
 
 export const getAcademicTestPreparation = (academicTestItemId, branchBatchId) =>
   request(`/academic-test-preparation/items/${encodeURIComponent(academicTestItemId)}?branchBatchId=${encodeURIComponent(branchBatchId)}`).then(unwrap)

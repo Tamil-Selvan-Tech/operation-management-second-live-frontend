@@ -1832,6 +1832,7 @@ export function FacultyDashboardPage() {
     'syllabus-test': isExamsRoute || isAssessmentsRoute || isExamReportsRoute,
   })
   const [isAcademicTestMenuOpen, setIsAcademicTestMenuOpen] = useState(isAcademicTestReportRoute)
+  useEffect(() => { if (isAcademicTestRoute) setIsAcademicTestMenuOpen(true) }, [isAcademicTestRoute])
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try { return window.localStorage.getItem('cispro.faculty-sidebar-collapsed') === 'true' } catch { return false }
   })

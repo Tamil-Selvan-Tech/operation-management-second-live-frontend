@@ -106,3 +106,14 @@
 .academic-test-detail{display:grid;gap:10px;margin:12px 0;padding:14px;border:1px solid #e2e8f0;border-radius:10px;background:#fbfdff}.academic-test-detail>span{color:#17345f;font-weight:800}.academic-test-detail select,.academic-test-schedule-fields input{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:8px;padding:10px 12px;background:#fff;color:#172554;font:inherit}.academic-test-schedule-fields{display:grid;gap:12px;margin-top:2px}.academic-test-schedule-section{display:grid;gap:10px;padding:12px;border:1px solid #dbe5f1;border-radius:8px;background:#f8fafc}.academic-test-schedule-section>strong{color:#2563eb;font-size:.86rem}.academic-test-schedule-section label{display:grid;gap:6px;color:#475569;font-size:.8rem;font-weight:700}.academic-test-project-date-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.academic-test-schedule-fields .academic-test-time-grid{margin:0}.academic-test-schedule-fields .academic-test-time-grid label{background:transparent;padding:0}.academic-test-schedule-fields .academic-test-time-grid select{width:100%}
 .academic-test-faculty-project-section{margin-top:14px}
 .academic-test-required-message{display:block;margin-top:4px;color:#dc2626;font-size:.75rem;font-weight:700}
+.academic-test-branch-tabs { display: flex; gap: 8px; margin: 0 0 18px; border-bottom: 1px solid #dbe6f2; }
+.faculty-academic-test-search { margin: 0 0 14px; }
+.faculty-academic-test-search input { box-sizing: border-box; width: min(520px, 100%); padding: 10px 12px; border: 1px solid #cbdced; border-radius: 8px; color: #17345f; font: inherit; }
+.branch-academic-test-search { margin: 0 0 14px; }
+.branch-academic-test-search input { box-sizing: border-box; width: min(320px, 100%); padding: 10px 12px; border: 1px solid #cbdced; border-radius: 8px; color: #17345f; font: inherit; }
+.branch-academic-test-pagination { display: flex; justify-content: flex-end; gap: 6px; padding: 12px 15px; border-top: 1px solid #edf2f7; }
+.branch-academic-test-pagination button { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #dbe4f0; border-radius: 7px; background: #fff; color: #31527f; cursor: pointer; font-weight: 600; }
+.branch-academic-test-pagination button:hover:not(:disabled), .branch-academic-test-pagination button.is-active { border-color: #2563eb; background: #2563eb; color: #fff; }
+.branch-academic-test-pagination button:disabled { cursor: not-allowed; opacity: .5; }
+.academic-test-branch-tabs button { border: 0; border-bottom: 3px solid transparent; padding: 10px 16px; background: transparent; color: #607896; font: inherit; font-weight: 700; cursor: pointer; }
+.academic-test-branch-tabs button.is-active { border-bottom-color: #2864e8; color: #2864e8; }

@@ -1797,6 +1797,7 @@ function getBranchDashboardSectionFromPath(pathname = '', search = '') {
   if (section === 'profile') return 'profile'
   if (section === 'exams-results') return 'exams-results'
   if (section === 'academic-tests') return 'academic-tests'
+  if (section === 'academic-test-reports') return 'academic-tests'
 
   return ''
 }
@@ -3280,7 +3281,8 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
       }
 
       setIsMobileSidebarOpen(false)
-      navigate(`/branch-dashboard?section=${encodeURIComponent(nextSection)}`, { replace })
+      const view = String(options?.view || '').trim()
+      navigate(`/branch-dashboard?section=${encodeURIComponent(nextSection)}${view ? `&view=${encodeURIComponent(view)}` : ''}`, { replace })
     },
     [embeddedMode, location.pathname, navigate],
   )
@@ -8596,7 +8598,9 @@ useEffect(() => {
             { id: 'students', label: 'Student Management', icon: Users },
             { id: 'exams-results', label: 'Exams and Result', icon: FileText, children: [
               { id: 'exams-results', label: 'Syllabus Test', icon: FileText },
-              { id: 'academic-tests', label: 'Academic Test', icon: FileText },
+              { id: 'academic-tests', label: 'Academic Test', icon: FileText, children: [
+                { id: 'academic-test-reports', label: 'Report', icon: FileText },
+              ] },
             ] },
             { id: 'leave-management', label: 'Leave Management', icon: CalendarDays, children: [
               { id: 'institute-leave', label: 'Institute Leave', icon: CalendarDays },
@@ -8628,7 +8632,7 @@ useEffect(() => {
                     type="button"
                     className={`super-admin-sidebar-subitem branch-sidebar-nested-heading ${hasActiveEntry(entry) ? 'is-active' : ''}`.trim()}
                     aria-expanded={isNestedExpanded}
-                    onClick={() => setExpandedSidebarNestedGroups((current) => ({ ...current, [entry.id]: !current[entry.id] }))}
+                    onClick={() => { setExpandedSidebarNestedGroups((current) => ({ ...current, [entry.id]: !current[entry.id] })); if (entry.id === 'academic-tests') goToBranchSection('academic-tests') }}
                   >
                     <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
                     <span>{entry.label}</span>
@@ -8647,13 +8651,13 @@ useEffect(() => {
                 key={entry.id}
                 type="button"
                 role={mode === 'flyout' ? 'menuitem' : undefined}
-                className={`super-admin-sidebar-subitem ${activeSection === entry.id ? 'is-active' : ''}`.trim()}
+                className={`super-admin-sidebar-subitem ${(activeSection === entry.id || (entry.id === 'academic-test-reports' && activeSection === 'academic-tests' && new URLSearchParams(location.search).get('view') === 'reports')) ? 'is-active' : ''}`.trim()}
                 onClick={() => {
                   if (mode === 'flyout') {
                     cancelSidebarFlyoutClose()
                     setOpenSidebarFlyout('')
                   }
-                  goToBranchSection(entry.id)
+                  goToBranchSection(entry.id === 'academic-test-reports' ? 'academic-tests' : entry.id, entry.id === 'academic-test-reports' ? { view: 'reports' } : undefined)
                 }}
               >
                 <span className="super-admin-sidebar-subitem-icon" aria-hidden="true"><ChildIcon size={15} strokeWidth={2.1} /></span>
