@@ -196,7 +196,15 @@ export function LoginPage({ form, setForm, onSubmit, errorMessage, fieldErrors =
               <span>Remember me</span>
             </label> */}
 
-            <a href="/forgot-password" className="text-link">
+            <a
+              href="/forgot-password"
+              className={`text-link ${isSubmitting ? 'is-disabled' : ''}`.trim()}
+              aria-disabled={isSubmitting}
+              tabIndex={isSubmitting ? -1 : undefined}
+              onClick={(event) => {
+                if (isSubmitting) event.preventDefault()
+              }}
+            >
               Forgot password?
             </a>
           </div>

@@ -630,6 +630,12 @@
   border-bottom-color: transparent;
 }
 
+.login-form .text-link.is-disabled {
+  pointer-events: none;
+  cursor: not-allowed;
+  opacity: .55;
+}
+
 .reset-password-shell {
   position: relative;
   isolation: isolate;

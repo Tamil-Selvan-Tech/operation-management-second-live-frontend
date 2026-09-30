@@ -6,6 +6,31 @@
   padding: 10px;
 }
 
+.student-form-saving-overlay {
+  position: absolute;
+  z-index: 100;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, .78);
+  color: #1d4ed8;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: wait;
+}
+
+.student-form-saving-spinner {
+  animation: student-form-saving-spin .9s linear infinite;
+}
+
+@keyframes student-form-saving-spin {
+  to { transform: rotate(360deg); }
+}
+
 .branch-dashboard-filter-bar {
   display: flex;
   align-items: center;
@@ -8117,6 +8142,30 @@ body.branch-notification-menu-open .main-area {
   cursor: not-allowed;
 }
 
+.course-submodule-list-toggle {
+  display: block;
+  min-height: 0;
+  margin: 0 14px 10px auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.4;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.course-submodule-list-toggle:hover:not(:disabled),
+.course-submodule-list-toggle:focus-visible {
+  border: 0;
+  background: transparent;
+  color: #1d4ed8;
+  outline: none;
+}
+
 .course-add-model-button,
 .course-add-submodel-button {
   justify-self: start;
@@ -12654,6 +12703,7 @@ body.branch-notification-menu-open .main-area {
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr) 40px;
+  position: relative;
   align-items: center;
   gap: 16px;
   min-height: 166px;
@@ -12697,10 +12747,15 @@ body.branch-notification-menu-open .main-area {
 
 .branch-dashboard-page .branch-dashboard-finance-stats .branch-dashboard-stat-card-copy strong {
   display: block;
-  margin-top: 10px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: 0;
   color: #111827;
   font-size: 1.15rem !important;
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  transform: translate(-50%, -50%);
   white-space: nowrap;
   line-height: 1;
   letter-spacing: -0.05em;

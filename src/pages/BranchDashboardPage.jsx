@@ -3458,6 +3458,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [courseEditorStage, setCourseEditorStage] = useState('module')
   const [isSubmoduleDraftOpen, setIsSubmoduleDraftOpen] = useState(false)
   const [isBulkSubmoduleDraftOpen, setIsBulkSubmoduleDraftOpen] = useState(false)
+  const [isCourseSubmoduleListExpanded, setIsCourseSubmoduleListExpanded] = useState(false)
   const [bulkSubmoduleInput, setBulkSubmoduleInput] = useState('')
   const [bulkSubmoduleFeedback, setBulkSubmoduleFeedback] = useState(null)
   const [submoduleDraftRestoreIndex, setSubmoduleDraftRestoreIndex] = useState(0)
@@ -5460,6 +5461,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }))
     setSelectedSavedModelIndex(nextModelIndex)
     setSelectedSavedSubmodelIndex(0)
+    setIsCourseSubmoduleListExpanded(false)
     setCourseEditorStage('module')
     setIsSubmoduleDraftOpen(false)
     setIsBulkSubmoduleDraftOpen(false)
@@ -5543,6 +5545,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       : 0
 
     setSelectedSavedSubmodelIndex(existingSubmodelCount)
+    setIsCourseSubmoduleListExpanded(false)
     setCourseEditorStage('submodule')
     setIsSubmoduleDraftOpen(false)
     setIsBulkSubmoduleDraftOpen(false)
@@ -5564,6 +5567,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setBulkSubmoduleFeedback(null)
     setSelectedSavedModelIndex(Math.max(0, savedModuleCount - 1))
     setSelectedSavedSubmodelIndex(0)
+    setIsCourseSubmoduleListExpanded(false)
     setSubmoduleDraftRestoreLength(null)
     setAddCourseTouched({})
   }
@@ -5668,6 +5672,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     })
     setCourseEditorStage('submodule')
     setIsSubmoduleDraftOpen(true)
+    setIsCourseSubmoduleListExpanded(draftIndex >= 5)
     setSelectedSavedSubmodelIndex(draftIndex)
   }
 
@@ -5840,6 +5845,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setIsBulkSubmoduleDraftOpen(false)
     setBulkSubmoduleInput('')
     setSelectedSavedSubmodelIndex(0)
+    setIsCourseSubmoduleListExpanded(false)
     setBulkSubmoduleFeedback(null)
     setSubmoduleDraftRestoreLength(null)
     return true
@@ -5877,6 +5883,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     const safeIndex = Math.max(0, Number(modelIndex) || 0)
     setSelectedSavedModelIndex(safeIndex)
     setSelectedSavedSubmodelIndex(0)
+    setIsCourseSubmoduleListExpanded(false)
     setAddCourseStep(2)
     setCourseEditorStage('module')
     setIsSubmoduleDraftOpen(false)
@@ -5953,6 +5960,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setCourseEditorStage('module')
     setSelectedSavedModelIndex(0)
     setSelectedSavedSubmodelIndex(0)
+    setIsCourseSubmoduleListExpanded(false)
     setSavedCourseHierarchy(nextHierarchy)
     setSubmoduleDraftRestoreLength(null)
     writeBranchCourseDraft(draftKey, null)
@@ -6064,6 +6072,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setAddCoursePaymentPlanSaveAttempted(false)
     setCourseEditorStage('module')
     setSelectedSavedSubmodelIndex(0)
+    setIsCourseSubmoduleListExpanded(false)
     setSubmoduleDraftRestoreLength(null)
     setOpenCourseActionMenuId('')
     setCourseActionMenuPosition({ top: 0, left: 0 })
@@ -6366,6 +6375,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setIsSubmoduleDraftOpen(false)
     setSelectedSavedModelIndex(0)
     setSelectedSavedSubmodelIndex(0)
+    setIsCourseSubmoduleListExpanded(false)
   }
 
   const continueToCoursePaymentPlan = () => {
@@ -6377,6 +6387,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     setIsBulkSubmoduleDraftOpen(false)
     setSelectedSavedModelIndex(0)
     setSelectedSavedSubmodelIndex(0)
+    setIsCourseSubmoduleListExpanded(false)
   }
 
   const saveCourseHierarchyAndContinue = () => {
@@ -6457,7 +6468,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
     const onKeyDown = (event) => {
       if (event.key === 'Escape') {
-        setIsAddCourseOpen(false)
+        closeAddCourseModal()
       }
     }
 
@@ -7213,14 +7224,13 @@ const studentCourseOptions = useMemo(() => {
     if (!isStudentFormOpen) return undefined
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    const onKey = (e) => { if (e.key === 'Escape') setIsStudentFormOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape' && !isStudentSaving) setIsStudentFormOpen(false) }
     window.addEventListener('keydown', onKey)
     return () => {
       document.body.style.overflow = prev
       window.removeEventListener('keydown', onKey)
-      setIsStudentSaving(false)
     }
-  }, [isStudentFormOpen])
+  }, [isStudentFormOpen, isStudentSaving])
 
   // Keep today's date available when opening a new student form.
   useEffect(() => {
@@ -12360,6 +12370,7 @@ else {
                     setIsSubmoduleDraftOpen(false)
                     setSelectedSavedModelIndex(0)
                     setSelectedSavedSubmodelIndex(0)
+                    setIsCourseSubmoduleListExpanded(false)
                   }}
                   disabled={Boolean(Object.keys(addCourseValidationErrors.basic).length > 0 || addCourseValidationErrors.hierarchy.modelsError)}
                 >
@@ -12646,6 +12657,7 @@ else {
                       const model = activeCourseModel
                       const submodels = Array.isArray(model.submodels) ? model.submodels : []
                       const savedSubmodels = submodels.slice(0, Math.max(selectedSavedSubmodelIndex, 0))
+                      const visibleSavedSubmodels = isCourseSubmoduleListExpanded ? savedSubmodels : savedSubmodels.slice(0, 5)
                       const activeSubmodelIndex = Math.min(selectedSavedSubmodelIndex, Math.max(submodels.length - 1, 0))
                       const activeSubmodel = submodels[activeSubmodelIndex] || null
                       const showModuleCancel = modelIndex > 0
@@ -12694,7 +12706,7 @@ else {
 
                                 {savedSubmodels.length ? (
                                   <div className="course-submodule-checklist">
-                                    {savedSubmodels.map((submodel, subIndex) => (
+                                    {visibleSavedSubmodels.map((submodel, subIndex) => (
                                       <div key={submodel.id} className="course-submodule-checklist-item">
                                         <button
                                           type="button"
@@ -12730,6 +12742,16 @@ else {
                                       </div>
                                     ))}
                                   </div>
+                                ) : null}
+
+                                {savedSubmodels.length > 5 ? (
+                                  <button
+                                    type="button"
+                                    className="course-inline-action course-submodule-list-toggle"
+                                    onClick={() => setIsCourseSubmoduleListExpanded((current) => !current)}
+                                  >
+                                    {isCourseSubmoduleListExpanded ? 'Show less' : `Show more (${savedSubmodels.length - 5})`}
+                                  </button>
                                 ) : null}
 
                                 {isSubmoduleDraftOpen && activeSubmodel ? (
@@ -12949,7 +12971,7 @@ else {
 
                                 return (
                                   <div key={model.id} className={`course-added-module-select ${isSelected ? 'is-active' : ''}`}>
-                                    <button type="button" className="course-added-module-select-main" onClick={() => setSelectedSavedModelIndex(modelIndex)}>
+                                    <button type="button" className="course-added-module-select-main" onClick={() => { setSelectedSavedModelIndex(modelIndex); setIsCourseSubmoduleListExpanded(false) }}>
                                       <span className="course-added-module-select-index">{modelIndex + 1}</span>
                                       <span className="course-added-module-select-copy">
                                         <strong>{model.name || `Module ${modelIndex + 1}`}</strong>
@@ -12981,6 +13003,7 @@ else {
                             const selectedModel = savedCourseRows[Math.min(selectedSavedModelIndex, savedCourseRows.length - 1)] || savedCourseRows[0]
                             const selectedModelIndex = Math.max(0, savedCourseRows.indexOf(selectedModel))
                             const selectedSubmodels = Array.isArray(selectedModel?.submodels) ? selectedModel.submodels : []
+                            const visibleSelectedSubmodels = isCourseSubmoduleListExpanded ? selectedSubmodels : selectedSubmodels.slice(0, 5)
                             const isAddingInlineSubmodule = inlineSubmoduleEdit?.isNew && inlineSubmoduleEdit?.modelIndex === selectedModelIndex
 
                             return (
@@ -12995,7 +13018,7 @@ else {
                                   </span>
                                 </div>
                                 <div className="course-added-submodules-list">
-                                  {selectedSubmodels.length ? selectedSubmodels.map((submodel, submoduleIndex) => (
+                                  {selectedSubmodels.length ? visibleSelectedSubmodels.map((submodel, submoduleIndex) => (
                                     <div className="course-added-submodule-row" key={submodel.id}>
                                       <span className="course-added-module-select-index">{submoduleIndex + 1}</span>
                                       {inlineSubmoduleEdit?.modelIndex === selectedModelIndex && inlineSubmoduleEdit?.submoduleIndex === submoduleIndex ? (
@@ -13058,6 +13081,15 @@ else {
                                     </div>
                                   ) : null}
                                 </div>
+                                {selectedSubmodels.length > 5 ? (
+                                  <button
+                                    type="button"
+                                    className="course-added-submodule-add-button course-submodule-list-toggle"
+                                    onClick={() => setIsCourseSubmoduleListExpanded((current) => !current)}
+                                  >
+                                    {isCourseSubmoduleListExpanded ? 'Show less' : `Show more (${selectedSubmodels.length - 5})`}
+                                  </button>
+                                ) : null}
                                 {!isAddingInlineSubmodule ? (
                                   <button type="button" className="course-added-submodule-add-button course-added-submodule-add-button--below" onClick={() => openBulkSubmoduleDraftForModel(selectedModelIndex)}>
                                     + Add Submodules
@@ -13317,7 +13349,7 @@ else {
                   </button>
                 ) : addCourseStep === 2 ? (
                   <div className="course-form-actions-group">
-                    <button type="button" className="button button-ghost" onClick={() => setAddCourseStep(1)} disabled={isAddCourseSaving}>
+                    <button type="button" className="button button-ghost" onClick={() => { setAddCourseStep(1); setIsCourseSubmoduleListExpanded(false) }} disabled={isAddCourseSaving}>
                       Back
                     </button>
                     <button type="button" className="button button-solid" onClick={handleCourseModulesNext} disabled={isAddCourseSaving}>
@@ -13329,7 +13361,7 @@ else {
                     <button type="button" className="button button-ghost" onClick={resetAddCourseForm} disabled={isAddCourseSaving}>
                       Reset
                     </button>
-                    <button type="button" className="button button-ghost" onClick={() => setAddCourseStep(2)} disabled={isAddCourseSaving}>
+                    <button type="button" className="button button-ghost" onClick={() => { setAddCourseStep(2); setIsCourseSubmoduleListExpanded(false) }} disabled={isAddCourseSaving}>
                       Back
                     </button>
                     <button type="button" className="button button-solid" onClick={triggerAddCourseSubmit} disabled={isAddCourseSaving}>
@@ -15046,9 +15078,16 @@ else {
                 maxWidth: 900,
                 width: '92%',
                 maxHeight: '92vh',
-                overflowY: 'auto'
+                overflowY: 'auto',
+                position: 'relative',
               }}
             >
+              {isStudentSaving ? (
+                <div className="student-form-saving-overlay" role="status" aria-live="polite">
+                  <Loader2 size={24} className="student-form-saving-spinner" aria-hidden="true" />
+                  <span>Saving student...</span>
+                </div>
+              ) : null}
               <div className="course-modal-header">
                 <div>
                   <p className="section-kicker">Student Entry</p>
@@ -16215,9 +16254,11 @@ else {
                   </>
                 ) : (
                   <>
-                    <button type="button" className="button button-ghost" onClick={handleStudentStepBack}>
-                      Back
-                    </button>
+                    {!isStudentSaving ? (
+                      <button type="button" className="button button-ghost" onClick={handleStudentStepBack}>
+                        Back
+                      </button>
+                    ) : null}
                     <button type="submit" className="button button-solid" disabled={isStudentSaving}>
                       {isStudentSaving ? 'Saving...' : (studentFormMode === 'add' ? 'Submit' : 'Save Changes')}
                     </button>
