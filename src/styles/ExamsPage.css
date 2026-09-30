@@ -9,6 +9,7 @@
 .exam-page .exam-form-wide textarea{min-height:80px;padding:10px}
 .assessment-submission-screenshot{display:grid;gap:8px;margin:0 30px 14px;padding:14px;border:1px solid #dbe5f0;border-radius:10px;background:#f8fafc}.assessment-submission-screenshot>span{color:#64748b;font-size:11px;font-weight:800;letter-spacing:.08em}.assessment-submission-screenshot img{width:100%;max-height:260px;object-fit:contain;border:1px solid #dbe5f0;border-radius:8px;background:#fff}
 .assessment-evaluation-modal{height:70vh;max-height:70vh;overflow-y:auto!important;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#cbd5e1 #f8fafc}.assessment-evaluation-modal::-webkit-scrollbar{width:9px}.assessment-evaluation-modal::-webkit-scrollbar-track{background:#f8fafc}.assessment-evaluation-modal::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:999px}
+.assessment-evaluation-modal .academic-preparation-result-summary{grid-template-columns:repeat(3,minmax(140px,1fr));}
 .student-result-grid+p{margin:16px 0;padding:14px 16px;border:1px solid #dbe5f0;border-radius:10px;background:#f8fafc;color:#475569!important;line-height:1.5}
 .student-test-page.exam-page-embedded{min-height:calc(100vh - 72px)!important;padding:24px clamp(16px,3vw,40px)!important;background:#f8fafc!important}
 .student-test-shell{width:100%;max-width:1180px;margin:0 auto}
@@ -362,3 +363,5 @@
   background: #dc2626;
   font-weight: 700;
 }
+.assessment-evaluation-questions{display:grid;gap:14px;padding:18px 30px}.assessment-evaluation-questions article{border:1px solid #e2e8f0;border-radius:12px;padding:16px;background:#fbfdff}.assessment-evaluation-questions h3{margin:0 0 8px;color:#163b70;font-size:15px}.assessment-evaluation-questions p{margin:0 0 8px;color:#334155;white-space:pre-wrap}.assessment-evaluation-questions small{color:#64748b}.assessment-evaluation-questions pre{margin:12px 0;padding:12px;min-height:70px;white-space:pre-wrap;overflow:auto;border:1px solid #e2e8f0;border-radius:8px;background:#fff;font:inherit;color:#0f172a}.assessment-evaluation-questions label{display:flex;align-items:center;gap:10px;color:#334155;font-weight:700}.assessment-evaluation-questions input{width:100px;border:1px solid #cbd5e1;border-radius:8px;padding:9px;font:inherit}
+.assessment-evaluation-questions input[type='number']{-moz-appearance:textfield}.assessment-evaluation-questions input[type='number']::-webkit-inner-spin-button,.assessment-evaluation-questions input[type='number']::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}

@@ -12,6 +12,8 @@ export const getAcademicTestCreateOptions = () => request('/academic-tests/creat
 export const createScheduledAcademicTest = (payload) => request('/academic-tests/scheduled', { method: 'POST', body: JSON.stringify(payload) }).then(unwrap)
 export const listFacultyScheduledAcademicTests = () => request('/academic-tests/faculty/scheduled').then(unwrap)
 export const getFacultyAcademicTestResults = (id) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(id)}/results`).then(unwrap)
+export const getFacultyAssessment = (scheduleId, studentId) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(scheduleId)}/assessment/${encodeURIComponent(studentId)}`).then(unwrap)
+export const evaluateFacultyAssessment = (scheduleId, studentId, answers) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(scheduleId)}/assessment/${encodeURIComponent(studentId)}/evaluate`, { method: 'POST', body: JSON.stringify({ answers }) }).then(unwrap)
 export const scheduleFacultyAcademicTestRetest = (id, payload) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(id)}/retest`, { method: 'POST', body: JSON.stringify(payload) }).then(unwrap)
 export const updateFacultyScheduledAcademicTest = (id, payload) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(payload) }).then(unwrap)
 export const cancelFacultyScheduledAcademicTest = (id) => request(`/academic-tests/faculty/scheduled/${encodeURIComponent(id)}/cancel`, { method: 'POST' }).then(unwrap)
