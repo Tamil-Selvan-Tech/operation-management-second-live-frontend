@@ -76,7 +76,7 @@ function ScheduleResultModal({ result, loading, onClose, onScheduleRetest, onEdi
         <div>
           <p className="academic-test-kicker">TEST RESULTS</p>
           <h2 id="academic-result-title">{schedule.testName || 'Academic Test'}</h2>
-          <span>{scheduleMeta.batch?.batchName || '-'} | {schedule.course?.name || '-'} | {hasProject && resultTab === 'project' ? `Project Start Date: ${scheduleDateLabel(schedule.projectStartDate)} | Project End Date: ${scheduleDateLabel(schedule.projectEndDate)}` : `${scheduleDateLabel(schedule.testDate)} | ${scheduleTimeLabel(schedule.startTime)} - ${scheduleTimeLabel(schedule.endTime)}`}</span>
+          <span>{scheduleMeta.batch?.batchName || '-'} | {schedule.course?.name || '-'} | {hasProject && resultTab === 'project' ? 'Project' : `${scheduleDateLabel(schedule.testDate)} | ${scheduleTimeLabel(schedule.startTime)} - ${scheduleTimeLabel(schedule.endTime)}`}</span>
         </div>
         <button type="button" onClick={onClose} aria-label="Close"><X size={19} /></button>
       </div>

@@ -8,10 +8,6 @@ import '../styles/StudentAcademicTestsPage.css'
 const dateLabel = (value) => value ? new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T00:00:00`)) : '-'
 const projectStatus = (test) => {
   if (test.status === 'CANCELLED') return 'CANCELLED'
-  if (!test.projectStartDate || !test.projectEndDate) return 'NOT_AVAILABLE'
-  const today = new Date().toISOString().slice(0, 10)
-  if (today < test.projectStartDate) return 'UPCOMING'
-  if (today > test.projectEndDate) return 'EXPIRED'
   return 'AVAILABLE'
 }
 
@@ -136,13 +132,13 @@ export default function StudentAcademicTestsPage({ embedded = false }) {
     {error && <div className="academic-student-error">{error}</div>}
     {resultError && <div className="academic-student-error">{resultError}</div>}
     {projectRows.length > 0 && <div className="academic-student-tabs" role="tablist" aria-label="Academic test type"><button type="button" className={activeTab === 'test' ? 'active' : ''} onClick={() => setActiveTab('test')}>Test</button><button type="button" className={activeTab === 'project' ? 'active' : ''} onClick={() => setActiveTab('project')}>Project</button></div>}
-    <div className="academic-student-card"><div className="academic-student-table-wrap"><table>{activeTab === 'project' ? <><thead><tr><th>Test Name</th><th>Course</th><th>Project Start Date</th><th>Project End Date</th><th>Total Project Mark</th><th>Status</th><th>Project Details</th><th>Action</th></tr></thead><tbody>
-      {loading ? <tr><td colSpan="8">Loading Academic Tests...</td></tr> : projectRows.length ? academicPageRows.map((test) => {
+    <div className="academic-student-card"><div className="academic-student-table-wrap"><table>{activeTab === 'project' ? <><thead><tr><th>Test Name</th><th>Course</th><th>Total Project Mark</th><th>Status</th><th>Project Details</th><th>Action</th></tr></thead><tbody>
+      {loading ? <tr><td colSpan="6">Loading Academic Tests...</td></tr> : projectRows.length ? academicPageRows.map((test) => {
         const submitted = ['SUBMITTED', 'GRADED'].includes(test.projectSubmission?.status)
         const status = submitted ? 'Submitted' : projectStatus(test)
         const available = status === 'AVAILABLE' && test.projectStatus === 'PREPARED'
-        return <tr key={test.id}><td>{test.testName || 'Academic Test'}</td><td>{test.course?.name || '-'}</td><td>{dateLabel(test.projectStartDate)}</td><td>{dateLabel(test.projectEndDate)}</td><td>{test.projectMarks ?? 0}</td><td>{status === 'CANCELLED' ? 'Cancelled' : status === 'EXPIRED' ? 'Expired' : status === 'UPCOMING' ? 'Upcoming' : status === 'NOT_AVAILABLE' ? 'Not Available' : status}</td><td><button type="button" className="academic-student-link academic-student-view-project" onClick={() => setSelectedProject(test)}>View Project</button></td><td>{submitted ? <button type="button" className="academic-student-link" disabled>Submitted</button> : <button type="button" className="academic-student-link" disabled={!available || projectSubmittingId === test.id} onClick={() => { setProjectSubmitTarget(test); setError('') }}>{available ? 'Submit Project' : status === 'EXPIRED' ? 'Expired' : status === 'CANCELLED' ? 'Project Cancelled' : 'Upcoming'}</button>}</td></tr>
-      }) : <tr><td colSpan="8">No Projects available.</td></tr>}
+        return <tr key={test.id}><td>{test.testName || 'Academic Test'}</td><td>{test.course?.name || '-'}</td><td>{test.projectMarks ?? 0}</td><td>{status === 'CANCELLED' ? 'Cancelled' : status}</td><td><button type="button" className="academic-student-link academic-student-view-project" onClick={() => setSelectedProject(test)}>View Project</button></td><td>{submitted ? <button type="button" className="academic-student-link" disabled>Submitted</button> : <button type="button" className="academic-student-link" disabled={!available || projectSubmittingId === test.id} onClick={() => { setProjectSubmitTarget(test); setError('') }}>{available ? 'Submit Project' : status === 'CANCELLED' ? 'Project Cancelled' : 'Unavailable'}</button>}</td></tr>
+      }) : <tr><td colSpan="6">No Projects available.</td></tr>}
     </tbody></> : <><thead><tr><th>Test Name</th><th>Course</th><th>Date</th><th>Timing</th><th>Total Questions</th><th>Total Marks</th><th>Status</th><th>Result</th><th>Action</th></tr></thead><tbody>
       {loading ? <tr><td colSpan="9">Loading Academic Tests...</td></tr> : testRows.length ? academicPageRows.map((test) => {
         const submitted = test.submission?.status === 'SUBMITTED'
@@ -156,7 +152,7 @@ export default function StudentAcademicTestsPage({ embedded = false }) {
       <div className="student-project-submit-form"><label>Project file <input type="file" accept=".pdf,.doc,.docx,.zip,.jpg,.jpeg,.png" required onChange={(event) => setProjectFile(event.target.files?.[0] || null)} /></label><small>Maximum file size: 20 MB</small><label>Project link (optional) <input type="url" value={projectLink} onChange={(event) => setProjectLink(event.target.value)} placeholder="https://..." /></label><button type="button" className="academic-student-primary" disabled={!projectFile || projectSubmittingId === projectSubmitTarget.id} onClick={() => submitProject(projectSubmitTarget)}>{projectSubmittingId === projectSubmitTarget.id ? 'Uploading...' : 'Submit Project'}</button></div>
     </div></div>, document.body)}
     {selectedProject && createPortal(<div className="exam-modal-backdrop student-project-modal-backdrop"><div className="exam-modal student-project-modal" onClick={(event) => event.stopPropagation()}>
-      <div className="exam-card-heading"><div><p className="exam-kicker">PROJECT DETAILS</p><h2>{selectedProject.projectTitle || selectedProject.testName || 'Project'}</h2><p>{selectedProject.course?.name || '-'} · {dateLabel(selectedProject.projectStartDate)} - {dateLabel(selectedProject.projectEndDate)}</p></div><button type="button" className="exam-icon-button" onClick={() => setSelectedProject(null)} aria-label="Close project details">×</button></div>
+      <div className="exam-card-heading"><div><p className="exam-kicker">PROJECT DETAILS</p><h2>{selectedProject.projectTitle || selectedProject.testName || 'Project'}</h2><p>{selectedProject.course?.name || '-'}</p></div><button type="button" className="exam-icon-button" onClick={() => setSelectedProject(null)} aria-label="Close project details">×</button></div>
       <div className="student-project-details"><div><span>Project Marks</span><strong>{selectedProject.projectMarks ?? 0}</strong></div><section><h3>Description</h3><p>{selectedProject.projectDescription || 'No description provided.'}</p></section><section><h3>Requirements</h3><p>{selectedProject.projectRequirements || 'No requirements provided.'}</p></section></div>
     </div></div>, document.body)}
     {selectedResult && createPortal(<div className="exam-modal-backdrop student-result-modal-backdrop" onClick={() => setSelectedResult(null)}><div className="exam-modal student-result-modal" onClick={(event) => event.stopPropagation()}>
