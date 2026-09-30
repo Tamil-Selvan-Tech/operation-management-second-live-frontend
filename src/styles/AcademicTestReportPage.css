@@ -2,17 +2,27 @@
 .academic-report-summary{display:flex;gap:16px;margin-bottom:20px}.academic-report-summary>div{min-width:220px;padding:18px 20px;border:1px solid #d9e5f5;border-radius:14px;background:#fff}.academic-report-summary span{display:block;color:#6680a5;font-size:13px;font-weight:700}.academic-report-summary strong{display:block;margin-top:8px;font-size:25px;color:#193d70}.academic-report-test-list{display:grid;gap:12px;padding:20px}.academic-report-test-list article{display:flex;justify-content:space-between;gap:24px;padding:18px;border:1px solid #dfebf7;border-radius:12px;background:#fbfdff}.academic-report-test-list h3{margin:0 0 12px}.academic-report-test-list .academic-report-history{min-width:260px}.academic-report-project{margin-top:20px;padding-bottom:20px}.academic-report-project p,.academic-report-project>strong{margin-left:24px}.academic-report-project em{font-style:normal;margin-left:8px}@media(max-width:800px){.academic-report-summary{flex-direction:column}.academic-report-test-list article{flex-direction:column}.academic-report-test-list .academic-report-history{min-width:0}}
 .academic-report-heading-actions { display: flex; align-items: center; gap: 12px; }
 .academic-report-success { margin: 0 0 18px; padding: 16px 20px; border: 1px solid #b7e6c8; border-radius: 10px; background: #ecfbf1; color: #07883f; font-weight: 700; }
-.academic-report-search { display: block; width: min(520px, 100%); margin-top: 10px; padding: 10px 12px; border: 1px solid #cbdced; border-radius: 8px; color: #17345f; font: inherit; }
+.academic-report-card-title > div { display: flex; align-items: center; gap: 22px; min-width: 0; flex: 1; }
+.academic-report-search { display: block; width: min(360px, 100%); margin-top: 0; padding: 10px 12px; border: 1px solid #cbdced; border-radius: 8px; color: #17345f; font: inherit; }
+.academic-report-student-search { width: min(360px, 100%); margin-left: auto; padding: 10px 12px; border: 1px solid #cbdced; border-radius: 8px; color: #17345f; font: inherit; }
+.academic-report-card:has(.academic-report-student-search) { position: relative; overflow: visible; margin-top: 72px; }
+.academic-report-card:has(.academic-report-student-search) .academic-report-student-search { position: absolute; left: 0; top: -58px; margin: 0; }
+.academic-report-card:has(.academic-report-search) { position: relative; overflow: visible; margin-top: 72px; }
+.academic-report-card:has(.academic-report-search) .academic-report-card-title > div { display: block; }
+.academic-report-card:has(.academic-report-search) .academic-report-search { position: absolute; left: 0; top: -58px; margin: 0; }
 .branch-report-search input { display: block; width: min(520px, 100%); margin-top: 10px; padding: 10px 12px; border: 1px solid #cbdced; border-radius: 8px; color: #17345f; font: inherit; }
 .branch-academic-report > .branch-report-search { margin: 0 0 14px; }
+.branch-academic-report .academic-report-card:has(.branch-report-search) { position: relative; overflow: visible; margin-top: 72px; }
+.branch-academic-report .academic-report-card:has(.branch-report-search) .branch-report-search { position: absolute; left: 0; top: -82px; margin: 0; }
 .branch-academic-report .academic-report-card-title { position: relative; display: block; }
 .branch-academic-report .academic-report-card-title > span { position: absolute; top: 26px; right: 24px; }
 .academic-report-pagination { display: flex; justify-content: flex-end; gap: 6px; padding: 14px 16px; border-top: 1px solid #edf2f7; }
 .academic-report-pagination button { min-width: 34px; height: 34px; padding: 0 10px; border: 1px solid #cbdced; border-radius: 7px; background: #fff; color: #31527f; cursor: pointer; font: inherit; font-weight: 600; }
 .academic-report-pagination button.is-active, .academic-report-pagination button:hover:not(:disabled) { border-color: #2563eb; background: #2563eb; color: #fff; }
+@media(max-width:800px){.academic-report-card-title > div{align-items:flex-start;flex-direction:column;gap:10px}.academic-report-search{width:100%}}
 .academic-report-pagination button:disabled { cursor: not-allowed; opacity: .5; }
 .academic-report-send-button { display: inline-flex; align-items: center; gap: 8px; }
-.academic-report-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px; background: rgba(15, 35, 65, .42); }
+.academic-report-modal-backdrop { position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center; padding: 24px; background: rgba(15, 35, 65, .42); }
 .academic-report-send-modal { width: min(520px, 100%); max-height: 90vh; overflow: auto; padding: 26px; border: 1px solid #d8e4f2; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(18, 47, 85, .22); }
 .academic-report-send-heading { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
 .academic-report-send-heading h2 { margin: 5px 0 0; color: #123c75; }

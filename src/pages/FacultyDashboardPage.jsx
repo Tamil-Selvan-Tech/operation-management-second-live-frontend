@@ -1831,7 +1831,7 @@ export function FacultyDashboardPage() {
     exams: isExamsRoute || isAssessmentsRoute || isExamReportsRoute || isAcademicTestRoute,
     'syllabus-test': isExamsRoute || isAssessmentsRoute || isExamReportsRoute,
   })
-  const [isAcademicTestMenuOpen, setIsAcademicTestMenuOpen] = useState(isAcademicTestReportRoute)
+  const [isAcademicTestMenuOpen, setIsAcademicTestMenuOpen] = useState(isAcademicTestRoute || isAcademicTestReportRoute)
   useEffect(() => { if (isAcademicTestRoute) setIsAcademicTestMenuOpen(true) }, [isAcademicTestRoute])
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     try { return window.localStorage.getItem('cispro.faculty-sidebar-collapsed') === 'true' } catch { return false }
