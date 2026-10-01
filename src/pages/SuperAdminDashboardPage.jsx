@@ -39,7 +39,7 @@ import { SuperAdminNotificationBell } from '../components/SuperAdminNotification
 import { BranchDashboardPage } from './BranchDashboardPage'
 import { Student360Page } from './Student360Page'
 import StudentCalendarPage from './StudentCalendarPage'
-import { getStudentCalendar } from '../services/studentService'
+import { getStudentAttendanceOverview, getStudentCalendar } from '../services/studentService'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
@@ -1400,10 +1400,11 @@ const filteredBranches = useMemo(() => {
     const studentId = String(student.studentId || student.studentCode || student.id || student._id || '').trim()
     if (!studentId) return
 
-    void getStudentCalendar(studentId)
-      .then((calendar) => {
+    void Promise.all([getStudentCalendar(studentId), getStudentAttendanceOverview(studentId)])
+      .then(([calendar, attendanceOverview]) => {
         const calculatedEndDate = String(calendar?.endDate || '').trim()
-        if (!calculatedEndDate) return
+        const attendanceRows = Array.isArray(attendanceOverview?.attendance) ? attendanceOverview.attendance : []
+        if (!calculatedEndDate && !attendanceRows.length) return
 
         setSuperAdminStudentView((current) => {
           if (!current || String(current.student?.studentId || current.student?.studentCode || current.student?.id || current.student?._id || '').trim() !== studentId) {
@@ -1414,7 +1415,11 @@ const filteredBranches = useMemo(() => {
             ...current,
             student: {
               ...current.student,
-              courseEndDate: calculatedEndDate,
+              ...(calculatedEndDate ? { courseEndDate: calculatedEndDate } : {}),
+              ...(attendanceRows.length ? {
+                attendanceCalendar: attendanceRows,
+                attendanceSchedule: attendanceOverview?.course?.schedule || current.student.classSchedule || '',
+              } : {}),
             },
           }
         })

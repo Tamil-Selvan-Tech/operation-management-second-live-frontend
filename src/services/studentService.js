@@ -320,6 +320,14 @@ export async function getStudentCalendar(studentId, query = {}) {
   throw lastError || new Error('Student calendar is unavailable')
 }
 
+export async function getStudentAttendanceOverview(studentId) {
+  const id = String(studentId || '').trim()
+  if (!id) throw new Error('Student ID is required')
+
+  const response = await request(`/attendance/student/${encodeURIComponent(id)}/overview`)
+  return unwrapData(response)
+}
+
 export async function createStudent(payload) {
   const response = await request('/students', {
     method: 'POST',

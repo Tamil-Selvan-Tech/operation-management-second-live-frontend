@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
-import { getStudentCalendar } from '../services/studentService'
+import { getStudentAttendanceOverview, getStudentCalendar } from '../services/studentService'
 import { getFacultyCalendar, getFacultyLeaveRequests } from '../services/facultyCalendarService'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { getStudentCalendarSummary } from '../lib/studentCalendarSummary'
@@ -102,22 +102,27 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
     let active = true
     if (!resolvedId) return undefined
 
-    getStudentCalendar(resolvedId)
-      .then((calendar) => {
-        if (!active || !calendar) return
+    Promise.allSettled([getStudentCalendar(resolvedId), getStudentAttendanceOverview(resolvedId)])
+      .then(([calendarResult, attendanceResult]) => {
+        const calendar = calendarResult.status === 'fulfilled' ? calendarResult.value : null
+        const attendanceOverview = attendanceResult.status === 'fulfilled' ? attendanceResult.value : null
+        if (!active || (!calendar && !attendanceOverview)) return
         const savedSummary = getStudentCalendarSummary(initialStudent || {})
+        const attendanceRows = Array.isArray(attendanceOverview?.attendance) ? attendanceOverview.attendance : []
         setStudent((current) => ({
           ...(current || {}),
-          courseEndDate: calendar.endDate || current?.courseEndDate || '',
-          totalWorkingDays: calendar.totalWorkingDays || current?.totalWorkingDays || '',
-          totalHours: calendar.totalHours || calendar.course?.totalHours || current?.totalHours || '',
-          hoursPerDay: calendar.hoursPerDay || current?.hoursPerDay || '',
-          requiredTeachingDays: calendar.requiredTeachingDays || current?.requiredTeachingDays || '',
-          actualTeachingDays: calendar.actualTeachingDays || current?.actualTeachingDays || '',
-          calendarDurationDays: calendar.calendarDurationDays || current?.calendarDurationDays || '',
-          courseMode: calendar.courseMode || calendar.course?.mode || current?.courseMode || '',
-          calendarEvents: Array.isArray(calendar.events) ? calendar.events : current?.calendarEvents || [],
-          scheduleSummary: { ...(savedSummary || {}), ...calendar },
+          courseEndDate: calendar?.endDate || current?.courseEndDate || '',
+          totalWorkingDays: calendar?.totalWorkingDays || current?.totalWorkingDays || '',
+          totalHours: calendar?.totalHours || calendar?.course?.totalHours || current?.totalHours || '',
+          hoursPerDay: calendar?.hoursPerDay || current?.hoursPerDay || '',
+          requiredTeachingDays: calendar?.requiredTeachingDays || current?.requiredTeachingDays || '',
+          actualTeachingDays: calendar?.actualTeachingDays || current?.actualTeachingDays || '',
+          calendarDurationDays: calendar?.calendarDurationDays || current?.calendarDurationDays || '',
+          courseMode: calendar?.courseMode || calendar?.course?.mode || current?.courseMode || '',
+          calendarEvents: Array.isArray(calendar?.events) ? calendar.events : current?.calendarEvents || [],
+          attendanceCalendar: attendanceRows.length ? attendanceRows : current?.attendanceCalendar || [],
+          attendanceSchedule: attendanceOverview?.course?.schedule || current?.attendanceSchedule || '',
+          scheduleSummary: { ...(savedSummary || {}), ...(calendar || {}) },
         }))
       })
       .catch((requestError) => {

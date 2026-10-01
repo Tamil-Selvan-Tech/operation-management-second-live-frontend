@@ -98,11 +98,13 @@ function CalendarDayCell({ day, externalUi = false, onSelect }) {
   const showAttendanceNote = day.attendanceStatus && String(day.attendanceStatus).trim().toLowerCase() !== String(displayStatus || '').trim().toLowerCase()
   const fallbackNote = showAttendanceNote
     ? day.attendanceStatus
-    : ['present', 'absent', 'completed'].includes(normalizedStatus)
+    : ['present', 'absent', 'leave', 'unmarked', 'completed'].includes(normalizedStatus)
       ? ''
-      : day.isCourseDay
-        ? 'Scheduled class day'
-        : 'No class scheduled'
+      : normalizedStatus === 'disabled / not applicable'
+        ? 'No schedule'
+        : day.isCourseDay
+          ? 'Scheduled class day'
+          : 'No class scheduled'
   return (
     <article title={externalUi ? undefined : detailLines || day.status} className={`student-calendar-day ${externalUi ? 'student-calendar-day--external' : ''} ${getStatusTone(day.status)} ${getCalendarStatusClass(day)} ${day.isStartDate ? 'is-start-date' : ''} ${day.isEndDate ? 'is-end-date' : ''}`.trim()}>
       <div className="student-calendar-day-head">

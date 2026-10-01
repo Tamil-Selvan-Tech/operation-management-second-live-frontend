@@ -141,3 +141,9 @@
   .student360-page, .student360-summary-progress-track span, .student360-progress-track span { animation: none; }
   .student360-profile-card, .student360-summary-card, .student360-card, .student360-avatar, .student360-attendance-cell, .student360-detail-icon, .student360-ledger-number, .student360-receipt-icon, .student360-back-button, .student360-primary-button, .student360-secondary-button, .student360-invoice-button { transition: none; }
 }
+
+.student360-attendance-legend .unmarked i { background: #64748b; }
+.student360-attendance-legend .not-applicable i { background: #cbd5e1; }
+.student360-attendance-cell.unmarked { border-color: #cbd5e1; color: #475569; background: #f1f5f9; }
+.student360-attendance-cell.not-applicable { border-color: #e2e8f0; color: #94a3b8; background: #e2e8f0; opacity: .8; }
+.student360-attendance-cell.leave { border-color: #fcd34d; color: #92400e; background: #fef3c7; }

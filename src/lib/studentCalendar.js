@@ -213,6 +213,7 @@ function buildAttendanceMap(student = {}) {
     student?.attendanceByDate,
     student?.calendarAttendance,
     student?.dailyAttendance,
+    student?.attendanceCalendar,
     student?.calendarEvents,
   ]
 
@@ -221,6 +222,8 @@ function buildAttendanceMap(student = {}) {
     const status = String(value || '').trim().toLowerCase()
     if (status === 'present') return 'Present'
     if (status === 'absent') return 'Absent'
+    if (status === 'leave' || status === 'excused') return 'Leave'
+    if (status === 'unmarked' || status === 'not_recorded' || status === 'not recorded') return 'Unmarked'
     return ''
   }
 
@@ -239,7 +242,7 @@ function buildAttendanceMap(student = {}) {
     if (typeof source === 'object') {
       Object.entries(source).forEach(([key, value]) => {
         const normalizedKey = toCalendarDateKey(key)
-        const status = normalizeStatus(value)
+        const status = normalizeStatus(typeof value === 'string' ? value : value?.status || value?.attendanceStatus)
         if (normalizedKey && status) entries.set(normalizedKey, status)
       })
     }
@@ -435,7 +438,7 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
     if (!isWithinRange) {
       status = 'No Class'
       tone = 'no-class'
-    } else if (attendance === 'Present' || attendance === 'Absent') {
+    } else if (attendance === 'Present' || attendance === 'Absent' || attendance === 'Leave' || attendance === 'Unmarked') {
       // Attendance is persisted per student and date. It must remain the
       // displayed status even when a generic calendar event exists for the
       // same date.
@@ -444,6 +447,9 @@ function buildCalendarMonthDays(monthDate, rangeStart, rangeEnd, schedule, holid
     } else if (serverEvent?.status || isReplacementCalendarEvent(serverEvent) || isKickoffCalendarEvent(serverEvent)) {
       status = serverEvent.status || (isReplacementCalendarEvent(serverEvent) ? 'Replacement' : 'Kickoff')
       tone = getStatusToneKey(status)
+    } else if (!isCourseDay) {
+      status = 'Disabled / Not Applicable'
+      tone = 'no-class'
     } else if (weeklyOffIndex >= 0 && dayOfWeek === weeklyOffIndex) {
       status = 'Faculty Weekly Off'
       tone = 'holiday'

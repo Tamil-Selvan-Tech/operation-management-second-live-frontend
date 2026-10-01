@@ -69,7 +69,7 @@ function getPaymentSchedule(student = {}) {
 
 function getAttendanceEntries(student = {}) {
   const entries = []
-  const sources = [student.attendanceRecords, student.records, student.attendanceHistory]
+  const sources = [student.attendanceCalendar, student.attendanceRecords, student.records, student.attendanceHistory]
   sources.forEach((source) => {
     if (!Array.isArray(source)) return
     source.forEach((entry) => entries.push(entry))
@@ -92,24 +92,36 @@ function getAttendanceEntries(student = {}) {
       : rawStatus === 'absent'
         ? 'absent'
         : ['leave', 'excused', 'holiday'].includes(rawStatus)
-          ? 'excused'
-          : ''
+          ? 'leave'
+          : ['unmarked', 'not_recorded', 'not recorded', 'upcoming'].includes(rawStatus)
+            ? 'unmarked'
+            : ''
     if (status) byDate.set(date, { date, status })
   })
   return [...byDate.values()].sort((left, right) => left.date.localeCompare(right.date))
 }
 
-function getCurrentMonthAttendanceCells(attendanceEntries = []) {
+function getCurrentMonthAttendanceCells(attendanceEntries = [], student = {}) {
   const today = new Date()
   const year = today.getFullYear()
   const month = today.getMonth()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const statusByDate = new Map(attendanceEntries.map((entry) => [entry.date, entry.status]))
+  const schedule = String(student.attendanceSchedule || student.classSchedule || student.courseSchedule || '').toLowerCase()
+  const isWeekendSchedule = schedule.includes('weekend')
+  const weeklyOffDay = String(student.weeklyOffDay || '').trim().toLowerCase()
+  const courseStart = String(student.courseStartDate || '').slice(0, 10)
+  const courseEnd = String(student.courseEndDate || '').slice(0, 10)
 
   return Array.from({ length: daysInMonth }, (_, index) => {
     const day = index + 1
     const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    return { date, day, status: statusByDate.get(date) || 'unmarked' }
+    const dateObject = new Date(`${date}T00:00:00`)
+    const dayOfWeek = dateObject.getDay()
+    const isWithinCourse = (!courseStart || date >= courseStart) && (!courseEnd || date <= courseEnd)
+    const isWeeklyOff = weeklyOffDay && dateObject.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() === weeklyOffDay
+    const isScheduled = isWithinCourse && !isWeeklyOff && (isWeekendSchedule ? [0, 6].includes(dayOfWeek) : [1, 2, 3, 4, 5].includes(dayOfWeek))
+    return { date, day, status: isScheduled ? (statusByDate.get(date) || 'unmarked') : 'not-applicable' }
   })
 }
 
@@ -154,7 +166,6 @@ function SectionCard({ title, description, actions, children, className = '', id
 
 export function Student360Page({
   student = null,
-  branch = null,
   paymentHistory = [],
   onBack,
   backLabel = 'Back to Students',
@@ -182,7 +193,7 @@ export function Student360Page({
   const studentKeys = getStudentKeys(student)
   const schedule = getPaymentSchedule(student)
   const attendanceEntries = getAttendanceEntries(student)
-  const attendanceCells = getCurrentMonthAttendanceCells(attendanceEntries)
+  const attendanceCells = getCurrentMonthAttendanceCells(attendanceEntries, student)
   const courseProgress = getCourseProgress(student)
   const totalFee = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
   const paidAmount = schedule.length
@@ -205,10 +216,9 @@ export function Student360Page({
         installmentNumber: item.installmentNumber || item.number || index + 1,
       }))
   const attendanceSummary = attendanceEntries.reduce((summary, entry) => {
-    summary[entry.status] += 1
+    if (Object.prototype.hasOwnProperty.call(summary, entry.status)) summary[entry.status] += 1
     return summary
-  }, { present: 0, absent: 0, excused: 0 })
-  const attendanceMonthLabel = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  }, { present: 0, absent: 0, leave: 0, unmarked: 0 })
   const initials = studentName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
   const status = displayValue(student.status || student.currentStatus, 'Active')
 
@@ -253,7 +263,9 @@ export function Student360Page({
             <div className="student360-attendance-legend">
               <span className="present"><i />Present ({attendanceSummary.present})</span>
               <span className="absent"><i />Absent ({attendanceSummary.absent})</span>
-              <span className="excused"><i />Excused / Leave ({attendanceSummary.excused})</span>
+              <span className="excused"><i />Leave ({attendanceSummary.leave})</span>
+              <span className="unmarked"><i />Unmarked ({attendanceSummary.unmarked})</span>
+              <span className="not-applicable"><i />Disabled / Not Applicable</span>
             </div>
             <div className="student360-attendance-grid">{attendanceCells.map((entry) => <div className={`student360-attendance-cell ${entry.status}`} key={entry.date} title={`${entry.date} · ${entry.status}`}><strong>{entry.day}</strong><small>{new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })}</small></div>)}</div>
           </SectionCard>
