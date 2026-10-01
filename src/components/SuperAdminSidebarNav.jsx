@@ -19,7 +19,7 @@ function isActiveBranch(branch) {
   return String(branch?.status || '').trim().toLowerCase() !== 'inactive'
 }
 
-export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onCloseMobile, onOpenBranch }) {
+export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onCloseMobile, onOpenBranch, onNavigate }) {
   const navigate = useNavigate()
   const location = useLocation()
   const activeSection = getSection(location.search)
@@ -37,6 +37,7 @@ export function SuperAdminSidebarNav({ branches = [], isSidebarCollapsed, onClos
       setIsAcademicExpanded(false)
       setIsLeaveExpanded(false)
     }
+    onNavigate?.()
     onCloseMobile?.()
     navigate(path)
   }

@@ -67,7 +67,7 @@ function hydrateStudentCalendarSummary(student) {
   }
 }
 
-export function StudentCalendarPage({ student: initialStudent, studentId, backPath, onBack, facultyProfile = null, useFacultyCalendar = false }) {
+export function StudentCalendarPage({ student: initialStudent, studentId, backPath, onBack, backLabel = 'Back to Students', facultyProfile = null, useFacultyCalendar = false }) {
   const [student, setStudent] = useState(() => hydrateStudentCalendarSummary(initialStudent))
   const [facultyCalendar, setFacultyCalendar] = useState(null)
   const [error, setError] = useState('')
@@ -162,7 +162,7 @@ export function StudentCalendarPage({ student: initialStudent, studentId, backPa
   return (
     <section className="student-calendar-page">
       <button type="button" className="student-calendar-back-button" onClick={back}>
-        <ArrowLeft size={17} /> Back to Students
+        <ArrowLeft size={17} /> {backLabel}
       </button>
 
       <header className="student-calendar-page-header">

@@ -1,6 +1,11 @@
 const NOTIFICATION_STORAGE_KEY = 'cispro.super-admin.notifications'
 const NOTIFICATION_EVENT_NAME = 'cispro:super-admin-notifications-changed'
 
+const isFacultyLoginNotification = (notification = {}) => {
+  const kind = String(notification.kind || '').trim().toLowerCase()
+  return kind === 'faculty-login' || kind === 'branch-faculty-login'
+}
+
 const isBrowser = () => typeof window !== 'undefined' && Boolean(window.localStorage)
 
 const readJSON = (key) => {
@@ -110,12 +115,14 @@ export function loadNotifications() {
       return normalizedNotification
     })
     .filter((notification) =>
-      String(notification.kind || '').startsWith('branch-') ||
-      String(notification.kind || '').startsWith('faculty-') ||
-      String(notification.kind || '').startsWith('course-edit-') ||
-      String(notification.kind || '').startsWith('faculty-progress-status') ||
-      String(notification.kind || '').startsWith('branch-progress-status') ||
-      String(notification.kind || '') === 'faculty-login',
+      !isFacultyLoginNotification(notification) &&
+      (
+        String(notification.kind || '').startsWith('branch-') ||
+        String(notification.kind || '').startsWith('faculty-') ||
+        String(notification.kind || '').startsWith('course-edit-') ||
+        String(notification.kind || '').startsWith('faculty-progress-status') ||
+        String(notification.kind || '').startsWith('branch-progress-status')
+      ),
     )
 
   if (nextNotifications.length !== stored.length || needsBackfill) {
@@ -126,7 +133,10 @@ export function loadNotifications() {
 }
 
 export function saveNotifications(notifications = [], options = {}) {
-  writeJSON(NOTIFICATION_STORAGE_KEY, notifications.map(normalizeNotification))
+  writeJSON(
+    NOTIFICATION_STORAGE_KEY,
+    notifications.filter((notification) => !isFacultyLoginNotification(notification)).map(normalizeNotification),
+  )
   if (options?.emit === false) {
     return notifications
   }
@@ -142,7 +152,9 @@ export function mergeNotificationsWithStoredState(notifications = []) {
     storedNotifications.map((notification) => [String(notification.id), Boolean(notification.dropdownViewed)]),
   )
 
-  return (Array.isArray(notifications) ? notifications : []).map((notification) => {
+  return (Array.isArray(notifications) ? notifications : [])
+    .filter((notification) => !isFacultyLoginNotification(notification))
+    .map((notification) => {
     const normalizedNotification = normalizeNotification(notification)
     const storedReadState = readStateById.get(String(normalizedNotification.id))
     const storedViewedState = viewedStateById.get(String(normalizedNotification.id))
@@ -152,7 +164,7 @@ export function mergeNotificationsWithStoredState(notifications = []) {
       read: Boolean(storedReadState ?? normalizedNotification.read),
       dropdownViewed: Boolean(storedViewedState ?? normalizedNotification.dropdownViewed),
     }
-  })
+    })
 }
 
 function emitNotificationChange() {
@@ -318,26 +330,5 @@ export function addBranchLoginNotification(branch = {}) {
     targetBranchId: branch.id || branch.branchId || '',
     targetBranchEmail: branch.branchEmail || '',
     targetBranchName: branch.branchName || '',
-  })
-}
-
-export function addFacultyLoginNotification(faculty = {}) {
-  const branchId = faculty.branchId || faculty.branch?.id || faculty.branch?.branchId || ''
-  const branchEmail = faculty.branchEmail || faculty.branch?.branchEmail || ''
-  const branchName = faculty.branchName || faculty.branch?.branchName || ''
-
-  return addNotification({
-    kind: 'faculty-login',
-    tone: 'green',
-    title: `${faculty.facultyName || faculty.name || faculty.email || 'Faculty'} logged in`,
-    message: `${faculty.facultyName || faculty.name || 'Faculty'} signed in with ${faculty.facultyEmail || faculty.email || 'their account'}.`,
-    actionLabel: 'Logged in',
-    facultyId: faculty.facultyId || faculty.id || '',
-    facultyEmail: faculty.facultyEmail || faculty.email || '',
-    facultyName: faculty.facultyName || faculty.name || '',
-    branchId,
-    targetBranchId: branchId,
-    targetBranchEmail: branchEmail,
-    targetBranchName: branchName,
   })
 }

@@ -577,6 +577,7 @@ function createInitialStudentForm(branchId) {
     facultyEmail: '',
     facultyPhone: '',
     courseAmount: '',
+    studentDiscountAmount: '',
     courseMode: '',
     paymentPlanId: '',
     paymentPlan: '',
@@ -638,6 +639,7 @@ function buildStudentFormFromRecord(student = {}) {
     facultyEmail: student.facultyEmail || student.course?.facultyEmail || '',
     facultyPhone: student.facultyPhone || student.course?.facultyPhone || '',
     courseAmount: String(student.courseAmount || student.totalAmount || student.afterDiscount || '').trim(),
+    studentDiscountAmount: String(student.studentDiscountAmount ?? '').trim(),
     courseMode: student.courseMode || student.course?.courseMode || '',
     paymentMode: student.paymentMode || 'Installment',
     paymentPlanId: student.paymentPlanId || student.paymentPlan || '',
@@ -691,6 +693,9 @@ function validateStudentForm(form, students = []) {
   if (!safeTrim(form.classSchedule)) errors.classSchedule = 'Class Schedule is required.'
   if (!safeTrim(form.courseStartDate)) errors.courseStartDate = 'Course Start Date is required.'
   if (!safeTrim(form.courseAmount)) errors.courseAmount = 'Course amount is required.'
+  if (safeTrim(form.studentDiscountAmount) && Number(form.studentDiscountAmount) < 0) {
+    errors.studentDiscountAmount = 'Discount must be zero or greater.'
+  }
   if (!safeTrim(form.courseMode)) errors.courseMode = 'Course mode is required.'
   if (!safeTrim(form.paymentPlanId)) errors.paymentPlanId = 'This field is required.'
 
@@ -6704,6 +6709,15 @@ const studentCourseOptions = useMemo(() => {
     [selectedStudentCourse, studentForm.courseAmount],
   )
 
+  const selectedStudentFinalAmount = useMemo(() => {
+    const courseAmount = Number(String(selectedStudentCourseAmount || '').replace(/,/g, ''))
+    const discount = Number(String(studentForm.studentDiscountAmount || '').replace(/,/g, ''))
+    if (!Number.isFinite(courseAmount)) return ''
+    if (!String(studentForm.studentDiscountAmount || '').trim()) return String(Math.max(courseAmount, 0))
+    if (!Number.isFinite(discount)) return ''
+    return String(Math.max(courseAmount - discount, 0))
+  }, [selectedStudentCourseAmount, studentForm.studentDiscountAmount])
+
   useEffect(() => {
     if (!isStudentFormOpen || !studentForm.courseId || !selectedStudentCourse?.name) return
 
@@ -6912,13 +6926,13 @@ const studentCourseOptions = useMemo(() => {
 
   const studentInstallmentAmounts = useMemo(() => {
     const total = Number(
-      String(selectedStudentCourseAmount || '').replace(/,/g, ''),
+      String(selectedStudentFinalAmount || '').replace(/,/g, ''),
     )
 
     if (!total || !studentInstallmentCount) return []
 
     return buildBranchCoursePaymentPlanInstallments(total, studentInstallmentCount).map((amount) => Number(amount))
-  }, [selectedStudentCourseAmount, studentInstallmentCount])
+  }, [selectedStudentFinalAmount, studentInstallmentCount])
 
   const studentInstallmentDueDateKey = studentInstallmentDueDates.join('|')
 
@@ -6943,7 +6957,7 @@ const studentCourseOptions = useMemo(() => {
       studentForm.admissionDate,
       studentForm.courseStartDate,
       studentForm.courseMode,
-      selectedStudentCourseAmount,
+      selectedStudentFinalAmount,
       studentInstallmentAmounts,
       studentInstallmentDueDateKey,
       studentInstallmentDatesCustomized,
@@ -6961,7 +6975,7 @@ const studentCourseOptions = useMemo(() => {
           admissionDate: studentForm.admissionDate,
           courseStartDate: studentForm.courseStartDate || selectedStudentBatchOption.courseStartDate,
           courseMode: studentForm.courseMode || selectedStudentBatchOption.mode,
-          courseAmount: selectedStudentCourseAmount,
+          courseAmount: selectedStudentFinalAmount,
           feeScheduleMode: mode,
           feeFirstPaymentDate: studentForm.feeFirstPaymentDate || studentForm.admissionDate,
           installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
@@ -7003,7 +7017,7 @@ const studentCourseOptions = useMemo(() => {
     selectedStudentBatchOption?.courseStartDate,
     selectedStudentBatchOption?.mode,
     selectedStudentCourse?.id,
-    selectedStudentCourseAmount,
+    selectedStudentFinalAmount,
     studentForm.admissionDate,
     studentForm.courseMode,
     studentForm.courseStartDate,
@@ -7074,6 +7088,7 @@ const studentCourseOptions = useMemo(() => {
         facultyEmail: '',
         facultyPhone: '',
         courseAmount: '',
+        studentDiscountAmount: '',
         paymentPlans: [],
         paymentPlan: '',
         paymentPlanId: '',
@@ -7090,6 +7105,7 @@ const studentCourseOptions = useMemo(() => {
         courseId: nextCourse?.id || nextCourseId,
         courseName: nextCourse?.name || '',
         courseAmount: nextCourse?.amount || '',
+        studentDiscountAmount: '',
         batchGroupId: '',
         batchId: '',
         batchName: '',
@@ -8638,6 +8654,7 @@ useEffect(() => {
     const selectedCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null
     const selectedBatch = selectedStudentBatchOption
     const resolvedCourseAmount = String(selectedCourse?.amount || studentForm.courseAmount || '').trim()
+    const resolvedFinalAmount = String(selectedStudentFinalAmount || resolvedCourseAmount).trim()
 
     if (
       selectedBatch &&
@@ -8683,11 +8700,12 @@ useEffect(() => {
       facultyEmail: selectedBatch?.facultyEmail || String(studentForm.facultyEmail || '').trim(),
       facultyPhone: selectedBatch?.facultyPhone || String(studentForm.facultyPhone || '').trim(),
       courseAmount: resolvedCourseAmount,
-      totalAmount: resolvedCourseAmount,
+      totalAmount: resolvedFinalAmount,
       actualFees: String(selectedCourse?.actualFees ?? '').trim(),
       registrationFees: String(selectedCourse?.registrationFees ?? '').trim(),
-      discount: String(selectedCourse?.discount ?? '').trim(),
-      afterDiscount: resolvedCourseAmount,
+      discount: String(studentForm.studentDiscountAmount || selectedCourse?.discount || '').trim(),
+      studentDiscountAmount: String(studentForm.studentDiscountAmount || '').trim(),
+      afterDiscount: resolvedFinalAmount,
       courseMode: String(studentForm.courseMode || '').trim(),
       mode: String(selectedBatch?.mode || studentForm.courseMode || '').trim().toUpperCase(),
       paymentMode: studentForm.paymentMode || 'Installment',
@@ -16029,6 +16047,27 @@ else {
           />
         </Field>
 
+        <Field
+          label="Discount Amount"
+          className="student-course-step-discount"
+          hint="Optional student discount"
+          error={
+            shouldShowStudentError('studentDiscountAmount')
+              ? studentFormValidationErrors.studentDiscountAmount
+              : ''
+          }
+        >
+          <input
+            type="text"
+            inputMode="numeric"
+            value={studentForm.studentDiscountAmount || ''}
+            onChange={(e) => updateStudentField('studentDiscountAmount', e.target.value.replace(/\D/g, ''))}
+            onBlur={() => setStudentFormTouched((current) => ({ ...current, studentDiscountAmount: true }))}
+            placeholder="Optional discount amount"
+            disabled={studentFormMode === 'view'}
+          />
+        </Field>
+
        <Field
          label="Course Mode"
          className="student-course-step-mode"
@@ -16124,10 +16163,10 @@ else {
       </div>
 
       <div className="student-payment-installment-total">
-        <span>Total Course Amount</span>
+        <span>Final Course Amount</span>
         <strong>
           ₹{Number(
-            String(selectedStudentCourseAmount || '').replace(/,/g, '')
+            String(selectedStudentFinalAmount || '').replace(/,/g, '')
           ).toLocaleString('en-IN')}
         </strong>
       </div>

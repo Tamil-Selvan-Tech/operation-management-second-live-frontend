@@ -143,9 +143,18 @@
 }
 
 .super-admin-sidebar-nav {
+  flex: 1 1 auto;
   display: grid;
+  min-height: 0;
   gap: 14px;
   align-content: start;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.super-admin-sidebar-nav::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .super-admin-sidebar-nav-legacy {
@@ -5714,4 +5723,9 @@ body.super-admin-sidebar-open {
   .super-admin-page .sa-branch-search-results, .super-admin-page .super-admin-student-search-results { left: 0; right: 0; width: auto; max-width: 100%; }
   .super-admin-page .super-admin-notification-modal-backdrop { padding: 8px; }
   .super-admin-page .super-admin-notification-modal { width: 100%; padding: 20px 16px 16px; border-radius: 15px; }
+}
+
+.super-admin-student-calendar-content {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }

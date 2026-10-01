@@ -27612,4 +27612,5 @@ canvas {
 .student-form-grid-tight .student-course-step-start-date { order: 6; }
 .student-form-grid-tight .student-course-step-end-date { order: 7; }
 .student-form-grid-tight .student-course-step-amount { order: 8; }
-.student-form-grid-tight .student-course-step-payment { order: 9; }
+.student-form-grid-tight .student-course-step-discount { order: 9; }
+.student-form-grid-tight .student-course-step-payment { order: 10; }

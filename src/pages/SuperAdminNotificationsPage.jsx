@@ -301,6 +301,7 @@ export function SuperAdminNotificationsPage() {
     () =>
       notifications.filter(
         (notification) =>
+          !['faculty-login', 'branch-faculty-login'].includes(String(notification.kind || '').trim().toLowerCase()) &&
           !isBranchCourseEditNotification(notification) &&
           !isCourseAssignedNotification(notification),
       ),

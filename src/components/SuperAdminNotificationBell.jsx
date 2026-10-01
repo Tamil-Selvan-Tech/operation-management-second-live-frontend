@@ -93,7 +93,7 @@ export function SuperAdminNotificationBell({
     () =>
       notifications.filter(
         (notification) =>
-          String(notification.kind || '').trim().toLowerCase() !== 'branch-faculty-login' &&
+          !['faculty-login', 'branch-faculty-login'].includes(String(notification.kind || '').trim().toLowerCase()) &&
           !isBranchCourseEditNotification(notification) &&
           !isCourseAssignedNotification(notification),
       ),

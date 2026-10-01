@@ -38,6 +38,8 @@ import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { BranchDashboardPage } from './BranchDashboardPage'
 import { Student360Page } from './Student360Page'
+import StudentCalendarPage from './StudentCalendarPage'
+import { getStudentCalendar } from '../services/studentService'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
@@ -62,6 +64,22 @@ function SidebarUserAvatar() {
       <CircleUserRound size={28} strokeWidth={1.9} />
       <span className="super-admin-sidebar-user-status" />
     </span>
+  )
+}
+
+function SuperAdminLogoutModal({ isOpen, onCancel, onConfirm }) {
+  if (!isOpen) return null
+
+  return (
+    <div className="branch-modal-backdrop" role="presentation">
+      <div className="super-admin-logout-modal" role="dialog" aria-modal="true" aria-labelledby="super-admin-calendar-logout-title">
+        <h2 id="super-admin-calendar-logout-title">Are you sure you want to logout?</h2>
+        <div className="super-admin-logout-actions">
+          <button type="button" className="super-admin-logout-cancel" onClick={onCancel}>Cancel</button>
+          <button type="button" className="super-admin-logout-submit" onClick={onConfirm}>Logout</button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -503,6 +521,7 @@ export function SuperAdminDashboardPage() {
   const [isViewDashboardConfirmOpen, setIsViewDashboardConfirmOpen] = useState(false)
   const [embeddedBranch, setEmbeddedBranch] = useState(null)
   const [superAdminStudentView, setSuperAdminStudentView] = useState(null)
+  const [superAdminStudentCalendarView, setSuperAdminStudentCalendarView] = useState(null)
   const [isExitDashboardConfirmOpen, setIsExitDashboardConfirmOpen] = useState(false)
 
   const [editingBranchId, setEditingBranchId] = useState(null)
@@ -1375,7 +1394,46 @@ const filteredBranches = useMemo(() => {
 
   const openSuperAdminStudent360 = ({ student, branch }) => {
     if (!student) return
+    setSuperAdminStudentCalendarView(null)
     setSuperAdminStudentView({ student, branch })
+
+    const studentId = String(student.studentId || student.studentCode || student.id || student._id || '').trim()
+    if (!studentId) return
+
+    void getStudentCalendar(studentId)
+      .then((calendar) => {
+        const calculatedEndDate = String(calendar?.endDate || '').trim()
+        if (!calculatedEndDate) return
+
+        setSuperAdminStudentView((current) => {
+          if (!current || String(current.student?.studentId || current.student?.studentCode || current.student?.id || current.student?._id || '').trim() !== studentId) {
+            return current
+          }
+
+          return {
+            ...current,
+            student: {
+              ...current.student,
+              courseEndDate: calculatedEndDate,
+            },
+          }
+        })
+      })
+      .catch(() => {
+        // Keep the stored student end date when the calendar endpoint is unavailable.
+      })
+  }
+
+  const openSuperAdminStudentCalendar = (student) => {
+    if (!student) return
+
+    const studentId = String(student.studentId || student.studentCode || student.id || student._id || '').trim()
+    if (!studentId) return
+
+    setSuperAdminStudentCalendarView({
+      student,
+      studentId,
+    })
   }
 
   const handleDeleteBranch = async () => {
@@ -1663,9 +1721,75 @@ const filteredBranches = useMemo(() => {
     )
   }
 
+  if (superAdminStudentCalendarView) {
+    return (
+      <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
+        <div className="super-admin-shell">
+          {isMobileSidebarOpen ? <button type="button" className="super-admin-sidebar-backdrop" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)} /> : null}
+          <aside className={`super-admin-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()} aria-label="Super admin navigation">
+            <div className="super-admin-sidebar-brand">
+              <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Elite Admin logo" />
+              <button type="button" className="super-admin-sidebar-collapse-toggle" data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setIsSidebarCollapsed((current) => !current)}>
+                {isSidebarCollapsed ? <PanelLeftOpen size={19} strokeWidth={2.3} /> : <PanelLeftClose size={19} strokeWidth={2.3} />}
+              </button>
+              <button type="button" className="super-admin-sidebar-close" aria-label="Close navigation menu" onClick={() => setIsMobileSidebarOpen(false)}><X size={18} strokeWidth={2.6} /></button>
+            </div>
+            <SuperAdminSidebarNav
+              branches={branches}
+              isSidebarCollapsed={isSidebarCollapsed}
+              onCloseMobile={() => setIsMobileSidebarOpen(false)}
+              onNavigate={() => setSuperAdminStudentCalendarView(null)}
+              onOpenBranch={(branch) => { setSuperAdminStudentCalendarView(null); handleActiveBranchView(branch) }}
+            />
+            <div className="super-admin-sidebar-footer">
+              <div className="super-admin-sidebar-profile-card">
+                <SidebarUserAvatar />
+                <div className="super-admin-sidebar-profile-copy"><span>{profileEmail}</span></div>
+                <button type="button" className="super-admin-sidebar-logout-button" aria-label="Logout" onClick={() => { setIsLogoutConfirmOpen(true); setIsMobileSidebarOpen(false) }}>
+                  <LogOut size={22} strokeWidth={2.15} />
+                </button>
+              </div>
+            </div>
+          </aside>
+          <main className="super-admin-main">
+            <header className="super-admin-topbar">
+              <div className="super-admin-topbar-left">
+                <button type="button" className={`super-admin-sidebar-toggle ${isSidebarCollapsed ? 'is-desktop-expand-toggle' : ''}`.trim()} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Open navigation menu'} onClick={() => { if (isSidebarCollapsed) setIsSidebarCollapsed(false); else setIsMobileSidebarOpen(true) }}>
+                  {isSidebarCollapsed ? <PanelLeftOpen size={18} strokeWidth={2.3} /> : <Menu size={20} strokeWidth={2.4} />}
+                </button>
+                <h1 className="super-admin-header-title">Super Admin Dashboard</h1>
+              </div>
+              <div className="super-admin-topbar-right">
+                <SuperAdminNotificationBell
+                  onOpenBranches={() => { setSuperAdminStudentCalendarView(null); setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }}
+                  onViewActivity={() => { setSuperAdminStudentCalendarView(null); navigate('/dashboard/super-admin/notifications') }}
+                />
+                <div className="super-admin-profile">
+                  <div className="super-admin-profile-trigger" aria-label="Super Admin profile">
+                    <AvatarBadge />
+                    <div className="super-admin-profile-copy"><strong>Super Admin</strong><span>{profileEmail}</span></div>
+                  </div>
+                </div>
+              </div>
+            </header>
+            <div className="super-admin-content super-admin-student-calendar-content">
+              <StudentCalendarPage
+                student={superAdminStudentCalendarView.student}
+                studentId={superAdminStudentCalendarView.studentId}
+                backLabel="Back to Student 360"
+                onBack={() => setSuperAdminStudentCalendarView(null)}
+              />
+            </div>
+          </main>
+        </div>
+        <SuperAdminLogoutModal isOpen={isLogoutConfirmOpen} onCancel={() => setIsLogoutConfirmOpen(false)} onConfirm={handleConfirmLogout} />
+      </section>
+    )
+  }
+
   if (superAdminStudentView) {
     return (
-      <section className="super-admin-page">
+      <section className={`super-admin-page ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()}>
         <div className="super-admin-shell">
           {isMobileSidebarOpen ? (
             <button
@@ -1678,41 +1802,40 @@ const filteredBranches = useMemo(() => {
           <aside className={`super-admin-sidebar ${isMobileSidebarOpen ? 'is-open' : ''}`.trim()} aria-label="Super admin navigation">
             <div className="super-admin-sidebar-brand">
               <img className="super-admin-sidebar-brand-logo" src="/logo1.png" alt="Elite Admin logo" />
+              <button type="button" className="super-admin-sidebar-collapse-toggle" data-tooltip={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setIsSidebarCollapsed((current) => !current)}>
+                {isSidebarCollapsed ? <PanelLeftOpen size={19} strokeWidth={2.3} /> : <PanelLeftClose size={19} strokeWidth={2.3} />}
+              </button>
               <button type="button" className="super-admin-sidebar-close" aria-label="Close navigation menu" onClick={closeMobileSidebar}>
                 <X size={18} strokeWidth={2.6} />
               </button>
             </div>
-            <nav className="super-admin-sidebar-nav">
-              <button type="button" className="super-admin-sidebar-item is-active" onClick={() => { setSuperAdminStudentView(null); navigate('/dashboard/super-admin') }}>
-                <span className="super-admin-sidebar-icon"><LayoutDashboard size={18} strokeWidth={2.2} /></span>
-                <span>Dashboard</span>
-              </button>
-              <span className="super-admin-sidebar-section-label">User &amp; Role Management</span>
-              <button type="button" className="super-admin-sidebar-item" onClick={() => { setSuperAdminStudentView(null); setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }}>
-                <span className="super-admin-sidebar-icon"><Building2 size={18} strokeWidth={2.2} /></span>
-                <span>Branch Management</span>
-              </button>
-              <span className="super-admin-sidebar-section-label">Academic Operations</span>
-              <button type="button" className="super-admin-sidebar-item" onClick={() => { setSuperAdminStudentView(null); setActiveSection('students'); navigate('/dashboard/super-admin?section=students') }}>
-                <span className="super-admin-sidebar-icon"><Users size={18} strokeWidth={2.2} /></span>
-                <span>Student Management</span>
-              </button>
-              <button type="button" className="super-admin-sidebar-item" onClick={() => { setSuperAdminStudentView(null); setActiveSection('faculty'); navigate('/dashboard/super-admin?section=faculty') }}>
-                <span className="super-admin-sidebar-icon"><UserRound size={18} strokeWidth={2.2} /></span>
-                <span>Faculty Management</span>
-              </button>
-            </nav>
+            <SuperAdminSidebarNav
+              branches={branches}
+              isSidebarCollapsed={isSidebarCollapsed}
+              onCloseMobile={closeMobileSidebar}
+              onNavigate={() => setSuperAdminStudentView(null)}
+              onOpenBranch={(branch) => { setSuperAdminStudentView(null); handleActiveBranchView(branch) }}
+            />
+            <div className="super-admin-sidebar-footer">
+              <div className="super-admin-sidebar-profile-card">
+                <SidebarUserAvatar />
+                <div className="super-admin-sidebar-profile-copy"><span>{profileEmail}</span></div>
+                <button type="button" className="super-admin-sidebar-logout-button" aria-label="Logout" onClick={() => { setIsLogoutConfirmOpen(true); setIsMobileSidebarOpen(false) }}>
+                  <LogOut size={22} strokeWidth={2.15} />
+                </button>
+              </div>
+            </div>
           </aside>
           <main className="super-admin-main">
             <header className="super-admin-topbar">
               <div className="super-admin-topbar-left">
-                <button type="button" className="super-admin-sidebar-toggle" aria-label="Open navigation menu" onClick={() => setIsMobileSidebarOpen(true)}>
-                  <Menu size={20} strokeWidth={2.4} />
+                <button type="button" className={`super-admin-sidebar-toggle ${isSidebarCollapsed ? 'is-desktop-expand-toggle' : ''}`.trim()} aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Open navigation menu'} onClick={() => { if (isSidebarCollapsed) setIsSidebarCollapsed(false); else setIsMobileSidebarOpen(true) }}>
+                  {isSidebarCollapsed ? <PanelLeftOpen size={18} strokeWidth={2.3} /> : <Menu size={20} strokeWidth={2.4} />}
                 </button>
                 <h1 className="super-admin-header-title">Super Admin Dashboard</h1>
               </div>
               <div className="super-admin-topbar-right">
-                <SuperAdminNotificationBell onOpenBranches={() => { setSuperAdminStudentView(null); setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }} onViewActivity={() => navigate('/dashboard/super-admin/notifications')} />
+                <SuperAdminNotificationBell onOpenBranches={() => { setSuperAdminStudentView(null); setActiveSection('branches'); navigate('/dashboard/super-admin?section=branches') }} onViewActivity={() => { setSuperAdminStudentView(null); navigate('/dashboard/super-admin/notifications') }} />
                 <div className="super-admin-profile">
                   <button
                     type="button"
@@ -1766,11 +1889,13 @@ const filteredBranches = useMemo(() => {
                   navigate('/dashboard/super-admin')
                 }}
                 onEdit={() => setSuperAdminStudentView(null)}
+                onViewCalendar={openSuperAdminStudentCalendar}
                 onDownloadPaymentReceipt={downloadSuperAdminPaymentReceipt}
               />
             </div>
           </main>
         </div>
+        <SuperAdminLogoutModal isOpen={isLogoutConfirmOpen} onCancel={() => setIsLogoutConfirmOpen(false)} onConfirm={handleConfirmLogout} />
       </section>
     )
   }
