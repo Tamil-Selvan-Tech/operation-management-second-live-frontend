@@ -1,5 +1,8 @@
 const NOTIFICATION_STORAGE_KEY = 'cispro.super-admin.notifications'
 const NOTIFICATION_EVENT_NAME = 'cispro:super-admin-notifications-changed'
+// Notifications are a browser cache, not the source of truth. Keep the cache
+// bounded so repeated progress synchronisation cannot exhaust localStorage.
+const MAX_STORED_NOTIFICATIONS = 250
 
 const isFacultyLoginNotification = (notification = {}) => {
   const kind = String(notification.kind || '').trim().toLowerCase()
@@ -20,7 +23,45 @@ const readJSON = (key) => {
 
 const writeJSON = (key, value) => {
   if (!isBrowser()) return
-  window.localStorage.setItem(key, JSON.stringify(value))
+
+  const serialized = JSON.stringify(value)
+
+  try {
+    window.localStorage.setItem(key, serialized)
+    return true
+  } catch (error) {
+    // A user may already have an oversized value from an older build, or
+    // another localStorage entry may be consuming the available quota. Do not
+    // let a storage problem take down the React tree. Callers that write an
+    // array can retry with a smaller cache below.
+    if (error?.name !== 'QuotaExceededError' && error?.code !== 22) {
+      return false
+    }
+
+    return false
+  }
+}
+
+const limitStoredNotifications = (notifications = []) =>
+  (Array.isArray(notifications) ? notifications : []).slice(0, MAX_STORED_NOTIFICATIONS)
+
+const writeNotifications = (notifications = []) => {
+  const boundedNotifications = limitStoredNotifications(notifications)
+  const retrySizes = [
+    boundedNotifications.length,
+    Math.min(100, boundedNotifications.length),
+    Math.min(50, boundedNotifications.length),
+    Math.min(25, boundedNotifications.length),
+    0,
+  ].filter((size, index, sizes) => sizes.indexOf(size) === index)
+
+  for (const size of retrySizes) {
+    if (writeJSON(NOTIFICATION_STORAGE_KEY, boundedNotifications.slice(0, size))) {
+      return boundedNotifications.slice(0, size)
+    }
+  }
+
+  return []
 }
 
 const createId = () =>
@@ -125,18 +166,20 @@ export function loadNotifications() {
       ),
     )
 
-  if (nextNotifications.length !== stored.length || needsBackfill) {
-    saveNotifications(nextNotifications, { emit: false })
+  const boundedNotifications = limitStoredNotifications(nextNotifications)
+
+  if (boundedNotifications.length !== stored.length || needsBackfill) {
+    saveNotifications(boundedNotifications, { emit: false })
   }
 
-  return nextNotifications
+  return boundedNotifications
 }
 
 export function saveNotifications(notifications = [], options = {}) {
-  writeJSON(
-    NOTIFICATION_STORAGE_KEY,
-    notifications.filter((notification) => !isFacultyLoginNotification(notification)).map(normalizeNotification),
-  )
+  const normalizedNotifications = notifications
+    .filter((notification) => !isFacultyLoginNotification(notification))
+    .map(normalizeNotification)
+  writeNotifications(normalizedNotifications)
   if (options?.emit === false) {
     return notifications
   }

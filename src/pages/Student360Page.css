@@ -1,4 +1,25 @@
 .student360-page { display: grid; gap: 22px; padding: 4px 2px 36px; color: #0f172a; }
+.student360-test-reports { display: grid; gap: 18px; }
+.student360-report-card { overflow: hidden; }
+.student360-report-card .student360-card-heading { margin-bottom: 0; }
+.student360-report-table-wrap { overflow-x: auto; }
+.student360-report-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+.student360-report-table th, .student360-report-table td { padding: 12px 14px; border-top: 1px solid #e2e8f0; text-align: left; font-size: 12px; white-space: nowrap; }
+.student360-report-table th { color: #64748b; background: #f8fafc; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.student360-report-table td { color: #334155; }
+.student360-report-table td:nth-child(3), .student360-report-table td:nth-child(4) { font-variant-numeric: tabular-nums; }
+.student360-report-summary { display: grid; gap: 10px; padding: 18px; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; }
+.student360-report-summary > div:first-child { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.student360-report-summary span, .student360-report-summary small { color: #64748b; font-size: 12px; }
+.student360-report-summary strong { color: #0f172a; font-size: 22px; }
+.student360-report-summary-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.student360-report-summary-meta > span { color: #0369a1; font-size: 18px; font-weight: 800; }
+.student360-report-progress { height: 8px; overflow: hidden; border-radius: 4px; background: #e2e8f0; }
+.student360-report-progress span { display: block; height: 100%; border-radius: inherit; background: #0284c7; }
+.student360-report-groups { display: grid; gap: 6px; margin-top: 2px; }
+.student360-report-groups div { display: flex; justify-content: space-between; gap: 12px; padding-top: 7px; border-top: 1px solid #dbeafe; }
+.student360-report-groups strong { color: #334155; font-size: 12px; }
+.student360-report-error { color: #b91c1c; }
 .student360-page-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .student360-back-button { display: inline-flex; align-items: center; justify-self: start; width: fit-content; gap: 7px; min-height: 34px; padding: 0 11px 0 8px; border: 1px solid #ccfbf1; border-radius: 9px; color: #0f766e; background: #f0fdfa; font: inherit; font-size: 12px; font-weight: 750; cursor: pointer; }
 .student360-back-button:hover { border-color: #5eead4; color: #115e59; background: #ccfbf1; transform: translateX(-2px); }

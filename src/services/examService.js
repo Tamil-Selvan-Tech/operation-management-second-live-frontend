@@ -50,3 +50,9 @@ export const listBranchReportShares = (branchId = '') => request('/exams/branch-
 export const getBranchReportShare = (shareId, branchId = '') => request(`/exams/branch-admin/report-shares/${shareId}`, {
   ...(branchId ? { impersonateBranchId: branchId } : {}),
 }).then(data)
+
+// Student 360 uses a student-scoped endpoint so the server, rather than the
+// browser, owns the student/branch authorization and result filtering.
+export const getBranchStudentSyllabusReports = (studentId, branchId = '') => request(`/exams/branch-admin/students/${encodeURIComponent(studentId)}/reports`, {
+  ...(branchId ? { impersonateBranchId: branchId } : {}),
+}).then(data)

@@ -49,4 +49,4 @@
 .academic-preparation-retest-menu button:disabled{opacity:.45;cursor:not-allowed;background:#f8fafc}
 .academic-preparation-result-actions-overlay{top:calc(50% - 222px)}
 body:has(.academic-project-preview-backdrop) .academic-preparation-result-actions-overlay{visibility:hidden}
-.academic-preparation-result-actions-overlay{top:calc(50% - 240px)}
+.academic-preparation-result-actions-overlay{top:calc(50% - 180px)}
