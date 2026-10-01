@@ -13,7 +13,7 @@
 .branch-report-search input { display: block; width: min(520px, 100%); margin-top: 10px; padding: 10px 12px; border: 1px solid #cbdced; border-radius: 8px; color: #17345f; font: inherit; }
 .branch-academic-report > .branch-report-search { margin: 0 0 14px; }
 .branch-academic-report .academic-report-card:has(.branch-report-search) { position: relative; overflow: visible; margin-top: 72px; }
-.branch-academic-report .academic-report-card:has(.branch-report-search) .branch-report-search { position: absolute; left: 0; top: -82px; margin: 0; }
+.branch-academic-report .academic-report-card:has(.branch-report-search) .branch-report-search { position: absolute; left: 0; top: -70px; margin: 0; }
 .branch-academic-report .academic-report-card-title { position: relative; display: block; }
 .branch-academic-report .academic-report-card-title > span { position: absolute; top: 26px; right: 24px; }
 .academic-report-pagination { display: flex; justify-content: flex-end; gap: 6px; padding: 14px 16px; border-top: 1px solid #edf2f7; }
