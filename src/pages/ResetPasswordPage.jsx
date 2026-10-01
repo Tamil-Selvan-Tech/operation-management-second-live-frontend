@@ -179,7 +179,7 @@ export function ResetPasswordPage() {
 
   if (expired) {
     return (
-      <Card className="panel reset-password-shell reset-password-state">
+      <Card className="panel reset-password-shell reset-password-state reset-password-page">
         <div className="reset-password-badge reset-password-badge-warn" aria-hidden="true">
           <WarningIcon />
         </div>
@@ -200,7 +200,7 @@ export function ResetPasswordPage() {
 
   if (isUpdated) {
     return (
-      <Card className="panel reset-password-shell reset-password-state reset-password-state-success">
+      <Card className="panel reset-password-shell reset-password-state reset-password-state-success reset-password-page">
         <div className="reset-password-badge reset-password-badge-success" aria-hidden="true">
           <SuccessIcon />
         </div>
@@ -217,7 +217,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <Card className="panel reset-password-shell">
+    <Card className="panel reset-password-shell reset-password-page">
       <div className="reset-password-header">
         <div className="reset-password-badge" aria-hidden="true">
           <ShieldIcon />

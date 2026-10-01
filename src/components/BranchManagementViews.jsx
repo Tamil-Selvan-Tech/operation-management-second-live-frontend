@@ -31,8 +31,12 @@ function formatNotificationDate(value) {
   return <span className="branch-management-date"><span>{dateText}</span><span>{timeText}</span></span>
 }
 
-function ViewState({ loading, error, empty, children }) {
-  if (loading) return <p className="branch-management-view-state">Loading...</p>
+function TableSkeleton({ columns, rows = 5 }) {
+  return <table className="branch-management-skeleton-table" aria-hidden="true"><thead><tr>{Array.from({ length: columns }, (_, index) => <th key={`skeleton-heading-${index}`}><span /></th>)}</tr></thead><tbody>{Array.from({ length: rows }, (_, rowIndex) => <tr key={`skeleton-row-${rowIndex}`}>{Array.from({ length: columns }, (_, cellIndex) => <td key={`skeleton-cell-${rowIndex}-${cellIndex}`}><span /></td>)}</tr>)}</tbody></table>
+}
+
+function ViewState({ loading, error, empty, loadingContent, children }) {
+  if (loading) return loadingContent || <p className="branch-management-view-state">Loading...</p>
   if (error) return <p className="branch-management-view-state is-error" role="alert">{error}</p>
   if (!children) return <p className="branch-management-view-state">{empty}</p>
   return children
@@ -75,7 +79,7 @@ export function ProgressNotificationsView({ branch = {} }) {
 
   return <section className="branch-management-data-page">
     <header className="branch-management-data-header"><div><p className="section-kicker">Management</p><h2>Progress Alerts</h2><p>Progress alerts received for this branch.</p></div></header>
-    <div className="branch-management-table-wrap"><ViewState loading={loading} error={error} empty="No progress notifications available.">
+    <div className="branch-management-table-wrap"><ViewState loading={loading} error={error} empty="No progress notifications available." loadingContent={<TableSkeleton columns={6} />}>
       {items.length ? <><table><thead><tr><th>S.No</th><th>Alerts</th><th>Student</th><th>Details</th><th>Status</th><th>Date</th></tr></thead><tbody>{visibleItems.map((item, index) => <tr key={item.id || `${item.createdAt}-${item.title}`}><td>{(page - 1) * 5 + index + 1}</td><td><strong>{item.title}</strong></td><td><strong>{item.studentName || item.studentId || '-'}</strong><small>{item.studentId || ''}</small></td><td>{item.message || item.summary || '-'}</td><td><span className={`branch-management-status is-${item.unread ? 'unread' : 'read'}`}>{item.unread ? 'Unread' : 'Read'}</span></td><td>{formatNotificationDate(item.createdAt)}</td></tr>)}</tbody></table>{pageCount > 1 ? <div className="branch-management-pagination"><span>Page {page} of {pageCount}</span><div><button type="button" disabled={page === 1} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</button><button type="button" disabled={page >= pageCount} onClick={() => setPage(current => Math.min(pageCount, current + 1))}>Next</button></div></div> : null}</> : null}
     </ViewState></div>
   </section>
@@ -114,7 +118,7 @@ export function FacultyEditRequestsView() {
   return <section className="branch-management-data-page">
     <header className="branch-management-data-header"><div><p className="section-kicker">Management</p><h2>Faculty Edit Requests</h2><p>Review course edit requests submitted by faculty in this branch.</p></div></header>
     {error ? <p className="branch-management-inline-error" role="alert">{error}</p> : null}
-    <div className="branch-management-table-wrap"><ViewState loading={loading} error={!loading && error ? error : ''} empty="No faculty edit requests available.">
+    <div className="branch-management-table-wrap"><ViewState loading={loading} error={!loading && error ? error : ''} empty="No faculty edit requests available." loadingContent={<TableSkeleton columns={8} />}>
       {items.length ? <><table><thead><tr><th>S.No</th><th>Faculty</th><th>Course</th><th>Reason</th><th>Description</th><th>Requested Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>{visibleItems.map((item, index) => { const pending = item.requestStatus === 'pending' || item.status === 'pending'; return <tr key={item.id}><td>{(page - 1) * 5 + index + 1}</td><td><strong>{item.facultyName || item.facultyId || '-'}</strong><small>{item.facultyEmail || '-'}</small></td><td><strong>{item.courseName || '-'}</strong><small>{item.courseCode || item.branchCourseId || '-'}</small></td><td>{item.reason || '-'}</td><td>{item.description || '-'}</td><td>{formatDate(item.requestedAt)}</td><td><span className={`branch-management-status is-${item.requestStatus || item.status || 'pending'}`}>{item.requestStatus || item.status || 'pending'}</span></td><td>{pending ? <div className="branch-management-actions"><button type="button" className="branch-management-approve" disabled={processingId === item.id} onClick={() => review(item, 'accept')}><Check size={15} /> Approve</button><button type="button" className="branch-management-reject" disabled={processingId === item.id} onClick={() => review(item, 'reject')}><X size={15} /> Reject</button></div> : <span>-</span>}</td></tr> })}</tbody></table>{pageCount > 1 ? <div className="branch-management-pagination"><span>Page {page} of {pageCount}</span><div><button type="button" disabled={page === 1} onClick={() => setPage(current => Math.max(1, current - 1))}>Previous</button><button type="button" disabled={page >= pageCount} onClick={() => setPage(current => Math.min(pageCount, current + 1))}>Next</button></div></div> : null}</> : null}
     </ViewState></div>
   </section>

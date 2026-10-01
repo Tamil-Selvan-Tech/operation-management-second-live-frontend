@@ -129,6 +129,7 @@ export function BranchInstallmentTemplatesPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
@@ -141,7 +142,10 @@ export function BranchInstallmentTemplatesPage() {
   const [openActionMenuId, setOpenActionMenuId] = useState(null)
   const [actionMenuPinned, setActionMenuPinned] = useState(false)
   const submitLockRef = useRef(false)
+  const loadRequestIdRef = useRef(0)
   const loadTemplates = useMemo(() => async (nextPage = 1) => {
+    const requestId = loadRequestIdRef.current + 1
+    loadRequestIdRef.current = requestId
     setLoading(true)
     setError('')
     try {
@@ -150,7 +154,7 @@ export function BranchInstallmentTemplatesPage() {
         // removed before client-side pagination splits the rows into pages.
         page: 1,
         limit: 100,
-        search: searchTerm,
+        search: appliedSearchTerm,
         sortBy: 'createdAt',
         sortOrder: 'desc',
       })
@@ -162,27 +166,48 @@ export function BranchInstallmentTemplatesPage() {
         seenSignatures.add(signature)
         uniqueTemplates.push(template)
       })
-      const nextTotalCount = uniqueTemplates.length
+      const normalizedQuery = appliedSearchTerm.trim().toLowerCase()
+      const filteredTemplates = normalizedQuery
+        ? uniqueTemplates.filter((template) => {
+          const installmentCount = Math.max(1, Number(template.installmentCount) || 1)
+          const searchableText = [
+            template.templateName,
+            `${installmentCount} installment`,
+            `${installmentCount} installments`,
+            template.status,
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase()
+
+          return searchableText.includes(normalizedQuery)
+        })
+        : uniqueTemplates
+      const nextTotalCount = filteredTemplates.length
       const nextTotalPages = Math.max(1, Math.ceil(nextTotalCount / pageSize) || 1)
       const startIndex = (Math.min(nextPage, nextTotalPages) - 1) * pageSize
-      setTemplates(uniqueTemplates.slice(startIndex, startIndex + pageSize))
+      if (requestId !== loadRequestIdRef.current) return
+      setTemplates(filteredTemplates.slice(startIndex, startIndex + pageSize))
       setTotalPages(nextTotalPages)
       setTotalCount(nextTotalCount)
       setPage(Math.min(nextPage, nextTotalPages))
     } catch (err) {
+      if (requestId !== loadRequestIdRef.current) return
       setTemplates([])
       setTotalPages(1)
       setTotalCount(0)
       setError(err?.message || 'Unable to load installment templates.')
     } finally {
-      setLoading(false)
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false)
+      }
     }
-  }, [searchTerm])
+  }, [appliedSearchTerm])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadTemplates(page)
-  }, [searchTerm, page, loadTemplates])
+  }, [appliedSearchTerm, page, loadTemplates])
 
   const markTouched = (key) => {
     setTouched((current) => ({
@@ -331,17 +356,29 @@ export function BranchInstallmentTemplatesPage() {
     if (!deleteTarget) return
     setSaving(true)
     try {
-      const signature = getBranchInstallmentTemplateSignature(deleteTarget)
-      const duplicateTemplates = templates.filter(
-        (template) => getBranchInstallmentTemplateSignature(template) === signature,
+      const targetInstallmentCount = Math.max(1, Number(deleteTarget.installmentCount) || 1)
+      const latestResult = await listBranchInstallmentTemplates({
+        page: 1,
+        limit: 100,
+        search: '',
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+      })
+      const matchingTemplates = (latestResult.data || []).filter(
+        (template) => Math.max(1, Number(template.installmentCount) || 1) === targetInstallmentCount,
       )
+      const templatesToDelete = matchingTemplates.some((template) => String(template.id) === String(deleteTarget.id))
+        ? matchingTemplates
+        : [deleteTarget]
 
       await Promise.all(
-        duplicateTemplates.map((template) => deleteBranchInstallmentTemplate(template.id)),
+        templatesToDelete.map((template) => deleteBranchInstallmentTemplate(template.id)),
       )
 
       setDeleteTarget(null)
-      await loadTemplates(page)
+      setSearchTerm('')
+      setAppliedSearchTerm('')
+      setPage(1)
     } catch (err) {
       if (err?.status === 409) {
         setError(
@@ -631,8 +668,8 @@ export function BranchInstallmentTemplatesPage() {
       className="installment-table-toolbar"
       onSubmit={(event) => {
         event.preventDefault()
+        setAppliedSearchTerm(searchTerm.trim())
         setPage(1)
-        void loadTemplates(1)
       }}
     >
       <div className="installment-search-shell">
@@ -642,8 +679,12 @@ export function BranchInstallmentTemplatesPage() {
             placeholder="Search installment plan"
             value={searchTerm}
             onChange={(event) => {
-              setSearchTerm(event.target.value)
-              setPage(1)
+              const nextValue = event.target.value
+              setSearchTerm(nextValue)
+              if (!nextValue.trim() && appliedSearchTerm) {
+                setAppliedSearchTerm('')
+                setPage(1)
+              }
             }}
           />
         </div>
@@ -666,7 +707,16 @@ export function BranchInstallmentTemplatesPage() {
       </div>
 
       {loading ? (
-        <div className="installment-table-state">Loading templates...</div>
+        <div className="installment-skeleton-list" role="status" aria-label="Loading installment templates">
+          {Array.from({ length: 3 }, (_, rowIndex) => (
+            <div className="installment-skeleton-row" key={`installment-loading-${rowIndex}`} aria-hidden="true">
+              <span className="installment-skeleton-name" />
+              <span className="installment-skeleton-value" />
+              <span className="installment-skeleton-status" />
+              <span className="installment-skeleton-action" />
+            </div>
+          ))}
+        </div>
       ) : displayRows.length ? (
         displayRows.map((template) => (
           <div
@@ -705,23 +755,18 @@ export function BranchInstallmentTemplatesPage() {
               <details
                 className="installment-action-menu"
                 open={openActionMenuId === template.id}
-                onMouseEnter={() => {
-                  if (!actionMenuPinned) {
-                    setOpenActionMenuId(template.id)
-                  }
-                }}
-                onMouseLeave={() => {
-                  if (!actionMenuPinned) {
-                    setOpenActionMenuId(null)
-                  }
-                }}
               >
                 <summary
                   aria-label={`Actions for ${template.templateName}`}
                   onClick={(event) => {
                     event.preventDefault()
-                    setOpenActionMenuId(template.id)
-                    setActionMenuPinned(true)
+                    if (openActionMenuId === template.id) {
+                      setOpenActionMenuId(null)
+                      setActionMenuPinned(false)
+                    } else {
+                      setOpenActionMenuId(template.id)
+                      setActionMenuPinned(true)
+                    }
                   }}
                 >
                   <span />
@@ -761,7 +806,9 @@ export function BranchInstallmentTemplatesPage() {
         ))
       ) : (
         <div className="installment-table-state is-empty">
-          No installment templates found.
+          {appliedSearchTerm
+            ? <>No installment templates found for <strong>“{appliedSearchTerm}”</strong>. Try another keyword.</>
+            : 'No installment templates available.'}
         </div>
       )}
     </div>

@@ -1728,6 +1728,8 @@ const filteredBranches = useMemo(() => {
                     </div>
                   </button>
                   {isSuperAdminProfileOpen ? (
+                    <>
+                    <button type="button" className="super-admin-profile-backdrop" aria-label="Close profile popup" onClick={() => setIsSuperAdminProfileOpen(false)} />
                     <div className="super-admin-profile-dropdown">
                       <button type="button" className="super-admin-profile-close" aria-label="Close profile" onClick={() => setIsSuperAdminProfileOpen(false)}>
                         <X size={18} strokeWidth={2.4} />
@@ -1744,6 +1746,7 @@ const filteredBranches = useMemo(() => {
                         <button type="button" onClick={() => { setIsSuperAdminProfileOpen(false); setIsLogoutConfirmOpen(true) }}><LogOut size={16} strokeWidth={2.2} />Logout</button>
                       </div>
                     </div>
+                    </>
                   ) : null}
                 </div>
               </div>
@@ -2145,6 +2148,8 @@ const filteredBranches = useMemo(() => {
   </button>
 
   {isSuperAdminProfileOpen ? (
+    <>
+    <button type="button" className="super-admin-profile-backdrop" aria-label="Close profile popup" onClick={() => setIsSuperAdminProfileOpen(false)} />
     <div className="super-admin-profile-dropdown">
       <button
   type="button"
@@ -2194,6 +2199,7 @@ const filteredBranches = useMemo(() => {
         </button>
       </div>
     </div>
+    </>
   ) : null}
 </div>
             </div>

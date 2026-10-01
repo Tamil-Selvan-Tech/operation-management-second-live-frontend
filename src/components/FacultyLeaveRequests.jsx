@@ -1,10 +1,28 @@
-import { useCallback, useEffect, useState } from 'react'
-import { CalendarDays, Clock3, MoreVertical, Send, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDays, ChevronDown, Clock3, MoreVertical, Send, X } from 'lucide-react'
 import { request } from '../services/apiClient'
 import { FacultyWeekOffRequests } from './FacultyWeekOffRequests'
 
 const MAX_HALF_DAY_MINUTES = 5 * 60
 const emptyForm = { leaveType: 'PLANNED', fromDate: '', toDate: '', durationType: 'FULL_DAY', halfDayStart: '', halfDayEnd: '', permissionHours: '', permissionStart: '', permissionEnd: '', reason: '' }
+
+function FacultyLeaveFilterSelect({ value, options, onChange, ariaLabel }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+  const selectedOption = options.find(option => option.value === value) || options[0]
+  useEffect(() => {
+    if (!isOpen) return undefined
+    const close = event => { if (!containerRef.current?.contains(event.target)) setIsOpen(false) }
+    const escape = event => { if (event.key === 'Escape') setIsOpen(false) }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', escape)
+    return () => { document.removeEventListener('pointerdown', close); document.removeEventListener('keydown', escape) }
+  }, [isOpen])
+  return <div ref={containerRef} className={`faculty-leave-filter-select${isOpen ? ' is-open' : ''}`}>
+    <button type="button" className="faculty-leave-filter-trigger" aria-label={ariaLabel} aria-expanded={isOpen} onClick={() => setIsOpen(current => !current)}><span>{selectedOption?.label || 'Select status'}</span><ChevronDown size={15} strokeWidth={2.2} aria-hidden="true" /></button>
+    {isOpen ? <div className="faculty-leave-filter-menu" role="listbox" aria-label={ariaLabel}>{options.map(option => <button key={option.value} type="button" role="option" aria-selected={option.value === value} className={option.value === value ? 'is-selected' : ''} onClick={() => { onChange(option.value); setIsOpen(false) }}>{option.label}</button>)}</div> : null}
+  </div>
+}
 
 function formatBatchTime(value, period) {
   const [hourText, minuteText] = String(value || '').split(':')
@@ -102,6 +120,11 @@ export function FacultyLeaveRequests() {
   const [activeTab, setActiveTab] = useState('leave')
   const [form, setForm] = useState(emptyForm)
   const [requests, setRequests] = useState([])
+  const [search, setSearch] = useState('')
+  const [appliedSearch, setAppliedSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [sortValue, setSortValue] = useState('appliedAt:desc')
+  const [requestPage, setRequestPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -191,6 +214,29 @@ export function FacultyLeaveRequests() {
     document.addEventListener('mousedown', closeActionMenu)
     return () => document.removeEventListener('mousedown', closeActionMenu)
   }, [])
+
+  const filteredRequests = useMemo(() => {
+    const query = appliedSearch.toLowerCase()
+    const result = requests.filter(item => {
+      const searchable = [item.leaveType, item.durationType, item.fromDate, item.toDate, item.reason, item.status].join(' ').toLowerCase()
+      return (!statusFilter || String(item.status || 'PENDING').toUpperCase() === statusFilter) && (!query || searchable.includes(query))
+    })
+    const [sortBy, sortOrder] = sortValue.split(':')
+    return result.sort((left, right) => {
+      const leftValue = sortBy === 'status' ? left.status || 'PENDING' : sortBy === 'leaveType' ? left.leaveType || '' : left.appliedAt || left.createdAt || left.submittedAt || ''
+      const rightValue = sortBy === 'status' ? right.status || 'PENDING' : sortBy === 'leaveType' ? right.leaveType || '' : right.appliedAt || right.createdAt || right.submittedAt || ''
+      const comparison = String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' })
+      return sortOrder === 'asc' ? comparison : -comparison
+    })
+  }, [appliedSearch, requests, sortValue, statusFilter])
+  const requestPageSize = 5
+  const requestPageCount = Math.max(1, Math.ceil(filteredRequests.length / requestPageSize))
+  const safeRequestPage = Math.min(Math.max(1, requestPage), requestPageCount)
+  const visibleRequests = filteredRequests.slice((safeRequestPage - 1) * requestPageSize, safeRequestPage * requestPageSize)
+
+  useEffect(() => {
+    setRequestPage(current => Math.min(Math.max(1, current), requestPageCount))
+  }, [requestPageCount])
 
   useEffect(() => {
     if (!delegatedTarget || delegatedMode !== 'REPLACEMENT' || !delegatedForm.replacementFacultyId) return
@@ -384,7 +430,9 @@ export function FacultyLeaveRequests() {
 
       <div className="faculty-leave-history-card">
         <div className="faculty-leave-card-heading"><div><h2>My Requests</h2><p>Newest requests appear first.</p></div><Clock3 size={20} /></div>
-        {loading ? <div className="faculty-leave-empty faculty-leave-table-state">Loading leave requests...</div> : <div className="faculty-leave-table-wrap"><table className="faculty-leave-table"><caption className="sr-only">My leave requests</caption><thead><tr><th scope="col">S.No</th><th scope="col">Leave Type</th><th scope="col">Day Type</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Applied Date</th><th scope="col">Actions</th></tr></thead><tbody>{requests.map((item, index) => { const isPending = String(item.status || 'PENDING').toUpperCase() === 'PENDING'; const isActionMenuVisible = openActionMenu === item.id; return <tr key={`table-${item.id}`}><td>{index + 1}</td><td>{item.leaveType || '-'}</td><td>{requestDuration(item)}</td><td>{requestDates(item)}</td><td>{item.durationType === 'FULL_DAY' ? `${item.durationDays || fullDayCount(item.fromDate, item.toDate) || '-'} Day${Number(item.durationDays || fullDayCount(item.fromDate, item.toDate)) === 1 ? '' : 's'}` : requestDateTime(item)}</td><td className="faculty-leave-reason-cell">{item.reason || '-'}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{formatAppliedDate(item.appliedAt || item.createdAt || item.submittedAt)}</td><td><div className={`faculty-leave-action-menu${index === 0 ? ' is-first-row' : ''}`}><button type="button" className="faculty-leave-action-trigger" aria-label={`Actions for request ${index + 1}`} aria-expanded={isActionMenuVisible} onClick={() => setOpenActionMenu(item.id)}><MoreVertical size={19} /></button>{isActionMenuVisible ? <div className="faculty-leave-action-dropdown" role="menu"><button type="button" role="menuitem" disabled={!isPending} onClick={() => isPending && openEditForm(item)}>Edit</button><button type="button" role="menuitem" disabled={!isPending} onClick={() => { if (isPending) { setCancelRequest(item); setOpenActionMenu(null) } }}>Cancel</button></div> : null}</div></td></tr> })}{!requests.length ? <tr><td colSpan="9" className="faculty-leave-table-empty">No leave requests</td></tr> : null}</tbody></table></div>}
+        <div className="faculty-leave-list-toolbar"><div className="faculty-leave-list-search"><input aria-label="Search leave requests" placeholder="Search leave requests" value={search} onChange={event => setSearch(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { setAppliedSearch(search.trim()); setRequestPage(1) } }} /><button type="button" onClick={() => { setAppliedSearch(search.trim()); setRequestPage(1) }}>Search</button></div><FacultyLeaveFilterSelect ariaLabel="Filter leave requests by status" value={statusFilter} options={[{ value: '', label: 'All statuses' }, { value: 'PENDING', label: 'Pending' }, { value: 'APPROVED', label: 'Approved' }, { value: 'REJECTED', label: 'Rejected' }, { value: 'CANCELLED', label: 'Cancelled' }]} onChange={value => { setStatusFilter(value); setRequestPage(1) }} /><select aria-label="Sort leave requests" value={sortValue} onChange={event => { setSortValue(event.target.value); setRequestPage(1) }}><option value="appliedAt:desc">Newest first</option><option value="appliedAt:asc">Oldest first</option><option value="status:asc">Status A-Z</option><option value="leaveType:asc">Leave type A-Z</option></select><span className="faculty-leave-list-count">{filteredRequests.length} requests</span></div>
+        {loading ? <div className="faculty-leave-table-wrap"><table className="faculty-leave-table"><thead><tr><th>S.No</th><th>Leave Type</th><th>Day Type</th><th>Date</th><th>Duration</th><th>Reason</th><th>Status</th><th>Applied Date</th><th>Actions</th></tr></thead><tbody>{Array.from({ length: 5 }, (_, index) => <tr key={`faculty-leave-skeleton-${index}`} className="faculty-leave-skeleton-row" aria-hidden="true">{Array.from({ length: 9 }, (_, cellIndex) => <td key={cellIndex}><span className={`faculty-leave-skeleton-cell cell-${cellIndex}`} /></td>)}</tr>)}</tbody></table></div> : <div className="faculty-leave-table-wrap"><table className="faculty-leave-table"><caption className="sr-only">My leave requests</caption><thead><tr><th scope="col">S.No</th><th scope="col">Leave Type</th><th scope="col">Day Type</th><th scope="col">Date</th><th scope="col">Duration</th><th scope="col">Reason</th><th scope="col">Status</th><th scope="col">Applied Date</th><th scope="col">Actions</th></tr></thead><tbody>{visibleRequests.map((item, index) => { const isPending = String(item.status || 'PENDING').toUpperCase() === 'PENDING'; const isActionMenuVisible = openActionMenu === item.id; return <tr key={`table-${item.id}`}><td>{(safeRequestPage - 1) * requestPageSize + index + 1}</td><td>{item.leaveType || '-'}</td><td>{requestDuration(item)}</td><td>{requestDates(item)}</td><td>{item.durationType === 'FULL_DAY' ? `${item.durationDays || fullDayCount(item.fromDate, item.toDate) || '-'} Day${Number(item.durationDays || fullDayCount(item.fromDate, item.toDate)) === 1 ? '' : 's'}` : requestDateTime(item)}</td><td className="faculty-leave-reason-cell">{item.reason || '-'}</td><td><span className={`faculty-leave-status status-${String(item.status || 'PENDING').toLowerCase()}`}>{item.status || 'PENDING'}</span></td><td>{formatAppliedDate(item.appliedAt || item.createdAt || item.submittedAt)}</td><td><div className={`faculty-leave-action-menu${index === 0 ? ' is-first-row' : ''}`}><button type="button" className="faculty-leave-action-trigger" aria-label={`Actions for request ${index + 1}`} aria-expanded={isActionMenuVisible} onClick={() => setOpenActionMenu(item.id)}><MoreVertical size={19} /></button>{isActionMenuVisible ? <div className="faculty-leave-action-dropdown" role="menu"><button type="button" role="menuitem" disabled={!isPending} onClick={() => isPending && openEditForm(item)}>Edit</button><button type="button" role="menuitem" disabled={!isPending} onClick={() => { if (isPending) { setCancelRequest(item); setOpenActionMenu(null) } }}>Cancel</button></div> : null}</div></td></tr> })}{!visibleRequests.length ? <tr><td colSpan="9" className="faculty-leave-table-empty">{appliedSearch || statusFilter ? 'No leave requests match the selected search or filter.' : 'No leave requests found.'}</td></tr> : null}</tbody></table></div>}
+        {!loading && filteredRequests.length > requestPageSize ? <div className="faculty-leave-pagination"><span>Page {safeRequestPage} of {requestPageCount}</span><div><button type="button" disabled={safeRequestPage === 1} onClick={() => setRequestPage(page => Math.max(1, page - 1))}>Previous</button><button type="button" disabled={safeRequestPage >= requestPageCount} onClick={() => setRequestPage(page => Math.min(requestPageCount, page + 1))}>Next</button></div></div> : null}
       </div>
     </div>
     {cancelRequest ? <div className="faculty-leave-warning-popup" role="presentation"><div className="faculty-leave-warning-card faculty-leave-confirm-card" role="dialog" aria-modal="true" aria-labelledby="cancel-leave-title"><button type="button" className="faculty-leave-confirm-close" aria-label="Close cancel confirmation" onClick={() => setCancelRequest(null)} disabled={saving}><X size={19} /></button><strong id="cancel-leave-title">Cancel Leave Request?</strong><p>Are you sure you want to cancel this leave request?</p><p className="faculty-leave-cancel-details">{requestDates(cancelRequest)} · {requestDuration(cancelRequest)}</p><div className="faculty-leave-confirm-actions"><button type="button" className="faculty-leave-cancel-button" onClick={() => setCancelRequest(null)} disabled={saving}>Keep Request</button><button type="button" onClick={confirmCancelRequest} disabled={saving}>{saving ? 'Cancelling...' : 'Confirm Cancel'}</button></div></div></div> : null}

@@ -124,7 +124,7 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <Card className="auth-card login-shell login-page forgot-page">
+    <Card className="auth-card login-shell login-page forgot-page auth-route-full-page">
       <section className={`login-form-panel forgot-form-panel ${sentEmail ? 'forgot-success-panel' : ''}`}>
         <div className="forgot-topbar">
           <img className="forgot-brand-logo" src="/logo1.JPG" alt="CISPRO logo" />
@@ -157,7 +157,7 @@ export function ForgotPasswordPage() {
             <div className="login-copy forgot-copy">
               <p className="forgot-kicker">Recovery</p>
               <h2>Forgot password</h2>
-              <p>Enter your  email address and we&apos;ll send you a link to reset your password.</p>
+              <p>Enter your email address and we&apos;ll send you a secure link to reset your password.</p>
             </div>
 
             <form className="form login-form forgot-form" onSubmit={onSubmit}>

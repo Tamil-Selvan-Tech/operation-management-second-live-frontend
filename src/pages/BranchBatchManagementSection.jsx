@@ -8,6 +8,8 @@ import {
   Trash2,
   UsersRound,
   Download,
+  ChevronDown,
+  Layers3,
   X,
 } from 'lucide-react'
 import { PaginationBar } from '../components/PaginationBar'
@@ -27,10 +29,73 @@ import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { getCurrentFacultyAttendanceOverview } from '../services/attendanceService'
 import { calculateBatchCourseEndDate, getBatchAvailability } from '../lib/batchAllocation'
 import '../styles/BranchBatchManagementSection.css'
+import '../styles/SuperAdminDashboardPage.css'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
 
 function normalizeText(value = '') {
   return String(value || '').trim()
+}
+
+function BranchBatchFilterSelect({ value, options, onChange, ariaLabel, width = 150 }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef(null)
+  const selectedOption = options.find((option) => String(option.value) === String(value)) || options[0]
+
+  useEffect(() => {
+    if (!isOpen) return undefined
+
+    const closeOnOutsideClick = (event) => {
+      if (!containerRef.current?.contains(event.target)) setIsOpen(false)
+    }
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setIsOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isOpen])
+
+  return (
+    <div
+      ref={containerRef}
+      className={`super-admin-branch-filter branch-course-custom-filter ${isOpen ? 'is-open' : ''}`.trim()}
+      style={{ width: `${width}px` }}
+    >
+      <button
+        type="button"
+        className="super-admin-branch-filter-trigger"
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        <span>{selectedOption?.label || 'Select'}</span>
+        <ChevronDown size={15} strokeWidth={2.2} aria-hidden="true" />
+      </button>
+      {isOpen ? (
+        <div className="super-admin-branch-filter-menu" role="listbox" aria-label={ariaLabel}>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={String(option.value) === String(value)}
+              className={`super-admin-branch-filter-option ${String(option.value) === String(value) ? 'is-selected' : ''}`.trim()}
+              onClick={() => {
+                onChange(option.value)
+                setIsOpen(false)
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 function getWeeklyOffStartMessage(startDate, weekType, weeklyOffDay) {
@@ -662,6 +727,12 @@ export function BranchBatchManagementSection({
   const [isCourseSearchFocused, setIsCourseSearchFocused] = useState(false)
   const [isFacultySearchFocused, setIsFacultySearchFocused] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState('')
+  const [batchStatusFilter, setBatchStatusFilter] = useState('all')
+  const [batchCourseFilter, setBatchCourseFilter] = useState('all')
+  const [batchFacultyFilter, setBatchFacultyFilter] = useState('all')
+  const [batchSortBy, setBatchSortBy] = useState('createdAt')
+  const [batchSortOrder, setBatchSortOrder] = useState('desc')
   const [batchTablePage, setBatchTablePage] = useState(1)
   const [actionMenuOpenId, setActionMenuOpenId] = useState('')
   const [actionMenuPosition, setActionMenuPosition] = useState(null)
@@ -1548,9 +1619,29 @@ export function BranchBatchManagementSection({
     ],
   )
 
-  const filteredGroups = batchGroups
+  const batchFilterOptions = useMemo(() => {
+    const courseOptions = new Map()
+    const facultyOptions = new Map()
+
+    currentBranchBatchGroups.forEach((group) => {
+      const courseId = normalizeText(group?.courseId || group?.branchCourseId || group?.courseName)
+      const courseName = normalizeText(group?.courseName || courseId)
+      const facultyId = normalizeText(group?.facultyId || group?.branchFacultyId || group?.facultyName)
+      const facultyName = normalizeText(group?.facultyName || facultyId)
+
+      if (courseId && courseName) courseOptions.set(courseId, courseName)
+      if (facultyId && facultyName) facultyOptions.set(facultyId, facultyName)
+    })
+
+    return {
+      courses: [...courseOptions.entries()].sort((left, right) => left[1].localeCompare(right[1])),
+      faculties: [...facultyOptions.entries()].sort((left, right) => left[1].localeCompare(right[1])),
+    }
+  }, [currentBranchBatchGroups])
+
+  const filteredGroups = currentBranchBatchGroups
     .filter((group) => {
-      const search = normalizeText(searchTerm).toLowerCase()
+      const search = normalizeText(appliedSearchTerm).toLowerCase()
       if (!search) return true
 
       const haystack = [
@@ -1566,7 +1657,41 @@ export function BranchBatchManagementSection({
 
       return haystack.includes(search)
     })
-    .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')))
+    .filter((group) => {
+      if (batchStatusFilter === 'all') return true
+      const status = isInactiveBatchGroup(group) ? 'inactive' : 'active'
+      return status === batchStatusFilter
+    })
+    .filter((group) => {
+      if (batchCourseFilter === 'all') return true
+      return normalizeId(group?.courseId || group?.branchCourseId || group?.courseName) === normalizeId(batchCourseFilter)
+    })
+    .filter((group) => {
+      if (batchFacultyFilter === 'all') return true
+      return normalizeId(group?.facultyId || group?.branchFacultyId || group?.facultyName) === normalizeId(batchFacultyFilter)
+    })
+    .sort((left, right) => {
+      const leftValue = batchSortBy === 'name'
+        ? (left?.batchName || left?.batchId || left?.batchGroupId || '')
+        : batchSortBy === 'course'
+          ? (left?.courseName || '')
+          : batchSortBy === 'faculty'
+            ? (left?.facultyName || '')
+            : batchSortBy === 'status'
+              ? (isInactiveBatchGroup(left) ? 'Inactive' : 'Active')
+              : (left?.createdAt || '')
+      const rightValue = batchSortBy === 'name'
+        ? (right?.batchName || right?.batchId || right?.batchGroupId || '')
+        : batchSortBy === 'course'
+          ? (right?.courseName || '')
+          : batchSortBy === 'faculty'
+            ? (right?.facultyName || '')
+            : batchSortBy === 'status'
+              ? (isInactiveBatchGroup(right) ? 'Inactive' : 'Active')
+              : (right?.createdAt || '')
+      const comparison = String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: 'base' })
+      return batchSortOrder === 'asc' ? comparison : -comparison
+    })
 
   const displayGroups = []
   const uniqueDisplayGroupKeys = new Set()
@@ -2242,16 +2367,25 @@ export function BranchBatchManagementSection({
           <h2>Batch Management</h2>
         </div>
         <div className="branch-dashboard-section-heading-actions">
-          <button type="button" className="button button-solid batch-create-button" onClick={openCreateModal}>
-            <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
-            Create Batch
-          </button>
+          <div className="batch-management-count-card batch-management-count-card-inline" aria-label={`${displayGroups.length} total batches`}>
+            <span className="batch-management-count-card-icon" aria-hidden="true">
+              <Layers3 size={17} strokeWidth={2.2} />
+            </span>
+            <div className="batch-management-count-card-copy">
+              <span className="batch-management-count-label">Total batches</span>
+              <strong key={displayGroups.length}>{displayGroups.length}</strong>
+            </div>
+          </div>
         </div>
       </div>
 
       <form
         className="batch-management-toolbar"
-        onSubmit={(event) => event.preventDefault()}
+        onSubmit={(event) => {
+          event.preventDefault()
+          setAppliedSearchTerm(searchTerm)
+          setBatchTablePage(1)
+        }}
       >
         <div className="batch-management-search-bar">
           <input
@@ -2259,15 +2393,41 @@ export function BranchBatchManagementSection({
             className="batch-management-search"
             placeholder="Search batch"
             value={searchTerm}
-            onChange={(event) => {
-              setSearchTerm(event.target.value)
-              setBatchTablePage(1)
-            }}
+            onChange={(event) => setSearchTerm(event.target.value)}
           />
-          <button type="submit" className="button button-solid batch-management-search-button">
+          <button
+            type="submit"
+            className="button button-solid batch-management-search-button"
+          >
             Search
           </button>
         </div>
+        <div className="batch-management-filter-controls" aria-label="Batch filters">
+          <BranchBatchFilterSelect
+            value={batchCourseFilter}
+            width={150}
+            ariaLabel="Filter by course"
+            options={[
+              { value: 'all', label: 'All courses' },
+              ...batchFilterOptions.courses.map(([value, label]) => ({ value, label })),
+            ]}
+            onChange={(value) => { setBatchCourseFilter(value); setBatchTablePage(1) }}
+          />
+          <BranchBatchFilterSelect
+            value={batchFacultyFilter}
+            width={150}
+            ariaLabel="Filter by faculty"
+            options={[
+              { value: 'all', label: 'All faculty' },
+              ...batchFilterOptions.faculties.map(([value, label]) => ({ value, label })),
+            ]}
+            onChange={(value) => { setBatchFacultyFilter(value); setBatchTablePage(1) }}
+          />
+        </div>
+        <button type="button" className="button button-solid batch-create-button" onClick={openCreateModal}>
+          <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
+          Create Batch
+        </button>
       </form>
 
       <div className="batch-management-table-shell">
@@ -2287,12 +2447,20 @@ export function BranchBatchManagementSection({
               </tr>
             </thead>
             <tbody>
-              {paginatedGroups.length ? (
+              {isLoading ? (
+                Array.from({ length: 6 }, (_, rowIndex) => (
+                  <tr key={`batch-loading-${rowIndex}`} className="branch-batch-skeleton-row" aria-hidden="true">
+                    {Array.from({ length: 9 }, (_, cellIndex) => <td key={`batch-loading-${rowIndex}-${cellIndex}`}><span /></td>)}
+                  </tr>
+                ))
+              ) : paginatedGroups.length ? (
                 paginatedGroups.map(renderBatchRow)
               ) : (
                 <tr>
                   <td colSpan={9} className="batch-management-empty-cell">
-                    {isLoading ? 'Loading batches...' : 'No batches created yet. Use Create Batch to add the first batch.'}
+                    {appliedSearchTerm || batchStatusFilter !== 'all' || batchCourseFilter !== 'all' || batchFacultyFilter !== 'all'
+                      ? 'No batches match the selected search or filters.'
+                      : 'No batches created yet. Use Create Batch to add the first batch.'}
                   </td>
                 </tr>
               )}

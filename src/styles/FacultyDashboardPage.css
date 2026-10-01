@@ -5544,6 +5544,21 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-leave-history-card { width: 100%; margin-left: 0; padding: 0; overflow: visible; }
 .faculty-leave-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 20px; color: #2563eb; }
 .faculty-leave-history-card .faculty-leave-card-heading { padding: 22px 22px 0; }
+.faculty-leave-list-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 22px 18px; }
+.faculty-leave-list-search { display: flex; align-items: center; gap: 8px; width: min(470px, 100%); flex: 1 1 360px; }
+.faculty-leave-list-search input, .faculty-leave-list-toolbar select { min-height: 40px; box-sizing: border-box; border: 1px solid #d4dfed; border-radius: 9px; background: #fff; color: #172b4d; font: inherit; font-size: 13px; }
+.faculty-leave-list-search input { width: 100%; min-width: 0; padding: 9px 11px; }
+.faculty-leave-list-search input:focus, .faculty-leave-list-toolbar select:focus { outline: 3px solid rgba(37, 99, 235, .12); border-color: #3b82f6; }
+.faculty-leave-list-search button { min-height: 40px; padding: 9px 15px; border: 0; border-radius: 9px; color: #fff; background: #2563eb; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.faculty-leave-list-toolbar select { min-width: 145px; padding: 8px 10px; font-weight: 700; }
+.faculty-leave-filter-select { position: relative; width: 145px; flex: 0 0 145px; }
+.faculty-leave-filter-trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 40px; padding: 8px 10px !important; border: 1px solid #d4dfed !important; border-radius: 9px !important; color: #172b4d !important; background: #fff !important; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.faculty-leave-filter-trigger svg { color: #64748b; transition: transform .18s ease; }
+.faculty-leave-filter-select.is-open .faculty-leave-filter-trigger svg { transform: rotate(180deg); }
+.faculty-leave-filter-menu { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; right: 0; display: grid; gap: 3px; padding: 5px; border: 1px solid #dce6f2; border-radius: 10px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, .14); }
+.faculty-leave-filter-menu button { width: 100%; padding: 8px 10px !important; border: 0 !important; border-radius: 7px !important; color: #334155 !important; background: transparent !important; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.faculty-leave-filter-menu button:hover, .faculty-leave-filter-menu button.is-selected { color: #2563eb !important; background: #eff6ff !important; }
+.faculty-leave-list-count { margin-left: auto; color: #64748b; font-size: 13px; font-weight: 800; white-space: nowrap; }
 .faculty-leave-card-heading h2 { margin: 0 0 5px; color: #172b4d; font-size: 19px; }
 .faculty-leave-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .faculty-leave-form-grid label { display: grid; gap: 7px; color: #334155; font-size: 13px; font-weight: 700; }
@@ -5625,8 +5640,25 @@ body.faculty-notification-menu-open .super-admin-content {
 .faculty-leave-table td small { margin-top: 5px; color: #64748b; font-size: 12px; }
 .faculty-leave-reason-cell { min-width: 180px; max-width: 320px; white-space: normal; line-height: 1.45; }
 .faculty-leave-table-state { min-height: 96px; padding: 12px 20px 18px; }
+.faculty-leave-skeleton-row td { height: 52px; }
+.faculty-leave-skeleton-cell { display: block; height: 13px; border-radius: 6px; background: linear-gradient(90deg, #e8eef7 25%, #f8fbff 50%, #e8eef7 75%); background-size: 200% 100%; animation: faculty-leave-skeleton-shimmer 1.35s ease-in-out infinite; }
+.faculty-leave-skeleton-cell.cell-0 { width: 24px; }
+.faculty-leave-skeleton-cell.cell-1 { width: 75px; }
+.faculty-leave-skeleton-cell.cell-2 { width: 70px; }
+.faculty-leave-skeleton-cell.cell-3 { width: 110px; }
+.faculty-leave-skeleton-cell.cell-4 { width: 65px; }
+.faculty-leave-skeleton-cell.cell-5 { width: 150px; max-width: 80%; }
+.faculty-leave-skeleton-cell.cell-6 { width: 70px; }
+.faculty-leave-skeleton-cell.cell-7 { width: 95px; }
+.faculty-leave-skeleton-cell.cell-8 { width: 32px; height: 32px; border-radius: 8px; }
+@keyframes faculty-leave-skeleton-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.faculty-leave-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 22px 22px; color: #64748b; font-size: 13px; }
+.faculty-leave-pagination > div { display: flex; gap: 8px; }
+.faculty-leave-pagination button { min-height: 34px; padding: 7px 11px; border: 1px solid #d4dfed; border-radius: 8px; color: #334155; background: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.faculty-leave-pagination button:disabled { opacity: .5; cursor: not-allowed; }
 .faculty-leave-legacy-list, .faculty-leave-legacy-state { display: none; }
 @media (max-width: 560px) { .faculty-leave-page-header > div:first-child { transform: none; } .faculty-leave-page-header-actions { align-items: flex-end; flex-direction: column; gap: 9px; } .faculty-leave-apply-button { width: 100%; justify-content: center; } .faculty-leave-modal-backdrop { align-items: start; padding: 10px; } .faculty-leave-modal .faculty-leave-form-card { max-height: calc(100vh - 20px); padding: 16px; } .faculty-leave-history-card { width: 100%; margin-left: 0; } .faculty-leave-history-card .faculty-leave-card-heading { padding: 16px 16px 0; } .faculty-leave-modal-actions { flex-direction: column-reverse; align-items: stretch; } }
+@media (max-width: 700px) { .faculty-leave-list-toolbar { align-items: stretch; padding: 0 16px 16px; } .faculty-leave-list-search, .faculty-leave-list-toolbar select, .faculty-leave-filter-select, .faculty-leave-list-count { width: 100%; min-width: 0; flex-basis: 100%; margin-left: 0; } .faculty-leave-list-search button { width: auto; } .faculty-leave-pagination { align-items: stretch; flex-direction: column; padding: 14px 16px 18px; } .faculty-leave-pagination > div { justify-content: space-between; } }
 @media (max-width: 640px) { .faculty-dashboard-page .branch-dashboard-stats { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .super-admin-page .branch-dashboard-stats { grid-template-columns: 1fr; } }
 .faculty-other-batches-action-button,
