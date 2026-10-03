@@ -18,8 +18,22 @@ function reportSummary(items = [], type) {
   return { obtained, total, percentage: total ? (obtained / total) * 100 : null, notAttended }
 }
 
+function visibleReportItems(items = [], type) {
+  const logicalName = (value) => String(value || '').replace(/\s*-\s*retest(?:\s+\d+)?\s*$/i, '').trim().toLowerCase()
+  const evaluatedNames = new Set(items
+    .filter((item) => ['SUBMITTED', 'EVALUATED'].includes(item.status) && parseMarks(item.marks))
+    .map((item) => logicalName(type === 'test' ? item.testName : item.assessmentName))
+    .filter(Boolean))
+  return items.filter((item) => {
+    const isNotAttended = ['NOT_ATTEMPTED', 'NOT_SUBMITTED'].includes(item.status)
+    const name = logicalName(type === 'test' ? item.testName : item.assessmentName)
+    return !(isNotAttended && evaluatedNames.has(name))
+  })
+}
+
 function ReportCell({ items, type }) {
-  return <div className="branch-report-cell">{items.length ? items.map((item, index) => { const evaluated = ['SUBMITTED', 'EVALUATED'].includes(item.status); const notAttended = ['NOT_ATTEMPTED', 'NOT_SUBMITTED'].includes(item.status); return <div key={`${item.module}-${index}`}><span>{type === 'test' ? item.testName : item.assessmentName}: {notAttended ? 'Not Attended' : evaluated ? item.marks : '-'}</span>{evaluated && <small>{item.percentage != null ? `${Number(item.percentage).toFixed(2)}%` : '-'}</small>}</div> }) : <span>-</span>}</div>
+  const displayItems = visibleReportItems(items, type)
+  return <div className="branch-report-cell">{displayItems.length ? displayItems.map((item, index) => { const evaluated = ['SUBMITTED', 'EVALUATED'].includes(item.status); const notAttended = ['NOT_ATTEMPTED', 'NOT_SUBMITTED'].includes(item.status); return <div key={`${item.module}-${index}`}><span>{type === 'test' ? item.testName : item.assessmentName}: {notAttended ? 'Not Attended' : evaluated ? item.marks : '-'}</span>{evaluated && <small>{item.percentage != null ? `${Number(item.percentage).toFixed(2)}%` : '-'}</small>}</div> }) : <span>-</span>}</div>
 }
 
 function ReportTypeFilterSelect({ value, options, onChange, ariaLabel, width = 145 }) {

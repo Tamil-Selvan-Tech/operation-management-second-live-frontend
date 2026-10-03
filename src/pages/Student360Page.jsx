@@ -13,8 +13,10 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getStudentAttendanceSummary } from '../services/studentService'
+import { getBranchStudentSyllabusReports } from '../services/examService'
+import { getBranchStudentAcademicReports } from '../services/academicTestService'
 
 import './Student360Page.css'
 
@@ -173,7 +175,7 @@ function formatAttendanceDate(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function AttendanceSection({ studentId, student, onViewCalendar }) {
+function AttendanceSection({ studentId, student }) {
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(Boolean(studentId))
   const [error, setError] = useState('')
@@ -181,7 +183,6 @@ function AttendanceSection({ studentId, student, onViewCalendar }) {
   useEffect(() => {
     let active = true
     if (!studentId) {
-      setLoading(false)
       return undefined
     }
 
@@ -232,6 +233,47 @@ function AttendanceSection({ studentId, student, onViewCalendar }) {
       )}
     </SectionCard>
   )
+}
+
+function PerformanceRing({ percentage, size = 'normal' }) {
+  const value = Number(percentage)
+  const evaluated = Number.isFinite(value)
+  const safeValue = evaluated ? Math.min(100, Math.max(0, value)) : 0
+  return <div className={`student360-performance-ring ${size === 'small' ? 'is-small' : ''} ${evaluated ? '' : 'is-empty'}`.trim()} style={{ '--ring-value': `${safeValue * 3.6}deg` }}><span>{evaluated ? `${safeValue.toFixed(0)}%` : '—'}</span></div>
+}
+
+function PerformanceSection({ studentId }) {
+  const [data, setData] = useState({ skills: [], academic: [] })
+  const [loading, setLoading] = useState(Boolean(studentId))
+  const [error, setError] = useState('')
+
+  const load = useCallback(async () => {
+    if (!studentId) return
+    setLoading(true)
+    setError('')
+    const [syllabusResult, academicResult] = await Promise.allSettled([
+      getBranchStudentSyllabusReports(studentId),
+      getBranchStudentAcademicReports(studentId),
+    ])
+    const syllabus = syllabusResult.status === 'fulfilled' ? (syllabusResult.value?.data || syllabusResult.value || {}) : null
+    const academic = academicResult.status === 'fulfilled' ? (academicResult.value?.data || academicResult.value || {}) : null
+    if (!syllabus && !academic) setError('Unable to load performance data.')
+    setData({ skills: syllabus?.skills || [], academic: academic?.evaluations || [] })
+    setLoading(false)
+  }, [studentId])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [load])
+
+  return <section className="student360-card student360-performance-card">
+    <div className="student360-performance-header"><div><span className="student360-performance-kicker">PERFORMANCE</span><h2>Student Performance</h2><p>Track module skills and academic evaluation results.</p></div><button type="button" className="student360-performance-refresh" onClick={() => void load()} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</button></div>
+    {loading ? <div className="student360-no-data">Loading performance...</div> : error ? <div className="student360-performance-error"><span>{error}</span><button type="button" onClick={() => void load()}>Retry</button></div> : <div className="student360-performance-sections">
+      <section className="student360-performance-block student360-skills-block"><div className="student360-subsection-heading"><div><h3>Skills</h3><p>Module-wise skill performance based on submitted reports.</p></div><span>{data.skills.length} module{data.skills.length === 1 ? '' : 's'}</span></div>{data.skills.length ? <div className="student360-skill-grid">{data.skills.map((skill) => <article className="student360-skill-card" key={skill.moduleId || skill.moduleName}><div className="student360-skill-card-top"><div><span className="student360-skill-label">MODULE SKILL</span><h4>{skill.moduleName}</h4></div><PerformanceRing percentage={skill.overallPercentage} /></div><div className="student360-skill-footer"><span>{skill.testCount} submitted test{skill.testCount === 1 ? '' : 's'}</span><strong><i />Report Submitted</strong></div></article>)}</div> : <div className="student360-no-data">No module reports available yet.</div>}</section>
+      <section className="student360-performance-block student360-academic-block"><div className="student360-subsection-heading"><div><h3>Academic Performance</h3><p>Fixed evaluations and their latest submitted results.</p></div><span>{data.academic.length} evaluation{data.academic.length === 1 ? '' : 's'}</span></div>{data.academic.length ? <div className="student360-academic-grid">{data.academic.map((evaluation) => { const evaluated = Number.isFinite(Number(evaluation.percentage)); const submitted = String(evaluation.status || '').toUpperCase() === 'SUBMITTED' || evaluated; const marks = evaluation.marksObtained != null && evaluation.totalMarks != null ? `${evaluation.marksObtained} / ${evaluation.totalMarks}` : ''; return <article className="student360-academic-card" key={evaluation.evaluationId || evaluation.name}><PerformanceRing percentage={evaluation.percentage} size="small" /><div className="student360-academic-copy"><span className="student360-academic-label">{evaluation.type || 'Evaluation'}</span><h4>{evaluation.name}</h4>{marks ? <span className="student360-academic-marks">{marks} marks</span> : null}<strong className={submitted ? 'is-submitted' : ''}><i />{submitted ? 'Report Submitted' : 'Not Evaluated'}</strong></div><span className="student360-academic-value">{evaluated ? `${Number(evaluation.percentage).toFixed(2).replace(/\.00$/, '')}%` : 'Not Evaluated'}</span></article> })}</div> : <div className="student360-no-data">No academic evaluations configured yet.</div>}</section>
+    </div>}
+  </section>
 }
 
 function DetailItem({ label, value, icon: Icon }) {
@@ -357,7 +399,8 @@ export function Student360Page({
 
       <div className="student360-content-grid">
         <div className="student360-main-column">
-          <AttendanceSection studentId={studentId || student.studentId} student={student} onViewCalendar={onViewCalendar} />
+          <AttendanceSection studentId={studentId || student.studentId} student={student} />
+          <PerformanceSection studentId={studentId || student.studentId} />
           {/* Keep the existing monthly calendar available through the dedicated Calendar action. */}
           <SectionCard title="Attendance Calendar" className="student360-anchor-card" actions={<button type="button" className="student360-secondary-button" onClick={() => onViewCalendar?.(student)}><CalendarDays size={15} /> Calendar</button>}>
             <div className="student360-attendance-legend">
