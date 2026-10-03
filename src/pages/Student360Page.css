@@ -1,4 +1,12 @@
 .student360-page { display: grid; gap: 22px; padding: 4px 2px 36px; color: #0f172a; }
+.student360-attendance-course-meta { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; color: #64748b; font-size: 12px; }
+.student360-attendance-course-meta span { color: #334155; font-weight: 700; }
+.student360-attendance-summary-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.student360-attendance-summary-card { padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.student360-attendance-summary-card span, .student360-attendance-summary-card small { display: block; color: #64748b; font-size: 12px; }
+.student360-attendance-summary-card strong { display: block; margin: 8px 0 4px; color: #0f766e; font-size: 25px; font-variant-numeric: tabular-nums; }
+.student360-attendance-error { color: #b42318; }
+@media (max-width: 700px) { .student360-attendance-summary-cards { grid-template-columns: 1fr; }.student360-attendance-course-meta { align-items: flex-start; flex-direction: column; } }
 .student360-test-reports { display: grid; gap: 18px; }
 .student360-report-card { overflow: hidden; }
 .student360-report-card .student360-card-heading { margin-bottom: 0; }

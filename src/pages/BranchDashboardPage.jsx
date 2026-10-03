@@ -9270,6 +9270,7 @@ useEffect(() => {
             <div className="branch-dashboard-content">
               {activeSection === 'student-360' ? (
                 <Student360Page
+                  studentId={decodeURIComponent(student360Id)}
                   student={branchStudents.find((student) => [student?.studentId, student?.studentCode, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(student360Id)).trim().toLowerCase()))}
                   branch={branchProfile || branchData}
                   paymentHistory={allPaymentHistoryRecords}

@@ -328,6 +328,12 @@ export async function getStudentAttendanceOverview(studentId) {
   return unwrapData(response)
 }
 
+// Student 360 uses the same student-scoped attendance resource as the
+// calendar. The API owns schedule/leave eligibility and percentage totals.
+export async function getStudentAttendanceSummary(studentId) {
+  return getStudentAttendanceOverview(studentId)
+}
+
 export async function createStudent(payload) {
   const response = await request('/students', {
     method: 'POST',

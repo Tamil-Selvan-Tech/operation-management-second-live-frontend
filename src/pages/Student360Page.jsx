@@ -13,6 +13,8 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { getStudentAttendanceSummary } from '../services/studentService'
 
 import './Student360Page.css'
 
@@ -137,6 +139,101 @@ function getCourseProgress(student = {}) {
   return Number.isFinite(percentage) ? Math.min(100, Math.max(0, percentage)) : 0
 }
 
+function getPeriodValue(period = {}, key, fallback = 0) {
+  const aliases = key === 'eligible' ? ['eligible', 'eligibleClasses', 'scheduledDays', 'totalScheduledDays', 'scheduledSessions', 'total'] : [key, `${key}Count`, `${key}Days`]
+  const value = aliases.map((alias) => period?.[alias]).find((candidate) => candidate !== undefined && candidate !== null && candidate !== '') ?? fallback
+  const number = Number(value)
+  return Number.isFinite(number) ? number : fallback
+}
+
+function getPeriodPercentage(period = {}) {
+  const value = period?.percentage ?? period?.attendancePercentage ?? period?.presentPercentage ?? period?.presentPercent
+  const number = Number(value)
+  return Number.isFinite(number) ? number : null
+}
+
+function getPeriod(summary, name) {
+  const value = summary?.[name]
+  return Array.isArray(value) ? value[value.length - 1] || {} : value || {}
+}
+
+function formatAttendancePercentage(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number)) return '—'
+  return `${Number(number.toFixed(2))}%`
+}
+
+function hasPeriodData(period = {}) {
+  return ['percentage', 'attendancePercentage', 'presentPercentage', 'presentPercent', 'eligible', 'eligibleClasses', 'scheduledDays', 'totalScheduledDays', 'total'].some((key) => period?.[key] !== undefined && period?.[key] !== null)
+}
+
+function formatAttendanceDate(value) {
+  if (!value) return '—'
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function AttendanceSection({ studentId, student, onViewCalendar }) {
+  const [summary, setSummary] = useState(null)
+  const [loading, setLoading] = useState(Boolean(studentId))
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    if (!studentId) {
+      setLoading(false)
+      return undefined
+    }
+
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const result = await getStudentAttendanceSummary(studentId)
+        if (active) setSummary(result)
+      } catch (requestError) {
+        if (active) setError(requestError?.message || 'Unable to load attendance.')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void load()
+    const refresh = () => { void load() }
+    window.addEventListener('focus', refresh)
+    window.addEventListener('cispro:student-calendar-attendance-changed', refresh)
+    return () => {
+      active = false
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('cispro:student-calendar-attendance-changed', refresh)
+    }
+  }, [studentId])
+
+  const source = summary || {}
+  const course = source.course || {}
+  const weekly = getPeriod(source, 'weekly')
+  const monthly = getPeriod(source, 'monthly')
+  const overall = getPeriod(source, 'overall')
+  const cardData = [
+    ['Weekly Attendance', weekly],
+    ['Monthly Attendance', monthly],
+    ['Overall Course Attendance', overall],
+  ]
+
+  return (
+    <SectionCard title="Attendance" description="Attendance calculated from the active enrollment, course schedule, and daily records.">
+      {loading ? <div className="student360-no-data">Loading attendance...</div> : error ? <div className="student360-no-data student360-attendance-error">{error}</div> : (
+        <>
+          <div className="student360-attendance-course-meta">{course.startDate || student?.courseStartDate ? `${formatAttendanceDate(course.startDate || student.courseStartDate)} → ${formatAttendanceDate(course.endDate || student.courseEndDate)}` : 'Course dates unavailable'}<span>{course.schedule || course.scheduleType || student?.classSchedule || 'Schedule unavailable'}</span></div>
+          <div className="student360-attendance-summary-cards">
+            {cardData.map(([label, period]) => { const available = hasPeriodData(period); return <article className="student360-attendance-summary-card" key={label}><span>{label}</span><strong>{available ? formatAttendancePercentage(getPeriodPercentage(period)) : '—'}</strong><small>{available ? `${getPeriodValue(period, 'present')} / ${getPeriodValue(period, 'eligible', getPeriodValue(period, 'total'))} Classes` : 'No data'}</small></article> })}
+          </div>
+        </>
+      )}
+    </SectionCard>
+  )
+}
+
 function DetailItem({ label, value, icon: Icon }) {
   return (
     <div className="student360-detail-item">
@@ -165,6 +262,7 @@ function SectionCard({ title, description, actions, children, className = '', id
 }
 
 export function Student360Page({
+  studentId = '',
   student = null,
   paymentHistory = [],
   onBack,
@@ -259,7 +357,9 @@ export function Student360Page({
 
       <div className="student360-content-grid">
         <div className="student360-main-column">
-          <SectionCard title="Attendance & Calendar" actions={<button type="button" className="student360-secondary-button" onClick={() => onViewCalendar?.(student)}><CalendarDays size={15} /> Calendar</button>}>
+          <AttendanceSection studentId={studentId || student.studentId} student={student} onViewCalendar={onViewCalendar} />
+          {/* Keep the existing monthly calendar available through the dedicated Calendar action. */}
+          <SectionCard title="Attendance Calendar" className="student360-anchor-card" actions={<button type="button" className="student360-secondary-button" onClick={() => onViewCalendar?.(student)}><CalendarDays size={15} /> Calendar</button>}>
             <div className="student360-attendance-legend">
               <span className="present"><i />Present ({attendanceSummary.present})</span>
               <span className="absent"><i />Absent ({attendanceSummary.absent})</span>
