@@ -14,7 +14,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { getStudentAttendanceSummary } from '../services/studentService'
+import { getBranchStudent, getStudentAttendanceSummary } from '../services/studentService'
 import { getBranchStudentSyllabusReports } from '../services/examService'
 import { getBranchStudentAcademicReports } from '../services/academicTestService'
 
@@ -314,6 +314,24 @@ export function Student360Page({
   onDownloadAttendance,
   onDownloadPaymentReceipt,
 }) {
+  const [academicTestProgress, setAcademicTestProgress] = useState(null)
+  const [academicTestProgressError, setAcademicTestProgressError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    if (!studentId) return undefined
+    setAcademicTestProgress(null)
+    setAcademicTestProgressError('')
+    getBranchStudent(studentId)
+      .then((result) => {
+        if (active) setAcademicTestProgress(result?.academicTestProgress || { totalTests: 0, completedTests: 0, pendingTests: 0, percentage: 0 })
+      })
+      .catch((error) => {
+        if (active) setAcademicTestProgressError(error?.message || 'Unable to load academic test progress.')
+      })
+    return () => { active = false }
+  }, [studentId])
+
   if (!student) {
     return (
       <section className="student360-page student360-empty-state">
@@ -395,6 +413,7 @@ export function Student360Page({
         <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{displayValue(student.batchName || student.batch)}</strong><small>{displayValue(student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
         <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{displayValue(student.facultyName)}</strong><small>Assigned faculty</small></div></article>
         <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{Math.round(courseProgress)}%</strong><div className="student360-summary-progress-track"><span style={{ width: `${courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
+        <article className="student360-summary-card student360-summary-academic-progress-card"><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div></article>
       </section>
 
       <div className="student360-content-grid">
