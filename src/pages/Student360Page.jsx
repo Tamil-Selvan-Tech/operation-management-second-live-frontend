@@ -412,6 +412,9 @@ export function Student360Page({
             </div>
             <div className="student360-attendance-grid">{attendanceCells.map((entry) => <div className={`student360-attendance-cell ${entry.status}`} key={entry.date} title={`${entry.date} · ${entry.status}`}><strong>{entry.day}</strong><small>{new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })}</small></div>)}</div>
           </SectionCard>
+        </div>
+
+        <aside className="student360-side-column">
           <SectionCard title="Personal Information" description="Contact and identity details recorded for this student." className="student360-anchor-card" id="personal">
             <div className="student360-detail-grid">
               <DetailItem label="Parent Name" value={student.parentName} icon={UserRound} />
@@ -434,9 +437,7 @@ export function Student360Page({
               <DetailItem label="Course Mode" value={student.courseMode} />
             </div>
           </SectionCard>
-        </div>
 
-        <aside className="student360-side-column">
           <SectionCard title="Fee & Payment Overview" description="Existing payment information for this student." className="student360-anchor-card">
             <div className="student360-fee-total"><span>Total Fee</span><strong>{formatCurrency(totalFee)}</strong></div>
             <div className="student360-fee-stats"><div><span>Paid</span><strong>{formatCurrency(paidAmount)}</strong></div><div><span>Balance</span><strong>{formatCurrency(Math.max(totalFee - paidAmount, 0))}</strong></div></div>
