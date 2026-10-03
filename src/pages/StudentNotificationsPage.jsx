@@ -27,12 +27,22 @@ export function StudentNotificationsPage() {
   const [filter, setFilter] = useState('all')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
 
   useEffect(() => {
     try { window.localStorage.setItem('cispro.student-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* Ignore storage failures. */ }
   }, [isSidebarCollapsed])
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setIsLogoutModalOpen(true)
+  }
+
+  const handleLogoutCancel = () => {
+    setIsLogoutModalOpen(false)
+  }
+
+  const handleLogoutConfirm = async () => {
+    setIsLogoutModalOpen(false)
     try { window.sessionStorage.removeItem('cispro.student-session') } catch { /* Ignore storage errors. */ }
     await signOut()
     navigate('/login', { replace: true })
@@ -126,5 +136,15 @@ export function StudentNotificationsPage() {
       {visibleItems.map((item) => <article key={item.id} className={`student-notification-card ${item.read ? '' : 'is-unread'}`.trim()}><span className="student-notification-icon"><Bell size={20} /></span><div><div className="student-notification-title"><h2>{item.title}</h2><time>{new Date(item.createdAt).toLocaleString()}</time></div><p>{formatAcademicNotification(item.message)}</p></div>{!item.read ? <span className="student-notification-unread"><CircleAlert size={14} /> Unread</span> : null}</article>)}
     </section>
     </main>
+    {isLogoutModalOpen ? <div className="student-new-logout-overlay" role="presentation">
+      <div className="student-new-logout-modal" role="dialog" aria-modal="true" aria-labelledby="student-notifications-logout-title" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="student-new-logout-close" aria-label="Close logout confirmation" onClick={handleLogoutCancel}><X size={22} strokeWidth={2} /></button>
+        <div className="student-new-logout-content"><h2 id="student-notifications-logout-title">Are you sure you want<br />to logout?</h2></div>
+        <div className="student-new-logout-actions">
+          <button type="button" className="student-new-logout-cancel" onClick={handleLogoutCancel}>Cancel</button>
+          <button type="button" className="student-new-logout-confirm" onClick={handleLogoutConfirm}>Logout</button>
+        </div>
+      </div>
+    </div> : null}
   </div>
 }

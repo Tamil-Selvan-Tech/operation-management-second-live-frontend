@@ -3699,7 +3699,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [processingBranchNotification, setProcessingBranchNotification] = useState({ id: '', action: '' })
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
-  const [isBranchNotificationsLoading, setIsBranchNotificationsLoading] = useState(true)
+  const [isBranchNotificationsLoading, setIsBranchNotificationsLoading] = useState(false)
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
   const [branchNotificationMonthFilter, setBranchNotificationMonthFilter] = useState(() => {
     const today = new Date()
@@ -3965,15 +3965,19 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 }, [])
 
   const loadBranchNotifications = useCallback(async () => {
-    setIsBranchNotificationsLoading(true)
+    // Keep cached notifications visible while the API is warming up.
+    if (!loadNotifications().length) setIsBranchNotificationsLoading(true)
     if (branchNotificationsRequestRef.current) {
       return branchNotificationsRequestRef.current
     }
 
     const requestPromise = (async () => {
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), 12000)
       try {
         const response = await request('/notifications?limit=100&page=1', {
-        method: 'GET',
+          method: 'GET',
+          signal: controller.signal,
         })
 
         const { data: responseData } = unwrapNotifications(response)
@@ -4014,6 +4018,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
         const fallbackNotifications = mergeNotificationsWithStoredState(loadNotifications())
         setBranchNotificationRecords(fallbackNotifications)
       } finally {
+        window.clearTimeout(timeoutId)
         setIsBranchNotificationsLoading(false)
         branchNotificationsRequestRef.current = null
       }

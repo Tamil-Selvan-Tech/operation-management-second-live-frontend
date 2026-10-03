@@ -21,6 +21,13 @@
 .academic-report-pagination button.is-active, .academic-report-pagination button:hover:not(:disabled) { border-color: #2563eb; background: #2563eb; color: #fff; }
 @media(max-width:800px){.academic-report-card-title > div{align-items:flex-start;flex-direction:column;gap:10px}.academic-report-search{width:100%}}
 .academic-report-pagination button:disabled { cursor: not-allowed; opacity: .5; }
+.academic-report-skeleton-row td { height: 62px; }
+.academic-report-skeleton-row td span, .academic-report-skeleton-short { display: block; height: 14px; border-radius: 5px; background: linear-gradient(90deg, #edf2f7 25%, #f8fafc 50%, #edf2f7 75%); background-size: 200% 100%; animation: academic-report-shimmer 1.2s ease-in-out infinite; }
+.academic-report-skeleton-row td span { width: 78%; }
+.academic-report-skeleton-row td:nth-child(3) span, .academic-report-skeleton-row td:nth-child(4) span { width: 90%; }
+.academic-report-skeleton-row td:nth-child(5) span, .academic-report-skeleton-row td:nth-child(6) span { width: 55%; }
+.academic-report-skeleton-short { width: 88px; }
+@keyframes academic-report-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 .academic-report-send-button { display: inline-flex; align-items: center; gap: 8px; }
 .academic-report-modal-backdrop { position: fixed; inset: 0; z-index: 20000; display: grid; place-items: center; padding: 24px; background: rgba(15, 35, 65, .42); }
 .academic-report-send-modal { width: min(520px, 100%); max-height: 90vh; overflow: auto; padding: 26px; border: 1px solid #d8e4f2; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(18, 47, 85, .22); }

@@ -127,6 +127,21 @@ function formatDate(value, options = { day: '2-digit', month: 'short', year: 'nu
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('en-IN', options)
 }
 
+function getLocalDayOfWeek(value) {
+  if (!value) return null
+  const raw = String(value).trim()
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  const date = match
+    ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+    : new Date(value)
+  return Number.isNaN(date.getTime()) ? null : date.getDay()
+}
+
+function isWeekendDate(value) {
+  const day = getLocalDayOfWeek(value)
+  return day === 0 || day === 6
+}
+
 function timeToMinutes(value) {
   const raw = String(value || '').trim().toUpperCase()
   if (!raw) return Number.MAX_SAFE_INTEGER
@@ -719,7 +734,25 @@ export function StudentNewDashboardPage() {
  const attendanceProgressNumber = Number(attendanceSourceValue)
  const studentStatus = student?.currentStatus || student?.status || '-'
  const learningProgress = useMemo(() => getModuleProgress(student), [student])
- const attendanceView = (attendanceOverview?.[attendanceTab] || []).map((item) => attendanceTab === 'daily' && attendanceOverview?.course?.startDate && (item.date < attendanceOverview.course.startDate || item.date > attendanceOverview.course.endDate) ? { ...item, status: 'NOT_APPLICABLE' } : item)
+ const attendanceView = useMemo(() => {
+   const items = attendanceOverview?.[attendanceTab] || []
+   if (attendanceTab !== 'daily') return items
+
+   // Daily attendance is shown for the relevant part of the current week:
+   // weekdays have five entries, while weekends have Saturday and Sunday only.
+   const showWeekend = isWeekendDate(toCalendarDateKey(new Date()))
+   return items
+     .filter((item) => {
+       const itemDate = item?.date || item?.dateKey || item?.startDate
+       return itemDate && isWeekendDate(itemDate) === showWeekend
+     })
+     .map((item) => {
+       const itemDate = item?.date || item?.dateKey || item?.startDate
+       return attendanceOverview?.course?.startDate && (itemDate < attendanceOverview.course.startDate || itemDate > attendanceOverview.course.endDate)
+         ? { ...item, status: 'NOT_APPLICABLE' }
+         : item
+     })
+ }, [attendanceOverview, attendanceTab])
  const attendanceTotals = attendanceOverview?.overall || null
  const todayAttendance = attendanceOverview?.todayAttendance || null
  const todaySessions = Array.isArray(todayAttendance?.sessions) ? todayAttendance.sessions : []
@@ -1091,8 +1124,7 @@ const handleLogoutConfirm = async () => {
                 <section className="student-dashboard-panel student-attendance-overview-panel">
                   <div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Attendance</h2><p className="student-attendance-period">Course Period: {attendanceOverview?.course?.startDate ? formatDate(attendanceOverview.course.startDate) : 'Not available'} → {attendanceOverview?.course?.endDate ? formatDate(attendanceOverview.course.endDate) : 'Not available'}</p></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Calendar</button></div>
                   {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading attendance...</p></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : attendanceOverview ? <>
-                    <div className="student-attendance-course-bar"><div><small>ALL ASSIGNED COURSES</small><strong>{courseName}</strong></div><div className="student-attendance-batch-field"><small>BATCH</small><span>{batchName || 'All Batches'}<ChevronDown size={15} aria-hidden="true" /></span></div></div>
-                    <div className="student-attendance-student-count"><span>Students</span><strong>1</strong></div>
+                    <div className="student-attendance-course-bar"><div><small>ALL ASSIGNED COURSES</small><strong>{courseName}</strong></div><div className="student-attendance-batch-field"><small>BATCH</small><span>{batchName || 'All Batches'}</span></div></div>
                     <div className="student-attendance-tabs" role="tablist" aria-label="Attendance period"><button type="button" className={attendanceTab === 'daily' ? 'is-active' : ''} onClick={() => setAttendanceTab('daily')}>Daily</button><button type="button" className={attendanceTab === 'weekly' ? 'is-active' : ''} onClick={() => setAttendanceTab('weekly')}>Weekly</button><button type="button" className={attendanceTab === 'monthly' ? 'is-active' : ''} onClick={() => setAttendanceTab('monthly')}>Monthly</button></div>
                     {attendanceView.length ? <AttendanceChart items={attendanceView} period={attendanceTab} /> : <div className="student-dashboard-empty"><p>No attendance records available for this course period.</p></div>}
                   </> : null}
