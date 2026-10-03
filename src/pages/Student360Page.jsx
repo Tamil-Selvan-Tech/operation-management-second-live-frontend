@@ -212,7 +212,7 @@ function AttendanceSection({ studentId, student, onViewCalendar }) {
   const source = summary || {}
   const course = source.course || {}
   const weekly = getPeriod(source, 'weekly')
-  const monthly = getPeriod(source, 'monthly')
+  const monthly = source.currentMonth || getPeriod(source, 'monthly')
   const overall = getPeriod(source, 'overall')
   const cardData = [
     ['Weekly Attendance', weekly],
