@@ -189,6 +189,22 @@ function getBatchSeatSummary(batch = {}, students = []) {
   }
 }
 
+function getBatchCourseProgress(batch = {}, students = []) {
+  const persistedProgress = Number(batch?.courseProgress ?? batch?.progress)
+  if (Number.isFinite(persistedProgress)) {
+    return Math.round(Math.min(Math.max(persistedProgress, 0), 100))
+  }
+
+  const progressValues = (Array.isArray(students) ? students : [])
+    .map((student) => Number(student?.courseProgress ?? student?.progress))
+    .filter((progress) => Number.isFinite(progress))
+
+  if (!progressValues.length) return 0
+
+  const average = progressValues.reduce((total, progress) => total + progress, 0) / progressValues.length
+  return Math.round(Math.min(Math.max(average, 0), 100))
+}
+
 function toNumber(value = '') {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
@@ -2100,6 +2116,10 @@ export function BranchBatchManagementSection({
       batchName: detailBatch?.batchName || '',
       batchTiming: detailBatch?.batchTiming || '',
     })
+    const detailCourseProgress = getBatchCourseProgress(
+      { ...detailGroup, ...detailBatch },
+      detailStudents,
+    )
     const detailStatus = normalizeStatus(detailGroup.status || 'Active')
     const detailStatusClass = String(detailStatus).toLowerCase()
 
@@ -2154,6 +2174,7 @@ export function BranchBatchManagementSection({
               <div className="batch-detail-hero-meta">
                 <span>Course: <strong>{detailGroup.courseName || '-'}</strong></span>
                 <span>Faculty: <strong>{detailGroup.facultyName || '-'}</strong></span>
+                <span>Course Progress: <strong>{detailCourseProgress}%</strong></span>
               </div>
 
             </div>
