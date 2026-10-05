@@ -6926,27 +6926,56 @@ const studentCourseOptions = useMemo(() => {
     [selectedStudentCoursePaymentPlans, studentForm.paymentPlanId],
   )
 
+  // A multi-course enrolment uses the plan selected in the combined summary.
+  // Keep the same schedule calculation used by a single-course enrolment, but
+  // calculate it against the combined course amount.
+  const selectedStudentSchedulePaymentPlan = useMemo(() => {
+    if (studentSelectedCourseIds.length < 2) return selectedStudentPaymentPlan
+
+    const combinedPlans = studentSelectedCourseIds
+      .flatMap((courseId) => {
+        const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+        return Array.isArray(course?.paymentPlans) ? course.paymentPlans : []
+      })
+      .filter((plan) => plan?.id)
+
+    return combinedPlans.find(
+      (plan) => String(plan.id) === String(studentCombinedPaymentPlanId),
+    ) || null
+  }, [selectedStudentPaymentPlan, studentCombinedPaymentPlanId, studentCourseOptions, studentSelectedCourseIds])
+
+  const studentScheduleAmount = useMemo(() => {
+    if (studentSelectedCourseIds.length < 2) return selectedStudentFinalAmount
+
+    return String(studentSelectedCourseIds.reduce((sum, courseId) => {
+      const draft = String(studentForm.courseId || '') === String(courseId)
+        ? studentForm
+        : (studentCourseDrafts[courseId] || {})
+      return sum + (Number(String(draft.totalCourseAmount || draft.courseAmount || 0).replace(/,/g, '')) || 0)
+    }, 0))
+  }, [selectedStudentFinalAmount, studentCourseDrafts, studentForm, studentSelectedCourseIds])
+
   const studentInstallmentCount = useMemo(() => {
-    if (!selectedStudentPaymentPlan) return 0
+    if (!selectedStudentSchedulePaymentPlan) return 0
 
     const count = Number(
-      selectedStudentPaymentPlan.installmentCount ||
-      selectedStudentPaymentPlan.installments?.length ||
+      selectedStudentSchedulePaymentPlan.installmentCount ||
+      selectedStudentSchedulePaymentPlan.installments?.length ||
       0,
     )
 
     return Number.isFinite(count) && count > 0 ? count : 0
-  }, [selectedStudentPaymentPlan])
+  }, [selectedStudentSchedulePaymentPlan])
 
   const studentInstallmentAmounts = useMemo(() => {
     const total = Number(
-      String(selectedStudentFinalAmount || '').replace(/,/g, ''),
+      String(studentScheduleAmount || '').replace(/,/g, ''),
     )
 
     if (!total || !studentInstallmentCount) return []
 
     return buildBranchCoursePaymentPlanInstallments(total, studentInstallmentCount).map((amount) => Number(amount))
-  }, [selectedStudentFinalAmount, studentInstallmentCount])
+  }, [studentInstallmentCount, studentScheduleAmount])
 
   const studentInstallmentDueDateKey = studentInstallmentDueDates.join('|')
 
@@ -6971,7 +7000,7 @@ const studentCourseOptions = useMemo(() => {
       studentForm.admissionDate,
       studentForm.courseStartDate,
       studentForm.courseMode,
-      selectedStudentFinalAmount,
+      studentScheduleAmount,
       studentInstallmentAmounts,
       studentInstallmentDueDateKey,
       studentInstallmentDatesCustomized,
@@ -6989,7 +7018,7 @@ const studentCourseOptions = useMemo(() => {
           admissionDate: studentForm.admissionDate,
           courseStartDate: studentForm.courseStartDate || selectedStudentBatchOption.courseStartDate,
           courseMode: studentForm.courseMode || selectedStudentBatchOption.mode,
-          courseAmount: selectedStudentFinalAmount,
+          courseAmount: studentScheduleAmount,
           feeScheduleMode: mode,
           feeFirstPaymentDate: studentForm.feeFirstPaymentDate || studentForm.admissionDate,
           installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
@@ -7031,7 +7060,7 @@ const studentCourseOptions = useMemo(() => {
     selectedStudentBatchOption?.courseStartDate,
     selectedStudentBatchOption?.mode,
     selectedStudentCourse?.id,
-    selectedStudentFinalAmount,
+    studentScheduleAmount,
     studentForm.admissionDate,
     studentForm.courseMode,
     studentForm.courseStartDate,
@@ -9371,7 +9400,15 @@ useEffect(() => {
   const getStudentCourseDraft = (courseId) => (
     String(studentForm.courseId || '') === String(courseId)
       ? studentForm
-      : (studentCourseDrafts[courseId] || { courseId, courseName: studentCourseOptions.find((course) => String(course.id) === String(courseId))?.name || '' })
+      : (studentCourseDrafts[courseId] || (() => {
+        const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+        return {
+          courseId,
+          courseName: course?.name || '',
+          courseAmount: course?.amount || '',
+          totalCourseAmount: course?.amount || '',
+        }
+      })())
   )
   const updateStudentCourseDraft = (courseId, field, value) => {
     if (String(studentForm.courseId || '') === String(courseId)) {
@@ -9411,7 +9448,10 @@ useEffect(() => {
       return Array.isArray(course?.paymentPlans) ? course.paymentPlans : []
     })
     .filter((plan) => plan?.id)
-    .map((plan) => [String(plan.id), plan])).values()]
+    .map((plan) => [
+      [String(plan.templateName || '').trim().toLowerCase(), String(plan.installmentCount || '').trim(), String(plan.type || '').trim().toLowerCase()].join('|'),
+      plan,
+    ])).values()]
 
   return (
     <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()} onClickCapture={handleInactiveBranchActionClick}>
@@ -15959,6 +15999,8 @@ else {
                     event.stopPropagation()
                     setStudentSelectedCourseIds((current) => current.filter((id) => id !== courseId))
                     setStudentCourseDrafts((current) => { const next = { ...current }; delete next[courseId]; return next })
+                    setStudentCombinedPaymentPlanId('')
+                    setStudentCombinedPaymentPlan('')
                     if (String(studentForm.courseId) === String(courseId)) setStudentForm((current) => ({ ...current, courseId: '', courseName: '' }))
                   }} />}
                 </button>
@@ -16415,6 +16457,7 @@ else {
                 <select value={studentCombinedPaymentPlanId} onChange={(event) => { const plan = multiCoursePaymentPlans.find((item) => String(item.id) === event.target.value); setStudentCombinedPaymentPlanId(event.target.value); setStudentCombinedPaymentPlan(plan?.templateName || '') }} disabled={studentFormMode === 'view'}>
                   <option value="">Select Payment Plan</option>
                   {multiCoursePaymentPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName}</option>)}
+                  {!multiCoursePaymentPlans.length ? <option value="" disabled>No payment plans configured for selected courses</option> : null}
                 </select>
               </label>
             </section>
@@ -16422,13 +16465,13 @@ else {
         </div>
       )}
 
-      {studentSelectedCourseIds.length <= 1 && studentInstallmentAmounts.length > 0 && (
+      {studentInstallmentAmounts.length > 0 && (
   <div className="student-payment-installment-section">
     <div className="student-payment-installment-header">
       <div>
         <h4>Payment Schedule</h4>
         <span>
-          {selectedStudentPaymentPlan?.templateName || 'Selected Payment Plan'}
+          {selectedStudentSchedulePaymentPlan?.templateName || 'Selected Payment Plan'}
         </span>
         {studentForm.feePaymentDeadline ? (
           <small className="field-hint">
@@ -16438,10 +16481,10 @@ else {
       </div>
 
       <div className="student-payment-installment-total">
-        <span>Final Course Amount</span>
+          <span>{studentSelectedCourseIds.length >= 2 ? 'Total Course Amount' : 'Final Course Amount'}</span>
         <strong>
           ₹{Number(
-            String(selectedStudentFinalAmount || '').replace(/,/g, '')
+            String(studentScheduleAmount || '').replace(/,/g, '')
           ).toLocaleString('en-IN')}
         </strong>
       </div>
