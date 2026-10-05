@@ -268,6 +268,20 @@ export async function getCurrentStudentProfile() {
   }
 }
 
+export async function createStudentDiscontinuationRequest(payload = {}) {
+  const response = await request('/student-discontinuation/me', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+  return unwrapData(response)
+}
+
+export async function getStudentDiscontinuationRequests(status = '') {
+  const suffix = status ? '?status=' + encodeURIComponent(status) : ''
+  const response = await request('/student-discontinuation' + suffix)
+  return unwrapData(response)
+}
+
 export async function getCurrentStudentAttendanceOverview() {
   const response = await request('/attendance/student/me/overview')
   return unwrapData(response)

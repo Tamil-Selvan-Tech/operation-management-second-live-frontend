@@ -203,6 +203,10 @@ function isCourseAssignedNotification(notification = {}) {
   return kind.includes('assigned')
 }
 
+function isStudentDiscontinuationNotification(notification = {}) {
+  return String(notification.kind || '').trim().toLowerCase() === 'student-discontinuation'
+}
+
 function NotificationItem({ item, onView, isLoading }) {
   return (
     <article className={`notifications-item ${item.read ? '' : 'is-unread'}`.trim()}>
@@ -277,6 +281,7 @@ export function SuperAdminNotificationsPage() {
   const [isRefreshing, setIsRefreshing] = useState(true)
   const [viewLoadingId, setViewLoadingId] = useState('')
   const [selectedNotification, setSelectedNotification] = useState(null)
+  const [discontinuationDecisionLoading, setDiscontinuationDecisionLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [dateFilter, setDateFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -503,6 +508,42 @@ export function SuperAdminNotificationsPage() {
       setSelectedNotification({ ...notification, read: true })
     } finally {
       setViewLoadingId('')
+    }
+  }
+
+  const handleDiscontinuationDecision = async (notification, decision) => {
+    const description = String(notification?.requestDescription || '').trim()
+    const requestId = description.startsWith('DISCONTINUATION_SUPER_REVIEW:')
+      ? description.slice('DISCONTINUATION_SUPER_REVIEW:'.length).trim()
+      : ''
+    if (!requestId || discontinuationDecisionLoading) return
+
+    let note = ''
+    let waiverAmount = 0
+    let refundEligibleAmount = 0
+    let financeNote = ''
+    if (decision === 'REJECT') {
+      note = window.prompt('Enter the rejection reason')?.trim() || ''
+      if (!note) return
+    } else {
+      waiverAmount = window.prompt('Waiver amount (enter 0 if none)', '0') || '0'
+      refundEligibleAmount = window.prompt('Refund eligible amount (enter 0 if none)', '0') || '0'
+      financeNote = window.prompt('Finance note (optional)', '')?.trim() || ''
+      if (!window.confirm('Approve and discontinue this student account?')) return
+    }
+
+    setDiscontinuationDecisionLoading(true)
+    try {
+      await request('/student-discontinuation/' + encodeURIComponent(requestId) + '/super-review', {
+        method: 'PATCH',
+        body: JSON.stringify({ decision, note, waiverAmount, refundEligibleAmount, financeNote }),
+      })
+      setSelectedNotification(null)
+      await loadAllNotifications()
+    } catch (error) {
+      console.error('Failed to save discontinuation decision:', error)
+    } finally {
+      setDiscontinuationDecisionLoading(false)
     }
   }
 
@@ -990,6 +1031,27 @@ export function SuperAdminNotificationsPage() {
                 </div>
               ) : null}
             </div>
+            {isStudentDiscontinuationNotification(selectedNotification) &&
+            String(selectedNotification.requestStatus || '').toUpperCase() === 'SUPER_ADMIN_REVIEW' ? (
+              <div className="super-admin-notification-modal-actions">
+                <button
+                  type="button"
+                  className="notifications-item-view-button is-danger"
+                  disabled={discontinuationDecisionLoading}
+                  onClick={() => handleDiscontinuationDecision(selectedNotification, 'REJECT')}
+                >
+                  {discontinuationDecisionLoading ? 'Saving...' : 'Reject'}
+                </button>
+                <button
+                  type="button"
+                  className="notifications-item-view-button"
+                  disabled={discontinuationDecisionLoading}
+                  onClick={() => handleDiscontinuationDecision(selectedNotification, 'APPROVE')}
+                >
+                  {discontinuationDecisionLoading ? 'Saving...' : 'Approve & Discontinue'}
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

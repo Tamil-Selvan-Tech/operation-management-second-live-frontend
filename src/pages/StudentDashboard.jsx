@@ -23,6 +23,7 @@ import { createPortal } from 'react-dom'
 import { FACULTY_RECORD_SYNC_EVENT, loadFacultyRecords } from '../data/facultyRecords'
 import { NotificationBell } from '../components/NotificationBell'
 import { getCurrentStudentAttendanceOverview } from '../services/attendanceService'
+import { createStudentDiscontinuationRequest, getStudentDiscontinuationRequests } from '../services/studentService'
 import {
   FACULTY_ATTENDANCE_SYNC_EVENT,
   FACULTY_BATCH_ATTENDANCE_SYNC_EVENT,
@@ -738,6 +739,117 @@ function StudentPaymentOverview({ student }) {
   )
 }
 
+function StudentDiscontinuationPanel({ student }) {
+  const [request, setRequest] = useState(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [details, setDetails] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    getStudentDiscontinuationRequests()
+      .then((items) => {
+        if (!active) return
+        const rows = Array.isArray(items) ? items : []
+        setRequest(rows[0] || null)
+      })
+      .catch(() => {
+        if (active) setRequest(null)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const submitRequest = async (event) => {
+    event.preventDefault()
+    if (!reason.trim()) {
+      setError('Please select or enter a reason for your request.')
+      return
+    }
+    setSubmitting(true)
+    setError('')
+    try {
+      const saved = await createStudentDiscontinuationRequest({ reason: reason.trim(), details: details.trim() })
+      setRequest(saved)
+      setIsOpen(false)
+      setReason('')
+      setDetails('')
+    } catch (submitError) {
+      setError(submitError?.message || 'Unable to submit the request. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const status = String(request?.status || '').toUpperCase()
+  const hasOpenRequest = ['PENDING', 'SUPER_ADMIN_REVIEW'].includes(status)
+  const statusLabel = status === 'SUPER_ADMIN_REVIEW'
+    ? 'Waiting for final approval'
+    : status === 'APPROVED'
+      ? 'Approved'
+      : status === 'REJECTED'
+        ? 'Rejected'
+        : 'Under review'
+
+  return (
+    <section className="student-discontinuation-panel panel-card" aria-label="Course discontinuation">
+      <div className="student-discontinuation-copy">
+        <p className="student-payment-overview-kicker">COURSE SUPPORT</p>
+        <h3>Need to discontinue your course?</h3>
+        <p>You can submit a request to your Branch Admin. Your course access will remain active until the request is reviewed and approved.</p>
+      </div>
+      {loading ? <span className="student-discontinuation-loading">Checking request status...</span> : request ? (
+        <div className="student-discontinuation-status">
+          <strong>{statusLabel}</strong>
+          <span>Submitted on {formatDate(request.createdAt)}</span>
+          {request.financialSnapshot?.outstandingAmount > 0 ? <span>Outstanding: {formatCurrency(request.financialSnapshot.outstandingAmount)}</span> : null}
+        </div>
+      ) : (
+        <button type="button" className="student-discontinuation-button" onClick={() => { setError(''); setIsOpen(true) }}>
+          Request Discontinuation
+        </button>
+      )}
+      {isOpen ? (
+        <div className="student-discontinuation-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setIsOpen(false) }}>
+          <form className="student-discontinuation-modal" onSubmit={submitRequest}>
+            <button type="button" className="student-discontinuation-close" onClick={() => setIsOpen(false)} aria-label="Close request form"><X size={18} /></button>
+            <p className="student-payment-overview-kicker">COURSE REQUEST</p>
+            <h3>Request course discontinuation</h3>
+            <p>Your request will be reviewed by the Branch Admin and then Super Admin. You will keep access until a final decision is made.</p>
+            <label>
+              Reason
+              <select value={reason} onChange={(event) => setReason(event.target.value)} required>
+                <option value="">Select a reason</option>
+                <option value="Financial difficulty">Financial difficulty</option>
+                <option value="Health or personal reason">Health or personal reason</option>
+                <option value="Relocation or travel">Relocation or travel</option>
+                <option value="Course change">Course change</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label>
+              Additional details
+              <textarea value={details} onChange={(event) => setDetails(event.target.value)} rows={4} placeholder="Share any information that will help the branch support you." />
+            </label>
+            {error ? <p className="student-discontinuation-error">{error}</p> : null}
+            <div className="student-discontinuation-actions">
+              <button type="button" className="student-discontinuation-secondary" onClick={() => setIsOpen(false)}>Keep Course</button>
+              <button type="submit" className="student-discontinuation-button" disabled={submitting}>{submitting ? 'Submitting...' : 'Submit Request'}</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function StudentTestPerformanceTrend({ student }) {
   const trend = useMemo(() => {
     const baseScore = Number(student?.averageScore || 80)
@@ -1032,6 +1144,8 @@ function StudentDashboardContent({ dashboard }) {
         <StudentTestPerformanceTrend student={latestStudent} />
         <StudentPaymentOverview student={latestStudent} />
       </div>
+
+      <StudentDiscontinuationPanel student={latestStudent} />
     </section>
   )
 }

@@ -1957,6 +1957,7 @@ function BranchNotificationGroup({
   onView,
   onAcceptRequest,
   onRejectRequest,
+  onReviewDiscontinuation,
   processingNotification = { id: '', action: '' },
   showDetails = false,
 }) {
@@ -1975,6 +1976,8 @@ function BranchNotificationGroup({
           const notificationId = String(item.id || item.requestId || '').trim()
           const isProcessing = processingNotification.id === notificationId
           const isProgressNotification = String(item.kind || '').includes('progress-status')
+          const isDiscontinuationRequest = item.kind === 'student-discontinuation'
+          const isPendingDiscontinuation = isDiscontinuationRequest && requestStatus === 'pending'
 
           return (
             <article
@@ -2116,7 +2119,20 @@ function BranchNotificationGroup({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {isPendingRequest ? (
+                      {isPendingDiscontinuation ? (
+                        <button
+                          type="button"
+                          className="notifications-item-view-button"
+                          disabled={isProcessing}
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            onReviewDiscontinuation?.(item, 'DISCONTINUE')
+                          }}
+                        >
+                          Contact Outcome
+                        </button>
+                      ) : isPendingRequest ? (
                         (
                           <>
                               <button
@@ -2217,7 +2233,20 @@ function BranchNotificationGroup({
                             ? 'Pending'
                             : item.categoryLabel || item.actionLabel || 'View'}
                     </span>
-                    {isPendingRequest ? (
+                    {isPendingDiscontinuation ? (
+                      <button
+                        type="button"
+                        className="notifications-item-view-button"
+                        disabled={isProcessing}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onReviewDiscontinuation?.(item, 'DISCONTINUE')
+                        }}
+                      >
+                        Contact Outcome
+                      </button>
+                    ) : isPendingRequest ? (
                       isAcceptedRequest || isRejectedRequest ? (
                         null
                       ) : (
@@ -3698,6 +3727,11 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   const [stuCityOptions, setStuCityOptions] = useState([])
   const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false)
   const [processingBranchNotification, setProcessingBranchNotification] = useState({ id: '', action: '' })
+  const [discontinuationReview, setDiscontinuationReview] = useState(null)
+  const [discontinuationOutcome, setDiscontinuationOutcome] = useState('DISCONTINUE')
+  const [discontinuationNote, setDiscontinuationNote] = useState('')
+  const [discontinuationFollowUpDate, setDiscontinuationFollowUpDate] = useState('')
+  const [isDiscontinuationReviewSaving, setIsDiscontinuationReviewSaving] = useState(false)
   const [branchNotificationRecords, setBranchNotificationRecords] = useState(() => loadNotifications())
   const [isBranchNotificationsLoading, setIsBranchNotificationsLoading] = useState(false)
   const [branchNotificationSearch, setBranchNotificationSearch] = useState('')
@@ -4658,7 +4692,8 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
             String(notification.kind || '').trim() !== 'branch-login' && (
               String(notification.kind || '').startsWith('branch-') ||
               String(notification.kind || '').startsWith('faculty-') ||
-              String(notification.kind || '').startsWith('course-edit-')
+              String(notification.kind || '').startsWith('course-edit-') ||
+              String(notification.kind || '').startsWith('student-')
             ),
         )
         .filter((notification) => doesBranchNotificationBelongToBranch(notification, branchScope))
@@ -4837,6 +4872,41 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
       return
     }
     goToBranchSection('notifications')
+  }
+
+  const reviewStudentDiscontinuationNotification = async (notification, decision) => {
+    setDiscontinuationReview(notification)
+    setDiscontinuationOutcome(decision === 'REJECT' ? 'REJECT' : 'DISCONTINUE')
+    setDiscontinuationNote('')
+    setDiscontinuationFollowUpDate('')
+  }
+
+  const submitStudentDiscontinuationOutcome = async (event) => {
+    event.preventDefault()
+    const notification = discontinuationReview
+    const description = String(notification?.requestDescription || '').trim()
+    const requestId = description.startsWith('DISCONTINUATION_REQUEST:')
+      ? description.slice('DISCONTINUATION_REQUEST:'.length).trim()
+      : ''
+    if (!requestId || !discontinuationNote.trim() && ['REJECT', 'DISCONTINUE'].includes(discontinuationOutcome)) return
+
+    setIsDiscontinuationReviewSaving(true)
+    try {
+      await request('/student-discontinuation/' + encodeURIComponent(requestId) + '/branch-review', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          decision: discontinuationOutcome,
+          note: discontinuationNote.trim(),
+          nextFollowUpDate: discontinuationFollowUpDate,
+        }),
+      })
+      setDiscontinuationReview(null)
+      await loadBranchNotifications()
+    } catch (error) {
+      console.error('Failed to review student discontinuation request:', error)
+    } finally {
+      setIsDiscontinuationReviewSaving(false)
+    }
   }
 
   const resolveCourseEditRequestId = async (notification) => {
@@ -9706,6 +9776,7 @@ useEffect(() => {
                           onView={openBranchNotificationTarget}
                           onAcceptRequest={acceptBranchCourseEditNotification}
                           onRejectRequest={rejectBranchCourseEditNotification}
+                          onReviewDiscontinuation={reviewStudentDiscontinuationNotification}
                           processingNotification={processingBranchNotification}
                           showDetails
                         />
@@ -16501,6 +16572,65 @@ else {
                 </button>
               </div>
             </div>
+          </div>
+        ) : null}
+        {discontinuationReview ? (
+          <div className="branch-modal-backdrop" role="presentation">
+            <form
+              className="student-discontinuation-review-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="student-discontinuation-review-title"
+              onSubmit={submitStudentDiscontinuationOutcome}
+            >
+              <button
+                type="button"
+                className="branch-modal-close"
+                aria-label="Close contact outcome form"
+                onClick={() => setDiscontinuationReview(null)}
+              >
+                <X size={21} strokeWidth={2.2} />
+              </button>
+              <p className="student-discontinuation-review-kicker">Contact outcome</p>
+              <h2 id="student-discontinuation-review-title">Record student response</h2>
+              <p className="student-discontinuation-review-message">
+                Call the student, explain the fee snapshot, and record the response before continuing the request.
+              </p>
+              <label className="student-discontinuation-review-field">
+                Outcome
+                <select value={discontinuationOutcome} onChange={(event) => setDiscontinuationOutcome(event.target.value)}>
+                  <option value="DISCONTINUE">Student wants to discontinue</option>
+                  <option value="CONTINUE">Student will continue</option>
+                  <option value="LEAVE">Student requested leave</option>
+                  <option value="UNABLE_TO_CONTACT">Unable to contact</option>
+                  <option value="REJECT">Reject request</option>
+                </select>
+              </label>
+              <label className="student-discontinuation-review-field">
+                Call notes {['REJECT', 'DISCONTINUE'].includes(discontinuationOutcome) ? '(required)' : '(optional)'}
+                <textarea
+                  value={discontinuationNote}
+                  onChange={(event) => setDiscontinuationNote(event.target.value)}
+                  rows={4}
+                  placeholder="Record what the student said and the next action."
+                  required={['REJECT', 'DISCONTINUE'].includes(discontinuationOutcome)}
+                />
+              </label>
+              <label className="student-discontinuation-review-field">
+                Next follow-up date
+                <input
+                  type="date"
+                  value={discontinuationFollowUpDate}
+                  onChange={(event) => setDiscontinuationFollowUpDate(event.target.value)}
+                />
+              </label>
+              <div className="student-discontinuation-review-actions">
+                <button type="button" className="student-discontinuation-secondary" onClick={() => setDiscontinuationReview(null)}>Cancel</button>
+                <button type="submit" className="notifications-item-view-button" disabled={isDiscontinuationReviewSaving}>
+                  {isDiscontinuationReviewSaving ? 'Saving...' : 'Save Contact Outcome'}
+                </button>
+              </div>
+            </form>
           </div>
         ) : null}
         <BranchAttendanceReportModal

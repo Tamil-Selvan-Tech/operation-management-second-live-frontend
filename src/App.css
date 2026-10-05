@@ -27614,3 +27614,248 @@ canvas {
 .student-form-grid-tight .student-course-step-amount { order: 8; }
 .student-form-grid-tight .student-course-step-discount { order: 9; }
 .student-form-grid-tight .student-course-step-payment { order: 10; }
+
+.student-discontinuation-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 24px;
+  padding: 24px;
+  border: 1px solid #dce7f6;
+  background: linear-gradient(135deg, #f8fbff 0%, #fff 72%);
+}
+
+.student-discontinuation-copy {
+  max-width: 680px;
+}
+
+.student-discontinuation-copy h3,
+.student-discontinuation-modal h3 {
+  margin: 4px 0 8px;
+  color: #18345c;
+}
+
+.student-discontinuation-copy p:not(.student-payment-overview-kicker),
+.student-discontinuation-modal > p:not(.student-payment-overview-kicker) {
+  margin: 0;
+  color: #6d7d96;
+  line-height: 1.55;
+}
+
+.student-discontinuation-button {
+  flex: 0 0 auto;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 18px;
+  color: #fff;
+  background: #1769e0;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.student-discontinuation-button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.student-discontinuation-status {
+  display: grid;
+  gap: 4px;
+  min-width: 210px;
+  color: #6d7d96;
+  font-size: 13px;
+}
+
+.student-discontinuation-status strong {
+  color: #1769e0;
+  font-size: 14px;
+}
+
+.student-discontinuation-loading {
+  color: #7b8ba5;
+  font-size: 13px;
+}
+
+.student-discontinuation-modal-backdrop {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(17, 32, 56, .46);
+}
+
+.student-discontinuation-modal {
+  position: relative;
+  width: min(100%, 520px);
+  display: grid;
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid #dce7f6;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(23, 52, 92, .24);
+}
+
+.student-discontinuation-modal label {
+  display: grid;
+  gap: 7px;
+  color: #405778;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.student-discontinuation-modal select,
+.student-discontinuation-modal textarea {
+  width: 100%;
+  border: 1px solid #d3e0f2;
+  border-radius: 9px;
+  padding: 11px 12px;
+  color: #203a60;
+  background: #fbfdff;
+  font: inherit;
+  resize: vertical;
+}
+
+.student-discontinuation-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 8px;
+  color: #607797;
+  background: #f3f7fc;
+  cursor: pointer;
+}
+
+.student-discontinuation-error {
+  margin: 0;
+  color: #c0394b;
+  font-size: 13px;
+}
+
+.student-discontinuation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.student-discontinuation-secondary {
+  min-height: 44px;
+  border: 1px solid #cbd9eb;
+  border-radius: 10px;
+  padding: 0 16px;
+  color: #315277;
+  background: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.super-admin-notification-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e7edf5;
+}
+
+.student-discontinuation-review-modal {
+  position: relative;
+  width: min(100%, 540px);
+  display: grid;
+  gap: 14px;
+  padding: 28px;
+  border: 1px solid #dce7f6;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(23, 52, 92, .24);
+}
+
+.student-discontinuation-review-kicker {
+  margin: 0;
+  color: #1769e0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.student-discontinuation-review-modal h2 {
+  margin: 0;
+  color: #18345c;
+}
+
+.student-discontinuation-review-message {
+  margin: 0;
+  color: #6d7d96;
+  line-height: 1.55;
+}
+
+.student-discontinuation-review-field {
+  display: grid;
+  gap: 7px;
+  color: #405778;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.student-discontinuation-review-field select,
+.student-discontinuation-review-field textarea,
+.student-discontinuation-review-field input {
+  width: 100%;
+  border: 1px solid #d3e0f2;
+  border-radius: 9px;
+  padding: 11px 12px;
+  color: #203a60;
+  background: #fbfdff;
+  font: inherit;
+}
+
+.student-discontinuation-review-field textarea {
+  resize: vertical;
+}
+
+.student-discontinuation-review-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+@media (max-width: 640px) {
+  .student-discontinuation-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .student-discontinuation-button {
+    width: 100%;
+  }
+
+  .student-discontinuation-actions {
+    flex-direction: column-reverse;
+  }
+
+  .student-discontinuation-secondary,
+  .student-discontinuation-actions .student-discontinuation-button {
+    width: 100%;
+  }
+
+  .student-discontinuation-review-actions {
+    flex-direction: column-reverse;
+  }
+
+  .student-discontinuation-review-actions > button {
+    width: 100%;
+  }
+}
