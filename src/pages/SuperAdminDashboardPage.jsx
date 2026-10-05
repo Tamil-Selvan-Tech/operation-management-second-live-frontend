@@ -43,7 +43,6 @@ import { getStudentAttendanceOverview, getStudentCalendar } from '../services/st
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
-import { loadBranchStudents } from '../lib/branchStudentStore'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import { buildModernPaymentReceiptHtml } from '../components/payments/RecordPayment'
 import '../styles/SuperAdminDashboardPage.css'
@@ -631,57 +630,38 @@ export function SuperAdminDashboardPage() {
     let cancelled = false
     setIsGlobalStudentsLoading(true)
     const loadStudents = async () => {
-      const results = await Promise.all(
-        branches
-          .map(async (branch) => {
-            const branchId = branch.id || branch.branchId
-            if (!branchId) return []
-
-            try {
-              const rows = []
-              let page = 1
-              let totalPages = 1
-
-              do {
-                const response = await request(`/branch-students?page=${page}&limit=100&sortBy=createdAt&sortOrder=desc&branchId=${encodeURIComponent(branchId)}`, {
-                  impersonateBranchId: branchId,
-                })
+      try {
+        const results = await Promise.all(
+          [1].map(async () => {
+            const firstResponse = await request('/branch-students?page=1&limit=100&summary=1&sortBy=createdAt&sortOrder=desc')
+            const firstPayload = firstResponse?.data ?? firstResponse
+            const firstRows = Array.isArray(firstPayload) ? firstPayload : []
+            const totalPages = Math.min(100, Math.max(1, Number(firstResponse?.meta?.totalPages || 1)))
+            const remainingResponses = await Promise.all(
+              Array.from({ length: totalPages - 1 }, (_, index) => request(`/branch-students?page=${index + 2}&limit=100&summary=1&sortBy=createdAt&sortOrder=desc`)),
+            )
+            return [
+              ...firstRows,
+              ...remainingResponses.flatMap((response) => {
                 const payload = response?.data ?? response
-                const pageRows = Array.isArray(payload)
-                  ? payload
-                  : Array.isArray(payload?.data)
-                    ? payload.data
-                    : Array.isArray(payload?.items)
-                      ? payload.items
-                      : Array.isArray(payload?.records)
-                        ? payload.records
-                        : []
-                rows.push(...pageRows)
-                const meta = response?.meta || payload?.meta || payload?.pagination || payload?.pageInfo
-                totalPages = Math.max(1, Number(meta?.totalPages || 1))
-                page += 1
-              } while (page <= totalPages && page <= 100)
-
-              return rows.map((student) => ({
-                ...student,
-                branchId: student.branchId || student.branchCode || branchId,
-                branchCode: student.branchCode || student.branchId || branch.branchCode || branch.branchId,
-                branchRecord: branch,
-              }))
-            } catch {
-              return loadBranchStudents({ id: branch.id, branchId: branch.branchId, branchCode: branch.branchCode }).map((student) => ({
-                ...student,
-                branchId: student.branchId || student.branchCode || branchId,
-                branchCode: student.branchCode || student.branchId || branch.branchCode || branch.branchId,
-                branchRecord: branch,
-              }))
-            }
+                return Array.isArray(payload) ? payload : []
+              }),
+            ].map((student) => ({
+              ...student,
+              branchRecord: branches.find((branch) => String(branch.id || branch.branchId) === String(student.branchId)) || null,
+            }))
           }),
-      )
+        )
 
-      if (!cancelled) {
-        setAllBranchStudents(results.flat())
-        setIsGlobalStudentsLoading(false)
+        if (!cancelled) {
+          setAllBranchStudents(results.flat())
+          setIsGlobalStudentsLoading(false)
+        }
+      } catch {
+        if (!cancelled) {
+          setAllBranchStudents([])
+          setIsGlobalStudentsLoading(false)
+        }
       }
     }
 

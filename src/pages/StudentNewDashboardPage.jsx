@@ -545,6 +545,7 @@ export function StudentNewDashboardPage() {
 
  useEffect(() => {
    if (!student?.studentId && !student?.id) return undefined
+   if (activeSection !== 'course') return undefined
    let isMounted = true
    Promise.resolve().then(() => {
      if (!isMounted) return
@@ -556,7 +557,7 @@ export function StudentNewDashboardPage() {
        .finally(() => { if (isMounted) setCourseLoading(false) })
    })
    return () => { isMounted = false }
- }, [student?.studentId, student?.id])
+ }, [student?.studentId, student?.id, activeSection])
 
  useEffect(() => {
    if (!student?.studentId && !student?.id) return undefined
@@ -592,11 +593,12 @@ export function StudentNewDashboardPage() {
      }
    }
 
-   const attachCalendarData = async (studentRecord) => {
+   const attachCalendarData = async (studentRecord, calendarOverride) => {
      if (!studentRecord) return studentRecord
 
      try {
-       const calendar = await getCurrentBranchStudentCalendar()
+       const calendar = calendarOverride === undefined ? await getCurrentBranchStudentCalendar() : calendarOverride
+       if (!calendar) return studentRecord
        const calendarStudent = {
          ...studentRecord,
          courseEndDate: calendar?.endDate || studentRecord.courseEndDate || '',
@@ -639,10 +641,15 @@ export function StudentNewDashboardPage() {
 
    const loadStudent = async () => {
      if (!session) {
+       const [profileResult, calendarResult] = await Promise.allSettled([
+         getCurrentStudentProfile(),
+         getCurrentBranchStudentCalendar(),
+       ])
        try {
-         const currentProfile = await getCurrentStudentProfile()
+         if (profileResult.status !== 'fulfilled') throw profileResult.reason
+         const currentProfile = profileResult.value
          const hydratedProfile = attachCourseMasterData(currentProfile)
-         const calendarProfile = await attachCalendarData(hydratedProfile)
+         const calendarProfile = await attachCalendarData(hydratedProfile, calendarResult.status === 'fulfilled' ? calendarResult.value : null)
          if (isMounted) setStudent(calendarProfile)
        } catch (error) {
          if (isMounted) setLoadError(error?.message || 'Student session not found. Please sign in again.')
@@ -655,11 +662,16 @@ export function StudentNewDashboardPage() {
      const scope = session.branchId || session.branchCode || ''
      const localStudent = loadBranchStudents(scope).find((record) => matchesStudentSession(record, session))
 
+     const [recordsResult, calendarResult] = await Promise.allSettled([
+       refreshBranchStudents(scope),
+       getCurrentBranchStudentCalendar(),
+     ])
      try {
-       const records = await refreshBranchStudents(scope)
+       if (recordsResult.status !== 'fulfilled') throw recordsResult.reason
+       const records = recordsResult.value
        const latestStudent = records.find((record) => matchesStudentSession(record, session))
        const hydratedStudent = attachCourseMasterData(latestStudent || localStudent)
-       const calendarStudent = await attachCalendarData(hydratedStudent)
+       const calendarStudent = await attachCalendarData(hydratedStudent, calendarResult.status === 'fulfilled' ? calendarResult.value : null)
        if (isMounted) {
          setStudent(calendarStudent || null)
          if (!latestStudent && !localStudent) setLoadError('Your student record could not be found.')

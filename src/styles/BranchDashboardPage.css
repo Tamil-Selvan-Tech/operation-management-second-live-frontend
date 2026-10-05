@@ -9881,6 +9881,21 @@ body.branch-notification-menu-open .main-area {
   z-index: 99999;
 }
 
+/* Keep the bell menu above page filters, tables, and other content layers. */
+.branch-dashboard-page .super-admin-topbar {
+  position: relative;
+  z-index: 1000000;
+}
+
+.branch-dashboard-page .branch-dashboard-notification-menu {
+  position: static;
+  z-index: auto;
+}
+
+.branch-dashboard-page .notification-dropdown {
+  z-index: 2147483647 !important;
+}
+
 
 /* Header */
 
@@ -12294,6 +12309,31 @@ body.branch-notification-menu-open .main-area {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Keep the payment table's student identifier readable in full. */
+.branch-payment-table-shell {
+  overflow-x: auto;
+}
+
+.branch-payment-table-shell .branch-course-table,
+.branch-payment-table-shell table {
+  min-width: 1160px !important;
+}
+
+.branch-payment-table-shell .branch-course-table th:first-child,
+.branch-payment-table-shell .branch-course-table td:first-child {
+  width: 160px !important;
+  min-width: 160px !important;
+  white-space: nowrap;
+}
+
+.branch-payment-table-shell .branch-course-table td:first-child strong {
+  display: inline-block;
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 

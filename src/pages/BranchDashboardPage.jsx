@@ -3802,6 +3802,7 @@ const BRANCH_PAYMENT_HISTORY_PER_PAGE = 5
   }, [])
   const profileMenuRef = useRef(null)
   const notificationMenuRef = useRef(null)
+  const notificationDropdownRef = useRef(null)
   const courseActionCloseTimer = useRef(null)
   const branchNotificationsRequestRef = useRef(null)
   const branchNotificationsRefreshTimerRef = useRef(null)
@@ -4171,7 +4172,7 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     const onPointerDown = (event) => {
       const target = event.target
       if (!(target instanceof Element)) return
-      if (notificationMenuRef.current?.contains(target)) return
+      if (notificationMenuRef.current?.contains(target) || notificationDropdownRef.current?.contains(target)) return
       setIsNotificationMenuOpen(false)
     }
 
@@ -4183,14 +4184,14 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
 
       const scrollKeys = [' ', 'PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown']
       const target = event.target
-      if (scrollKeys.includes(event.key) && !(target instanceof Element && notificationMenuRef.current?.contains(target))) {
+      if (scrollKeys.includes(event.key) && !(target instanceof Element && (notificationMenuRef.current?.contains(target) || notificationDropdownRef.current?.contains(target)))) {
         event.preventDefault()
       }
     }
 
     const preventBackgroundScroll = (event) => {
       const target = event.target
-      if (target instanceof Element && notificationMenuRef.current?.contains(target)) return
+      if (target instanceof Element && (notificationMenuRef.current?.contains(target) || notificationDropdownRef.current?.contains(target))) return
       event.preventDefault()
     }
 
@@ -9078,8 +9079,8 @@ useEffect(() => {
               {branchUnreadNotificationCount > 0 ? <b>{branchUnreadNotificationCount}</b> : null}
             </button>
 
-            {isNotificationMenuOpen && !isProfileMenuOpen ? (
-              <div className="notification-dropdown" role="menu" aria-label="Notifications">
+            {isNotificationMenuOpen && !isProfileMenuOpen && typeof document !== 'undefined' ? createPortal(
+              <div ref={notificationDropdownRef} className="notification-dropdown" role="menu" aria-label="Notifications">
                 <div className="notification-dropdown-head">
                   <strong>Notifications</strong>
                   <div className="notification-dropdown-head-actions">
@@ -9192,7 +9193,8 @@ useEffect(() => {
                 <button className="notification-dropdown-footer" type="button" onClick={openBranchNotifications}>
                   View all notifications
                 </button>
-              </div>
+              </div>,
+              document.body,
             ) : null}
           </div>
         </>
