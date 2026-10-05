@@ -14775,3 +14775,39 @@ body.branch-notification-menu-open .main-area {
     gap: 18px;
   }
 }
+.student-course-selection-summary {
+  grid-column: 1 / -1;
+  padding: 14px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+}
+.student-course-selection-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; color: #17345f; }
+.student-course-selection-heading span { color: #64748b; font-size: 12px; }
+.student-course-selection-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.student-course-selection-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 9px; background: #fff; color: #475569; cursor: pointer; }
+.student-course-selection-tabs button.is-active { border-color: #1686f8; background: #eaf4ff; color: #0f5eaf; box-shadow: 0 0 0 2px rgba(22, 134, 248, .1); }
+.student-course-selection-help { display: block; margin-top: 7px; color: #64748b; font-size: 11px; line-height: 1.4; }
+.student-course-arrangement-controls { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+.student-course-arrangement-controls label { display: grid; gap: 6px; min-width: 190px; color: #536985; font-size: 12px; font-weight: 700; }
+.student-course-arrangement-controls select { min-height: 38px; padding: 0 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; }
+.student-course-cards { display: grid; gap: 16px; }
+.student-course-card { padding: 18px; border: 1px solid #dbe4ee; border-radius: 14px; background: #fff; box-shadow: 0 6px 18px rgba(15, 23, 42, .05); }
+.student-course-card.is-pending { background: #f8fafc; border-style: dashed; }
+.student-course-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.student-course-card-heading span { display: block; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.student-course-card-heading h4 { margin: 4px 0 0; color: #12284b; font-size: 17px; }
+.student-course-card-heading > strong { padding: 5px 9px; border-radius: 999px; color: #116b43; background: #e8f8ef; font-size: 11px; }
+.student-course-card.is-pending .student-course-card-heading > strong { color: #87620b; background: #fff7d6; }
+.student-course-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.student-course-card-pending-copy { margin: 0; color: #64748b; font-size: 13px; }
+.student-course-total-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 18px; border: 1px solid #b9dcff; border-radius: 12px; background: #eef7ff; color: #0f5eaf; }
+.student-course-total-summary-breakdown { display: grid; gap: 5px; min-width: 240px; }
+.student-course-total-summary-row, .student-course-total-summary-grand { display: flex; justify-content: space-between; gap: 24px; }
+.student-course-total-summary-row span { color: #315f91; font-size: 12px; }
+.student-course-total-summary-grand { margin-top: 5px; padding-top: 7px; border-top: 1px solid #b9d6f4; }
+.student-course-total-summary span { font-size: 12px; }
+.student-course-total-summary strong { font-size: 18px; }
+.student-combined-payment-plan-field { display: grid; gap: 5px; min-width: 220px; color: #536985; font-size: 11px; font-weight: 700; }
+.student-combined-payment-plan-field select { min-height: 36px; padding: 0 9px; border: 1px solid #b9d6f4; border-radius: 8px; background: #fff; color: #17345f; }
+@media (max-width: 760px) { .student-course-card-grid { grid-template-columns: 1fr; } .student-course-total-summary { align-items: stretch; flex-direction: column; } }

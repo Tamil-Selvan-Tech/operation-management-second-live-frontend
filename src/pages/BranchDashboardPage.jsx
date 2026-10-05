@@ -3646,6 +3646,15 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
   const [studentFormStep, setStudentFormStep] = useState(1)
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
+  // Step 3 edits one course at a time. Keep the other course drafts here so a
+  // student can be enrolled into multiple courses without losing per-course
+  // batch, schedule, mode, date and fee values.
+  const [studentSelectedCourseIds, setStudentSelectedCourseIds] = useState([])
+  const [studentCourseDrafts, setStudentCourseDrafts] = useState({})
+  const [studentArrangementType, setStudentArrangementType] = useState('SINGLE')
+  const [studentFirstCourseId, setStudentFirstCourseId] = useState('')
+  const [studentCombinedPaymentPlanId, setStudentCombinedPaymentPlanId] = useState('')
+  const [studentCombinedPaymentPlan, setStudentCombinedPaymentPlan] = useState('')
   const [studentCourseSearch, setStudentCourseSearch] = useState('')
   const [studentCourseSearchFocused, setStudentCourseSearchFocused] = useState(false)
   const [isStudentBatchDropdownOpen, setIsStudentBatchDropdownOpen] = useState(false)
@@ -7075,36 +7084,47 @@ const studentCourseOptions = useMemo(() => {
 
     if (!nextCourseId) {
       setStudentCourseSearch('')
-      setStudentForm((current) => ({
-        ...current,
-        courseId: '',
-        courseName: '',
-        batchGroupId: '',
-        batchId: '',
-        batchName: '',
-        batchTiming: '',
-        batchSelectionKey: '',
-        classSchedule: '',
-        courseStartDate: '',
-        courseEndDate: '',
-        courseMode: '',
-        facultyId: '',
-        facultyName: '',
-        facultyEmail: '',
-        facultyPhone: '',
-        courseAmount: '',
-        studentDiscountAmount: '',
-        paymentPlans: [],
-        paymentPlan: '',
-        paymentPlanId: '',
-      }))
+      return
+    }
+    if (String(studentForm.courseId || '') === nextCourseId) {
+      const currentCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === nextCourseId)
+      setStudentCourseSearch(String(currentCourse?.name || nextCourseId).trim())
       return
     }
 
     const nextCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === nextCourseId) || null
     const nextPaymentPlans = Array.isArray(nextCourse?.paymentPlans) ? nextCourse.paymentPlans : []
 
+    const draftFromForm = (current) => ({
+      courseId: current.courseId,
+      courseName: current.courseName,
+      batchGroupId: current.batchGroupId,
+      batchId: current.batchId,
+      batchName: current.batchName,
+      batchTiming: current.batchTiming,
+      classSchedule: current.classSchedule,
+      courseStartDate: current.courseStartDate,
+      courseEndDate: current.courseEndDate,
+      courseMode: current.courseMode,
+      facultyId: current.facultyId,
+      facultyName: current.facultyName,
+      facultyEmail: current.facultyEmail,
+      facultyPhone: current.facultyPhone,
+      courseAmount: current.courseAmount,
+      studentDiscountAmount: current.studentDiscountAmount,
+      paymentPlan: current.paymentPlan,
+      paymentPlanId: current.paymentPlanId,
+      installmentSchedule: current.installmentSchedule || [],
+    })
+
     setStudentForm((current) => {
+      if (current.courseId && current.courseId !== nextCourseId) {
+        setStudentCourseDrafts((drafts) => ({ ...drafts, [current.courseId]: draftFromForm(current) }))
+      }
+      const savedDraft = studentCourseDrafts[nextCourseId]
+      if (savedDraft) {
+        return { ...current, ...savedDraft, batchSelectionKey: '' }
+      }
       return {
         ...current,
         courseId: nextCourse?.id || nextCourseId,
@@ -7129,6 +7149,9 @@ const studentCourseOptions = useMemo(() => {
         paymentPlanId: '',
       }
     })
+    setStudentSelectedCourseIds((current) => current.includes(nextCourseId) ? current : [...current, nextCourseId])
+    setStudentFirstCourseId((current) => current || nextCourseId)
+    setStudentArrangementType((current) => current === 'SINGLE' ? (studentSelectedCourseIds.length + 1 >= 2 ? '' : 'SINGLE') : current)
     setStudentCourseSearch(String(nextCourse?.name || nextCourseId).trim())
   }
 
@@ -8555,6 +8578,12 @@ useEffect(() => {
     studentEditDueDatesRef.current = null
     setStudentCourseSearch('')
     setStudentCourseSearchFocused(false)
+    setStudentSelectedCourseIds([])
+    setStudentCourseDrafts({})
+    setStudentArrangementType('SINGLE')
+    setStudentFirstCourseId('')
+    setStudentCombinedPaymentPlanId('')
+    setStudentCombinedPaymentPlan('')
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -8584,6 +8613,12 @@ useEffect(() => {
     studentEditDueDatesRef.current = null
     setStudentCourseSearch(String(stu?.courseName || stu?.courseId || '').trim())
     setStudentCourseSearchFocused(false)
+    setStudentSelectedCourseIds(stu?.courseId ? [String(stu.courseId)] : [])
+    setStudentCourseDrafts({})
+    setStudentArrangementType(stu?.arrangementType || (stu?.courseId ? 'SINGLE' : 'SINGLE'))
+    setStudentFirstCourseId(stu?.firstCourseId || stu?.courseId || '')
+    setStudentCombinedPaymentPlanId(stu?.paymentPlanId || '')
+    setStudentCombinedPaymentPlan(stu?.paymentPlan || '')
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -8602,6 +8637,12 @@ useEffect(() => {
     setStudentFormMode('edit')
     setStudentCourseSearch(String(stu?.courseName || stu?.course?.name || stu?.courseId || '').trim())
     setStudentCourseSearchFocused(false)
+    setStudentSelectedCourseIds(stu?.courseId ? [String(stu.courseId)] : [])
+    setStudentCourseDrafts({})
+    setStudentArrangementType(stu?.arrangementType || (stu?.courseId ? 'SINGLE' : 'SINGLE'))
+    setStudentFirstCourseId(stu?.firstCourseId || stu?.courseId || '')
+    setStudentCombinedPaymentPlanId(stu?.paymentPlanId || '')
+    setStudentCombinedPaymentPlan(stu?.paymentPlan || '')
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
@@ -8658,8 +8699,48 @@ useEffect(() => {
       : buildStudentIdFromSuffix(studentForm.studentIdSuffix)
     const selectedCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null
     const selectedBatch = selectedStudentBatchOption
-    const resolvedCourseAmount = String(selectedCourse?.amount || studentForm.courseAmount || '').trim()
+    const resolvedCourseAmount = String(studentForm.totalCourseAmount || selectedCourse?.amount || studentForm.courseAmount || '').trim()
     const resolvedFinalAmount = String(selectedStudentFinalAmount || resolvedCourseAmount).trim()
+    const selectedEnrollmentIds = studentSelectedCourseIds.length
+      ? studentSelectedCourseIds
+      : [String(studentForm.courseId || '').trim()].filter(Boolean)
+    const enrollmentOrder = studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
+      ? [studentFirstCourseId, ...selectedEnrollmentIds.filter((courseId) => String(courseId) !== String(studentFirstCourseId))]
+      : selectedEnrollmentIds
+
+    const activeEnrollment = {
+      ...studentForm,
+      courseId: selectedCourse?.id || studentForm.courseId,
+      courseName: selectedCourse?.name || studentForm.courseName,
+      batchId: selectedBatch?.batchId || studentForm.batchId,
+      batchName: selectedBatch?.batchName || studentForm.batchName,
+      batchTiming: selectedBatch?.batchTiming || studentForm.batchTiming,
+      facultyId: selectedBatch?.facultyId || studentForm.facultyId,
+      facultyName: selectedBatch?.facultyName || studentForm.facultyName,
+      courseEndDate: studentForm.courseEndDate || selectedBatch?.courseEndDate || '',
+      weekType: String(selectedBatch?.weekType || studentForm.classSchedule || '').trim().toUpperCase(),
+      courseMode: String(studentForm.courseMode || '').trim(),
+      totalCourseAmount: resolvedCourseAmount,
+      totalAmount: resolvedFinalAmount,
+      afterDiscount: resolvedFinalAmount,
+      arrangementType: studentSelectedCourseIds.length > 1 ? studentArrangementType : 'SINGLE',
+      sequenceOrder: Math.max(1, enrollmentOrder.indexOf(String(studentForm.courseId)) + 1),
+      status: studentArrangementType === 'SEQUENTIAL' && String(studentForm.courseId) !== String(studentFirstCourseId) ? 'PENDING' : 'ACTIVE',
+      installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
+        installmentNumber: index + 1,
+        amount,
+        dueDate: studentInstallmentDueDates[index] || '',
+      })),
+    }
+    const courseEnrollments = enrollmentOrder.map((courseId) => (
+      String(courseId) === String(studentForm.courseId)
+        ? activeEnrollment
+        : (studentCourseDrafts[courseId] || { courseId })
+    )).filter((enrollment) => String(enrollment.courseId || '').trim()).map((enrollment) => (
+      studentSelectedCourseIds.length >= 2
+        ? { ...enrollment, paymentPlanId: studentCombinedPaymentPlanId, paymentPlan: studentCombinedPaymentPlan }
+        : enrollment
+    ))
 
     if (
       selectedBatch &&
@@ -8677,6 +8758,25 @@ useEffect(() => {
 
     if (duplicateStudent) {
       setStudentFormError('Student ID already exists in this branch.')
+      return
+    }
+
+    if (studentSelectedCourseIds.length >= 2 && !String(studentCombinedPaymentPlanId || '').trim()) {
+      setStudentFormError('Select one payment plan for all selected courses.')
+      return
+    }
+
+    const incompleteEnrollment = courseEnrollments.find((enrollment) => (
+      !(studentArrangementType === 'SEQUENTIAL' && String(enrollment.courseId) !== String(studentFirstCourseId)) && (
+      !String(enrollment.batchId || '').trim() ||
+      !String(enrollment.batchTiming || '').trim() ||
+      !String(enrollment.classSchedule || enrollment.scheduleType || '').trim() ||
+      !String(enrollment.courseStartDate || enrollment.startDate || '').trim() ||
+      !String(enrollment.courseMode || enrollment.mode || '').trim() ||
+      !String(enrollment.paymentPlanId || '').trim())
+    ))
+    if (incompleteEnrollment) {
+      setStudentFormError(`Complete the batch, schedule, mode, dates and payment plan for ${incompleteEnrollment.courseName || 'every selected course'}.`)
       return
     }
 
@@ -8724,6 +8824,12 @@ useEffect(() => {
         dueDate: studentInstallmentDueDates[index] || '',
       })),
       preserveInstallmentDates: studentInstallmentDatesCustomized,
+      courseEnrollments,
+      courses: courseEnrollments,
+      arrangementType: studentSelectedCourseIds.length > 1 ? studentArrangementType : 'SINGLE',
+      firstCourseId: studentSelectedCourseIds.length > 1 && studentArrangementType === 'SEQUENTIAL' ? studentFirstCourseId : '',
+      paymentPlanId: studentSelectedCourseIds.length >= 2 ? studentCombinedPaymentPlanId : studentForm.paymentPlanId,
+      paymentPlan: studentSelectedCourseIds.length >= 2 ? studentCombinedPaymentPlan : studentForm.paymentPlan,
     }
 
     delete record.studentIdSuffix
@@ -9261,6 +9367,51 @@ useEffect(() => {
       </div>
     </header>
   )
+
+  const getStudentCourseDraft = (courseId) => (
+    String(studentForm.courseId || '') === String(courseId)
+      ? studentForm
+      : (studentCourseDrafts[courseId] || { courseId, courseName: studentCourseOptions.find((course) => String(course.id) === String(courseId))?.name || '' })
+  )
+  const updateStudentCourseDraft = (courseId, field, value) => {
+    if (String(studentForm.courseId || '') === String(courseId)) {
+      if (field === 'totalCourseAmount') {
+        setStudentForm((current) => ({ ...current, totalCourseAmount: value, courseAmount: value }))
+        return
+      }
+      updateStudentField(field, value)
+      return
+    }
+    setStudentCourseDrafts((current) => {
+      const base = current[courseId] || { courseId, courseName: studentCourseOptions.find((course) => String(course.id) === String(courseId))?.name || '' }
+      return { ...current, [courseId]: { ...base, [field]: value } }
+    })
+  }
+  const getStudentCourseBatchOptions = (draft) => branchBatchGroups
+    .filter((group) => String(group?.courseId || group?.branchCourseId || '').trim() === String(draft.courseId || '').trim())
+    .flatMap((group) => (Array.isArray(group?.batches) ? group.batches : []).map((batch) => ({
+      batchId: String(batch?.batchId || batch?.id || '').trim(),
+      batchName: String(batch?.batchName || batch?.batchId || '').trim(),
+      batchTiming: formatStudentBatchTiming(batch),
+      courseStartDate: batch?.courseStartDate || '',
+      courseEndDate: batch?.courseEndDate || '',
+      facultyId: batch?.facultyId || group?.facultyId || '',
+      facultyName: batch?.facultyName || group?.facultyName || '',
+      weekType: batch?.weekType || '',
+      mode: batch?.mode || '',
+      isFull: getBatchSeatSummary({ batchId: batch?.batchId || batch?.id, batchName: batch?.batchName, batchTiming: formatStudentBatchTiming(batch), courseId: draft.courseId, totalSeats: batch?.totalSeats || 0 }, branchStudents, currentStudentSeatKeys).isFull,
+    })).filter((batch) => batch.batchId && (!draft.classSchedule || String(batch.weekType).toUpperCase() === String(draft.classSchedule).toUpperCase()) && (!draft.courseMode || String(batch.mode).toUpperCase() === String(draft.courseMode).toUpperCase())))
+  const multiCourseAmountTotal = studentSelectedCourseIds.reduce((sum, courseId) => {
+    const draft = getStudentCourseDraft(courseId)
+    return sum + (Number(String(draft.totalCourseAmount || draft.courseAmount || 0).replace(/,/g, '')) || 0)
+  }, 0)
+  const multiCoursePaymentPlans = [...new Map(studentSelectedCourseIds
+    .flatMap((courseId) => {
+      const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+      return Array.isArray(course?.paymentPlans) ? course.paymentPlans : []
+    })
+    .filter((plan) => plan?.id)
+    .map((plan) => [String(plan.id), plan])).values()]
 
   return (
     <section className={`super-admin-page branch-dashboard-app-shell ${isSidebarCollapsed ? 'is-sidebar-collapsed' : ''}`.trim()} onClickCapture={handleInactiveBranchActionClick}>
@@ -15787,8 +15938,61 @@ else {
   {studentFormStep === 3 && (
     <div className="student-step-section">
 
-     
+      {studentSelectedCourseIds.length > 0 ? (
+        <div className="student-course-selection-summary" aria-label="Selected courses">
+          <div className="student-course-selection-heading">
+            <strong>{studentSelectedCourseIds.length} course{studentSelectedCourseIds.length === 1 ? '' : 's'} selected</strong>
+            <span>Select a course to edit its details below.</span>
+          </div>
+          <div className="student-course-selection-tabs">
+            {studentSelectedCourseIds.map((courseId, index) => {
+              const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+              return (
+                <button
+                  key={courseId}
+                  type="button"
+                  className={String(studentForm.courseId) === String(courseId) ? 'is-active' : ''}
+                  onClick={() => handleStudentCourseChange(courseId)}
+                >
+                  <span>{index + 1}. {course?.name || courseId}</span>
+                  {studentFormMode !== 'view' && <X size={14} onClick={(event) => {
+                    event.stopPropagation()
+                    setStudentSelectedCourseIds((current) => current.filter((id) => id !== courseId))
+                    setStudentCourseDrafts((current) => { const next = { ...current }; delete next[courseId]; return next })
+                    if (String(studentForm.courseId) === String(courseId)) setStudentForm((current) => ({ ...current, courseId: '', courseName: '' }))
+                  }} />}
+                </button>
+              )
+            })}
+          </div>
+          {studentSelectedCourseIds.length >= 2 ? (
+            <div className="student-course-arrangement-controls">
+              <label>
+                <span>Course Arrangement *</span>
+                <select value={studentArrangementType} onChange={(event) => setStudentArrangementType(event.target.value)} disabled={studentFormMode === 'view'}>
+                  <option value="">Select Arrangement</option>
+                  <option value="PARALLEL">Parallel</option>
+                  <option value="SEQUENTIAL">Sequential</option>
+                </select>
+              </label>
+              {studentArrangementType === 'SEQUENTIAL' ? (
+                <label>
+                  <span>First Course *</span>
+                  <select value={studentFirstCourseId} onChange={(event) => { setStudentFirstCourseId(event.target.value); handleStudentCourseChange(event.target.value) }} disabled={studentFormMode === 'view'}>
+                    <option value="">Select First Course</option>
+                    {studentSelectedCourseIds.map((courseId) => {
+                      const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+                      return <option key={courseId} value={courseId}>{course?.name || courseId}</option>
+                    })}
+                  </select>
+                </label>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
+      {studentSelectedCourseIds.length <= 1 ? (
       <div className="course-form-grid student-form-grid-tight">
 
         <Field
@@ -15862,6 +16066,9 @@ else {
               </div>
             ) : null}
           </div>
+          {studentSelectedCourseIds.length > 0 && studentForm.courseId ? (
+            <small className="student-course-selection-help">Choose another course from search to add it. Each selected course has its own schedule, batch, mode, dates and amount.</small>
+          ) : null}
         </Field>
 
         <Field
@@ -16152,8 +16359,70 @@ else {
 </Field>
 
       </div>
+      ) : (
+        <div className="student-course-cards">
+          {studentSelectedCourseIds.map((courseId, index) => {
+            const draft = getStudentCourseDraft(courseId)
+            const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+            const isSequentialPending = studentArrangementType === 'SEQUENTIAL' && String(courseId) !== String(studentFirstCourseId)
+            const batchOptions = getStudentCourseBatchOptions(draft)
+            const selectedBatch = batchOptions.find((batch) => String(batch.batchId) === String(draft.batchId))
+            return (
+              <section className={`student-course-card ${isSequentialPending ? 'is-pending' : ''}`.trim()} key={courseId}>
+                <div className="student-course-card-heading">
+                  <div><span>Course {index + 1}</span><h4>{course?.name || draft.courseName || courseId}</h4></div>
+                  <strong>{isSequentialPending ? 'Pending' : 'Active'}</strong>
+                </div>
+                {!isSequentialPending ? (
+                  <div className="student-course-card-grid">
+                    <Field label="Course Mode" required>
+                      <select value={draft.courseMode || ''} onChange={(event) => updateStudentCourseDraft(courseId, 'courseMode', event.target.value)} disabled={studentFormMode === 'view'}>
+                        <option value="">Select Course Mode</option>
+                        {getAllowedCourseModes(course?.mode).map((mode) => <option key={mode} value={mode === 'ONLINE' ? 'Online' : 'Offline'}>{mode === 'ONLINE' ? 'Online' : 'Offline'}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Select Batch" required>
+                      <select value={draft.batchId || ''} onChange={(event) => { const batch = batchOptions.find((item) => item.batchId === event.target.value); updateStudentCourseDraft(courseId, 'batchId', event.target.value); updateStudentCourseDraft(courseId, 'batchName', batch?.batchName || ''); updateStudentCourseDraft(courseId, 'batchTiming', batch?.batchTiming || ''); updateStudentCourseDraft(courseId, 'courseStartDate', batch?.courseStartDate || draft.courseStartDate || ''); updateStudentCourseDraft(courseId, 'courseEndDate', batch?.courseEndDate || ''); updateStudentCourseDraft(courseId, 'facultyId', batch?.facultyId || ''); updateStudentCourseDraft(courseId, 'facultyName', batch?.facultyName || '') }} disabled={studentFormMode === 'view' || !draft.courseMode}>
+                        <option value="">Select Batch</option>
+                        {batchOptions.map((batch) => <option key={batch.batchId} value={batch.batchId} disabled={batch.isFull}>{batch.batchName} - {batch.batchTiming || 'No timing'}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Batch Timing" required><input value={selectedBatch?.batchTiming || draft.batchTiming || ''} readOnly placeholder="Select batch" /></Field>
+                    <Field label="Class Schedule" required><select value={draft.classSchedule || ''} onChange={(event) => updateStudentCourseDraft(courseId, 'classSchedule', event.target.value)} disabled={studentFormMode === 'view'}><option value="">Select Class Schedule</option><option value="Weekday">Weekday</option><option value="Weekend">Weekend</option></select></Field>
+                    <Field label="Course Start Date" required><input type="date" value={draft.courseStartDate || ''} onChange={(event) => updateStudentCourseDraft(courseId, 'courseStartDate', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
+                    <Field label="Course End Date"><input type="date" value={draft.courseEndDate || ''} onChange={(event) => updateStudentCourseDraft(courseId, 'courseEndDate', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
+                    <Field label="Total Course Amount" required><input type="number" min="0" value={draft.totalCourseAmount ?? draft.courseAmount ?? ''} onChange={(event) => updateStudentCourseDraft(courseId, 'totalCourseAmount', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
+                    {studentSelectedCourseIds.length < 2 ? <Field label="Payment Plan" required><select value={draft.paymentPlanId || ''} onChange={(event) => { const plan = (course?.paymentPlans || []).find((item) => String(item.id) === event.target.value); updateStudentCourseDraft(courseId, 'paymentPlanId', event.target.value); updateStudentCourseDraft(courseId, 'paymentPlan', plan?.templateName || '') }} disabled={studentFormMode === 'view'}><option value="">Select Payment Plan</option>{(course?.paymentPlans || []).map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName}</option>)}</select></Field> : null}
+                  </div>
+                ) : <p className="student-course-card-pending-copy">This course will be configured when the previous sequence is completed.</p>}
+              </section>
+            )
+          })}
+          {studentSelectedCourseIds.length >= 2 ? (
+            <section className="student-course-total-summary">
+              <div className="student-course-total-summary-breakdown">
+                <span>Course-wise Amount</span>
+                {studentSelectedCourseIds.map((courseId) => {
+                  const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+                  const draft = getStudentCourseDraft(courseId)
+                  const amount = Number(String(draft.totalCourseAmount || draft.courseAmount || 0).replace(/,/g, '')) || 0
+                  return <div className="student-course-total-summary-row" key={courseId}><span>{course?.name || draft.courseName || courseId}</span><strong>{formatBranchRupees(amount)}</strong></div>
+                })}
+                <div className="student-course-total-summary-grand"><strong>Total Course Amount</strong><strong>{formatBranchRupees(multiCourseAmountTotal)}</strong></div>
+              </div>
+              <label className="student-combined-payment-plan-field">
+                <span>Payment Plan for all courses *</span>
+                <select value={studentCombinedPaymentPlanId} onChange={(event) => { const plan = multiCoursePaymentPlans.find((item) => String(item.id) === event.target.value); setStudentCombinedPaymentPlanId(event.target.value); setStudentCombinedPaymentPlan(plan?.templateName || '') }} disabled={studentFormMode === 'view'}>
+                  <option value="">Select Payment Plan</option>
+                  {multiCoursePaymentPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName}</option>)}
+                </select>
+              </label>
+            </section>
+          ) : null}
+        </div>
+      )}
 
-      {studentInstallmentAmounts.length > 0 && (
+      {studentSelectedCourseIds.length <= 1 && studentInstallmentAmounts.length > 0 && (
   <div className="student-payment-installment-section">
     <div className="student-payment-installment-header">
       <div>
