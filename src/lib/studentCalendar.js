@@ -822,7 +822,16 @@ function buildMultiCourseCalendar(student, courseCalendars) {
     isReady: true,
     isMultiCourse: true,
     courseName: courseNames.join(' + '),
-    courses: calendars.map(({ source }) => source),
+    courses: calendars.map(({ source, calendar }) => ({
+      ...source,
+      summaryCalendar: {
+        ...calendar,
+        completedHours: Number(source.completedHours ?? 0),
+        pendingHours: Number(source.pendingHours ?? Math.max(0, Number(source.totalHours || 0) - Number(source.completedHours || 0))),
+        replacementHours: Number(source.replacementHours ?? 0),
+        replacementSessionCount: Number(source.replacementSessionCount ?? 0),
+      },
+    })),
     startDate,
     endDate,
     durationMonths: Math.max(...calendars.map(({ calendar }) => calendar.durationMonths || 0)),

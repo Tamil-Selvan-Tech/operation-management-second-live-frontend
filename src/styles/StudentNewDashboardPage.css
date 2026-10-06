@@ -1300,6 +1300,35 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   margin-bottom: 18px;
 }
 
+.student-calendar-summary-course-tabs {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 14px;
+  overflow-x: auto;
+  padding: 2px 1px 5px;
+  scrollbar-width: thin;
+}
+
+.student-calendar-summary-course-tabs button {
+  display: grid;
+  flex: 0 0 min(260px, 78vw);
+  gap: 5px;
+  min-height: 68px;
+  padding: 11px 15px;
+  border: 1px solid #d7e2f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #253753;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s ease, background .18s ease, color .18s ease, box-shadow .18s ease;
+}
+
+.student-calendar-summary-course-tabs button:hover { border-color: #93c5fd; }
+.student-calendar-summary-course-tabs button.is-active { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; box-shadow: 0 0 0 1px rgba(37, 99, 235, .08); }
+.student-calendar-summary-course-tabs small { color: #7b899d; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.student-calendar-summary-course-tabs strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+
 .student-calendar-summary-card {
   display: flex;
   align-items: flex-start;

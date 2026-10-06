@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, CalendarDays, CheckCircle2, Clock3, Flag, Sp
 import { buildStudentCourseCalendar, formatCalendarDate, formatCalendarLongDate } from '../lib/studentCalendar'
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const EMPTY_COURSE_LIST = Object.freeze([])
 
 function getStatusTone(status) {
   const normalized = String(status || '').trim().toLowerCase()
@@ -185,15 +186,26 @@ function getCalendarHoursSummary(calendar, student = {}) {
 
 export function StudentCalendarPanel({ student, facultyCalendar = null, externalUi = false }) {
   const calendar = useMemo(() => buildStudentCourseCalendar(student || {}, facultyCalendar), [facultyCalendar, student])
-  const hoursSummary = useMemo(() => getCalendarHoursSummary(calendar, student), [calendar, student])
-  const sourceSummary = student?.scheduleSummary || {}
+  const [selectedSummaryCourseKey, setSelectedSummaryCourseKey] = useState('')
+  const summaryCourses = calendar.isMultiCourse ? calendar.courses || EMPTY_COURSE_LIST : EMPTY_COURSE_LIST
+  const selectedSummaryCourse = summaryCourses.find((course, index) => String(course.courseId || course.course?.id || index) === selectedSummaryCourseKey) || summaryCourses[0] || null
+  const summaryCalendar = selectedSummaryCourse?.summaryCalendar || calendar
+  const summaryStudent = useMemo(() => selectedSummaryCourse ? {
+    ...student,
+    courseName: selectedSummaryCourse.courseName,
+    course: selectedSummaryCourse.course || { name: selectedSummaryCourse.courseName, hours: selectedSummaryCourse.totalHours },
+    totalHours: selectedSummaryCourse.totalHours,
+    scheduleSummary: { ...selectedSummaryCourse, ...summaryCalendar },
+  } : student, [selectedSummaryCourse, summaryCalendar, student])
+  const hoursSummary = useMemo(() => getCalendarHoursSummary(summaryCalendar, summaryStudent), [summaryCalendar, summaryStudent])
+  const sourceSummary = summaryStudent?.scheduleSummary || {}
   const attendanceSummary = sourceSummary.attendanceSummary || sourceSummary.attendance || sourceSummary.summary || {}
-  const calendarDurationDays = calendar.calendarDurationDays || sourceSummary.calendarDurationDays || 0
-  const calendarHolidayCount = calendar.summary.holidays || sourceSummary.summary?.holidays || 0
-  const replacementHours = calendar.replacementHours ?? sourceSummary.replacementHours ?? '-'
-  const replacementSessionCount = calendar.replacementSessionCount ?? sourceSummary.replacementSessionCount ?? sourceSummary.replacementSessionsCount
-  const presentCount = calendar.summary.presentDays || sourceSummary.presentDays || sourceSummary.present || attendanceSummary.presentDays || attendanceSummary.present || 0
-  const absentCount = calendar.summary.absentDays || sourceSummary.absentDays || sourceSummary.absent || attendanceSummary.absentDays || attendanceSummary.absent || 0
+  const calendarDurationDays = summaryCalendar.calendarDurationDays || sourceSummary.calendarDurationDays || 0
+  const calendarHolidayCount = summaryCalendar.summary?.holidays || summaryCalendar.holidays?.length || sourceSummary.summary?.holidays || 0
+  const replacementHours = summaryCalendar.replacementHours ?? sourceSummary.replacementHours ?? '-'
+  const replacementSessionCount = summaryCalendar.replacementSessionCount ?? sourceSummary.replacementSessionCount ?? sourceSummary.replacementSessionsCount
+  const presentCount = summaryCalendar.summary?.presentDays || sourceSummary.presentDays || sourceSummary.present || attendanceSummary.presentDays || attendanceSummary.present || 0
+  const absentCount = summaryCalendar.summary?.absentDays || sourceSummary.absentDays || sourceSummary.absent || attendanceSummary.absentDays || attendanceSummary.absent || 0
   const [chosenMonthIndex, setSelectedMonthIndex] = useState(null)
   const [selectedDay, setSelectedDay] = useState(null)
   const selectedMonthIndex = chosenMonthIndex === null ? getInitialMonthIndex(calendar) : Math.min(chosenMonthIndex, calendar.months.length - 1)
@@ -219,41 +231,52 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
     <section className={`student-new-calendar-page ${externalUi ? 'student-calendar-external-page' : ''}`.trim()}>
       <h1 className="student-new-calendar-page-title">Course Calendar</h1>
 
+      {summaryCourses.length > 1 ? <div className="student-calendar-summary-course-tabs" role="tablist" aria-label="Summary by course">
+        {summaryCourses.map((course, index) => {
+          const key = String(course.courseId || course.course?.id || index)
+          const isSelected = course === selectedSummaryCourse
+          return <button key={key} type="button" role="tab" aria-selected={isSelected} className={isSelected ? 'is-active' : ''} onClick={() => setSelectedSummaryCourseKey(key)}>
+            <small>COURSE {index + 1}</small>
+            <strong>{course.courseName || course.course?.name || 'Course'}</strong>
+          </button>
+        })}
+      </div> : null}
+
       <div className="student-new-calendar-summary-grid">
         <CalendarSummaryCard
           icon={CalendarDays}
           label="Course Name"
-          value={calendar.courseName || 'Not assigned'}
-          note={calendar.isMultiCourse ? `${calendar.courses?.length || 0} active course schedules` : 'Saved student course'}
+          value={selectedSummaryCourse?.courseName || calendar.courseName || 'Not assigned'}
+          note={selectedSummaryCourse ? [selectedSummaryCourse.facultyName, selectedSummaryCourse.batch?.name, selectedSummaryCourse.batch?.timing].filter(Boolean).join(' · ') : 'Saved student course'}
           tone="tone-course-day"
         />
         <CalendarSummaryCard
           icon={Flag}
           label="Course Start Date"
-          value={formatCalendarDate(calendar.startDate)}
-          note={formatCalendarLongDate(calendar.startDate)}
+          value={formatCalendarDate(summaryCalendar.startDate)}
+          note={formatCalendarLongDate(summaryCalendar.startDate)}
           tone="tone-start"
         />
         <CalendarSummaryCard
           icon={CheckCircle2}
           label="Course End Date"
-          value={formatCalendarDate(calendar.endDate)}
-          note={formatCalendarLongDate(calendar.endDate)}
+          value={formatCalendarDate(summaryCalendar.endDate)}
+          note={formatCalendarLongDate(summaryCalendar.endDate)}
           tone="tone-end"
         />
         <CalendarSummaryCard
           icon={Sparkles}
           label="Total Hours"
-          value={calendar.totalHours
-            ? `${calendar.totalHours} hour${Number(calendar.totalHours) === 1 ? '' : 's'}`
+          value={summaryCalendar.totalHours
+            ? `${summaryCalendar.totalHours} hour${Number(summaryCalendar.totalHours) === 1 ? '' : 's'}`
             : 'Not available'}
-          note={calendar.isMultiCourse ? 'Combined hours · per-course schedules' : `${calendar.courseMode || 'Online'} - ${getHoursPerDayLabel(calendar, student)} hr/day`}
+          note={`${summaryCalendar.courseMode || selectedSummaryCourse?.courseMode || 'Online'} · ${summaryCalendar.schedule || selectedSummaryCourse?.schedule || ''} · ${getHoursPerDayLabel(summaryCalendar, summaryStudent)} hr/day`}
           tone="tone-course-day"
         />
-        {student?.scheduleSummary || externalUi ? <>
-          <CalendarSummaryCard icon={CheckCircle2} label="Completed Hours" value={externalUi ? hoursSummary.completed : student?.scheduleSummary?.completedHours ?? '-'} note="Recorded present class hours" tone="tone-present" />
-          <CalendarSummaryCard icon={Clock3} label="Pending Hours" value={externalUi ? hoursSummary.pending : student?.scheduleSummary?.pendingHours ?? '-'} note="Required hours still to complete" />
-          {student?.scheduleSummary || externalUi ? <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={replacementHours} note={replacementSessionCount !== undefined && replacementSessionCount !== null && replacementSessionCount !== '' ? `${replacementSessionCount} replacement session${Number(replacementSessionCount) === 1 ? '' : 's'}` : `${sourceSummary.cancelledHours ?? 0} hours affected by Class Cancel`} tone="tone-holiday" /> : null}
+        {summaryStudent?.scheduleSummary || externalUi ? <>
+          <CalendarSummaryCard icon={CheckCircle2} label="Completed Hours" value={hoursSummary.completed} note="Recorded present class hours" tone="tone-present" />
+          <CalendarSummaryCard icon={Clock3} label="Pending Hours" value={hoursSummary.pending} note="Required hours still to complete" />
+          {summaryStudent?.scheduleSummary || externalUi ? <CalendarSummaryCard icon={Timer} label="Replacement Hours" value={replacementHours} note={replacementSessionCount !== undefined && replacementSessionCount !== null && replacementSessionCount !== '' ? `${replacementSessionCount} replacement session${Number(replacementSessionCount) === 1 ? '' : 's'}` : `${sourceSummary.cancelledHours ?? 0} hours affected by Class Cancel`} tone="tone-holiday" /> : null}
         </> : null}
         <CalendarSummaryCard
           icon={Clock3}
@@ -267,8 +290,8 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
         <CalendarSummaryCard
           icon={CalendarOff}
           label="Faculty Weekly Off Days"
-          value={calendar.summary.facultyWeeklyOffDays || 0}
-          note={calendar.isMultiCourse ? calendar.courses.map((course) => `${course.courseName}: ${course.weeklyOffDay || 'No weekly off'}`).join(' · ') : calendar.weeklyOffDay ? `${calendar.weeklyOffDay.charAt(0) + calendar.weeklyOffDay.slice(1).toLowerCase()} is not a class day` : 'No weekly off configured'}
+          value={summaryCalendar.summary?.facultyWeeklyOffDays || 0}
+          note={summaryCalendar.weeklyOffDay ? `${summaryCalendar.weeklyOffDay.charAt(0) + summaryCalendar.weeklyOffDay.slice(1).toLowerCase()} is not a class day` : 'No weekly off configured'}
           tone="tone-holiday"
         />
       </div>
