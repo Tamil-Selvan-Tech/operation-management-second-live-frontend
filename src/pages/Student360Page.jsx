@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { getBranchStudent, getStudentAttendanceSummary } from '../services/studentService'
+import { getBranchAttendanceOverview } from '../services/attendanceService'
+import { attendanceToday } from '../lib/branchAttendanceSummary'
 import { getBranchStudentSyllabusReports } from '../services/examService'
 import { getBranchStudentAcademicReports } from '../services/academicTestService'
 import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
@@ -74,7 +76,7 @@ function getPaymentSchedule(student = {}) {
 
 function getAttendanceEntries(student = {}) {
   const entries = []
-  const sources = [student.attendanceCalendar, student.attendanceRecords, student.records, student.attendanceHistory]
+  const sources = [student.attendanceCalendar, student.attendanceRecords, student.calendarAttendanceRecords, student.records, student.attendanceHistory]
   sources.forEach((source) => {
     if (!Array.isArray(source)) return
     source.forEach((entry) => entries.push(entry))
@@ -142,6 +144,67 @@ function getCourseProgress(student = {}) {
   return Number.isFinite(percentage) ? Math.min(100, Math.max(0, percentage)) : 0
 }
 
+function AttendanceCalendarSection({ student, studentId, enrollment, isMultiCourseStudent, branchId, onViewCalendar }) {
+  const [courseAttendance, setCourseAttendance] = useState({ studentId: '', courseId: '', records: [], error: '' })
+
+  useEffect(() => {
+    if (!isMultiCourseStudent || !enrollment?.courseId) return undefined
+
+    let active = true
+    getBranchAttendanceOverview(attendanceToday(), branchId)
+      .then((overview) => {
+        if (!active) return
+        const matchingStudents = (overview.students || []).filter((entry) => (
+          String(entry.studentId || '').trim().toLowerCase() === String(student.studentId || studentId || '').trim().toLowerCase() ||
+          String(entry.id || '').trim() === String(student.id || student._id || '').trim()
+        ))
+        const selectedCourseRecords = matchingStudents.flatMap((entry) => Array.isArray(entry.records) ? entry.records : [])
+          .filter((record) => String(record.courseId || '').trim() === String(enrollment.courseId).trim())
+        setCourseAttendance({ studentId, courseId: enrollment.courseId, records: selectedCourseRecords, error: '' })
+      })
+      .catch((requestError) => {
+        if (active) setCourseAttendance({ studentId, courseId: enrollment.courseId, records: [], error: requestError?.message || 'Unable to load course attendance records.' })
+      })
+
+    return () => { active = false }
+  }, [branchId, enrollment?.courseId, isMultiCourseStudent, student.id, student._id, student.studentId, studentId])
+
+  const hasCurrentCourseData = courseAttendance.studentId === studentId && courseAttendance.courseId === enrollment?.courseId
+  const loading = isMultiCourseStudent && !hasCurrentCourseData
+  const error = hasCurrentCourseData ? courseAttendance.error : ''
+  const courseRecords = hasCurrentCourseData ? courseAttendance.records : []
+
+  const calendarStudent = isMultiCourseStudent ? {
+    ...student,
+    courseId: enrollment?.courseId,
+    courseStartDate: enrollment?.courseStartDate,
+    courseEndDate: enrollment?.courseEndDate,
+    classSchedule: enrollment?.classSchedule || student.classSchedule,
+    weeklyOffDay: enrollment?.weeklyOffDay || student.weeklyOffDay,
+    attendanceRecords: courseRecords,
+  } : student
+  const attendanceEntries = getAttendanceEntries(calendarStudent)
+  const attendanceCells = getCurrentMonthAttendanceCells(attendanceEntries, calendarStudent)
+  const attendanceSummary = attendanceEntries.reduce((summary, entry) => {
+    if (Object.prototype.hasOwnProperty.call(summary, entry.status)) summary[entry.status] += 1
+    return summary
+  }, { present: 0, absent: 0, leave: 0, unmarked: 0 })
+
+  return (
+    <SectionCard title={isMultiCourseStudent ? `Attendance Calendar · ${displayValue(enrollment?.courseName, 'Course')}` : 'Attendance Calendar'} className="student360-anchor-card" actions={<button type="button" className="student360-secondary-button" onClick={() => onViewCalendar?.(student, enrollment)}><CalendarDays size={15} /> Calendar</button>}>
+      {loading ? <div className="student360-no-data">Loading selected course attendance...</div> : error ? <div className="student360-no-data student360-attendance-error">{error}</div> : null}
+      <div className="student360-attendance-legend">
+        <span className="present"><i />Present ({attendanceSummary.present})</span>
+        <span className="absent"><i />Absent ({attendanceSummary.absent})</span>
+        <span className="excused"><i />Leave ({attendanceSummary.leave})</span>
+        <span className="unmarked"><i />Unmarked ({attendanceSummary.unmarked})</span>
+        <span className="not-applicable"><i />Disabled / Not Applicable</span>
+      </div>
+      <div className="student360-attendance-grid">{attendanceCells.map((entry) => <div className={`student360-attendance-cell ${entry.status}`} key={entry.date} title={`${entry.date} · ${entry.status}`}><strong>{entry.day}</strong><small>{new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })}</small></div>)}</div>
+    </SectionCard>
+  )
+}
+
 function getStudentCourseEnrollments(student = {}, branchCourseCards = []) {
   const source = Array.isArray(student.courseEnrollments) && student.courseEnrollments.length
     ? student.courseEnrollments
@@ -191,6 +254,7 @@ function getStudentCourseEnrollments(student = {}, branchCourseCards = []) {
       courseType: course.courseType || course.course?.courseType || (isPrimaryCourse ? student.courseType || student.course?.courseType : '') || '',
       batchName: course.batchName || course.batch || (isPrimaryCourse ? student.batchName || student.batch : '') || '',
       batchTiming: course.batchTiming || course.batchTime || (isPrimaryCourse ? student.batchTiming : '') || '',
+      weeklyOffDay: course.weeklyOffDay || (isPrimaryCourse ? student.weeklyOffDay : '') || '',
       facultyName: course.facultyName || (isPrimaryCourse ? student.facultyName : '') || '',
       courseMode: course.courseMode || course.mode || (isPrimaryCourse ? student.courseMode : '') || '',
       classSchedule: course.classSchedule || course.scheduleType || course.schedule || (isPrimaryCourse ? student.classSchedule || student.courseSchedule : '') || '',
@@ -238,7 +302,80 @@ function formatAttendanceDate(value) {
   return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function AttendanceSection({ studentId, student }) {
+function buildSelectedCourseAttendanceOverview(overview = {}, student = {}, enrollment = {}) {
+  const startDate = String(enrollment.courseStartDate || '').slice(0, 10)
+  const endDate = String(enrollment.courseEndDate || '').slice(0, 10)
+  const today = attendanceToday()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return null
+
+  const matchingStudents = (overview.students || []).filter((entry) => (
+    String(entry.studentId || '').trim().toLowerCase() === String(student.studentId || '').trim().toLowerCase() ||
+    String(entry.id || '').trim() === String(student.id || student._id || '').trim()
+  ))
+  const records = matchingStudents.flatMap((entry) => Array.isArray(entry.records) ? entry.records : [])
+    .filter((record) => String(record.courseId || '').trim() === String(enrollment.courseId || '').trim())
+  const recordsByDate = new Map(records.map((record) => [String(record.attendanceDate || '').slice(0, 10), String(record.status || '').toUpperCase()]))
+  const exclusions = overview.exclusions || {}
+  const holidays = new Set((exclusions.holidays || []).map((date) => String(date).slice(0, 10)))
+  const leaves = Array.isArray(exclusions.leaves) ? exclusions.leaves : []
+  const schedule = String(enrollment.classSchedule || '').toLowerCase()
+  const weeklyOffDay = String(enrollment.weeklyOffDay || '').toLowerCase()
+  const scheduledDates = []
+  const cursor = new Date(`${startDate}T00:00:00`)
+  const end = new Date(`${endDate}T00:00:00`)
+
+  while (cursor <= end) {
+    const date = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
+    const day = cursor.getDay()
+    const weekdayName = cursor.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+    const isScheduleDay = schedule.includes('weekend')
+      ? day === 0 || day === 6
+      : schedule.includes('weekday') || schedule.includes('week day') || !schedule
+        ? day >= 1 && day <= 5
+        : schedule.split(/[&,]/).some((value) => weekdayName.startsWith(value.trim().toLowerCase().slice(0, 3)))
+    const isExcluded = holidays.has(date) || leaves.some((leave) => (
+      String(leave.leaveDate || '').slice(0, 10) === date &&
+      (!leave.batchId || String(leave.batchId) === String(enrollment.batchId || ''))
+    ))
+    if (isScheduleDay && !isExcluded && (!weeklyOffDay || weeklyOffDay !== weekdayName)) scheduledDates.push(date)
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  const summarizeRange = (from, to) => {
+    const dates = scheduledDates.filter((date) => date >= from && date <= to)
+    const present = dates.filter((date) => recordsByDate.get(date) === 'PRESENT').length
+    const absent = dates.filter((date) => recordsByDate.get(date) === 'ABSENT').length
+    const leave = dates.filter((date) => recordsByDate.get(date) === 'LEAVE').length
+    return {
+      present,
+      absent,
+      leave,
+      eligible: dates.length,
+      scheduledDays: dates.length,
+      percentage: dates.length ? Number(((present / dates.length) * 100).toFixed(2)) : 0,
+    }
+  }
+
+  const todayDate = new Date(`${today}T00:00:00`)
+  const weekStartDate = new Date(todayDate)
+  weekStartDate.setDate(todayDate.getDate() - (todayDate.getDay() === 0 ? 6 : todayDate.getDay() - 1))
+  const weekStart = `${weekStartDate.getFullYear()}-${String(weekStartDate.getMonth() + 1).padStart(2, '0')}-${String(weekStartDate.getDate()).padStart(2, '0')}`
+  const weekEndDate = new Date(weekStartDate)
+  weekEndDate.setDate(weekStartDate.getDate() + 6)
+  const weekEnd = `${weekEndDate.getFullYear()}-${String(weekEndDate.getMonth() + 1).padStart(2, '0')}-${String(weekEndDate.getDate()).padStart(2, '0')}`
+  const monthStart = `${today.slice(0, 7)}-01`
+  const monthEndDate = new Date(todayDate.getFullYear(), todayDate.getMonth() + 1, 0)
+  const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`
+
+  return {
+    course: { startDate, endDate, schedule: enrollment.classSchedule || '' },
+    weekly: summarizeRange(weekStart, weekEnd),
+    currentMonth: summarizeRange(monthStart, monthEnd),
+    overall: summarizeRange(startDate, endDate),
+  }
+}
+
+function AttendanceSection({ studentId, student, enrollment, isMultiCourseStudent, branchId }) {
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(Boolean(studentId))
   const [error, setError] = useState('')
@@ -253,7 +390,22 @@ function AttendanceSection({ studentId, student }) {
       setLoading(true)
       setError('')
       try {
-        const result = await getStudentAttendanceSummary(studentId)
+        const isPrimaryEnrollment = String(enrollment?.courseId || '').trim() === String(student?.courseId || student?.course?.id || '').trim()
+        const result = isMultiCourseStudent && !isPrimaryEnrollment
+          ? buildSelectedCourseAttendanceOverview(
+            await getBranchAttendanceOverview(attendanceToday(), branchId),
+            { studentId: student?.studentId || studentId, id: student?.id, _id: student?._id },
+            {
+              courseId: enrollment?.courseId,
+              courseStartDate: enrollment?.courseStartDate,
+              courseEndDate: enrollment?.courseEndDate,
+              classSchedule: enrollment?.classSchedule,
+              weeklyOffDay: enrollment?.weeklyOffDay,
+              batchId: enrollment?.batchId,
+            },
+          )
+          : await getStudentAttendanceSummary(studentId)
+        if (!result) throw new Error('Selected course attendance schedule is unavailable.')
         if (active) setSummary(result)
       } catch (requestError) {
         if (active) setError(requestError?.message || 'Unable to load attendance.')
@@ -271,7 +423,7 @@ function AttendanceSection({ studentId, student }) {
       window.removeEventListener('focus', refresh)
       window.removeEventListener('cispro:student-calendar-attendance-changed', refresh)
     }
-  }, [studentId])
+  }, [branchId, enrollment?.batchId, enrollment?.classSchedule, enrollment?.courseEndDate, enrollment?.courseId, enrollment?.courseStartDate, enrollment?.weeklyOffDay, isMultiCourseStudent, student?._id, student?.courseId, student?.course?.id, student?.id, student?.studentId, studentId])
 
   const source = summary || {}
   const course = source.course || {}
@@ -285,7 +437,7 @@ function AttendanceSection({ studentId, student }) {
   ]
 
   return (
-    <SectionCard title="Attendance" description="Attendance calculated from the active enrollment, course schedule, and daily records.">
+    <SectionCard title={isMultiCourseStudent ? `Attendance · ${displayValue(enrollment?.courseName, 'Course')}` : 'Attendance'} description={isMultiCourseStudent ? 'Attendance summary for the selected course and its schedule.' : 'Attendance calculated from the active enrollment, course schedule, and daily records.'}>
       {loading ? <div className="student360-no-data">Loading attendance...</div> : error ? <div className="student360-no-data student360-attendance-error">{error}</div> : (
         <>
           <div className="student360-attendance-course-meta">{course.startDate || student?.courseStartDate ? `${formatAttendanceDate(course.startDate || student.courseStartDate)} → ${formatAttendanceDate(course.endDate || student.courseEndDate)}` : 'Course dates unavailable'}<span>{course.schedule || course.scheduleType || student?.classSchedule || 'Schedule unavailable'}</span></div>
@@ -371,6 +523,7 @@ export function Student360Page({
   student: initialStudent = null,
   facultyTodayWorkEntries = [],
   branchCourseCards = [],
+  branch = null,
   paymentHistory = [],
   onBack,
   backLabel = 'Back to Students',
@@ -381,6 +534,7 @@ export function Student360Page({
 }) {
   const [studentRecord, setStudentRecord] = useState(null)
   const [academicProgressState, setAcademicProgressState] = useState({ studentId: '', data: null, error: '' })
+  const [courseSelection, setCourseSelection] = useState({ studentId: '', courseKey: '' })
 
   useEffect(() => {
     let active = true
@@ -420,11 +574,37 @@ export function Student360Page({
   const studentName = displayValue(student.studentName, 'Student')
   const studentKeys = getStudentKeys(student)
   const schedule = getPaymentSchedule(student)
-  const attendanceEntries = getAttendanceEntries(student)
-  const attendanceCells = getCurrentMonthAttendanceCells(attendanceEntries, student)
   const courseProgress = getCourseProgress(student)
   const courseEnrollments = getStudentCourseEnrollments(student, branchCourseCards)
   const isMultiCourseStudent = courseEnrollments.length > 1
+  const getEnrollmentKey = (enrollment, index) => String(enrollment.courseId || `${enrollment.courseName}-${index}`)
+  const primaryCourseIndex = courseEnrollments.findIndex((enrollment) => (
+    String(enrollment.courseId || '').trim() === String(student.courseId || student.course?.id || '').trim()
+  ))
+  const selectedCourseKey = courseSelection.studentId === studentId ? courseSelection.courseKey : ''
+  const explicitCourseIndex = courseEnrollments.findIndex((enrollment, index) => getEnrollmentKey(enrollment, index) === selectedCourseKey)
+  const selectedCourseIndex = explicitCourseIndex >= 0 ? explicitCourseIndex : Math.max(primaryCourseIndex, 0)
+  const selectedCourse = courseEnrollments[selectedCourseIndex]
+  const selectedCourseCatalog = isMultiCourseStudent
+    ? branchCourseCards.find((course) => (
+      String(course?.id || course?.courseId || '').trim() === String(selectedCourse.courseId || '').trim() ||
+      String(course?.name || '').trim().toLowerCase() === String(selectedCourse.courseName || '').trim().toLowerCase()
+    ))
+    : null
+  const selectedCourseProgressSummary = isMultiCourseStudent && selectedCourseCatalog
+    ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, selectedCourseCatalog, {
+      ...student,
+      courseId: selectedCourse.courseId,
+      courseName: selectedCourse.courseName,
+    })
+    : null
+  const selectedSavedProgress = selectedCourse?.courseProgress
+  const selectedWorkProgress = selectedCourseProgressSummary?.courseProgress
+  const hasSelectedCourseProgress = (selectedSavedProgress !== null && selectedSavedProgress !== undefined && String(selectedSavedProgress).trim() !== '') || (selectedWorkProgress !== null && selectedWorkProgress !== undefined)
+  const selectedCourseProgress = Number(hasSelectedCourseProgress ? (selectedSavedProgress ?? selectedWorkProgress) : NaN)
+  const selectedCourseProgressValue = Number.isFinite(selectedCourseProgress)
+    ? Math.min(100, Math.max(0, selectedCourseProgress))
+    : null
   const totalFee = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
   const paidAmount = schedule.length
     ? schedule.reduce((sum, item) => sum + Number(item.paidAmount ?? item.amountPaid ?? 0), 0)
@@ -445,10 +625,6 @@ export function Student360Page({
         paymentMode: item.paymentMode || item.mode,
         installmentNumber: item.installmentNumber || item.number || index + 1,
       }))
-  const attendanceSummary = attendanceEntries.reduce((summary, entry) => {
-    if (Object.prototype.hasOwnProperty.call(summary, entry.status)) summary[entry.status] += 1
-    return summary
-  }, { present: 0, absent: 0, leave: 0, unmarked: 0 })
   const initials = studentName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()
   const status = displayValue(student.status || student.currentStatus, 'Active')
 
@@ -480,48 +656,42 @@ export function Student360Page({
         </div>
       </section>
 
+      {isMultiCourseStudent ? (
+        <div className="student360-course-tabs" role="tablist" aria-label="Student courses">
+          {courseEnrollments.map((enrollment, index) => {
+            const enrollmentKey = getEnrollmentKey(enrollment, index)
+            const isSelected = enrollmentKey === getEnrollmentKey(selectedCourse, selectedCourseIndex)
+            return (
+              <button
+                key={enrollmentKey}
+                id={`student360-course-tab-${index}`}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                aria-controls="student360-selected-course-panel"
+                className={`student360-course-tab${isSelected ? ' is-active' : ''}`}
+                onClick={() => setCourseSelection({ studentId, courseKey: enrollmentKey })}
+              >
+                <span>Course {index + 1}</span>
+                <strong>{displayValue(enrollment.courseName, 'Course')}</strong>
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
       <section id="overview" className={`student360-summary-grid ${isMultiCourseStudent ? 'has-multi-course' : ''}`}>
-        {isMultiCourseStudent ? courseEnrollments.map((enrollment, index) => {
-          const hasSavedProgress = enrollment.courseProgress !== null && enrollment.courseProgress !== undefined && String(enrollment.courseProgress).trim() !== ''
-          const catalogCourse = branchCourseCards.find((course) => (
-            String(course?.id || course?.courseId || '').trim() === String(enrollment.courseId || '').trim() ||
-            String(course?.name || '').trim().toLowerCase() === String(enrollment.courseName || '').trim().toLowerCase()
-          ))
-          const workProgress = !hasSavedProgress && catalogCourse
-            ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, catalogCourse, {
-              ...student,
-              courseId: enrollment.courseId,
-              courseName: enrollment.courseName,
-            })?.courseProgress
-            : null
-          const enrollmentProgress = Number(hasSavedProgress ? enrollment.courseProgress : workProgress)
-          const hasEnrollmentProgress = (hasSavedProgress || workProgress !== null) && Number.isFinite(enrollmentProgress)
-          const safeEnrollmentProgress = hasEnrollmentProgress ? Math.min(100, Math.max(0, enrollmentProgress)) : 0
-          return (
-            <article className="student360-summary-card student360-course-enrollment-card" key={enrollment.courseId || `${enrollment.courseName}-${index}`}>
+        {isMultiCourseStudent ? (
+          <>
+            <article id="student360-selected-course-panel" role="tabpanel" aria-labelledby={`student360-course-tab-${selectedCourseIndex}`} className="student360-summary-card">
               <span className="student360-summary-icon blue"><BookOpen size={19} /></span>
-              <div className="student360-course-enrollment-copy">
-                <span>Course {index + 1}{enrollment.status ? ` · ${displayValue(enrollment.status)}` : ''}</span>
-                <strong>{displayValue(enrollment.courseName, 'Course not assigned')}</strong>
-                <div className="student360-course-enrollment-facts">
-                  <div><span>Batch</span><strong>{displayValue(enrollment.batchName)}</strong></div>
-                  <div><span>Timing</span><strong>{displayValue(enrollment.batchTiming)}</strong></div>
-                  <div><span>Faculty</span><strong>{displayValue(enrollment.facultyName)}</strong></div>
-                  <div><span>Mode / Schedule</span><strong>{displayValue([enrollment.courseMode, enrollment.classSchedule].filter(Boolean).join(' · '))}</strong></div>
-                  <div><span>Duration</span><strong>{displayValue(enrollment.courseDuration)}</strong></div>
-                  <div><span>Course Fee</span><strong>{formatCurrency(enrollment.courseAmount)}</strong></div>
-                  <div><span>Payment Plan</span><strong>{displayValue(enrollment.paymentPlan)}</strong></div>
-                  <div><span>Course Dates</span><strong>{enrollment.courseStartDate || enrollment.courseEndDate ? `${formatDate(enrollment.courseStartDate)} – ${formatDate(enrollment.courseEndDate)}` : '-'}</strong></div>
-                </div>
-                <div className="student360-course-enrollment-progress">
-                  <span>Course Progress</span>
-                  <strong>{hasEnrollmentProgress ? `${Math.round(safeEnrollmentProgress)}%` : 'Not recorded'}</strong>
-                  <div className="student360-summary-progress-track"><span style={{ width: `${safeEnrollmentProgress}%` }} /></div>
-                </div>
-              </div>
+              <div><span>Course</span><strong>{displayValue(selectedCourse.courseName, 'Course not assigned')}</strong><small className="student360-course-type">{displayValue(selectedCourseCatalog?.courseType || selectedCourse.courseType, 'Course type not set')}</small></div>
             </article>
-          )
-        }) : (
+            <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{displayValue(selectedCourse.batchName)}</strong><small>{displayValue(selectedCourse.batchTiming || selectedCourse.classSchedule, 'Schedule not set')}</small></div></article>
+            <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{displayValue(selectedCourse.facultyName)}</strong><small>Assigned faculty</small></div></article>
+            <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{selectedCourseProgressValue === null ? 'Not recorded' : `${Math.round(selectedCourseProgressValue)}%`}</strong><div className="student360-summary-progress-track"><span style={{ width: `${selectedCourseProgressValue ?? 0}%` }} /></div><small>{selectedCourse.courseEndDate ? `End date: ${formatDate(selectedCourse.courseEndDate)}` : 'End date not set'}</small></div></article>
+          </>
+        ) : (
           <>
             <article className="student360-summary-card"><span className="student360-summary-icon blue"><BookOpen size={19} /></span><div><span>Course</span><strong>{displayValue(student.courseInterested || student.courseName)}</strong><small className="student360-course-type">{displayValue(student.courseType || student.course?.courseType, 'Course type not set')}</small></div></article>
             <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{displayValue(student.batchName || student.batch)}</strong><small>{displayValue(student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
@@ -534,19 +704,22 @@ export function Student360Page({
 
       <div className="student360-content-grid">
         <div className="student360-main-column">
-          <AttendanceSection studentId={studentId || student.studentId} student={student} />
+          <AttendanceSection
+            studentId={studentId || student.studentId}
+            student={student}
+            enrollment={selectedCourse}
+            isMultiCourseStudent={isMultiCourseStudent}
+            branchId={branch?.id || branch?.branchId || ''}
+          />
           <PerformanceSection studentId={studentId || student.studentId} />
-          {/* Keep the existing monthly calendar available through the dedicated Calendar action. */}
-          <SectionCard title="Attendance Calendar" className="student360-anchor-card" actions={<button type="button" className="student360-secondary-button" onClick={() => onViewCalendar?.(student)}><CalendarDays size={15} /> Calendar</button>}>
-            <div className="student360-attendance-legend">
-              <span className="present"><i />Present ({attendanceSummary.present})</span>
-              <span className="absent"><i />Absent ({attendanceSummary.absent})</span>
-              <span className="excused"><i />Leave ({attendanceSummary.leave})</span>
-              <span className="unmarked"><i />Unmarked ({attendanceSummary.unmarked})</span>
-              <span className="not-applicable"><i />Disabled / Not Applicable</span>
-            </div>
-            <div className="student360-attendance-grid">{attendanceCells.map((entry) => <div className={`student360-attendance-cell ${entry.status}`} key={entry.date} title={`${entry.date} · ${entry.status}`}><strong>{entry.day}</strong><small>{new Date(`${entry.date}T00:00:00`).toLocaleDateString('en-US', { month: 'short' })}</small></div>)}</div>
-          </SectionCard>
+          <AttendanceCalendarSection
+            student={student}
+            studentId={studentId || student.studentId}
+            enrollment={selectedCourse}
+            isMultiCourseStudent={isMultiCourseStudent}
+            branchId={branch?.id || branch?.branchId || ''}
+            onViewCalendar={onViewCalendar}
+          />
         </div>
 
         <aside className="student360-side-column">

@@ -10502,7 +10502,7 @@ else {
                 ? Math.min(100, Math.max(0, savedProgress))
                 : Number.isFinite(Number(progressSummary?.courseProgress))
                   ? Math.min(100, Math.max(0, Number(progressSummary.courseProgress)))
-                  : null
+                  : 0
               const courseInstallments = installmentRowsByCourse[index]
               const nextCourseInstallment = courseInstallments.find((installment) => Number(installment.paidAmount || 0) < Number(installment.amount || 0))
               const nextCourseDueDate = nextCourseInstallment?.dueDate || nextCourseInstallment?.date || ''
