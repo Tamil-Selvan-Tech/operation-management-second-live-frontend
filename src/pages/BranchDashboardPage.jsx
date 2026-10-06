@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom'
 import html2pdf from 'html2pdf.js'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -8834,7 +8834,14 @@ useEffect(() => {
     if (studentForm.source === 'Others') allTouched.sourceOther = true
     setStudentFormTouched(allTouched)
 
-    if (Object.keys(studentFormValidationErrors).length > 0) return
+    const isMultiCourseSubmission = studentSelectedCourseIds.length >= 2
+    const blockingValidationErrors = Object.keys(studentFormValidationErrors).filter((field) => (
+      !isMultiCourseSubmission || !STUDENT_FORM_STEP_THREE_FIELDS.includes(field)
+    ))
+    if (blockingValidationErrors.length > 0) {
+      setStudentFormError('Please complete the required fields before submitting.')
+      return
+    }
 
     const originalStudentId = String(studentForm.originalStudentId || studentForm.studentId || '').trim()
     const resolvedStudentId = studentFormMode === 'edit'
@@ -8930,10 +8937,11 @@ useEffect(() => {
       !String(enrollment.classSchedule || enrollment.scheduleType || '').trim() ||
       !String(enrollment.courseStartDate || enrollment.startDate || '').trim() ||
       !String(enrollment.courseMode || enrollment.mode || '').trim() ||
+      !(Number(String(enrollment.totalCourseAmount || enrollment.courseAmount || 0).replace(/,/g, '')) > 0) ||
       !String(enrollment.paymentPlanId || '').trim())
     ))
     if (incompleteEnrollment) {
-      setStudentFormError(`Complete the batch, schedule, mode, dates and payment plan for ${incompleteEnrollment.courseName || 'every selected course'}.`)
+      setStudentFormError(`Complete the batch, schedule, mode, dates, amount and payment plan for ${incompleteEnrollment.courseName || 'every selected course'}.`)
       return
     }
 
@@ -9600,6 +9608,8 @@ useEffect(() => {
                 <Student360Page
                   studentId={decodeURIComponent(student360Id)}
                   student={branchStudents.find((student) => [student?.studentId, student?.studentCode, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(student360Id)).trim().toLowerCase()))}
+                  facultyTodayWorkEntries={facultyTodayWorkEntries}
+                  branchCourseCards={branchCourseCards}
                   branch={branchProfile || branchData}
                   paymentHistory={allPaymentHistoryRecords}
                   onBack={() => embeddedMode ? goToBranchSection('students') : navigate('/branch-dashboard?section=students')}
@@ -10169,10 +10179,10 @@ useEffect(() => {
     <thead>
       <tr>
         <th>Student ID</th>
-        <th>Student Name</th>
-        <th>Course</th>
+        <th>Courses</th>
         <th>Total Fee</th>
         <th>Paid</th>
+        <th>Paid Progress</th>
         <th>Course Progress</th>
         <th>Next Installment</th>
         <th>Due Date</th>
@@ -10367,6 +10377,287 @@ else {
                 : (effectiveCourse ? 0 : null))
           const hasCourseProgress = Number.isFinite(studentCourseProgress)
 
+          const enrollmentSource = Array.isArray(stu.courseEnrollments) && stu.courseEnrollments.length
+            ? stu.courseEnrollments
+            : Array.isArray(stu.courses) && stu.courses.length
+              ? stu.courses
+              : []
+          const normalizedCourseEntries = [...new Map(enrollmentSource
+            .filter((entry) => entry && typeof entry === 'object')
+            .map((entry) => [
+              String(entry.courseId || entry.id || entry.course?.id || '').trim() || String(entry.courseName || entry.name || ''),
+              entry,
+            ])).values()]
+          if (!normalizedCourseEntries.length) {
+            normalizedCourseEntries.push({
+              courseId: stu.courseId,
+              courseName: stu.courseName || stu.courseInterested || stu.course?.name,
+              courseAmount: stu.courseAmount || stu.totalAmount || stu.afterDiscount,
+              courseProgress: stu.courseProgress ?? stu.progress,
+            })
+          }
+
+          if (normalizedCourseEntries.length > 1) {
+            const courseAmounts = normalizedCourseEntries.map((entry) => {
+              const courseId = String(entry.courseId || entry.id || entry.course?.id || '').trim()
+              const catalogCourse = branchCourseCards.find((course) => (
+                (courseId && String(course.id) === courseId) ||
+                String(course.courseCode || '').trim().toLowerCase() === String(entry.courseCode || '').trim().toLowerCase() ||
+                String(course.name || '').trim().toLowerCase() === String(entry.courseName || entry.name || '').trim().toLowerCase()
+              ))
+              return {
+                entry,
+                courseId,
+                catalogCourse,
+                courseName: entry.courseName || entry.name || entry.course?.name || catalogCourse?.name || 'Course',
+                courseCode: entry.courseCode || entry.course?.courseCode || catalogCourse?.courseCode || '',
+                amount: Number(String(entry.totalCourseAmount || entry.courseAmount || entry.totalAmount || entry.afterDiscount || catalogCourse?.amount || 0).replace(/,/g, '')) || 0,
+              }
+            })
+            const distributeAmount = (amount, weights) => {
+              const totalWeight = weights.reduce((sum, weight) => sum + weight, 0)
+              let assigned = 0
+              return weights.map((weight, index) => {
+                const part = index === weights.length - 1
+                  ? Math.max(Number(amount) - assigned, 0)
+                  : Math.round((Number(amount) * weight) / Math.max(totalWeight, 1))
+                assigned += part
+                return part
+              })
+            }
+            const paidByCourse = courseAmounts.map(() => 0)
+            const installmentRowsByCourse = courseAmounts.map(() => [])
+            const isSequentialArrangement = String(stu.arrangementType || '').trim().toUpperCase() === 'SEQUENTIAL'
+            const scheduledByCourse = courseAmounts.map(() => 0)
+
+            const allocateSequentially = (amount, capacities) => {
+              let remaining = Math.max(Number(amount) || 0, 0)
+              return capacities.map((capacity) => {
+                const allocated = Math.min(remaining, Math.max(capacity, 0))
+                remaining -= allocated
+                return allocated
+              })
+            }
+
+            installments.forEach((installment) => {
+              const installmentAmount = Number(installment.amount ?? installment.installmentAmount ?? 0)
+              const installmentPaid = Math.min(installmentAmount, Number(installment.paidAmount ?? installment.amountPaid ?? 0))
+              const savedAllocations = Array.isArray(installment.courseAllocations) ? installment.courseAllocations : []
+              const weights = courseAmounts.map((item) => {
+                const savedAllocation = savedAllocations.find((allocation) => (
+                  String(allocation.courseId || '').trim() === item.courseId ||
+                  String(allocation.courseName || '').trim().toLowerCase() === item.courseName.trim().toLowerCase()
+                ))
+                return Number(savedAllocation?.allocatedAmount ?? savedAllocation?.amount ?? 0) || item.amount
+              })
+              const allocatedAmounts = savedAllocations.length
+                ? courseAmounts.map((item, index) => {
+                  const savedAllocation = savedAllocations.find((allocation) => (
+                    String(allocation.courseId || '').trim() === item.courseId ||
+                    String(allocation.courseName || '').trim().toLowerCase() === item.courseName.trim().toLowerCase()
+                  ))
+                  return Number(savedAllocation?.allocatedAmount ?? savedAllocation?.amount ?? 0) || distributeAmount(installmentAmount, weights)[index]
+                })
+                : isSequentialArrangement
+                  ? allocateSequentially(installmentAmount, courseAmounts.map((item, index) => item.amount - scheduledByCourse[index]))
+                  : distributeAmount(installmentAmount, courseAmounts.map((item) => item.amount))
+              const paidAmounts = isSequentialArrangement
+                ? allocateSequentially(installmentPaid, allocatedAmounts)
+                : distributeAmount(installmentPaid, weights)
+
+              courseAmounts.forEach((item, index) => {
+                const allocationAmount = allocatedAmounts[index]
+                const allocationPaid = Math.min(allocationAmount, paidAmounts[index])
+                scheduledByCourse[index] += allocationAmount
+                paidByCourse[index] += allocationPaid
+                installmentRowsByCourse[index].push({
+                  ...installment,
+                  amount: allocationAmount,
+                  paidAmount: allocationPaid,
+                })
+              })
+            })
+
+            const courseRows = courseAmounts.map((item, index) => {
+              const primaryCourseId = String(stu.courseId || stu.course?.id || '').trim()
+              const primaryCourseName = String(stu.courseName || stu.courseInterested || stu.course?.name || '').trim().toLowerCase()
+              const isPrimaryCourse = (primaryCourseId && item.courseId === primaryCourseId) ||
+                (!primaryCourseId && primaryCourseName && item.courseName.trim().toLowerCase() === primaryCourseName)
+              const enrollmentSavedProgress = item.entry.courseProgress ?? item.entry.courseCompletionPercentage ?? item.entry.progress
+              const primarySavedProgress = isPrimaryCourse
+                ? stu.courseProgress ?? stu.courseCompletionPercentage ?? stu.progress
+                : undefined
+              const rawSavedProgress = enrollmentSavedProgress ?? primarySavedProgress
+              const savedProgress = rawSavedProgress !== null && rawSavedProgress !== undefined && String(rawSavedProgress).trim() !== ''
+                ? Number(rawSavedProgress)
+                : Number.NaN
+              const progressSummary = item.catalogCourse
+                ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, item.catalogCourse, {
+                  ...stu,
+                  courseId: item.courseId,
+                  courseName: item.courseName,
+                })
+                : null
+              const progressValue = Number.isFinite(savedProgress)
+                ? Math.min(100, Math.max(0, savedProgress))
+                : Number.isFinite(Number(progressSummary?.courseProgress))
+                  ? Math.min(100, Math.max(0, Number(progressSummary.courseProgress)))
+                  : null
+              const courseInstallments = installmentRowsByCourse[index]
+              const nextCourseInstallment = courseInstallments.find((installment) => Number(installment.paidAmount || 0) < Number(installment.amount || 0))
+              const nextCourseDueDate = nextCourseInstallment?.dueDate || nextCourseInstallment?.date || ''
+              const coursePaidAmount = Math.min(item.amount, paidByCourse[index])
+              const paidPercentage = item.amount > 0 ? Math.min(100, (coursePaidAmount / item.amount) * 100) : 0
+              const courseStatus = coursePaidAmount >= item.amount && item.amount > 0
+                ? 'Completed'
+                : nextCourseDueDate && new Date(`${String(nextCourseDueDate).slice(0, 10)}T00:00:00`) < today
+                  ? 'Overdue'
+                  : coursePaidAmount > 0
+                    ? 'Partial'
+                    : 'Upcoming'
+              return { ...item, coursePaidAmount, paidPercentage, progressValue, nextCourseInstallment, nextCourseDueDate, courseStatus, rowInstallments: courseInstallments }
+            })
+            const coursesWithNextInstallment = courseRows.filter((courseRow) => courseRow.nextCourseInstallment)
+            const combinedNextInstallmentAmount = coursesWithNextInstallment.reduce((sum, courseRow) => (
+              sum + Math.max(
+                Number(courseRow.nextCourseInstallment.amount || 0) - Number(courseRow.nextCourseInstallment.paidAmount || 0),
+                0,
+              )
+            ), 0)
+            const combinedDueDates = coursesWithNextInstallment
+              .map((courseRow) => courseRow.nextCourseDueDate)
+              .filter((date) => date && !Number.isNaN(new Date(`${String(date).slice(0, 10)}T00:00:00`).getTime()))
+              .sort((left, right) => new Date(`${String(left).slice(0, 10)}T00:00:00`) - new Date(`${String(right).slice(0, 10)}T00:00:00`))
+            const combinedNextDueDate = combinedDueDates[0] || ''
+            const combinedInstallmentNumbers = [...new Set(coursesWithNextInstallment.map((courseRow) => (
+              String(courseRow.nextCourseInstallment.installmentNumber || courseRow.nextCourseInstallment.number || '').trim()
+            )).filter(Boolean))]
+            const combinedInstallmentLabel = coursesWithNextInstallment.length
+              ? `${combinedInstallmentNumbers.length === 1 ? `Installment ${combinedInstallmentNumbers[0]}` : 'Next installments'} · ${coursesWithNextInstallment.length} courses`
+              : ''
+            const hasPartiallyPaidInstallment = courseRows.some((courseRow) => (
+              courseRow.rowInstallments.some((installment) => {
+                const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
+                const paid = Number(installment.paidAmount ?? installment.amountPaid ?? 0)
+                return paid > 0 && paid < amount
+              })
+            ))
+            const combinedPaymentStatus = courseRows.every((courseRow) => courseRow.courseStatus === 'Completed')
+              ? 'Completed'
+              : courseRows.some((courseRow) => courseRow.courseStatus === 'Overdue')
+                ? 'Overdue'
+                : hasPartiallyPaidInstallment
+                  ? 'Partial'
+                  : 'Upcoming'
+
+            return (
+              <Fragment key={stu.studentId || stu.id}>
+                {courseRows.map((courseRow, index) => (
+                  <tr
+                    key={`${stu.studentId}-${courseRow.courseId || courseRow.courseName}`}
+                    className="branch-student-row branch-student-course-row"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${stu.studentName || stu.studentId} - ${courseRow.courseName}`}
+                    onClick={() => openStudentViewDrawer(stu)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openStudentViewDrawer(stu)
+                      }
+                    }}
+                  >
+                    {index === 0 ? (
+                      <td className="branch-student-id-cell branch-student-group-cell" rowSpan={courseRows.length}>
+                        <strong>{stu.studentId || '-'}</strong>
+                        <span>{stu.studentName || '-'}</span>
+                        <small>{courseRows.length} Courses</small>
+                      </td>
+                    ) : null}
+                    <td className="branch-student-course-group-cell">
+                      <strong className="branch-student-course">{courseRow.courseName}</strong>
+                      {courseRow.courseCode ? <small>{courseRow.courseCode}</small> : null}
+                    </td>
+                    <td><strong>{formatFee(courseRow.amount)}</strong></td>
+                    <td><strong className="branch-student-paid-amount">{formatFee(courseRow.coursePaidAmount)}</strong></td>
+                    <td>
+                      <div className="branch-student-paid-cell">
+                        <span className="branch-student-paid-progress-label">{formatBranchPercentage(courseRow.paidPercentage)}% Paid</span>
+                        <div className="branch-student-paid-progress"><div className="branch-student-paid-progress-bar"><span className="branch-student-paid-progress-fill" style={{ width: `${courseRow.paidPercentage}%` }} /></div></div>
+                      </div>
+                    </td>
+                    <td>
+                      {Number.isFinite(courseRow.progressValue) ? (
+                        <div className="branch-student-paid-cell">
+                          <span className="branch-student-paid-progress-label">{formatBranchPercentage(courseRow.progressValue)}% Complete</span>
+                          <div className="branch-student-paid-progress"><div className="branch-student-course-progress-bar"><span className="branch-student-course-progress-fill" style={{ width: `${courseRow.progressValue}%` }} /></div></div>
+                        </div>
+                      ) : <span className="faculty-today-work-empty-label">-</span>}
+                    </td>
+                    {index === 0 ? (
+                      <>
+                        <td rowSpan={courseRows.length}>
+                          {coursesWithNextInstallment.length ? (
+                            <div className="branch-next-installment">
+                              <strong>{formatFee(combinedNextInstallmentAmount)}</strong>
+                              <span>{combinedInstallmentLabel}</span>
+                            </div>
+                          ) : <span className="branch-no-installment">-</span>}
+                        </td>
+                        <td rowSpan={courseRows.length}><span className="branch-student-due-date">{formatDueDate(combinedNextDueDate)}</span></td>
+                        <td rowSpan={courseRows.length}><span className={`branch-student-payment-status ${combinedPaymentStatus.toLowerCase()}`}>{combinedPaymentStatus}</span></td>
+                      </>
+                    ) : null}
+                    {index === 0 ? (
+                      <td rowSpan={courseRows.length} style={{ textAlign: 'center' }}>
+                        <div className={`branch-student-actions-cell ${studentActionMenuId === stu.studentId ? 'menu-open' : ''}`}>
+                          <button
+                            type="button"
+                            className="branch-student-more-btn"
+                            aria-label="Student actions"
+                            aria-haspopup="menu"
+                            aria-expanded={studentActionMenuId === stu.studentId}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              if (studentActionMenuId === stu.studentId) {
+                                setStudentActionMenuId('')
+                                setStudentActionMenuPosition({ top: 0, left: 0 })
+                              } else {
+                                setStudentActionMenuId(stu.studentId)
+                                openStudentActionMenu(event.currentTarget)
+                              }
+                            }}
+                          >
+                            <span className="branch-student-more-dots" aria-hidden="true"><span /><span /><span /></span>
+                          </button>
+                        </div>
+                        {studentActionMenuId === stu.studentId && studentActionMenuPosition && typeof document !== 'undefined'
+                          ? createPortal(
+                            <div
+                              ref={studentActionMenuRef}
+                              className="branch-student-actions-menu"
+                              role="menu"
+                              aria-label="Student actions"
+                              style={{ position: 'fixed', top: `${studentActionMenuPosition.top}px`, left: `${studentActionMenuPosition.left}px`, zIndex: 999999, display: 'block' }}
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openStudentViewDrawer(stu) }}><Eye size={15} /><span>View</span></button>
+                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setAttendanceReportTarget({ mode: 'student', record: stu }) }}><Download size={15} /><span>Download Attendance</span></button>
+                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openEditStudentForm({ ...stu }) }}><Pencil size={15} /><span>Edit</span></button>
+                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openRecordPaymentConfirmation(stu) }}><Wallet size={15} /><span>Record Payment</span></button>
+                              <button type="button" className="is-danger" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setStudentDeleteTarget({ ...stu }) }}><Trash2 size={15} /><span>Delete</span></button>
+                            </div>,
+                            document.body,
+                          )
+                          : null}
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </Fragment>
+            )
+          }
+
           return (
             <tr
               key={stu.studentId}
@@ -10382,17 +10673,16 @@ else {
                 }
               }}
             >
-              <td className="branch-student-id-cell"><strong>{stu.studentId || '-'}</strong></td>
-              <td><strong className="branch-course-name">{stu.studentName || '-'}</strong></td>
+              <td className="branch-student-id-cell branch-student-group-cell"><strong>{stu.studentId || '-'}</strong><span>{stu.studentName || '-'}</span></td>
               <td>
                 <span className="branch-student-course">
                   {stu.courseName || stu.courseInterested || stu.course?.name || '-'}
                 </span>
               </td>
               <td><strong>{formatFee(totalFee)}</strong></td>
+              <td><strong className="branch-student-paid-amount">{formatFee(paidAmount)}</strong></td>
               <td>
                 <div className="branch-student-paid-cell">
-                  <span className="branch-student-paid-amount">{formatFee(paidAmount)}</span>
                   <div className="branch-student-paid-progress">
                     <div className="branch-student-paid-progress-bar" aria-hidden="true">
                       <span

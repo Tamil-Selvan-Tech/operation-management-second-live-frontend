@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getBranchStudent, getStudentAttendanceSummary } from '../services/studentService'
 import { getBranchStudentSyllabusReports } from '../services/examService'
 import { getBranchStudentAcademicReports } from '../services/academicTestService'
+import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
 
 import './Student360Page.css'
 
@@ -139,6 +140,68 @@ function getCourseProgress(student = {}) {
   ].find((candidate) => candidate !== null && candidate !== undefined && String(candidate).trim() !== '')
   const percentage = Number(value)
   return Number.isFinite(percentage) ? Math.min(100, Math.max(0, percentage)) : 0
+}
+
+function getStudentCourseEnrollments(student = {}, branchCourseCards = []) {
+  const source = Array.isArray(student.courseEnrollments) && student.courseEnrollments.length
+    ? student.courseEnrollments
+    : Array.isArray(student.courses) && student.courses.length
+      ? student.courses
+      : []
+  const uniqueCourses = [...new Map(source
+    .filter((course) => course && typeof course === 'object')
+    .map((course, index) => [
+      String(course.courseId || course.id || course.course?.id || course.courseName || course.name || index).trim(),
+      course,
+    ])).values()]
+
+  if (!uniqueCourses.length) {
+    return [{
+      courseId: student.courseId || student.course?.id || '',
+      courseName: student.courseName || student.courseInterested || student.course?.name || '',
+      courseType: student.courseType || student.course?.courseType || '',
+      batchName: student.batchName || student.batch || '',
+      batchTiming: student.batchTiming || '',
+      facultyName: student.facultyName || '',
+      courseMode: student.courseMode || student.mode || '',
+      classSchedule: student.classSchedule || student.courseSchedule || '',
+      courseStartDate: student.courseStartDate || student.startDate || '',
+      courseEndDate: student.courseEndDate || student.endDate || '',
+      courseDuration: student.courseDuration || student.course?.duration || '',
+      courseAmount: student.courseAmount || student.totalCourseAmount || '',
+      paymentPlan: student.paymentPlan || '',
+      status: student.arrangementStatus || student.status || 'ACTIVE',
+      courseProgress: student.courseProgress ?? student.courseCompletionPercentage ?? student.progress,
+    }]
+  }
+
+  return uniqueCourses.map((course) => {
+    const courseId = String(course.courseId || course.id || course.course?.id || '').trim()
+    const courseName = String(course.courseName || course.name || course.course?.name || '').trim()
+    const catalogCourse = branchCourseCards.find((item) => (
+      (courseId && String(item?.id || item?.courseId || '').trim() === courseId) ||
+      (courseName && String(item?.name || '').trim().toLowerCase() === courseName.toLowerCase())
+    ))
+    const isPrimaryCourse = courseId && courseId === String(student.courseId || student.course?.id || '').trim()
+    const savedProgress = course.courseProgress ?? course.courseCompletionPercentage ?? course.progress
+    return {
+      ...course,
+      courseId,
+      courseName: course.courseName || course.name || course.course?.name || (isPrimaryCourse ? student.courseName || student.courseInterested : '') || '',
+      courseType: course.courseType || course.course?.courseType || (isPrimaryCourse ? student.courseType || student.course?.courseType : '') || '',
+      batchName: course.batchName || course.batch || (isPrimaryCourse ? student.batchName || student.batch : '') || '',
+      batchTiming: course.batchTiming || course.batchTime || (isPrimaryCourse ? student.batchTiming : '') || '',
+      facultyName: course.facultyName || (isPrimaryCourse ? student.facultyName : '') || '',
+      courseMode: course.courseMode || course.mode || (isPrimaryCourse ? student.courseMode : '') || '',
+      classSchedule: course.classSchedule || course.scheduleType || course.schedule || (isPrimaryCourse ? student.classSchedule || student.courseSchedule : '') || '',
+      courseStartDate: course.courseStartDate || course.startDate || (isPrimaryCourse ? student.courseStartDate : '') || '',
+      courseEndDate: course.courseEndDate || course.endDate || (isPrimaryCourse ? student.courseEndDate : '') || '',
+      courseDuration: course.courseDuration || course.duration || course.course?.duration || catalogCourse?.duration || (isPrimaryCourse ? student.courseDuration : '') || '',
+      courseAmount: course.totalCourseAmount ?? course.courseAmount ?? course.totalAmount ?? (isPrimaryCourse ? student.courseAmount : ''),
+      paymentPlan: course.paymentPlan || course.paymentPlanName || (isPrimaryCourse ? student.paymentPlan : '') || '',
+      courseProgress: savedProgress ?? (isPrimaryCourse ? getCourseProgress(student) : null),
+    }
+  })
 }
 
 function getPeriodValue(period = {}, key, fallback = 0) {
@@ -305,7 +368,9 @@ function SectionCard({ title, description, actions, children, className = '', id
 
 export function Student360Page({
   studentId = '',
-  student = null,
+  student: initialStudent = null,
+  facultyTodayWorkEntries = [],
+  branchCourseCards = [],
   paymentHistory = [],
   onBack,
   backLabel = 'Back to Students',
@@ -314,23 +379,28 @@ export function Student360Page({
   onDownloadAttendance,
   onDownloadPaymentReceipt,
 }) {
-  const [academicTestProgress, setAcademicTestProgress] = useState(null)
-  const [academicTestProgressError, setAcademicTestProgressError] = useState('')
+  const [studentRecord, setStudentRecord] = useState(null)
+  const [academicProgressState, setAcademicProgressState] = useState({ studentId: '', data: null, error: '' })
 
   useEffect(() => {
     let active = true
     if (!studentId) return undefined
-    setAcademicTestProgress(null)
-    setAcademicTestProgressError('')
     getBranchStudent(studentId)
       .then((result) => {
-        if (active) setAcademicTestProgress(result?.academicTestProgress || { totalTests: 0, completedTests: 0, pendingTests: 0, percentage: 0 })
+        if (active) {
+          setStudentRecord({ studentId, data: result })
+          setAcademicProgressState({ studentId, data: result?.academicTestProgress || { totalTests: 0, completedTests: 0, pendingTests: 0, percentage: 0 }, error: '' })
+        }
       })
       .catch((error) => {
-        if (active) setAcademicTestProgressError(error?.message || 'Unable to load academic test progress.')
+        if (active) setAcademicProgressState({ studentId, data: null, error: error?.message || 'Unable to load academic test progress.' })
       })
     return () => { active = false }
   }, [studentId])
+
+  const student = studentRecord?.studentId === studentId ? studentRecord.data : initialStudent
+  const academicTestProgress = academicProgressState.studentId === studentId ? academicProgressState.data : null
+  const academicTestProgressError = academicProgressState.studentId === studentId ? academicProgressState.error : ''
 
   if (!student) {
     return (
@@ -353,6 +423,8 @@ export function Student360Page({
   const attendanceEntries = getAttendanceEntries(student)
   const attendanceCells = getCurrentMonthAttendanceCells(attendanceEntries, student)
   const courseProgress = getCourseProgress(student)
+  const courseEnrollments = getStudentCourseEnrollments(student, branchCourseCards)
+  const isMultiCourseStudent = courseEnrollments.length > 1
   const totalFee = Number(student.finalFee ?? student.courseAmount ?? student.totalAmount ?? student.afterDiscount ?? 0)
   const paidAmount = schedule.length
     ? schedule.reduce((sum, item) => sum + Number(item.paidAmount ?? item.amountPaid ?? 0), 0)
@@ -397,7 +469,7 @@ export function Student360Page({
             <div>
               <h1>{studentName}</h1>
               <p className="student360-header-id">{displayValue(student.studentId)}</p>
-              <p>{displayValue(student.studentId)} · {displayValue(student.courseInterested || student.courseName, 'Course not assigned')}</p>
+              <p>{displayValue(student.studentId)} · {isMultiCourseStudent ? `Courses: ${courseEnrollments.map((enrollment) => displayValue(enrollment.courseName, 'Course')).join(', ')}` : displayValue(student.courseInterested || student.courseName, 'Course not assigned')}</p>
             </div>
             <span className="student360-status"><span />{status}</span>
           </div>
@@ -408,11 +480,55 @@ export function Student360Page({
         </div>
       </section>
 
-      <section id="overview" className="student360-summary-grid">
-        <article className="student360-summary-card"><span className="student360-summary-icon blue"><BookOpen size={19} /></span><div><span>Course</span><strong>{displayValue(student.courseInterested || student.courseName)}</strong><small className="student360-course-type">{displayValue(student.courseType || student.course?.courseType, 'Course type not set')}</small></div></article>
-        <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{displayValue(student.batchName || student.batch)}</strong><small>{displayValue(student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
-        <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{displayValue(student.facultyName)}</strong><small>Assigned faculty</small></div></article>
-        <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{Math.round(courseProgress)}%</strong><div className="student360-summary-progress-track"><span style={{ width: `${courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
+      <section id="overview" className={`student360-summary-grid ${isMultiCourseStudent ? 'has-multi-course' : ''}`}>
+        {isMultiCourseStudent ? courseEnrollments.map((enrollment, index) => {
+          const hasSavedProgress = enrollment.courseProgress !== null && enrollment.courseProgress !== undefined && String(enrollment.courseProgress).trim() !== ''
+          const catalogCourse = branchCourseCards.find((course) => (
+            String(course?.id || course?.courseId || '').trim() === String(enrollment.courseId || '').trim() ||
+            String(course?.name || '').trim().toLowerCase() === String(enrollment.courseName || '').trim().toLowerCase()
+          ))
+          const workProgress = !hasSavedProgress && catalogCourse
+            ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, catalogCourse, {
+              ...student,
+              courseId: enrollment.courseId,
+              courseName: enrollment.courseName,
+            })?.courseProgress
+            : null
+          const enrollmentProgress = Number(hasSavedProgress ? enrollment.courseProgress : workProgress)
+          const hasEnrollmentProgress = (hasSavedProgress || workProgress !== null) && Number.isFinite(enrollmentProgress)
+          const safeEnrollmentProgress = hasEnrollmentProgress ? Math.min(100, Math.max(0, enrollmentProgress)) : 0
+          return (
+            <article className="student360-summary-card student360-course-enrollment-card" key={enrollment.courseId || `${enrollment.courseName}-${index}`}>
+              <span className="student360-summary-icon blue"><BookOpen size={19} /></span>
+              <div className="student360-course-enrollment-copy">
+                <span>Course {index + 1}{enrollment.status ? ` · ${displayValue(enrollment.status)}` : ''}</span>
+                <strong>{displayValue(enrollment.courseName, 'Course not assigned')}</strong>
+                <div className="student360-course-enrollment-facts">
+                  <div><span>Batch</span><strong>{displayValue(enrollment.batchName)}</strong></div>
+                  <div><span>Timing</span><strong>{displayValue(enrollment.batchTiming)}</strong></div>
+                  <div><span>Faculty</span><strong>{displayValue(enrollment.facultyName)}</strong></div>
+                  <div><span>Mode / Schedule</span><strong>{displayValue([enrollment.courseMode, enrollment.classSchedule].filter(Boolean).join(' · '))}</strong></div>
+                  <div><span>Duration</span><strong>{displayValue(enrollment.courseDuration)}</strong></div>
+                  <div><span>Course Fee</span><strong>{formatCurrency(enrollment.courseAmount)}</strong></div>
+                  <div><span>Payment Plan</span><strong>{displayValue(enrollment.paymentPlan)}</strong></div>
+                  <div><span>Course Dates</span><strong>{enrollment.courseStartDate || enrollment.courseEndDate ? `${formatDate(enrollment.courseStartDate)} – ${formatDate(enrollment.courseEndDate)}` : '-'}</strong></div>
+                </div>
+                <div className="student360-course-enrollment-progress">
+                  <span>Course Progress</span>
+                  <strong>{hasEnrollmentProgress ? `${Math.round(safeEnrollmentProgress)}%` : 'Not recorded'}</strong>
+                  <div className="student360-summary-progress-track"><span style={{ width: `${safeEnrollmentProgress}%` }} /></div>
+                </div>
+              </div>
+            </article>
+          )
+        }) : (
+          <>
+            <article className="student360-summary-card"><span className="student360-summary-icon blue"><BookOpen size={19} /></span><div><span>Course</span><strong>{displayValue(student.courseInterested || student.courseName)}</strong><small className="student360-course-type">{displayValue(student.courseType || student.course?.courseType, 'Course type not set')}</small></div></article>
+            <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{displayValue(student.batchName || student.batch)}</strong><small>{displayValue(student.batchTiming || student.classSchedule, 'Schedule not set')}</small></div></article>
+            <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{displayValue(student.facultyName)}</strong><small>Assigned faculty</small></div></article>
+            <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{Math.round(courseProgress)}%</strong><div className="student360-summary-progress-track"><span style={{ width: `${courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
+          </>
+        )}
         <article className="student360-summary-card student360-summary-academic-progress-card"><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div></article>
       </section>
 
@@ -450,10 +566,21 @@ export function Student360Page({
               <DetailItem label="Qualification" value={student.qualification} icon={GraduationCap} />
               <DetailItem label="Passed Out Year" value={student.passedOutYear} icon={GraduationCap} />
               {String(student.designation || '').trim() ? <DetailItem label="Designation" value={student.designation} /> : null}
-              <DetailItem label="Course Start Date" value={formatDate(student.courseStartDate)} icon={CalendarDays} />
-              <DetailItem label="Course End Date" value={formatDate(student.courseEndDate)} icon={CalendarDays} />
-              <DetailItem label="Class Schedule" value={student.classSchedule || student.courseSchedule} />
-              <DetailItem label="Course Mode" value={student.courseMode} />
+              {isMultiCourseStudent ? courseEnrollments.flatMap((enrollment, index) => ([
+                <DetailItem key={`${enrollment.courseId}-name`} label={`Course ${index + 1}`} value={enrollment.courseName} icon={BookOpen} />,
+                <DetailItem key={`${enrollment.courseId}-start`} label={`${enrollment.courseName || `Course ${index + 1}`} · Start Date`} value={formatDate(enrollment.courseStartDate)} icon={CalendarDays} />,
+                <DetailItem key={`${enrollment.courseId}-end`} label={`${enrollment.courseName || `Course ${index + 1}`} · End Date`} value={formatDate(enrollment.courseEndDate)} icon={CalendarDays} />,
+                <DetailItem key={`${enrollment.courseId}-schedule`} label={`${enrollment.courseName || `Course ${index + 1}`} · Schedule / Mode`} value={[enrollment.classSchedule, enrollment.courseMode].filter(Boolean).join(' · ')} />,
+                <DetailItem key={`${enrollment.courseId}-batch`} label={`${enrollment.courseName || `Course ${index + 1}`} · Batch`} value={`${displayValue(enrollment.batchName)}${enrollment.batchTiming ? ` · ${enrollment.batchTiming}` : ''}`} />,
+                <DetailItem key={`${enrollment.courseId}-faculty`} label={`${enrollment.courseName || `Course ${index + 1}`} · Faculty`} value={enrollment.facultyName} />,
+              ])) : (
+                <>
+                  <DetailItem label="Course Start Date" value={formatDate(student.courseStartDate)} icon={CalendarDays} />
+                  <DetailItem label="Course End Date" value={formatDate(student.courseEndDate)} icon={CalendarDays} />
+                  <DetailItem label="Class Schedule" value={student.classSchedule || student.courseSchedule} />
+                  <DetailItem label="Course Mode" value={student.courseMode} />
+                </>
+              )}
             </div>
           </SectionCard>
 

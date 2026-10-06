@@ -14216,6 +14216,66 @@ body.branch-notification-menu-open .main-area {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Multi-course students share their identity/actions across course-specific rows. */
+.branch-students-table-shell .branch-course-table th:nth-child(1),
+.branch-students-table-shell .branch-course-table td:nth-child(1) { width: 11%; min-width: 150px; }
+.branch-students-table-shell .branch-course-table th:nth-child(2),
+.branch-students-table-shell .branch-course-table td:nth-child(2) { width: 16%; min-width: 170px; }
+.branch-students-table-shell .branch-course-table th:nth-child(3),
+.branch-students-table-shell .branch-course-table td:nth-child(3) { width: 8%; min-width: 100px; }
+.branch-students-table-shell .branch-course-table th:nth-child(4),
+.branch-students-table-shell .branch-course-table td:nth-child(4) { width: 8%; min-width: 90px; }
+.branch-students-table-shell .branch-course-table th:nth-child(5),
+.branch-students-table-shell .branch-course-table td:nth-child(5) { width: 11%; min-width: 130px; }
+.branch-students-table-shell .branch-course-table th:nth-child(6),
+.branch-students-table-shell .branch-course-table td:nth-child(6) { width: 11%; min-width: 130px; }
+.branch-students-table-shell .branch-course-table th:nth-child(7),
+.branch-students-table-shell .branch-course-table td:nth-child(7) { width: 11%; min-width: 125px; }
+.branch-students-table-shell .branch-course-table th:nth-child(8),
+.branch-students-table-shell .branch-course-table td:nth-child(8) { width: 9%; min-width: 115px; }
+.branch-students-table-shell .branch-course-table th:nth-child(9),
+.branch-students-table-shell .branch-course-table td:nth-child(9) { width: 8%; min-width: 126px; }
+.branch-students-table-shell .branch-course-table th:nth-child(10),
+.branch-students-table-shell .branch-course-table td:nth-child(10) { width: 7%; min-width: 78px; }
+
+.branch-students-table-shell .branch-student-group-cell {
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.branch-students-table-shell .branch-student-group-cell > strong,
+.branch-students-table-shell .branch-student-group-cell > span,
+.branch-students-table-shell .branch-student-group-cell > small,
+.branch-students-table-shell .branch-student-course-group-cell > strong,
+.branch-students-table-shell .branch-student-course-group-cell > small {
+  display: block;
+}
+
+.branch-students-table-shell .branch-student-group-cell > span {
+  margin-top: 8px;
+}
+
+.branch-students-table-shell .branch-student-group-cell > small,
+.branch-students-table-shell .branch-student-course-group-cell > small {
+  width: fit-content;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: #2563eb;
+  background: #eaf2ff;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.branch-students-table-shell .branch-student-course-group-cell {
+  background: #f7faff;
+  white-space: normal;
+}
+
+.branch-students-table-shell .branch-student-course-row > td[rowspan] {
+  vertical-align: middle;
+}
 .branch-dashboard-app-shell .super-admin-sidebar,
 .branch-dashboard-app-shell .super-admin-main {
   transition: width 220ms ease-in-out, margin-left 220ms ease-in-out;
