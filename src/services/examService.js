@@ -21,7 +21,7 @@ export const getFacultyStudentExamReport = (moduleId, batchId) => request(`/exam
 export const listFacultyAssessmentReports = () => request('/exams/faculty/assessment-reports').then(data)
 export const getFacultyAssessmentStudentReport = (courseId, batchId, moduleId) => request(`/exams/faculty/assessment-reports/${courseId}/${batchId}/${moduleId}`).then(data)
 
-export const listStudentTests = () => request('/exams/student/tests').then(data)
+export const listStudentTests = (courseId = '') => request(`/exams/student/tests${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''}`).then(data)
 export const getStudentTest = (scheduleId) => request(`/exams/student/tests/${scheduleId}`).then(data)
 export const startStudentTest = (scheduleId) => request(`/exams/student/tests/${scheduleId}/start`, { method: 'POST' }).then(data)
 export const submitStudentTest = (scheduleId, answers) => request(`/exams/student/tests/${scheduleId}/submit`, { method: 'POST', body: JSON.stringify({ answers }) }).then(data)
@@ -36,13 +36,13 @@ export const cancelFacultyAssessment = (id) => request(`/exams/faculty/assessmen
 export const cancelFacultyReassessment = (id) => request(`/exams/faculty/reassessments/${id}/cancel`, { method: 'POST' }).then(data)
 export const listAssessmentStudents = (id) => request(`/exams/faculty/assessments/${id}/students`).then(data)
 export const evaluateAssessmentSubmission = (assessmentId, studentId, payload) => request(`/exams/faculty/assessments/${assessmentId}/submissions/${studentId}`, { method: 'PATCH', body: JSON.stringify(payload) }).then(data)
-export const listStudentAssessments = () => request('/exams/student/assessments').then(data)
+export const listStudentAssessments = (courseId = '') => request(`/exams/student/assessments${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''}`).then(data)
 export const getStudentAssessment = (id) => request(`/exams/student/assessments/${id}`).then(data)
 export const submitStudentAssessment = (id, response, screenshots) => { const body = new FormData(); body.append('response', response); screenshots.forEach((screenshot) => body.append('screenshots', screenshot)); return request(`/exams/student/assessments/${id}/submit`, { method: 'POST', body }).then(data) }
 export const assessmentScreenshotUrl = (url) => url ? (url.startsWith('http') ? url : `${API_BASE_URL}${url}`) : ''
 export const getAssessmentScreenshotBlob = (url) => requestBlob(url).then(({ blob }) => URL.createObjectURL(blob))
 export const getStudentAssessmentSubmission = (id) => request(`/exams/student/assessments/${id}/submission`).then(data)
-export const listStudentAssessmentReports = () => request('/exams/student/assessment-reports').then(data)
+export const listStudentAssessmentReports = (courseId = '') => request(`/exams/student/assessment-reports${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''}`).then(data)
 export const sendFacultyReport = (payload) => request('/exams/faculty/report-shares', { method: 'POST', body: JSON.stringify(payload) }).then(data)
 export const listBranchReportShares = (branchId = '') => request('/exams/branch-admin/report-shares', {
   ...(branchId ? { impersonateBranchId: branchId } : {}),

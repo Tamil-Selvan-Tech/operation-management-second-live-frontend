@@ -2384,6 +2384,8 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 .student-course-course-tabs button.is-active { border-color: #2563eb; color: #1d4ed8; background: #eff6ff; }
 .student-course-course-tabs small { color: #7b899d; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
 .student-course-course-tabs strong { font-size: 14px; }
+.student-exam-course-tabs { margin: 0; padding-bottom: 24px; }
+.student-exam-course-tabs button { border-radius: 12px; min-width: 220px; }
 .student-attendance-overview-panel { width: 50%; box-sizing: border-box; }
 .student-attendance-panels-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
 .student-attendance-panels-grid > .student-attendance-overview-panel { width: 100%; }

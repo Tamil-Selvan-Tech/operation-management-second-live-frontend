@@ -36,7 +36,7 @@ function StudentAssessmentReportTableView({ embedded, student, navigate, loading
   </section>
 }
 
-export function StudentExamsPage({ embedded = false, student = null }) {
+export function StudentExamsPage({ embedded = false, student = null, courseId = '' }) {
   const navigate = useNavigate()
   const location = useLocation()
   const query = new URLSearchParams(location.search)
@@ -66,14 +66,14 @@ export function StudentExamsPage({ embedded = false, student = null }) {
   const [selectedAssessmentModuleId, setSelectedAssessmentModuleId] = useState('')
 
   const refresh = async () => {
-    try { setTests(await listStudentTests()) } catch (e) { setError(e.message) }
+    try { setTests(await listStudentTests(courseId)) } catch (e) { setError(e.message) }
   }
 
   useEffect(() => {
     let mounted = true
-    listStudentTests().then((items) => { if (mounted) setTests(items) }).catch((e) => { if (mounted) setError(e.message) })
+    listStudentTests(courseId).then((items) => { if (mounted) setTests(items) }).catch((e) => { if (mounted) setError(e.message) })
     return () => { mounted = false }
-  }, [])
+  }, [courseId])
 
   useEffect(() => {
     if (examTab !== 'reports' || !tests.length) return undefined
@@ -101,13 +101,13 @@ export function StudentExamsPage({ embedded = false, student = null }) {
     let mounted = true
     setAssessmentReportLoading(true)
     setAssessmentReportError('')
-    listStudentAssessmentReports().then((data) => {
+    listStudentAssessmentReports(courseId).then((data) => {
       if (!mounted) return
       setAssessmentReports(data)
       setSelectedAssessmentModuleId((current) => current && data.modules.some((item) => item.moduleId === current) ? current : data.modules[0]?.moduleId || '')
     }).catch((e) => { if (mounted) setAssessmentReportError(e.message || 'Unable to load assessment reports.') }).finally(() => { if (mounted) setAssessmentReportLoading(false) })
     return () => { mounted = false }
-  }, [examTab, requestedReportTab])
+  }, [examTab, requestedReportTab, courseId])
 
   useEffect(() => {
     if (!active) return undefined

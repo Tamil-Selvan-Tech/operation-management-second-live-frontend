@@ -24,7 +24,7 @@ function StudentQuestionAnswer({ question, value, onChange }) {
   return <div className="academic-student-options">{['A', 'B', 'C', 'D'].map((letter) => <label key={letter}><input type="radio" name={question?.id} checked={value === letter} onChange={() => onChange(letter)} /><b>{letter}.</b><span>{question?.[`option${letter}`]}</span></label>)}</div>
 }
 
-export default function StudentAcademicTestsPage({ embedded = false }) {
+export default function StudentAcademicTestsPage({ embedded = false, courseId = '' }) {
   const [tests, setTests] = useState([])
   const [active, setActive] = useState(null)
   const [answers, setAnswers] = useState({})
@@ -48,7 +48,7 @@ export default function StudentAcademicTestsPage({ embedded = false }) {
 
   const load = async ({ silent = false } = {}) => {
     if (!silent) setLoading(true)
-    try { setTests(await listStudentAcademicTests()) } catch (e) { setError(e.message || 'Unable to load Academic Tests.') } finally { if (!silent) setLoading(false) }
+    try { setTests(await listStudentAcademicTests(courseId)) } catch (e) { setError(e.message || 'Unable to load Academic Tests.') } finally { if (!silent) setLoading(false) }
   }
 
   useEffect(() => {
@@ -57,7 +57,7 @@ export default function StudentAcademicTestsPage({ embedded = false }) {
     const intervalId = window.setInterval(refreshAvailability, 15000)
     window.addEventListener('focus', refreshAvailability)
     return () => { window.clearInterval(intervalId); window.removeEventListener('focus', refreshAvailability) }
-  }, [])
+  }, [courseId])
 
   const start = async (test) => {
     try {

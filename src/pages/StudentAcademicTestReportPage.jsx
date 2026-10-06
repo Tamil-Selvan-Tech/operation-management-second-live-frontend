@@ -12,11 +12,11 @@ function TestCell({ test }) {
   return <div className="academic-report-test-cell"><div className="academic-report-final"><strong>{final.status === 'SUBMITTED' ? `${final.marksObtained}/${final.totalMarks}` : final.status === 'NOT_ATTENDED' ? 'Not Attended' : '-'}</strong>{final.percentage != null && <small className="academic-report-cell-percent">{final.percentage}%</small>}<em className={resultClass(final.result)}>{final.result || ''}</em></div>{test?.attempts?.length > 1 && <><button type="button" className="academic-report-history-toggle" onClick={() => setOpen((current) => !current)}>{open ? 'Hide history' : `${test.attempts.length} attempts`}<ChevronDown size={14} className={open ? 'is-open' : ''} /></button>{open && <div className="academic-report-history">{test.attempts.map((attempt) => <div className="academic-report-attempt" key={attempt.scheduleId}><span>{attempt.attemptType === 'RETEST' ? `Retest ${attempt.attemptNumber || ''}` : 'Original'}</span><strong>{attempt.status === 'SUBMITTED' ? `${attempt.marksObtained}/${attempt.totalMarks}` : attempt.status === 'NOT_ATTENDED' ? 'Not Attended' : 'Not Submitted'}</strong><em className={resultClass(attempt.result)}>{attempt.result || ''}</em></div>)}</div>}</>}</div>
 }
 
-export default function StudentAcademicTestReportPage({ embedded = false }) {
+export default function StudentAcademicTestReportPage({ embedded = false, courseId = '' }) {
   const [report, setReport] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  useEffect(() => { getMyAcademicReport().then(setReport).catch((err) => setError(err.message || 'Unable to load your report.')).finally(() => setLoading(false)) }, [])
+  useEffect(() => { setLoading(true); getMyAcademicReport(courseId).then(setReport).catch((err) => setError(err.message || 'Unable to load your report.')).finally(() => setLoading(false)) }, [courseId])
   const student = report?.student
   const tests = student?.tests || []
   const hasProject = Boolean(student?.project)

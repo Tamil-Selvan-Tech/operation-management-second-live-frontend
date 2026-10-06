@@ -541,6 +541,7 @@ export function StudentNewDashboardPage() {
  const [selectedCourseDetailsId, setSelectedCourseDetailsId] = useState('')
  const [courseLoading, setCourseLoading] = useState(false)
  const [courseError, setCourseError] = useState('')
+ const [isAssessmentDetailOpen, setIsAssessmentDetailOpen] = useState(false)
 
  useEffect(() => {
    if (!student?.studentId) {
@@ -579,6 +580,9 @@ export function StudentNewDashboardPage() {
 
  const dashboardCourses = useMemo(() => getDashboardCourseEnrollments(student || {}), [student])
  const dashboardCourseIdsKey = dashboardCourses.map((course) => course.courseId).join('|')
+ const examQuery = new URLSearchParams(location.search)
+ const examCourseId = examQuery.get('courseId') || dashboardCourses[0]?.courseId || ''
+ const selectExamCourse = (courseId) => { const params = new URLSearchParams(location.search); params.set('courseId', String(courseId || '')); navigate(`${location.pathname}?${params.toString()}`) }
  const defaultAttendanceCourseId = String(student?.courseId || student?.course?.id || dashboardCourses[0]?.courseId || '')
 
  useEffect(() => {
@@ -1206,7 +1210,8 @@ const handleLogoutConfirm = async () => {
               </section>
             ) : null}
 
-            {isExamsRoute && isAcademicTestReportRoute ? <StudentAcademicTestReportPage embedded /> : isExamsRoute && isAcademicTestRoute ? <StudentAcademicTestsPage embedded /> : isExamsRoute && isAssessmentRoute ? <StudentAssessmentsPage embedded /> : isExamsRoute ? <StudentExamsPage embedded student={student} /> : null}
+            {isExamsRoute && dashboardCourses.length > 1 && !(isAssessmentRoute && isAssessmentDetailOpen) ? <div className="student-course-course-tabs student-exam-course-tabs" role="tablist" aria-label="Choose course for exams">{dashboardCourses.map((course, index) => { const courseId = String(course.courseId || ''); const selected = courseId === examCourseId; return <button type="button" role="tab" aria-selected={selected} className={selected ? 'is-active' : ''} key={courseId || index} onClick={() => selectExamCourse(courseId)}><small>COURSE {index + 1}</small><strong>{course.courseName}</strong></button> })}</div> : null}
+            {isExamsRoute && isAcademicTestReportRoute ? <StudentAcademicTestReportPage embedded courseId={examCourseId} /> : isExamsRoute && isAcademicTestRoute ? <StudentAcademicTestsPage embedded courseId={examCourseId} /> : isExamsRoute && isAssessmentRoute ? <StudentAssessmentsPage embedded courseId={examCourseId} onDetailChange={setIsAssessmentDetailOpen} /> : isExamsRoute ? <StudentExamsPage embedded student={student} courseId={examCourseId} /> : null}
 
             {!isExamsRoute && !isLoading && !loadError && activeSection === 'dashboard' ? (
               <div className="student-new-dashboard student-dashboard-redesign">
