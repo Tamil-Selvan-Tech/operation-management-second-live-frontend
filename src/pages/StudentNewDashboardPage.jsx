@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import {
@@ -35,7 +35,14 @@ import {
   refreshBranchStudents,
 } from '../lib/branchStudentStore'
 import { loadBranchRegistry } from '../lib/branchAuth'
-import { getCurrentBranchStudentCalendar, getCurrentStudentProfile, getCurrentStudentAttendanceOverview, getCurrentStudentCourse } from '../services/studentService'
+import {
+  createStudentDiscontinuationRequest,
+  getCurrentBranchStudentCalendar,
+  getCurrentStudentProfile,
+  getCurrentStudentAttendanceOverview,
+  getCurrentStudentCourse,
+  getStudentDiscontinuationRequests,
+} from '../services/studentService'
 import { StudentCalendarPanel } from '../components/StudentCalendarPanel'
 import { NotificationBell } from '../components/NotificationBell'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
@@ -492,8 +499,24 @@ export function StudentNewDashboardPage() {
  useEffect(() => {
    try { window.localStorage.setItem('cispro.student-sidebar-collapsed', String(isSidebarCollapsed)) } catch { /* ignore storage failures */ }
  }, [isSidebarCollapsed])
- const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false)
  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false)
+ const [isProfileActionsOpen, setIsProfileActionsOpen] = useState(false)
+ const [discontinuationOpenSignal, setDiscontinuationOpenSignal] = useState(0)
+ const profileActionsRef = useRef(null)
+
+ useEffect(() => {
+   if (!isProfileActionsOpen) return undefined
+
+   const closeOnOutsideClick = (event) => {
+     if (!profileActionsRef.current?.contains(event.target)) {
+       setIsProfileActionsOpen(false)
+     }
+   }
+
+   document.addEventListener('mousedown', closeOnOutsideClick)
+   return () => document.removeEventListener('mousedown', closeOnOutsideClick)
+ }, [isProfileActionsOpen])
  const [studentSession] = useState(() => readStudentSession())
  const [student, setStudent] = useState(null)
  const [isLoading, setIsLoading] = useState(true)
@@ -984,6 +1007,7 @@ const handleLogoutConfirm = async () => {
                 <span className="student-new-sidebar-icon" aria-hidden="true"><Bell size={18} strokeWidth={2.2} /></span>
                 <span>Notifications</span>
               </button>
+
             </div>
           </nav>
 
@@ -1164,6 +1188,30 @@ const handleLogoutConfirm = async () => {
             {!isLoading && !loadError && activeSection === 'profile' ? (
               <section className="student-new-profile-page">
                 <div className="student-new-profile-header-card">
+                  <div className="student-new-profile-header-actions" ref={profileActionsRef}>
+                    <button
+                      type="button"
+                      className="student-new-profile-actions-trigger"
+                      aria-label="Open profile actions"
+                      aria-haspopup="menu"
+                      aria-expanded={isProfileActionsOpen}
+                      onClick={() => setIsProfileActionsOpen((current) => !current)}
+                    >
+                      <span />
+                      <span />
+                      <span />
+                    </button>
+                    {isProfileActionsOpen ? (
+                      <div className="student-new-profile-actions-menu" role="menu">
+                        <button type="button" role="menuitem" onClick={() => { setIsProfileActionsOpen(false); navigate('/forgot-password') }}>
+                          Forgot Password
+                        </button>
+                        <button type="button" role="menuitem" onClick={() => { setIsProfileActionsOpen(false); setDiscontinuationOpenSignal((current) => current + 1) }}>
+                          Request Discontinuation
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                   <div className="student-new-profile-header-avatar" aria-hidden="true">
                     <CircleUserRound size={30} strokeWidth={1.9} />
                   </div>
@@ -1293,6 +1341,11 @@ const handleLogoutConfirm = async () => {
               <StudentCalendarPanel student={student} />
             ) : null}
 
+            <StudentDiscontinuationPanel
+              showPanel={activeSection === 'dashboard' && !isExamsRoute && !isLoading && !loadError}
+              openSignal={discontinuationOpenSignal}
+            />
+
           </main>
         </div>
       </div>
@@ -1357,6 +1410,151 @@ const handleLogoutConfirm = async () => {
   </div>
 ) : null}
     </section>
+  )
+}
+
+function StudentDiscontinuationPanel({ showPanel = true, openSignal = 0 }) {
+  const [request, setRequest] = useState(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [details, setDetails] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    getStudentDiscontinuationRequests()
+      .then((items) => {
+        if (!active) return
+        const rows = Array.isArray(items) ? items : []
+        setRequest(rows[0] || null)
+      })
+      .catch(() => {
+        if (active) setRequest(null)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (openSignal > 0) setIsOpen(true)
+  }, [openSignal])
+
+  const submitRequest = async (event) => {
+    event.preventDefault()
+    if (!reason.trim()) {
+      setError('Please select a reason for your request.')
+      return
+    }
+
+    setSubmitting(true)
+    setError('')
+    try {
+      const saved = await createStudentDiscontinuationRequest({
+        reason: reason.trim(),
+        details: details.trim(),
+      })
+      setRequest(saved)
+      setIsOpen(false)
+      setReason('')
+      setDetails('')
+    } catch (submitError) {
+      setError(submitError?.message || 'Unable to submit the request. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const status = String(request?.status || '').toUpperCase()
+  const statusLabel = status === 'SUPER_ADMIN_REVIEW'
+    ? 'Waiting for final approval'
+    : status === 'APPROVED'
+      ? 'Approved'
+      : status === 'REJECTED'
+        ? 'Rejected'
+        : 'Under review'
+
+  return (
+    <>
+      {showPanel ? <section className="student-discontinuation-panel panel-card" aria-label="Course discontinuation">
+      <div className="student-discontinuation-copy">
+        <p className="student-payment-overview-kicker">COURSE SUPPORT</p>
+        <h3>Need to discontinue your course?</h3>
+        <p>You can submit a request to your Branch Admin. Your course access will remain active until the request is reviewed and approved.</p>
+      </div>
+
+      {loading ? (
+        <span className="student-discontinuation-loading">Checking request status...</span>
+      ) : request ? (
+        <div className="student-discontinuation-status">
+          <strong>{statusLabel}</strong>
+          <span>Submitted on {formatDate(request.createdAt)}</span>
+          {request.financialSnapshot?.outstandingAmount > 0 ? (
+            <span>Outstanding: {formatPaymentAmount(request.financialSnapshot.outstandingAmount)}</span>
+          ) : null}
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="student-discontinuation-button"
+          onClick={() => {
+            setError('')
+            setIsOpen(true)
+          }}
+        >
+          Request Discontinuation
+        </button>
+      )}
+
+      </section> : null}
+
+      {isOpen ? (
+        <div
+          className="student-discontinuation-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setIsOpen(false)
+          }}
+        >
+          <form className="student-discontinuation-modal" onSubmit={submitRequest}>
+            <button type="button" className="student-discontinuation-close" onClick={() => setIsOpen(false)} aria-label="Close request form">
+              <X size={18} />
+            </button>
+            <p className="student-payment-overview-kicker">COURSE REQUEST</p>
+            <h3>Request course discontinuation</h3>
+            <p>Your request will be reviewed by the Branch Admin and then Super Admin. You will keep access until a final decision is made.</p>
+            <label>
+              Reason
+              <select value={reason} onChange={(event) => setReason(event.target.value)} required>
+                <option value="">Select a reason</option>
+                <option value="Financial difficulty">Financial difficulty</option>
+                <option value="Health or personal reason">Health or personal reason</option>
+                <option value="Relocation or travel">Relocation or travel</option>
+                <option value="Course change">Course change</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
+            <label>
+              Additional details
+              <textarea value={details} onChange={(event) => setDetails(event.target.value)} rows={4} placeholder="Share any information that will help the branch support you." />
+            </label>
+            {error ? <p className="student-discontinuation-error">{error}</p> : null}
+            <div className="student-discontinuation-actions">
+              <button type="button" className="student-discontinuation-secondary" onClick={() => setIsOpen(false)}>Keep Course</button>
+              <button type="submit" className="student-discontinuation-button" disabled={submitting}>
+                {submitting ? 'Submitting...' : 'Submit Request'}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+    </>
   )
 }
 
