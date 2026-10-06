@@ -360,6 +360,25 @@ function addDaysToDateString(value, days = 0) {
   return `${year}-${month}-${day}`
 }
 
+function addMonthsToDateString(value, months = 0) {
+  const source = new Date(`${value}T00:00:00`)
+  if (Number.isNaN(source.getTime())) return ''
+
+  const next = new Date(source)
+  next.setDate(1)
+  next.setMonth(next.getMonth() + Number(months || 0))
+  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()
+  next.setDate(Math.min(source.getDate(), lastDay))
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+}
+
+function buildInstallmentDueDatesUntil(count = 0, startDate = getTodayValue(), deadline = '') {
+  const dates = buildInstallmentDueDates(count, startDate)
+  const safeDeadline = String(deadline || '').trim()
+  if (!safeDeadline) return dates
+  return dates.map((date) => date && date > safeDeadline ? safeDeadline : date)
+}
+
 function buildInstallmentDueDates(count = 0, startDate = getTodayValue(), intervalDays = 30) {
   const safeCount = Math.max(0, Number(count) || 0)
   if (!safeCount) return []
@@ -6698,6 +6717,8 @@ const studentCourseOptions = useMemo(() => {
         name,
         courseCode: String(course?.courseCode || '').trim(),
         mode: String(course?.mode || '').trim(),
+        duration: String(course?.duration ?? '').trim(),
+        hours: String(course?.hours ?? '').trim(),
         amount: normalizeBranchStudentCourseAmount(course),
         assignedFaculty: normalizeBranchStudentCourseFacultyOptions(course),
 
@@ -6731,6 +6752,37 @@ const studentCourseOptions = useMemo(() => {
     if (!Number.isFinite(discount)) return ''
     return String(Math.max(courseAmount - discount, 0))
   }, [selectedStudentCourseAmount, studentForm.studentDiscountAmount])
+
+  const parallelStudentScheduleContext = useMemo(() => {
+    if (studentArrangementType !== 'PARALLEL' || studentSelectedCourseIds.length < 2) return null
+
+    const ranges = studentSelectedCourseIds.map((courseId) => {
+      const course = studentCourseOptions.find((item) => String(item.id) === String(courseId)) || {}
+      const draft = String(studentForm.courseId || '') === String(courseId)
+        ? studentForm
+        : (studentCourseDrafts[courseId] || {})
+      const startDate = String(draft.courseStartDate || '').trim()
+      const durationMatch = String(course.duration || '').match(/[0-9]+(?:\.[0-9]+)?/)
+      const durationMonths = durationMatch ? Number(durationMatch[0]) : 0
+      const endDate = String(draft.courseEndDate || '').trim() || (
+        startDate && durationMonths ? addMonthsToDateString(startDate, durationMonths) : ''
+      )
+      return { startDate, endDate }
+    })
+
+    const starts = ranges.map((range) => range.startDate).filter(Boolean).sort()
+    const ends = ranges.map((range) => range.endDate).filter(Boolean).sort()
+    const combinedStartDate = starts[0] || ''
+    const combinedEndDate = ends[ends.length - 1] || ''
+    if (!combinedStartDate || !combinedEndDate) return null
+
+    const start = new Date(`${combinedStartDate}T00:00:00`)
+    const end = new Date(`${combinedEndDate}T00:00:00`)
+    const durationDays = Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000))
+    const deadline = addDaysToDateString(combinedStartDate, Math.ceil(durationDays * 0.7))
+
+    return { combinedStartDate, combinedEndDate, deadline }
+  }, [studentArrangementType, studentCourseDrafts, studentCourseOptions, studentForm, studentSelectedCourseIds])
 
   useEffect(() => {
     if (!isStudentFormOpen || !studentForm.courseId || !selectedStudentCourse?.name) return
@@ -6977,6 +7029,48 @@ const studentCourseOptions = useMemo(() => {
     return buildBranchCoursePaymentPlanInstallments(total, studentInstallmentCount).map((amount) => Number(amount))
   }, [studentInstallmentCount, studentScheduleAmount])
 
+  const studentInstallmentSchedule = useMemo(() => {
+    const isParallelPackage = studentArrangementType === 'PARALLEL' && studentSelectedCourseIds.length >= 2
+    const courseAmounts = studentSelectedCourseIds.map((courseId) => {
+      const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+      const draft = String(studentForm.courseId || '') === String(courseId)
+        ? studentForm
+        : (studentCourseDrafts[courseId] || {})
+      return {
+        courseId: String(courseId),
+        courseName: course?.name || draft.courseName || String(courseId),
+        amount: Number(String(draft.totalCourseAmount || draft.courseAmount || 0).replace(/,/g, '')) || 0,
+      }
+    })
+    const totalCourseAmount = courseAmounts.reduce((sum, course) => sum + course.amount, 0)
+
+    return studentInstallmentAmounts.map((amount, index) => {
+      let allocatedTotal = 0
+      const courseAllocations = isParallelPackage
+        ? courseAmounts.map((course, courseIndex) => {
+          const allocatedAmount = courseIndex === courseAmounts.length - 1
+            ? Math.max(Number(amount) - allocatedTotal, 0)
+            : Math.round((Number(amount) * course.amount) / Math.max(totalCourseAmount, 1))
+          allocatedTotal += allocatedAmount
+          return {
+            courseId: course.courseId,
+            courseName: course.courseName,
+            courseAmount: course.amount,
+            allocatedAmount,
+            paidAmount: 0,
+          }
+        })
+        : []
+
+      return {
+        installmentNumber: index + 1,
+        amount,
+        dueDate: studentInstallmentDueDates[index] || '',
+        ...(isParallelPackage ? { courseAllocations } : {}),
+      }
+    })
+  }, [studentArrangementType, studentCourseDrafts, studentCourseOptions, studentForm, studentInstallmentAmounts, studentInstallmentDueDates, studentSelectedCourseIds])
+
   const studentInstallmentDueDateKey = studentInstallmentDueDates.join('|')
 
   useEffect(() => {
@@ -6989,6 +7083,19 @@ const studentCourseOptions = useMemo(() => {
       !selectedStudentBatchOption?.batchId ||
       !studentInstallmentAmounts.length
     ) {
+      return undefined
+    }
+
+    if (parallelStudentScheduleContext) {
+      const nextDueDates = buildInstallmentDueDatesUntil(
+          studentInstallmentCount,
+          studentForm.admissionDate || parallelStudentScheduleContext.combinedStartDate,
+          parallelStudentScheduleContext.deadline,
+        )
+      setStudentInstallmentDueDates((current) => current.join('|') === nextDueDates.join('|') ? current : nextDueDates)
+      setStudentForm((current) => current.feePaymentDeadline === parallelStudentScheduleContext.deadline
+        ? current
+        : { ...current, feePaymentDeadline: parallelStudentScheduleContext.deadline })
       return undefined
     }
 
@@ -7071,6 +7178,7 @@ const studentCourseOptions = useMemo(() => {
     studentInstallmentCount,
     studentInstallmentDatesCustomized,
     studentInstallmentDueDateKey,
+    parallelStudentScheduleContext,
   ])
 
   useEffect(() => {
@@ -7104,9 +7212,15 @@ const studentCourseOptions = useMemo(() => {
     }
 
     setStudentInstallmentDueDates(
-      buildInstallmentDueDates(studentInstallmentCount, studentForm.admissionDate || getTodayValue()),
+      parallelStudentScheduleContext
+        ? buildInstallmentDueDatesUntil(
+          studentInstallmentCount,
+          studentForm.admissionDate || parallelStudentScheduleContext.combinedStartDate,
+          parallelStudentScheduleContext.deadline,
+        )
+        : buildInstallmentDueDates(studentInstallmentCount, studentForm.admissionDate || getTodayValue()),
     )
-  }, [studentForm.admissionDate, studentForm.recordId, studentFormMode, studentInstallmentCount])
+  }, [parallelStudentScheduleContext, studentForm.admissionDate, studentForm.recordId, studentFormMode, studentInstallmentCount])
 
   const handleStudentCourseChange = (courseId) => {
     const nextCourseId = String(courseId || '').trim()
@@ -8755,17 +8869,31 @@ useEffect(() => {
       arrangementType: studentSelectedCourseIds.length > 1 ? studentArrangementType : 'SINGLE',
       sequenceOrder: Math.max(1, enrollmentOrder.indexOf(String(studentForm.courseId)) + 1),
       status: studentArrangementType === 'SEQUENTIAL' && String(studentForm.courseId) !== String(studentFirstCourseId) ? 'PENDING' : 'ACTIVE',
-      installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
-        installmentNumber: index + 1,
-        amount,
-        dueDate: studentInstallmentDueDates[index] || '',
-      })),
+      installmentSchedule: studentInstallmentSchedule,
     }
-    const courseEnrollments = enrollmentOrder.map((courseId) => (
-      String(courseId) === String(studentForm.courseId)
+    const courseEnrollments = enrollmentOrder.map((courseId) => {
+      const enrollment = String(courseId) === String(studentForm.courseId)
         ? activeEnrollment
-        : (studentCourseDrafts[courseId] || { courseId })
-    )).filter((enrollment) => String(enrollment.courseId || '').trim()).map((enrollment) => (
+        : (studentCourseDrafts[courseId] || getStudentCourseDraft(courseId))
+      const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
+      const draft = String(courseId) === String(studentForm.courseId) ? studentForm : enrollment
+      const batch = getStudentCourseBatchOptions(draft).find((item) => String(item.batchId) === String(draft.batchId))
+      const calculatedEndDate = calculateBatchCourseEndDate(
+        draft.courseStartDate,
+        String(batch?.weekType || draft.classSchedule || '').trim().toUpperCase(),
+        String(batch?.mode || draft.courseMode || '').trim().toUpperCase(),
+        course?.hours || course?.duration,
+        batch,
+        instituteLeaves,
+      ) || batch?.courseEndDate || enrollment.courseEndDate || ''
+      return {
+        ...enrollment,
+        courseName: enrollment.courseName || course?.name || '',
+        courseAmount: enrollment.courseAmount || course?.amount || '',
+        totalCourseAmount: enrollment.totalCourseAmount || enrollment.courseAmount || course?.amount || '',
+        courseEndDate: calculatedEndDate || '',
+      }
+    }).filter((enrollment) => String(enrollment.courseId || '').trim()).map((enrollment) => (
       studentSelectedCourseIds.length >= 2
         ? { ...enrollment, paymentPlanId: studentCombinedPaymentPlanId, paymentPlan: studentCombinedPaymentPlan }
         : enrollment
@@ -8847,11 +8975,7 @@ useEffect(() => {
       feeFirstPaymentDate: studentForm.feeFirstPaymentDate || studentForm.admissionDate || '',
       courseProgress: 0,
       progress: 0,
-      installmentSchedule: studentInstallmentAmounts.map((amount, index) => ({
-        installmentNumber: index + 1,
-        amount,
-        dueDate: studentInstallmentDueDates[index] || '',
-      })),
+      installmentSchedule: studentInstallmentSchedule,
       preserveInstallmentDates: studentInstallmentDatesCustomized,
       courseEnrollments,
       courses: courseEnrollments,
@@ -9407,6 +9531,9 @@ useEffect(() => {
           courseName: course?.name || '',
           courseAmount: course?.amount || '',
           totalCourseAmount: course?.amount || '',
+          courseMode: getAllowedCourseModes(course?.mode).length === 1
+            ? (getAllowedCourseModes(course.mode)[0] === 'ONLINE' ? 'Online' : 'Offline')
+            : '',
         }
       })())
   )
@@ -9432,6 +9559,11 @@ useEffect(() => {
       batchTiming: formatStudentBatchTiming(batch),
       courseStartDate: batch?.courseStartDate || '',
       courseEndDate: batch?.courseEndDate || '',
+      startTime: batch?.startTime || '',
+      endTime: batch?.endTime || '',
+      startPeriod: batch?.startPeriod || '',
+      endPeriod: batch?.endPeriod || '',
+      weeklyOffDay: batch?.weeklyOffDay || '',
       facultyId: batch?.facultyId || group?.facultyId || '',
       facultyName: batch?.facultyName || group?.facultyName || '',
       weekType: batch?.weekType || '',
@@ -16409,34 +16541,59 @@ else {
             const isSequentialPending = studentArrangementType === 'SEQUENTIAL' && String(courseId) !== String(studentFirstCourseId)
             const batchOptions = getStudentCourseBatchOptions(draft)
             const selectedBatch = batchOptions.find((batch) => String(batch.batchId) === String(draft.batchId))
+            const courseScheduleOptions = [...new Set(branchBatchGroups
+              .filter((group) => String(group?.courseId || group?.branchCourseId || '').trim() === String(courseId))
+              .flatMap((group) => (Array.isArray(group?.batches) ? group.batches : []))
+              .map((batch) => String(batch?.weekType || '').trim().toUpperCase())
+              .filter((weekType) => weekType === 'WEEKDAY' || weekType === 'WEEKEND'))]
+            const calculatedCourseEndDate = calculateBatchCourseEndDate(
+              draft.courseStartDate,
+              String(selectedBatch?.weekType || draft.classSchedule || '').trim().toUpperCase(),
+              String(selectedBatch?.mode || draft.courseMode || '').trim().toUpperCase(),
+              course?.hours || course?.duration,
+              selectedBatch,
+              instituteLeaves,
+            ) || selectedBatch?.courseEndDate || draft.courseEndDate || ''
             return (
               <section className={`student-course-card ${isSequentialPending ? 'is-pending' : ''}`.trim()} key={courseId}>
                 <div className="student-course-card-heading">
                   <div><span>Course {index + 1}</span><h4>{course?.name || draft.courseName || courseId}</h4></div>
                   <strong>{isSequentialPending ? 'Pending' : 'Active'}</strong>
                 </div>
-                {!isSequentialPending ? (
-                  <div className="student-course-card-grid">
-                    <Field label="Course Mode" required>
-                      <select value={draft.courseMode || ''} onChange={(event) => updateStudentCourseDraft(courseId, 'courseMode', event.target.value)} disabled={studentFormMode === 'view'}>
-                        <option value="">Select Course Mode</option>
-                        {getAllowedCourseModes(course?.mode).map((mode) => <option key={mode} value={mode === 'ONLINE' ? 'Online' : 'Offline'}>{mode === 'ONLINE' ? 'Online' : 'Offline'}</option>)}
-                      </select>
-                    </Field>
-                    <Field label="Select Batch" required>
-                      <select value={draft.batchId || ''} onChange={(event) => { const batch = batchOptions.find((item) => item.batchId === event.target.value); updateStudentCourseDraft(courseId, 'batchId', event.target.value); updateStudentCourseDraft(courseId, 'batchName', batch?.batchName || ''); updateStudentCourseDraft(courseId, 'batchTiming', batch?.batchTiming || ''); updateStudentCourseDraft(courseId, 'courseStartDate', batch?.courseStartDate || draft.courseStartDate || ''); updateStudentCourseDraft(courseId, 'courseEndDate', batch?.courseEndDate || ''); updateStudentCourseDraft(courseId, 'facultyId', batch?.facultyId || ''); updateStudentCourseDraft(courseId, 'facultyName', batch?.facultyName || '') }} disabled={studentFormMode === 'view' || !draft.courseMode}>
-                        <option value="">Select Batch</option>
-                        {batchOptions.map((batch) => <option key={batch.batchId} value={batch.batchId} disabled={batch.isFull}>{batch.batchName} - {batch.batchTiming || 'No timing'}</option>)}
-                      </select>
-                    </Field>
-                    <Field label="Batch Timing" required><input value={selectedBatch?.batchTiming || draft.batchTiming || ''} readOnly placeholder="Select batch" /></Field>
-                    <Field label="Class Schedule" required><select value={draft.classSchedule || ''} onChange={(event) => updateStudentCourseDraft(courseId, 'classSchedule', event.target.value)} disabled={studentFormMode === 'view'}><option value="">Select Class Schedule</option><option value="Weekday">Weekday</option><option value="Weekend">Weekend</option></select></Field>
-                    <Field label="Course Start Date" required><input type="date" value={draft.courseStartDate || ''} onChange={(event) => updateStudentCourseDraft(courseId, 'courseStartDate', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
-                    <Field label="Course End Date"><input type="date" value={draft.courseEndDate || ''} onChange={(event) => updateStudentCourseDraft(courseId, 'courseEndDate', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
-                    <Field label="Total Course Amount" required><input type="number" min="0" value={draft.totalCourseAmount ?? draft.courseAmount ?? ''} onChange={(event) => updateStudentCourseDraft(courseId, 'totalCourseAmount', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
-                    {studentSelectedCourseIds.length < 2 ? <Field label="Payment Plan" required><select value={draft.paymentPlanId || ''} onChange={(event) => { const plan = (course?.paymentPlans || []).find((item) => String(item.id) === event.target.value); updateStudentCourseDraft(courseId, 'paymentPlanId', event.target.value); updateStudentCourseDraft(courseId, 'paymentPlan', plan?.templateName || '') }} disabled={studentFormMode === 'view'}><option value="">Select Payment Plan</option>{(course?.paymentPlans || []).map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName}</option>)}</select></Field> : null}
-                  </div>
-                ) : <p className="student-course-card-pending-copy">This course will be configured when the previous sequence is completed.</p>}
+                <div className="student-course-card-grid">
+                  <Field label="Class Schedule" required>
+                    <select value={draft.classSchedule || ''} onChange={(event) => { updateStudentCourseDraft(courseId, 'classSchedule', event.target.value); updateStudentCourseDraft(courseId, 'batchId', ''); updateStudentCourseDraft(courseId, 'batchName', ''); updateStudentCourseDraft(courseId, 'batchTiming', ''); updateStudentCourseDraft(courseId, 'courseEndDate', '') }} disabled={studentFormMode === 'view'}>
+                      <option value="">Select Class Schedule</option>
+                      {courseScheduleOptions.map((weekType) => <option key={weekType} value={weekType === 'WEEKEND' ? 'Weekend' : 'Weekday'}>{weekType === 'WEEKEND' ? 'Weekend' : 'Weekday'}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Course Mode" required>
+                    <select value={draft.courseMode || ''} onChange={(event) => { updateStudentCourseDraft(courseId, 'courseMode', event.target.value); updateStudentCourseDraft(courseId, 'batchId', ''); updateStudentCourseDraft(courseId, 'batchName', ''); updateStudentCourseDraft(courseId, 'batchTiming', '') }} disabled={studentFormMode === 'view'}>
+                      <option value="">Select Course Mode</option>
+                      {getAllowedCourseModes(course?.mode).map((mode) => <option key={mode} value={mode === 'ONLINE' ? 'Online' : 'Offline'}>{mode === 'ONLINE' ? 'Online' : 'Offline'}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Select Batch" required>
+                    <select value={draft.batchId || ''} onChange={(event) => {
+                      const batch = batchOptions.find((item) => item.batchId === event.target.value)
+                      updateStudentCourseDraft(courseId, 'batchId', event.target.value)
+                      updateStudentCourseDraft(courseId, 'batchName', batch?.batchName || '')
+                      updateStudentCourseDraft(courseId, 'batchTiming', batch?.batchTiming || '')
+                      updateStudentCourseDraft(courseId, 'courseStartDate', batch?.courseStartDate || draft.courseStartDate || '')
+                      updateStudentCourseDraft(courseId, 'courseEndDate', batch?.courseEndDate || '')
+                      updateStudentCourseDraft(courseId, 'facultyId', batch?.facultyId || '')
+                      updateStudentCourseDraft(courseId, 'facultyName', batch?.facultyName || '')
+                    }} disabled={studentFormMode === 'view' || !draft.classSchedule || !draft.courseMode}>
+                      <option value="">{draft.classSchedule && draft.courseMode ? 'Select Batch' : 'Select schedule and mode first'}</option>
+                      {batchOptions.map((batch) => <option key={batch.batchId} value={batch.batchId} disabled={batch.isFull}>{batch.batchName} - {batch.batchTiming || 'No timing'}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Batch Timing" required><input value={selectedBatch?.batchTiming || draft.batchTiming || ''} readOnly placeholder="Auto-filled from selected batch" /></Field>
+                  <Field label="Course Start Date" required><input type="date" value={draft.courseStartDate || ''} onChange={(event) => { updateStudentCourseDraft(courseId, 'courseStartDate', event.target.value); updateStudentCourseDraft(courseId, 'courseEndDate', '') }} disabled={studentFormMode === 'view'} /></Field>
+                  <Field label="Course End Date"><input type="date" value={calculatedCourseEndDate || ''} readOnly placeholder="Auto-calculated from course and batch" /></Field>
+                  <Field label="Total Course Amount" required><input type="number" min="0" value={draft.totalCourseAmount ?? draft.courseAmount ?? course?.amount ?? ''} onChange={(event) => updateStudentCourseDraft(courseId, 'totalCourseAmount', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
+                  {studentSelectedCourseIds.length < 2 ? <Field label="Payment Plan" required><select value={draft.paymentPlanId || ''} onChange={(event) => { const plan = (course?.paymentPlans || []).find((item) => String(item.id) === event.target.value); updateStudentCourseDraft(courseId, 'paymentPlanId', event.target.value); updateStudentCourseDraft(courseId, 'paymentPlan', plan?.templateName || '') }} disabled={studentFormMode === 'view'}><option value="">Select Payment Plan</option>{(course?.paymentPlans || []).map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName}</option>)}</select></Field> : null}
+                </div>
               </section>
             )
           })}
@@ -16507,6 +16664,15 @@ else {
 
     <td>
       {formatBranchRupees(amount)}
+      {studentInstallmentSchedule[index]?.courseAllocations?.length ? (
+        <div style={{ marginTop: '4px', fontSize: '11px', color: '#526581' }}>
+          {studentInstallmentSchedule[index].courseAllocations.map((allocation) => (
+            <div key={`${allocation.courseId}-${index}`}>
+              {allocation.courseName}: {formatBranchRupees(allocation.allocatedAmount)}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </td>
 
     <td>
