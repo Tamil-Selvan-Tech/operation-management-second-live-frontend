@@ -1704,6 +1704,19 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   background: #e2e8f0;
   color: #475569;
 }
+.student-calendar-course-day-status { display: grid; gap: 2px; min-width: 0; padding: 4px 6px; border-radius: 7px; background: #dbeafe; color: #1d4ed8; line-height: 1.15; }
+.student-calendar-course-day-status strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.student-calendar-course-day-status small { font-size: 9px; font-weight: 700; }
+.student-calendar-course-day-status.tone-present { background: #dcfce7; color: #166534; }
+.student-calendar-course-day-status.tone-absent { background: #ffe4e6; color: #be123c; }
+.student-calendar-course-day-status.tone-holiday { background: #fee2e2; color: #b91c1c; }
+.student-calendar-course-day-status.tone-no-class { background: #e2e8f0; color: #475569; }
+.student-calendar-course-details-list { display: grid; gap: 12px; max-height: min(62vh, 620px); overflow-y: auto; padding-right: 4px; }
+.student-calendar-course-details-list > section { padding: 14px; border: 1px solid #dbe5f0; border-radius: 12px; background: #f8fafc; }
+.student-calendar-course-details-list h3 { margin: 0 0 12px; color: #172554; font-size: 14px; }
+.student-calendar-course-details-list dl { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 8px 12px; margin: 0; }
+.student-calendar-course-details-list dt { color: #64748b; font-size: 12px; font-weight: 700; }
+.student-calendar-course-details-list dd { margin: 0; color: #172554; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
 
 .student-calendar-day-foot {
   display: flex;

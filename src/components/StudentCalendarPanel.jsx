@@ -84,6 +84,7 @@ function CalendarDayCell({ day, externalUi = false, onSelect }) {
     day.details?.originalTime ? `Original Time: ${day.details.originalTime}` : '',
     day.details?.rescheduledDate ? `Rescheduled Date: ${day.details.rescheduledDate}` : '',
     day.details?.rescheduledTime ? `Rescheduled Time: ${day.details.rescheduledTime}` : '',
+    ...(day.courseStatuses || []).map((item) => `${item.courseName}: ${item.status}${item.details?.classTime ? ` (${item.details.classTime})` : ''}`),
     day.holidayName ? `Reason: ${day.holidayName}` : '',
   ].filter(Boolean).join(' | ')
 
@@ -113,7 +114,7 @@ function CalendarDayCell({ day, externalUi = false, onSelect }) {
       </div>
 
       <div className="student-calendar-day-status">
-        <span className="student-calendar-day-pill">{displayStatus}</span>
+        {day.courseStatuses?.length > 1 ? day.courseStatuses.map((item) => <span key={item.courseId || item.courseName} className={`student-calendar-course-day-status ${getStatusTone(item.status)}`}><strong>{item.courseName}</strong><small>{item.status === 'Course Day' ? 'Scheduled' : item.status}</small></span>) : <span className="student-calendar-day-pill">{displayStatus}</span>}
       </div>
 
       <div className="student-calendar-day-foot">
@@ -223,7 +224,7 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
           icon={CalendarDays}
           label="Course Name"
           value={calendar.courseName || 'Not assigned'}
-          note="Saved student course"
+          note={calendar.isMultiCourse ? `${calendar.courses?.length || 0} active course schedules` : 'Saved student course'}
           tone="tone-course-day"
         />
         <CalendarSummaryCard
@@ -246,7 +247,7 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
           value={calendar.totalHours
             ? `${calendar.totalHours} hour${Number(calendar.totalHours) === 1 ? '' : 's'}`
             : 'Not available'}
-          note={`${calendar.courseMode || 'Online'} - ${getHoursPerDayLabel(calendar, student)} hr/day`}
+          note={calendar.isMultiCourse ? 'Combined hours · per-course schedules' : `${calendar.courseMode || 'Online'} - ${getHoursPerDayLabel(calendar, student)} hr/day`}
           tone="tone-course-day"
         />
         {student?.scheduleSummary || externalUi ? <>
@@ -267,7 +268,7 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
           icon={CalendarOff}
           label="Faculty Weekly Off Days"
           value={calendar.summary.facultyWeeklyOffDays || 0}
-          note={calendar.weeklyOffDay ? `${calendar.weeklyOffDay.charAt(0) + calendar.weeklyOffDay.slice(1).toLowerCase()} is not a class day` : 'No weekly off configured'}
+          note={calendar.isMultiCourse ? calendar.courses.map((course) => `${course.courseName}: ${course.weeklyOffDay || 'No weekly off'}`).join(' · ') : calendar.weeklyOffDay ? `${calendar.weeklyOffDay.charAt(0) + calendar.weeklyOffDay.slice(1).toLowerCase()} is not a class day` : 'No weekly off configured'}
           tone="tone-holiday"
         />
       </div>
@@ -355,11 +356,11 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
         <div className="student-new-calendar-footer">
           <div className="student-new-calendar-footer-stat">
             <strong>{calendar.summary.courseDays}</strong>
-            <span>Total scheduled class days</span>
+            <span>{calendar.isMultiCourse ? 'Scheduled course-days (combined)' : 'Total scheduled class days'}</span>
           </div>
           <div className="student-new-calendar-footer-stat">
             <strong>{selectedMonthScheduledDays}</strong>
-            <span>This month scheduled class days</span>
+            <span>{calendar.isMultiCourse ? 'Scheduled course-days this month' : 'This month scheduled class days'}</span>
           </div>
           <div className="student-new-calendar-footer-stat">
             <strong>{presentCount}</strong>
@@ -379,7 +380,7 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
             <p className="student-new-calendar-panel-kicker">VIEW DETAILS</p>
             <h2 id="student-calendar-details-title">{formatCalendarLongDate(selectedDay.dateKey || selectedDay.date)}</h2>
             <span className={`student-calendar-details-status ${getStatusTone(selectedDay.status)}`}>{selectedDay.status}</span>
-            <dl className="student-calendar-details-list">
+            {selectedDay.courseDetails?.length > 1 ? <div className="student-calendar-course-details-list">{selectedDay.courseDetails.map((item) => <section key={item.courseId || item.courseName}><h3>{item.courseName} · {item.status === 'Course Day' ? 'Scheduled' : item.status}</h3><dl><dt>Batch</dt><dd>{item.batchName || '-'}</dd><dt>Faculty</dt><dd>{item.facultyName || '-'}</dd><dt>Mode / Schedule</dt><dd>{[item.courseMode, item.schedule].filter(Boolean).join(' · ') || '-'}</dd>{item.weeklyOffDay ? <><dt>Faculty Weekly Off</dt><dd>{item.weeklyOffDay}</dd></> : null}{item.details?.classTime ? <><dt>Class Time</dt><dd>{item.details.classTime}</dd></> : null}{item.classHours ? <><dt>Class Hours</dt><dd>{item.classHours}</dd></> : null}{item.details?.attendance || item.attendanceStatus ? <><dt>Attendance</dt><dd>{item.details?.attendance || item.attendanceStatus}</dd></> : null}{item.details?.originalFaculty ? <><dt>Original Faculty</dt><dd>{item.details.originalFaculty}</dd></> : null}{item.details?.assignmentType ? <><dt>Leave / Permission Action</dt><dd>{item.details.assignmentType}</dd></> : null}{item.details?.replacementDate ? <><dt>Replacement Date</dt><dd>{item.details.replacementDate}</dd></> : null}{item.details?.replacementTime ? <><dt>Replacement Time</dt><dd>{item.details.replacementTime}</dd></> : null}{item.holidayName ? <><dt>Reason</dt><dd>{item.holidayName}</dd></> : null}</dl></section>)}</div> : <dl className="student-calendar-details-list">
               {selectedDay.details?.course ? <><dt>Course</dt><dd>{selectedDay.details.course}</dd></> : null}
               {selectedDay.details?.batch ? <><dt>Batch</dt><dd>{selectedDay.details.batch}</dd></> : null}
               {selectedDay.details?.classTime ? <><dt>Time</dt><dd>{selectedDay.details.classTime}</dd></> : null}
@@ -395,7 +396,7 @@ export function StudentCalendarPanel({ student, facultyCalendar = null, external
               {selectedDay.details?.assignmentType ? <><dt>Assignment</dt><dd>{selectedDay.details.assignmentType}</dd></> : null}
               {selectedDay.attendanceStatus ? <><dt>Attendance</dt><dd>{selectedDay.attendanceStatus}</dd></> : null}
               {selectedDay.holidayName ? <><dt>Reason</dt><dd>{selectedDay.holidayName}</dd></> : null}
-            </dl>
+            </dl>}
           </section>
         </div>,
         document.body,

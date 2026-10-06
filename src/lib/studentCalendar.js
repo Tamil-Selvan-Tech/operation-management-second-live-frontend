@@ -531,6 +531,9 @@ function getStatusToneKey(status) {
 }
 
 export function buildStudentCourseCalendar(student = {}, facultyCalendar = null) {
+  const enrolledCalendars = Array.isArray(student?.scheduleSummary?.courses) ? student.scheduleSummary.courses : []
+  if (enrolledCalendars.length > 1) return buildMultiCourseCalendar(student, enrolledCalendars)
+
   const facultyEvents = getFacultyCalendarEventsForStudent(student, facultyCalendar)
   const facultyBatch = (Array.isArray(facultyCalendar?.batches) ? facultyCalendar.batches : []).find((batch) => {
     const batchIds = [batch?.id, batch?.batchId, batch?.batchEntryId].map(normalizeCalendarIdentity).filter(Boolean)
@@ -691,5 +694,154 @@ export function buildStudentCourseCalendar(student = {}, facultyCalendar = null)
     holidays,
     replacementHours,
     replacementSessionCount,
+  }
+}
+
+function buildMultiCourseCalendar(student, courseCalendars) {
+  const calendars = courseCalendars.map((course) => {
+    const name = course.courseName || course.course?.name || 'Course'
+    const courseStudent = {
+      ...student,
+      courseId: course.courseId || course.course?.id || '',
+      courseName: name,
+      courseInterested: name,
+      course: course.course || { id: course.courseId, name, hours: course.totalHours },
+      courseStartDate: course.startDate,
+      courseEndDate: course.endDate,
+      classSchedule: course.schedule,
+      courseMode: course.courseMode,
+      batchId: course.batch?.id || course.batch?.batchId || '',
+      batchName: course.batch?.name || '',
+      batchTiming: course.batch?.timing || '',
+      facultyName: course.facultyName || '',
+      totalHours: course.totalHours,
+      hoursPerDay: course.hoursPerDay,
+      requiredTeachingDays: course.requiredTeachingDays,
+      actualTeachingDays: course.actualTeachingDays,
+      calendarDurationDays: course.calendarDurationDays,
+      attendanceByDate: {},
+      calendarAttendance: undefined,
+      dailyAttendance: undefined,
+      attendanceCalendar: undefined,
+      calendarEvents: course.events || [],
+      scheduleSummary: course,
+    }
+    return { source: course, calendar: buildStudentCourseCalendar(courseStudent) }
+  }).filter(({ calendar }) => calendar.isReady)
+
+  if (!calendars.length) return { ...buildStudentCourseCalendar(student), isMultiCourse: true }
+
+  const startDate = calendars.map(({ calendar }) => calendar.startDate).sort()[0]
+  const endDate = calendars.map(({ calendar }) => calendar.endDate).sort().at(-1)
+  const rangeStart = startOfCalendarMonth(startDate)
+  const rangeEnd = startOfCalendarMonth(endDate)
+  const rangeCalendarDays = new Map()
+  calendars.forEach(({ source, calendar }) => {
+    const name = source.courseName || source.course?.name || 'Course'
+    calendar.months.forEach((month) => month.days.forEach((day) => {
+      if (day.dateKey) {
+        const list = rangeCalendarDays.get(day.dateKey) || []
+        list.push({ source, name, day })
+        rangeCalendarDays.set(day.dateKey, list)
+      }
+    }))
+  })
+
+  const months = []
+  for (let cursor = new Date(rangeStart); cursor <= rangeEnd; cursor = addCalendarMonths(cursor, 1)) {
+    const firstDate = startOfCalendarMonth(cursor)
+    const lastDate = endOfCalendarMonth(cursor)
+    const days = Array.from({ length: firstDate.getDay() }, (_, index) => ({ isPlaceholder: true, key: `blank-${index}` }))
+    for (let date = new Date(firstDate); date <= lastDate; date = addCalendarDays(date, 1)) {
+      const dateKey = toCalendarDateKey(date)
+      const records = rangeCalendarDays.get(dateKey) || []
+      const courseStatuses = records.map(({ source, name, day }) => ({
+        courseId: source.courseId || source.course?.id || '',
+        courseName: name,
+        status: day.status,
+        tone: day.tone,
+        isCourseDay: day.isCourseDay,
+        attendanceStatus: day.attendanceStatus,
+        classHours: day.classHours,
+        facultyName: source.facultyName || day.details?.faculty || '',
+        batchName: source.batch?.name || day.details?.batch || '',
+        details: day.details,
+        holidayName: day.holidayName,
+      }))
+      const scheduled = courseStatuses.filter((item) => item.isCourseDay)
+      const attendanceValues = [...new Set(courseStatuses.map((item) => item.attendanceStatus).filter((value) => ['Present', 'Absent', 'Leave', 'Unmarked'].includes(value))) ]
+      const status = attendanceValues.length > 1 ? 'Mixed Attendance'
+        : attendanceValues[0] || (scheduled.length ? 'Course Day'
+          : courseStatuses.length && courseStatuses.every((item) => item.status === courseStatuses[0].status) ? courseStatuses[0].status
+            : courseStatuses.length ? 'No Class' : 'Disabled / Not Applicable')
+      const markers = [...new Set(records.flatMap(({ name, day }) => (day.markers || []).map((marker) => `${name}: ${marker}`)))]
+      const holidayNames = [...new Set(courseStatuses.map((item) => item.holidayName).filter(Boolean))]
+      days.push({
+        key: dateKey,
+        dateKey,
+        date: new Date(date),
+        dayNumber: date.getDate(),
+        weekday: date.toLocaleDateString('en-GB', { weekday: 'short' }),
+        isWithinRange: courseStatuses.length > 0,
+        isCourseDay: scheduled.length > 0,
+        isStartDate: records.some(({ day }) => day.isStartDate),
+        isEndDate: records.some(({ day }) => day.isEndDate),
+        attendanceStatus: attendanceValues.length === 1 ? attendanceValues[0] : attendanceValues.length > 1 ? 'Mixed' : '',
+        classHours: courseStatuses.reduce((total, item) => total + Number(item.classHours || 0), 0),
+        details: courseStatuses[0]?.details || (courseStatuses.length ? { course: courseStatuses[0].courseName } : null),
+        courseStatuses,
+        courseDetails: courseStatuses,
+        holidayName: holidayNames.join(' · '),
+        status,
+        tone: scheduled.length ? 'course-day' : getStatusToneKey(status),
+        markers,
+        isHoliday: courseStatuses.some((item) => item.tone === 'holiday'),
+      })
+    }
+    months.push({ key: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`, label: MONTH_FORMATTER.format(cursor), date: new Date(cursor), days })
+  }
+
+  const sum = (key) => calendars.reduce((total, item) => total + Number(item.calendar.summary?.[key] || 0), 0)
+  const holidayDates = new Set(calendars.flatMap(({ calendar }) => calendar.holidays || []).map((holiday) => holiday.date).filter(Boolean))
+  const totalHours = calendars.reduce((total, item) => total + Number(item.source.totalHours || item.calendar.totalHours || 0), 0)
+  const completedHours = calendars.reduce((total, item) => total + Number(item.source.completedHours || 0), 0)
+  const courseNames = calendars.map(({ source }) => source.courseName || source.course?.name || 'Course')
+  const summary = {
+    courseDays: sum('courseDays'),
+    noClassDays: sum('noClassDays'),
+    holidays: holidayDates.size,
+    attendanceDays: sum('attendanceDays'),
+    presentDays: sum('presentDays'),
+    absentDays: sum('absentDays'),
+    facultyWeeklyOffDays: sum('facultyWeeklyOffDays'),
+  }
+  const allEvents = calendars.flatMap(({ source }) => source.events || [])
+  const dateDifference = Math.round((parseCalendarDate(endDate).getTime() - parseCalendarDate(startDate).getTime()) / 86400000) + 1
+
+  return {
+    isReady: true,
+    isMultiCourse: true,
+    courseName: courseNames.join(' + '),
+    courses: calendars.map(({ source }) => source),
+    startDate,
+    endDate,
+    durationMonths: Math.max(...calendars.map(({ calendar }) => calendar.durationMonths || 0)),
+    schedule: 'Multiple',
+    weeklyOffDay: calendars.map(({ source }) => `${source.courseName || source.course?.name}: ${source.weeklyOffDay || 'None'}`).join(' · '),
+    courseMode: 'Multiple',
+    totalHours,
+    hoursPerDay: null,
+    requiredTeachingDays: sum('courseDays'),
+    actualTeachingDays: summary.courseDays,
+    calendarDurationDays: Number.isFinite(dateDifference) ? dateDifference : 0,
+    monthIndex: 0,
+    months,
+    summary,
+    holidays: [...holidayDates].map((date) => ({ date })),
+    replacementHours: calendars.reduce((total, item) => total + Number(item.source.replacementHours || 0), 0),
+    replacementSessionCount: calendars.reduce((total, item) => total + Number(item.source.replacementSessionCount || 0), 0),
+    completedHours,
+    pendingHours: Math.max(0, totalHours - completedHours),
+    events: allEvents,
   }
 }
