@@ -2575,9 +2575,17 @@ export function FacultyDashboardPage() {
     [dashboardSummary, facultyProfile, facultySummaryBackfillRecord],
   )
 
+  const facultyEnrollmentStudents = useMemo(() => {
+    const batchRecords = (Array.isArray(dashboardSummary?.batchCounts) ? dashboardSummary.batchCounts : [])
+      .flatMap((batch) => Array.isArray(batch?.studentRecords) ? batch.studentRecords : [])
+    // A learner is allowed to have one row per course/batch assignment here;
+    // de-duplicating by student ID at this stage would discard their second course.
+    return [...batchRecords, ...(Array.isArray(students) ? students : [])]
+  }, [dashboardSummary?.batchCounts, students])
+
   const backfilledStudents = useMemo(
-    () => enrichStudentsWithFacultyReferences(students, facultyBackfillRecords, courseCatalog),
-    [courseCatalog, facultyBackfillRecords, students],
+    () => enrichStudentsWithFacultyReferences(facultyEnrollmentStudents, facultyBackfillRecords, courseCatalog),
+    [courseCatalog, facultyBackfillRecords, facultyEnrollmentStudents],
   )
 
   const facultyScopedStudents = useMemo(() => {
