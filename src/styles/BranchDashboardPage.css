@@ -11571,6 +11571,10 @@ body.branch-notification-menu-open .main-area {
   font-size: 11px;
 }
 
+.branch-next-installment .branch-next-installment-course-count {
+  white-space: nowrap;
+}
+
 /* Due date */
 .branch-student-due-date {
   display: inline-block;

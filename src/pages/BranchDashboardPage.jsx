@@ -10533,8 +10533,9 @@ else {
               String(courseRow.nextCourseInstallment.installmentNumber || courseRow.nextCourseInstallment.number || '').trim()
             )).filter(Boolean))]
             const combinedInstallmentLabel = coursesWithNextInstallment.length
-              ? `${combinedInstallmentNumbers.length === 1 ? `Installment ${combinedInstallmentNumbers[0]}` : 'Next installments'} · ${coursesWithNextInstallment.length} courses`
+              ? (combinedInstallmentNumbers.length === 1 ? `Installment ${combinedInstallmentNumbers[0]}` : 'Next installments')
               : ''
+            const combinedCourseCountLabel = `· ${coursesWithNextInstallment.length} courses`
             const hasPartiallyPaidInstallment = courseRows.some((courseRow) => (
               courseRow.rowInstallments.some((installment) => {
                 const amount = Number(installment.amount ?? installment.installmentAmount ?? 0)
@@ -10601,6 +10602,7 @@ else {
                             <div className="branch-next-installment">
                               <strong>{formatFee(combinedNextInstallmentAmount)}</strong>
                               <span>{combinedInstallmentLabel}</span>
+                              {coursesWithNextInstallment.length > 1 ? <span className="branch-next-installment-course-count">{combinedCourseCountLabel}</span> : null}
                             </div>
                           ) : <span className="branch-no-installment">-</span>}
                         </td>
