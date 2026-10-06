@@ -268,13 +268,19 @@ export async function getCurrentStudentProfile() {
   }
 }
 
-export async function getCurrentStudentAttendanceOverview() {
-  const response = await request('/attendance/student/me/overview')
+export async function getCurrentStudentAttendanceOverview(courseId = '') {
+  const params = new URLSearchParams()
+  if (String(courseId || '').trim()) params.set('courseId', String(courseId).trim())
+  const suffix = params.toString() ? `?${params.toString()}` : ''
+  const response = await request(`/attendance/student/me/overview${suffix}`)
   return unwrapData(response)
 }
 
-export async function getCurrentStudentCourse() {
-  const response = await request('/attendance/student/me/course')
+export async function getCurrentStudentCourse(courseId = '') {
+  const params = new URLSearchParams()
+  if (String(courseId || '').trim()) params.set('courseId', String(courseId).trim())
+  const suffix = params.toString() ? `?${params.toString()}` : ''
+  const response = await request(`/attendance/student/me/course${suffix}`)
   return unwrapData(response)
 }
 
@@ -282,8 +288,10 @@ export async function getCurrentBranchStudentCalendar(query = {}) {
   const params = new URLSearchParams()
   const from = String(query?.from || '').trim()
   const to = String(query?.to || '').trim()
+  const courseId = String(query?.courseId || '').trim()
   if (from) params.set('from', from)
   if (to) params.set('to', to)
+  if (courseId) params.set('courseId', courseId)
 
   const suffix = params.toString() ? `?${params.toString()}` : ''
   const response = await request(`/branch-students/me/calendar${suffix}`)

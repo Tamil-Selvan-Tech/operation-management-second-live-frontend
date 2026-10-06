@@ -2346,7 +2346,7 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 .student-dashboard-welcome-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .student-dashboard-welcome-details span { display: grid; gap: 3px; padding: 13px 15px; border: 1px solid #e4eaf3; background: #fff; color: #718096; font-size: 11px; box-shadow: 0 3px 10px rgba(15, 23, 42, .025); }
 .student-dashboard-welcome-details strong { color: #263957; font-size: 13px; overflow-wrap: anywhere; }
-.student-dashboard-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+.student-dashboard-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 14px; }
 .student-dashboard-summary-card, .student-dashboard-panel { border: 1px solid #e2e8f0; background: #fff; box-shadow: 0 4px 14px rgba(15, 23, 42, .04); }
 .student-dashboard-summary-card { display: flex; gap: 13px; min-height: 132px; padding: 18px; align-items: flex-start; }
 .student-dashboard-summary-card > div { display: grid; gap: 6px; min-width: 0; flex: 1; }
@@ -2369,6 +2369,21 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 .student-dashboard-fee-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }.student-dashboard-fee-grid span { color: #7b899d; font-size: 11px; }.student-dashboard-fee-grid strong { display: block; margin-top: 5px; color: #172944; font-size: 16px; }.student-dashboard-muted { display: block; margin-top: 9px; color: #7b899d; font-size: 11px; line-height: 1.5; }
 .student-dashboard-notifications { display: grid; gap: 13px; }.student-dashboard-notifications > div { display: flex; gap: 11px; padding-bottom: 13px; border-bottom: 1px solid #edf1f6; }.student-dashboard-notifications > div > span { display: grid; place-items: center; flex: 0 0 31px; width: 31px; height: 31px; color: #7890b1; background: #f1f5f9; }.student-dashboard-notifications > div > span.unread { color: #2563eb; background: #eaf1ff; }.student-dashboard-notifications strong { color: #263957; font-size: 13px; }.student-dashboard-notifications p { margin: 3px 0; color: #63728a; font-size: 12px; line-height: 1.4; }.student-dashboard-notifications small { color: #8a97aa; font-size: 10px; }
 .student-attendance-period { margin: 6px 0 0; color: #7b899d; font-size: 11px; }
+.student-attendance-course-select { display: grid; gap: 6px; min-width: min(280px, 100%); }
+.student-attendance-course-select small { color: #8794a8; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.student-attendance-course-select select { min-height: 42px; padding: 0 12px; border: 1px solid #d8e1ed; color: #172944; background: #fff; font: inherit; font-size: 13px; }
+.student-today-course-attendance-list { display: grid; gap: 8px; margin-top: 12px; }
+.student-today-course-attendance-list > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #edf1f6; background: #f8fafc; }
+.student-today-course-attendance-list strong { color: #172944; font-size: 13px; }
+.student-today-course-attendance-list span { color: #64748b; font-size: 12px; font-weight: 750; }
+.student-today-course-attendance-list .is-present { color: #16805a; }
+.student-today-course-attendance-list .is-absent { color: #c2414d; }
+.student-today-course-attendance-list .is-late { color: #a16207; }
+.student-course-course-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
+.student-course-course-tabs button { display: grid; gap: 5px; min-width: 190px; padding: 12px 15px; border: 1px solid #dce5f0; color: #253753; background: #fff; text-align: left; cursor: pointer; }
+.student-course-course-tabs button.is-active { border-color: #2563eb; color: #1d4ed8; background: #eff6ff; }
+.student-course-course-tabs small { color: #7b899d; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.student-course-course-tabs strong { font-size: 14px; }
 .student-attendance-overview-panel { width: 50%; box-sizing: border-box; }
 .student-attendance-panels-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: stretch; }
 .student-attendance-panels-grid > .student-attendance-overview-panel { width: 100%; }

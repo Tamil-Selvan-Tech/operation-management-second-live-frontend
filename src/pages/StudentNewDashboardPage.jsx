@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import {
@@ -21,10 +21,7 @@ import {
   GraduationCap,
   Building2,
   BarChart3,
-  CheckCircle2,
-  XCircle,
   Clock3,
-  Info,
   PanelLeftOpen,
   PanelLeftClose,
 } from 'lucide-react'
@@ -41,7 +38,6 @@ import { NotificationBell } from '../components/NotificationBell'
 import { getStudentCalendarAttendance } from '../lib/studentAttendanceCalendar'
 import { saveStudentCalendarSummary } from '../lib/studentCalendarSummary'
 import { buildStudentCourseCalendar, toCalendarDateKey } from '../lib/studentCalendar'
-import { normalizeStudentAttendanceOverview } from '../lib/studentAttendanceOverview'
 import { getBranchStudentLedger } from '../services/branchLedgerService'
 import { loadBranchPaymentHistoryEntries } from '../lib/branchPaymentHistoryStore'
 import html2pdf from 'html2pdf.js'
@@ -250,6 +246,40 @@ function getModuleProgress(student) {
   const activeItem = activeModule?.items.find((item) => !['completed', 'complete', 'done'].includes(String(item?.status || item?.progressStatus || '').trim().toLowerCase()) && Number(item?.progress || 0) < 100)
   const completedItemsList = normalized.flatMap((module) => module.items.filter((item) => ['completed', 'complete', 'done'].includes(String(item?.status || item?.progressStatus || '').trim().toLowerCase()) || Number(item?.progress) >= 100))
   return { modules: normalized, overall: Number.isFinite(overall) ? Math.max(0, Math.min(100, overall)) : null, completedModules, totalModules: normalized.length, totalItems, completedItems, activeModule, activeItem, latestCompleted: completedItemsList.at(-1) }
+}
+
+function getDashboardCourseEnrollments(student = {}) {
+  const source = Array.isArray(student.courseEnrollments) && student.courseEnrollments.length
+    ? student.courseEnrollments
+    : Array.isArray(student.courses) && student.courses.length ? student.courses : []
+  const unique = [...new Map(source.filter((item) => item && typeof item === 'object').map((item, index) => [
+    String(item.courseId || item.id || item.course?.id || item.courseName || item.name || index), item,
+  ])).values()]
+  if (!unique.length) return [{
+    courseId: student.courseId || student.course?.id || '',
+    courseName: student.courseName || student.courseInterested || student.course?.name || 'Not assigned',
+    batchName: student.batchName || student.batch?.name || student.batch || '-',
+    batchTiming: student.batchTiming || '',
+    facultyName: student.facultyName || student.faculty?.name || '',
+    startDate: student.courseStartDate || student.startDate || '',
+    endDate: student.courseEndDate || student.endDate || '',
+    courseProgress: student.courseProgress ?? student.courseCompletionPercentage ?? student.courseProgressPercentage,
+  }]
+  return unique.map((enrollment) => {
+    const courseId = String(enrollment.courseId || enrollment.id || enrollment.course?.id || '')
+    const isPrimary = courseId && courseId === String(student.courseId || student.course?.id || '')
+    return {
+      ...enrollment,
+      courseId,
+      courseName: enrollment.courseName || enrollment.name || enrollment.course?.name || (isPrimary ? student.courseName || student.courseInterested : '') || 'Course',
+      batchName: enrollment.batchName || enrollment.batch?.name || (isPrimary ? student.batchName || student.batch?.name || student.batch : '') || '-',
+      batchTiming: enrollment.batchTiming || enrollment.batch?.timing || (isPrimary ? student.batchTiming : '') || '',
+      facultyName: enrollment.facultyName || enrollment.faculty?.name || (isPrimary ? student.facultyName || student.faculty?.name : '') || '',
+      startDate: enrollment.startDate || enrollment.courseStartDate || (isPrimary ? student.courseStartDate || student.startDate : '') || '',
+      endDate: enrollment.endDate || enrollment.courseEndDate || (isPrimary ? student.courseEndDate || student.endDate : '') || '',
+      courseProgress: enrollment.courseProgress ?? enrollment.courseCompletionPercentage ?? enrollment.progress ?? (isPrimary ? student.courseProgress ?? student.courseCompletionPercentage ?? student.courseProgressPercentage : null),
+    }
+  })
 }
 
 function asAmount(value) {
@@ -501,10 +531,14 @@ export function StudentNewDashboardPage() {
  const [paymentEntries, setPaymentEntries] = useState([])
  const [paymentLoadError, setPaymentLoadError] = useState('')
  const [attendanceOverview, setAttendanceOverview] = useState(null)
+ const [attendanceOverviews, setAttendanceOverviews] = useState({})
+ const [selectedAttendanceCourseId, setSelectedAttendanceCourseId] = useState('')
  const [attendanceTab, setAttendanceTab] = useState('daily')
  const [attendanceLoading, setAttendanceLoading] = useState(false)
  const [attendanceError, setAttendanceError] = useState('')
  const [courseDetails, setCourseDetails] = useState(null)
+ const [courseDetailsById, setCourseDetailsById] = useState({})
+ const [selectedCourseDetailsId, setSelectedCourseDetailsId] = useState('')
  const [courseLoading, setCourseLoading] = useState(false)
  const [courseError, setCourseError] = useState('')
 
@@ -543,6 +577,10 @@ export function StudentNewDashboardPage() {
    }
  }, [student?.studentId, student?.id])
 
+ const dashboardCourses = useMemo(() => getDashboardCourseEnrollments(student || {}), [student])
+ const dashboardCourseIdsKey = dashboardCourses.map((course) => course.courseId).join('|')
+ const defaultAttendanceCourseId = String(student?.courseId || student?.course?.id || dashboardCourses[0]?.courseId || '')
+
  useEffect(() => {
    if (!student?.studentId && !student?.id) return undefined
    let isMounted = true
@@ -550,13 +588,23 @@ export function StudentNewDashboardPage() {
      if (!isMounted) return
      setCourseLoading(true)
      setCourseError('')
-     return getCurrentStudentCourse()
-       .then((course) => { if (isMounted) setCourseDetails(course) })
-       .catch((error) => { if (isMounted) setCourseError(error?.message || 'Unable to load course details.') })
+     const courses = dashboardCourses.length ? dashboardCourses : [{ courseId: '' }]
+     return Promise.allSettled(courses.map(async (course) => [String(course.courseId || ''), await getCurrentStudentCourse(course.courseId)]))
+       .then((results) => {
+         if (!isMounted) return
+         const byCourse = Object.fromEntries(results.filter((result) => result.status === 'fulfilled').map((result) => result.value))
+         setCourseDetailsById(byCourse)
+         const selected = byCourse[defaultAttendanceCourseId] || Object.values(byCourse)[0] || null
+         setCourseDetails(selected)
+         setSelectedCourseDetailsId(selected?.course?.id || defaultAttendanceCourseId)
+         if (!Object.keys(byCourse).length) setCourseError(results.find((result) => result.status === 'rejected')?.reason?.message || 'Unable to load course details.')
+       })
        .finally(() => { if (isMounted) setCourseLoading(false) })
    })
    return () => { isMounted = false }
- }, [student?.studentId, student?.id])
+ // Enrollment IDs represent the stable set; avoid refetching for student object updates.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [student?.studentId, student?.id, dashboardCourseIdsKey, defaultAttendanceCourseId])
 
  useEffect(() => {
    if (!student?.studentId && !student?.id) return undefined
@@ -565,13 +613,27 @@ export function StudentNewDashboardPage() {
      if (!isMounted) return
      setAttendanceLoading(true)
      setAttendanceError('')
-     return getCurrentStudentAttendanceOverview()
-       .then((overview) => { if (isMounted) setAttendanceOverview(normalizeStudentAttendanceOverview(overview, student)) })
+     const courses = dashboardCourses.length ? dashboardCourses : [{ courseId: '' }]
+     return Promise.all(courses.map(async (course) => {
+       const overview = await getCurrentStudentAttendanceOverview(course.courseId)
+       return [String(course.courseId || ''), overview]
+     }))
+       .then((entries) => {
+         if (!isMounted) return
+         const byCourse = Object.fromEntries(entries)
+         setAttendanceOverviews(byCourse)
+         const nextCourseId = defaultAttendanceCourseId
+         setSelectedAttendanceCourseId(nextCourseId)
+         setAttendanceOverview(byCourse[nextCourseId] || Object.values(byCourse)[0] || null)
+       })
        .catch((error) => { if (isMounted) setAttendanceError(error?.message || 'Unable to load attendance.') })
        .finally(() => { if (isMounted) setAttendanceLoading(false) })
    })
    return () => { isMounted = false }
- }, [student?.studentId, student?.id])
+ // selected course is intentionally not a fetch dependency; all enrollments load together.
+ // Course IDs and the primary ID are the stable fetch inputs; course objects and selected tab are not.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [student?.studentId, student?.id, dashboardCourseIdsKey, defaultAttendanceCourseId])
 
  useEffect(() => {
    let isMounted = true
@@ -754,10 +816,34 @@ export function StudentNewDashboardPage() {
      })
  }, [attendanceOverview, attendanceTab])
  const attendanceTotals = attendanceOverview?.overall || null
+ const selectedAttendanceCourse = dashboardCourses.find((course) => String(course.courseId || '') === selectedAttendanceCourseId) || dashboardCourses[0]
+ const courseAttendanceBatch = selectedAttendanceCourse?.batchName || batchName
+ const todayCourseSessions = dashboardCourses.flatMap((course) => {
+   const overview = attendanceOverviews[String(course.courseId || '')]
+   return (Array.isArray(overview?.todayAttendance?.sessions) ? overview.todayAttendance.sessions : []).map((session) => ({ ...session, courseId: session.courseId || course.courseId, courseName: session.courseName || course.courseName }))
+ })
+ const todayAttendanceRows = dashboardCourses.flatMap((course) => {
+   const sessions = todayCourseSessions.filter((session) => String(session.courseId || '') === String(course.courseId || ''))
+   return sessions.length ? sessions : [{ courseId: course.courseId, courseName: course.courseName, status: 'NO_CLASS' }]
+ })
  const todayAttendance = attendanceOverview?.todayAttendance || null
- const todaySessions = Array.isArray(todayAttendance?.sessions) ? todayAttendance.sessions : []
- const todayClassSessions = useMemo(() => getTodayClassSessions(todayAttendance, student), [todayAttendance, student])
- const todaySummary = todayAttendance?.summary || { totalSessions: 0, present: 0, absent: 0, late: 0, leave: 0, notMarked: 0, percentage: 0 }
+ const todaySessions = todayCourseSessions
+ const todayClassSessions = useMemo(() => dashboardCourses.flatMap((course) => {
+   const overview = attendanceOverviews[String(course.courseId || '')]
+   const courseStudent = { ...student, courseName: course.courseName, batchName: course.batchName, calendarEvents: String(course.courseId || '') === String(student?.courseId || student?.course?.id || '') ? student?.calendarEvents : [] }
+   return getTodayClassSessions(overview?.todayAttendance, courseStudent).map((session) => ({ ...session, courseName: session.courseName || course.courseName, batchName: session.batchName || course.batchName }))
+ }), [attendanceOverviews, dashboardCourses, student])
+ const todaySummary = todaySessions.reduce((summary, session) => {
+   const status = String(session.status || 'NOT_MARKED').toUpperCase()
+   summary.totalSessions += 1
+   if (status === 'PRESENT') summary.present += 1
+   else if (status === 'ABSENT') summary.absent += 1
+   else if (status === 'LATE') summary.late += 1
+   else if (status === 'LEAVE') summary.leave += 1
+   else if (status === 'NOT_MARKED') summary.notMarked += 1
+   return summary
+ }, { totalSessions: 0, present: 0, absent: 0, late: 0, leave: 0, notMarked: 0, percentage: 0 })
+ todaySummary.percentage = todaySummary.totalSessions ? Math.round(((todaySummary.present + todaySummary.late) / todaySummary.totalSessions) * 100) : 0
  const facultyName = firstValue(student?.facultyName, student?.faculty?.facultyName, student?.faculty?.name, student?.batch?.faculty)
 
   const handleMenuClick = (section) => {
@@ -775,18 +861,35 @@ const reloadAttendance = () => {
   setAttendanceOverview(null)
   setAttendanceError('')
   setAttendanceLoading(true)
-  getCurrentStudentAttendanceOverview()
-    .then((overview) => setAttendanceOverview(normalizeStudentAttendanceOverview(overview, student)))
+  Promise.all(dashboardCourses.map(async (course) => {
+    const overview = await getCurrentStudentAttendanceOverview(course.courseId)
+    return [String(course.courseId || ''), overview]
+  }))
+    .then((entries) => {
+      const byCourse = Object.fromEntries(entries)
+      setAttendanceOverviews(byCourse)
+      setAttendanceOverview(byCourse[selectedAttendanceCourseId] || Object.values(byCourse)[0] || null)
+    })
     .catch((error) => setAttendanceError(error?.message || 'Unable to load attendance.'))
     .finally(() => setAttendanceLoading(false))
 }
 
-const reloadCourse = () => {
+const selectAttendanceCourse = (courseId) => {
+  const key = String(courseId || '')
+  setSelectedAttendanceCourseId(key)
+  setAttendanceOverview(attendanceOverviews[key] || null)
+}
+
+const reloadCourse = (courseId = selectedCourseDetailsId) => {
   setCourseDetails(null)
   setCourseError('')
   setCourseLoading(true)
-  getCurrentStudentCourse()
-    .then(setCourseDetails)
+  getCurrentStudentCourse(courseId)
+    .then((details) => {
+      setCourseDetails(details)
+      setCourseDetailsById((current) => ({ ...current, [String(courseId || details?.course?.id || '')]: details }))
+      setSelectedCourseDetailsId(String(courseId || details?.course?.id || ''))
+    })
     .catch((error) => setCourseError(error?.message || 'Unable to load course details.'))
     .finally(() => setCourseLoading(false))
 }
@@ -1112,10 +1215,21 @@ const handleLogoutConfirm = async () => {
                 </section>
 
                 <section className="student-dashboard-summary-grid" aria-label="Student summary">
-                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE</small><strong>{formatValue(courseName)}</strong><span>{formatValue(batchName)} · Current Course</span></div></article>
-                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><GraduationCap size={21} /></span><div><small>ASSIGNED FACULTY</small><strong>{formatValue(facultyName)}</strong><span>Current faculty</span></div></article>
-                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><BarChart3 size={21} /></span><div><small>COURSE PROGRESS</small><strong>{learningProgress.overall === null ? '0%' : `${learningProgress.overall}%`}</strong><span>{learningProgress.totalModules ? `${learningProgress.completedModules} / ${learningProgress.totalModules} Modules` : 'Module completion not available'}</span></div></article>
-                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE</small><strong>{attendanceLoading ? 'Loading...' : attendanceTotals?.percentage === undefined ? 'Not available' : `${attendanceTotals.percentage}%`}</strong><span>{attendanceTotals ? `${attendanceTotals.present} Present / ${attendanceTotals.absent} Absent` : 'Attendance records not available'}</span></div></article>
+                  {dashboardCourses.map((course, index) => {
+                    const isPrimaryCourse = String(course.courseId || '') === String(student?.courseId || student?.course?.id || '')
+                    const courseDetailsForCard = courseDetailsById[String(course.courseId || '')]
+                    const savedCourseProgress = courseDetailsForCard?.progress?.overall
+                    const progress = course.courseProgress ?? savedCourseProgress ?? (isPrimaryCourse ? learningProgress.overall : null)
+                    const progressNumber = Number(progress)
+                    const completedModules = courseDetailsForCard?.progress?.completedCount ?? (isPrimaryCourse ? learningProgress.completedModules : null)
+                    const totalModules = courseDetailsForCard?.progress?.totalCount ?? (isPrimaryCourse ? learningProgress.totalModules : null)
+                    return <Fragment key={`${course.courseId || course.courseName}-${index}`}>
+                      <article className="student-dashboard-summary-card"><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</small><strong>{formatValue(course.courseName)}</strong><span>{formatValue(course.batchName)}{course.batchTiming ? ` · ${course.batchTiming}` : ''}</span></div></article>
+                      <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><GraduationCap size={21} /></span><div><small>ASSIGNED FACULTY{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{formatValue(course.facultyName || (isPrimaryCourse ? facultyName : 'Not assigned'))}</strong><span>{formatValue(course.courseName)}</span></div></article>
+                      <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><BarChart3 size={21} /></span><div><small>COURSE PROGRESS{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{Number.isFinite(progressNumber) && progress !== '' && progress !== null ? `${progressNumber}%` : 'Not available'}</strong><span>{Number.isFinite(Number(totalModules)) && Number.isFinite(Number(completedModules)) ? `${completedModules} / ${totalModules} Modules` : 'Module completion data'}</span></div></article>
+                    </Fragment>
+                  })}
+                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE · {selectedAttendanceCourse?.courseName || courseName}</small><strong>{attendanceLoading ? 'Loading...' : attendanceTotals?.percentage === undefined ? 'Not available' : `${attendanceTotals.percentage}%`}</strong><span>{attendanceTotals ? `${attendanceTotals.present} Present / ${attendanceTotals.absent} Absent` : 'Attendance records not available'}</span></div></article>
                   <article className="student-dashboard-summary-card"><span className="student-dashboard-icon amber"><CreditCard size={21} /></span><div><small>PAYMENT PROGRESS</small><strong>{totalFee > 0 ? `${paymentProgress}%` : 'Not available'}</strong><span>{totalFee > 0 ? `${formatPaymentAmount(paidAmount)} paid` : 'Payment data not available'}</span></div></article>
                 </section>
 
@@ -1124,7 +1238,7 @@ const handleLogoutConfirm = async () => {
                 <section className="student-dashboard-panel student-attendance-overview-panel">
                   <div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Attendance</h2><p className="student-attendance-period">Course Period: {attendanceOverview?.course?.startDate ? formatDate(attendanceOverview.course.startDate) : 'Not available'} → {attendanceOverview?.course?.endDate ? formatDate(attendanceOverview.course.endDate) : 'Not available'}</p></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Calendar</button></div>
                   {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading attendance...</p></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : attendanceOverview ? <>
-                    <div className="student-attendance-course-bar"><div><small>ALL ASSIGNED COURSES</small><strong>{courseName}</strong></div><div className="student-attendance-batch-field"><small>BATCH</small><span>{batchName || 'All Batches'}</span></div></div>
+                    <div className="student-attendance-course-bar"><label className="student-attendance-course-select"><small>SELECT COURSE ATTENDANCE</small><select value={selectedAttendanceCourseId} onChange={(event) => selectAttendanceCourse(event.target.value)} aria-label="Select course attendance">{dashboardCourses.map((course, index) => <option key={course.courseId || index} value={String(course.courseId || '')}>{course.courseName}</option>)}</select></label><div className="student-attendance-batch-field"><small>BATCH</small><span>{courseAttendanceBatch || 'Batch not assigned'}</span></div></div>
                     <div className="student-attendance-tabs" role="tablist" aria-label="Attendance period"><button type="button" className={attendanceTab === 'daily' ? 'is-active' : ''} onClick={() => setAttendanceTab('daily')}>Daily</button><button type="button" className={attendanceTab === 'weekly' ? 'is-active' : ''} onClick={() => setAttendanceTab('weekly')}>Weekly</button><button type="button" className={attendanceTab === 'monthly' ? 'is-active' : ''} onClick={() => setAttendanceTab('monthly')}>Monthly</button></div>
                     {attendanceView.length ? <AttendanceChart items={attendanceView} period={attendanceTab} /> : <div className="student-dashboard-empty"><p>No attendance records available for this course period.</p></div>}
                   </> : null}
@@ -1133,7 +1247,7 @@ const handleLogoutConfirm = async () => {
                 <section className="student-dashboard-panel student-today-combined-panel">
                   <div className="student-today-combined-section student-today-attendance-panel">
                   <div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Today&apos;s Attendance</h2><p className="student-attendance-period">{todayAttendance?.date ? formatDate(todayAttendance.date) : 'Date not available'}</p></div></div>
-                  {attendanceLoading ? <div className="student-attendance-card-loading" aria-label="Loading today&apos;s attendance"><span /><span /><span /></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load today&apos;s attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : todaySessions.length === 0 ? <div className="student-dashboard-empty"><p>No classes scheduled today</p></div> : todaySessions.length > 1 ? <div className="student-today-attendance-summary"><strong>{todaySummary.totalSessions} Sessions</strong><div><span>Present</span><b>{todaySummary.present}</b></div><div><span>Absent</span><b>{todaySummary.absent}</b></div>{todaySummary.late ? <div><span>Late</span><b>{todaySummary.late}</b></div> : null}{todaySummary.leave ? <div><span>Leave</span><b>{todaySummary.leave}</b></div> : null}{todaySummary.notMarked ? <div><span>Not Marked</span><b>{todaySummary.notMarked}</b></div> : null}<p>Overall Today: <strong>{todaySummary.percentage}%</strong></p></div> : (() => { const session = todaySessions[0]; const status = String(session.status || 'NOT_MARKED').toUpperCase(); const statusLabel = status === 'NOT_MARKED' ? 'Not Marked' : status === 'WEEK_OFF' ? 'Week Off' : status.charAt(0) + status.slice(1).toLowerCase(); const StatusIcon = status === 'PRESENT' ? CheckCircle2 : status === 'ABSENT' ? XCircle : status === 'LATE' ? Clock3 : Info; return <div className={`student-today-attendance-single is-${status.toLowerCase()}`}><div className="student-today-attendance-status"><StatusIcon size={24} aria-hidden="true" /><strong>{statusLabel}</strong></div><small>{status === 'NOT_MARKED' ? 'Attendance not yet marked by Faculty' : 'Marked by Faculty'}</small></div> })()}
+                  {attendanceLoading ? <div className="student-attendance-card-loading" aria-label="Loading today&apos;s attendance"><span /><span /><span /></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load today&apos;s attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : <><div className="student-today-attendance-summary"><strong>{todaySummary.totalSessions} Course Session{todaySummary.totalSessions === 1 ? '' : 's'}</strong><div><span>Present</span><b>{todaySummary.present}</b></div><div><span>Absent</span><b>{todaySummary.absent}</b></div>{todaySummary.late ? <div><span>Late</span><b>{todaySummary.late}</b></div> : null}{todaySummary.leave ? <div><span>Leave</span><b>{todaySummary.leave}</b></div> : null}{todaySummary.notMarked ? <div><span>Not Marked</span><b>{todaySummary.notMarked}</b></div> : null}<p>Overall Today: <strong>{todaySummary.percentage}%</strong></p></div><div className="student-today-course-attendance-list">{todayAttendanceRows.map((session, index) => { const status = String(session.status || 'NOT_MARKED').toUpperCase(); const label = status === 'NO_CLASS' ? 'No class scheduled' : status === 'NOT_MARKED' ? 'Not Marked' : status === 'WEEK_OFF' ? 'Week Off' : status.charAt(0) + status.slice(1).toLowerCase(); return <div key={`${session.courseId || session.courseName || 'course'}-${session.sessionId || session.id || index}`}><strong>{session.courseName || 'Course'}</strong><span className={`is-${status.toLowerCase()}`}>{label}</span></div> })}</div></>}
                   </div>
 
                   <div className="student-today-combined-section student-today-class-panel">
@@ -1242,6 +1356,7 @@ const handleLogoutConfirm = async () => {
 
             {!isLoading && !loadError && activeSection === 'course' ? (
               <section className="student-course-page">
+                {dashboardCourses.length > 1 ? <div className="student-course-course-tabs" role="tablist" aria-label="My courses">{dashboardCourses.map((course, index) => { const courseId = String(course.courseId || ''); const isSelected = (selectedCourseDetailsId || String(student?.courseId || student?.course?.id || '')) === courseId; return <button type="button" role="tab" aria-selected={isSelected} className={isSelected ? 'is-active' : ''} key={courseId || index} onClick={() => { if (courseId !== selectedCourseDetailsId) reloadCourse(courseId) }}><small>COURSE {index + 1}</small><strong>{course.courseName}</strong></button> })}</div> : null}
                 <div className="student-course-page-heading"><div><p className="student-new-dashboard-kicker">MY COURSE</p><h1>{courseLoading ? 'Loading course details...' : courseDetails?.course?.name || 'My Course'}</h1></div></div>
                 {courseLoading ? <div className="student-course-loading"><span /><span /><span /><span /><span /></div> : courseError ? <div className="student-attendance-error"><p>Unable to load course details.</p><button type="button" onClick={reloadCourse}>Retry</button></div> : !courseDetails?.course ? <div className="student-dashboard-empty"><p>No course assigned</p></div> : <>
                   <div className="student-course-summary-grid">
