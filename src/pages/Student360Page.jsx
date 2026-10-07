@@ -531,9 +531,9 @@ function PerformanceSection({ studentId, branchId = '' }) {
   </section>
 }
 
-function DetailItem({ label, value, icon: Icon }) {
+function DetailItem({ label, value, icon: Icon, className = '' }) {
   return (
-    <div className="student360-detail-item">
+    <div className={`student360-detail-item ${className}`.trim()}>
       {Icon ? <span className="student360-detail-icon"><Icon size={16} strokeWidth={2} aria-hidden="true" /></span> : null}
       <div>
         <span>{label}</span>
@@ -589,14 +589,13 @@ export function Student360Page({
     let active = true
     if (!resolvedStudentId) return undefined
     Promise.allSettled([
-      initialStudent ? Promise.resolve(initialStudent) : getBranchStudent(resolvedStudentId),
+      getBranchStudent(resolvedStudentId),
       getBranchStudentAcademicReports(resolvedStudentId, performanceBranchId),
     ])
       .then(([profileResult, reportResult]) => {
         if (!active) return
-        if (profileResult.status === 'rejected') throw profileResult.reason
-
-        const result = profileResult.value
+        const result = profileResult.status === 'fulfilled' ? profileResult.value : initialStudent
+        if (!result) throw profileResult.reason || new Error('Student profile is unavailable.')
         const academicReport = reportResult.status === 'fulfilled' ? reportResult.value : null
         setStudentRecord({ studentId: resolvedStudentId, data: result })
         setAcademicProgressState({ studentId: resolvedStudentId, data: getAcademicTestProgress(result, academicReport), error: '' })
@@ -870,7 +869,7 @@ export function Student360Page({
           <SectionCard title="Personal Information" description="Contact and identity details recorded for this student." className="student360-anchor-card" id="personal">
             <div className="student360-detail-grid">
               <DetailItem label="Parent Name" value={student.parentName} icon={UserRound} />
-              <DetailItem label="Email Address" value={student.emailAddress} icon={Mail} />
+              <DetailItem label="Email Address" value={student.emailAddress} icon={Mail} className="student360-email-item" />
               <DetailItem label="Mobile Number" value={student.mobileNumber} icon={Phone} />
               <DetailItem label="Parent / Spouse Number" value={student.parentSpouseNumber} icon={Phone} />
               <DetailItem label="Address" value={student.location || [student.city, student.state].filter(Boolean).join(', ')} icon={MapPin} />

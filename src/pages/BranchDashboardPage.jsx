@@ -3398,7 +3398,7 @@ function writeBranchCourseDraft(identifier = '', draft = null) {
   }
 }
 
-export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard' }) {
+export function BranchDashboardPage({ embeddedMode = false, branchData = null, initialSection = 'dashboard', initialStudentEditId = '', onInitialStudentEditSaved, onEmbeddedStudentSaved, onEmbeddedStudent360Back }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { isAuthenticated, role, signOut, user, session } = useAuth()
@@ -3773,6 +3773,7 @@ export function BranchDashboardPage({ embeddedMode = false, branchData = null, i
   const [studentPage, setStudentPage] = useState(1)
   const [isStudentFormOpen, setIsStudentFormOpen] = useState(false)
   const [studentFormMode, setStudentFormMode] = useState('add') // 'add' | 'view' | 'edit'
+  const initialStudentEditOpenedRef = useRef('')
   const [studentFormStep, setStudentFormStep] = useState(1)
   const [studentForm, setStudentForm] = useState(() => createInitialStudentForm(''))
   // Step 3 edits one course at a time. Keep the other course drafts here so a
@@ -8968,6 +8969,18 @@ useEffect(() => {
     setIsStudentFormOpen(true)
   }
 
+  useEffect(() => {
+    const requestedId = String(initialStudentEditId || '').trim().toLowerCase()
+    if (!embeddedMode || !requestedId || initialStudentEditOpenedRef.current === requestedId || !branchStudents.length) return
+    const target = branchStudents.find((student) => (
+      [student?.studentId, student?.studentCode, student?.id, student?._id]
+        .some((value) => String(value || '').trim().toLowerCase() === requestedId)
+    ))
+    if (!target) return
+    initialStudentEditOpenedRef.current = requestedId
+    void openEditStudentForm(target)
+  }, [branchStudents, embeddedMode, initialStudentEditId])
+
   const handleStudentFormSubmit = async (e) => {
     e?.preventDefault()
     if (studentFormMode === 'view') return
@@ -9208,9 +9221,19 @@ useEffect(() => {
 
     setIsStudentSaving(true)
     try {
-      await saveBranchStudent(record)
+      const savedRecord = await saveBranchStudent(record)
       await reloadBranchStudents()
       setIsStudentFormOpen(false)
+
+      if (studentFormMode === 'edit' && ((embeddedMode && onEmbeddedStudentSaved) || (initialStudentEditId && onInitialStudentEditSaved))) {
+        setStudentSuccessPopup({
+          title: 'Student Updated',
+          message: 'Student updated successfully.',
+          returnToSuperAdmin: true,
+          savedRecord: savedRecord || record,
+        })
+        return
+      }
 
       if (studentFormMode === 'add') {
         setStudentSuccessPopup({ title: 'Student Added', message: 'Student added successfully.' })
@@ -9227,6 +9250,14 @@ useEffect(() => {
     } finally {
       setIsStudentSaving(false)
     }
+  }
+
+  const acknowledgeStudentSuccess = () => {
+    const popup = studentSuccessPopup
+    setStudentSuccessPopup(null)
+    if (!popup?.returnToSuperAdmin) return
+    if (embeddedMode && onEmbeddedStudentSaved) onEmbeddedStudentSaved(popup.savedRecord)
+    else onInitialStudentEditSaved?.(popup.savedRecord)
   }
 
   const handleStudentDeleteConfirm = async () => {
@@ -9831,7 +9862,7 @@ useEffect(() => {
                   resolveCourseEndDate={(startDate, batch, course) => calculateBatchCourseEndDate(startDate, batch.weekType, batch.mode, course?.hours || course?.duration, batch, instituteLeaves)}
                   branch={branchProfile || branchData}
                   paymentHistory={allPaymentHistoryRecords}
-                  onBack={() => embeddedMode ? goToBranchSection('students') : navigate('/branch-dashboard?section=students')}
+                  onBack={() => embeddedMode && onEmbeddedStudent360Back ? onEmbeddedStudent360Back() : embeddedMode ? goToBranchSection('students') : navigate('/branch-dashboard?section=students')}
                   onDownloadAttendance={(student) => setAttendanceReportTarget({ mode: 'student', record: student })}
                   onDownloadPaymentReceipt={(payment, student) => downloadBranchStudentReceipt(payment, student, {
                     branchProfile,
@@ -17494,7 +17525,7 @@ else {
                 <button
                   type="button"
                   className="branch-success-primary"
-                  onClick={() => setStudentSuccessPopup(null)}
+                  onClick={acknowledgeStudentSuccess}
                 >
                   OK
                 </button>

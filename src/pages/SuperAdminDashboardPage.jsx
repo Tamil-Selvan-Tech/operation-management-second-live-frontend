@@ -37,10 +37,12 @@ import {
 import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
 import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
+import { listAllBranchCourses } from '../services/branchCourseService'
+import { listBranchBatches } from '../services/branchBatchService'
+import { listFacultyTodayWorkEntries } from '../lib/facultyTodayWorkStore'
 import { BranchDashboardPage } from './BranchDashboardPage'
 import { Student360Page } from './Student360Page'
 import StudentCalendarPage from './StudentCalendarPage'
-import { getStudentAttendanceOverview, getStudentCalendar } from '../services/studentService'
 import { request, setImpersonateBranchId } from '../services/apiClient'
 import { SuperAdminOverallDashboard } from '../components/SuperAdminOverallDashboard'
 import { SuperAdminSidebarNav } from '../components/SuperAdminSidebarNav'
@@ -521,7 +523,9 @@ export function SuperAdminDashboardPage() {
   const [viewDashboardBranch, setViewDashboardBranch] = useState(null)
   const [isViewDashboardConfirmOpen, setIsViewDashboardConfirmOpen] = useState(false)
   const [embeddedBranch, setEmbeddedBranch] = useState(null)
+  const [embeddedStudentEditId, setEmbeddedStudentEditId] = useState('')
   const [superAdminStudentView, setSuperAdminStudentView] = useState(null)
+  const [superAdminStudentCourseData, setSuperAdminStudentCourseData] = useState({ courses: [], batches: [], facultyWork: [] })
   const [superAdminStudentCalendarView, setSuperAdminStudentCalendarView] = useState(null)
   const [superAdminAttendanceReportTarget, setSuperAdminAttendanceReportTarget] = useState(null)
   const [isExitDashboardConfirmOpen, setIsExitDashboardConfirmOpen] = useState(false)
@@ -622,6 +626,33 @@ export function SuperAdminDashboardPage() {
 
     return () => window.clearTimeout(timerId)
   }, [loadBranches])
+
+  useEffect(() => {
+    if (!superAdminStudentView) return undefined
+
+    const branchId = String(superAdminStudentView.branch?.id || superAdminStudentView.branch?.branchId || '').trim()
+    if (!branchId) return undefined
+
+    let cancelled = false
+    setImpersonateBranchId(branchId)
+    Promise.allSettled([
+      listAllBranchCourses({ branchId, sortBy: 'createdAt', sortOrder: 'desc' }),
+      listBranchBatches({ branchId, page: 1, limit: 100, sortBy: 'createdAt', sortOrder: 'desc' }),
+      listFacultyTodayWorkEntries(),
+    ]).then(([courseResult, batchResult, workResult]) => {
+      if (cancelled) return
+      const facultyWork = workResult.status === 'fulfilled' && Array.isArray(workResult.value)
+        ? workResult.value.filter((entry) => !entry?.branchId || String(entry.branchId) === branchId)
+        : []
+      setSuperAdminStudentCourseData({
+        courses: courseResult.status === 'fulfilled' && Array.isArray(courseResult.value?.data) ? courseResult.value.data : [],
+        batches: batchResult.status === 'fulfilled' && Array.isArray(batchResult.value?.data) ? batchResult.value.data : [],
+        facultyWork,
+      })
+    })
+
+    return () => { cancelled = true }
+  }, [superAdminStudentView])
 
   useEffect(() => {
     if (!branches.length) {
@@ -1386,6 +1417,7 @@ const filteredBranches = useMemo(() => {
 
   const handleConfirmExitDashboard = () => {
     setEmbeddedBranch(null)
+    setEmbeddedStudentEditId('')
     setImpersonateBranchId(null)
     setIsExitDashboardConfirmOpen(false)
   }
@@ -1396,39 +1428,32 @@ const filteredBranches = useMemo(() => {
 
   const openSuperAdminStudent360 = ({ student, branch }) => {
     if (!student) return
-    setSuperAdminStudentCalendarView(null)
-    setSuperAdminStudentView({ student, branch })
-
     const studentId = String(student.studentId || student.studentCode || student.id || student._id || '').trim()
     if (!studentId) return
+    const studentBranchKey = String(student.branchId || student.branchCode || '').trim().toLowerCase()
+    const targetBranch = branch || branches.find((item) => (
+      [item?.id, item?.branchId].some((value) => String(value || '').trim().toLowerCase() === studentBranchKey)
+    ))
+    if (!targetBranch) return
+    setSuperAdminStudentCalendarView(null)
+    setSuperAdminStudentView({ student, branch: targetBranch })
+    setSuperAdminStudentCourseData({ courses: [], batches: [], facultyWork: [] })
+    setEmbeddedStudentEditId('')
+    setEmbeddedBranch(null)
+    setImpersonateBranchId(targetBranch.id || targetBranch.branchId || null)
+    navigate(`/dashboard/super-admin?section=student-360&student=${encodeURIComponent(studentId)}`)
+  }
 
-    void Promise.all([getStudentCalendar(studentId), getStudentAttendanceOverview(studentId)])
-      .then(([calendar, attendanceOverview]) => {
-        const calculatedEndDate = String(calendar?.endDate || '').trim()
-        const attendanceRows = Array.isArray(attendanceOverview?.attendance) ? attendanceOverview.attendance : []
-        if (!calculatedEndDate && !attendanceRows.length) return
-
-        setSuperAdminStudentView((current) => {
-          if (!current || String(current.student?.studentId || current.student?.studentCode || current.student?.id || current.student?._id || '').trim() !== studentId) {
-            return current
-          }
-
-          return {
-            ...current,
-            student: {
-              ...current.student,
-              ...(calculatedEndDate ? { courseEndDate: calculatedEndDate } : {}),
-              ...(attendanceRows.length ? {
-                attendanceCalendar: attendanceRows,
-                attendanceSchedule: attendanceOverview?.course?.schedule || current.student.classSchedule || '',
-              } : {}),
-            },
-          }
-        })
-      })
-      .catch(() => {
-        // Keep the stored student end date when the calendar endpoint is unavailable.
-      })
+  const openSuperAdminStudentEdit = (student) => {
+    const studentBranchKey = String(student?.branchId || student?.branchCode || '').trim().toLowerCase()
+    const targetBranch = superAdminStudentView?.branch || branches.find((item) => (
+      [item?.id, item?.branchId].some((value) => String(value || '').trim().toLowerCase() === studentBranchKey)
+    ))
+    if (!targetBranch) return
+    const studentKey = String(student?.studentId || student?.studentCode || student?.id || student?._id || '').trim()
+    setEmbeddedStudentEditId(studentKey)
+    setImpersonateBranchId(targetBranch.id || targetBranch.branchId || null)
+    setEmbeddedBranch(targetBranch)
   }
 
   const openSuperAdminStudentCalendar = (student) => {
@@ -1690,7 +1715,31 @@ const filteredBranches = useMemo(() => {
           </button>
         </div>
 
-        <BranchDashboardPage embeddedMode={true} branchData={embeddedBranch} />
+        <BranchDashboardPage
+          key={`${embeddedBranch.id || embeddedBranch.branchId || 'branch'}:${embeddedStudentEditId || 'dashboard'}`}
+          embeddedMode={true}
+          branchData={embeddedBranch}
+          initialSection={embeddedStudentEditId ? 'students' : 'dashboard'}
+          initialStudentEditId={embeddedStudentEditId}
+          onEmbeddedStudentSaved={(updatedStudent) => {
+            const studentId = String(updatedStudent?.studentId || updatedStudent?.studentCode || embeddedStudentEditId || new URLSearchParams(location.search).get('student') || '').trim()
+            if (superAdminStudentView) {
+              if (updatedStudent) {
+                setSuperAdminStudentView((current) => current ? { ...current, student: { ...current.student, ...updatedStudent } } : current)
+              }
+              setEmbeddedBranch(null)
+              setImpersonateBranchId(superAdminStudentView.branch?.id || superAdminStudentView.branch?.branchId || null)
+              if (studentId) navigate(`/dashboard/super-admin?section=student-360&student=${encodeURIComponent(studentId)}`)
+            }
+            setEmbeddedStudentEditId('')
+          }}
+          onEmbeddedStudent360Back={() => {
+            setEmbeddedBranch(null)
+            setEmbeddedStudentEditId('')
+            setImpersonateBranchId(null)
+            navigate('/dashboard/super-admin')
+          }}
+        />
 
 
         {isExitDashboardConfirmOpen ? (
@@ -1884,6 +1933,9 @@ const filteredBranches = useMemo(() => {
             <div className="super-admin-content">
               <Student360Page
                 student={superAdminStudentView.student}
+                facultyTodayWorkEntries={superAdminStudentCourseData.facultyWork}
+                branchCourseCards={superAdminStudentCourseData.courses}
+                branchBatchGroups={superAdminStudentCourseData.batches}
                 branch={superAdminStudentView.branch}
                 paymentHistory={loadBranchPaymentHistoryEntries([
                   superAdminStudentView.student?.branchId,
@@ -1895,7 +1947,7 @@ const filteredBranches = useMemo(() => {
                   setSuperAdminStudentView(null)
                   navigate('/dashboard/super-admin')
                 }}
-                onEdit={() => setSuperAdminStudentView(null)}
+                onEdit={openSuperAdminStudentEdit}
                 onViewCalendar={openSuperAdminStudentCalendar}
                 onDownloadAttendance={(student) => setSuperAdminAttendanceReportTarget(student)}
                 onDownloadPaymentReceipt={downloadSuperAdminPaymentReceipt}
