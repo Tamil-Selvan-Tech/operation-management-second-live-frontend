@@ -1151,7 +1151,11 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
   overflow-wrap: anywhere;
 }
 .student-new-profile-field strong .student-course-upcoming-badge,
-.student-new-profile-summary-list strong .student-course-upcoming-badge { display: inline-flex; align-items: center; margin-left: 5px; padding: 3px 8px; border-radius: 999px; color: #a16207; background: #fef3c7; font-size: 10px; font-style: normal; font-weight: 800; line-height: 1.4; vertical-align: middle; white-space: nowrap; }
+.student-new-profile-field strong .student-course-completed-badge,
+.student-new-profile-summary-list strong .student-course-upcoming-badge,
+.student-new-profile-summary-list strong .student-course-completed-badge { display: inline-flex; align-items: center; margin-left: 5px; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 800; line-height: 1.4; vertical-align: middle; white-space: nowrap; }
+.student-course-upcoming-badge { color: #a16207; background: #fef3c7; }
+.student-course-completed-badge { color: #047857; background: #d1fae5; }
 
 .student-new-course-summary-card {
   min-width: 0;
@@ -2400,6 +2404,7 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 .student-dashboard-summary-card > div > span { color: #66758c; font-size: 11px; line-height: 1.4; }
 .student-dashboard-upcoming-course-card { border-style: dashed; background: #fffdf5; }
 .student-dashboard-summary-card > div > .student-course-upcoming-badge { width: fit-content; padding: 4px 9px; border-radius: 999px; color: #a16207; background: #fef3c7; font-size: 10px; font-weight: 800; }
+.student-dashboard-summary-card > div > .student-course-completed-badge { width: fit-content; padding: 4px 9px; border-radius: 999px; color: #047857; background: #d1fae5; font-size: 10px; font-weight: 800; }
 .student-dashboard-icon { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; color: #2563eb; background: #eaf1ff; }
 .student-dashboard-icon.blue { color: #4f46e5; background: #eef2ff; }.student-dashboard-icon.green { color: #16805a; background: #e9f8f0; }.student-dashboard-icon.amber { color: #a16207; background: #fff7df; }
 .student-dashboard-progress { height: 7px; overflow: hidden; background: #edf1f6; }.student-dashboard-progress i { display: block; height: 100%; background: #2563eb; }.student-dashboard-progress.green i { background: #16a36b; }.student-dashboard-progress.amber i { background: #e6a21a; }

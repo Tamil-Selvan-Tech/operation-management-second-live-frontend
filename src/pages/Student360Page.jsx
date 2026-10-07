@@ -20,6 +20,7 @@ import { attendanceToday } from '../lib/branchAttendanceSummary'
 import { getBranchStudentSyllabusReports } from '../services/examService'
 import { getBranchStudentAcademicReports } from '../services/academicTestService'
 import { buildFacultyTodayWorkProgressSummary } from '../lib/facultyProgress'
+import { saveBranchStudent } from '../lib/branchStudentStore'
 
 import './Student360Page.css'
 
@@ -523,6 +524,9 @@ export function Student360Page({
   student: initialStudent = null,
   facultyTodayWorkEntries = [],
   branchCourseCards = [],
+  branchBatchGroups = [],
+  isAssignmentBatchFull,
+  resolveCourseEndDate,
   branch = null,
   paymentHistory = [],
   onBack,
@@ -535,6 +539,10 @@ export function Student360Page({
   const [studentRecord, setStudentRecord] = useState(null)
   const [academicProgressState, setAcademicProgressState] = useState({ studentId: '', data: null, error: '' })
   const [courseSelection, setCourseSelection] = useState({ studentId: '', courseKey: '' })
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
+  const [assignmentSaving, setAssignmentSaving] = useState(false)
+  const [assignmentError, setAssignmentError] = useState('')
+  const [assignmentForm, setAssignmentForm] = useState({ schedule: '', mode: '', batchId: '', startDate: '', endDate: '' })
 
   useEffect(() => {
     let active = true
@@ -585,18 +593,47 @@ export function Student360Page({
   const explicitCourseIndex = courseEnrollments.findIndex((enrollment, index) => getEnrollmentKey(enrollment, index) === selectedCourseKey)
   const selectedCourseIndex = explicitCourseIndex >= 0 ? explicitCourseIndex : Math.max(primaryCourseIndex, 0)
   const selectedCourse = courseEnrollments[selectedCourseIndex]
-  const priorCoursesCompleted = selectedCourseIndex > 0 && courseEnrollments.slice(0, selectedCourseIndex).every((enrollment) => {
-    const isPrimaryEnrollment = String(enrollment.courseId || '') === String(student.courseId || student.course?.id || '')
-    return Boolean(enrollment.courseCompletedAt || (isPrimaryEnrollment && student.courseCompletedAt)) || Number(enrollment.courseProgress ?? (isPrimaryEnrollment ? student.courseProgress : null)) >= 100
-  })
-  const isSelectedCoursePending = String(selectedCourse.status || '').toUpperCase() === 'PENDING'
-  const isAwaitingSelectedCourseSchedule = isSelectedCoursePending && priorCoursesCompleted
   const selectedCourseCatalog = isMultiCourseStudent
     ? branchCourseCards.find((course) => (
       String(course?.id || course?.courseId || '').trim() === String(selectedCourse.courseId || '').trim() ||
       String(course?.name || '').trim().toLowerCase() === String(selectedCourse.courseName || '').trim().toLowerCase()
     ))
     : null
+  const priorCoursesCompleted = selectedCourseIndex > 0 && courseEnrollments.slice(0, selectedCourseIndex).every((enrollment) => {
+    const isPrimaryEnrollment = String(enrollment.courseId || '') === String(student.courseId || student.course?.id || '')
+    return Boolean(enrollment.courseCompletedAt || (isPrimaryEnrollment && student.courseCompletedAt)) || Number(enrollment.courseProgress ?? (isPrimaryEnrollment ? student.courseProgress : null)) >= 100
+  })
+  const isSelectedCoursePending = String(selectedCourse.status || '').toUpperCase() === 'PENDING'
+  const isAwaitingSelectedCourseSchedule = isSelectedCoursePending && priorCoursesCompleted
+  const selectedCourseRealBatches = branchBatchGroups
+    .filter((group) => String(group?.courseId || group?.branchCourseId || '').trim() === String(selectedCourse.courseId || '').trim())
+    .filter((group) => String(group?.status || 'ACTIVE').toUpperCase() === 'ACTIVE')
+    .flatMap((group) => (Array.isArray(group?.batches) ? group.batches : []).map((batch) => ({
+      ...batch,
+      courseId: String(group?.courseId || group?.branchCourseId || '').trim(),
+      courseName: String(group?.courseName || selectedCourse.courseName || '').trim(),
+      batchGroupId: String(group?.batchGroupId || group?.id || '').trim(),
+      batchId: String(batch?.batchId || batch?.id || '').trim(),
+      batchName: String(batch?.batchName || '').trim(),
+      weekType: String(batch?.weekType || group?.weekType || '').toUpperCase(),
+      mode: String(batch?.mode || group?.mode || '').toUpperCase(),
+      batchTiming: String(batch?.batchTiming || [batch?.startTime && `${batch.startTime} ${batch.startPeriod || ''}`, batch?.endTime && `${batch.endTime} ${batch.endPeriod || ''}`].filter(Boolean).join(' - ')).trim(),
+      facultyId: String(batch?.facultyId || group?.facultyId || group?.branchFacultyId || '').trim(),
+      facultyName: String(batch?.facultyName || group?.facultyName || '').trim(),
+      courseStartDate: batch?.courseStartDate || group?.courseStartDate || '',
+      courseEndDate: batch?.courseEndDate || group?.courseEndDate || '',
+      weeklyOffDay: batch?.weeklyOffDay || group?.weeklyOffDay || '',
+    })))
+    .filter((batch) => batch.batchId && batch.batchTiming && (batch.facultyId || batch.facultyName) && String(batch.status || 'ACTIVE').toUpperCase() === 'ACTIVE')
+  const availableSchedules = [...new Set(selectedCourseRealBatches.map((batch) => batch.weekType).filter(Boolean))]
+  const scheduleBatches = selectedCourseRealBatches.filter((batch) => !assignmentForm.schedule || batch.weekType === assignmentForm.schedule.toUpperCase())
+  const availableModes = [...new Set(scheduleBatches.map((batch) => batch.mode).filter(Boolean))]
+  const matchingAssignmentBatches = scheduleBatches.filter((batch) => !assignmentForm.mode || batch.mode === assignmentForm.mode.toUpperCase())
+  const selectedAssignmentBatch = matchingAssignmentBatches.find((batch) => batch.batchId === assignmentForm.batchId)
+  const assignmentEndDate = selectedAssignmentBatch
+    ? (assignmentForm.endDate || resolveCourseEndDate?.(assignmentForm.startDate, selectedAssignmentBatch, selectedCourseCatalog) || selectedAssignmentBatch.courseEndDate || '')
+    : ''
+  const selectableAssignmentBatches = matchingAssignmentBatches.filter((batch) => !isAssignmentBatchFull?.(batch))
   const selectedCourseProgressSummary = isMultiCourseStudent && selectedCourseCatalog
     ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, selectedCourseCatalog, {
       ...student,
@@ -620,6 +657,60 @@ export function Student360Page({
     const paymentKeys = getStudentKeys({ studentId: payment.studentId })
     return paymentKeys.some((key) => studentKeys.includes(key))
   })
+  const openScheduleBatchModal = () => {
+    setAssignmentError('')
+    setAssignmentForm({ schedule: '', mode: '', batchId: '', startDate: String(selectedCourse.courseStartDate || '').slice(0, 10), endDate: String(selectedCourse.courseEndDate || '').slice(0, 10) })
+    setAssignmentModalOpen(true)
+  }
+  const saveScheduleBatchAssignment = async (event) => {
+    event.preventDefault()
+    if (!selectedAssignmentBatch || !assignmentForm.startDate || !assignmentEndDate) {
+      setAssignmentError('Select a schedule, mode, available batch and start date first.')
+      return
+    }
+    const enrollment = {
+      ...selectedCourse,
+      courseId: selectedCourse.courseId,
+      courseName: selectedCourse.courseName,
+      batchId: selectedAssignmentBatch.batchId,
+      batchName: selectedAssignmentBatch.batchName,
+      batchTiming: selectedAssignmentBatch.batchTiming,
+      batchGroupId: selectedAssignmentBatch.batchGroupId || '',
+      facultyId: selectedAssignmentBatch.facultyId,
+      facultyName: selectedAssignmentBatch.facultyName,
+      scheduleType: selectedAssignmentBatch.weekType,
+      classSchedule: selectedAssignmentBatch.weekType === 'WEEKEND' ? 'Weekend' : 'Weekday',
+      weekType: selectedAssignmentBatch.weekType,
+      mode: selectedAssignmentBatch.mode,
+      courseMode: selectedAssignmentBatch.mode,
+      startDate: assignmentForm.startDate,
+      courseStartDate: assignmentForm.startDate,
+      endDate: assignmentEndDate,
+      courseEndDate: assignmentEndDate,
+      weeklyOffDay: selectedAssignmentBatch.weeklyOffDay || '',
+      status: 'ACTIVE',
+    }
+    const nextEnrollments = courseEnrollments.map((item, index) => index === selectedCourseIndex ? enrollment : item)
+    setAssignmentSaving(true)
+    setAssignmentError('')
+    try {
+      const savedStudent = await saveBranchStudent({
+        ...student,
+        _recordId: student._recordId || student.recordId || student.id || student._id,
+        _isExistingRecord: true,
+        arrangementType: student.arrangementType || 'SEQUENTIAL',
+        firstCourseId: student.firstCourseId || courseEnrollments[0]?.courseId || '',
+        courseEnrollments: nextEnrollments,
+        courses: nextEnrollments,
+      })
+      setStudentRecord({ studentId, data: savedStudent })
+      setAssignmentModalOpen(false)
+    } catch (error) {
+      setAssignmentError(error?.message || 'Unable to assign the selected schedule and batch.')
+    } finally {
+      setAssignmentSaving(false)
+    }
+  }
   const ledgerEntries = studentPayments.length
     ? studentPayments
     : schedule
@@ -693,9 +784,9 @@ export function Student360Page({
               <span className="student360-summary-icon blue"><BookOpen size={19} /></span>
               <div><span>Course</span><strong>{displayValue(selectedCourse.courseName, 'Course not assigned')}</strong><small className="student360-course-type">{displayValue(selectedCourseCatalog?.courseType || selectedCourse.courseType, 'Course type not set')}</small></div>
             </article>
-            <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{isAwaitingSelectedCourseSchedule ? 'Pending assignment' : displayValue(selectedCourse.batchName)}</strong><small>{isAwaitingSelectedCourseSchedule ? 'Schedule & batch pending' : displayValue(selectedCourse.batchTiming || selectedCourse.classSchedule, 'Schedule not set')}</small></div></article>
+            <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{isAwaitingSelectedCourseSchedule ? 'Pending assignment' : displayValue(selectedCourse.batchName)}</strong>{isAwaitingSelectedCourseSchedule ? <small>Schedule &amp; batch pending</small> : <><small>{[selectedCourse.classSchedule || selectedCourse.scheduleType, selectedCourse.courseMode || selectedCourse.mode].filter(Boolean).join(' · ') || 'Schedule not set'}</small><small>{displayValue(selectedCourse.batchTiming, 'Timing not set')}</small></>}</div></article>
             <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{isAwaitingSelectedCourseSchedule ? 'Awaiting assignment' : displayValue(selectedCourse.facultyName)}</strong><small>{isAwaitingSelectedCourseSchedule ? 'Assigned with batch schedule' : 'Assigned faculty'}</small></div></article>
-            <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{selectedCourseProgressValue === null ? 'Not recorded' : `${Math.round(selectedCourseProgressValue)}%`}</strong><div className="student360-summary-progress-track"><span style={{ width: `${selectedCourseProgressValue ?? 0}%` }} /></div><small>{selectedCourse.courseEndDate ? `End date: ${formatDate(selectedCourse.courseEndDate)}` : 'End date not set'}</small></div></article>
+            <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{selectedCourseProgressValue === null ? 'Not recorded' : `${Math.round(selectedCourseProgressValue)}%`}</strong><div className="student360-summary-progress-track"><span style={{ width: `${selectedCourseProgressValue ?? 0}%` }} /></div><small>{selectedCourse.courseStartDate ? `Start: ${formatDate(selectedCourse.courseStartDate)}` : 'Start date not set'}</small><small>{selectedCourse.courseEndDate ? `End: ${formatDate(selectedCourse.courseEndDate)}` : 'End date not set'}</small></div></article>
           </>
         ) : (
           <>
@@ -705,7 +796,7 @@ export function Student360Page({
             <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{Math.round(courseProgress)}%</strong><div className="student360-summary-progress-track"><span style={{ width: `${courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
           </>
         )}
-        <article className={`student360-summary-card student360-summary-academic-progress-card${isSelectedCoursePending ? ' is-upcoming-course' : ''}`}><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div>{isSelectedCoursePending ? <span className="student360-upcoming-badge">{priorCoursesCompleted ? 'Schedule & Batch' : 'Upcoming'}</span> : null}</article>
+        <article className={`student360-summary-card student360-summary-academic-progress-card${isSelectedCoursePending ? ' is-upcoming-course' : ''}`}><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div>{isSelectedCoursePending ? priorCoursesCompleted ? <button type="button" className="student360-upcoming-badge student360-schedule-batch-trigger" onClick={openScheduleBatchModal}>Schedule &amp; Batch</button> : <span className="student360-upcoming-badge">Upcoming</span> : null}</article>
       </section>
 
       <div className="student360-content-grid">
@@ -786,6 +877,28 @@ export function Student360Page({
           </SectionCard>
         </aside>
       </div>
+      {assignmentModalOpen ? (
+        <div className="student360-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !assignmentSaving) setAssignmentModalOpen(false) }}>
+          <section className="student360-assignment-modal" role="dialog" aria-modal="true" aria-labelledby="student360-assignment-title">
+            <div className="student360-assignment-heading"><div><span>SEQUENTIAL COURSE</span><h2 id="student360-assignment-title">Schedule &amp; Batch Assignment</h2><p>Assign this course using an existing active batch.</p></div><button type="button" aria-label="Close" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>×</button></div>
+            <form onSubmit={saveScheduleBatchAssignment}>
+              <div className="student360-assignment-fields">
+                <label>Course Name<input value={selectedCourse.courseName || ''} readOnly /></label>
+                <label>Course Schedule<select required value={assignmentForm.schedule} onChange={(event) => setAssignmentForm((form) => ({ ...form, schedule: event.target.value, mode: '', batchId: '' }))}><option value="">Select schedule</option>{availableSchedules.map((scheduleName) => <option key={scheduleName} value={scheduleName}>{scheduleName === 'WEEKEND' ? 'Weekend' : 'Weekday'}</option>)}</select></label>
+                <label>Course Mode<select required value={assignmentForm.mode} onChange={(event) => setAssignmentForm((form) => ({ ...form, mode: event.target.value, batchId: '' }))} disabled={!assignmentForm.schedule}><option value="">Select mode</option>{availableModes.map((mode) => <option key={mode} value={mode}>{mode.charAt(0) + mode.slice(1).toLowerCase()}</option>)}</select></label>
+                <label>Select Batch<select required value={assignmentForm.batchId} onChange={(event) => { const batch = selectableAssignmentBatches.find((item) => item.batchId === event.target.value); const startDate = String(batch?.courseStartDate || assignmentForm.startDate || '').slice(0, 10); setAssignmentForm((form) => ({ ...form, batchId: event.target.value, startDate, endDate: String(batch?.courseEndDate || resolveCourseEndDate?.(startDate, batch, selectedCourseCatalog) || form.endDate || '').slice(0, 10) })) }} disabled={!assignmentForm.mode || !selectableAssignmentBatches.length}><option value="">{assignmentForm.mode ? 'Select available batch' : 'Select schedule and mode first'}</option>{selectableAssignmentBatches.map((batch) => <option key={batch.batchId} value={batch.batchId}>{batch.batchName} · {batch.batchTiming || 'Timing unavailable'}</option>)}</select></label>
+                <label>Batch Timing<input value={selectedAssignmentBatch?.batchTiming || ''} readOnly placeholder="Auto-filled from selected batch" /></label>
+                <label>Faculty<input value={selectedAssignmentBatch?.facultyName || ''} readOnly placeholder="Auto-filled from selected batch" /></label>
+                <label>Start Date<input type="date" required value={assignmentForm.startDate} onChange={(event) => { const startDate = event.target.value; setAssignmentForm((form) => ({ ...form, startDate, endDate: String(resolveCourseEndDate?.(startDate, selectedAssignmentBatch, selectedCourseCatalog) || selectedAssignmentBatch?.courseEndDate || form.endDate || '').slice(0, 10) })) }} /></label>
+                <label>End Date<input type="date" required value={String(assignmentEndDate || '').slice(0, 10)} onChange={(event) => setAssignmentForm((form) => ({ ...form, endDate: event.target.value }))} /></label>
+              </div>
+              {assignmentError ? <p className="student360-assignment-error" role="alert">{assignmentError}</p> : null}
+              {!selectedCourseRealBatches.length ? <p className="student360-assignment-hint">No active course batches with timing and faculty assignment are available.</p> : null}
+              <div className="student360-assignment-actions"><button type="button" className="student360-secondary-button" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>Cancel</button><button type="submit" className="student360-primary-button" disabled={assignmentSaving || !selectedAssignmentBatch}>{assignmentSaving ? 'Saving…' : 'Save Assignment'}</button></div>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </main>
   )
 }

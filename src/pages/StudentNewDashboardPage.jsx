@@ -112,6 +112,13 @@ function formatValue(value, fallback = 'Not available') {
   return String(value || '').trim() || fallback
 }
 
+function isCourseCompleted(course = {}, courseDetails = null, student = {}) {
+  const courseId = String(course.courseId || '')
+  const isPrimary = courseId && courseId === String(student.courseId || student.course?.id || '')
+  const progress = course.courseProgress ?? courseDetails?.progress?.overall ?? (isPrimary ? student.courseProgress ?? student.courseCompletionPercentage ?? student.courseProgressPercentage : null)
+  return Boolean(course.courseCompletedAt || (isPrimary && student.courseCompletedAt) || String(course.status || '').toUpperCase() === 'COMPLETED' || Number(progress) >= 100)
+}
+
 function formatDate(value, options = { day: '2-digit', month: 'short', year: 'numeric' }) {
   if (!value) return 'Date not available'
   const date = new Date(value)
@@ -824,9 +831,8 @@ export function StudentNewDashboardPage() {
    const sessions = todayCourseSessions.filter((session) => String(session.courseId || '') === String(course.courseId || ''))
    if (sessions.length) return sessions
    const isPrimaryCourse = String(course.courseId || '') === String(student?.courseId || student?.course?.id || '')
-   const calendarStatus = isPrimaryCourse
-     ? (student?.calendarEvents || []).find((event) => toCalendarDateKey(event?.date || event?.attendanceDate) === toCalendarDateKey(new Date()) && String(event?.code || event?.status || '').toUpperCase().replace(/[- ]/g, '_') === 'FACULTY_WEEKLY_OFF')
-     : null
+   const courseCalendarEvents = (student?.calendarEvents || []).filter((event) => String(event?.courseId || '') === String(course.courseId || '') || (isPrimaryCourse && !event?.courseId))
+   const calendarStatus = courseCalendarEvents.find((event) => toCalendarDateKey(event?.date || event?.attendanceDate) === toCalendarDateKey(new Date()) && String(event?.code || event?.status || '').toUpperCase().replace(/[- ]/g, '_') === 'FACULTY_WEEKLY_OFF')
    const weeklyOffDay = String(course.weeklyOffDay || course.batch?.weeklyOffDay || (isPrimaryCourse ? student?.weeklyOffDay || student?.batch?.weeklyOffDay : '') || calendarStatus?.weeklyOffDay || '').toUpperCase()
    const isFacultyWeeklyOff = Boolean(calendarStatus) || weeklyOffDay === currentWeekday
    return [{ courseId: course.courseId, courseName: course.courseName, status: isFacultyWeeklyOff ? 'FACULTY_WEEKLY_OFF' : 'NO_CLASS' }]
@@ -836,7 +842,9 @@ export function StudentNewDashboardPage() {
  const todaySessions = todayCourseSessions
  const todayClassSessions = useMemo(() => activeDashboardCourses.flatMap((course) => {
    const overview = attendanceOverviews[String(course.courseId || '')]
-   const courseStudent = { ...student, courseName: course.courseName, batchName: course.batchName, calendarEvents: String(course.courseId || '') === String(student?.courseId || student?.course?.id || '') ? student?.calendarEvents : [] }
+   const isPrimaryCourse = String(course.courseId || '') === String(student?.courseId || student?.course?.id || '')
+   const courseCalendarEvents = (student?.calendarEvents || []).filter((event) => String(event?.courseId || '') === String(course.courseId || '') || (isPrimaryCourse && !event?.courseId))
+   const courseStudent = { ...student, courseName: course.courseName, batchName: course.batchName, calendarEvents: courseCalendarEvents }
    return getTodayClassSessions(overview?.todayAttendance, courseStudent).map((session) => ({ ...session, courseName: session.courseName || course.courseName, batchName: session.batchName || course.batchName }))
  }), [attendanceOverviews, activeDashboardCourses, student])
  const todaySummary = todaySessions.reduce((summary, session) => {
@@ -1227,11 +1235,12 @@ const handleLogoutConfirm = async () => {
                     const courseDetailsForCard = courseDetailsById[String(course.courseId || '')]
                     const savedCourseProgress = courseDetailsForCard?.progress?.overall
                     const progress = course.courseProgress ?? savedCourseProgress ?? (isPrimaryCourse ? learningProgress.overall : null)
+                    const isCompleted = isCourseCompleted(course, courseDetailsForCard, student)
                     const progressNumber = Number(progress)
                     const completedModules = courseDetailsForCard?.progress?.completedCount ?? (isPrimaryCourse ? learningProgress.completedModules : null)
                     const totalModules = courseDetailsForCard?.progress?.totalCount ?? (isPrimaryCourse ? learningProgress.totalModules : null)
                     return <Fragment key={`${course.courseId || course.courseName}-${index}`}>
-                      <article className="student-dashboard-summary-card"><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</small><strong>{formatValue(course.courseName)}</strong><span>{formatValue(course.batchName)}{course.batchTiming ? ` · ${course.batchTiming}` : ''}</span></div></article>
+                      <article className="student-dashboard-summary-card"><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</small><strong>{formatValue(course.courseName)}</strong>{isCompleted ? <span className="student-course-completed-badge">Completed</span> : null}<span>{formatValue(course.batchName)}{course.batchTiming ? ` · ${course.batchTiming}` : ''}</span></div></article>
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><GraduationCap size={21} /></span><div><small>ASSIGNED FACULTY{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{formatValue(course.facultyName || (isPrimaryCourse ? facultyName : 'Not assigned'))}</strong><span>{formatValue(course.courseName)}</span></div></article>
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><BarChart3 size={21} /></span><div><small>COURSE PROGRESS{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{Number.isFinite(progressNumber) && progress !== '' && progress !== null ? `${progressNumber}%` : 'Not available'}</strong><span>{Number.isFinite(Number(totalModules)) && Number.isFinite(Number(completedModules)) ? `${completedModules} / ${totalModules} Modules` : 'Module completion data'}</span></div></article>
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE{dashboardCourses.length > 1 ? <><br /><span className="student-dashboard-summary-course-label">{course.courseName || `COURSE ${index + 1}`}</span></> : null}</small><strong>{attendanceLoading ? 'Loading...' : attendanceOverviews[String(course.courseId || '')]?.overall?.percentage === undefined ? 'Not available' : `${attendanceOverviews[String(course.courseId || '')].overall.percentage}%`}</strong><span>{attendanceOverviews[String(course.courseId || '')]?.overall ? `${attendanceOverviews[String(course.courseId || '')].overall.present} Present / ${attendanceOverviews[String(course.courseId || '')].overall.absent} Absent` : 'Attendance records not available'}</span></div></article>
@@ -1261,7 +1270,7 @@ const handleLogoutConfirm = async () => {
 
                   <div className="student-today-combined-section student-today-class-panel">
                   <div className="student-dashboard-panel-heading"><div className="student-today-class-heading"><span className="student-today-class-icon"><CalendarDays size={18} /></span><div><small>SCHEDULE</small><h2>Today&apos;s Class</h2></div></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Full Timetable <span aria-hidden="true">→</span></button></div>
-                  {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading today&apos;s classes...</p></div> : todayClassSessions.length ? <div className="student-today-class-list">{todayClassSessions.map((session, index) => <article className="student-today-class-card" key={`${session.id || session.sessionId || session.batchId || 'session'}-${session.startTime || index}`}><div className="student-today-class-timeline" aria-hidden="true"><span /></div><div className="student-today-class-time"><strong>{formatSessionTime(session.startTime) || 'Time not available'}</strong>{session.endTime ? <span>{formatSessionTime(session.endTime)}</span> : null}</div><div className="student-today-class-details"><strong>{formatValue(session.moduleName || session.courseName, 'Class')}</strong>{session.facultyName ? <span>Faculty: {session.facultyName}</span> : null}{session.room ? <span>Room: {session.room}</span> : null}{session.mode ? <span>Mode: {session.mode}</span> : null}{session.batchName ? <span>Batch: {session.batchName}</span> : null}</div><span className={`student-today-class-status is-${session.displayStatus.toLowerCase()}`}>{session.displayStatus}</span></article>)}</div> : <div className="student-dashboard-empty"><p>{facultyWeeklyOffCoursesToday.length ? `Faculty weekly off today${facultyWeeklyOffCoursesToday.length === 1 ? ` · ${facultyWeeklyOffCoursesToday[0].courseName}` : ` · ${facultyWeeklyOffCoursesToday.length} courses`}` : 'No classes scheduled for today'}</p></div>}
+                  {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading today&apos;s classes...</p></div> : todayClassSessions.length ? <div className="student-today-class-list">{todayClassSessions.map((session, index) => <article className="student-today-class-card" key={`${session.courseId || 'course'}-${session.id || session.sessionId || session.batchId || 'session'}-${session.startTime || index}`}><div className="student-today-class-timeline" aria-hidden="true"><span /></div><div className="student-today-class-time"><strong>{formatSessionTime(session.startTime) || 'Time not available'}</strong>{session.endTime ? <span>{formatSessionTime(session.endTime)}</span> : null}</div><div className="student-today-class-details"><strong>{formatValue(session.moduleName || session.courseName, 'Class')}</strong>{session.facultyName ? <span>Faculty: {session.facultyName}</span> : null}{session.room ? <span>Room: {session.room}</span> : null}{session.mode ? <span>Mode: {session.mode}</span> : null}{session.batchName ? <span>Batch: {session.batchName}</span> : null}</div><span className={`student-today-class-status is-${session.displayStatus.toLowerCase()}`}>{session.displayStatus}</span></article>)}</div> : <div className="student-dashboard-empty"><p>{facultyWeeklyOffCoursesToday.length ? `Faculty weekly off today${facultyWeeklyOffCoursesToday.length === 1 ? ` · ${facultyWeeklyOffCoursesToday[0].courseName}` : ` · ${facultyWeeklyOffCoursesToday.length} courses`}` : 'No classes scheduled for today'}</p></div>}
                   </div>
                 </section>
                 </div>
@@ -1323,7 +1332,7 @@ const handleLogoutConfirm = async () => {
                         <div className="student-new-profile-field"><GraduationCap size={16} /><div><span>Qualification</span><strong>{qualification}</strong></div></div>
                         <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Passed Out Year</span><strong>{passedOutYear}</strong></div></div>
                         {dashboardCourses.map((course, index) => <Fragment key={`profile-academic-${course.courseId || index}`}>
-                          <div className="student-new-profile-field"><BookOpen size={16} /><div><span>{dashboardCourses.length > 1 ? `Course ${index + 1}` : 'Course'}</span><strong>{course.courseName || '-'}{String(course.status || '').toUpperCase() === 'PENDING' ? <> <em className="student-course-upcoming-badge">Upcoming</em></> : null}</strong></div></div>
+                          <div className="student-new-profile-field"><BookOpen size={16} /><div><span>{dashboardCourses.length > 1 ? `Course ${index + 1}` : 'Course'}</span><strong>{course.courseName || '-'}{String(course.status || '').toUpperCase() === 'PENDING' ? <> <em className="student-course-upcoming-badge">Upcoming</em></> : isCourseCompleted(course, courseDetailsById[String(course.courseId || '')], student) ? <> <em className="student-course-completed-badge">Completed</em></> : null}</strong></div></div>
                           <div className="student-new-profile-field"><Users size={16} /><div><span>{dashboardCourses.length > 1 ? `Batch ${index + 1}` : 'Batch'}</span><strong>{course.batchName || '-'}</strong></div></div>
                         </Fragment>)}
                       </div>
@@ -1364,7 +1373,7 @@ const handleLogoutConfirm = async () => {
                         const attendanceValue = attendanceTotals?.percentage
                         const attendanceNumber = Number(attendanceValue)
                         return <section className="student-new-profile-course-summary" key={`profile-summary-${courseId || index}`}>
-                          <div><span>Course{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</span><strong>{course.courseName || '-'}{String(course.status || '').toUpperCase() === 'PENDING' ? <> <em className="student-course-upcoming-badge">Upcoming</em></> : null}</strong></div>
+                          <div><span>Course{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</span><strong>{course.courseName || '-'}{String(course.status || '').toUpperCase() === 'PENDING' ? <> <em className="student-course-upcoming-badge">Upcoming</em></> : isCourseCompleted(course, courseDetails, student) ? <> <em className="student-course-completed-badge">Completed</em></> : null}</strong></div>
                           <div><span>Faculty · Batch</span><strong>{String(course.status || '').toUpperCase() === 'PENDING' ? 'To be scheduled' : [course.facultyName, course.batchName].filter(Boolean).join(' · ') || '-'}</strong></div>
                           <div className="student-new-profile-progress-item">
                             <div><span>Course Progress</span><strong>{Number.isFinite(progressNumber) && progressValue !== '' && progressValue !== null && progressValue !== undefined ? `${progressNumber}%` : '-'}</strong></div>

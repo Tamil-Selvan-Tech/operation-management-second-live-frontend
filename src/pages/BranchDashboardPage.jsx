@@ -9717,6 +9717,13 @@ useEffect(() => {
                   student={branchStudents.find((student) => [student?.studentId, student?.studentCode, student?.id, student?._id].map((value) => String(value || '').trim().toLowerCase()).includes(String(decodeURIComponent(student360Id)).trim().toLowerCase()))}
                   facultyTodayWorkEntries={facultyTodayWorkEntries}
                   branchCourseCards={branchCourseCards}
+                  branchBatchGroups={branchBatchGroups}
+                  isAssignmentBatchFull={(batch) => {
+                    const targetStudentId = String(decodeURIComponent(student360Id)).trim().toLowerCase()
+                    const targetStudent = branchStudents.find((record) => [record?.studentId, record?.studentCode, record?.id, record?._id].some((value) => String(value || '').trim().toLowerCase() === targetStudentId))
+                    return getBatchSeatSummary(batch, branchStudents, getStudentSeatKeys(targetStudent || {})).isFull
+                  }}
+                  resolveCourseEndDate={(startDate, batch, course) => calculateBatchCourseEndDate(startDate, batch.weekType, batch.mode, course?.hours || course?.duration, batch, instituteLeaves)}
                   branch={branchProfile || branchData}
                   paymentHistory={allPaymentHistoryRecords}
                   onBack={() => embeddedMode ? goToBranchSection('students') : navigate('/branch-dashboard?section=students')}
