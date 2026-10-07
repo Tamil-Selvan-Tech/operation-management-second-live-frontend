@@ -36,6 +36,7 @@ import {
 } from '../lib/notificationStore'
 import { PaginationBar } from '../components/PaginationBar'
 import { SuperAdminNotificationBell } from '../components/SuperAdminNotificationBell'
+import { BranchAttendanceReportModal } from '../components/BranchAttendanceReportModal'
 import { BranchDashboardPage } from './BranchDashboardPage'
 import { Student360Page } from './Student360Page'
 import StudentCalendarPage from './StudentCalendarPage'
@@ -522,6 +523,7 @@ export function SuperAdminDashboardPage() {
   const [embeddedBranch, setEmbeddedBranch] = useState(null)
   const [superAdminStudentView, setSuperAdminStudentView] = useState(null)
   const [superAdminStudentCalendarView, setSuperAdminStudentCalendarView] = useState(null)
+  const [superAdminAttendanceReportTarget, setSuperAdminAttendanceReportTarget] = useState(null)
   const [isExitDashboardConfirmOpen, setIsExitDashboardConfirmOpen] = useState(false)
 
   const [editingBranchId, setEditingBranchId] = useState(null)
@@ -1895,11 +1897,19 @@ const filteredBranches = useMemo(() => {
                 }}
                 onEdit={() => setSuperAdminStudentView(null)}
                 onViewCalendar={openSuperAdminStudentCalendar}
+                onDownloadAttendance={(student) => setSuperAdminAttendanceReportTarget(student)}
                 onDownloadPaymentReceipt={downloadSuperAdminPaymentReceipt}
               />
             </div>
           </main>
         </div>
+        <BranchAttendanceReportModal
+          isOpen={Boolean(superAdminAttendanceReportTarget)}
+          mode="student"
+          record={superAdminAttendanceReportTarget}
+          branchId={superAdminStudentView?.branch?.id || superAdminStudentView?.branch?.branchId || superAdminAttendanceReportTarget?.branchId || ''}
+          onClose={() => setSuperAdminAttendanceReportTarget(null)}
+        />
         <SuperAdminLogoutModal isOpen={isLogoutConfirmOpen} onCancel={() => setIsLogoutConfirmOpen(false)} onConfirm={handleConfirmLogout} />
       </section>
     )

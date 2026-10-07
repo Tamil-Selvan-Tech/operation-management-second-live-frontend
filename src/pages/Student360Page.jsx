@@ -75,6 +75,45 @@ function getPaymentSchedule(student = {}) {
     .filter((item) => item.amount || item.dueDate)
 }
 
+function getAcademicTestProgress(profile = {}, report = {}) {
+  const profileProgress = profile?.academicTestProgress || {}
+  const reportData = report?.data || report || {}
+  const evaluations = Array.isArray(reportData.evaluations) ? reportData.evaluations : null
+  const requestedStudentId = String(profile?.studentId || '').trim().toLowerCase()
+  const reportStudentId = String(
+    reportData.student?.studentId ||
+    reportData.student?.student?.studentId ||
+    reportData.studentId ||
+    '',
+  ).trim().toLowerCase()
+
+  // The report endpoint is student-ID scoped. Only use its evaluation count
+  // when the response is also for the requested student; this prevents a
+  // duplicate student name from leaking another student's progress.
+  if (evaluations && (!reportStudentId || !requestedStudentId || reportStudentId === requestedStudentId)) {
+    const totalTests = Number(reportData.totalTests ?? profileProgress.totalTests ?? 0)
+    const completedTests = evaluations.filter((evaluation) => {
+      const status = String(evaluation?.status || '').toUpperCase()
+      return status === 'SUBMITTED' || status === 'EVALUATED' || Number.isFinite(Number(evaluation?.percentage))
+    }).length
+    const safeTotal = Math.max(totalTests, evaluations.length, completedTests)
+    const pendingTests = Math.max(0, safeTotal - completedTests)
+    return {
+      totalTests: safeTotal,
+      completedTests,
+      pendingTests,
+      percentage: safeTotal ? Math.round((completedTests / safeTotal) * 100) : 0,
+    }
+  }
+
+  return {
+    totalTests: Number(profileProgress.totalTests) || 0,
+    completedTests: Number(profileProgress.completedTests) || 0,
+    pendingTests: Number(profileProgress.pendingTests) || 0,
+    percentage: Number(profileProgress.percentage) || 0,
+  }
+}
+
 function getAttendanceEntries(student = {}) {
   const entries = []
   const sources = [student.attendanceCalendar, student.attendanceRecords, student.calendarAttendanceRecords, student.records, student.attendanceHistory]
@@ -458,7 +497,7 @@ function PerformanceRing({ percentage, size = 'normal' }) {
   return <div className={`student360-performance-ring ${size === 'small' ? 'is-small' : ''} ${evaluated ? '' : 'is-empty'}`.trim()} style={{ '--ring-value': `${safeValue * 3.6}deg` }}><span>{evaluated ? `${safeValue.toFixed(0)}%` : '—'}</span></div>
 }
 
-function PerformanceSection({ studentId }) {
+function PerformanceSection({ studentId, branchId = '' }) {
   const [data, setData] = useState({ skills: [], academic: [] })
   const [loading, setLoading] = useState(Boolean(studentId))
   const [error, setError] = useState('')
@@ -468,15 +507,15 @@ function PerformanceSection({ studentId }) {
     setLoading(true)
     setError('')
     const [syllabusResult, academicResult] = await Promise.allSettled([
-      getBranchStudentSyllabusReports(studentId),
-      getBranchStudentAcademicReports(studentId),
+      getBranchStudentSyllabusReports(studentId, branchId),
+      getBranchStudentAcademicReports(studentId, branchId),
     ])
     const syllabus = syllabusResult.status === 'fulfilled' ? (syllabusResult.value?.data || syllabusResult.value || {}) : null
     const academic = academicResult.status === 'fulfilled' ? (academicResult.value?.data || academicResult.value || {}) : null
     if (!syllabus && !academic) setError('Unable to load performance data.')
     setData({ skills: syllabus?.skills || [], academic: academic?.evaluations || [] })
     setLoading(false)
-  }, [studentId])
+  }, [studentId, branchId])
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load() }, 0)
@@ -536,6 +575,8 @@ export function Student360Page({
   onDownloadAttendance,
   onDownloadPaymentReceipt,
 }) {
+  const resolvedStudentId = String(studentId || initialStudent?.studentId || initialStudent?.studentCode || initialStudent?.id || initialStudent?._id || '').trim()
+  const performanceBranchId = String(branch?.id || branch?.branchId || initialStudent?.branchId || '').trim()
   const [studentRecord, setStudentRecord] = useState(null)
   const [academicProgressState, setAcademicProgressState] = useState({ studentId: '', data: null, error: '' })
   const [courseSelection, setCourseSelection] = useState({ studentId: '', courseKey: '' })
@@ -546,23 +587,29 @@ export function Student360Page({
 
   useEffect(() => {
     let active = true
-    if (!studentId) return undefined
-    getBranchStudent(studentId)
-      .then((result) => {
-        if (active) {
-          setStudentRecord({ studentId, data: result })
-          setAcademicProgressState({ studentId, data: result?.academicTestProgress || { totalTests: 0, completedTests: 0, pendingTests: 0, percentage: 0 }, error: '' })
-        }
+    if (!resolvedStudentId) return undefined
+    Promise.allSettled([
+      initialStudent ? Promise.resolve(initialStudent) : getBranchStudent(resolvedStudentId),
+      getBranchStudentAcademicReports(resolvedStudentId, performanceBranchId),
+    ])
+      .then(([profileResult, reportResult]) => {
+        if (!active) return
+        if (profileResult.status === 'rejected') throw profileResult.reason
+
+        const result = profileResult.value
+        const academicReport = reportResult.status === 'fulfilled' ? reportResult.value : null
+        setStudentRecord({ studentId: resolvedStudentId, data: result })
+        setAcademicProgressState({ studentId: resolvedStudentId, data: getAcademicTestProgress(result, academicReport), error: '' })
       })
       .catch((error) => {
-        if (active) setAcademicProgressState({ studentId, data: null, error: error?.message || 'Unable to load academic test progress.' })
+        if (active) setAcademicProgressState({ studentId: resolvedStudentId, data: null, error: error?.message || 'Unable to load academic test progress.' })
       })
     return () => { active = false }
-  }, [studentId])
+  }, [resolvedStudentId, performanceBranchId, initialStudent])
 
-  const student = studentRecord?.studentId === studentId ? studentRecord.data : initialStudent
-  const academicTestProgress = academicProgressState.studentId === studentId ? academicProgressState.data : null
-  const academicTestProgressError = academicProgressState.studentId === studentId ? academicProgressState.error : ''
+  const student = studentRecord?.studentId === resolvedStudentId ? studentRecord.data : initialStudent
+  const academicTestProgress = academicProgressState.studentId === resolvedStudentId ? academicProgressState.data : null
+  const academicTestProgressError = academicProgressState.studentId === resolvedStudentId ? academicProgressState.error : ''
 
   if (!student) {
     return (
@@ -589,7 +636,7 @@ export function Student360Page({
   const primaryCourseIndex = courseEnrollments.findIndex((enrollment) => (
     String(enrollment.courseId || '').trim() === String(student.courseId || student.course?.id || '').trim()
   ))
-  const selectedCourseKey = courseSelection.studentId === studentId ? courseSelection.courseKey : ''
+  const selectedCourseKey = courseSelection.studentId === resolvedStudentId ? courseSelection.courseKey : ''
   const explicitCourseIndex = courseEnrollments.findIndex((enrollment, index) => getEnrollmentKey(enrollment, index) === selectedCourseKey)
   const selectedCourseIndex = explicitCourseIndex >= 0 ? explicitCourseIndex : Math.max(primaryCourseIndex, 0)
   const selectedCourse = courseEnrollments[selectedCourseIndex]
@@ -703,7 +750,7 @@ export function Student360Page({
         courseEnrollments: nextEnrollments,
         courses: nextEnrollments,
       })
-      setStudentRecord({ studentId, data: savedStudent })
+      setStudentRecord({ studentId: resolvedStudentId, data: savedStudent })
       setAssignmentModalOpen(false)
     } catch (error) {
       setAssignmentError(error?.message || 'Unable to assign the selected schedule and batch.')
@@ -767,7 +814,7 @@ export function Student360Page({
                 aria-selected={isSelected}
                 aria-controls="student360-selected-course-panel"
                 className={`student360-course-tab${isSelected ? ' is-active' : ''}`}
-                onClick={() => setCourseSelection({ studentId, courseKey: enrollmentKey })}
+                onClick={() => setCourseSelection({ studentId: resolvedStudentId, courseKey: enrollmentKey })}
               >
                 <span>Course {index + 1}</span>
                 <strong>{displayValue(enrollment.courseName, 'Course')}</strong>
@@ -802,16 +849,16 @@ export function Student360Page({
       <div className="student360-content-grid">
         <div className="student360-main-column">
           <AttendanceSection
-            studentId={studentId || student.studentId}
+            studentId={resolvedStudentId || student.studentId}
             student={student}
             enrollment={selectedCourse}
             isMultiCourseStudent={isMultiCourseStudent}
             branchId={branch?.id || branch?.branchId || ''}
           />
-          <PerformanceSection studentId={studentId || student.studentId} />
+          <PerformanceSection studentId={resolvedStudentId || student.studentId} branchId={performanceBranchId || student?.branchId || ''} />
           <AttendanceCalendarSection
             student={student}
-            studentId={studentId || student.studentId}
+            studentId={resolvedStudentId || student.studentId}
             enrollment={selectedCourse}
             isMultiCourseStudent={isMultiCourseStudent}
             branchId={branch?.id || branch?.branchId || ''}
