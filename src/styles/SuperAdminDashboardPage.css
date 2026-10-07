@@ -1489,6 +1489,7 @@ body.super-admin-notification-menu-open .super-admin-content {
   color: #475569;
   font-size: 0.88rem;
   line-height: 1.45;
+  white-space: pre-line;
 }
 
 .super-admin-notification-menu .notification-copy small {
@@ -4033,12 +4034,17 @@ body.super-admin-sidebar-open {
   border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 5px 16px rgba(15, 23, 42, 0.05);
-  align-items: center;
+  align-items: start;
 }
 
 .super-admin-page .notifications-item-copy {
   display: grid;
   gap: 4px;
+}
+
+.super-admin-page .notifications-item-copy p,
+.super-admin-page .super-admin-notification-modal-message {
+  white-space: pre-line;
 }
 
 .super-admin-page .notifications-item-title-row {

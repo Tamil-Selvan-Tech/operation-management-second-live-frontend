@@ -62,6 +62,16 @@ function isCourseAssignedNotification(notification = {}) {
   return kind.includes('assigned')
 }
 
+function normalizeBellNotification(notification = {}) {
+  const title = String(notification.title || 'Notification').trim()
+  const rawMessage = String(notification.message || '').trim()
+  return {
+    ...notification,
+    title,
+    message: rawMessage.startsWith(title) ? rawMessage.slice(title.length).trim() : rawMessage,
+  }
+}
+
 function NotificationDropdownSkeleton() {
   return (
     <div className="notification-dropdown-skeleton" role="status" aria-label="Loading notifications">
@@ -106,7 +116,7 @@ export function SuperAdminNotificationBell({
         method: 'GET',
       })
       const { data } = unwrapNotifications(response)
-      const mergedNotifications = mergeNotificationsWithStoredState(data)
+      const mergedNotifications = mergeNotificationsWithStoredState(data.map(normalizeBellNotification))
 
       const storedViewedIds = JSON.parse(
         localStorage.getItem('superAdminDropdownViewedNotifications') || '[]',
@@ -126,7 +136,7 @@ export function SuperAdminNotificationBell({
       saveNotifications(notificationsWithDropdownState, { emit: false })
       setNotifications(notificationsWithDropdownState)
     } catch {
-      setNotifications(mergeNotificationsWithStoredState(loadNotifications()))
+      setNotifications(mergeNotificationsWithStoredState(loadNotifications().map(normalizeBellNotification)))
     } finally {
       setIsLoading(false)
     }
@@ -192,7 +202,15 @@ export function SuperAdminNotificationBell({
     [visibleNotifications],
   )
   const visibleDropdownNotifications = useMemo(
-    () => visibleNotifications.filter((notification) => !notification.dropdownViewed).slice(0, 2),
+    () => visibleNotifications
+      .filter((notification) => !notification.dropdownViewed)
+      .sort((left, right) => {
+        const leftDiscount = String(left.kind || '').toUpperCase() === 'STUDENT_DISCOUNT_APPLIED' ? 1 : 0
+        const rightDiscount = String(right.kind || '').toUpperCase() === 'STUDENT_DISCOUNT_APPLIED' ? 1 : 0
+        if (leftDiscount !== rightDiscount) return rightDiscount - leftDiscount
+        return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime()
+      })
+      .slice(0, 2),
     [visibleNotifications],
   )
   const handleOpenNotification = async (notification) => {

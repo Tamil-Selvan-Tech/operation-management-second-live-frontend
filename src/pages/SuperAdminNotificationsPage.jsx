@@ -121,13 +121,18 @@ function NotificationIcon({ kind }) {
 function normalizeNotificationItem(notification = {}) {
   const createdAt = String(notification.createdAt || '').trim()
   const timeValue = createdAt || new Date().toISOString()
+  const title = String(notification.title || 'Notification').trim()
+  const rawMessage = String(notification.message || '').trim()
+  const message = rawMessage.startsWith(title)
+    ? rawMessage.slice(title.length).trim()
+    : rawMessage
 
   return {
     id: String(notification.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
     kind: String(notification.kind || 'general').trim() || 'general',
     tone: String(notification.tone || 'blue').trim() || 'blue',
-    title: String(notification.title || 'Notification').trim(),
-    message: String(notification.message || '').trim(),
+    title,
+    message,
     actionLabel: String(notification.actionLabel || '').trim(),
     createdAt: timeValue,
     read: Boolean(notification.read),

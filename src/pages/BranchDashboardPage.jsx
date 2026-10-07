@@ -324,6 +324,39 @@ const STUDENT_FORM_STEP_FIELDS = {
   3: STUDENT_FORM_STEP_THREE_FIELDS,
 }
 
+const DISCOUNT_TYPES = [
+  { value: 'FIXED', label: 'Fixed Amount' },
+  { value: 'PERCENTAGE', label: 'Percentage' },
+]
+
+function calculateStudentDiscount(totalAmount, discountType = 'FIXED', discountValue = '') {
+  const total = Number(String(totalAmount ?? 0).replace(/,/g, ''))
+  const rawValue = String(discountValue ?? '').trim()
+  const value = rawValue === '' ? 0 : Number(rawValue)
+  if (!Number.isFinite(total) || total < 0 || !Number.isFinite(value) || value < 0) {
+    return { totalCourseAmount: Math.max(total || 0, 0), discountAmount: 0, finalCourseAmount: Math.max(total || 0, 0), error: 'Discount must be zero or greater.' }
+  }
+  const normalizedType = String(discountType || 'FIXED').toUpperCase() === 'PERCENTAGE' ? 'PERCENTAGE' : 'FIXED'
+  if (normalizedType === 'PERCENTAGE' && value > 100) {
+    return { totalCourseAmount: total, discountAmount: 0, finalCourseAmount: total, error: 'Percentage discount must be between 0 and 100.' }
+  }
+  if (normalizedType === 'FIXED' && value > total) {
+    return { totalCourseAmount: total, discountAmount: 0, finalCourseAmount: total, error: 'Fixed discount cannot exceed the course amount.' }
+  }
+  const discountAmount = normalizedType === 'PERCENTAGE' ? (total * value) / 100 : value
+  return {
+    totalCourseAmount: total,
+    discountAmount: Math.round(discountAmount * 100) / 100,
+    finalCourseAmount: Math.max(Math.round((total - discountAmount) * 100) / 100, 0),
+    error: '',
+  }
+}
+
+function getStudentDiscountSummary(source = {}, fallbackAmount = 0) {
+  const total = source.totalCourseAmount ?? source.courseAmount ?? fallbackAmount
+  return calculateStudentDiscount(total, source.discountType, source.discountValue)
+}
+
 const CURRENT_YEAR = new Date().getFullYear()
 const PASSED_OUT_YEARS = Array.from({ length: 31 }, (_, i) => String(CURRENT_YEAR - i))
 
@@ -597,6 +630,10 @@ function createInitialStudentForm(branchId) {
     facultyPhone: '',
     courseAmount: '',
     studentDiscountAmount: '',
+    discountType: 'FIXED',
+    discountValue: '',
+    discountAmount: '0',
+    finalCourseAmount: '',
     courseMode: '',
     paymentPlanId: '',
     paymentPlan: '',
@@ -659,6 +696,10 @@ function buildStudentFormFromRecord(student = {}) {
     facultyPhone: student.facultyPhone || student.course?.facultyPhone || '',
     courseAmount: String(student.courseAmount || student.totalAmount || student.afterDiscount || '').trim(),
     studentDiscountAmount: String(student.studentDiscountAmount ?? '').trim(),
+    discountType: String(student.discountType || 'FIXED').toUpperCase(),
+    discountValue: String(student.discountValue ?? student.studentDiscountAmount ?? '').trim(),
+    discountAmount: String(student.discountAmount ?? student.studentDiscountAmount ?? '0').trim(),
+    finalCourseAmount: String(student.finalCourseAmount ?? student.afterDiscount ?? '').trim(),
     courseMode: student.courseMode || student.course?.courseMode || '',
     paymentMode: student.paymentMode || 'Installment',
     paymentPlanId: student.paymentPlanId || student.paymentPlan || '',
@@ -717,6 +758,10 @@ function buildStudentCourseDraftFromEnrollment(enrollment = {}) {
     facultyPhone: enrollment.facultyPhone || '',
     courseAmount: enrollment.courseAmount ?? enrollment.totalCourseAmount ?? enrollment.amount ?? '',
     totalCourseAmount: enrollment.totalCourseAmount ?? enrollment.courseAmount ?? enrollment.amount ?? '',
+    discountType: String(enrollment.discountType || 'FIXED').toUpperCase(),
+    discountValue: enrollment.discountValue ?? enrollment.discountAmount ?? '',
+    discountAmount: enrollment.discountAmount ?? '',
+    finalCourseAmount: enrollment.finalCourseAmount ?? enrollment.afterDiscount ?? '',
     paymentPlanId: enrollment.paymentPlanId || '',
     paymentPlan: enrollment.paymentPlan || '',
     installmentSchedule: enrollment.installmentSchedule || [],
@@ -780,6 +825,12 @@ function validateStudentForm(form, students = []) {
   if (safeTrim(form.studentDiscountAmount) && Number(form.studentDiscountAmount) < 0) {
     errors.studentDiscountAmount = 'Discount must be zero or greater.'
   }
+  const discountSummary = getStudentDiscountSummary({
+    totalCourseAmount: form.totalCourseAmount || form.courseAmount,
+    discountType: form.discountType,
+    discountValue: form.discountValue,
+  })
+  if (discountSummary.error) errors.studentDiscountAmount = discountSummary.error
   if (!safeTrim(form.courseMode)) errors.courseMode = 'Course mode is required.'
   if (!safeTrim(form.paymentPlanId)) errors.paymentPlanId = 'This field is required.'
 
@@ -6804,13 +6855,22 @@ const studentCourseOptions = useMemo(() => {
   )
 
   const selectedStudentFinalAmount = useMemo(() => {
-    const courseAmount = Number(String(selectedStudentCourseAmount || '').replace(/,/g, ''))
-    const discount = Number(String(studentForm.studentDiscountAmount || '').replace(/,/g, ''))
-    if (!Number.isFinite(courseAmount)) return ''
-    if (!String(studentForm.studentDiscountAmount || '').trim()) return String(Math.max(courseAmount, 0))
-    if (!Number.isFinite(discount)) return ''
-    return String(Math.max(courseAmount - discount, 0))
-  }, [selectedStudentCourseAmount, studentForm.studentDiscountAmount])
+    const summary = getStudentDiscountSummary({
+      totalCourseAmount: selectedStudentCourseAmount,
+      discountType: studentForm.discountType,
+      discountValue: studentForm.discountValue,
+    })
+    return Number.isFinite(summary.finalCourseAmount) ? String(summary.finalCourseAmount) : ''
+  }, [selectedStudentCourseAmount, studentForm.discountType, studentForm.discountValue])
+
+  const selectedStudentDiscountSummary = useMemo(
+    () => getStudentDiscountSummary({
+      totalCourseAmount: selectedStudentCourseAmount,
+      discountType: studentForm.discountType,
+      discountValue: studentForm.discountValue,
+    }),
+    [selectedStudentCourseAmount, studentForm.discountType, studentForm.discountValue],
+  )
 
   const parallelStudentScheduleContext = useMemo(() => {
     if (studentArrangementType !== 'PARALLEL' || studentSelectedCourseIds.length < 2) return null
@@ -7062,7 +7122,7 @@ const studentCourseOptions = useMemo(() => {
       const draft = String(studentForm.courseId || '') === String(courseId)
         ? studentForm
         : (studentCourseDrafts[courseId] || {})
-      return sum + (Number(String(draft.totalCourseAmount || draft.courseAmount || 0).replace(/,/g, '')) || 0)
+      return sum + getStudentDiscountSummary(draft, 0).finalCourseAmount
     }, 0))
   }, [selectedStudentFinalAmount, studentCourseDrafts, studentForm, studentSelectedCourseIds])
 
@@ -7098,7 +7158,7 @@ const studentCourseOptions = useMemo(() => {
       return {
         courseId: String(courseId),
         courseName: course?.name || draft.courseName || String(courseId),
-        amount: Number(String(draft.totalCourseAmount || draft.courseAmount || 0).replace(/,/g, '')) || 0,
+        amount: getStudentDiscountSummary(draft, 0).finalCourseAmount,
       }
     })
     const totalCourseAmount = courseAmounts.reduce((sum, course) => sum + course.amount, 0)
@@ -7314,6 +7374,10 @@ const studentCourseOptions = useMemo(() => {
       facultyPhone: current.facultyPhone,
       courseAmount: current.courseAmount,
       studentDiscountAmount: current.studentDiscountAmount,
+       discountType: current.discountType,
+       discountValue: current.discountValue,
+       discountAmount: current.discountAmount,
+       finalCourseAmount: current.finalCourseAmount,
       paymentPlan: current.paymentPlan,
       paymentPlanId: current.paymentPlanId,
       installmentSchedule: current.installmentSchedule || [],
@@ -7333,6 +7397,10 @@ const studentCourseOptions = useMemo(() => {
         courseName: nextCourse?.name || '',
         courseAmount: nextCourse?.amount || '',
         studentDiscountAmount: '',
+         discountType: 'FIXED',
+         discountValue: '',
+         discountAmount: '0',
+         finalCourseAmount: nextCourse?.amount || '',
         batchGroupId: '',
         batchId: '',
         batchName: '',
@@ -8940,7 +9008,12 @@ useEffect(() => {
     const selectedCourse = studentCourseOptions.find((course) => String(course.id || '').trim() === String(studentForm.courseId || '').trim()) || null
     const selectedBatch = selectedStudentBatchOption
     const resolvedCourseAmount = String(studentForm.totalCourseAmount || selectedCourse?.amount || studentForm.courseAmount || '').trim()
-    const resolvedFinalAmount = String(selectedStudentFinalAmount || resolvedCourseAmount).trim()
+    const activeDiscountSummary = getStudentDiscountSummary({
+      totalCourseAmount: resolvedCourseAmount,
+      discountType: studentForm.discountType,
+      discountValue: studentForm.discountValue,
+    })
+    const resolvedFinalAmount = String(activeDiscountSummary.finalCourseAmount).trim()
     const selectedEnrollmentIds = studentSelectedCourseIds.length
       ? studentSelectedCourseIds
       : [String(studentForm.courseId || '').trim()].filter(Boolean)
@@ -8963,6 +9036,10 @@ useEffect(() => {
       totalCourseAmount: resolvedCourseAmount,
       totalAmount: resolvedFinalAmount,
       afterDiscount: resolvedFinalAmount,
+      discountType: studentForm.discountType || 'FIXED',
+      discountValue: studentForm.discountValue || '0',
+      discountAmount: String(activeDiscountSummary.discountAmount),
+      finalCourseAmount: resolvedFinalAmount,
       arrangementType: studentSelectedCourseIds.length > 1 ? studentArrangementType : 'SINGLE',
       sequenceOrder: Math.max(1, enrollmentOrder.indexOf(String(studentForm.courseId)) + 1),
       status: studentArrangementType === 'SEQUENTIAL' && String(studentForm.courseId) !== String(studentFirstCourseId) ? 'PENDING' : 'ACTIVE',
@@ -8974,6 +9051,11 @@ useEffect(() => {
         : (studentCourseDrafts[courseId] || getStudentCourseDraft(courseId))
       const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
       const draft = String(courseId) === String(studentForm.courseId) ? studentForm : enrollment
+      const discountSummary = getStudentDiscountSummary({
+        totalCourseAmount: enrollment.totalCourseAmount || enrollment.courseAmount || course?.amount,
+        discountType: draft.discountType,
+        discountValue: draft.discountValue,
+      })
       const batch = getStudentCourseBatchOptions(draft).find((item) => String(item.batchId) === String(draft.batchId))
       const calculatedEndDate = calculateBatchCourseEndDate(
         draft.courseStartDate,
@@ -8992,6 +9074,12 @@ useEffect(() => {
         courseName: enrollment.courseName || course?.name || '',
         courseAmount: enrollment.courseAmount || course?.amount || '',
         totalCourseAmount: enrollment.totalCourseAmount || enrollment.courseAmount || course?.amount || '',
+        discountType: draft.discountType || 'FIXED',
+        discountValue: draft.discountValue || '0',
+        discountAmount: String(discountSummary.discountAmount),
+        finalCourseAmount: String(discountSummary.finalCourseAmount),
+        totalAmount: String(discountSummary.finalCourseAmount),
+        afterDiscount: String(discountSummary.finalCourseAmount),
         sequenceOrder: Math.max(1, enrollmentOrder.indexOf(String(courseId)) + 1),
               status: isUpcomingSequentialCourse ? 'PENDING' : (enrollment.status || 'ACTIVE'),
         ...(isUpcomingSequentialCourse ? {
@@ -9034,6 +9122,15 @@ useEffect(() => {
 
     if (studentSelectedCourseIds.length >= 2 && !String(studentCombinedPaymentPlanId || '').trim()) {
       setStudentFormError('Select one payment plan for all selected courses.')
+      return
+    }
+
+    const invalidDiscountEnrollment = courseEnrollments.find((enrollment) => {
+      const summary = getStudentDiscountSummary(enrollment, 0)
+      return Boolean(summary.error)
+    })
+    if (invalidDiscountEnrollment) {
+      setStudentFormError(`${invalidDiscountEnrollment.courseName || 'Course'}: invalid discount. ${getStudentDiscountSummary(invalidDiscountEnrollment, 0).error}`)
       return
     }
 
@@ -9082,6 +9179,10 @@ useEffect(() => {
       registrationFees: String(selectedCourse?.registrationFees ?? '').trim(),
       discount: String(studentForm.studentDiscountAmount || selectedCourse?.discount || '').trim(),
       studentDiscountAmount: String(studentForm.studentDiscountAmount || '').trim(),
+      discountType: studentForm.discountType || 'FIXED',
+      discountValue: studentForm.discountValue || '0',
+      discountAmount: String(activeDiscountSummary.discountAmount),
+      finalCourseAmount: resolvedFinalAmount,
       afterDiscount: resolvedFinalAmount,
       courseMode: String(studentForm.courseMode || '').trim(),
       mode: String(selectedBatch?.mode || studentForm.courseMode || '').trim().toUpperCase(),
@@ -9646,6 +9747,10 @@ useEffect(() => {
           courseName: course?.name || '',
           courseAmount: course?.amount || '',
           totalCourseAmount: course?.amount || '',
+          discountType: 'FIXED',
+          discountValue: '',
+          discountAmount: '0',
+          finalCourseAmount: course?.amount || '',
           courseMode: getAllowedCourseModes(course?.mode).length === 1
             ? (getAllowedCourseModes(course.mode)[0] === 'ONLINE' ? 'Online' : 'Offline')
             : '',
@@ -9655,7 +9760,7 @@ useEffect(() => {
   const updateStudentCourseDraft = (courseId, field, value) => {
     if (String(studentForm.courseId || '') === String(courseId)) {
       if (field === 'totalCourseAmount') {
-        setStudentForm((current) => ({ ...current, totalCourseAmount: value, courseAmount: value }))
+        setStudentForm((current) => ({ ...current, totalCourseAmount: value, courseAmount: value, finalCourseAmount: String(getStudentDiscountSummary({ totalCourseAmount: value, discountType: current.discountType, discountValue: current.discountValue }).finalCourseAmount) }))
         return
       }
       updateStudentField(field, value)
@@ -9687,7 +9792,7 @@ useEffect(() => {
     })).filter((batch) => batch.batchId && (!draft.classSchedule || String(batch.weekType).toUpperCase() === String(draft.classSchedule).toUpperCase()) && (!draft.courseMode || String(batch.mode).toUpperCase() === String(draft.courseMode).toUpperCase())))
   const multiCourseAmountTotal = studentSelectedCourseIds.reduce((sum, courseId) => {
     const draft = getStudentCourseDraft(courseId)
-    return sum + (Number(String(draft.totalCourseAmount || draft.courseAmount || 0).replace(/,/g, '')) || 0)
+    return sum + getStudentDiscountSummary(draft, 0).finalCourseAmount
   }, 0)
   const multiCoursePaymentPlans = [...new Map(studentSelectedCourseIds
     .flatMap((courseId) => {
@@ -16840,27 +16945,6 @@ else {
           />
         </Field>
 
-        <Field
-          label="Discount Amount"
-          className="student-course-step-discount"
-          hint="Optional student discount"
-          error={
-            shouldShowStudentError('studentDiscountAmount')
-              ? studentFormValidationErrors.studentDiscountAmount
-              : ''
-          }
-        >
-          <input
-            type="text"
-            inputMode="numeric"
-            value={studentForm.studentDiscountAmount || ''}
-            onChange={(e) => updateStudentField('studentDiscountAmount', e.target.value.replace(/\D/g, ''))}
-            onBlur={() => setStudentFormTouched((current) => ({ ...current, studentDiscountAmount: true }))}
-            placeholder="Optional discount amount"
-            disabled={studentFormMode === 'view'}
-          />
-        </Field>
-
        <Field
          label="Course Mode"
          className="student-course-step-mode"
@@ -16938,6 +17022,28 @@ else {
   </select>
 </Field>
 
+        <Field label="Discount Type" className="student-course-step-discount">
+          <select value={studentForm.discountType || 'FIXED'} onChange={(e) => updateStudentField('discountType', e.target.value)} disabled={studentFormMode === 'view'}>
+            {DISCOUNT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+          </select>
+        </Field>
+        <Field
+          className="student-course-step-discount-value"
+          label={`Discount Value (${studentForm.discountType === 'PERCENTAGE' ? '%' : '₹'})`}
+          hint="Optional student discount"
+          error={shouldShowStudentError('studentDiscountAmount') ? studentFormValidationErrors.studentDiscountAmount : ''}
+        >
+          <input type="number" min="0" max={studentForm.discountType === 'PERCENTAGE' ? 100 : undefined} value={studentForm.discountValue || ''} onChange={(e) => updateStudentField('discountValue', e.target.value)} onBlur={() => setStudentFormTouched((current) => ({ ...current, studentDiscountAmount: true }))} placeholder="Optional discount value" disabled={studentFormMode === 'view'} />
+        </Field>
+        <Field className="student-course-step-final-amount" label="Final Course Amount">
+          <input type="text" value={formatBranchRupees(selectedStudentDiscountSummary.finalCourseAmount)} readOnly />
+        </Field>
+        <div className="student-course-discount-summary">
+          <span>Total Course Amount <strong>{formatBranchRupees(selectedStudentDiscountSummary.totalCourseAmount)}</strong></span>
+          <span>Discount Amount <strong>{formatBranchRupees(selectedStudentDiscountSummary.discountAmount)}</strong></span>
+          {selectedStudentDiscountSummary.error ? <small className="field-error">{selectedStudentDiscountSummary.error}</small> : null}
+        </div>
+
       </div>
       ) : (
         <div className="student-course-cards">
@@ -17003,7 +17109,10 @@ else {
                   <Field label="Batch Timing" required><input value={selectedBatch?.batchTiming || draft.batchTiming || ''} readOnly placeholder="Auto-filled from selected batch" /></Field>
                   <Field label="Course Start Date" required><input type="date" value={draft.courseStartDate || ''} onChange={(event) => { updateStudentCourseDraft(courseId, 'courseStartDate', event.target.value); updateStudentCourseDraft(courseId, 'courseEndDate', '') }} disabled={studentFormMode === 'view'} /></Field>
                   <Field label="Course End Date"><input type="date" value={calculatedCourseEndDate || ''} readOnly placeholder="Auto-calculated from course and batch" /></Field>
-                  <Field label="Total Course Amount" required><input type="number" min="0" value={draft.totalCourseAmount ?? draft.courseAmount ?? course?.amount ?? ''} onChange={(event) => updateStudentCourseDraft(courseId, 'totalCourseAmount', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
+                   <Field label="Total Course Amount" required><input type="number" min="0" value={draft.totalCourseAmount ?? draft.courseAmount ?? course?.amount ?? ''} onChange={(event) => updateStudentCourseDraft(courseId, 'totalCourseAmount', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
+                   <Field label="Discount Type"><select value={draft.discountType || 'FIXED'} onChange={(event) => updateStudentCourseDraft(courseId, 'discountType', event.target.value)} disabled={studentFormMode === 'view'}>{DISCOUNT_TYPES.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select></Field>
+                   <Field label={`Discount Value (${draft.discountType === 'PERCENTAGE' ? '%' : '₹'})`}><input type="number" min="0" max={draft.discountType === 'PERCENTAGE' ? 100 : undefined} value={draft.discountValue ?? ''} onChange={(event) => updateStudentCourseDraft(courseId, 'discountValue', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
+                   {(() => { const summary = getStudentDiscountSummary(draft, course?.amount || 0); return <><Field label="Final Course Amount"><input type="text" value={formatBranchRupees(summary.finalCourseAmount)} readOnly /></Field><div className="student-course-discount-summary"><span>Discount Amount: <strong>{formatBranchRupees(summary.discountAmount)}</strong></span>{summary.error ? <small className="field-error">{summary.error}</small> : null}</div></> })()}
                   {studentSelectedCourseIds.length < 2 ? <Field label="Payment Plan" required><select value={draft.paymentPlanId || ''} onChange={(event) => { const plan = (course?.paymentPlans || []).find((item) => String(item.id) === event.target.value); updateStudentCourseDraft(courseId, 'paymentPlanId', event.target.value); updateStudentCourseDraft(courseId, 'paymentPlan', plan?.templateName || '') }} disabled={studentFormMode === 'view'}><option value="">Select Payment Plan</option>{(course?.paymentPlans || []).map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName}</option>)}</select></Field> : null}
                 </div>}
               </section>
@@ -17016,10 +17125,10 @@ else {
                 {studentSelectedCourseIds.map((courseId) => {
                   const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
                   const draft = getStudentCourseDraft(courseId)
-                  const amount = Number(String(draft.totalCourseAmount || draft.courseAmount || 0).replace(/,/g, '')) || 0
-                  return <div className="student-course-total-summary-row" key={courseId}><span>{course?.name || draft.courseName || courseId}</span><strong>{formatBranchRupees(amount)}</strong></div>
+                   const summary = getStudentDiscountSummary(draft, course?.amount || 0)
+                   return <div className="student-course-total-summary-row" key={courseId}><span>{course?.name || draft.courseName || courseId}</span><strong>{formatBranchRupees(summary.finalCourseAmount)}</strong></div>
                 })}
-                <div className="student-course-total-summary-grand"><strong>Total Course Amount</strong><strong>{formatBranchRupees(multiCourseAmountTotal)}</strong></div>
+                 <div className="student-course-total-summary-grand"><strong>Final Course Amount</strong><strong>{formatBranchRupees(multiCourseAmountTotal)}</strong></div>
               </div>
               <label className="student-combined-payment-plan-field">
                 <span>Payment Plan for all courses *</span>
