@@ -585,6 +585,12 @@ export function Student360Page({
   const explicitCourseIndex = courseEnrollments.findIndex((enrollment, index) => getEnrollmentKey(enrollment, index) === selectedCourseKey)
   const selectedCourseIndex = explicitCourseIndex >= 0 ? explicitCourseIndex : Math.max(primaryCourseIndex, 0)
   const selectedCourse = courseEnrollments[selectedCourseIndex]
+  const priorCoursesCompleted = selectedCourseIndex > 0 && courseEnrollments.slice(0, selectedCourseIndex).every((enrollment) => {
+    const isPrimaryEnrollment = String(enrollment.courseId || '') === String(student.courseId || student.course?.id || '')
+    return Boolean(enrollment.courseCompletedAt || (isPrimaryEnrollment && student.courseCompletedAt)) || Number(enrollment.courseProgress ?? (isPrimaryEnrollment ? student.courseProgress : null)) >= 100
+  })
+  const isSelectedCoursePending = String(selectedCourse.status || '').toUpperCase() === 'PENDING'
+  const isAwaitingSelectedCourseSchedule = isSelectedCoursePending && priorCoursesCompleted
   const selectedCourseCatalog = isMultiCourseStudent
     ? branchCourseCards.find((course) => (
       String(course?.id || course?.courseId || '').trim() === String(selectedCourse.courseId || '').trim() ||
@@ -687,8 +693,8 @@ export function Student360Page({
               <span className="student360-summary-icon blue"><BookOpen size={19} /></span>
               <div><span>Course</span><strong>{displayValue(selectedCourse.courseName, 'Course not assigned')}</strong><small className="student360-course-type">{displayValue(selectedCourseCatalog?.courseType || selectedCourse.courseType, 'Course type not set')}</small></div>
             </article>
-            <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{displayValue(selectedCourse.batchName)}</strong><small>{displayValue(selectedCourse.batchTiming || selectedCourse.classSchedule, 'Schedule not set')}</small></div></article>
-            <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{displayValue(selectedCourse.facultyName)}</strong><small>Assigned faculty</small></div></article>
+            <article className="student360-summary-card"><span className="student360-summary-icon cyan"><GraduationCap size={19} /></span><div><span>Batch</span><strong>{isAwaitingSelectedCourseSchedule ? 'Pending assignment' : displayValue(selectedCourse.batchName)}</strong><small>{isAwaitingSelectedCourseSchedule ? 'Schedule & batch pending' : displayValue(selectedCourse.batchTiming || selectedCourse.classSchedule, 'Schedule not set')}</small></div></article>
+            <article className="student360-summary-card"><span className="student360-summary-icon indigo"><UserRound size={19} /></span><div><span>Faculty</span><strong>{isAwaitingSelectedCourseSchedule ? 'Awaiting assignment' : displayValue(selectedCourse.facultyName)}</strong><small>{isAwaitingSelectedCourseSchedule ? 'Assigned with batch schedule' : 'Assigned faculty'}</small></div></article>
             <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{selectedCourseProgressValue === null ? 'Not recorded' : `${Math.round(selectedCourseProgressValue)}%`}</strong><div className="student360-summary-progress-track"><span style={{ width: `${selectedCourseProgressValue ?? 0}%` }} /></div><small>{selectedCourse.courseEndDate ? `End date: ${formatDate(selectedCourse.courseEndDate)}` : 'End date not set'}</small></div></article>
           </>
         ) : (
@@ -699,7 +705,7 @@ export function Student360Page({
             <article className="student360-summary-card student360-summary-progress-card"><span className="student360-summary-icon green"><CheckCircle2 size={19} /></span><div><span>Course Progress</span><strong>{Math.round(courseProgress)}%</strong><div className="student360-summary-progress-track"><span style={{ width: `${courseProgress}%` }} /></div><small>{student.courseEndDate ? `End date: ${formatDate(student.courseEndDate)}` : 'End date not set'}</small></div></article>
           </>
         )}
-        <article className="student360-summary-card student360-summary-academic-progress-card"><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div></article>
+        <article className={`student360-summary-card student360-summary-academic-progress-card${isSelectedCoursePending ? ' is-upcoming-course' : ''}`}><span className="student360-summary-icon violet"><GraduationCap size={19} /></span><div><span>Academic Test Progress</span>{academicTestProgress ? <><strong>{academicTestProgress.completedTests} / {academicTestProgress.totalTests} Completed</strong><div className="student360-summary-progress-track"><span style={{ width: `${Math.min(100, Math.max(0, Number(academicTestProgress.percentage) || 0))}%` }} /></div><small>{academicTestProgress.totalTests ? `${academicTestProgress.pendingTests} Pending · ${academicTestProgress.percentage}%` : 'No Academic Tests · 0%'}</small></> : <><strong className="student360-summary-loading">{academicTestProgressError ? 'Unavailable' : 'Loading...'}</strong><small>{academicTestProgressError || 'Academic test progress'}</small></>}</div>{isSelectedCoursePending ? <span className="student360-upcoming-badge">{priorCoursesCompleted ? 'Schedule & Batch' : 'Upcoming'}</span> : null}</article>
       </section>
 
       <div className="student360-content-grid">

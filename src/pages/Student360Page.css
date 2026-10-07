@@ -62,6 +62,8 @@
 .student360-course-tab.is-active > span, .student360-course-tab.is-active > strong { color: #0f766e; }
 .student360-summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 .student360-summary-card { display: flex; align-items: flex-start; gap: 12px; min-width: 0; padding: 17px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; box-shadow: 0 5px 14px rgba(15, 23, 42, .035); }
+.student360-summary-card.is-upcoming-course { position: relative; }
+.student360-upcoming-badge { position: absolute; z-index: 1; top: -76px; right: -6px; display: inline-flex !important; align-items: center; padding: 8px 14px; border: 1px solid #fcd34d; border-radius: 999px; color: #a16207 !important; background: #fef3c7; font-size: 12px !important; font-weight: 800 !important; line-height: 1.25; white-space: nowrap; }
 .student360-summary-grid.has-multi-course { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .student360-course-enrollment-card { min-height: 100%; }
 .student360-course-enrollment-copy { flex: 1; min-width: 0; }
