@@ -85,11 +85,6 @@ function getPaymentStatus(student) {
   return 'Pending'
 }
 
-function getAttendance(student) {
-  const value = student?.attendancePercentage ?? student?.attendance ?? student?.attendancePercent
-  return value === undefined || value === null || value === '' ? 'Not available' : `${value}%`
-}
-
 function getAttendancePercentage(item, type, period = '') {
   if (item?.inCoursePeriod === false || item?.status === 'NOT_IN_COURSE_PERIOD' || item?.dateRange === 'Not in course period') return period === 'weekly' ? 0 : null
   const value = type === 'present'
@@ -774,7 +769,8 @@ export function StudentNewDashboardPage() {
  }, [])
 
  const courseName = student?.courseName || student?.courseInterested || student?.course?.name || 'Not assigned'
- const attendance = getAttendance(student)
+ const overallAttendanceValue = student?.attendancePercentage ?? student?.attendance ?? student?.attendancePercent
+ const attendance = overallAttendanceValue === undefined || overallAttendanceValue === null || overallAttendanceValue === '' ? 'Not available' : `${overallAttendanceValue}%`
  const displayName = student?.studentName || studentSession?.studentName || 'Student'
  const totalFee = getStudentTotalFee(student)
  const configuredInstallments = Array.isArray(student?.installmentSchedule) && student.installmentSchedule.length
@@ -793,11 +789,6 @@ export function StudentNewDashboardPage() {
  const qualification = student?.qualification || '-'
  const passedOutYear = student?.passedOutYear ?? student?.yearOfPassing ?? '-'
  const batchName = student?.batchName || (typeof student?.batch === 'string' ? student.batch : '') || student?.batch?.name || '-'
- const courseStartDate = student?.courseStartDate || student?.courseStart || student?.startDate || student?.batch?.courseStartDate || student?.batch?.startDate
- const courseProgressValue = student?.courseProgress ?? student?.courseCompletionPercentage ?? student?.courseProgressPercentage
- const courseProgressNumber = Number(courseProgressValue)
- const attendanceSourceValue = student?.attendancePercentage ?? student?.attendance ?? student?.attendancePercent
- const attendanceProgressNumber = Number(attendanceSourceValue)
  const studentStatus = student?.currentStatus || student?.status || '-'
  const learningProgress = useMemo(() => getModuleProgress(student), [student])
  const attendanceView = useMemo(() => {
@@ -819,17 +810,25 @@ export function StudentNewDashboardPage() {
          : item
      })
  }, [attendanceOverview, attendanceTab])
- const attendanceTotals = attendanceOverview?.overall || null
  const selectedAttendanceCourse = dashboardCourses.find((course) => String(course.courseId || '') === selectedAttendanceCourseId) || dashboardCourses[0]
  const courseAttendanceBatch = selectedAttendanceCourse?.batchName || batchName
  const todayCourseSessions = dashboardCourses.flatMap((course) => {
    const overview = attendanceOverviews[String(course.courseId || '')]
    return (Array.isArray(overview?.todayAttendance?.sessions) ? overview.todayAttendance.sessions : []).map((session) => ({ ...session, courseId: session.courseId || course.courseId, courseName: session.courseName || course.courseName }))
  })
+ const currentWeekday = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase()
  const todayAttendanceRows = dashboardCourses.flatMap((course) => {
    const sessions = todayCourseSessions.filter((session) => String(session.courseId || '') === String(course.courseId || ''))
-   return sessions.length ? sessions : [{ courseId: course.courseId, courseName: course.courseName, status: 'NO_CLASS' }]
+   if (sessions.length) return sessions
+   const isPrimaryCourse = String(course.courseId || '') === String(student?.courseId || student?.course?.id || '')
+   const calendarStatus = isPrimaryCourse
+     ? (student?.calendarEvents || []).find((event) => toCalendarDateKey(event?.date || event?.attendanceDate) === toCalendarDateKey(new Date()) && String(event?.code || event?.status || '').toUpperCase().replace(/[- ]/g, '_') === 'FACULTY_WEEKLY_OFF')
+     : null
+   const weeklyOffDay = String(course.weeklyOffDay || course.batch?.weeklyOffDay || (isPrimaryCourse ? student?.weeklyOffDay || student?.batch?.weeklyOffDay : '') || calendarStatus?.weeklyOffDay || '').toUpperCase()
+   const isFacultyWeeklyOff = Boolean(calendarStatus) || weeklyOffDay === currentWeekday
+   return [{ courseId: course.courseId, courseName: course.courseName, status: isFacultyWeeklyOff ? 'FACULTY_WEEKLY_OFF' : 'NO_CLASS' }]
  })
+ const facultyWeeklyOffCoursesToday = todayAttendanceRows.filter((row) => String(row.status || '').toUpperCase() === 'FACULTY_WEEKLY_OFF')
  const todayAttendance = attendanceOverview?.todayAttendance || null
  const todaySessions = todayCourseSessions
  const todayClassSessions = useMemo(() => dashboardCourses.flatMap((course) => {
@@ -1232,9 +1231,10 @@ const handleLogoutConfirm = async () => {
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</small><strong>{formatValue(course.courseName)}</strong><span>{formatValue(course.batchName)}{course.batchTiming ? ` · ${course.batchTiming}` : ''}</span></div></article>
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><GraduationCap size={21} /></span><div><small>ASSIGNED FACULTY{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{formatValue(course.facultyName || (isPrimaryCourse ? facultyName : 'Not assigned'))}</strong><span>{formatValue(course.courseName)}</span></div></article>
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><BarChart3 size={21} /></span><div><small>COURSE PROGRESS{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{Number.isFinite(progressNumber) && progress !== '' && progress !== null ? `${progressNumber}%` : 'Not available'}</strong><span>{Number.isFinite(Number(totalModules)) && Number.isFinite(Number(completedModules)) ? `${completedModules} / ${totalModules} Modules` : 'Module completion data'}</span></div></article>
+                      <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE{dashboardCourses.length > 1 ? <><br /><span className="student-dashboard-summary-course-label">{course.courseName || `COURSE ${index + 1}`}</span></> : null}</small><strong>{attendanceLoading ? 'Loading...' : attendanceOverviews[String(course.courseId || '')]?.overall?.percentage === undefined ? 'Not available' : `${attendanceOverviews[String(course.courseId || '')].overall.percentage}%`}</strong><span>{attendanceOverviews[String(course.courseId || '')]?.overall ? `${attendanceOverviews[String(course.courseId || '')].overall.present} Present / ${attendanceOverviews[String(course.courseId || '')].overall.absent} Absent` : 'Attendance records not available'}</span></div></article>
                     </Fragment>
                   })}
-                  <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE · {selectedAttendanceCourse?.courseName || courseName}</small><strong>{attendanceLoading ? 'Loading...' : attendanceTotals?.percentage === undefined ? 'Not available' : `${attendanceTotals.percentage}%`}</strong><span>{attendanceTotals ? `${attendanceTotals.present} Present / ${attendanceTotals.absent} Absent` : 'Attendance records not available'}</span></div></article>
+                  {!dashboardCourses.length ? <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE</small><strong>{attendanceLoading ? 'Loading...' : attendanceOverview?.overall?.percentage === undefined ? 'Not available' : `${attendanceOverview.overall.percentage}%`}</strong><span>{attendanceOverview?.overall ? `${attendanceOverview.overall.present} Present / ${attendanceOverview.overall.absent} Absent` : 'Attendance records not available'}</span></div></article> : null}
                   <article className="student-dashboard-summary-card"><span className="student-dashboard-icon amber"><CreditCard size={21} /></span><div><small>PAYMENT PROGRESS</small><strong>{totalFee > 0 ? `${paymentProgress}%` : 'Not available'}</strong><span>{totalFee > 0 ? `${formatPaymentAmount(paidAmount)} paid` : 'Payment data not available'}</span></div></article>
                 </section>
 
@@ -1252,12 +1252,12 @@ const handleLogoutConfirm = async () => {
                 <section className="student-dashboard-panel student-today-combined-panel">
                   <div className="student-today-combined-section student-today-attendance-panel">
                   <div className="student-dashboard-panel-heading"><div><small>ATTENDANCE</small><h2>Today&apos;s Attendance</h2><p className="student-attendance-period">{todayAttendance?.date ? formatDate(todayAttendance.date) : 'Date not available'}</p></div></div>
-                  {attendanceLoading ? <div className="student-attendance-card-loading" aria-label="Loading today&apos;s attendance"><span /><span /><span /></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load today&apos;s attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : <><div className="student-today-attendance-summary"><strong>{todaySummary.totalSessions} Course Session{todaySummary.totalSessions === 1 ? '' : 's'}</strong><div><span>Present</span><b>{todaySummary.present}</b></div><div><span>Absent</span><b>{todaySummary.absent}</b></div>{todaySummary.late ? <div><span>Late</span><b>{todaySummary.late}</b></div> : null}{todaySummary.leave ? <div><span>Leave</span><b>{todaySummary.leave}</b></div> : null}{todaySummary.notMarked ? <div><span>Not Marked</span><b>{todaySummary.notMarked}</b></div> : null}<p>Overall Today: <strong>{todaySummary.percentage}%</strong></p></div><div className="student-today-course-attendance-list">{todayAttendanceRows.map((session, index) => { const status = String(session.status || 'NOT_MARKED').toUpperCase(); const label = status === 'NO_CLASS' ? 'No class scheduled' : status === 'NOT_MARKED' ? 'Not Marked' : status === 'WEEK_OFF' ? 'Week Off' : status.charAt(0) + status.slice(1).toLowerCase(); return <div key={`${session.courseId || session.courseName || 'course'}-${session.sessionId || session.id || index}`}><strong>{session.courseName || 'Course'}</strong><span className={`is-${status.toLowerCase()}`}>{label}</span></div> })}</div></>}
+                  {attendanceLoading ? <div className="student-attendance-card-loading" aria-label="Loading today&apos;s attendance"><span /><span /><span /></div> : attendanceError ? <div className="student-attendance-error"><p>Unable to load today&apos;s attendance.</p><button type="button" onClick={reloadAttendance}>Retry</button></div> : <><div className="student-today-attendance-summary"><strong>{todaySummary.totalSessions} Course Session{todaySummary.totalSessions === 1 ? '' : 's'}</strong><div><span>Present</span><b>{todaySummary.present}</b></div><div><span>Absent</span><b>{todaySummary.absent}</b></div>{todaySummary.late ? <div><span>Late</span><b>{todaySummary.late}</b></div> : null}{todaySummary.leave ? <div><span>Leave</span><b>{todaySummary.leave}</b></div> : null}{todaySummary.notMarked ? <div><span>Not Marked</span><b>{todaySummary.notMarked}</b></div> : null}<p>Overall Today: <strong>{todaySummary.percentage}%</strong></p></div><div className="student-today-course-attendance-list">{todayAttendanceRows.map((session, index) => { const status = String(session.status || 'NOT_MARKED').toUpperCase(); const label = status === 'NO_CLASS' ? 'No class scheduled' : status === 'FACULTY_WEEKLY_OFF' ? 'Faculty Weekly Off' : status === 'NOT_MARKED' ? 'Not Marked' : status === 'WEEK_OFF' ? 'Week Off' : status.charAt(0) + status.slice(1).toLowerCase(); return <div key={`${session.courseId || session.courseName || 'course'}-${session.sessionId || session.id || index}`}><strong>{session.courseName || 'Course'}</strong><span className={`is-${status.toLowerCase()}`}>{label}</span></div> })}</div></>}
                   </div>
 
                   <div className="student-today-combined-section student-today-class-panel">
                   <div className="student-dashboard-panel-heading"><div className="student-today-class-heading"><span className="student-today-class-icon"><CalendarDays size={18} /></span><div><small>SCHEDULE</small><h2>Today&apos;s Class</h2></div></div><button type="button" onClick={() => handleMenuClick('calendar')}>View Full Timetable <span aria-hidden="true">→</span></button></div>
-                  {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading today&apos;s classes...</p></div> : todayClassSessions.length ? <div className="student-today-class-list">{todayClassSessions.map((session, index) => <article className="student-today-class-card" key={`${session.id || session.sessionId || session.batchId || 'session'}-${session.startTime || index}`}><div className="student-today-class-timeline" aria-hidden="true"><span /></div><div className="student-today-class-time"><strong>{formatSessionTime(session.startTime) || 'Time not available'}</strong>{session.endTime ? <span>{formatSessionTime(session.endTime)}</span> : null}</div><div className="student-today-class-details"><strong>{formatValue(session.moduleName || session.courseName, 'Class')}</strong>{session.facultyName ? <span>Faculty: {session.facultyName}</span> : null}{session.room ? <span>Room: {session.room}</span> : null}{session.mode ? <span>Mode: {session.mode}</span> : null}{session.batchName ? <span>Batch: {session.batchName}</span> : null}</div><span className={`student-today-class-status is-${session.displayStatus.toLowerCase()}`}>{session.displayStatus}</span></article>)}</div> : <div className="student-dashboard-empty"><p>No classes scheduled for today</p></div>}
+                  {attendanceLoading ? <div className="student-dashboard-empty"><p>Loading today&apos;s classes...</p></div> : todayClassSessions.length ? <div className="student-today-class-list">{todayClassSessions.map((session, index) => <article className="student-today-class-card" key={`${session.id || session.sessionId || session.batchId || 'session'}-${session.startTime || index}`}><div className="student-today-class-timeline" aria-hidden="true"><span /></div><div className="student-today-class-time"><strong>{formatSessionTime(session.startTime) || 'Time not available'}</strong>{session.endTime ? <span>{formatSessionTime(session.endTime)}</span> : null}</div><div className="student-today-class-details"><strong>{formatValue(session.moduleName || session.courseName, 'Class')}</strong>{session.facultyName ? <span>Faculty: {session.facultyName}</span> : null}{session.room ? <span>Room: {session.room}</span> : null}{session.mode ? <span>Mode: {session.mode}</span> : null}{session.batchName ? <span>Batch: {session.batchName}</span> : null}</div><span className={`student-today-class-status is-${session.displayStatus.toLowerCase()}`}>{session.displayStatus}</span></article>)}</div> : <div className="student-dashboard-empty"><p>{facultyWeeklyOffCoursesToday.length ? `Faculty weekly off today${facultyWeeklyOffCoursesToday.length === 1 ? ` · ${facultyWeeklyOffCoursesToday[0].courseName}` : ` · ${facultyWeeklyOffCoursesToday.length} courses`}` : 'No classes scheduled for today'}</p></div>}
                   </div>
                 </section>
                 </div>
@@ -1318,8 +1318,10 @@ const handleLogoutConfirm = async () => {
                       <div className="student-new-profile-fields student-new-profile-fields-two-column">
                         <div className="student-new-profile-field"><GraduationCap size={16} /><div><span>Qualification</span><strong>{qualification}</strong></div></div>
                         <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Passed Out Year</span><strong>{passedOutYear}</strong></div></div>
-                        <div className="student-new-profile-field"><BookOpen size={16} /><div><span>Course</span><strong>{courseName}</strong></div></div>
-                        <div className="student-new-profile-field"><Users size={16} /><div><span>Batch</span><strong>{batchName}</strong></div></div>
+                        {dashboardCourses.map((course, index) => <Fragment key={`profile-academic-${course.courseId || index}`}>
+                          <div className="student-new-profile-field"><BookOpen size={16} /><div><span>{dashboardCourses.length > 1 ? `Course ${index + 1}` : 'Course'}</span><strong>{course.courseName || '-'}</strong></div></div>
+                          <div className="student-new-profile-field"><Users size={16} /><div><span>{dashboardCourses.length > 1 ? `Batch ${index + 1}` : 'Batch'}</span><strong>{course.batchName || '-'}</strong></div></div>
+                        </Fragment>)}
                       </div>
                     </section>
 
@@ -1330,8 +1332,12 @@ const handleLogoutConfirm = async () => {
                       </div>
                       <div className="student-new-profile-fields student-new-profile-fields-two-column">
                         <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Admission Date</span><strong>{student?.admissionDate ? formatPaymentDate(student.admissionDate) : '-'}</strong></div></div>
-                        {courseStartDate ? <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>Course Start Date</span><strong>{formatPaymentDate(courseStartDate)}</strong></div></div> : null}
-                        <div className="student-new-profile-field"><Users size={16} /><div><span>Batch</span><strong>{batchName}</strong></div></div>
+                        {dashboardCourses.map((course, index) => <Fragment key={`profile-enrollment-${course.courseId || index}`}>
+                          <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>{dashboardCourses.length > 1 ? `Course ${index + 1} Start Date` : 'Course Start Date'}</span><strong>{course.startDate ? formatPaymentDate(course.startDate) : '-'}</strong></div></div>
+                          <div className="student-new-profile-field"><CalendarDays size={16} /><div><span>{dashboardCourses.length > 1 ? `Course ${index + 1} End Date` : 'Course End Date'}</span><strong>{course.endDate ? formatPaymentDate(course.endDate) : '-'}</strong></div></div>
+                          <div className="student-new-profile-field"><Users size={16} /><div><span>{dashboardCourses.length > 1 ? `Course ${index + 1} Faculty / Batch` : 'Faculty / Batch'}</span><strong>{[course.facultyName, course.batchName].filter(Boolean).join(' · ') || '-'}</strong></div></div>
+                          <div className="student-new-profile-field"><Clock3 size={16} /><div><span>{dashboardCourses.length > 1 ? `Course ${index + 1} Schedule` : 'Course Schedule'}</span><strong>{[course.mode, course.scheduleType || course.schedule, course.batchTiming].filter(Boolean).join(' · ') || '-'}</strong></div></div>
+                        </Fragment>)}
                       </div>
                     </section>
                   </div>
@@ -1342,16 +1348,29 @@ const handleLogoutConfirm = async () => {
                       <div><p>OVERVIEW</p><h2>Course Summary</h2></div>
                     </div>
                     <div className="student-new-profile-summary-list">
-                      <div><span>Course</span><strong>{courseName}</strong></div>
-                      <div><span>Batch</span><strong>{batchName}</strong></div>
-                      <div className="student-new-profile-progress-item">
-                        <div><span>Course Progress</span><strong>{Number.isFinite(courseProgressNumber) && courseProgressValue !== '' && courseProgressValue !== undefined ? `${courseProgressValue}%` : '-'}</strong></div>
-                        <div className="student-new-profile-progress"><i style={{ width: `${Number.isFinite(courseProgressNumber) ? Math.max(0, Math.min(courseProgressNumber, 100)) : 0}%` }} /></div>
-                      </div>
-                      <div className="student-new-profile-progress-item">
-                        <div><span>Attendance</span><strong>{attendance}</strong></div>
-                        <div className="student-new-profile-progress"><i style={{ width: `${Number.isFinite(attendanceProgressNumber) ? Math.max(0, Math.min(attendanceProgressNumber, 100)) : 0}%` }} /></div>
-                      </div>
+                      {dashboardCourses.map((course, index) => {
+                        const courseId = String(course.courseId || '')
+                        const courseDetails = courseDetailsById[courseId]
+                        const savedProgress = courseDetails?.progress?.overall
+                        const progressValue = course.courseProgress ?? savedProgress ?? (courseId === String(student?.courseId || student?.course?.id || '') ? learningProgress.overall : null)
+                        const progressNumber = Number(progressValue)
+                        const attendanceTotals = attendanceOverviews[courseId]?.overall
+                        const attendanceValue = attendanceTotals?.percentage
+                        const attendanceNumber = Number(attendanceValue)
+                        return <section className="student-new-profile-course-summary" key={`profile-summary-${courseId || index}`}>
+                          <div><span>Course{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</span><strong>{course.courseName || '-'}</strong></div>
+                          <div><span>Faculty · Batch</span><strong>{[course.facultyName, course.batchName].filter(Boolean).join(' · ') || '-'}</strong></div>
+                          <div className="student-new-profile-progress-item">
+                            <div><span>Course Progress</span><strong>{Number.isFinite(progressNumber) && progressValue !== '' && progressValue !== null && progressValue !== undefined ? `${progressNumber}%` : '-'}</strong></div>
+                            <div className="student-new-profile-progress"><i style={{ width: `${Number.isFinite(progressNumber) ? Math.max(0, Math.min(progressNumber, 100)) : 0}%` }} /></div>
+                          </div>
+                          <div className="student-new-profile-progress-item">
+                            <div><span>Attendance</span><strong>{attendanceValue === undefined || attendanceValue === null ? 'Not available' : `${attendanceValue}%`}</strong></div>
+                            <div className="student-new-profile-progress"><i style={{ width: `${Number.isFinite(attendanceNumber) ? Math.max(0, Math.min(attendanceNumber, 100)) : 0}%` }} /></div>
+                            {attendanceTotals ? <small>{attendanceTotals.present || 0} Present / {attendanceTotals.absent || 0} Absent</small> : null}
+                          </div>
+                        </section>
+                      })}
                       <div className="student-new-profile-summary-status"><span>Status</span><strong>{studentStatus}</strong></div>
                     </div>
                   </aside>

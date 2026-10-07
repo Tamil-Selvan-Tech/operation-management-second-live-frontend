@@ -368,6 +368,7 @@ function buildSelectedCourseAttendanceOverview(overview = {}, student = {}, enro
   const monthEnd = `${monthEndDate.getFullYear()}-${String(monthEndDate.getMonth() + 1).padStart(2, '0')}-${String(monthEndDate.getDate()).padStart(2, '0')}`
 
   return {
+    hasCourseRecords: records.length > 0,
     course: { startDate, endDate, schedule: enrollment.classSchedule || '' },
     weekly: summarizeRange(weekStart, weekEnd),
     currentMonth: summarizeRange(monthStart, monthEnd),
@@ -390,8 +391,7 @@ function AttendanceSection({ studentId, student, enrollment, isMultiCourseStuden
       setLoading(true)
       setError('')
       try {
-        const isPrimaryEnrollment = String(enrollment?.courseId || '').trim() === String(student?.courseId || student?.course?.id || '').trim()
-        const result = isMultiCourseStudent && !isPrimaryEnrollment
+        const result = isMultiCourseStudent
           ? buildSelectedCourseAttendanceOverview(
             await getBranchAttendanceOverview(attendanceToday(), branchId),
             { studentId: student?.studentId || studentId, id: student?.id, _id: student?._id },
@@ -441,9 +441,9 @@ function AttendanceSection({ studentId, student, enrollment, isMultiCourseStuden
       {loading ? <div className="student360-no-data">Loading attendance...</div> : error ? <div className="student360-no-data student360-attendance-error">{error}</div> : (
         <>
           <div className="student360-attendance-course-meta">{course.startDate || student?.courseStartDate ? `${formatAttendanceDate(course.startDate || student.courseStartDate)} → ${formatAttendanceDate(course.endDate || student.courseEndDate)}` : 'Course dates unavailable'}<span>{course.schedule || course.scheduleType || student?.classSchedule || 'Schedule unavailable'}</span></div>
-          <div className="student360-attendance-summary-cards">
+          {source.hasCourseRecords === false ? <div className="student360-no-data">No attendance has been recorded for this course yet.</div> : <div className="student360-attendance-summary-cards">
             {cardData.map(([label, period]) => { const available = hasPeriodData(period); return <article className="student360-attendance-summary-card" key={label}><span>{label}</span><strong>{available ? formatAttendancePercentage(getPeriodPercentage(period)) : '—'}</strong><small>{available ? `${getPeriodValue(period, 'present')} / ${getPeriodValue(period, 'eligible', getPeriodValue(period, 'total'))} Classes` : 'No data'}</small></article> })}
-          </div>
+          </div>}
         </>
       )}
     </SectionCard>
@@ -739,14 +739,18 @@ export function Student360Page({
               <DetailItem label="Qualification" value={student.qualification} icon={GraduationCap} />
               <DetailItem label="Passed Out Year" value={student.passedOutYear} icon={GraduationCap} />
               {String(student.designation || '').trim() ? <DetailItem label="Designation" value={student.designation} /> : null}
-              {isMultiCourseStudent ? courseEnrollments.flatMap((enrollment, index) => ([
-                <DetailItem key={`${enrollment.courseId}-name`} label={`Course ${index + 1}`} value={enrollment.courseName} icon={BookOpen} />,
-                <DetailItem key={`${enrollment.courseId}-start`} label={`${enrollment.courseName || `Course ${index + 1}`} · Start Date`} value={formatDate(enrollment.courseStartDate)} icon={CalendarDays} />,
-                <DetailItem key={`${enrollment.courseId}-end`} label={`${enrollment.courseName || `Course ${index + 1}`} · End Date`} value={formatDate(enrollment.courseEndDate)} icon={CalendarDays} />,
-                <DetailItem key={`${enrollment.courseId}-schedule`} label={`${enrollment.courseName || `Course ${index + 1}`} · Schedule / Mode`} value={[enrollment.classSchedule, enrollment.courseMode].filter(Boolean).join(' · ')} />,
-                <DetailItem key={`${enrollment.courseId}-batch`} label={`${enrollment.courseName || `Course ${index + 1}`} · Batch`} value={`${displayValue(enrollment.batchName)}${enrollment.batchTiming ? ` · ${enrollment.batchTiming}` : ''}`} />,
-                <DetailItem key={`${enrollment.courseId}-faculty`} label={`${enrollment.courseName || `Course ${index + 1}`} · Faculty`} value={enrollment.facultyName} />,
-              ])) : (
+              {isMultiCourseStudent ? (() => {
+                const courseNumber = selectedCourseIndex + 1
+                const courseLabel = selectedCourse.courseName || `Course ${courseNumber}`
+                return <>
+                  <DetailItem label={`Course ${courseNumber}`} value={courseLabel} icon={BookOpen} />
+                  <DetailItem label={`${courseLabel} · Start Date`} value={formatDate(selectedCourse.courseStartDate)} icon={CalendarDays} />
+                  <DetailItem label={`${courseLabel} · End Date`} value={formatDate(selectedCourse.courseEndDate)} icon={CalendarDays} />
+                  <DetailItem label={`${courseLabel} · Schedule / Mode`} value={[selectedCourse.classSchedule, selectedCourse.courseMode].filter(Boolean).join(' · ')} />
+                  <DetailItem label={`${courseLabel} · Batch`} value={`${displayValue(selectedCourse.batchName)}${selectedCourse.batchTiming ? ` · ${selectedCourse.batchTiming}` : ''}`} />
+                  <DetailItem label={`${courseLabel} · Faculty`} value={selectedCourse.facultyName} />
+                </>
+              })() : (
                 <>
                   <DetailItem label="Course Start Date" value={formatDate(student.courseStartDate)} icon={CalendarDays} />
                   <DetailItem label="Course End Date" value={formatDate(student.courseEndDate)} icon={CalendarDays} />

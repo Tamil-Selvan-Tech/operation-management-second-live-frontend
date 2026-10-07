@@ -2393,6 +2393,7 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 .student-dashboard-summary-card { display: flex; gap: 13px; min-height: 132px; padding: 18px; align-items: flex-start; }
 .student-dashboard-summary-card > div { display: grid; gap: 6px; min-width: 0; flex: 1; }
 .student-dashboard-summary-card small, .student-dashboard-panel-heading small { color: #8794a8; font-size: 10px; font-weight: 800; letter-spacing: .09em; }
+.student-dashboard-summary-card small .student-dashboard-summary-course-label { display: block; margin-top: 3px; letter-spacing: 0; }
 .student-dashboard-summary-card strong { color: #142644; font-size: 19px; overflow-wrap: anywhere; }
 .student-dashboard-summary-card > div > span { color: #66758c; font-size: 11px; line-height: 1.4; }
 .student-dashboard-icon { display: grid; place-items: center; flex: 0 0 42px; width: 42px; height: 42px; color: #2563eb; background: #eaf1ff; }
@@ -2421,6 +2422,7 @@ body.student-notification-menu-open .student-new-content { overscroll-behavior: 
 .student-today-course-attendance-list .is-present { color: #16805a; }
 .student-today-course-attendance-list .is-absent { color: #c2414d; }
 .student-today-course-attendance-list .is-late { color: #a16207; }
+.student-today-course-attendance-list .is-faculty_weekly_off { color: #b45309; }
 .student-course-course-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; }
 .student-course-course-tabs button { display: grid; gap: 5px; min-width: 190px; padding: 12px 15px; border: 1px solid #dce5f0; color: #253753; background: #fff; text-align: left; cursor: pointer; }
 .student-course-course-tabs button.is-active { border-color: #2563eb; color: #1d4ed8; background: #eff6ff; }

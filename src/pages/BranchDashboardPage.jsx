@@ -675,6 +675,71 @@ function buildStudentFormFromRecord(student = {}) {
   }
 }
 
+function getStudentEnrollmentRecords(student = {}) {
+  const enrollments = Array.isArray(student.courseEnrollments) && student.courseEnrollments.length
+    ? student.courseEnrollments
+    : Array.isArray(student.courses) && student.courses.length
+      ? student.courses
+      : []
+  const normalized = enrollments
+    .map((enrollment) => ({
+      ...enrollment,
+      courseId: String(enrollment.courseId || enrollment.id || enrollment.course?.id || '').trim(),
+      courseName: enrollment.courseName || enrollment.name || enrollment.course?.name || '',
+    }))
+    .filter((enrollment) => enrollment.courseId)
+
+  if (normalized.length) return normalized
+  const courseId = String(student.courseId || student.course?.id || '').trim()
+  return courseId ? [{ ...student, courseId, courseName: student.courseName || student.course?.name || '' }] : []
+}
+
+function buildStudentCourseDraftFromEnrollment(enrollment = {}) {
+  const schedule = enrollment.classSchedule || enrollment.scheduleType || enrollment.weekType || ''
+  const mode = enrollment.courseMode || enrollment.mode || ''
+  return {
+    ...enrollment,
+    courseId: String(enrollment.courseId || enrollment.id || enrollment.course?.id || '').trim(),
+    courseName: enrollment.courseName || enrollment.name || enrollment.course?.name || '',
+    batchGroupId: enrollment.batchGroupId || '',
+    batchId: enrollment.batchId || '',
+    batchName: enrollment.batchName || enrollment.batch?.batchName || '',
+    batchTiming: enrollment.batchTiming || enrollment.batch?.batchTiming || '',
+    classSchedule: String(schedule).toUpperCase() === 'WEEKEND' ? 'Weekend'
+      : String(schedule).toUpperCase() === 'WEEKDAY' ? 'Weekday' : schedule,
+    courseStartDate: enrollment.courseStartDate || enrollment.startDate || '',
+    courseEndDate: enrollment.courseEndDate || enrollment.endDate || '',
+    courseMode: String(mode).toUpperCase() === 'ONLINE' ? 'Online'
+      : String(mode).toUpperCase() === 'OFFLINE' ? 'Offline' : mode,
+    facultyId: enrollment.facultyId || '',
+    facultyName: enrollment.facultyName || '',
+    facultyEmail: enrollment.facultyEmail || '',
+    facultyPhone: enrollment.facultyPhone || '',
+    courseAmount: enrollment.courseAmount ?? enrollment.totalCourseAmount ?? enrollment.amount ?? '',
+    totalCourseAmount: enrollment.totalCourseAmount ?? enrollment.courseAmount ?? enrollment.amount ?? '',
+    paymentPlanId: enrollment.paymentPlanId || '',
+    paymentPlan: enrollment.paymentPlan || '',
+    installmentSchedule: enrollment.installmentSchedule || [],
+      status: enrollment.status || '',
+  }
+}
+
+function isCurrentStudentRecord(candidate = {}, form = {}) {
+  const currentRecordId = String(form.recordId || '').trim().toLowerCase()
+  const candidateRecordId = String(candidate.id || candidate._id || candidate.recordId || '').trim().toLowerCase()
+  if (currentRecordId && candidateRecordId && currentRecordId === candidateRecordId) return true
+
+  const originalStudentId = String(form.originalStudentId || form._originalStudentId || '').trim().toLowerCase()
+  const candidateStudentId = String(candidate.studentId || '').trim().toLowerCase()
+  if (!originalStudentId || !candidateStudentId || originalStudentId !== candidateStudentId) return false
+
+  const originalEmail = String(form.emailAddress || '').trim().toLowerCase()
+  const candidateEmail = String(candidate.emailAddress || candidate.email || candidate.studentEmail || '').trim().toLowerCase()
+  const originalMobile = String(form.mobileNumber || '').replace(/\D/g, '')
+  const candidateMobile = String(candidate.mobileNumber || candidate.phoneNumber || candidate.phone || candidate.studentPhone || '').replace(/\D/g, '')
+  return Boolean(originalEmail && candidateEmail === originalEmail && originalMobile && candidateMobile === originalMobile)
+}
+
 function validateStudentForm(form, students = []) {
   const errors = {}
   const safeTrim = (value) => String(value ?? '').trim()
@@ -718,7 +783,6 @@ function validateStudentForm(form, students = []) {
   if (!safeTrim(form.courseMode)) errors.courseMode = 'Course mode is required.'
   if (!safeTrim(form.paymentPlanId)) errors.paymentPlanId = 'This field is required.'
 
-  const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
   const resolvedStudentId = String(
     form.studentId || (String(form.studentIdSuffix || '').trim() ? `${STUDENT_ID_PREFIX}${String(form.studentIdSuffix || '').trim()}` : ''),
   ).trim().toLowerCase()
@@ -727,9 +791,8 @@ function validateStudentForm(form, students = []) {
 
   if (resolvedStudentId) {
     const duplicateStudentId = students.find((student) => {
-      const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
       const studentId = String(student?.studentId || '').trim().toLowerCase()
-      return studentId && studentId === resolvedStudentId && studentRecordId !== currentRecordId
+      return studentId && studentId === resolvedStudentId && !isCurrentStudentRecord(student, form)
     })
 
     if (duplicateStudentId) {
@@ -739,9 +802,8 @@ function validateStudentForm(form, students = []) {
 
   if (normalizedEmail) {
     const duplicateEmail = students.find((student) => {
-      const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
       const studentEmail = getStudentEmail(student)
-      return studentEmail && studentEmail === normalizedEmail && studentRecordId !== currentRecordId
+      return studentEmail && studentEmail === normalizedEmail && !isCurrentStudentRecord(student, form)
     })
 
     if (duplicateEmail) {
@@ -751,9 +813,8 @@ function validateStudentForm(form, students = []) {
 
   if (normalizedMobile) {
     const duplicateMobile = students.find((student) => {
-      const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
       const studentMobile = getStudentMobile(student)
-      return studentMobile && studentMobile === normalizedMobile && studentRecordId !== currentRecordId
+      return studentMobile && studentMobile === normalizedMobile && !isCurrentStudentRecord(student, form)
     })
 
     if (duplicateMobile) {
@@ -769,15 +830,13 @@ function getStudentIdSuffixError(form, students = []) {
   if (!suffix) return 'Student ID is required.'
   if (!/^\d+$/.test(suffix)) return 'Only numbers are allowed.'
 
-  const currentRecordId = String(form.recordId || form.originalStudentId || '').trim()
   const resolvedStudentId = buildStudentIdFromSuffix(suffix).trim().toLowerCase()
 
   if (!resolvedStudentId) return ''
 
   const duplicateStudentId = students.find((student) => {
-    const studentRecordId = String(student?.id || student?._id || student?.recordId || student?.studentId || '').trim()
     const studentId = String(student?.studentId || '').trim().toLowerCase()
-    return studentId && studentId === resolvedStudentId && studentRecordId !== currentRecordId
+    return studentId && studentId === resolvedStudentId && !isCurrentStudentRecord(student, form)
   })
 
   return duplicateStudentId ? 'Student ID already exists.' : ''
@@ -8778,20 +8837,51 @@ useEffect(() => {
 
   const openEditStudentForm = async (stu) => {
     setStudentFormMode('edit')
-    setStudentCourseSearch(String(stu?.courseName || stu?.course?.name || stu?.courseId || '').trim())
+    const enrollmentRecords = getStudentEnrollmentRecords(stu).sort((left, right) => (
+      Number(left.sequenceOrder || 1) - Number(right.sequenceOrder || 1)
+    ))
+    const selectedCourseIds = enrollmentRecords.map((enrollment) => String(enrollment.courseId))
+    const arrangementType = String(
+      stu?.arrangementType || enrollmentRecords.find((enrollment) => enrollment.arrangementType)?.arrangementType
+        || (selectedCourseIds.length > 1 ? 'PARALLEL' : 'SINGLE'),
+    ).toUpperCase()
+    const firstEnrollment = enrollmentRecords.find((enrollment) => Number(enrollment.sequenceOrder) === 1)
+    const firstCourseId = String(
+      stu?.firstCourseId || firstEnrollment?.courseId || stu?.courseId || selectedCourseIds[0] || '',
+    )
+    const activeEnrollment = arrangementType === 'SEQUENTIAL'
+      ? enrollmentRecords.find((enrollment) => String(enrollment.courseId) === firstCourseId) || firstEnrollment
+      : enrollmentRecords.find((enrollment) => String(enrollment.courseId) === String(stu?.courseId || '')) || enrollmentRecords[0]
+    const activeCourseDraft = buildStudentCourseDraftFromEnrollment(activeEnrollment || {})
+    const studentFormRecord = {
+      ...stu,
+      ...activeCourseDraft,
+      courseId: activeCourseDraft.courseId || stu?.courseId || '',
+      courseName: activeCourseDraft.courseName || stu?.courseName || '',
+      courseMode: activeCourseDraft.courseMode || stu?.courseMode || '',
+      classSchedule: activeCourseDraft.classSchedule || stu?.classSchedule || '',
+      courseStartDate: activeCourseDraft.courseStartDate || stu?.courseStartDate || '',
+      courseEndDate: activeCourseDraft.courseEndDate || stu?.courseEndDate || '',
+      courseAmount: activeCourseDraft.courseAmount || stu?.courseAmount || '',
+    }
+    const secondaryDrafts = Object.fromEntries(enrollmentRecords
+      .filter((enrollment) => String(enrollment.courseId) !== String(activeCourseDraft.courseId))
+      .map((enrollment) => [String(enrollment.courseId), buildStudentCourseDraftFromEnrollment(enrollment)]))
+    const activeCourse = studentCourseOptions.find((course) => String(course.id) === String(activeCourseDraft.courseId))
+    setStudentCourseSearch(String(activeCourse?.name || activeCourseDraft.courseName || activeCourseDraft.courseId || '').trim())
     setStudentCourseSearchFocused(false)
-    setStudentSelectedCourseIds(stu?.courseId ? [String(stu.courseId)] : [])
-    setStudentCourseDrafts({})
-    setStudentArrangementType(stu?.arrangementType || (stu?.courseId ? 'SINGLE' : 'SINGLE'))
-    setStudentFirstCourseId(stu?.firstCourseId || stu?.courseId || '')
+    setStudentSelectedCourseIds(selectedCourseIds)
+    setStudentCourseDrafts(secondaryDrafts)
+    setStudentArrangementType(arrangementType)
+    setStudentFirstCourseId(firstCourseId)
     setStudentCombinedPaymentPlanId(stu?.paymentPlanId || '')
     setStudentCombinedPaymentPlan(stu?.paymentPlan || '')
     setStudentFormError('')
     setIsStudentSaving(false)
     setStudentFormStep(1)
     const nextStudentForm = await resolveStudentLocationForm({
-      ...buildStudentFormFromRecord(stu),
-      ...resolveStudentBatchDisplay(stu, branchBatchGroups),
+      ...buildStudentFormFromRecord(studentFormRecord),
+      ...resolveStudentBatchDisplay(studentFormRecord, branchBatchGroups),
     })
     const savedDueDates = (Array.isArray(nextStudentForm.installmentSchedule)
       ? nextStudentForm.installmentSchedule
@@ -8893,12 +8983,29 @@ useEffect(() => {
         batch,
         instituteLeaves,
       ) || batch?.courseEndDate || enrollment.courseEndDate || ''
+      const hasActivatedSequentialEnrollment = String(enrollment.status || '').toUpperCase() === 'ACTIVE'
+      const isUpcomingSequentialCourse = studentArrangementType === 'SEQUENTIAL'
+        && String(courseId) !== String(studentFirstCourseId)
+        && !hasActivatedSequentialEnrollment
       return {
         ...enrollment,
         courseName: enrollment.courseName || course?.name || '',
         courseAmount: enrollment.courseAmount || course?.amount || '',
         totalCourseAmount: enrollment.totalCourseAmount || enrollment.courseAmount || course?.amount || '',
-        courseEndDate: calculatedEndDate || '',
+        sequenceOrder: Math.max(1, enrollmentOrder.indexOf(String(courseId)) + 1),
+              status: isUpcomingSequentialCourse ? 'PENDING' : (enrollment.status || 'ACTIVE'),
+        ...(isUpcomingSequentialCourse ? {
+          facultyId: '',
+          facultyName: '',
+          batchId: '',
+          batchName: '',
+          batchTiming: '',
+          classSchedule: '',
+          weekType: '',
+          courseMode: '',
+          courseStartDate: '',
+          courseEndDate: '',
+        } : { courseEndDate: calculatedEndDate || '' }),
       }
     }).filter((enrollment) => String(enrollment.courseId || '').trim()).map((enrollment) => (
       studentSelectedCourseIds.length >= 2
@@ -16827,10 +16934,14 @@ else {
       </div>
       ) : (
         <div className="student-course-cards">
-          {studentSelectedCourseIds.map((courseId, index) => {
+          {(studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
+            ? [studentFirstCourseId, ...studentSelectedCourseIds.filter((id) => String(id) !== String(studentFirstCourseId))]
+            : studentSelectedCourseIds).map((courseId, index) => {
             const draft = getStudentCourseDraft(courseId)
             const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
-            const isSequentialPending = studentArrangementType === 'SEQUENTIAL' && String(courseId) !== String(studentFirstCourseId)
+            const isSequentialPending = studentArrangementType === 'SEQUENTIAL'
+              && String(courseId) !== String(studentFirstCourseId)
+              && String(draft.status || 'PENDING').toUpperCase() !== 'ACTIVE'
             const batchOptions = getStudentCourseBatchOptions(draft)
             const selectedBatch = batchOptions.find((batch) => String(batch.batchId) === String(draft.batchId))
             const courseScheduleOptions = [...new Set(branchBatchGroups
@@ -16850,9 +16961,11 @@ else {
               <section className={`student-course-card ${isSequentialPending ? 'is-pending' : ''}`.trim()} key={courseId}>
                 <div className="student-course-card-heading">
                   <div><span>Course {index + 1}</span><h4>{course?.name || draft.courseName || courseId}</h4></div>
-                  <strong>{isSequentialPending ? 'Pending' : 'Active'}</strong>
+                  <strong>{isSequentialPending ? 'Upcoming' : 'Active'}</strong>
                 </div>
-                <div className="student-course-card-grid">
+                {isSequentialPending ? (
+                  <p className="student-course-card-pending-copy">Upcoming course. Select its schedule, mode, batch, and start date after the first course is completed.</p>
+                ) : <div className="student-course-card-grid">
                   <Field label="Class Schedule" required>
                     <select value={draft.classSchedule || ''} onChange={(event) => { updateStudentCourseDraft(courseId, 'classSchedule', event.target.value); updateStudentCourseDraft(courseId, 'batchId', ''); updateStudentCourseDraft(courseId, 'batchName', ''); updateStudentCourseDraft(courseId, 'batchTiming', ''); updateStudentCourseDraft(courseId, 'courseEndDate', '') }} disabled={studentFormMode === 'view'}>
                       <option value="">Select Class Schedule</option>
@@ -16885,7 +16998,7 @@ else {
                   <Field label="Course End Date"><input type="date" value={calculatedCourseEndDate || ''} readOnly placeholder="Auto-calculated from course and batch" /></Field>
                   <Field label="Total Course Amount" required><input type="number" min="0" value={draft.totalCourseAmount ?? draft.courseAmount ?? course?.amount ?? ''} onChange={(event) => updateStudentCourseDraft(courseId, 'totalCourseAmount', event.target.value)} disabled={studentFormMode === 'view'} /></Field>
                   {studentSelectedCourseIds.length < 2 ? <Field label="Payment Plan" required><select value={draft.paymentPlanId || ''} onChange={(event) => { const plan = (course?.paymentPlans || []).find((item) => String(item.id) === event.target.value); updateStudentCourseDraft(courseId, 'paymentPlanId', event.target.value); updateStudentCourseDraft(courseId, 'paymentPlan', plan?.templateName || '') }} disabled={studentFormMode === 'view'}><option value="">Select Payment Plan</option>{(course?.paymentPlans || []).map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName}</option>)}</select></Field> : null}
-                </div>
+                </div>}
               </section>
             )
           })}
