@@ -583,7 +583,7 @@ export function Student360Page({
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [assignmentSaving, setAssignmentSaving] = useState(false)
   const [assignmentError, setAssignmentError] = useState('')
-  const [assignmentForm, setAssignmentForm] = useState({ schedule: '', mode: '', batchId: '', startDate: '', endDate: '' })
+  const [assignmentForm, setAssignmentForm] = useState({ schedule: '', mode: '', batchId: '', startDate: '', endDate: '', totalCourseAmount: '', paymentPlanId: '' })
 
   useEffect(() => {
     let active = true
@@ -647,7 +647,20 @@ export function Student360Page({
     : null
   const priorCoursesCompleted = selectedCourseIndex > 0 && courseEnrollments.slice(0, selectedCourseIndex).every((enrollment) => {
     const isPrimaryEnrollment = String(enrollment.courseId || '') === String(student.courseId || student.course?.id || '')
-    return Boolean(enrollment.courseCompletedAt || (isPrimaryEnrollment && student.courseCompletedAt)) || Number(enrollment.courseProgress ?? (isPrimaryEnrollment ? student.courseProgress : null)) >= 100
+    const savedProgress = enrollment.courseProgress ?? (isPrimaryEnrollment ? student.courseProgress : null)
+    const priorCatalogCourse = branchCourseCards.find((course) => (
+      String(course?.id || course?.courseId || '').trim() === String(enrollment.courseId || '').trim() ||
+      String(course?.name || '').trim().toLowerCase() === String(enrollment.courseName || '').trim().toLowerCase()
+    ))
+    const workProgress = priorCatalogCourse
+      ? buildFacultyTodayWorkProgressSummary(facultyTodayWorkEntries, priorCatalogCourse, {
+        ...student,
+        courseId: enrollment.courseId,
+        courseName: enrollment.courseName,
+      })?.courseProgress
+      : null
+    const progressValues = [savedProgress, workProgress].map(Number).filter(Number.isFinite)
+    return Boolean(enrollment.courseCompletedAt || (isPrimaryEnrollment && student.courseCompletedAt)) || Math.max(0, ...progressValues) >= 100
   })
   const isSelectedCoursePending = String(selectedCourse.status || '').toUpperCase() === 'PENDING'
   const isAwaitingSelectedCourseSchedule = isSelectedCoursePending && priorCoursesCompleted
@@ -676,6 +689,10 @@ export function Student360Page({
   const availableModes = [...new Set(scheduleBatches.map((batch) => batch.mode).filter(Boolean))]
   const matchingAssignmentBatches = scheduleBatches.filter((batch) => !assignmentForm.mode || batch.mode === assignmentForm.mode.toUpperCase())
   const selectedAssignmentBatch = matchingAssignmentBatches.find((batch) => batch.batchId === assignmentForm.batchId)
+  const selectedCoursePaymentPlans = Array.isArray(selectedCourseCatalog?.paymentPlans) ? selectedCourseCatalog.paymentPlans : []
+  const selectedAssignmentPaymentPlan = selectedCoursePaymentPlans.find((plan) => String(plan.id || '').trim() === String(assignmentForm.paymentPlanId || '').trim())
+  const selectedCourseFee = Number(String(assignmentForm.totalCourseAmount || '').replace(/,/g, '')) || 0
+  const selectedPaymentInstallmentCount = Math.max(1, Number(selectedAssignmentPaymentPlan?.installmentCount || selectedAssignmentPaymentPlan?.installments?.length || 1))
   const assignmentEndDate = selectedAssignmentBatch
     ? (assignmentForm.endDate || resolveCourseEndDate?.(assignmentForm.startDate, selectedAssignmentBatch, selectedCourseCatalog) || selectedAssignmentBatch.courseEndDate || '')
     : ''
@@ -705,15 +722,40 @@ export function Student360Page({
   })
   const openScheduleBatchModal = () => {
     setAssignmentError('')
-    setAssignmentForm({ schedule: '', mode: '', batchId: '', startDate: String(selectedCourse.courseStartDate || '').slice(0, 10), endDate: String(selectedCourse.courseEndDate || '').slice(0, 10) })
+    const defaultFee = selectedCourse.totalCourseAmount ?? selectedCourse.courseAmount ?? selectedCourseCatalog?.afterDiscount ?? selectedCourseCatalog?.amount ?? selectedCourseCatalog?.actualFees ?? ''
+    const defaultPlan = selectedCourse.paymentPlanId || selectedCourseCatalog?.paymentPlans?.[0]?.id || ''
+    setAssignmentForm({ schedule: '', mode: '', batchId: '', startDate: String(selectedCourse.courseStartDate || '').slice(0, 10), endDate: String(selectedCourse.courseEndDate || '').slice(0, 10), totalCourseAmount: String(defaultFee || ''), paymentPlanId: String(defaultPlan || '') })
     setAssignmentModalOpen(true)
   }
   const saveScheduleBatchAssignment = async (event) => {
     event.preventDefault()
-    if (!selectedAssignmentBatch || !assignmentForm.startDate || !assignmentEndDate) {
-      setAssignmentError('Select a schedule, mode, available batch and start date first.')
+    if (!selectedAssignmentBatch || !assignmentForm.startDate || !assignmentEndDate || !(selectedCourseFee > 0) || !selectedAssignmentPaymentPlan) {
+      setAssignmentError('Select a schedule, mode, available batch, course fee, payment plan and course dates.')
       return
     }
+    const existingInstallments = schedule.map((item, index) => ({
+      installmentNumber: index + 1,
+      amount: Number(item.amount ?? item.installmentAmount ?? 0),
+      dueDate: String(item.dueDate || item.date || '').slice(0, 10),
+      status: item.status || 'Pending',
+      paymentMethod: item.paymentMethod || null,
+      remarks: item.remarks || null,
+      paidAt: item.paidAt || null,
+    }))
+    const feeParts = Array.from({ length: selectedPaymentInstallmentCount }, (_, index) => {
+      const baseAmount = Math.floor(selectedCourseFee / selectedPaymentInstallmentCount)
+      const amount = index === selectedPaymentInstallmentCount - 1
+        ? selectedCourseFee - baseAmount * (selectedPaymentInstallmentCount - 1)
+        : baseAmount
+      const dueDate = new Date(`${assignmentForm.startDate}T00:00:00`)
+      dueDate.setMonth(dueDate.getMonth() + index)
+      return {
+        installmentNumber: existingInstallments.length + index + 1,
+        amount,
+        dueDate: `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`,
+        status: 'Pending',
+      }
+    })
     const enrollment = {
       ...selectedCourse,
       courseId: selectedCourse.courseId,
@@ -733,6 +775,10 @@ export function Student360Page({
       courseStartDate: assignmentForm.startDate,
       endDate: assignmentEndDate,
       courseEndDate: assignmentEndDate,
+      totalCourseAmount: selectedCourseFee,
+      courseAmount: selectedCourseFee,
+      paymentPlanId: selectedAssignmentPaymentPlan.id,
+      paymentPlan: selectedAssignmentPaymentPlan.templateName || selectedAssignmentPaymentPlan.name || '',
       weeklyOffDay: selectedAssignmentBatch.weeklyOffDay || '',
       status: 'ACTIVE',
     }
@@ -748,6 +794,7 @@ export function Student360Page({
         firstCourseId: student.firstCourseId || courseEnrollments[0]?.courseId || '',
         courseEnrollments: nextEnrollments,
         courses: nextEnrollments,
+        installmentSchedule: [...existingInstallments, ...feeParts],
       })
       setStudentRecord({ studentId: resolvedStudentId, data: savedStudent })
       setAssignmentModalOpen(false)
@@ -935,12 +982,14 @@ export function Student360Page({
                 <label>Select Batch<select required value={assignmentForm.batchId} onChange={(event) => { const batch = selectableAssignmentBatches.find((item) => item.batchId === event.target.value); const startDate = String(batch?.courseStartDate || assignmentForm.startDate || '').slice(0, 10); setAssignmentForm((form) => ({ ...form, batchId: event.target.value, startDate, endDate: String(batch?.courseEndDate || resolveCourseEndDate?.(startDate, batch, selectedCourseCatalog) || form.endDate || '').slice(0, 10) })) }} disabled={!assignmentForm.mode || !selectableAssignmentBatches.length}><option value="">{assignmentForm.mode ? 'Select available batch' : 'Select schedule and mode first'}</option>{selectableAssignmentBatches.map((batch) => <option key={batch.batchId} value={batch.batchId}>{batch.batchName} · {batch.batchTiming || 'Timing unavailable'}</option>)}</select></label>
                 <label>Batch Timing<input value={selectedAssignmentBatch?.batchTiming || ''} readOnly placeholder="Auto-filled from selected batch" /></label>
                 <label>Faculty<input value={selectedAssignmentBatch?.facultyName || ''} readOnly placeholder="Auto-filled from selected batch" /></label>
+                <label>Total Fee<input type="number" min="1" required value={assignmentForm.totalCourseAmount} onChange={(event) => setAssignmentForm((form) => ({ ...form, totalCourseAmount: event.target.value }))} /></label>
+                <label>Payment Plan<select required value={assignmentForm.paymentPlanId} onChange={(event) => setAssignmentForm((form) => ({ ...form, paymentPlanId: event.target.value }))}><option value="">Select payment plan</option>{selectedCoursePaymentPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName || plan.name || 'Payment plan'}</option>)}</select></label>
                 <label>Start Date<input type="date" required value={assignmentForm.startDate} onChange={(event) => { const startDate = event.target.value; setAssignmentForm((form) => ({ ...form, startDate, endDate: String(resolveCourseEndDate?.(startDate, selectedAssignmentBatch, selectedCourseCatalog) || selectedAssignmentBatch?.courseEndDate || form.endDate || '').slice(0, 10) })) }} /></label>
                 <label>End Date<input type="date" required value={String(assignmentEndDate || '').slice(0, 10)} onChange={(event) => setAssignmentForm((form) => ({ ...form, endDate: event.target.value }))} /></label>
               </div>
               {assignmentError ? <p className="student360-assignment-error" role="alert">{assignmentError}</p> : null}
               {!selectedCourseRealBatches.length ? <p className="student360-assignment-hint">No active course batches with timing and faculty assignment are available.</p> : null}
-              <div className="student360-assignment-actions"><button type="button" className="student360-secondary-button" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>Cancel</button><button type="submit" className="student360-primary-button" disabled={assignmentSaving || !selectedAssignmentBatch}>{assignmentSaving ? 'Saving…' : 'Save Assignment'}</button></div>
+              <div className="student360-assignment-actions"><button type="button" className="student360-secondary-button" onClick={() => setAssignmentModalOpen(false)} disabled={assignmentSaving}>Cancel</button><button type="submit" className="student360-primary-button" disabled={assignmentSaving || !selectedAssignmentBatch || !selectedCoursePaymentPlans.length}>{assignmentSaving ? 'Saving…' : 'Save Assignment'}</button></div>
             </form>
           </section>
         </div>

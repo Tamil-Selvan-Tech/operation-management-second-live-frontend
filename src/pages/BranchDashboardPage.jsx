@@ -7104,7 +7104,10 @@ const studentCourseOptions = useMemo(() => {
   const selectedStudentSchedulePaymentPlan = useMemo(() => {
     if (studentSelectedCourseIds.length < 2) return selectedStudentPaymentPlan
 
-    const combinedPlans = studentSelectedCourseIds
+    const paymentCourseIds = studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
+      ? [studentFirstCourseId]
+      : studentSelectedCourseIds
+    const combinedPlans = paymentCourseIds
       .flatMap((courseId) => {
         const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
         return Array.isArray(course?.paymentPlans) ? course.paymentPlans : []
@@ -7114,18 +7117,21 @@ const studentCourseOptions = useMemo(() => {
     return combinedPlans.find(
       (plan) => String(plan.id) === String(studentCombinedPaymentPlanId),
     ) || null
-  }, [selectedStudentPaymentPlan, studentCombinedPaymentPlanId, studentCourseOptions, studentSelectedCourseIds])
+  }, [selectedStudentPaymentPlan, studentArrangementType, studentCombinedPaymentPlanId, studentCourseOptions, studentFirstCourseId, studentSelectedCourseIds])
 
   const studentScheduleAmount = useMemo(() => {
     if (studentSelectedCourseIds.length < 2) return selectedStudentFinalAmount
 
-    return String(studentSelectedCourseIds.reduce((sum, courseId) => {
+    const amountCourseIds = studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
+      ? [studentFirstCourseId]
+      : studentSelectedCourseIds
+    return String(amountCourseIds.reduce((sum, courseId) => {
       const draft = String(studentForm.courseId || '') === String(courseId)
         ? studentForm
         : (studentCourseDrafts[courseId] || {})
       return sum + getStudentDiscountSummary(draft, 0).finalCourseAmount
     }, 0))
-  }, [selectedStudentFinalAmount, studentCourseDrafts, studentForm, studentSelectedCourseIds])
+  }, [selectedStudentFinalAmount, studentArrangementType, studentCourseDrafts, studentFirstCourseId, studentForm, studentSelectedCourseIds])
 
   const studentInstallmentCount = useMemo(() => {
     if (!selectedStudentSchedulePaymentPlan) return 0
@@ -9085,14 +9091,14 @@ useEffect(() => {
       return {
         ...enrollment,
         courseName: enrollment.courseName || course?.name || '',
-        courseAmount: enrollment.courseAmount || course?.amount || '',
-        totalCourseAmount: enrollment.totalCourseAmount || enrollment.courseAmount || course?.amount || '',
+        courseAmount: isUpcomingSequentialCourse ? '' : (enrollment.courseAmount || course?.amount || ''),
+        totalCourseAmount: isUpcomingSequentialCourse ? '' : (enrollment.totalCourseAmount || enrollment.courseAmount || course?.amount || ''),
         discountType: draft.discountType || 'FIXED',
         discountValue: draft.discountValue || '0',
-        discountAmount: String(discountSummary.discountAmount),
-        finalCourseAmount: String(discountSummary.finalCourseAmount),
-        totalAmount: String(discountSummary.finalCourseAmount),
-        afterDiscount: String(discountSummary.finalCourseAmount),
+        discountAmount: isUpcomingSequentialCourse ? '' : String(discountSummary.discountAmount),
+        finalCourseAmount: isUpcomingSequentialCourse ? '' : String(discountSummary.finalCourseAmount),
+        totalAmount: isUpcomingSequentialCourse ? '' : String(discountSummary.finalCourseAmount),
+        afterDiscount: isUpcomingSequentialCourse ? '' : String(discountSummary.finalCourseAmount),
         sequenceOrder: Math.max(1, enrollmentOrder.indexOf(String(courseId)) + 1),
               status: isUpcomingSequentialCourse ? 'PENDING' : (enrollment.status || 'ACTIVE'),
         ...(isUpcomingSequentialCourse ? {
@@ -9110,7 +9116,11 @@ useEffect(() => {
       }
     }).filter((enrollment) => String(enrollment.courseId || '').trim()).map((enrollment) => (
       studentSelectedCourseIds.length >= 2
-        ? { ...enrollment, paymentPlanId: studentCombinedPaymentPlanId, paymentPlan: studentCombinedPaymentPlan }
+        ? (studentArrangementType === 'SEQUENTIAL' && String(enrollment.courseId) !== String(studentFirstCourseId)
+          ? (String(enrollment.status || '').toUpperCase() === 'PENDING'
+            ? { ...enrollment, paymentPlanId: '', paymentPlan: '' }
+            : enrollment)
+          : { ...enrollment, paymentPlanId: studentCombinedPaymentPlanId, paymentPlan: studentCombinedPaymentPlan })
         : enrollment
     ))
 
@@ -9821,11 +9831,17 @@ useEffect(() => {
       mode: batch?.mode || '',
       isFull: getBatchSeatSummary({ batchId: batch?.batchId || batch?.id, batchName: batch?.batchName, batchTiming: formatStudentBatchTiming(batch), courseId: draft.courseId, totalSeats: batch?.totalSeats || 0 }, branchStudents, currentStudentSeatKeys).isFull,
     })).filter((batch) => batch.batchId && (!draft.classSchedule || String(batch.weekType).toUpperCase() === String(draft.classSchedule).toUpperCase()) && (!draft.courseMode || String(batch.mode).toUpperCase() === String(draft.courseMode).toUpperCase())))
-  const multiCourseAmountTotal = studentSelectedCourseIds.reduce((sum, courseId) => {
+  const amountCourseIds = studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
+    ? [studentFirstCourseId]
+    : studentSelectedCourseIds
+  const multiCourseAmountTotal = amountCourseIds.reduce((sum, courseId) => {
     const draft = getStudentCourseDraft(courseId)
     return sum + getStudentDiscountSummary(draft, 0).finalCourseAmount
   }, 0)
-  const multiCoursePaymentPlans = [...new Map(studentSelectedCourseIds
+  const paymentCourseIds = studentArrangementType === 'SEQUENTIAL' && studentFirstCourseId
+    ? [studentFirstCourseId]
+    : studentSelectedCourseIds
+  const multiCoursePaymentPlans = [...new Map(paymentCourseIds
     .flatMap((courseId) => {
       const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
       return Array.isArray(course?.paymentPlans) ? course.paymentPlans : []
@@ -10648,6 +10664,8 @@ else {
           }
 
           if (normalizedCourseEntries.length > 1) {
+            const isSequentialArrangement = String(stu.arrangementType || '').trim().toUpperCase() === 'SEQUENTIAL'
+            const firstCourseId = String(stu.firstCourseId || normalizedCourseEntries[0]?.courseId || '').trim()
             const courseAmounts = normalizedCourseEntries.map((entry) => {
               const courseId = String(entry.courseId || entry.id || entry.course?.id || '').trim()
               const catalogCourse = branchCourseCards.find((course) => (
@@ -10655,13 +10673,19 @@ else {
                 String(course.courseCode || '').trim().toLowerCase() === String(entry.courseCode || '').trim().toLowerCase() ||
                 String(course.name || '').trim().toLowerCase() === String(entry.courseName || entry.name || '').trim().toLowerCase()
               ))
+              const isPendingSequentialCourse = isSequentialArrangement
+                && courseId !== firstCourseId
+                && String(entry.status || '').trim().toUpperCase() === 'PENDING'
               return {
                 entry,
                 courseId,
                 catalogCourse,
                 courseName: entry.courseName || entry.name || entry.course?.name || catalogCourse?.name || 'Course',
                 courseCode: entry.courseCode || entry.course?.courseCode || catalogCourse?.courseCode || '',
-                amount: Number(String(entry.totalCourseAmount || entry.courseAmount || entry.totalAmount || entry.afterDiscount || catalogCourse?.amount || 0).replace(/,/g, '')) || 0,
+                isPendingSequentialCourse,
+                amount: isPendingSequentialCourse
+                  ? 0
+                  : Number(String(entry.finalCourseAmount ?? entry.totalCourseAmount ?? entry.courseAmount ?? entry.totalAmount ?? entry.afterDiscount ?? catalogCourse?.amount ?? 0).replace(/,/g, '')) || 0,
               }
             })
             const distributeAmount = (amount, weights) => {
@@ -10677,7 +10701,6 @@ else {
             }
             const paidByCourse = courseAmounts.map(() => 0)
             const installmentRowsByCourse = courseAmounts.map(() => [])
-            const isSequentialArrangement = String(stu.arrangementType || '').trim().toUpperCase() === 'SEQUENTIAL'
             const scheduledByCourse = courseAmounts.map(() => 0)
 
             const allocateSequentially = (amount, capacities) => {
@@ -10758,7 +10781,9 @@ else {
               const nextCourseDueDate = nextCourseInstallment?.dueDate || nextCourseInstallment?.date || ''
               const coursePaidAmount = Math.min(item.amount, paidByCourse[index])
               const paidPercentage = item.amount > 0 ? Math.min(100, (coursePaidAmount / item.amount) * 100) : 0
-              const courseStatus = coursePaidAmount >= item.amount && item.amount > 0
+              const courseStatus = item.isPendingSequentialCourse
+                ? 'Upcoming'
+                : coursePaidAmount >= item.amount && item.amount > 0
                 ? 'Completed'
                 : nextCourseDueDate && new Date(`${String(nextCourseDueDate).slice(0, 10)}T00:00:00`) < today
                   ? 'Overdue'
@@ -10803,7 +10828,9 @@ else {
 
             return (
               <Fragment key={stu.studentId || stu.id}>
-                {courseRows.map((courseRow, index) => (
+                {courseRows.map((courseRow, index) => {
+                  const courseActionMenuId = `${stu.studentId || stu.id}::${courseRow.courseId || index}`
+                  return (
                   <tr
                     key={`${stu.studentId}-${courseRow.courseId || courseRow.courseName}`}
                     className="branch-student-row branch-student-course-row"
@@ -10829,23 +10856,40 @@ else {
                       <strong className="branch-student-course">{courseRow.courseName}</strong>
                       {courseRow.courseCode ? <small>{courseRow.courseCode}</small> : null}
                     </td>
-                    <td><strong>{formatFee(courseRow.amount)}</strong></td>
-                    <td><strong className="branch-student-paid-amount">{formatFee(courseRow.coursePaidAmount)}</strong></td>
+                    <td><strong>{courseRow.isPendingSequentialCourse ? '-' : formatFee(courseRow.amount)}</strong></td>
+                    <td><strong className="branch-student-paid-amount">{courseRow.isPendingSequentialCourse ? '-' : formatFee(courseRow.coursePaidAmount)}</strong></td>
                     <td>
-                      <div className="branch-student-paid-cell">
-                        <span className="branch-student-paid-progress-label">{formatBranchPercentage(courseRow.paidPercentage)}% Paid</span>
-                        <div className="branch-student-paid-progress"><div className="branch-student-paid-progress-bar"><span className="branch-student-paid-progress-fill" style={{ width: `${courseRow.paidPercentage}%` }} /></div></div>
-                      </div>
+                      {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : (
+                        <div className="branch-student-paid-cell">
+                          <span className="branch-student-paid-progress-label">{formatBranchPercentage(courseRow.paidPercentage)}% Paid</span>
+                          <div className="branch-student-paid-progress"><div className="branch-student-paid-progress-bar"><span className="branch-student-paid-progress-fill" style={{ width: `${courseRow.paidPercentage}%` }} /></div></div>
+                        </div>
+                      )}
                     </td>
                     <td>
-                      {Number.isFinite(courseRow.progressValue) ? (
+                      {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : Number.isFinite(courseRow.progressValue) ? (
                         <div className="branch-student-paid-cell">
                           <span className="branch-student-paid-progress-label">{formatBranchPercentage(courseRow.progressValue)}% Complete</span>
                           <div className="branch-student-paid-progress"><div className="branch-student-course-progress-bar"><span className="branch-student-course-progress-fill" style={{ width: `${courseRow.progressValue}%` }} /></div></div>
                         </div>
                       ) : <span className="faculty-today-work-empty-label">-</span>}
                     </td>
-                    {index === 0 ? (
+                    {isSequentialArrangement ? (
+                      <>
+                        <td>
+                          {courseRow.nextCourseInstallment ? (
+                            <div className="branch-next-installment">
+                              <strong>{formatFee(Math.max(Number(courseRow.nextCourseInstallment.amount || 0) - Number(courseRow.nextCourseInstallment.paidAmount || 0), 0))}</strong>
+                              <span>{`Installment ${courseRow.nextCourseInstallment.installmentNumber || courseRow.nextCourseInstallment.number || ''}`.trim()}</span>
+                            </div>
+                          ) : <span className="branch-no-installment">-</span>}
+                        </td>
+                        <td><span className="branch-student-due-date">{formatDueDate(courseRow.nextCourseDueDate)}</span></td>
+                        <td>{courseRow.isPendingSequentialCourse
+                          ? <span className="faculty-today-work-empty-label">-</span>
+                          : <span className={`branch-student-payment-status ${courseRow.courseStatus.toLowerCase()}`}>{courseRow.courseStatus}</span>}</td>
+                      </>
+                    ) : index === 0 ? (
                       <>
                         <td rowSpan={courseRows.length}>
                           {coursesWithNextInstallment.length ? (
@@ -10860,22 +10904,24 @@ else {
                         <td rowSpan={courseRows.length}><span className={`branch-student-payment-status ${combinedPaymentStatus.toLowerCase()}`}>{combinedPaymentStatus}</span></td>
                       </>
                     ) : null}
-                    {index === 0 ? (
-                      <td rowSpan={courseRows.length} style={{ textAlign: 'center' }}>
-                        <div className={`branch-student-actions-cell ${studentActionMenuId === stu.studentId ? 'menu-open' : ''}`}>
+                    {isSequentialArrangement && courseRow.isPendingSequentialCourse ? (
+                      <td style={{ textAlign: 'center' }}><span className="faculty-today-work-empty-label">-</span></td>
+                    ) : isSequentialArrangement || index === 0 ? (
+                      <td {...(!isSequentialArrangement ? { rowSpan: courseRows.length } : {})} style={{ textAlign: 'center' }}>
+                        <div className={`branch-student-actions-cell ${studentActionMenuId === courseActionMenuId ? 'menu-open' : ''}`}>
                           <button
                             type="button"
                             className="branch-student-more-btn"
-                            aria-label="Student actions"
+                            aria-label={`Actions for ${courseRow.courseName}`}
                             aria-haspopup="menu"
-                            aria-expanded={studentActionMenuId === stu.studentId}
+                            aria-expanded={studentActionMenuId === courseActionMenuId}
                             onClick={(event) => {
                               event.stopPropagation()
-                              if (studentActionMenuId === stu.studentId) {
+                              if (studentActionMenuId === courseActionMenuId) {
                                 setStudentActionMenuId('')
                                 setStudentActionMenuPosition({ top: 0, left: 0 })
                               } else {
-                                setStudentActionMenuId(stu.studentId)
+                                setStudentActionMenuId(courseActionMenuId)
                                 openStudentActionMenu(event.currentTarget)
                               }
                             }}
@@ -10883,13 +10929,13 @@ else {
                             <span className="branch-student-more-dots" aria-hidden="true"><span /><span /><span /></span>
                           </button>
                         </div>
-                        {studentActionMenuId === stu.studentId && studentActionMenuPosition && typeof document !== 'undefined'
+                        {studentActionMenuId === courseActionMenuId && studentActionMenuPosition && typeof document !== 'undefined'
                           ? createPortal(
                             <div
                               ref={studentActionMenuRef}
                               className="branch-student-actions-menu"
                               role="menu"
-                              aria-label="Student actions"
+                              aria-label={`Actions for ${courseRow.courseName}`}
                               style={{ position: 'fixed', top: `${studentActionMenuPosition.top}px`, left: `${studentActionMenuPosition.left}px`, zIndex: 999999, display: 'block' }}
                               onClick={(event) => event.stopPropagation()}
                             >
@@ -10905,7 +10951,8 @@ else {
                       </td>
                     ) : null}
                   </tr>
-                ))}
+                  )
+                })}
               </Fragment>
             )
           }
@@ -17152,8 +17199,8 @@ else {
           {studentSelectedCourseIds.length >= 2 ? (
             <section className="student-course-total-summary">
               <div className="student-course-total-summary-breakdown">
-                <span>Course-wise Amount</span>
-                {studentSelectedCourseIds.map((courseId) => {
+                <span>{studentArrangementType === 'SEQUENTIAL' ? 'Current Course Amount' : 'Course-wise Amount'}</span>
+                {amountCourseIds.map((courseId) => {
                   const course = studentCourseOptions.find((item) => String(item.id) === String(courseId))
                   const draft = getStudentCourseDraft(courseId)
                    const summary = getStudentDiscountSummary(draft, course?.amount || 0)
@@ -17162,7 +17209,7 @@ else {
                  <div className="student-course-total-summary-grand"><strong>Final Course Amount</strong><strong>{formatBranchRupees(multiCourseAmountTotal)}</strong></div>
               </div>
               <label className="student-combined-payment-plan-field">
-                <span>Payment Plan for all courses *</span>
+                <span>{studentArrangementType === 'SEQUENTIAL' ? 'Payment Plan for First Course *' : 'Payment Plan for all courses *'}</span>
                 <select value={studentCombinedPaymentPlanId} onChange={(event) => { const plan = multiCoursePaymentPlans.find((item) => String(item.id) === event.target.value); setStudentCombinedPaymentPlanId(event.target.value); setStudentCombinedPaymentPlan(plan?.templateName || '') }} disabled={studentFormMode === 'view'}>
                   <option value="">Select Payment Plan</option>
                   {multiCoursePaymentPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.templateName}</option>)}
@@ -17190,7 +17237,7 @@ else {
       </div>
 
       <div className="student-payment-installment-total">
-          <span>{studentSelectedCourseIds.length >= 2 ? 'Total Course Amount' : 'Final Course Amount'}</span>
+          <span>{studentArrangementType === 'SEQUENTIAL' && studentSelectedCourseIds.length >= 2 ? 'First Course Amount' : studentSelectedCourseIds.length >= 2 ? 'Total Course Amount' : 'Final Course Amount'}</span>
         <strong>
           ₹{Number(
             String(studentScheduleAmount || '').replace(/,/g, '')
