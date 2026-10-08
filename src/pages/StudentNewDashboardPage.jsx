@@ -285,6 +285,31 @@ function getDashboardCourseEnrollments(student = {}) {
   })
 }
 
+function getCourseProgressForDisplay(course = {}, courseDetails = null, fallbackProgress = null) {
+  const savedValues = [
+    course.courseProgress,
+    course.courseCompletionPercentage,
+    course.progress,
+    courseDetails?.progress?.overall,
+    fallbackProgress,
+  ].map((value) => value === null || value === undefined || String(value).trim() === '' ? Number.NaN : Number(value)).filter(Number.isFinite)
+  const savedProgress = savedValues.length ? Math.max(...savedValues) : null
+  const completedCount = Number(courseDetails?.progress?.completedCount)
+  const totalCount = Number(courseDetails?.progress?.totalCount)
+  const moduleProgress = Number.isFinite(completedCount) && Number.isFinite(totalCount) && totalCount > 0
+    ? (completedCount / totalCount) * 100
+    : null
+
+  // Sequential enrollments can retain a stale 0 while Today’s Work already
+  // records completed modules. Keep the course summary consistent with that
+  // module-level progress until the enrollment value is synchronized.
+  if (moduleProgress !== null) {
+    return Math.min(100, Math.max(0, savedProgress ?? 0, moduleProgress))
+  }
+
+  return savedProgress === null ? null : Math.min(100, Math.max(0, savedProgress))
+}
+
 function asAmount(value) {
   const amount = Number(value)
   return Number.isFinite(amount) ? amount : 0
@@ -951,6 +976,10 @@ export function StudentNewDashboardPage() {
  }, { totalSessions: 0, present: 0, absent: 0, late: 0, leave: 0, notMarked: 0, percentage: 0 })
  todaySummary.percentage = todaySummary.totalSessions ? Math.round(((todaySummary.present + todaySummary.late) / todaySummary.totalSessions) * 100) : 0
  const facultyName = firstValue(student?.facultyName, student?.faculty?.facultyName, student?.faculty?.name, student?.batch?.faculty)
+ const selectedCourseForDetails = dashboardCourses.find((course) => (
+   String(course.courseId || '') === String(courseDetails?.course?.id || selectedCourseDetailsId || '')
+ )) || {}
+ const selectedCourseProgress = getCourseProgressForDisplay(selectedCourseForDetails, courseDetails)
 
   const handleMenuClick = (section) => {
     setActiveSection(section)
@@ -1325,8 +1354,7 @@ const handleLogoutConfirm = async () => {
                   {activeDashboardCourses.map((course, index) => {
                     const isPrimaryCourse = String(course.courseId || '') === String(student?.courseId || student?.course?.id || '')
                     const courseDetailsForCard = courseDetailsById[String(course.courseId || '')]
-                    const savedCourseProgress = courseDetailsForCard?.progress?.overall
-                    const progress = course.courseProgress ?? savedCourseProgress ?? (isPrimaryCourse ? learningProgress.overall : null)
+                    const progress = getCourseProgressForDisplay(course, courseDetailsForCard, isPrimaryCourse ? learningProgress.overall : null)
                     const isCompleted = isCourseCompleted(course, courseDetailsForCard, student)
                     const progressNumber = Number(progress)
                     const completedModules = courseDetailsForCard?.progress?.completedCount ?? (isPrimaryCourse ? learningProgress.completedModules : null)
@@ -1334,7 +1362,7 @@ const handleLogoutConfirm = async () => {
                     return <Fragment key={`${course.courseId || course.courseName}-${index}`}>
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon"><BookOpen size={21} /></span><div><small>MY COURSE{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</small><strong>{formatValue(course.courseName)}</strong>{isCompleted ? <span className="student-course-completed-badge">Completed</span> : null}<span>{formatValue(course.batchName)}{course.batchTiming ? ` · ${course.batchTiming}` : ''}</span></div></article>
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><GraduationCap size={21} /></span><div><small>ASSIGNED FACULTY{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{formatValue(course.facultyName || (isPrimaryCourse ? facultyName : 'Not assigned'))}</strong><span>{formatValue(course.courseName)}</span></div></article>
-                      <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><BarChart3 size={21} /></span><div><small>COURSE PROGRESS{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{Number.isFinite(progressNumber) && progress !== '' && progress !== null ? `${progressNumber}%` : 'Not available'}</strong><span>{Number.isFinite(Number(totalModules)) && Number.isFinite(Number(completedModules)) ? `${completedModules} / ${totalModules} Modules` : 'Module completion data'}</span></div></article>
+                      <article className="student-dashboard-summary-card"><span className="student-dashboard-icon blue"><BarChart3 size={21} /></span><div><small>COURSE PROGRESS{dashboardCourses.length > 1 ? ` · COURSE ${index + 1}` : ''}</small><strong>{Number.isFinite(progressNumber) && progress !== '' && progress !== null ? `${Math.round(progressNumber)}%` : 'Not available'}</strong><span>{Number.isFinite(Number(totalModules)) && Number.isFinite(Number(completedModules)) ? `${completedModules} / ${totalModules} Modules` : 'Module completion data'}</span></div></article>
                       <article className="student-dashboard-summary-card"><span className="student-dashboard-icon green"><CalendarCheck size={21} /></span><div><small>ATTENDANCE{dashboardCourses.length > 1 ? <><br /><span className="student-dashboard-summary-course-label">{course.courseName || `COURSE ${index + 1}`}</span></> : null}</small><strong>{attendanceLoading ? 'Loading...' : attendanceOverviews[String(course.courseId || '')]?.overall?.percentage === undefined ? 'Not available' : `${attendanceOverviews[String(course.courseId || '')].overall.percentage}%`}</strong><span>{attendanceOverviews[String(course.courseId || '')]?.overall ? `${attendanceOverviews[String(course.courseId || '')].overall.present} Present / ${attendanceOverviews[String(course.courseId || '')].overall.absent} Absent` : 'Attendance records not available'}</span></div></article>
                     </Fragment>
                   })}
@@ -1458,8 +1486,7 @@ const handleLogoutConfirm = async () => {
                       {dashboardCourses.map((course, index) => {
                         const courseId = String(course.courseId || '')
                         const courseDetails = courseDetailsById[courseId]
-                        const savedProgress = courseDetails?.progress?.overall
-                        const progressValue = course.courseProgress ?? savedProgress ?? (courseId === String(student?.courseId || student?.course?.id || '') ? learningProgress.overall : null)
+                        const progressValue = getCourseProgressForDisplay(course, courseDetails, courseId === String(student?.courseId || student?.course?.id || '') ? learningProgress.overall : null)
                         const progressNumber = Number(progressValue)
                         const attendanceTotals = attendanceOverviews[courseId]?.overall
                         const attendanceValue = attendanceTotals?.percentage
@@ -1468,7 +1495,7 @@ const handleLogoutConfirm = async () => {
                           <div><span>Course{dashboardCourses.length > 1 ? ` ${index + 1}` : ''}</span><strong>{course.courseName || '-'}{String(course.status || '').toUpperCase() === 'PENDING' ? <> <em className="student-course-upcoming-badge">Upcoming</em></> : isCourseCompleted(course, courseDetails, student) ? <> <em className="student-course-completed-badge">Completed</em></> : null}</strong></div>
                           <div><span>Faculty · Batch</span><strong>{String(course.status || '').toUpperCase() === 'PENDING' ? 'To be scheduled' : [course.facultyName, course.batchName].filter(Boolean).join(' · ') || '-'}</strong></div>
                           <div className="student-new-profile-progress-item">
-                            <div><span>Course Progress</span><strong>{Number.isFinite(progressNumber) && progressValue !== '' && progressValue !== null && progressValue !== undefined ? `${progressNumber}%` : '-'}</strong></div>
+                            <div><span>Course Progress</span><strong>{Number.isFinite(progressNumber) && progressValue !== '' && progressValue !== null && progressValue !== undefined ? `${Math.round(progressNumber)}%` : '-'}</strong></div>
                             <div className="student-new-profile-progress"><i style={{ width: `${Number.isFinite(progressNumber) ? Math.max(0, Math.min(progressNumber, 100)) : 0}%` }} /></div>
                           </div>
                           <div className="student-new-profile-progress-item">
@@ -1495,7 +1522,7 @@ const handleLogoutConfirm = async () => {
                     <div><span className="student-course-summary-label"><GraduationCap size={15} />Faculty</span><strong>{formatValue(courseDetails.faculty?.name)}</strong></div>
                     <div><span className="student-course-summary-label"><Users size={15} />Batch</span><strong>{formatValue(courseDetails.batch?.name)}</strong></div>
                     <div><span className="student-course-summary-label"><Clock3 size={15} />Batch Timing</span><strong>{formatValue(courseDetails.batch?.timing)}</strong></div>
-                    <div><span className="student-course-summary-label"><BarChart3 size={15} />Course Progress</span><strong>{courseDetails.progress?.overall === null || courseDetails.progress?.overall === undefined ? 'Not available' : `${courseDetails.progress.overall}%`}</strong><div className="student-course-progress"><i style={{ width: `${Math.max(0, Math.min(100, Number(courseDetails.progress?.overall) || 0))}%` }} /></div><small>Overall module progress</small></div>
+                    <div><span className="student-course-summary-label"><BarChart3 size={15} />Course Progress</span><strong>{selectedCourseProgress === null ? 'Not available' : `${Math.round(selectedCourseProgress)}%`}</strong><div className="student-course-progress"><i style={{ width: `${Math.max(0, Math.min(100, Number(selectedCourseProgress) || 0))}%` }} /></div><small>Overall module progress</small></div>
                   </div>
                   <section className="student-course-content"><div className="student-course-section-heading"><div><p className="student-new-dashboard-kicker">COURSE CONTENT</p><h2>Modules</h2></div></div>{courseDetails.modules?.length ? <div className="student-course-module-list">{courseDetails.modules.map((module, index) => <article className="student-course-module" key={module.id}><div className="student-course-module-toggle"><span className="student-course-module-number">{String(module.sequenceNo || index + 1).padStart(2, '0')}</span><span className="student-course-module-title"><small>MODULE {String(module.sequenceNo || index + 1).padStart(2, '0')}</small><strong>{formatValue(module.name)}</strong></span><span className="student-course-module-meta"><b>{module.progress === null || module.progress === undefined ? 'Not available' : `${module.progress}%`}</b></span></div></article>)}</div> : <div className="student-dashboard-empty"><p>No modules available for this course</p></div>}</section>
                 </>}

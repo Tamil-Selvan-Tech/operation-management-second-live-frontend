@@ -10860,15 +10860,26 @@ else {
                 })
                 : null
               const computedProgress = Number(progressSummary?.courseProgress)
+              const courseWorkEntries = facultyTodayWorkEntries
+                .filter((workEntry) => normalizeWorkStudentId(workEntry.courseId) === normalizeWorkStudentId(item.courseId)
+                  && isFacultyWorkEntryForStudent(workEntry, {
+                    ...stu,
+                    courseId: item.courseId,
+                    courseName: item.courseName,
+                  }))
+                .sort((left, right) => new Date(right?.createdAt || 0).getTime() - new Date(left?.createdAt || 0).getTime())
+              const latestWorkEntryProgress = Number(courseWorkEntries[0]?.courseProgress)
               // Sequential course enrollment records may contain a default
               // courseProgress: 0 even after faculty has logged work for that
               // course. Prefer the course-specific work summary in that case
-              // so a stale zero does not hide the faculty's progress.
-              const progressValue = Number.isFinite(computedProgress)
-                ? Math.min(100, Math.max(0, Math.max(Number.isFinite(savedProgress) ? savedProgress : 0, computedProgress)))
-                : Number.isFinite(savedProgress)
-                  ? Math.min(100, Math.max(0, savedProgress))
-                  : 0
+              // so a stale zero does not hide the faculty's progress. The
+              // latest matching faculty entry is also a fallback when this
+              // branch's course snapshot has no module structure to summarize.
+              const availableProgressValues = [savedProgress, computedProgress, latestWorkEntryProgress]
+                .filter(Number.isFinite)
+              const progressValue = availableProgressValues.length
+                ? Math.min(100, Math.max(0, ...availableProgressValues))
+                : 0
               const courseInstallments = installmentRowsByCourse[index]
               const nextCourseInstallment = courseInstallments.find((installment) => Number(installment.paidAmount || 0) < Number(installment.amount || 0))
               const nextCourseDueDate = nextCourseInstallment?.dueDate || nextCourseInstallment?.date || ''
@@ -10972,7 +10983,7 @@ else {
                     <td>
                       {courseRow.isPendingSequentialCourse ? <span className="faculty-today-work-empty-label">-</span> : Number.isFinite(courseRow.progressValue) ? (
                         <div className="branch-student-paid-cell">
-                          <span className="branch-student-paid-progress-label">{formatBranchPercentage(courseRow.progressValue)}% Complete</span>
+                          <span className="branch-student-paid-progress-label">{Math.round(courseRow.progressValue)}% Complete</span>
                           <div className="branch-student-paid-progress"><div className="branch-student-course-progress-bar"><span className="branch-student-course-progress-fill" style={{ width: `${courseRow.progressValue}%` }} /></div></div>
                         </div>
                       ) : <span className="faculty-today-work-empty-label">-</span>}
@@ -11102,7 +11113,7 @@ else {
                 {hasCourseProgress ? (
                     <div className="branch-student-paid-cell">
                       <span className="branch-student-course-progress-amount">
-                        {formatBranchPercentage(studentCourseProgress)}%
+                        {Math.round(studentCourseProgress)}%
                       </span>
                       <div className="branch-student-paid-progress">
                         <div className="branch-student-course-progress-bar" aria-hidden="true">
@@ -11112,7 +11123,7 @@ else {
                           />
                         </div>
                         <span className="branch-student-paid-progress-label">
-                          {formatBranchPercentage(studentCourseProgress)}% Complete
+                          {Math.round(studentCourseProgress)}% Complete
                         </span>
                       </div>
                     </div>
