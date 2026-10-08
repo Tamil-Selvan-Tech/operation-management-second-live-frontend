@@ -11,6 +11,7 @@ import '../styles/SuperAdminDashboardPage.css'
 import AcademicTimePicker from '../components/AcademicTimePicker'
 import BranchAcademicTestReports from './BranchAcademicTestReports'
 
+
 const TYPE_OPTIONS = [['TEST', 'Test'], ['PROJECT', 'Project'], ['TEST_AND_PRFailed to load resource: the server responded with a status of 404 (Not Found)OJECT', 'Test + Project']]
 const labelType = (value) => TYPE_OPTIONS.find(([key]) => key === value)?.[1] || value || '-'
 const courseLabel = (course) => `${course?.name || '-'}${course?.courseCode ? ` / ${course.courseCode}` : ''}`

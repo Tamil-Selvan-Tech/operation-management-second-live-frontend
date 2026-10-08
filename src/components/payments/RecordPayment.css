@@ -91,6 +91,12 @@
   color: #dc2626;
 }
 
+.record-payment-course-tabs { display:flex; gap:10px; overflow-x:auto; margin:-4px 0 18px; padding:2px 2px 8px; scrollbar-width:thin; }
+.record-payment-course-tabs button { display:grid; gap:5px; min-width:180px; max-width:280px; padding:11px 14px; border:1px solid #dce5f0; border-radius:10px; color:#253753; background:#fff; text-align:left; cursor:pointer; }
+.record-payment-course-tabs button.is-active { border-color:#2563eb; color:#1d4ed8; background:#eff6ff; box-shadow:0 0 0 1px rgba(37,99,235,.08); }
+.record-payment-course-tabs small { color:#7b899d; font-size:10px; font-weight:800; letter-spacing:.08em; }
+.record-payment-course-tabs strong { overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
+
 .payment-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

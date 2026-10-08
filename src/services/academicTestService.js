@@ -2,6 +2,7 @@ import { request } from './apiClient'
 import { requestBlob } from './apiClient'
 
 const unwrap = (response) => response?.data ?? response ?? []
+const branchStudentAcademicReportRequests = new Map()
 
 export const listAcademicTests = () => request('/academic-tests').then(unwrap)
 export const getAcademicTest = (id) => request(`/academic-tests/${encodeURIComponent(id)}`).then(unwrap)
@@ -33,9 +34,28 @@ export const listFacultyAcademicReportTests = (batchId) => request(`/academic-te
 export const sendAcademicTestReport = (payload) => request('/academic-tests/reports/send', { method: 'POST', body: JSON.stringify(payload) }).then(unwrap)
 export const listBranchAcademicTestReports = () => request('/academic-tests/reports/branch-admin').then(unwrap)
 export const getBranchAcademicTestReport = (reportId) => request(`/academic-tests/reports/branch-admin/${encodeURIComponent(reportId)}/students`).then(unwrap)
-export const getBranchStudentAcademicReports = (studentId, branchId = '') => request(`/academic-tests/reports/branch-admin/students/${encodeURIComponent(studentId)}`, {
-  ...(branchId ? { impersonateBranchId: branchId } : {}),
-}).then(unwrap)
+export const getBranchStudentAcademicReports = (studentId, branchId = '') => {
+  const normalizedStudentId = String(studentId || '').trim()
+  const normalizedBranchId = String(branchId || '').trim()
+  if (!normalizedStudentId) return Promise.resolve({ student: null, items: [], evaluations: [] })
+
+  const requestKey = `${normalizedBranchId}:${normalizedStudentId}`
+  const existingRequest = branchStudentAcademicReportRequests.get(requestKey)
+  if (existingRequest) return existingRequest
+
+  const reportRequest = request(`/academic-tests/reports/branch-admin/students/${encodeURIComponent(normalizedStudentId)}`, {
+    ...(normalizedBranchId ? { impersonateBranchId: normalizedBranchId } : {}),
+  })
+    .then(unwrap)
+    .finally(() => {
+      if (branchStudentAcademicReportRequests.get(requestKey) === reportRequest) {
+        branchStudentAcademicReportRequests.delete(requestKey)
+      }
+    })
+
+  branchStudentAcademicReportRequests.set(requestKey, reportRequest)
+  return reportRequest
+}
 
 export const getAcademicTestPreparation = (academicTestItemId, branchBatchId) =>
   request(`/academic-test-preparation/items/${encodeURIComponent(academicTestItemId)}?branchBatchId=${encodeURIComponent(branchBatchId)}`).then(unwrap)

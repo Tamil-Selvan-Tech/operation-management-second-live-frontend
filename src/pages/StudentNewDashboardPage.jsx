@@ -341,6 +341,59 @@ function getStudentTotalFee(student = {}) {
   )
 }
 
+function getEnrollmentPaymentFee(enrollment = {}) {
+  const explicitFinal = enrollment.finalCourseAmount ?? enrollment.afterDiscount ?? enrollment.finalFee ?? enrollment.totalFee
+  if (explicitFinal !== undefined && explicitFinal !== null && explicitFinal !== '') return asAmount(explicitFinal)
+  const gross = asAmount(enrollment.totalCourseAmount ?? enrollment.courseAmount ?? enrollment.amount ?? enrollment.feeAmount)
+  const discountAmount = asAmount(enrollment.discountAmount)
+  if (discountAmount) return Math.max(gross - discountAmount, 0)
+  const discountValue = asAmount(enrollment.discountValue)
+  if (String(enrollment.discountType || '').toUpperCase().includes('PERCENT')) return Math.max(gross - gross * discountValue / 100, 0)
+  return Math.max(gross - discountValue, 0)
+}
+
+function getPaymentEntryCourseKey(entry = {}) {
+  return String(entry.courseId || entry.branchCourseId || entry.courseName || entry.course || '').trim().toLowerCase()
+}
+
+function getEnrollmentInstallmentCount(enrollment = {}) {
+  const directCount = Number(enrollment.installmentCount || enrollment.paymentPlanInstallmentCount || enrollment.paymentPlan?.installmentCount)
+  if (Number.isFinite(directCount) && directCount > 0) return Math.floor(directCount)
+  const nestedCount = enrollment.installmentSchedule?.length || enrollment.paymentPlan?.installments?.length
+  if (nestedCount) return nestedCount
+  const planName = typeof enrollment.paymentPlan === 'string' ? enrollment.paymentPlan : (enrollment.paymentPlan?.name || enrollment.paymentPlan?.templateName || '')
+  const match = String(planName).match(/(\d+)\s*(?:installment|payment)/i)
+  return match ? Number(match[1]) : 0
+}
+
+function getSequentialCourseInstallments(student = {}, enrollments = [], selectedEnrollment = {}) {
+  const coursePlan = selectedEnrollment.installmentSchedule || selectedEnrollment.paymentPlan?.installments
+  if (Array.isArray(coursePlan) && coursePlan.length) return coursePlan
+
+  const allInstallments = Array.isArray(student.installmentSchedule) && student.installmentSchedule.length
+    ? student.installmentSchedule
+    : Array.isArray(student.paymentPlan?.installments) ? student.paymentPlan.installments : []
+  if (!allInstallments.length) return []
+
+  const selectedIndex = enrollments.indexOf(selectedEnrollment)
+  if (selectedIndex < 0) return []
+  const counts = enrollments.map(getEnrollmentInstallmentCount)
+  const unknownIndexes = counts.map((count, index) => count ? -1 : index).filter((index) => index >= 0)
+  const knownTotal = counts.reduce((sum, count) => sum + count, 0)
+  const remaining = Math.max(allInstallments.length - knownTotal, 0)
+  if (unknownIndexes.length) {
+    const evenShare = Math.floor(remaining / unknownIndexes.length)
+    let remainder = remaining % unknownIndexes.length
+    unknownIndexes.forEach((index) => {
+      counts[index] = evenShare + (remainder-- > 0 ? 1 : 0)
+    })
+  }
+  const start = counts.slice(0, selectedIndex).reduce((sum, count) => sum + count, 0)
+  const count = counts[selectedIndex]
+  if (!count) return []
+  return allInstallments.slice(start, start + count)
+}
+
 function formatPaymentTime(value) {
   if (!value) return '-'
   const date = new Date(value)
@@ -533,6 +586,7 @@ export function StudentNewDashboardPage() {
  const [loadError, setLoadError] = useState('')
  const [paymentEntries, setPaymentEntries] = useState([])
  const [paymentLoadError, setPaymentLoadError] = useState('')
+ const [selectedPaymentCourseId, setSelectedPaymentCourseId] = useState('')
  const [attendanceOverview, setAttendanceOverview] = useState(null)
  const [attendanceOverviews, setAttendanceOverviews] = useState({})
  const [selectedAttendanceCourseId, setSelectedAttendanceCourseId] = useState('')
@@ -582,6 +636,13 @@ export function StudentNewDashboardPage() {
  }, [student?.studentId, student?.id])
 
  const dashboardCourses = useMemo(() => getDashboardCourseEnrollments(student || {}), [student])
+ const isSequentialMultiCourse = String(student?.arrangementType || dashboardCourses.find((course) => course.arrangementType)?.arrangementType || '').toUpperCase() === 'SEQUENTIAL' && dashboardCourses.length > 1
+ const paymentCourseIdKey = dashboardCourses.map((course) => course.courseId).join('|')
+ useEffect(() => {
+   const firstCourseId = String(dashboardCourses[0]?.courseId || '')
+   if (!dashboardCourses.some((course) => String(course.courseId || '') === selectedPaymentCourseId)) setSelectedPaymentCourseId(firstCourseId)
+ }, [paymentCourseIdKey, selectedPaymentCourseId])
+ const selectedPaymentCourse = dashboardCourses.find((course) => String(course.courseId || '') === selectedPaymentCourseId) || dashboardCourses[0]
  const activeDashboardCourses = dashboardCourses.filter((course) => String(course.status || 'ACTIVE').toUpperCase() !== 'PENDING')
  const upcomingDashboardCourses = dashboardCourses.filter((course) => String(course.status || '').toUpperCase() === 'PENDING')
  const dashboardCourseIdsKey = dashboardCourses.map((course) => course.courseId).join('|')
@@ -795,7 +856,38 @@ export function StudentNewDashboardPage() {
  const paymentStatus = totalFee > 0 && paidAmount >= totalFee ? 'Paid' : paidAmount > 0 ? 'Partially paid' : getPaymentStatus(student)
  const installmentRows = useMemo(() => buildInstallmentRows(student, paymentEntries), [student, paymentEntries])
  const paymentHistoryRows = useMemo(() => [...paymentEntries].sort((a, b) => new Date(b.dateRaw || b.date).getTime() - new Date(a.dateRaw || a.date).getTime()), [paymentEntries])
- const nextInstallment = installmentRows.find((installment) => !['paid', 'completed', 'success'].includes(String(installment.status).toLowerCase()))
+ const coursePaymentEntries = useMemo(() => {
+   if (!isSequentialMultiCourse || !selectedPaymentCourse) return paymentEntries
+   const courseId = String(selectedPaymentCourse.courseId || '').trim().toLowerCase()
+   const courseName = String(selectedPaymentCourse.courseName || '').trim().toLowerCase()
+   const keyed = paymentEntries.filter((entry) => {
+     const key = getPaymentEntryCourseKey(entry)
+     return key && (key === courseId || key === courseName || key.includes(courseName))
+   })
+   // Older ledger entries without a course reference belong to the first sequential course.
+   if (dashboardCourses.indexOf(selectedPaymentCourse) === 0) {
+     return [...keyed, ...paymentEntries.filter((entry) => !getPaymentEntryCourseKey(entry))]
+   }
+   return keyed
+ }, [isSequentialMultiCourse, selectedPaymentCourse, paymentEntries, dashboardCourseIdsKey])
+ const paymentStudent = isSequentialMultiCourse && selectedPaymentCourse
+   ? { ...selectedPaymentCourse, installmentSchedule: getSequentialCourseInstallments(student || {}, dashboardCourses, selectedPaymentCourse), paymentPlan: selectedPaymentCourse.paymentPlan || {} }
+   : student
+ const displayedTotalFee = isSequentialMultiCourse ? getEnrollmentPaymentFee(selectedPaymentCourse || {}) : totalFee
+ const selectedSchedulePaid = (selectedPaymentCourse?.installmentSchedule || selectedPaymentCourse?.paymentPlan?.installments || []).reduce((sum, installment) => sum + asAmount(installment.paidAmount || installment.amountPaid), 0)
+ const displayedPaidAmount = isSequentialMultiCourse
+   ? (coursePaymentEntries.length
+     ? coursePaymentEntries.reduce((sum, entry) => sum + asAmount(entry.amount || entry.credit), 0)
+     : asAmount(selectedPaymentCourse?.paidAmount || selectedPaymentCourse?.amountPaid || selectedSchedulePaid))
+   : paidAmount
+ const displayedBalance = Math.max(displayedTotalFee - displayedPaidAmount, 0)
+ const displayedProgress = displayedTotalFee > 0 ? Math.min(Math.round((displayedPaidAmount / displayedTotalFee) * 100), 100) : 0
+ const displayedPaymentStatus = displayedTotalFee > 0 && displayedPaidAmount >= displayedTotalFee ? 'Paid' : displayedPaidAmount > 0 ? 'Partially paid' : (String(selectedPaymentCourse?.status || '').toUpperCase() === 'PENDING' ? 'Upcoming' : isSequentialMultiCourse ? getPaymentStatus(selectedPaymentCourse) : paymentStatus)
+ const displayedInstallmentRows = isSequentialMultiCourse ? buildInstallmentRows(paymentStudent, coursePaymentEntries) : installmentRows
+ const displayedPaymentHistoryRows = isSequentialMultiCourse
+   ? [...coursePaymentEntries].sort((a, b) => new Date(b.dateRaw || b.date).getTime() - new Date(a.dateRaw || a.date).getTime())
+   : paymentHistoryRows
+ const nextInstallment = displayedInstallmentRows.find((installment) => !['paid', 'completed', 'success'].includes(String(installment.status).toLowerCase()))
  const qualification = student?.qualification || '-'
  const passedOutYear = student?.passedOutYear ?? student?.yearOfPassing ?? '-'
  const batchName = student?.batchName || (typeof student?.batch === 'string' ? student.batch : '') || student?.batch?.name || '-'
@@ -1429,16 +1521,17 @@ const handleLogoutConfirm = async () => {
             {!isLoading && !loadError && activeSection === 'payments' ? (
               <section className="student-new-payment-page">
                 <p className="student-new-dashboard-kicker">STUDENT</p>
-                <div className="student-new-payment-heading"><div><h1>Payment History</h1><p>{student?.studentName || 'Student'} · {student?.studentId || '-'}</p></div><span className={`student-new-payment-badge ${paymentStatus.toLowerCase().replace(/\s+/g, '-')}`}>{paymentStatus}</span></div>
+                <div className="student-new-payment-heading"><div><h1>Payment History</h1><p>{student?.studentName || 'Student'} · {student?.studentId || '-'}</p></div><span className={`student-new-payment-badge ${(isSequentialMultiCourse ? displayedPaymentStatus : paymentStatus).toLowerCase().replace(/\s+/g, '-')}`}>{isSequentialMultiCourse ? displayedPaymentStatus : paymentStatus}</span></div>
                 {paymentLoadError ? <p className="student-new-payment-note">{paymentLoadError}</p> : null}
+                {isSequentialMultiCourse ? <div className="student-payment-course-tabs" role="tablist" aria-label="Course payments">{dashboardCourses.map((course, index) => { const courseId = String(course.courseId || ''); const isSelected = courseId === String(selectedPaymentCourse?.courseId || ''); return <button type="button" role="tab" aria-selected={isSelected} className={isSelected ? 'is-active' : ''} key={courseId || index} onClick={() => setSelectedPaymentCourseId(courseId)}><small>COURSE {index + 1}</small><strong>{course.courseName}</strong></button> })}</div> : null}
                 <div className="student-new-payment-summary">
-                  <div><span>Payment amount</span><strong>{formatPaymentAmount(totalFee)}</strong><small>Total fee</small></div>
-                  <div><span>Paid Amount</span><strong>{formatPaymentAmount(paidAmount)}</strong><small>Collected so far</small></div>
-                  <div><span>Balance</span><strong>{formatPaymentAmount(balanceAmount)}</strong><small>Remaining amount</small></div>
-                  <div><span>Payment Progress (%)</span><strong>{paymentProgress}%</strong><small>Collected against total fee</small><div className="student-new-payment-progress"><i style={{ width: `${paymentProgress}%` }} /></div></div>
+                  <div><span>Payment amount</span><strong>{formatPaymentAmount(displayedTotalFee)}</strong><small>Total fee</small></div>
+                  <div><span>Paid Amount</span><strong>{formatPaymentAmount(displayedPaidAmount)}</strong><small>Collected so far</small></div>
+                  <div><span>Balance</span><strong>{formatPaymentAmount(displayedBalance)}</strong><small>Remaining amount</small></div>
+                  <div><span>Payment Progress (%)</span><strong>{displayedProgress}%</strong><small>Collected against total fee</small><div className="student-new-payment-progress"><i style={{ width: `${displayedProgress}%` }} /></div></div>
                 </div>
-                <div className="student-new-payment-card"><h2>Installment Details</h2><p>Each installment shows the due date, payment mode, and status.</p><div className="student-new-payment-table-wrap"><table><thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Payment Mode</th><th>Paid Date</th><th>Status</th></tr></thead><tbody>{installmentRows.length ? installmentRows.map((row) => <tr key={row.number}><td>{row.number}/{installmentRows.length}</td><td>{formatPaymentAmount(row.amount)}</td><td>{formatPaymentDate(row.dueDate)}</td><td>{row.paymentMode}</td><td>{formatPaymentDate(row.paidDate)}</td><td><span className={`student-new-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td></tr>) : <tr><td colSpan="6" className="student-new-payment-empty">No installment plan has been configured.</td></tr>}</tbody></table></div></div>
-                <div className="student-new-payment-card"><h2>Payment History</h2><p>Download any receipt directly from the history rows.</p><div className="student-new-payment-table-wrap"><table><thead><tr><th>Payment Date</th><th>Amount</th><th>Payment Mode</th><th>Receipt Download</th><th>Payment Status</th></tr></thead><tbody>{paymentHistoryRows.length ? paymentHistoryRows.map((row) => <tr key={row.id}><td>{formatPaymentDate(row.dateRaw || row.date)}</td><td><strong>{formatPaymentAmount(row.amount || row.credit)}</strong></td><td>{row.paymentMode || '-'}</td><td><button type="button" className="student-new-receipt-button" onClick={() => void downloadStudentReceipt(row, student, paidAmount, paymentHistoryRows, installmentRows)}><Download size={14} /> Download</button></td><td><span className="student-new-status paid">{row.status || 'Paid'}</span></td></tr>) : <tr><td colSpan="5" className="student-new-payment-empty">No payments recorded yet.</td></tr>}</tbody></table></div></div>
+                <div className="student-new-payment-card"><h2>Installment Details{isSequentialMultiCourse && selectedPaymentCourse ? ` · ${selectedPaymentCourse.courseName}` : ''}</h2><p>Each installment shows the due date, payment mode, and status.</p><div className="student-new-payment-table-wrap"><table><thead><tr><th>Installment</th><th>Amount</th><th>Due Date</th><th>Payment Mode</th><th>Paid Date</th><th>Status</th></tr></thead><tbody>{displayedInstallmentRows.length ? displayedInstallmentRows.map((row) => <tr key={row.number}><td>{row.number}/{displayedInstallmentRows.length}</td><td>{formatPaymentAmount(row.amount)}</td><td>{formatPaymentDate(row.dueDate)}</td><td>{row.paymentMode}</td><td>{formatPaymentDate(row.paidDate)}</td><td><span className={`student-new-status ${String(row.status).toLowerCase()}`}>{row.status}</span></td></tr>) : <tr><td colSpan="6" className="student-new-payment-empty">No installment plan has been configured.</td></tr>}</tbody></table></div></div>
+                <div className="student-new-payment-card"><h2>Payment History{isSequentialMultiCourse && selectedPaymentCourse ? ` · ${selectedPaymentCourse.courseName}` : ''}</h2><p>Download any receipt directly from the history rows.</p><div className="student-new-payment-table-wrap"><table><thead><tr><th>Payment Date</th><th>Amount</th><th>Payment Mode</th><th>Receipt Download</th><th>Payment Status</th></tr></thead><tbody>{displayedPaymentHistoryRows.length ? displayedPaymentHistoryRows.map((row) => <tr key={row.id}><td>{formatPaymentDate(row.dateRaw || row.date)}</td><td><strong>{formatPaymentAmount(row.amount || row.credit)}</strong></td><td>{row.paymentMode || '-'}</td><td><button type="button" className="student-new-receipt-button" onClick={() => void downloadStudentReceipt(row, paymentStudent, displayedPaidAmount, displayedPaymentHistoryRows, displayedInstallmentRows)}><Download size={14} /> Download</button></td><td><span className="student-new-status paid">{row.status || 'Paid'}</span></td></tr>) : <tr><td colSpan="5" className="student-new-payment-empty">No payments recorded yet.</td></tr>}</tbody></table></div></div>
                 {nextInstallment ? <div className="student-new-next-payment"><span>Next Payment</span><strong>{formatPaymentAmount(nextInstallment.amount)}</strong><span>Due Date</span><strong>{formatPaymentDate(nextInstallment.dueDate)}</strong><span>Status</span><strong className="pending">{nextInstallment.status}</strong></div> : null}
               </section>
             ) : null}

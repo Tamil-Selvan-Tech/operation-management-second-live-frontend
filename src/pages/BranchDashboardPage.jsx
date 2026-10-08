@@ -4756,16 +4756,33 @@ const branchInstallmentTemplatesRequestRef = useRef(null)
     }
   }
 
-  const openRecordPaymentConfirmation = (student) => {
+  const openRecordPaymentConfirmation = (student, courseRow = null) => {
     if (studentActionMenuCloseTimerRef.current) {
       clearTimeout(studentActionMenuCloseTimerRef.current)
     }
 
     studentActionMenuHoverCountRef.current = 0
-    const paymentSummary = computeBranchStudentPaymentSummary(student)
+    const paymentStudent = courseRow ? {
+      ...student,
+      ...(courseRow.entry || {}),
+      courseId: courseRow.courseId || courseRow.entry?.courseId || '',
+      courseName: courseRow.courseName || courseRow.entry?.courseName || '',
+      courseAmount: courseRow.amount,
+      finalFee: courseRow.amount,
+      totalAmount: courseRow.amount,
+      afterDiscount: courseRow.amount,
+      totalCourseFee: courseRow.amount,
+      paymentCourseScoped: true,
+      paymentCourseId: courseRow.courseId || courseRow.entry?.courseId || '',
+      installmentSchedule: (courseRow.rowInstallments || []).map((installment) => ({
+        ...installment,
+        installmentNumber: installment.paymentInstallmentNumber || installment.installmentNumber || installment.number,
+      })),
+    } : student
+    const paymentSummary = computeBranchStudentPaymentSummary(paymentStudent)
     setStudentActionMenuId('')
     setStudentActionMenuPosition({ top: 0, left: 0 })
-    setPendingRecordPaymentStudent({ ...student, paymentSummary })
+    setPendingRecordPaymentStudent({ ...paymentStudent, paymentSummary })
   }
 
   const resetPaymentsView = () => {
@@ -10782,8 +10799,17 @@ else {
                 const allocationPaid = Math.min(allocationAmount, paidAmounts[index])
                 scheduledByCourse[index] += allocationAmount
                 paidByCourse[index] += allocationPaid
+                if (isSequentialArrangement && allocationAmount <= 0) return
+                const courseInstallmentNumber = isSequentialArrangement
+                  ? installmentRowsByCourse[index].length + 1
+                  : installment.installmentNumber || installment.number
                 installmentRowsByCourse[index].push({
                   ...installment,
+                  ...(isSequentialArrangement ? { paymentInstallmentNumber: installment.installmentNumber || installment.number } : {}),
+                  ...(isSequentialArrangement ? {
+                    installmentNumber: courseInstallmentNumber,
+                    number: courseInstallmentNumber,
+                  } : {}),
                   amount: allocationAmount,
                   paidAmount: allocationPaid,
                 })
@@ -10981,7 +11007,7 @@ else {
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openStudentViewDrawer(stu) }}><Eye size={15} /><span>View</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setAttendanceReportTarget({ mode: 'student', record: stu }) }}><Download size={15} /><span>Download Attendance</span></button>
                               <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openEditStudentForm({ ...stu }) }}><Pencil size={15} /><span>Edit</span></button>
-                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openRecordPaymentConfirmation(stu) }}><Wallet size={15} /><span>Record Payment</span></button>
+                              <button type="button" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); openRecordPaymentConfirmation(stu, courseRow) }}><Wallet size={15} /><span>Record Payment</span></button>
                               <button type="button" className="is-danger" role="menuitem" onClick={() => { setStudentActionMenuId(''); setStudentActionMenuPosition({ top: 0, left: 0 }); setStudentDeleteTarget({ ...stu }) }}><Trash2 size={15} /><span>Delete</span></button>
                             </div>,
                             document.body,

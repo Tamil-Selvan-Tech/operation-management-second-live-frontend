@@ -33,6 +33,12 @@
 .student-new-next-payment { display:grid; grid-template-columns:repeat(3,auto); align-items:center; justify-content:space-between; gap:12px; margin-top:18px; background:#eff6ff; border-color:#bfdbfe; }
 .student-new-next-payment span { color:#475569; font-size:12px; }.student-new-next-payment strong { color:#1d4ed8; }.student-new-next-payment strong.pending { color:#b45309; }
 .student-new-payment-note { color:#b45309; background:#fffbeb; border:1px solid #fde68a; padding:10px 12px; border-radius:8px; }
+.student-payment-course-tabs { display:flex; gap:10px; overflow-x:auto; margin:0 0 18px; padding:2px 2px 8px; scrollbar-width:thin; }
+.student-payment-course-tabs button { display:grid; gap:5px; min-width:190px; max-width:300px; padding:12px 15px; border:1px solid #dce5f0; border-radius:12px; color:#253753; background:#fff; text-align:left; cursor:pointer; }
+.student-payment-course-tabs button.is-active { border-color:#2563eb; color:#1d4ed8; background:#eff6ff; box-shadow:0 0 0 1px rgba(37,99,235,.08); }
+.student-payment-course-tabs small { color:#7b899d; font-size:10px; font-weight:800; letter-spacing:.08em; }
+.student-payment-course-tabs strong { overflow:hidden; font-size:14px; text-overflow:ellipsis; white-space:nowrap; }
+.student-new-payment-badge.upcoming { color:#a16207; background:#fef3c7; }
 @media (max-width: 900px) { .student-new-payment-summary { grid-template-columns:repeat(2,1fr); } }
 @media (max-width: 560px) { .student-new-payment-summary { grid-template-columns:1fr; }.student-new-payment-heading { flex-direction:column; }.student-new-next-payment { grid-template-columns:1fr 1fr; } }
 

@@ -265,6 +265,41 @@ const getPendingInstallmentDefaults = (studentRecord) => {
   };
 };
 
+const getSequentialEnrollments = (studentRecord = {}) => {
+  const source = Array.isArray(studentRecord.courseEnrollments) && studentRecord.courseEnrollments.length
+    ? studentRecord.courseEnrollments
+    : Array.isArray(studentRecord.courses) ? studentRecord.courses : [];
+  return [...source].filter((item) => item && typeof item === 'object')
+    .sort((a, b) => Number(a.sequenceOrder || 0) - Number(b.sequenceOrder || 0));
+};
+
+const getPlanInstallmentCount = (enrollment = {}) => {
+  const count = Number(enrollment.installmentCount || enrollment.paymentPlanInstallmentCount || enrollment.paymentPlan?.installmentCount);
+  if (Number.isFinite(count) && count > 0) return Math.floor(count);
+  const nestedCount = enrollment.installmentSchedule?.length || enrollment.paymentPlan?.installments?.length;
+  if (nestedCount) return nestedCount;
+  const planName = typeof enrollment.paymentPlan === 'string' ? enrollment.paymentPlan : enrollment.paymentPlan?.templateName || enrollment.paymentPlan?.name || '';
+  return Number(String(planName).match(/(\d+)\s*(?:installment|payment)/i)?.[1] || 0);
+};
+
+const getCourseInstallmentSlice = (studentRecord = {}, enrollments = [], selectedEnrollment = {}) => {
+  const explicit = selectedEnrollment.installmentSchedule || selectedEnrollment.paymentPlan?.installments;
+  if (Array.isArray(explicit) && explicit.length) return explicit;
+  const all = Array.isArray(studentRecord.installmentSchedule) ? studentRecord.installmentSchedule : [];
+  const selectedIndex = enrollments.indexOf(selectedEnrollment);
+  if (!all.length || selectedIndex < 0) return [];
+  const counts = enrollments.map(getPlanInstallmentCount);
+  const unknownIndexes = counts.map((value, index) => value ? -1 : index).filter((index) => index >= 0);
+  const remaining = Math.max(all.length - counts.reduce((sum, value) => sum + value, 0), 0);
+  if (unknownIndexes.length) {
+    const each = Math.floor(remaining / unknownIndexes.length);
+    let remainder = remaining % unknownIndexes.length;
+    unknownIndexes.forEach((index) => { counts[index] = each + (remainder-- > 0 ? 1 : 0); });
+  }
+  const offset = counts.slice(0, selectedIndex).reduce((sum, value) => sum + value, 0);
+  return all.slice(offset, offset + counts[selectedIndex]);
+};
+
 const EMPTY_STUDENT = {};
 
 const RecordPayment = ({ student, students = [], onClose, branchProfile = null }) => {
@@ -309,6 +344,10 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
   );
 
   const [selectedStudent, setSelectedStudent] = useState(initialStudent);
+  const [selectedPaymentCourseId, setSelectedPaymentCourseId] = useState(() => {
+    const enrollments = getSequentialEnrollments(initialStudent || {});
+    return String(initialStudent?.paymentCourseId || enrollments[0]?.courseId || initialStudent?.courseId || '');
+  });
 
   const [isLoadingStudent, setIsLoadingStudent] = useState(false);
   const [studentLookupError, setStudentLookupError] = useState("");
@@ -326,7 +365,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
   // ACTIVE STUDENT
   // =========================================================
 
-  const activeStudent = useMemo(
+  const baseActiveStudent = useMemo(
     () => {
       if (
         initialStudent?.studentId &&
@@ -340,6 +379,44 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
     },
     [selectedStudent, initialStudent]
   );
+
+  const paymentEnrollments = useMemo(() => getSequentialEnrollments(baseActiveStudent), [baseActiveStudent]);
+  const isSequentialArrangement = String(baseActiveStudent?.arrangementType || paymentEnrollments.find((item) => item.arrangementType)?.arrangementType || '').toUpperCase() === 'SEQUENTIAL' && paymentEnrollments.length > 1;
+  const isCourseScopedPayment = Boolean(baseActiveStudent?.paymentCourseScoped);
+  const isSequentialMultiCoursePayment = isSequentialArrangement && !isCourseScopedPayment;
+  const selectedPaymentEnrollment = paymentEnrollments.find((item) => String(item.courseId || item.id || '') === selectedPaymentCourseId) || paymentEnrollments[0];
+  const shouldUseCoursePaymentData = isSequentialArrangement && Boolean(selectedPaymentEnrollment);
+  const selectedCourseInstallments = useMemo(() => {
+    if (!shouldUseCoursePaymentData || !selectedPaymentEnrollment) return [];
+    if (isCourseScopedPayment && Array.isArray(baseActiveStudent.installmentSchedule)) return baseActiveStudent.installmentSchedule;
+    return getCourseInstallmentSlice(baseActiveStudent, paymentEnrollments, selectedPaymentEnrollment);
+  }, [shouldUseCoursePaymentData, isCourseScopedPayment, selectedPaymentEnrollment, baseActiveStudent, paymentEnrollments]);
+  const activeStudent = useMemo(() => shouldUseCoursePaymentData && selectedPaymentEnrollment
+    ? { ...baseActiveStudent, ...selectedPaymentEnrollment, id: baseActiveStudent?.id, studentId: baseActiveStudent?.studentId, studentName: baseActiveStudent?.studentName, emailAddress: baseActiveStudent?.emailAddress, branchId: baseActiveStudent?.branchId, branchCode: baseActiveStudent?.branchCode, arrangementType: baseActiveStudent?.arrangementType, courseName: selectedPaymentEnrollment.courseName || selectedPaymentEnrollment.course?.name || '', courseId: selectedPaymentEnrollment.courseId || '', totalCourseFee: selectedPaymentEnrollment.finalCourseAmount ?? selectedPaymentEnrollment.afterDiscount ?? selectedPaymentEnrollment.totalAmount ?? selectedPaymentEnrollment.totalCourseAmount ?? selectedPaymentEnrollment.courseAmount ?? 0, installmentSchedule: selectedCourseInstallments }
+    : baseActiveStudent,
+  [shouldUseCoursePaymentData, selectedPaymentEnrollment, selectedCourseInstallments, baseActiveStudent]);
+  const paymentAgainstNumber = Number(String(formData.payAgainst || '').match(/Installment\s+(\d+)/i)?.[1] || 0);
+  const courseLocalInstallmentIndex = shouldUseCoursePaymentData
+    ? activeStudent.installmentSchedule?.findIndex((item) => Number(item.installmentNumber || item.number) === paymentAgainstNumber) ?? -1
+    : -1;
+  const paymentAgainstDisplayLabel = courseLocalInstallmentIndex >= 0
+    ? `Installment ${courseLocalInstallmentIndex + 1}`
+    : formData.payAgainst;
+
+  useEffect(() => {
+    const currentExists = paymentEnrollments.some((item) => String(item.courseId || item.id || '') === selectedPaymentCourseId);
+    if (!currentExists) setSelectedPaymentCourseId(String(baseActiveStudent?.paymentCourseId || paymentEnrollments[0]?.courseId || paymentEnrollments[0]?.id || ''));
+  }, [paymentEnrollments, selectedPaymentCourseId, baseActiveStudent?.paymentCourseId]);
+
+  useEffect(() => {
+    if (!shouldUseCoursePaymentData || !selectedPaymentEnrollment) return;
+    const defaults = getPendingInstallmentDefaults(activeStudent);
+    setFormData((current) => ({
+      ...current,
+      ...(defaults || { payAgainst: '', amountToPay: '', amountReceived: '' }),
+    }));
+    setErrors({});
+  }, [shouldUseCoursePaymentData, selectedPaymentEnrollment, activeStudent]);
 
   const isStudentPaymentFlow = Boolean(activeStudent?.studentId);
 
@@ -451,6 +528,9 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
     }
 
     setSelectedStudent(studentRecord);
+    const enrollments = getSequentialEnrollments(studentRecord);
+    const firstEnrollment = enrollments[0];
+    setSelectedPaymentCourseId(String(studentRecord.paymentCourseId || firstEnrollment?.courseId || firstEnrollment?.id || studentRecord.courseId || ''));
     setStudentIdInput(String(studentRecord.studentId || "").trim());
     setStudentLookupError("");
     setStudentSearchResults([]);
@@ -1632,7 +1712,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
       receiptNumber,
       receiptDate,
       paymentDate: formatDateDMY(formData.paymentDate),
-      paymentFor: formData.payAgainst,
+      paymentFor: paymentAgainstDisplayLabel || formData.payAgainst,
       paymentMode: formData.paymentMode,
       transactionReference: formData.transactionReference,
       collectedBy: formData.collectedBy,
@@ -1963,6 +2043,21 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
 
             </div>
 
+            {isSequentialMultiCoursePayment ? (
+              <div className="record-payment-course-tabs" role="tablist" aria-label="Select course for payment">
+                {paymentEnrollments.map((enrollment, index) => {
+                  const courseId = String(enrollment.courseId || enrollment.id || '');
+                  const selected = courseId === String(selectedPaymentEnrollment?.courseId || selectedPaymentEnrollment?.id || '');
+                  return (
+                    <button key={courseId || index} type="button" role="tab" aria-selected={selected} className={selected ? 'is-active' : ''} onClick={() => setSelectedPaymentCourseId(courseId)}>
+                      <small>COURSE {index + 1}</small>
+                      <strong>{enrollment.courseName || enrollment.course?.name || `Course ${index + 1}`}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+
             {/* =================================================
                 PAY AGAINST
             ================================================= */}
@@ -1982,7 +2077,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
                   className="payment-readonly-field"
                   aria-readonly="true"
                 >
-                  {formData.payAgainst || "No pending installment"}
+                  {paymentAgainstDisplayLabel || "No pending installment"}
                 </div>
               ) : (
                 <select
@@ -2400,7 +2495,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
                 </span>
 
                 <strong>
-                  {formData.payAgainst}
+                  {paymentAgainstDisplayLabel || formData.payAgainst}
                 </strong>
               </div>
 
@@ -2547,7 +2642,7 @@ const RecordPayment = ({ student, students = [], onClose, branchProfile = null }
                 </span>
 
                 <strong>
-                  {formData.payAgainst}
+                  {paymentAgainstDisplayLabel || formData.payAgainst}
                 </strong>
               </div>
 

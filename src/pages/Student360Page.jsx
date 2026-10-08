@@ -13,7 +13,7 @@ import {
   UserRound,
   Wallet,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { getBranchStudent, getStudentAttendanceSummary } from '../services/studentService'
 import { getBranchAttendanceOverview } from '../services/attendanceService'
@@ -587,6 +587,7 @@ export function Student360Page({
 }) {
   const resolvedStudentId = String(studentId || initialStudent?.studentId || initialStudent?.studentCode || initialStudent?.id || initialStudent?._id || '').trim()
   const performanceBranchId = String(branch?.id || branch?.branchId || initialStudent?.branchId || '').trim()
+  const initialStudentRef = useRef(initialStudent)
   const [studentRecord, setStudentRecord] = useState(null)
   const [academicProgressState, setAcademicProgressState] = useState({ studentId: '', data: null, error: '' })
   const [courseSelection, setCourseSelection] = useState({ studentId: '', courseKey: '' })
@@ -594,6 +595,10 @@ export function Student360Page({
   const [assignmentSaving, setAssignmentSaving] = useState(false)
   const [assignmentError, setAssignmentError] = useState('')
   const [assignmentForm, setAssignmentForm] = useState({ schedule: '', mode: '', batchId: '', startDate: '', endDate: '', totalCourseAmount: '', paymentPlanId: '' })
+
+  useEffect(() => {
+    initialStudentRef.current = initialStudent
+  }, [initialStudent])
 
   useEffect(() => {
     if (!assignmentModalOpen) return undefined
@@ -610,7 +615,7 @@ export function Student360Page({
     ])
       .then(([profileResult, reportResult]) => {
         if (!active) return
-        const result = profileResult.status === 'fulfilled' ? profileResult.value : initialStudent
+        const result = profileResult.status === 'fulfilled' ? profileResult.value : initialStudentRef.current
         if (!result) throw profileResult.reason || new Error('Student profile is unavailable.')
         const academicReport = reportResult.status === 'fulfilled' ? reportResult.value : null
         setStudentRecord({ studentId: resolvedStudentId, data: result })
@@ -620,7 +625,7 @@ export function Student360Page({
         if (active) setAcademicProgressState({ studentId: resolvedStudentId, data: null, error: error?.message || 'Unable to load academic test progress.' })
       })
     return () => { active = false }
-  }, [resolvedStudentId, performanceBranchId, initialStudent])
+  }, [resolvedStudentId, performanceBranchId])
 
   const student = studentRecord?.studentId === resolvedStudentId ? studentRecord.data : initialStudent
   const academicTestProgress = academicProgressState.studentId === resolvedStudentId ? academicProgressState.data : null

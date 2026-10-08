@@ -237,31 +237,8 @@ async function syncBranchStudentToBackend(student) {
       throw new Error('Student record identifier is required for update')
     }
 
-    let backendPathStudentKey = pathStudentKey
     try {
-      const backendMatch = await findBranchStudentByStudentId(
-        studentId,
-        payload.branchId || payload.branchCode || '',
-      )
-
-      if (!backendMatch?.id) {
-        const createResponse = await request('/branch-students', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        })
-
-        return createResponse?.data ?? createResponse
-      }
-
-      backendPathStudentKey = String(backendMatch.id).trim()
-    } catch (error) {
-      if (error?.status !== 403) {
-        throw error
-      }
-    }
-
-    try {
-      const response = await request(`/branch-students/${encodeURIComponent(backendPathStudentKey)}`, {
+      const response = await request(`/branch-students/${encodeURIComponent(pathStudentKey)}`, {
         method: 'PATCH',
         body: JSON.stringify(payload),
       })
@@ -273,12 +250,36 @@ async function syncBranchStudentToBackend(student) {
       }
 
       if (error?.status === 404) {
-        const createResponse = await request('/branch-students', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        })
+        let backendMatch
+        try {
+          backendMatch = await findBranchStudentByStudentId(
+            studentId,
+            payload.branchId || payload.branchCode || '',
+          )
+        } catch (lookupError) {
+          if (lookupError?.status !== 403) throw lookupError
+          throw error
+        }
 
-        return createResponse?.data ?? createResponse
+        if (backendMatch?.id) {
+          const backendRecordId = String(backendMatch.id).trim()
+          if (!backendRecordId || backendRecordId === pathStudentKey) throw error
+          try {
+            const response = await request(`/branch-students/${encodeURIComponent(backendRecordId)}`, {
+              method: 'PATCH',
+              body: JSON.stringify(payload),
+            })
+            return response?.data ?? response
+          } catch (retryError) {
+            if (retryError?.status === 403) return null
+            throw retryError
+          }
+        }
+
+        throw new Error(
+          'Existing student record was not found for update. No new student record was created.',
+          { cause: error },
+        )
       }
 
       throw error
@@ -487,6 +488,7 @@ export async function saveBranchStudent(student) {
     (s) => String(s.studentId || '').trim() === originalStudentId
   )
   const existingStudent = existingIndex >= 0 ? all[existingIndex] : null
+  const isExistingRecord = Boolean(student._isExistingRecord || existingStudent)
   const nextStudent = existingStudent
     ? {
         ...existingStudent,
@@ -495,7 +497,7 @@ export async function saveBranchStudent(student) {
         _recordId: recordId || existingStudent.id || existingStudent._id || existingStudent.recordId || '',
         _isExistingRecord: true,
       }
-    : { ...student, _isExistingRecord: false }
+    : { ...student, _isExistingRecord: isExistingRecord }
 
   const backendRecord = await syncBranchStudentToBackend(nextStudent)
   const resolvedRecordId = String(
